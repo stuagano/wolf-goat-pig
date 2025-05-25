@@ -1,11 +1,6 @@
 from fastapi import FastAPI, Depends, Body, HTTPException, Request, Path
 from fastapi.middleware.cors import CORSMiddleware
 from . import models, schemas, crud, database
-# Ensure tables are created before anything else
-# Call init_db before importing game_state
-
-database.init_db()
-
 from .game_state import game_state
 from pydantic import BaseModel
 
