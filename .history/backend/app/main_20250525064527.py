@@ -1,8 +1,7 @@
-from fastapi import FastAPI, Depends, Body, HTTPException, Request, Path
+from fastapi import FastAPI, Depends, Body, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from . import models, schemas, crud, database
 from .game_state import game_state
-from pydantic import BaseModel
 
 app = FastAPI()
 
@@ -69,32 +68,6 @@ def setup_game_players(request: Request):
         raise HTTPException(status_code=400, detail=str(e))
     return {"status": "ok", "game_state": _serialize_game_state()}
 
-class HoleInfo(BaseModel):
-    stroke_index: int
-    par: int
-
-class CourseCreate(BaseModel):
-    name: str
-    holes: list[HoleInfo]  # 18 items, each with stroke_index and par
-
-@app.post("/courses")
-def add_course(course: CourseCreate):
-    name = course.name.strip()
-    if not name or len(course.holes) != 18:
-        raise HTTPException(status_code=400, detail="Course name and 18 holes required.")
-    if name in game_state.courses:
-        raise HTTPException(status_code=400, detail="Course already exists.")
-    # Store as list of dicts
-    game_state.courses[name] = [dict(stroke_index=h.stroke_index, par=h.par) for h in course.holes]
-    return game_state.get_courses()
-
-@app.delete("/courses/{name}")
-def delete_course(name: str = Path(...)):
-    if name not in game_state.courses:
-        raise HTTPException(status_code=404, detail="Course not found.")
-    del game_state.courses[name]
-    return game_state.get_courses()
-
 # Helper to serialize game state for API
 
 def _serialize_game_state():
@@ -113,6 +86,5 @@ def _serialize_game_state():
         "carry_over": game_state.carry_over,
         "hole_history": game_state.get_hole_history(),
         "hole_stroke_indexes": game_state.hole_stroke_indexes,
-        "hole_pars": game_state.hole_pars,
         "selected_course": game_state.selected_course,
     } 

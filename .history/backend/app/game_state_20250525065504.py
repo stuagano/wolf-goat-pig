@@ -7,10 +7,10 @@ from .models import GameStateModel
 
 # Default player names for MVP
 DEFAULT_PLAYERS = [
-    {"id": "p1", "name": "Bob", "points": 0, "handicap": 10.5, "strength": "Average"},
-    {"id": "p2", "name": "Scott", "points": 0, "handicap": 15, "strength": "Average"},
-    {"id": "p3", "name": "Vince", "points": 0, "handicap": 8, "strength": "Average"},
-    {"id": "p4", "name": "Mike", "points": 0, "handicap": 20.5, "strength": "Average"},
+    {"id": "p1", "name": "Bob", "points": 0, "handicap": 10.5},
+    {"id": "p2", "name": "Scott", "points": 0, "handicap": 15},
+    {"id": "p3", "name": "Vince", "points": 0, "handicap": 8},
+    {"id": "p4", "name": "Mike", "points": 0, "handicap": 20.5},
 ]
 
 # Example stroke index for 18 holes (1 = hardest, 18 = easiest)
@@ -395,31 +395,6 @@ class GameState:
         # --- Hoepfinger phase ---
         if self.current_hole >= 17:
             tips.append("Hoepfinger phase: The player furthest down chooses their spot in the rotation. Strategic position can be crucial!")
-        # --- Player strength context ---
-        if self.teams and self.teams.get("type") in ("partners", "solo"):
-            player_by_id = {p["id"]: p for p in self.players}
-            if self.teams["type"] == "partners":
-                t1 = self.teams["team1"]
-                t2 = self.teams["team2"]
-                t1_strengths = [player_by_id[pid].get("strength", "Average") for pid in t1]
-                t2_strengths = [player_by_id[pid].get("strength", "Average") for pid in t2]
-                if any(s in ("Strong", "Expert") for s in t1_strengths):
-                    tips.append("Team 1 has a strong player—consider aggressive betting if the situation allows.")
-                if all(s == "Beginner" for s in t1_strengths):
-                    tips.append("Team 1 is all beginners—consider caution with doubles or going solo.")
-                if any(s in ("Strong", "Expert") for s in t2_strengths):
-                    tips.append("Team 2 has a strong player—be cautious if betting against them.")
-                if all(s == "Beginner" for s in t2_strengths):
-                    tips.append("Team 2 is all beginners—consider aggressive play if you are stronger.")
-            elif self.teams["type"] == "solo":
-                captain = self.teams["captain"]
-                opps = self.teams["opponents"]
-                cap_strength = player_by_id[captain].get("strength", "Average")
-                opp_strengths = [player_by_id[pid].get("strength", "Average") for pid in opps]
-                if cap_strength in ("Strong", "Expert"):
-                    tips.append("The captain is strong—going solo or accepting a double may be favorable.")
-                if all(s == "Beginner" for s in opp_strengths):
-                    tips.append("All opponents are beginners—captain may want to play aggressively.")
         return tips
 
     def _handicap_context_tips(self, double_pending):
@@ -510,14 +485,14 @@ class GameState:
 
     def setup_players(self, players: list[dict], course_name: str = None):
         """
-        Set custom players (id, name, handicap, strength) and reset the game state. Optionally set course.
+        Set custom players (id, name, handicap) and reset the game state. Optionally set course.
         """
         if len(players) != 4:
             raise ValueError("Exactly 4 players required.")
         for p in players:
-            if not all(k in p for k in ("id", "name", "handicap", "strength")):
-                raise ValueError("Each player must have id, name, handicap, and strength.")
-        self.players = [dict(id=p["id"], name=p["name"], points=0, handicap=float(p["handicap"]), strength=p["strength"]) for p in players]
+            if not all(k in p for k in ("id", "name", "handicap")):
+                raise ValueError("Each player must have id, name, and handicap.")
+        self.players = [dict(id=p["id"], name=p["name"], points=0, handicap=float(p["handicap"])) for p in players]
         self.current_hole = 1
         self.hitting_order = [p["id"] for p in self.players]
         random.shuffle(self.hitting_order)

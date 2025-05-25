@@ -32,16 +32,14 @@ const cardStyle = {
 };
 
 const buttonStyle = {
-  ...COLORS,
   background: COLORS.primary,
   color: "#fff",
   border: "none",
   borderRadius: 8,
-  padding: "14px 24px",
+  padding: "12px 20px",
   fontWeight: 600,
-  fontSize: 18,
-  minHeight: 44,
-  margin: "8px 0",
+  fontSize: 16,
+  margin: "6px 0",
   boxShadow: "0 1px 4px rgba(25, 118, 210, 0.08)",
   cursor: "pointer",
   transition: "background 0.2s",
@@ -50,18 +48,16 @@ const buttonStyle = {
 const inputStyle = {
   border: `1px solid ${COLORS.border}`,
   borderRadius: 6,
-  padding: "12px 16px",
-  fontSize: 18,
-  minHeight: 44,
+  padding: "8px 12px",
+  fontSize: 16,
   width: 60,
-  margin: "4px 0",
+  margin: "2px 0",
 };
 
 const tableContainerStyle = {
   overflowX: "auto",
   WebkitOverflowScrolling: "touch",
   marginBottom: 16,
-  maxWidth: "100vw",
 };
 
 const tableStyle = {
@@ -216,10 +212,10 @@ function CourseManager({ onClose, onCoursesChanged }) {
 
 function GameSetupForm({ onSetup }) {
   const [players, setPlayers] = useState([
-    { id: 'p1', name: '', handicap: '', strength: '' },
-    { id: 'p2', name: '', handicap: '', strength: '' },
-    { id: 'p3', name: '', handicap: '', strength: '' },
-    { id: 'p4', name: '', handicap: '', strength: '' },
+    { id: 'p1', name: '', handicap: '' },
+    { id: 'p2', name: '', handicap: '' },
+    { id: 'p3', name: '', handicap: '' },
+    { id: 'p4', name: '', handicap: '' },
   ]);
   const [courses, setCourses] = useState([]);
   const [courseName, setCourseName] = useState('');
@@ -236,8 +232,8 @@ function GameSetupForm({ onSetup }) {
   };
   const handleSubmit = async e => {
     e.preventDefault();
-    if (players.some(p => !p.name || p.handicap === '' || !p.strength)) {
-      setError('All names, handicaps, and strengths are required.');
+    if (players.some(p => !p.name || p.handicap === '')) {
+      setError('All names and handicaps are required.');
       return;
     }
     setError('');
@@ -260,15 +256,15 @@ function GameSetupForm({ onSetup }) {
       }} />}
       <form onSubmit={handleSubmit} style={{ ...cardStyle, maxWidth: 420, margin: '40px auto', background: COLORS.bg }}>
         <h2 style={{ color: COLORS.primary, marginBottom: 12 }}>Setup Players & Course</h2>
-        <div style={{ marginBottom: 12, display: 'flex', flexWrap: 'wrap', gap: 8, flexDirection: window.innerWidth < 600 ? 'column' : 'row' }}>
+        <div style={{ marginBottom: 12 }}>
           <label style={{ fontWeight: 600, marginRight: 8 }}>Course:</label>
           <select style={{ ...inputStyle, width: 180 }} value={courseName} onChange={e => setCourseName(e.target.value)}>
             {courses.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-          <button type="button" style={{ ...buttonStyle, background: COLORS.accent, marginLeft: 10, fontSize: 16, padding: "10px 18px" }} onClick={() => setShowCourseManager(true)}>Manage Courses</button>
+          <button type="button" style={{ ...buttonStyle, background: COLORS.accent, marginLeft: 10, fontSize: 13, padding: "6px 12px" }} onClick={() => setShowCourseManager(true)}>Manage Courses</button>
         </div>
         {players.map((p, i) => (
-          <div key={p.id} style={{ display: 'flex', gap: 8, marginBottom: 8, flexDirection: window.innerWidth < 600 ? 'column' : 'row' }}>
+          <div key={p.id} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
             <input
               style={{ ...inputStyle, flex: 2 }}
               placeholder={`Player ${i + 1} Name`}
@@ -286,18 +282,6 @@ function GameSetupForm({ onSetup }) {
               onChange={e => handleChange(i, 'handicap', e.target.value)}
               required
             />
-            <select
-              style={{ ...inputStyle, flex: 1 }}
-              value={p.strength || ''}
-              onChange={e => handleChange(i, 'strength', e.target.value)}
-              required
-            >
-              <option value="">Strength</option>
-              <option value="Beginner">Beginner</option>
-              <option value="Average">Average</option>
-              <option value="Strong">Strong</option>
-              <option value="Expert">Expert</option>
-            </select>
           </div>
         ))}
         {error && <div style={{ color: COLORS.error, marginBottom: 8 }}>{error}</div>}
@@ -356,7 +340,6 @@ function App() {
 
   const startGame = () => doAction("next_hole"); // Actually, restart is handled by /game/start
   const restartGame = () => {
-    if (!window.confirm("Are you sure you want to restart the game? All progress will be lost.")) return;
     setLoading(true);
     fetch(`${API_URL}/game/start`, { method: "POST" })
       .then(res => res.json())
@@ -402,7 +385,6 @@ function App() {
           <tr>
             <th style={thStyle}>Name</th>
             <th style={thStyle}>Handicap</th>
-            <th style={thStyle}>Strength</th>
             <th style={thStyle}>Points</th>
             <th style={thStyle}>Role</th>
             <th style={thStyle}>Team</th>
@@ -415,7 +397,6 @@ function App() {
                 {player.name} {isCaptain(player.id) && <span style={{color:COLORS.success,fontWeight:700,marginLeft:4}}>(Captain)</span>}
               </td>
               <td style={tdStyle}>{player.handicap}</td>
-              <td style={tdStyle}>{player.strength || '-'}</td>
               <td style={tdStyle}>{player.points}</td>
               <td style={tdStyle}>{isCaptain(player.id) ? 'Captain' : ''}</td>
               <td style={tdStyle}>{teamBadge(player.id)}</td>

@@ -7,50 +7,20 @@ from .models import GameStateModel
 
 # Default player names for MVP
 DEFAULT_PLAYERS = [
-    {"id": "p1", "name": "Bob", "points": 0, "handicap": 10.5, "strength": "Average"},
-    {"id": "p2", "name": "Scott", "points": 0, "handicap": 15, "strength": "Average"},
-    {"id": "p3", "name": "Vince", "points": 0, "handicap": 8, "strength": "Average"},
-    {"id": "p4", "name": "Mike", "points": 0, "handicap": 20.5, "strength": "Average"},
+    {"id": "p1", "name": "Bob", "points": 0, "handicap": 10.5},
+    {"id": "p2", "name": "Scott", "points": 0, "handicap": 15},
+    {"id": "p3", "name": "Vince", "points": 0, "handicap": 8},
+    {"id": "p4", "name": "Mike", "points": 0, "handicap": 20.5},
 ]
 
 # Example stroke index for 18 holes (1 = hardest, 18 = easiest)
 DEFAULT_HOLE_STROKE_INDEXES = [1, 15, 7, 13, 3, 17, 9, 11, 5, 2, 16, 8, 14, 4, 18, 10, 12, 6]
 
-# Example courses (scaffold)
-DEFAULT_COURSES = {
-    "Wing Point": [
-        {"stroke_index": 5, "par": 4},
-        {"stroke_index": 13, "par": 4},
-        {"stroke_index": 1, "par": 5},
-        {"stroke_index": 17, "par": 3},
-        {"stroke_index": 7, "par": 4},
-        {"stroke_index": 11, "par": 4},
-        {"stroke_index": 15, "par": 5},
-        {"stroke_index": 3, "par": 3},
-        {"stroke_index": 9, "par": 4},
-        {"stroke_index": 2, "par": 4},
-        {"stroke_index": 16, "par": 5},
-        {"stroke_index": 8, "par": 3},
-        {"stroke_index": 14, "par": 4},
-        {"stroke_index": 4, "par": 4},
-        {"stroke_index": 18, "par": 5},
-        {"stroke_index": 10, "par": 4},
-        {"stroke_index": 12, "par": 3},
-        {"stroke_index": 6, "par": 4},
-    ],
-    "Sample Course": [
-        {"stroke_index": i+1, "par": 4} for i in range(18)
-    ],
-}
-
 class GameState:
     def __init__(self):
         self._db_session = SessionLocal()
         self._load_from_db()
-        self.courses = dict(DEFAULT_COURSES)
-        self.selected_course = None
-        self.hole_stroke_indexes = [h["stroke_index"] for h in DEFAULT_COURSES["Wing Point"]]
-        self.hole_pars = [h["par"] for h in DEFAULT_COURSES["Wing Point"]]
+        self.hole_stroke_indexes = list(DEFAULT_HOLE_STROKE_INDEXES)
 
     def reset(self):
         self.players: List[Dict] = [dict(player) for player in DEFAULT_PLAYERS]
@@ -67,8 +37,7 @@ class GameState:
         self.carry_over: bool = False
         self.hole_history: List[Dict] = []
         self._last_points: Dict[str, int] = {p["id"]: 0 for p in self.players}
-        self.hole_stroke_indexes = [h["stroke_index"] for h in DEFAULT_COURSES["Wing Point"]]
-        self.hole_pars = [h["par"] for h in DEFAULT_COURSES["Wing Point"]]
+        self.hole_stroke_indexes = list(DEFAULT_HOLE_STROKE_INDEXES)
         self._save_to_db()
 
     def _random_order(self) -> List[str]:
@@ -300,7 +269,6 @@ class GameState:
             "hole_history": self.hole_history,
             "_last_points": self._last_points,
             "hole_stroke_indexes": self.hole_stroke_indexes,
-            "hole_pars": self.hole_pars,
         }
 
     def _deserialize(self, data):
@@ -318,8 +286,7 @@ class GameState:
         self.carry_over = data.get("carry_over", False)
         self.hole_history = data.get("hole_history", [])
         self._last_points = data.get("_last_points", {p["id"]: 0 for p in self.players})
-        self.hole_stroke_indexes = data.get("hole_stroke_indexes", [h["stroke_index"] for h in DEFAULT_COURSES["Wing Point"]])
-        self.hole_pars = data.get("hole_pars", [h["par"] for h in DEFAULT_COURSES["Wing Point"]])
+        self.hole_stroke_indexes = data.get("hole_stroke_indexes", list(DEFAULT_HOLE_STROKE_INDEXES))
 
     def _save_to_db(self):
         # Save the current state as JSON in the DB (id=1)
@@ -395,86 +362,39 @@ class GameState:
         # --- Hoepfinger phase ---
         if self.current_hole >= 17:
             tips.append("Hoepfinger phase: The player furthest down chooses their spot in the rotation. Strategic position can be crucial!")
-        # --- Player strength context ---
-        if self.teams and self.teams.get("type") in ("partners", "solo"):
-            player_by_id = {p["id"]: p for p in self.players}
-            if self.teams["type"] == "partners":
-                t1 = self.teams["team1"]
-                t2 = self.teams["team2"]
-                t1_strengths = [player_by_id[pid].get("strength", "Average") for pid in t1]
-                t2_strengths = [player_by_id[pid].get("strength", "Average") for pid in t2]
-                if any(s in ("Strong", "Expert") for s in t1_strengths):
-                    tips.append("Team 1 has a strong player—consider aggressive betting if the situation allows.")
-                if all(s == "Beginner" for s in t1_strengths):
-                    tips.append("Team 1 is all beginners—consider caution with doubles or going solo.")
-                if any(s in ("Strong", "Expert") for s in t2_strengths):
-                    tips.append("Team 2 has a strong player—be cautious if betting against them.")
-                if all(s == "Beginner" for s in t2_strengths):
-                    tips.append("Team 2 is all beginners—consider aggressive play if you are stronger.")
-            elif self.teams["type"] == "solo":
-                captain = self.teams["captain"]
-                opps = self.teams["opponents"]
-                cap_strength = player_by_id[captain].get("strength", "Average")
-                opp_strengths = [player_by_id[pid].get("strength", "Average") for pid in opps]
-                if cap_strength in ("Strong", "Expert"):
-                    tips.append("The captain is strong—going solo or accepting a double may be favorable.")
-                if all(s == "Beginner" for s in opp_strengths):
-                    tips.append("All opponents are beginners—captain may want to play aggressively.")
         return tips
 
     def _handicap_context_tips(self, double_pending):
         """
-        Returns a list of context-aware tips based on net strokes for the current hole and teams.
+        Returns a list of context-aware tips based on handicaps and teams.
         """
         tips = []
         if not self.teams or self.teams.get("type") not in ("partners", "solo"):
             return tips
+        # Get player objects by id
         player_by_id = {p["id"]: p for p in self.players}
-        strokes = self.get_player_strokes()  # {player_id: {hole_number: stroke_type}}
-        hole = self.current_hole
-        # For each player, get strokes for this hole
-        net_strokes = {pid: strokes[pid][hole] for pid in strokes}
         if self.teams["type"] == "partners":
             t1 = self.teams["team1"]
             t2 = self.teams["team2"]
-            # For each team, best net advantage (lowest gross - strokes)
-            t1_strokes = [net_strokes[pid] for pid in t1]
-            t2_strokes = [net_strokes[pid] for pid in t2]
             t1_hcap = sum(player_by_id[pid]["handicap"] for pid in t1)
             t2_hcap = sum(player_by_id[pid]["handicap"] for pid in t2)
-            t1_min = min(t1_strokes)
-            t2_min = min(t2_strokes)
-            net_diff = t2_min - t1_min  # positive: team1 net advantage
-            if abs(net_diff) >= 1:
-                if net_diff > 0:
-                    tips.append(f"On this hole, Team 1 receives {abs(net_diff):.1f} more net strokes than Team 2. This is a favorable hole for Team 1.")
-                else:
-                    tips.append(f"On this hole, Team 2 receives {abs(net_diff):.1f} more net strokes than Team 1. This is a favorable hole for Team 2.")
-            elif abs(t1_hcap - t2_hcap) >= 6:
-                # fallback to overall handicap if net is close
+            diff = abs(t1_hcap - t2_hcap)
+            if diff >= 6:
                 if t1_hcap < t2_hcap:
-                    tips.append(f"Team 1 (avg handicap {t1_hcap/2:.1f}) is much stronger overall, but this hole is even on net strokes.")
+                    tips.append(f"Team 1 (avg handicap {t1_hcap/2:.1f}) is much stronger than Team 2 (avg {t2_hcap/2:.1f}). If you're on Team 1, accepting a double is favorable. If on Team 2, be cautious.")
                 else:
-                    tips.append(f"Team 2 (avg handicap {t2_hcap/2:.1f}) is much stronger overall, but this hole is even on net strokes.")
+                    tips.append(f"Team 2 (avg handicap {t2_hcap/2:.1f}) is much stronger than Team 1 (avg {t1_hcap/2:.1f}). If you're on Team 2, accepting a double is favorable. If on Team 1, be cautious.")
         elif self.teams["type"] == "solo":
             captain = self.teams["captain"]
             opps = self.teams["opponents"]
-            cap_stroke = net_strokes[captain]
-            opp_strokes = [net_strokes[pid] for pid in opps]
-            opp_min = min(opp_strokes)
-            net_diff = opp_min - cap_stroke
             cap_hcap = player_by_id[captain]["handicap"]
             opp_hcap = sum(player_by_id[pid]["handicap"] for pid in opps) / len(opps)
-            if abs(net_diff) >= 1:
-                if net_diff > 0:
-                    tips.append(f"On this hole, the captain receives {abs(net_diff):.1f} more net strokes than the best opponent. Favorable for the captain.")
-                else:
-                    tips.append(f"On this hole, the opponents receive {abs(net_diff):.1f} more net strokes than the captain. Favorable for the opponents.")
-            elif abs(cap_hcap - opp_hcap) >= 4:
+            diff = cap_hcap - opp_hcap
+            if abs(diff) >= 4:
                 if cap_hcap < opp_hcap:
-                    tips.append(f"Captain (handicap {cap_hcap}) is much stronger overall, but this hole is even on net strokes.")
+                    tips.append(f"Captain (handicap {cap_hcap}) is much stronger than opponents (avg {opp_hcap:.1f}). Going solo or accepting a double is favorable.")
                 else:
-                    tips.append(f"Opponents (avg handicap {opp_hcap:.1f}) are much stronger overall, but this hole is even on net strokes.")
+                    tips.append(f"Captain (handicap {cap_hcap}) is at a disadvantage vs. opponents (avg {opp_hcap:.1f}). Be cautious accepting a double or going solo.")
         return tips
 
     def get_player_strokes(self):
@@ -508,16 +428,17 @@ class GameState:
             result[pid] = strokes
         return result
 
-    def setup_players(self, players: list[dict], course_name: str = None):
+    def setup_players(self, players: list[dict]):
         """
-        Set custom players (id, name, handicap, strength) and reset the game state. Optionally set course.
+        Set custom players (id, name, handicap) and reset the game state.
         """
+        # Validate input
         if len(players) != 4:
             raise ValueError("Exactly 4 players required.")
         for p in players:
-            if not all(k in p for k in ("id", "name", "handicap", "strength")):
-                raise ValueError("Each player must have id, name, handicap, and strength.")
-        self.players = [dict(id=p["id"], name=p["name"], points=0, handicap=float(p["handicap"]), strength=p["strength"]) for p in players]
+            if not all(k in p for k in ("id", "name", "handicap")):
+                raise ValueError("Each player must have id, name, and handicap.")
+        self.players = [dict(id=p["id"], name=p["name"], points=0, handicap=float(p["handicap"])) for p in players]
         self.current_hole = 1
         self.hitting_order = [p["id"] for p in self.players]
         random.shuffle(self.hitting_order)
@@ -532,19 +453,8 @@ class GameState:
         self.carry_over = False
         self.hole_history = []
         self._last_points = {p["id"]: 0 for p in self.players}
-        if course_name and course_name in self.courses:
-            course = self.courses[course_name]
-            self.selected_course = course_name
-            self.hole_stroke_indexes = [h["stroke_index"] for h in course]
-            self.hole_pars = [h["par"] for h in course]
-        else:
-            self.selected_course = None
-            self.hole_stroke_indexes = [h["stroke_index"] for h in DEFAULT_COURSES["Wing Point"]]
-            self.hole_pars = [h["par"] for h in DEFAULT_COURSES["Wing Point"]]
+        self.hole_stroke_indexes = list(DEFAULT_HOLE_STROKE_INDEXES)
         self._save_to_db()
-
-    def get_courses(self):
-        return self.courses
 
 # Singleton game state for MVP (in-memory)
 game_state = GameState() 

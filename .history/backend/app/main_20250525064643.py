@@ -69,23 +69,14 @@ def setup_game_players(request: Request):
         raise HTTPException(status_code=400, detail=str(e))
     return {"status": "ok", "game_state": _serialize_game_state()}
 
-class HoleInfo(BaseModel):
-    stroke_index: int
-    par: int
-
-class CourseCreate(BaseModel):
-    name: str
-    holes: list[HoleInfo]  # 18 items, each with stroke_index and par
-
 @app.post("/courses")
 def add_course(course: CourseCreate):
     name = course.name.strip()
-    if not name or len(course.holes) != 18:
-        raise HTTPException(status_code=400, detail="Course name and 18 holes required.")
+    if not name or len(course.stroke_indexes) != 18:
+        raise HTTPException(status_code=400, detail="Course name and 18 stroke indexes required.")
     if name in game_state.courses:
         raise HTTPException(status_code=400, detail="Course already exists.")
-    # Store as list of dicts
-    game_state.courses[name] = [dict(stroke_index=h.stroke_index, par=h.par) for h in course.holes]
+    game_state.courses[name] = list(course.stroke_indexes)
     return game_state.get_courses()
 
 @app.delete("/courses/{name}")
@@ -113,6 +104,9 @@ def _serialize_game_state():
         "carry_over": game_state.carry_over,
         "hole_history": game_state.get_hole_history(),
         "hole_stroke_indexes": game_state.hole_stroke_indexes,
-        "hole_pars": game_state.hole_pars,
         "selected_course": game_state.selected_course,
-    } 
+    }
+
+class CourseCreate(BaseModel):
+    name: str
+    stroke_indexes: list[int] 
