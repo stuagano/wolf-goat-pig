@@ -539,7 +539,6 @@ function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [rules, setRules] = useState([]);
   const [ruleIdx, setRuleIdx] = useState(0);
-  const navigate = useNavigate();
 
   useEffect(() => {
     fetch(`${API_URL}/rules`).then(res => res.json()).then(data => setRules(data));
@@ -605,20 +604,6 @@ function App() {
         setLoading(false);
         setScoreInputs({});
         setPartnerSelect("");
-      });
-  };
-
-  const createNewGame = () => {
-    if (!window.confirm("Are you sure you want to start a new game? All progress will be lost.")) return;
-    setLoading(true);
-    fetch(`${API_URL}/game/start`, { method: "POST" })
-      .then(res => res.json())
-      .then(data => {
-        setGameState(null); // Force setup screen
-        setLoading(false);
-        setScoreInputs({});
-        setPartnerSelect("");
-        navigate("/setup");
       });
   };
 
