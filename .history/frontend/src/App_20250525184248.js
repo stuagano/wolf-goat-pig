@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, useNavigate, Navigate } from "react-router-dom";
-import GameSetupForm from "./GameSetupForm";
-import CourseManager from "./CourseManager";
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -126,6 +124,189 @@ const navBtnStyle = {
   margin: 0,
   minWidth: 0,
 };
+
+function CourseManager({ onClose, onCoursesChanged }) {
+  const [courses, setCourses] = useState([]);
+  const [newName, setNewName] = useState("");
+  const [newHoles, setNewHoles] = useState(Array(18).fill({ stroke_index: "", par: "" }));
+  const [error, setError] = useState("");
+  useEffect(() => {
+    fetch(`${API_URL}/courses`).then(res => res.json()).then(data => setCourses(Object.entries(data)));
+  }, []);
+  const handleAdd = async e => {
+    e.preventDefault();
+    if (!newName.trim() || newHoles.some(x => !x.stroke_index || !x.par)) {
+      setError("Name and all 18 holes (stroke index and par) required.");
+      return;
+    }
+    const holes = newHoles.map(h => ({ stroke_index: Number(h.stroke_index), par: Number(h.par) }));
+    if (holes.some(h => isNaN(h.stroke_index) || h.stroke_index < 1 || h.stroke_index > 18 || isNaN(h.par) || h.par < 3 || h.par > 5)) {
+      setError("Stroke indexes 1-18, pars 3-5.");
+      return;
+    }
+    const res = await fetch(`${API_URL}/courses`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newName, holes }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setCourses(Object.entries(data));
+      setNewName("");
+      setNewHoles(Array(18).fill({ stroke_index: "", par: "" }));
+      setError("");
+      onCoursesChanged && onCoursesChanged();
+    } else {
+      const data = await res.json();
+      setError(data.detail || "Add failed");
+    }
+  };
+  const handleDelete = async name => {
+    if (!window.confirm(`Delete course '${name}'?`)) return;
+    const res = await fetch(`${API_URL}/courses/${encodeURIComponent(name)}`, { method: "DELETE" });
+    if (res.ok) {
+      const data = await res.json();
+      setCourses(Object.entries(data));
+      onCoursesChanged && onCoursesChanged();
+    }
+  };
+  return (
+    <div style={{ ...cardStyle, maxWidth: 600, margin: "40px auto", background: COLORS.bg }}>
+      <h2 style={{ color: COLORS.primary, marginBottom: 12 }}>Course Management</h2>
+      <button style={{ ...buttonStyle, float: "right", marginTop: -36 }} onClick={onClose}>Close</button>
+      <h3 style={{ marginTop: 0 }}>Existing Courses</h3>
+      <ul style={{ paddingLeft: 18 }}>
+        {courses.map(([name, holes]) => (
+          <li key={name} style={{ marginBottom: 6 }}>
+            <b>{name}</b> &nbsp;
+            <span style={{ fontSize: 13, color: COLORS.muted }}>Stroke Indexes: {holes.map(h => h.stroke_index).join(", ")}</span>
+            <span style={{ fontSize: 13, color: COLORS.muted, marginLeft: 8 }}>Pars: {holes.map(h => h.par).join(", ")}</span>
+            <button style={{ ...buttonStyle, background: COLORS.error, marginLeft: 10, fontSize: 13, padding: "4px 10px" }} onClick={() => handleDelete(name)}>Delete</button>
+          </li>
+        ))}
+      </ul>
+      <h3>Add New Course</h3>
+      <form onSubmit={handleAdd} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <input style={{ ...inputStyle, width: 220 }} placeholder="Course Name" value={newName} onChange={e => setNewName(e.target.value)} />
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+          {Array(18).fill(0).map((_, i) => (
+            <span key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", marginRight: 8 }}>
+              <input
+                style={{ ...inputStyle, width: 36, marginBottom: 2 }}
+                placeholder={`SI ${i + 1}`}
+                value={newHoles[i]?.stroke_index || ""}
+                onChange={e => setNewHoles(newHoles.map((h, idx) => idx === i ? { ...h, stroke_index: e.target.value } : h))}
+                maxLength={2}
+              />
+              <input
+                style={{ ...inputStyle, width: 36 }}
+                placeholder="Par"
+                value={newHoles[i]?.par || ""}
+                onChange={e => setNewHoles(newHoles.map((h, idx) => idx === i ? { ...h, par: e.target.value } : h))}
+                maxLength={1}
+              />
+            </span>
+          ))}
+        </div>
+        {error && <div style={{ color: COLORS.error }}>{error}</div>}
+        <button type="submit" style={{ ...buttonStyle, width: 180 }}>Add Course</button>
+      </form>
+    </div>
+  );
+}
+
+function GameSetupForm({ onSetup }) {
+  const [players, setPlayers] = useState([
+    { id: 'p1', name: '', handicap: '', strength: '' },
+    { id: 'p2', name: '', handicap: '', strength: '' },
+    { id: 'p3', name: '', handicap: '', strength: '' },
+    { id: 'p4', name: '', handicap: '', strength: '' },
+  ]);
+  const [courses, setCourses] = useState([]);
+  const [courseName, setCourseName] = useState('');
+  const [error, setError] = useState('');
+  const [showCourseManager, setShowCourseManager] = useState(false);
+  useEffect(() => {
+    fetch(`${API_URL}/courses`).then(res => res.json()).then(data => {
+      setCourses(Object.keys(data));
+      if (Object.keys(data).length > 0) setCourseName(Object.keys(data)[0]);
+    });
+  }, []);
+  const handleChange = (idx, field, value) => {
+    setPlayers(players => players.map((p, i) => i === idx ? { ...p, [field]: value } : p));
+  };
+  const handleSubmit = async e => {
+    e.preventDefault();
+    if (players.some(p => !p.name || p.handicap === '' || !p.strength)) {
+      setError('All names, handicaps, and strengths are required.');
+      return;
+    }
+    setError('');
+    const res = await fetch(`${API_URL}/game/setup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ players, course_name: courseName }),
+    });
+    const data = await res.json();
+    if (data.status === 'ok') {
+      onSetup(data.game_state);
+    } else {
+      setError(data.detail || 'Setup failed');
+    }
+  };
+  return (
+    <>
+      {showCourseManager && <CourseManager onClose={() => setShowCourseManager(false)} onCoursesChanged={() => {
+        fetch(`${API_URL}/courses`).then(res => res.json()).then(data => setCourses(Object.keys(data)));
+      }} />}
+      <form onSubmit={handleSubmit} style={{ ...cardStyle, maxWidth: 420, margin: '40px auto', background: COLORS.bg }}>
+        <h2 style={{ color: COLORS.primary, marginBottom: 12 }}>Setup Players & Course</h2>
+        <div style={{ marginBottom: 12, display: 'flex', flexWrap: 'wrap', gap: 8, flexDirection: window.innerWidth < 600 ? 'column' : 'row' }}>
+          <label style={{ fontWeight: 600, marginRight: 8 }}>Course:</label>
+          <select style={{ ...inputStyle, width: 180 }} value={courseName} onChange={e => setCourseName(e.target.value)}>
+            {courses.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <button type="button" style={{ ...buttonStyle, background: COLORS.accent, marginLeft: 10, fontSize: 16, padding: "10px 18px" }} onClick={() => setShowCourseManager(true)}>Manage Courses</button>
+        </div>
+        {players.map((p, i) => (
+          <div key={p.id} style={{ display: 'flex', gap: 8, marginBottom: 8, flexDirection: window.innerWidth < 600 ? 'column' : 'row' }}>
+            <input
+              style={{ ...inputStyle, flex: 2 }}
+              placeholder={`Player ${i + 1} Name`}
+              value={p.name}
+              onChange={e => handleChange(i, 'name', e.target.value)}
+              required
+            />
+            <input
+              style={{ ...inputStyle, flex: 1 }}
+              placeholder="Handicap"
+              type="number"
+              min="0"
+              step="0.5"
+              value={p.handicap}
+              onChange={e => handleChange(i, 'handicap', e.target.value)}
+              required
+            />
+            <select
+              style={{ ...inputStyle, flex: 1 }}
+              value={p.strength || ''}
+              onChange={e => handleChange(i, 'strength', e.target.value)}
+              required
+            >
+              <option value="">Strength</option>
+              <option value="Beginner">Beginner</option>
+              <option value="Average">Average</option>
+              <option value="Strong">Strong</option>
+              <option value="Expert">Expert</option>
+            </select>
+          </div>
+        ))}
+        {error && <div style={{ color: COLORS.error, marginBottom: 8 }}>{error}</div>}
+        <button type="submit" style={{ ...buttonStyle, width: '100%' }}>Start Game</button>
+      </form>
+    </>
+  );
+}
 
 function SetupPage({ onSetup }) {
   const navigate = useNavigate();
