@@ -118,6 +118,12 @@ class HumanDecisions(BaseModel):
     offer_double: bool = False
     accept_double: bool = False
 
+class MonteCarloSetup(BaseModel):
+    human_player: dict
+    computer_players: List[ComputerPlayerConfig]
+    num_simulations: int = 100
+    course_name: Optional[str] = None
+
 @app.post("/simulation/setup")
 def setup_simulation(setup: SimulationSetup):
     """Setup a new simulation game with one human and three computer players"""
@@ -159,6 +165,135 @@ def setup_simulation(setup: SimulationSetup):
             "game_state": _serialize_game_state(),
             "message": "Simulation setup complete! You're playing against 3 computer opponents."
         }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/simulation/monte-carlo")
+def run_monte_carlo_simulation(setup: MonteCarloSetup):
+    """Run Monte Carlo simulation with specified number of games"""
+    try:
+        if len(setup.computer_players) != 3:
+            raise HTTPException(status_code=400, detail="Need exactly 3 computer players")
+        
+        if setup.num_simulations < 1 or setup.num_simulations > 1000:
+            raise HTTPException(status_code=400, detail="Number of simulations must be between 1 and 1000")
+        
+        # Convert computer player configs to dict format
+        computer_configs = [
+            {
+                "id": cp.id,
+                "name": cp.name,
+                "handicap": cp.handicap,
+                "personality": cp.personality
+            } for cp in setup.computer_players
+        ]
+        
+        # Run Monte Carlo simulation
+        results = simulation_engine.run_monte_carlo_simulation(
+            setup.human_player,
+            computer_configs,
+            setup.num_simulations,
+            setup.course_name
+        )
+        
+        # Get summary statistics
+        summary = results.get_summary()
+        
+        # Add additional insights
+        human_id = setup.human_player["id"]
+        human_stats = summary["player_statistics"][human_id]
+        
+        # Generate insights
+        insights = []
+        
+        # Win rate analysis
+        if human_stats["win_percentage"] > 30:
+            insights.append(f"🎯 Strong performance! You won {human_stats['win_percentage']:.1f}% of games")
+        elif human_stats["win_percentage"] > 20:
+            insights.append(f"👍 Decent performance. You won {human_stats['win_percentage']:.1f}% of games")
+        else:
+            insights.append(f"📚 Room for improvement. You won {human_stats['win_percentage']:.1f}% of games")
+        
+        # Score analysis
+        avg_score = human_stats["average_score"]
+        if avg_score > 0:
+            insights.append(f"💰 You averaged +{avg_score:.1f} points per game")
+        else:
+            insights.append(f"📉 You averaged {avg_score:.1f} points per game")
+        
+        # Comparative analysis
+        all_players = list(summary["player_statistics"].keys())
+        human_rank = sorted(all_players, 
+                          key=lambda p: summary["player_statistics"][p]["average_score"], 
+                          reverse=True).index(human_id) + 1
+        
+        if human_rank == 1:
+            insights.append("🏆 You had the highest average score!")
+        elif human_rank == 2:
+            insights.append("🥈 You finished 2nd in average scoring")
+        elif human_rank == 3:
+            insights.append("🥉 You finished 3rd in average scoring")
+        else:
+            insights.append("🎯 You finished 4th in average scoring")
+        
+        # Consistency analysis
+        score_range = human_stats["best_score"] - human_stats["worst_score"]
+        if score_range < 8:
+            insights.append("📊 Very consistent performance across games")
+        elif score_range < 15:
+            insights.append("📈 Reasonably consistent performance")
+        else:
+            insights.append("🎢 Variable performance - work on consistency")
+        
+        return {
+            "status": "ok",
+            "summary": summary,
+            "insights": insights,
+            "simulation_details": {
+                "total_games": setup.num_simulations,
+                "course": setup.course_name or "Standard Course",
+                "human_player": setup.human_player["name"],
+                "opponents": [cp.name for cp in setup.computer_players]
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/simulation/monte-carlo-detailed/{num_games}")
+def get_monte_carlo_detailed_results(num_games: int, setup: MonteCarloSetup):
+    """Get detailed game-by-game results from Monte Carlo simulation"""
+    try:
+        if num_games < 1 or num_games > 100:
+            raise HTTPException(status_code=400, detail="Number of detailed games must be between 1 and 100")
+        
+        if len(setup.computer_players) != 3:
+            raise HTTPException(status_code=400, detail="Need exactly 3 computer players")
+        
+        # Convert computer player configs to dict format
+        computer_configs = [
+            {
+                "id": cp.id,
+                "name": cp.name,
+                "handicap": cp.handicap,
+                "personality": cp.personality
+            } for cp in setup.computer_players
+        ]
+        
+        # Run Monte Carlo simulation
+        results = simulation_engine.run_monte_carlo_simulation(
+            setup.human_player,
+            computer_configs,
+            num_games,
+            setup.course_name
+        )
+        
+        return {
+            "status": "ok",
+            "detailed_results": results.detailed_results,
+            "summary": results.get_summary()
+        }
+        
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

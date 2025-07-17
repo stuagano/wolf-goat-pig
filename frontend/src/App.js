@@ -3,6 +3,7 @@ import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
 import GameSetupForm from "./GameSetupForm";
 import CourseManager from "./CourseManager";
 import SimulationMode from "./SimulationMode";
+import MonteCarloSimulation from "./MonteCarloSimulation";
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -180,6 +181,9 @@ function Navigation() {
           </button>
           <button style={navButtonStyle} onClick={() => navigate('/simulation')}>
             🎮 Simulation Mode
+          </button>
+          <button style={navButtonStyle} onClick={() => navigate('/monte-carlo')}>
+            🎲 Monte Carlo
           </button>
         </div>
       </div>
@@ -763,6 +767,7 @@ function App() {
         <Route path="/setup" element={<SetupPage onSetup={setGameState} />} />
         <Route path="/game" element={gameState ? <GamePage gameState={gameState} setGameState={setGameState} loading={loading} setLoading={setLoading} /> : <Navigate to="/setup" />} />
         <Route path="/simulation" element={<SimulationMode />} />
+        <Route path="/monte-carlo" element={<MonteCarloSimulation />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </div>

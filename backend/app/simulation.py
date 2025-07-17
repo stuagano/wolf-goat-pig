@@ -194,6 +194,74 @@ class ComputerPlayer:
         
         return min(1.0, max(-1.0, stroke_advantage + skill_factor - 0.3))
 
+class MonteCarloResults:
+    """Results from Monte Carlo simulation"""
+    def __init__(self):
+        self.total_simulations = 0
+        self.player_results = {}  # player_id -> list of final scores
+        self.win_counts = {}      # player_id -> number of wins
+        self.avg_scores = {}      # player_id -> average final score
+        self.score_distributions = {}  # player_id -> dict of score -> count
+        self.detailed_results = []  # list of individual game results
+        
+    def add_game_result(self, final_scores: dict):
+        """Add results from one complete game"""
+        self.total_simulations += 1
+        
+        # Initialize if first game
+        if not self.player_results:
+            for player_id in final_scores:
+                self.player_results[player_id] = []
+                self.win_counts[player_id] = 0
+                self.score_distributions[player_id] = {}
+        
+        # Add scores
+        for player_id, score in final_scores.items():
+            self.player_results[player_id].append(score)
+            
+            # Track score distribution
+            if score not in self.score_distributions[player_id]:
+                self.score_distributions[player_id][score] = 0
+            self.score_distributions[player_id][score] += 1
+        
+        # Determine winner (highest score wins in Wolf Goat Pig)
+        max_score = max(final_scores.values())
+        winners = [pid for pid, score in final_scores.items() if score == max_score]
+        for winner in winners:
+            self.win_counts[winner] += 1
+            
+        # Store detailed result
+        self.detailed_results.append({
+            "game_number": self.total_simulations,
+            "scores": final_scores.copy(),
+            "winner": winners[0] if len(winners) == 1 else "tie"
+        })
+    
+    def calculate_statistics(self):
+        """Calculate final statistics"""
+        for player_id in self.player_results:
+            scores = self.player_results[player_id]
+            self.avg_scores[player_id] = sum(scores) / len(scores) if scores else 0
+    
+    def get_summary(self) -> dict:
+        """Get summary statistics"""
+        self.calculate_statistics()
+        
+        return {
+            "total_simulations": self.total_simulations,
+            "player_statistics": {
+                player_id: {
+                    "wins": self.win_counts[player_id],
+                    "win_percentage": (self.win_counts[player_id] / self.total_simulations * 100) if self.total_simulations > 0 else 0,
+                    "average_score": round(self.avg_scores[player_id], 2),
+                    "best_score": max(self.player_results[player_id]) if self.player_results[player_id] else 0,
+                    "worst_score": min(self.player_results[player_id]) if self.player_results[player_id] else 0,
+                    "score_distribution": self.score_distributions[player_id]
+                }
+                for player_id in self.player_results
+            }
+        }
+
 class SimulationEngine:
     """Main simulation engine for computer vs human matches"""
     
@@ -219,7 +287,14 @@ class SimulationEngine:
             self.computer_players.append(comp_player)
         
         # Setup game state with all players
-        all_players = [human_player] + [
+        all_players = [
+            {
+                "id": human_player["id"],
+                "name": human_player["name"],
+                "handicap": human_player["handicap"],
+                "strength": self._handicap_to_strength(human_player["handicap"])
+            }
+        ] + [
             {
                 "id": cp.player_id,
                 "name": cp.name,
@@ -677,6 +752,75 @@ class SimulationEngine:
         
         return feedback
     
+    def _handicap_to_strength(self, handicap: float) -> int:
+        """Convert handicap to strength value (1-10 scale)"""
+        if handicap <= 0:
+            return 10
+        elif handicap <= 5:
+            return 9
+        elif handicap <= 10:
+            return 8
+        elif handicap <= 15:
+            return 7
+        elif handicap <= 20:
+            return 6
+        elif handicap <= 25:
+            return 5
+        else:
+            return 4
+    
+    def _assess_hole_difficulty(self, game_state: GameState) -> float:
+        """Assess how difficult the current hole is (0=easy, 1=very hard)"""
+        if not game_state.hole_stroke_indexes or not game_state.hole_pars:
+            return 0.5
+        
+        hole_idx = game_state.current_hole - 1
+        if hole_idx >= len(game_state.hole_stroke_indexes):
+            return 0.5
+            
+        stroke_index = game_state.hole_stroke_indexes[hole_idx]
+        par = game_state.hole_pars[hole_idx]
+        
+        # Lower stroke index = harder hole
+        difficulty = (19 - stroke_index) / 18.0
+        
+        # Adjust based on par - this is for average handicap golfer
+        if par == 5:
+            difficulty *= 0.9  # Par 5s are generally easier
+        elif par == 3:
+            difficulty *= 1.1  # Par 3s can be tricky
+            
+        return min(1.0, max(0.0, difficulty))
+    
+    def _assess_team_advantage(self, game_state: GameState) -> float:
+        """Assess team's advantage on current hole (-1 to 1)"""
+        if not game_state.teams or game_state.teams.get("type") not in ["partners", "solo"]:
+            return 0.0
+        
+        # Get player strokes for current hole
+        try:
+            strokes = game_state.get_player_strokes()
+        except:
+            # If no strokes available, return neutral
+            return 0.0
+        
+        hole = game_state.current_hole
+        
+        if game_state.teams["type"] == "partners":
+            # For now, return neutral for partnerships
+            return 0.0
+        elif game_state.teams["type"] == "solo":
+            captain_id = game_state.teams["captain"]
+            captain_strokes = strokes.get(captain_id, 0)
+            
+            # Simple assessment: if captain gets strokes, it's advantageous
+            if captain_strokes > 0:
+                return 0.3 + (captain_strokes * 0.1)
+            else:
+                return -0.2
+                
+        return 0.0
+    
     def _get_computer_player(self, player_id: str) -> ComputerPlayer:
         """Get computer player by ID"""
         for cp in self.computer_players:
@@ -700,11 +844,32 @@ class SimulationEngine:
         return 0
     
     def _get_player_handicap(self, player_id: str, game_state: GameState) -> float:
-        """Get handicap for a player"""
+        """Get player's handicap from game state"""
         for player in game_state.players:
             if player["id"] == player_id:
                 return player["handicap"]
-        return 20.0
+        return 18.0  # Default handicap
+    
+    def _make_computer_partnership_decision(self, captain_player: ComputerPlayer, game_state: GameState) -> str:
+        """Make partnership decision for computer captain"""
+        potential_partners = [p for p in game_state.players if p["id"] != captain_player.player_id]
+        
+        # Simple strategy: pick best handicap player
+        best_partner = None
+        best_handicap = 50
+        
+        for partner in potential_partners:
+            if partner["handicap"] < best_handicap:
+                best_handicap = partner["handicap"]
+                best_partner = partner["id"]
+        
+        # Sometimes go solo based on personality
+        if captain_player.personality == "aggressive" and random.random() < 0.3:
+            return "solo"
+        elif captain_player.personality == "conservative" and random.random() < 0.1:
+            return "solo"
+        
+        return best_partner if best_partner else "solo"
     
     def _get_player_name(self, player_id: str, game_state: GameState) -> str:
         """Get name for a player"""
@@ -830,6 +995,151 @@ class SimulationEngine:
             feedback.append("  - Strategy: Attack pins regularly, especially on easier holes")
             
         return feedback
+
+    def run_monte_carlo_simulation(self, human_player: dict, computer_configs: List[dict], 
+                                   num_simulations: int = 100, course_name: Optional[str] = None,
+                                   progress_callback=None) -> MonteCarloResults:
+        """
+        Run Monte Carlo simulation with specified number of games
+        
+        Args:
+            human_player: Human player configuration
+            computer_configs: List of 3 computer player configurations
+            num_simulations: Number of complete games to simulate
+            course_name: Optional course to play on
+            progress_callback: Optional callback function for progress updates
+        
+        Returns:
+            MonteCarloResults object with statistical analysis
+        """
+        results = MonteCarloResults()
+        
+        for sim_num in range(num_simulations):
+            # Setup a fresh game for each simulation
+            game_state = self.setup_simulation(human_player, computer_configs)
+            
+            # Set course if provided
+            if course_name and course_name in game_state.courses:
+                course = game_state.courses[course_name]
+                game_state.selected_course = course_name
+                game_state.hole_stroke_indexes = [h["stroke_index"] for h in course]
+                game_state.hole_pars = [h["par"] for h in course]
+            
+            # Simulate all 18 holes
+            for hole in range(1, 19):
+                game_state.current_hole = hole
+                
+                # For Monte Carlo, we'll make automatic decisions for the human player
+                # Using a "balanced" strategy similar to the computer AI
+                human_decisions = self._generate_monte_carlo_human_decisions(game_state, human_player)
+                
+                # Ensure we have valid decisions structure
+                if not human_decisions:
+                    human_decisions = {
+                        "action": None,
+                        "requested_partner": None,
+                        "offer_double": False,
+                        "accept_double": False
+                    }
+                
+                # Simulate the hole
+                game_state, _ = self.simulate_hole(game_state, human_decisions)
+                
+                # Move to next hole
+                if hole < 18:
+                    game_state.next_hole()
+            
+            # Get final scores
+            final_scores = {
+                player["id"]: player["points"]
+                for player in game_state.players
+            }
+            
+            # Add to results
+            results.add_game_result(final_scores)
+            
+            # Progress callback
+            if progress_callback:
+                progress_callback(sim_num + 1, num_simulations)
+        
+        return results
+    
+    def _generate_monte_carlo_human_decisions(self, game_state: GameState, human_player: dict) -> dict:
+        """
+        Generate automatic decisions for human player in Monte Carlo simulation
+        Uses a balanced strategy similar to computer AI
+        """
+        captain_id = game_state.captain_id
+        # Get current points for human player
+        current_points = 0
+        for player in game_state.players:
+            if player["id"] == human_player["id"]:
+                current_points = player["points"]
+                break
+        
+        # Default decisions
+        decisions = {
+            "action": None,
+            "requested_partner": None,
+            "offer_double": False,
+            "accept_double": False
+        }
+        
+        if captain_id == human_player["id"]:
+            # Human is captain - make partnership decision
+            
+            # Assess potential partners
+            potential_partners = [p for p in game_state.players if p["id"] != human_player["id"]]
+            
+            # Simple strategy: prefer partners with similar or better handicaps
+            human_handicap = human_player["handicap"]
+            best_partner = None
+            best_compatibility = -999
+            
+            for partner in potential_partners:
+                partner_handicap = partner["handicap"]
+                partner_points = partner["points"]
+                
+                # Calculate compatibility score
+                handicap_diff = abs(human_handicap - partner_handicap)
+                point_advantage = partner_points - current_points
+                
+                compatibility = -handicap_diff + (point_advantage * 0.5)
+                
+                # Prefer better players when behind
+                if current_points < -2:
+                    compatibility += max(0, human_handicap - partner_handicap) * 2
+                
+                if compatibility > best_compatibility:
+                    best_compatibility = compatibility
+                    best_partner = partner
+            
+            # Decide whether to go solo or pick partner
+            hole_difficulty = self._assess_hole_difficulty(game_state)
+            go_solo_threshold = 0.3 + (current_points * 0.1)  # More likely to go solo when behind
+            
+            if (random.random() < go_solo_threshold and 
+                hole_difficulty < 0.6 and 
+                current_points < 2):  # Don't go solo when ahead
+                decisions["action"] = "go_solo"
+            elif best_partner:
+                decisions["requested_partner"] = best_partner["id"]
+        
+        # Doubling decisions (simplified strategy)
+        if not game_state.doubled_status:
+            # Offer double if significantly behind or have good advantage
+            if current_points < -3 or (current_points > 2 and random.random() < 0.3):
+                decisions["offer_double"] = True
+        
+        # Accept double based on position and hole advantage
+        if game_state.doubled_status and not game_state.doubled_status.get("accepted", False):
+            team_advantage = self._assess_team_advantage(game_state)
+            accept_threshold = 0.4 - (current_points * 0.1)  # More likely to accept when ahead
+            
+            if team_advantage > 0.2 or random.random() < accept_threshold:
+                decisions["accept_double"] = True
+        
+        return decisions
 
 # Global simulation engine instance
 simulation_engine = SimulationEngine()

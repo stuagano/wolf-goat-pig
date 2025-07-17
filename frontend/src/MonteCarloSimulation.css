@@ -1,0 +1,389 @@
+.monte-carlo-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.monte-carlo-container h2 {
+  color: #2c5282;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.description {
+  text-align: center;
+  color: #4a5568;
+  margin-bottom: 30px;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.simulation-setup {
+  background: #f7fafc;
+  padding: 25px;
+  border-radius: 12px;
+  margin-bottom: 25px;
+  border: 1px solid #e2e8f0;
+}
+
+.simulation-setup h3 {
+  color: #2d3748;
+  margin-bottom: 20px;
+}
+
+.player-section {
+  margin-bottom: 25px;
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.player-section h4 {
+  color: #2d3748;
+  margin-bottom: 15px;
+  font-size: 18px;
+}
+
+.form-row {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.form-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 200px;
+  color: #4a5568;
+  font-weight: 500;
+}
+
+.form-row input,
+.form-row select {
+  padding: 8px 12px;
+  border: 1px solid #cbd5e0;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+
+.form-row input:focus,
+.form-row select:focus {
+  outline: none;
+  border-color: #4299e1;
+  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+}
+
+.computer-player-row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  flex-wrap: wrap;
+}
+
+.computer-player-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 150px;
+  color: #4a5568;
+  font-weight: 500;
+}
+
+.simulation-params {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.run-simulation-btn {
+  width: 100%;
+  padding: 15px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  margin-top: 20px;
+}
+
+.run-simulation-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.run-simulation-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-message {
+  background: #fed7d7;
+  color: #c53030;
+  padding: 15px;
+  border-radius: 8px;
+  margin: 20px 0;
+  border: 1px solid #feb2b2;
+}
+
+.running-indicator {
+  text-align: center;
+  padding: 30px;
+  background: #f0fff4;
+  border-radius: 8px;
+  margin: 20px 0;
+  border: 1px solid #9ae6b4;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e2e8f0;
+  border-top: 4px solid #4299e1;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 15px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.results-container {
+  background: white;
+  padding: 25px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  margin-top: 25px;
+}
+
+.results-container h3 {
+  color: #2d3748;
+  margin-bottom: 25px;
+  text-align: center;
+}
+
+.insights-section {
+  background: #f0fff4;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 25px;
+  border: 1px solid #9ae6b4;
+}
+
+.insights-section h4 {
+  color: #22543d;
+  margin-bottom: 15px;
+}
+
+.insights-list {
+  list-style: none;
+  padding: 0;
+}
+
+.insights-list li {
+  margin-bottom: 10px;
+  padding: 8px 0;
+  color: #2f855a;
+  font-weight: 500;
+}
+
+.player-stats-section {
+  margin-bottom: 25px;
+}
+
+.player-stats-section h4 {
+  color: #2d3748;
+  margin-bottom: 20px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.player-stat-card {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.player-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.player-stat-card.human-player {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+}
+
+.player-stat-card.human-player h5 {
+  color: white;
+}
+
+.player-stat-card h5 {
+  color: #2d3748;
+  margin-bottom: 15px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding: 4px 0;
+}
+
+.stat-label {
+  font-weight: 500;
+  color: #4a5568;
+}
+
+.player-stat-card.human-player .stat-label {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.stat-value {
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.player-stat-card.human-player .stat-value {
+  color: white;
+}
+
+.score-distribution {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.player-stat-card.human-player .score-distribution {
+  border-top: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.score-distribution h6 {
+  color: #4a5568;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.player-stat-card.human-player .score-distribution h6 {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.score-entry {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-bottom: 4px;
+  padding: 2px 0;
+}
+
+.score {
+  font-weight: 600;
+}
+
+.count {
+  color: #718096;
+}
+
+.player-stat-card.human-player .count {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.simulation-details {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 25px;
+  border: 1px solid #e2e8f0;
+}
+
+.simulation-details h4 {
+  color: #2d3748;
+  margin-bottom: 15px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding: 4px 0;
+}
+
+.detail-row span:first-child {
+  font-weight: 500;
+  color: #4a5568;
+}
+
+.detail-row span:last-child {
+  color: #2d3748;
+  font-weight: 600;
+}
+
+.recommendations-section {
+  background: #fffbf0;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #f6e05e;
+}
+
+.recommendations-section h4 {
+  color: #744210;
+  margin-bottom: 15px;
+}
+
+.recommendations {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.recommendation {
+  padding: 12px;
+  background: white;
+  border-radius: 6px;
+  border-left: 4px solid #f6e05e;
+  color: #744210;
+}
+
+.recommendation strong {
+  color: #744210;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .monte-carlo-container {
+    padding: 15px;
+  }
+  
+  .form-row {
+    flex-direction: column;
+  }
+  
+  .computer-player-row {
+    flex-direction: column;
+  }
+  
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
