@@ -16,30 +16,32 @@ DEFAULT_PLAYERS = [
 # Example stroke index for 18 holes (1 = hardest, 18 = easiest)
 DEFAULT_HOLE_STROKE_INDEXES = [1, 15, 7, 13, 3, 17, 9, 11, 5, 2, 16, 8, 14, 4, 18, 10, 12, 6]
 
-# Example courses (scaffold)
+# Enhanced course data with yards for simulation mode
 DEFAULT_COURSES = {
     "Wing Point": [
-        {"stroke_index": 5, "par": 4},
-        {"stroke_index": 13, "par": 4},
-        {"stroke_index": 1, "par": 5},
-        {"stroke_index": 17, "par": 3},
-        {"stroke_index": 7, "par": 4},
-        {"stroke_index": 11, "par": 4},
-        {"stroke_index": 15, "par": 5},
-        {"stroke_index": 3, "par": 3},
-        {"stroke_index": 9, "par": 4},
-        {"stroke_index": 2, "par": 4},
-        {"stroke_index": 16, "par": 5},
-        {"stroke_index": 8, "par": 3},
-        {"stroke_index": 14, "par": 4},
-        {"stroke_index": 4, "par": 4},
-        {"stroke_index": 18, "par": 5},
-        {"stroke_index": 10, "par": 4},
-        {"stroke_index": 12, "par": 3},
-        {"stroke_index": 6, "par": 4},
+        {"hole_number": 1, "stroke_index": 5, "par": 4, "yards": 420, "description": "Dogleg right with water on right"},
+        {"hole_number": 2, "stroke_index": 13, "par": 4, "yards": 385, "description": "Straight away, slight uphill"},
+        {"hole_number": 3, "stroke_index": 1, "par": 5, "yards": 580, "description": "Long par 5 with fairway bunkers"},
+        {"hole_number": 4, "stroke_index": 17, "par": 3, "yards": 165, "description": "Short par 3 over water"},
+        {"hole_number": 5, "stroke_index": 7, "par": 4, "yards": 445, "description": "Long par 4 with OB left"},
+        {"hole_number": 6, "stroke_index": 11, "par": 4, "yards": 395, "description": "Slight dogleg left"},
+        {"hole_number": 7, "stroke_index": 15, "par": 5, "yards": 520, "description": "Reachable par 5 in two"},
+        {"hole_number": 8, "stroke_index": 3, "par": 3, "yards": 185, "description": "Long par 3 with deep bunkers"},
+        {"hole_number": 9, "stroke_index": 9, "par": 4, "yards": 410, "description": "Finishing hole with elevated green"},
+        {"hole_number": 10, "stroke_index": 2, "par": 4, "yards": 455, "description": "Championship tee, very challenging"},
+        {"hole_number": 11, "stroke_index": 16, "par": 5, "yards": 545, "description": "Three-shot par 5 with creek"},
+        {"hole_number": 12, "stroke_index": 8, "par": 3, "yards": 175, "description": "Elevated tee, wind factor"},
+        {"hole_number": 13, "stroke_index": 14, "par": 4, "yards": 375, "description": "Short par 4, drivable green"},
+        {"hole_number": 14, "stroke_index": 4, "par": 4, "yards": 435, "description": "Narrow fairway, difficult approach"},
+        {"hole_number": 15, "stroke_index": 18, "par": 5, "yards": 565, "description": "Longest hole on course"},
+        {"hole_number": 16, "stroke_index": 10, "par": 4, "yards": 425, "description": "Risk/reward hole"},
+        {"hole_number": 17, "stroke_index": 12, "par": 3, "yards": 155, "description": "Island green signature hole"},
+        {"hole_number": 18, "stroke_index": 6, "par": 4, "yards": 415, "description": "Dramatic finishing hole"},
     ],
-    "Sample Course": [
-        {"stroke_index": i+1, "par": 4} for i in range(18)
+    "Championship Links": [
+        {"hole_number": i+1, "stroke_index": ((i * 7) % 18) + 1, "par": 4 if i % 3 != 1 else (3 if i % 6 == 1 else 5), 
+         "yards": 350 + (i * 15) + (50 if i % 3 == 2 else 0), "description": f"Hole {i+1} championship layout"} 
+        for i in range(18)
     ],
 }
 
@@ -51,6 +53,8 @@ class GameState:
         self.selected_course = None
         self.hole_stroke_indexes = [h["stroke_index"] for h in DEFAULT_COURSES["Wing Point"]]
         self.hole_pars = [h["par"] for h in DEFAULT_COURSES["Wing Point"]]
+        self.hole_yards = [h["yards"] for h in DEFAULT_COURSES["Wing Point"]]
+        self.hole_descriptions = [h.get("description", "") for h in DEFAULT_COURSES["Wing Point"]]
         # If the DB is empty (first run), do NOT auto-populate players or state
         if not hasattr(self, 'players') or self.players is None:
             self.players = []
@@ -88,6 +92,8 @@ class GameState:
         self._last_points: Dict[str, int] = {p["id"]: 0 for p in self.players}
         self.hole_stroke_indexes = [h["stroke_index"] for h in DEFAULT_COURSES["Wing Point"]]
         self.hole_pars = [h["par"] for h in DEFAULT_COURSES["Wing Point"]]
+        self.hole_yards = [h["yards"] for h in DEFAULT_COURSES["Wing Point"]]
+        self.hole_descriptions = [h.get("description", "") for h in DEFAULT_COURSES["Wing Point"]]
         self._save_to_db()
 
     def _random_order(self) -> List[str]:
@@ -557,14 +563,188 @@ class GameState:
             self.selected_course = course_name
             self.hole_stroke_indexes = [h["stroke_index"] for h in course]
             self.hole_pars = [h["par"] for h in course]
+            self.hole_yards = [h["yards"] for h in course]
+            self.hole_descriptions = [h.get("description", "") for h in course]
         else:
             self.selected_course = None
             self.hole_stroke_indexes = [h["stroke_index"] for h in DEFAULT_COURSES["Wing Point"]]
             self.hole_pars = [h["par"] for h in DEFAULT_COURSES["Wing Point"]]
+            self.hole_yards = [h["yards"] for h in DEFAULT_COURSES["Wing Point"]]
+            self.hole_descriptions = [h.get("description", "") for h in DEFAULT_COURSES["Wing Point"]]
         self._save_to_db()
 
     def get_courses(self):
         return self.courses
+
+    def add_course(self, course_data):
+        """Add a new course with validation"""
+        name = course_data["name"]
+        if name in self.courses:
+            raise ValueError(f"Course '{name}' already exists")
+        
+        holes = course_data["holes"]
+        if len(holes) != 18:
+            raise ValueError("Course must have exactly 18 holes")
+        
+        # Validate hole data
+        for hole in holes:
+            if not all(k in hole for k in ["hole_number", "par", "yards", "stroke_index"]):
+                raise ValueError("Each hole must have hole_number, par, yards, and stroke_index")
+        
+        # Check for unique handicaps and hole numbers
+        handicaps = [h["stroke_index"] for h in holes]
+        hole_numbers = [h["hole_number"] for h in holes]
+        
+        if len(set(handicaps)) != 18 or set(handicaps) != set(range(1, 19)):
+            raise ValueError("Stroke indexes must be unique and range from 1 to 18")
+        
+        if len(set(hole_numbers)) != 18 or set(hole_numbers) != set(range(1, 19)):
+            raise ValueError("Hole numbers must be unique and range from 1 to 18")
+        
+        # Sort holes by hole number for consistency
+        sorted_holes = sorted(holes, key=lambda h: h["hole_number"])
+        self.courses[name] = sorted_holes
+        return True
+
+    def delete_course(self, course_name):
+        """Delete a course"""
+        if course_name not in self.courses:
+            raise ValueError(f"Course '{course_name}' not found")
+        
+        # If this was the selected course, reset to default
+        if self.selected_course == course_name:
+            self.selected_course = None
+            self.hole_stroke_indexes = [h["stroke_index"] for h in DEFAULT_COURSES["Wing Point"]]
+            self.hole_pars = [h["par"] for h in DEFAULT_COURSES["Wing Point"]]
+            self.hole_yards = [h["yards"] for h in DEFAULT_COURSES["Wing Point"]]
+            self.hole_descriptions = [h.get("description", "") for h in DEFAULT_COURSES["Wing Point"]]
+        
+        del self.courses[course_name]
+        return True
+
+    def update_course(self, course_name, course_data):
+        """Update an existing course"""
+        if course_name not in self.courses:
+            raise ValueError(f"Course '{course_name}' not found")
+        
+        # If renaming, check new name doesn't exist
+        new_name = course_data.get("name", course_name)
+        if new_name != course_name and new_name in self.courses:
+            raise ValueError(f"Course '{new_name}' already exists")
+        
+        # Update course data
+        if "holes" in course_data:
+            holes = course_data["holes"]
+            if len(holes) != 18:
+                raise ValueError("Course must have exactly 18 holes")
+            
+            # Validate as in add_course
+            handicaps = [h["stroke_index"] for h in holes]
+            hole_numbers = [h["hole_number"] for h in holes]
+            
+            if len(set(handicaps)) != 18 or set(handicaps) != set(range(1, 19)):
+                raise ValueError("Stroke indexes must be unique and range from 1 to 18")
+            
+            if len(set(hole_numbers)) != 18 or set(hole_numbers) != set(range(1, 19)):
+                raise ValueError("Hole numbers must be unique and range from 1 to 18")
+            
+            sorted_holes = sorted(holes, key=lambda h: h["hole_number"])
+            
+            # If renaming, delete old and add new
+            if new_name != course_name:
+                del self.courses[course_name]
+                self.courses[new_name] = sorted_holes
+                # Update selected course if it was this one
+                if self.selected_course == course_name:
+                    self.selected_course = new_name
+            else:
+                self.courses[course_name] = sorted_holes
+            
+            # If this is the currently selected course, update game state
+            if self.selected_course in [course_name, new_name]:
+                self.hole_stroke_indexes = [h["stroke_index"] for h in sorted_holes]
+                self.hole_pars = [h["par"] for h in sorted_holes]
+                self.hole_yards = [h["yards"] for h in sorted_holes]
+                self.hole_descriptions = [h.get("description", "") for h in sorted_holes]
+        
+        return True
+
+    def get_course_stats(self, course_name):
+        """Get statistics for a course"""
+        if course_name not in self.courses:
+            raise ValueError(f"Course '{course_name}' not found")
+        
+        course = self.courses[course_name]
+        total_par = sum(h["par"] for h in course)
+        total_yards = sum(h["yards"] for h in course)
+        
+        par_counts = {3: 0, 4: 0, 5: 0, 6: 0}
+        for hole in course:
+            par_counts[hole["par"]] += 1
+        
+        longest_hole = max(course, key=lambda h: h["yards"])
+        shortest_hole = min(course, key=lambda h: h["yards"])
+        
+        # Calculate difficulty rating based on yards and par
+        difficulty_score = 0
+        for hole in course:
+            # Higher difficulty for longer holes and harder stroke indexes
+            yard_factor = hole["yards"] / (hole["par"] * 100)  # Normalize by par
+            stroke_factor = (19 - hole["stroke_index"]) / 18  # Lower stroke index = harder
+            difficulty_score += yard_factor * stroke_factor
+        
+        return {
+            "total_par": total_par,
+            "total_yards": total_yards,
+            "par_3_count": par_counts[3],
+            "par_4_count": par_counts[4], 
+            "par_5_count": par_counts[5],
+            "par_6_count": par_counts[6],
+            "average_yards_per_hole": total_yards / 18,
+            "longest_hole": longest_hole,
+            "shortest_hole": shortest_hole,
+            "difficulty_rating": round(difficulty_score, 2)
+        }
+
+    def get_current_hole_info(self):
+        """Get detailed information about the current hole"""
+        if not hasattr(self, 'current_hole') or self.current_hole is None:
+            return None
+        
+        hole_idx = self.current_hole - 1
+        if hole_idx < 0 or hole_idx >= len(self.hole_pars):
+            return None
+        
+        return {
+            "hole_number": self.current_hole,
+            "par": self.hole_pars[hole_idx],
+            "yards": self.hole_yards[hole_idx] if hasattr(self, 'hole_yards') else None,
+            "stroke_index": self.hole_stroke_indexes[hole_idx],
+            "description": self.hole_descriptions[hole_idx] if hasattr(self, 'hole_descriptions') else "",
+            "selected_course": self.selected_course
+        }
+
+    def get_hole_difficulty_factor(self, hole_number):
+        """Calculate difficulty factor for a specific hole for simulation"""
+        hole_idx = hole_number - 1
+        if hole_idx < 0 or hole_idx >= len(self.hole_stroke_indexes):
+            return 1.0
+        
+        # Combine stroke index difficulty with distance
+        stroke_index = self.hole_stroke_indexes[hole_idx]
+        stroke_difficulty = (19 - stroke_index) / 18  # 0-1, higher = more difficult
+        
+        if hasattr(self, 'hole_yards') and hole_idx < len(self.hole_yards):
+            par = self.hole_pars[hole_idx]
+            yards = self.hole_yards[hole_idx]
+            # Normalize yards by par (longer than expected = harder)
+            expected_yards = {3: 150, 4: 400, 5: 550}
+            yard_difficulty = min(1.5, yards / expected_yards.get(par, 400))
+            
+            # Combine factors
+            return 0.7 * stroke_difficulty + 0.3 * (yard_difficulty - 0.5)
+        
+        return stroke_difficulty
 
 # Singleton game state for MVP (in-memory)
 game_state = GameState() 

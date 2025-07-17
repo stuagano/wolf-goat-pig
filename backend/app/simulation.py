@@ -117,7 +117,21 @@ class ComputerPlayer:
         # Lower stroke index = harder hole
         difficulty = (19 - stroke_index) / 18.0
         
-        # Par 5s are generally easier for high handicappers
+        # Factor in distance/yards if available
+        if hasattr(game_state, 'hole_yards') and hole_idx < len(game_state.hole_yards):
+            yards = game_state.hole_yards[hole_idx]
+            # Expected yards by par
+            expected_yards = {3: 150, 4: 400, 5: 550}
+            expected = expected_yards.get(par, 400)
+            
+            # Distance factor: longer than expected = harder
+            distance_factor = min(1.5, yards / expected)
+            # Weight: 70% stroke index, 30% distance
+            difficulty = 0.7 * difficulty + 0.3 * (distance_factor - 0.5)
+        
+        # Adjust based on par
+        if par == 5:
+            difficulty *= 0.9  # Par 5s are generally easier for high handicappers
         if par == 5 and self.handicap > 15:
             difficulty *= 0.8
         elif par == 3 and self.handicap > 20:
@@ -481,7 +495,7 @@ class SimulationEngine:
             net_strokes = strokes[player_id][game_state.current_hole]
             
             # Simulate score based on handicap and hole difficulty
-            gross_score = self._simulate_player_score(handicap, hole_par, game_state.current_hole)
+            gross_score = self._simulate_player_score(handicap, hole_par, game_state.current_hole, game_state)
             net_score = max(1, gross_score - net_strokes)  # Can't go below 1
             
             scores[player_id] = int(net_score)
@@ -509,9 +523,21 @@ class SimulationEngine:
         
         return feedback
     
-    def _simulate_player_score(self, handicap: float, par: int, hole_number: int) -> int:
-        """Simulate a realistic score for a player based on their handicap"""
+    def _simulate_player_score(self, handicap: float, par: int, hole_number: int, game_state: 'GameState' = None) -> int:
+        """Simulate a realistic score for a player based on their handicap and hole characteristics"""
         # More realistic probability distributions based on actual golf statistics
+        
+        # Get distance factor if available
+        distance_factor = 1.0
+        if game_state and hasattr(game_state, 'hole_yards'):
+            hole_idx = hole_number - 1
+            if hole_idx < len(game_state.hole_yards):
+                yards = game_state.hole_yards[hole_idx]
+                expected_yards = {3: 150, 4: 400, 5: 550}
+                expected = expected_yards.get(par, 400)
+                
+                # Distance factor affects difficulty (longer = harder)
+                distance_factor = min(1.3, max(0.7, yards / expected))
         
         # Adjust base probabilities by handicap level
         if handicap <= 0:  # Plus handicap/scratch
@@ -560,9 +586,17 @@ class SimulationEngine:
         elif handicap > 15:
             putting_factor = 0.9  # Worse putting
         
+        # Apply distance factor - longer holes make good scores harder
+        distance_adjustment = 1.0 / distance_factor if distance_factor > 1.0 else distance_factor
+        
         # Final probability calculation
-        prob_birdie *= pressure_factor * putting_factor
-        prob_par *= pressure_factor
+        prob_birdie *= pressure_factor * putting_factor * distance_adjustment
+        prob_par *= pressure_factor * distance_adjustment
+        
+        # Longer holes increase chance of bogey/double
+        if distance_factor > 1.1:
+            prob_bogey *= distance_factor * 0.8
+            prob_double *= distance_factor * 0.6
         
         rand = random.random()
         
@@ -788,6 +822,18 @@ class SimulationEngine:
         
         # Lower stroke index = harder hole
         difficulty = (19 - stroke_index) / 18.0
+        
+        # Factor in distance/yards if available
+        if hasattr(game_state, 'hole_yards') and hole_idx < len(game_state.hole_yards):
+            yards = game_state.hole_yards[hole_idx]
+            # Expected yards by par
+            expected_yards = {3: 150, 4: 400, 5: 550}
+            expected = expected_yards.get(par, 400)
+            
+            # Distance factor: longer than expected = harder
+            distance_factor = min(1.5, yards / expected)
+            # Weight: 70% stroke index, 30% distance
+            difficulty = 0.7 * difficulty + 0.3 * (distance_factor - 0.5)
         
         # Adjust based on par - this is for average handicap golfer
         if par == 5:
