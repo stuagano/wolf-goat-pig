@@ -374,7 +374,12 @@ class SimulationEngine:
         shot_feedback = self._simulate_shots(game_state)
         feedback.extend(shot_feedback)
         
-        # Phase 4: Calculate results and provide educational feedback
+        # Phase 4: Set up teams and calculate results
+        # Ensure teams are properly set for point calculation
+        if not hasattr(game_state, 'teams') or not game_state.teams:
+            # Default to solo play if no teams were set during partnership phase
+            game_state.teams = {"type": "solo"}
+        
         game_state.dispatch_action("calculate_hole_points", {})
         
         educational_feedback = self._generate_educational_feedback(game_state, human_decisions)
