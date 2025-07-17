@@ -74,31 +74,97 @@ async def setup_game_players(request: Request):
         raise HTTPException(status_code=400, detail=str(e))
     return {"status": "ok", "game_state": _serialize_game_state()}
 
-class HoleInfo(BaseModel):
-    stroke_index: int
-    par: int
+from .schemas import CourseCreate, CourseUpdate, CourseResponse, CourseStats, CourseComparison, HoleInfo
 
-class CourseCreate(BaseModel):
-    name: str
-    holes: list[HoleInfo]  # 18 items, each with stroke_index and par
-
-@app.post("/courses")
+@app.post("/courses", response_model=dict)
 def add_course(course: CourseCreate):
-    name = course.name.strip()
-    if not name or len(course.holes) != 18:
-        raise HTTPException(status_code=400, detail="Course name and 18 holes required.")
-    if name in game_state.courses:
-        raise HTTPException(status_code=400, detail="Course already exists.")
-    # Store as list of dicts
-    game_state.courses[name] = [dict(stroke_index=h.stroke_index, par=h.par) for h in course.holes]
-    return game_state.get_courses()
+    """Add a new course with validation"""
+    try:
+        # Convert Pydantic models to dict format expected by game_state
+        course_data = {
+            "name": course.name,
+            "holes": [
+                {
+                    "hole_number": hole.hole_number,
+                    "par": hole.par,
+                    "yards": hole.yards,
+                    "stroke_index": hole.handicap,  # Note: handicap in schema = stroke_index in game_state
+                    "description": hole.description or ""
+                }
+                for hole in course.holes
+            ]
+        }
+        game_state.add_course(course_data)
+        return {"status": "success", "message": "Course created successfully", "courses": game_state.get_courses()}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-@app.delete("/courses/{name}")
-def delete_course(name: str = Path(...)):
-    if name not in game_state.courses:
-        raise HTTPException(status_code=404, detail="Course not found.")
-    del game_state.courses[name]
-    return game_state.get_courses()
+@app.put("/courses/{course_name}")
+def update_course(course_name: str, course_update: CourseUpdate):
+    """Update an existing course"""
+    try:
+        update_data = {}
+        if course_update.name:
+            update_data["name"] = course_update.name
+        if course_update.holes:
+            update_data["holes"] = [
+                {
+                    "hole_number": hole.hole_number,
+                    "par": hole.par,
+                    "yards": hole.yards,
+                    "stroke_index": hole.handicap,
+                    "description": hole.description or ""
+                }
+                for hole in course_update.holes
+            ]
+        
+        game_state.update_course(course_name, update_data)
+        return {"status": "success", "message": "Course updated successfully", "courses": game_state.get_courses()}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete("/courses/{course_name}")
+def delete_course(course_name: str = Path(...)):
+    """Delete a course"""
+    try:
+        game_state.delete_course(course_name)
+        return {"status": "success", "message": "Course deleted successfully", "courses": game_state.get_courses()}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@app.get("/courses/{course_name}/stats")
+def get_course_stats(course_name: str):
+    """Get statistics for a specific course"""
+    try:
+        stats = game_state.get_course_stats(course_name)
+        return stats
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@app.get("/courses/{course1}/compare/{course2}")
+def compare_courses(course1: str, course2: str):
+    """Compare two courses"""
+    try:
+        stats1 = game_state.get_course_stats(course1)
+        stats2 = game_state.get_course_stats(course2)
+        
+        return {
+            "course1": {"name": course1, "stats": stats1},
+            "course2": {"name": course2, "stats": stats2},
+            "difficulty_difference": stats1["difficulty_rating"] - stats2["difficulty_rating"],
+            "yard_difference": stats1["total_yards"] - stats2["total_yards"],
+            "par_difference": stats1["total_par"] - stats2["total_par"]
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@app.get("/game/current-hole")
+def get_current_hole_info():
+    """Get detailed information about the current hole"""
+    hole_info = game_state.get_current_hole_info()
+    if hole_info is None:
+        raise HTTPException(status_code=404, detail="No current hole information available")
+    return hole_info
 
 # Simulation endpoints
 class ComputerPlayerConfig(BaseModel):
