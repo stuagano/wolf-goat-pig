@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
 import GameSetupForm from "./GameSetupForm";
 import CourseManager from "./CourseManager";
+import SimulationMode from "./SimulationMode";
+import MonteCarloSimulation from "./MonteCarloSimulation";
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -132,6 +134,124 @@ function isBlankGameState(data) {
   if (!data || !Array.isArray(data.players)) return true;
   // Consider blank if no players or all player names are empty/blank
   return data.players.length === 0 || data.players.every(p => !p.name || p.name.trim() === "");
+}
+
+function Navigation() {
+  const navigate = useNavigate();
+  
+  const navStyle = {
+    background: COLORS.primary,
+    color: "#fff",
+    padding: "16px 0",
+    marginBottom: 20,
+    boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+  };
+  
+  const navContainerStyle = {
+    maxWidth: 1200,
+    margin: "0 auto",
+    padding: "0 20px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center"
+  };
+  
+  const navButtonStyle = {
+    background: "transparent",
+    color: "#fff",
+    border: "2px solid #fff",
+    borderRadius: 6,
+    padding: "8px 16px",
+    margin: "0 8px",
+    cursor: "pointer",
+    fontWeight: 600,
+    transition: "all 0.2s"
+  };
+  
+  return (
+    <nav style={navStyle}>
+      <div style={navContainerStyle}>
+        <h1 style={{ margin: 0 }}>🐺🐐🐷 Wolf Goat Pig</h1>
+        <div>
+          <button style={navButtonStyle} onClick={() => navigate('/')}>
+            Home
+          </button>
+          <button style={navButtonStyle} onClick={() => navigate('/setup')}>
+            Regular Game
+          </button>
+          <button style={navButtonStyle} onClick={() => navigate('/simulation')}>
+            🎮 Simulation Mode
+          </button>
+          <button style={navButtonStyle} onClick={() => navigate('/monte-carlo')}>
+            🎲 Monte Carlo
+          </button>
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+function HomePage() {
+  const navigate = useNavigate();
+  
+  return (
+    <div style={{ maxWidth: 800, margin: "0 auto", padding: 20 }}>
+      <div style={cardStyle}>
+        <h2 style={{ color: COLORS.primary, textAlign: "center", marginBottom: 30 }}>
+          Welcome to Wolf Goat Pig
+        </h2>
+        <p style={{ fontSize: 18, textAlign: "center", marginBottom: 30, color: COLORS.muted }}>
+          "We accept bad golf, but not bad betting"
+        </p>
+        
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 30 }}>
+          <div style={cardStyle}>
+            <h3 style={{ color: COLORS.primary }}>🎮 Simulation Mode</h3>
+            <p>
+              New to Wolf Goat Pig? Practice against computer opponents to learn the betting strategies 
+              and game mechanics. Get educational feedback after each hole!
+            </p>
+            <button 
+              style={buttonStyle}
+              onClick={() => navigate('/simulation')}
+            >
+              Start Simulation
+            </button>
+          </div>
+          
+          <div style={cardStyle}>
+            <h3 style={{ color: COLORS.primary }}>⚔️ Regular Game</h3>
+            <p>
+              Ready to play with real players? Set up a game with custom players and track your 
+              Wolf Goat Pig matches with full betting and scoring.
+            </p>
+            <button 
+              style={buttonStyle}
+              onClick={() => navigate('/setup')}
+            >
+              Set Up Game
+            </button>
+          </div>
+        </div>
+        
+        <div style={cardStyle}>
+          <h3 style={{ color: COLORS.primary }}>About Wolf Goat Pig</h3>
+          <p>
+            Wolf Goat Pig is a sophisticated golf betting game where strategy meets skill. 
+            Players take turns as the "Captain" and must decide whether to:
+          </p>
+          <ul style={{ marginLeft: 20, color: COLORS.text }}>
+            <li><strong>Request a partner</strong> for a traditional best-ball team format</li>
+            <li><strong>Go solo</strong> against the other three players (doubles the wager!)</li>
+          </ul>
+          <p>
+            Add in doubling opportunities, the Float, the Option, and complex scoring rules like 
+            the Karl Marx principle, and you have a game that rewards both golf skill and betting acumen.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function SetupPage({ onSetup }) {
@@ -640,11 +760,17 @@ function App() {
   }
 
   return (
-    <Routes>
-      <Route path="/setup" element={<SetupPage onSetup={setGameState} />} />
-      <Route path="/game" element={gameState ? <GamePage gameState={gameState} setGameState={setGameState} loading={loading} setLoading={setLoading} /> : <Navigate to="/setup" />} />
-      <Route path="*" element={<Navigate to={gameState ? "/game" : "/setup"} />} />
-    </Routes>
+    <div>
+      <Navigation />
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/setup" element={<SetupPage onSetup={setGameState} />} />
+        <Route path="/game" element={gameState ? <GamePage gameState={gameState} setGameState={setGameState} loading={loading} setLoading={setLoading} /> : <Navigate to="/setup" />} />
+        <Route path="/simulation" element={<SimulationMode />} />
+        <Route path="/monte-carlo" element={<MonteCarloSimulation />} />
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </div>
   );
 }
 
