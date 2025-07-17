@@ -1,28 +1,75 @@
 from fastapi import FastAPI, Depends, Body, HTTPException, Request, Path
 from fastapi.middleware.cors import CORSMiddleware
 from . import models, schemas, crud, database
+import os
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Ensure tables are created before anything else
 # Call init_db before importing game_state
 
-database.init_db()
+try:
+    database.init_db()
+    logger.info("Database initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize database: {e}")
+    raise
 
 from .game_state import game_state
 from pydantic import BaseModel
 
-app = FastAPI()
+app = FastAPI(title="Wolf Goat Pig API", version="1.0.0")
 
-# Allow all origins for MVP; restrict in production
+# Production-ready CORS configuration
+ENVIRONMENT = os.getenv("NODE_ENV", "development")
+logger.info(f"Starting application in {ENVIRONMENT} mode")
+
+if ENVIRONMENT == "production":
+    # In production, restrict CORS to your frontend domain
+    allowed_origins = [
+        "https://wgp-frontend.onrender.com",  # Frontend static site URL
+        "https://wgp-frontend.netlify.app",   # Alternative if using Netlify
+        "https://wgp-frontend.vercel.app",    # Alternative if using Vercel
+    ]
+else:
+    # In development, allow localhost
+    allowed_origins = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ]
+
+logger.info(f"CORS allowed origins: {allowed_origins}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
 
+# Health check endpoint for Render
+@app.get("/health")
+def health_check():
+    return {
+        "status": "healthy",
+        "environment": ENVIRONMENT,
+        "database_url": "***" if os.getenv("DATABASE_URL") else "sqlite (local)"
+    }
+
 @app.on_event("startup")
 def startup():
-    database.init_db()
+    try:
+        database.init_db()
+        logger.info("Startup: Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Startup: Failed to initialize database: {e}")
+        raise
 
 @app.get("/rules", response_model=list[schemas.Rule])
 def get_rules():

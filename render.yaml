@@ -1,1 +1,30 @@
-   uvicorn app.main:app --host 0.0.0.0 --port 10000
+services:
+  # Backend API Service
+  - type: web
+    name: wgp-backend
+    env: python
+    buildCommand: "cd backend && pip install -r requirements.txt"
+    startCommand: "cd backend && ./start.sh"
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: NODE_ENV
+        value: production
+    
+  # Frontend Static Site Service  
+  - type: static
+    name: wgp-frontend
+    buildCommand: "cd frontend && npm ci && npm run build"
+    staticPublishPath: frontend/build
+    buildFilter:
+      paths:
+      - frontend/**
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+databases:
+  # PostgreSQL Database
+  - name: wgp-database
+    plan: free
