@@ -2,8 +2,13 @@
 backend/venv/
 backend/__pycache__/
 backend/*.pyc
+backend/app/__pycache__/
+backend/app/*.pyc
 backend/.env
 backend/.pytest_cache/
+
+# History files
+.history/
 
 # FastAPI/SQLite (if used)
 backend/*.db

@@ -15,7 +15,7 @@ The course management system has been significantly enhanced to address the issu
 - **Problem**: Holes lacked descriptive information and proper structure
 - **Solution**: Added hole descriptions, proper numbering, and comprehensive metadata
 - **Impact**: Better course visualization and strategic planning
-
+`
 ### 3. **Inadequate Simulation Factors**
 - **Problem**: Simulation didn't account for hole distance in scoring probabilities
 - **Solution**: Integrated distance factors into difficulty calculations and score simulation
