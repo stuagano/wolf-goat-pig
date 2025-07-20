@@ -212,16 +212,9 @@ def setup_simulation(setup: SimulationSetup):
         # Setup simulation
         sim_game_state = simulation_engine.setup_simulation(
             setup.human_player, 
-            computer_configs
+            computer_configs,
+            setup.course_name
         )
-        
-        # Set course if provided
-        if setup.course_name and setup.course_name in sim_game_state.courses:
-            course = sim_game_state.courses[setup.course_name]
-            sim_game_state.selected_course = setup.course_name
-            sim_game_state.hole_stroke_indexes = [h["stroke_index"] for h in course]
-            sim_game_state.hole_pars = [h["par"] for h in course]
-            sim_game_state._save_to_db()
         
         # Update the global game state with simulation
         game_state = sim_game_state

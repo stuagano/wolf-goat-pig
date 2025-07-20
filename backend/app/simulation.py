@@ -284,7 +284,7 @@ class SimulationEngine:
         self.shot_history: List[Dict] = []
         self.educational_feedback: List[str] = []
         
-    def setup_simulation(self, human_player: dict, computer_configs: List[dict]) -> GameState:
+    def setup_simulation(self, human_player: dict, computer_configs: List[dict], course_name: Optional[str] = None) -> GameState:
         """Setup a simulation game with one human and three computer players"""
         if len(computer_configs) != 3:
             raise ValueError("Need exactly 3 computer player configurations")
@@ -318,7 +318,7 @@ class SimulationEngine:
         ]
         
         game_state = GameState()
-        game_state.setup_players(all_players)
+        game_state.setup_players(all_players, course_name)
         
         return game_state
     
@@ -392,7 +392,7 @@ class SimulationEngine:
         # Ensure teams are properly set for point calculation
         if not hasattr(game_state, 'teams') or not game_state.teams:
             # Default to solo play if no teams were set during partnership phase
-            game_state.teams = {"type": "solo"}
+            game_state.teams = {"type": "solo", "captain": game_state.captain_id, "opponents": [p["id"] for p in game_state.players if p["id"] != game_state.captain_id]}
         
         game_state.dispatch_action("calculate_hole_points", {})
         
@@ -1067,14 +1067,7 @@ class SimulationEngine:
         
         for sim_num in range(num_simulations):
             # Setup a fresh game for each simulation
-            game_state = self.setup_simulation(human_player, computer_configs)
-            
-            # Set course if provided
-            if course_name and course_name in game_state.courses:
-                course = game_state.courses[course_name]
-                game_state.selected_course = course_name
-                game_state.hole_stroke_indexes = [h["stroke_index"] for h in course]
-                game_state.hole_pars = [h["par"] for h in course]
+            game_state = self.setup_simulation(human_player, computer_configs, course_name)
             
             # Simulate all 18 holes
             for hole in range(1, 19):

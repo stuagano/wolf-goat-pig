@@ -333,9 +333,16 @@ function SimulationMode() {
       {/* Game Header */}
       <div style={cardStyle}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h2 style={{ color: COLORS.primary, margin: 0 }}>
-            🎮 Simulation - Hole {gameState?.current_hole || 1}
-          </h2>
+          <div>
+            <h2 style={{ color: COLORS.primary, margin: 0 }}>
+              🎮 Simulation - Hole {gameState?.current_hole || 1}
+            </h2>
+            {gameState?.selected_course && (
+              <p style={{ margin: "4px 0 0 0", color: COLORS.muted, fontSize: 14 }}>
+                Playing on: <strong>{gameState.selected_course}</strong>
+              </p>
+            )}
+          </div>
           <button
             style={{ ...buttonStyle, background: COLORS.error }}
             onClick={resetSimulation}
@@ -397,8 +404,9 @@ function SimulationMode() {
               border: "1px solid #4169E1"
             }}>
               <h4 style={{ margin: "0 0 8px 0", color: "#4169E1" }}>📊 Hole Information:</h4>
-              <div style={{ display: "flex", gap: 20, fontSize: 14 }}>
+              <div style={{ display: "flex", gap: 20, fontSize: 14, flexWrap: "wrap" }}>
                 <span>Par: {gameState.hole_pars[gameState.current_hole - 1]}</span>
+                <span>Yards: {gameState.hole_yards?.[gameState.current_hole - 1] || "N/A"}</span>
                 <span>Stroke Index: {gameState.hole_stroke_indexes[gameState.current_hole - 1]} (1=hardest, 18=easiest)</span>
                 {gameState.hole_stroke_indexes[gameState.current_hole - 1] <= 6 && 
                   <span style={{ color: COLORS.error, fontWeight: "bold" }}>⚠️ Difficult Hole</span>
@@ -407,6 +415,11 @@ function SimulationMode() {
                   <span style={{ color: COLORS.success, fontWeight: "bold" }}>✅ Scoring Opportunity</span>
                 }
               </div>
+              {gameState.hole_descriptions?.[gameState.current_hole - 1] && (
+                <div style={{ marginTop: 8, fontSize: 13, color: COLORS.muted, fontStyle: "italic" }}>
+                  {gameState.hole_descriptions[gameState.current_hole - 1]}
+                </div>
+              )}
             </div>
           )}
           
