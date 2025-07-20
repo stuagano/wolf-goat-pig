@@ -16,7 +16,12 @@ app = FastAPI()
 # Allow all origins for MVP; restrict in production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "*",  # For development
+        "https://wolf-goat-pig.vercel.app",  # Vercel frontend
+        "https://wolf-goat-pig-frontend.onrender.com",  # Render frontend
+        "http://localhost:3000"  # Local development
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
