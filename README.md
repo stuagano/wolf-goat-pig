@@ -1,5 +1,7 @@
 # Wolf Goat Pig MVP
 
+🌐 **Live Demo**: [https://wolf-goat-pig.vercel.app](https://wolf-goat-pig.vercel.app)
+
 This is a full-stack MVP web app for tracking a 4-man Wolf Goat Pig golf game, with all core rules, betting, and scoring logic.
 
 ---
