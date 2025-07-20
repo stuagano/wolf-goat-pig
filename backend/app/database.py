@@ -19,5 +19,13 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 def init_db():
-    # This will create all tables, including GameStateModel
-    Base.metadata.create_all(bind=engine) 
+    """Initialize database with error handling"""
+    try:
+        # This will create all tables, including GameStateModel
+        Base.metadata.create_all(bind=engine)
+        print("✅ Database initialized successfully")
+    except Exception as e:
+        print(f"❌ Database initialization failed: {e}")
+        if "could not translate host name" in str(e):
+            print("💡 This appears to be a database connection issue. Check your DATABASE_URL environment variable.")
+        raise e 

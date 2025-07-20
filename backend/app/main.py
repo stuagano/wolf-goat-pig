@@ -26,6 +26,11 @@ app.add_middleware(
 def startup():
     database.init_db()
 
+@app.get("/health")
+def health_check():
+    """Health check endpoint for Render"""
+    return {"status": "healthy", "message": "Wolf Goat Pig API is running"}
+
 @app.get("/rules", response_model=list[schemas.Rule])
 def get_rules():
     return crud.get_rules()

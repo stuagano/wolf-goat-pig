@@ -1,1 +1,47 @@
-   uvicorn app.main:app --host 0.0.0.0 --port 10000
+services:
+  # Database service
+  - type: pserv
+    name: wolf-goat-pig-db
+    env: postgresql
+    plan: free
+    region: oregon
+    ipAllowList: []
+    
+  # Backend API service
+  - type: web
+    name: wolf-goat-pig-api
+    env: python
+    plan: free
+    region: oregon
+    buildCommand: |
+      cd backend
+      pip install -r requirements.txt
+    startCommand: |
+      cd backend
+      uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromService:
+          name: wolf-goat-pig-db
+          type: pserv
+          property: connectionString
+      - key: PYTHON_VERSION
+        value: 3.11.0
+    healthCheckPath: /health
+    autoDeploy: true
+
+  # Frontend service (if deploying to Render)
+  - type: web
+    name: wolf-goat-pig-frontend
+    env: static
+    plan: free
+    region: oregon
+    buildCommand: |
+      cd frontend
+      npm install
+      npm run build
+    staticPublishPath: ./frontend/build
+    envVars:
+      - key: REACT_APP_API_URL
+        value: https://wolf-goat-pig-api.onrender.com
+    autoDeploy: true

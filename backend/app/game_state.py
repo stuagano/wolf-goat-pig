@@ -382,24 +382,34 @@ class GameState:
         self.hole_pars = data.get("hole_pars", [h["par"] for h in DEFAULT_COURSES["Wing Point"]])
 
     def _save_to_db(self):
-        # Save the current state as JSON in the DB (id=1)
-        state_json = self._serialize()
-        session = self._db_session
-        obj = session.query(GameStateModel).get(1)
-        if obj:
-            obj.state = state_json
-        else:
-            obj = GameStateModel(id=1, state=state_json)
-            session.add(obj)
-        session.commit()
+        """Save the current state as JSON in the DB (id=1) with error handling"""
+        try:
+            state_json = self._serialize()
+            session = self._db_session
+            obj = session.query(GameStateModel).get(1)
+            if obj:
+                obj.state = state_json
+            else:
+                obj = GameStateModel(id=1, state=state_json)
+                session.add(obj)
+            session.commit()
+        except Exception as e:
+            print(f"⚠️ Database save failed: {e}")
+            # Continue without saving - this allows the app to work even if DB is down
+            pass
 
     def _load_from_db(self):
-        # Load the state from DB if present
-        session = self._db_session
-        obj = session.query(GameStateModel).get(1)
-        if obj and obj.state:
-            self._deserialize(obj.state)
-        else:
+        """Load the state from DB if present with error handling"""
+        try:
+            session = self._db_session
+            obj = session.query(GameStateModel).get(1)
+            if obj and obj.state:
+                self._deserialize(obj.state)
+            else:
+                self.reset()
+        except Exception as e:
+            print(f"⚠️ Database load failed: {e}")
+            # Fall back to default state if DB is unavailable
             self.reset()
 
     def get_betting_tips(self):
