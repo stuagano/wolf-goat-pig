@@ -105,5 +105,39 @@ cd ../frontend && npm start
 
 ---
 
+## 🧪 Functional Testing
+
+After deployment, you can run comprehensive functional tests to verify everything is working:
+
+### Quick Test (Recommended)
+```bash
+./run_tests.sh
+```
+
+### Manual Setup and Test
+```bash
+# Setup testing environment
+python3 setup_testing.py
+
+# Run functional tests
+python3 functional_test_suite.py
+```
+
+### What the Tests Check
+- ✅ **Deployment Status**: Polls Render and Vercel services until ready
+- ✅ **Frontend Loading**: Tests both Vercel and Render frontend URLs
+- ✅ **API Connectivity**: Verifies frontend can connect to backend
+- ✅ **Simulation Mode**: Tests course selection and UI elements
+- ✅ **Course Data**: Verifies sample courses are loaded
+
+### Test Report
+Tests generate a detailed report at `functional_test_report.json` with:
+- Service health status
+- Frontend functionality
+- API connectivity
+- Error details and timestamps
+
+---
+
 ## Questions?
 Open an issue or contact the maintainer. 
