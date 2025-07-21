@@ -154,17 +154,26 @@ function SimulationMode() {
   const playHole = async () => {
     setLoading(true);
     try {
+      // With chronological backend, send default/empty decisions
+      // All decision-making happens automatically during simulation
+      const defaultDecisions = {
+        action: null,
+        requested_partner: null,
+        offer_double: false,
+        accept_double: false
+      };
+      
       const response = await fetch(`${API_URL}/simulation/play-hole`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(holeDecisions)
+        body: JSON.stringify(defaultDecisions)
       });
       
       const data = await response.json();
       if (data.status === "ok") {
         setGameState(data.game_state);
         setFeedback(data.feedback || []);
-        // Reset decisions for next hole
+        // Reset decisions for next hole (though they're not used anymore)
         setHoleDecisions({
           action: null,
           requested_partner: null,
@@ -489,201 +498,43 @@ function SimulationMode() {
         </div>
       </div>
       
-      {/* Captain Decision Interface */}
-      {isHumanCaptain && !gameState?.teams?.type && (
-        <div style={cardStyle}>
-          <h3>🎯 You're the Captain! Make Your Decision</h3>
-          <p style={{ marginBottom: 20 }}>
-            As captain, you can either request a partner or go solo. Consider the hole difficulty, 
-            your current position, and stroke advantages before deciding.
-          </p>
-          
-          {/* Course Info Helper */}
-          {gameState?.hole_pars && gameState?.hole_stroke_indexes && (
-            <div style={{ 
-              background: "#f0f8ff", 
-              padding: 12, 
-              borderRadius: 8, 
-              marginBottom: 16,
-              border: "1px solid #4169E1"
-            }}>
-              <h4 style={{ margin: "0 0 8px 0", color: "#4169E1" }}>📊 Hole Information:</h4>
-              <div style={{ display: "flex", gap: 20, fontSize: 14, flexWrap: "wrap" }}>
-                <span>Par: {gameState.hole_pars[gameState.current_hole - 1]}</span>
-                <span>Yards: {gameState.hole_yards?.[gameState.current_hole - 1] || "N/A"}</span>
-                <span>Stroke Index: {gameState.hole_stroke_indexes[gameState.current_hole - 1]} (1=hardest, 18=easiest)</span>
-                {gameState.hole_stroke_indexes[gameState.current_hole - 1] <= 6 && 
-                  <span style={{ color: COLORS.error, fontWeight: "bold" }}>⚠️ Difficult Hole</span>
-                }
-                {gameState.hole_stroke_indexes[gameState.current_hole - 1] >= 13 && 
-                  <span style={{ color: COLORS.success, fontWeight: "bold" }}>✅ Scoring Opportunity</span>
-                }
-              </div>
-              {gameState.hole_descriptions?.[gameState.current_hole - 1] && (
-                <div style={{ marginTop: 8, fontSize: 13, color: COLORS.muted, fontStyle: "italic" }}>
-                  {gameState.hole_descriptions[gameState.current_hole - 1]}
-                </div>
-              )}
-            </div>
-          )}
-          
-          {/* Stroke Advantage Display */}
-          {(() => {
-            const strokes = gameState?.players?.find(p => p.id === "human");
-            const strokesOnHole = strokes ? gameState.get_player_strokes?.()?.[strokes.id]?.[gameState.current_hole] || 0 : 0;
-            
-            return strokesOnHole > 0 && (
-              <div style={{ 
-                background: "#f0f9f0", 
-                padding: 12, 
-                borderRadius: 8, 
-                marginBottom: 16,
-                border: `1px solid ${COLORS.success}`
-              }}>
-                <h4 style={{ margin: "0 0 8px 0", color: COLORS.success }}>🎁 Stroke Advantage:</h4>
-                <p style={{ margin: 0, fontSize: 14 }}>
-                  You receive <strong>{strokesOnHole} stroke(s)</strong> on this hole! 
-                  This is a significant advantage - consider being more aggressive with your betting.
-                </p>
-              </div>
-            );
-          })()}
-          
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ 
-              border: holeDecisions.action === "go_solo" ? `2px solid ${COLORS.success}` : `1px solid ${COLORS.border}`,
-              borderRadius: 8,
-              padding: 16,
-              marginBottom: 12,
-              background: holeDecisions.action === "go_solo" ? "#f0f9f0" : COLORS.card,
-              cursor: "pointer"
-            }}
-            onClick={() => setHoleDecisions({...holeDecisions, action: "go_solo", requested_partner: null})}
-            >
-              <div style={{ display: "flex", alignItems: "center", marginBottom: 8 }}>
-                <input 
-                  type="radio" 
-                  checked={holeDecisions.action === "go_solo"}
-                  onChange={() => {}}
-                  style={{ marginRight: 12 }}
-                />
-                <h4 style={{ margin: 0, fontSize: 18 }}>🏌️ Go Solo (Triple Points!)</h4>
-              </div>
-              <p style={{ margin: 0, fontSize: 14, color: COLORS.muted }}>
-                <strong>Risk:</strong> High - you vs everyone else<br/>
-                <strong>Reward:</strong> Win 3 points from each opponent if successful<br/>
-                <strong>When to choose:</strong> You have stroke advantage, feeling confident, or need to catch up
-              </p>
-            </div>
-          </div>
-          
-          <div>
-            <h4 style={{ marginBottom: 12 }}>Or Request a Partner:</h4>
-            <p style={{ fontSize: 14, color: COLORS.muted, marginBottom: 12 }}>
-              Choose someone whose skills complement yours. Consider their recent performance and handicap.
-            </p>
-            {getPartnerOptions().map(player => {
-              const isSelected = holeDecisions.requested_partner === player.id;
-              const handicapDiff = Math.abs(player.handicap - (gameState?.players?.find(p => p.id === "human")?.handicap || 18));
-              const isGoodMatch = handicapDiff <= 6;
-              
-              return (
-                <div
-                  key={player.id}
-                  style={{
-                    border: isSelected ? `2px solid ${COLORS.success}` : `1px solid ${COLORS.border}`,
-                    borderRadius: 8,
-                    padding: 12,
-                    marginBottom: 8,
-                    background: isSelected ? "#f0f9f0" : COLORS.card,
-                    cursor: "pointer"
-                  }}
-                  onClick={() => setHoleDecisions({...holeDecisions, action: null, requested_partner: player.id})}
-                >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <div style={{ display: "flex", alignItems: "center" }}>
-                      <input 
-                        type="radio" 
-                        checked={isSelected}
-                        onChange={() => {}}
-                        style={{ marginRight: 12 }}
-                      />
-                      <div>
-                        <div style={{ fontWeight: "bold" }}>💻 {player.name}</div>
-                        <div style={{ fontSize: 12, color: COLORS.muted }}>
-                          Handicap: {player.handicap} | Points: {player.points >= 0 ? "+" : ""}{player.points}
-                        </div>
-                      </div>
-                    </div>
-                    <div style={{ textAlign: "right", fontSize: 12 }}>
-                      {isGoodMatch ? (
-                        <span style={{ color: COLORS.success, fontWeight: "bold" }}>✅ Good Match</span>
-                      ) : (
-                        <span style={{ color: COLORS.warning }}>⚠️ Handicap Gap: {handicapDiff.toFixed(1)}</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-      
-      {/* Doubling Interface */}
-      {gameState?.teams?.type && !gameState?.doubled_status && (
-        <div style={cardStyle}>
-          <h3>💰 Doubling Opportunity</h3>
-          <p>Current base wager: {gameState.base_wager} quarter(s)</p>
-          
-          <label style={{ display: "flex", alignItems: "center", marginBottom: 8 }}>
-            <input
-              type="checkbox"
-              checked={holeDecisions.offer_double}
-              onChange={(e) => setHoleDecisions({...holeDecisions, offer_double: e.target.checked})}
-              style={{ marginRight: 8 }}
-            />
-            Offer to double the opposing team
-          </label>
-        </div>
-      )}
-      
-      {/* Computer Double Offer Response */}
-      {gameState?.doubled_status && (
-        <div style={cardStyle}>
-          <h3>🤔 Computer Team Offered a Double!</h3>
-          <p style={{ color: COLORS.warning, fontWeight: "bold" }}>
-            The computer team wants to double the stakes. Do you accept?
-          </p>
-          <p>Current wager: {gameState.base_wager} → Would become: {gameState.base_wager * 2}</p>
-          
-          <div>
-            <label style={{ display: "flex", alignItems: "center", marginBottom: 8 }}>
-              <input
-                type="radio"
-                name="double_response"
-                checked={holeDecisions.accept_double === true}
-                onChange={() => setHoleDecisions({...holeDecisions, accept_double: true})}
-                style={{ marginRight: 8 }}
-              />
-              Accept the double (higher risk, higher reward)
-            </label>
-            <label style={{ display: "flex", alignItems: "center" }}>
-              <input
-                type="radio"
-                name="double_response"
-                checked={holeDecisions.accept_double === false}
-                onChange={() => setHoleDecisions({...holeDecisions, accept_double: false})}
-                style={{ marginRight: 8 }}
-              />
-              Decline the double (they win the hole at current stakes)
-            </label>
-          </div>
-        </div>
-      )}
-      
-      {/* Play Hole Button */}
+      {/* Play Hole Button - All decisions happen chronologically during play */}
       <div style={cardStyle}>
+        <h3>🏌️ Ready to Play Hole {gameState?.current_hole}?</h3>
+        <p style={{ marginBottom: 16, color: COLORS.muted }}>
+          Click below to watch the hole unfold chronologically - tee shots, captain decisions, 
+          partnerships, and betting all happen in real time just like actual Wolf Goat Pig!
+        </p>
+        
+        {/* Show hole info for context */}
+        {gameState?.hole_pars && gameState?.hole_stroke_indexes && (
+          <div style={{ 
+            background: "#f0f8ff", 
+            padding: 12, 
+            borderRadius: 8, 
+            marginBottom: 16,
+            border: "1px solid #4169E1"
+          }}>
+            <h4 style={{ margin: "0 0 8px 0", color: "#4169E1" }}>📊 Hole {gameState.current_hole} Preview:</h4>
+            <div style={{ display: "flex", gap: 20, fontSize: 14, flexWrap: "wrap" }}>
+              <span>Par: {gameState.hole_pars[gameState.current_hole - 1]}</span>
+              <span>Yards: {gameState.hole_yards?.[gameState.current_hole - 1] || "N/A"}</span>
+              <span>Stroke Index: {gameState.hole_stroke_indexes[gameState.current_hole - 1]} (1=hardest, 18=easiest)</span>
+              {gameState.hole_stroke_indexes[gameState.current_hole - 1] <= 6 && 
+                <span style={{ color: COLORS.error, fontWeight: "bold" }}>⚠️ Difficult Hole</span>
+              }
+              {gameState.hole_stroke_indexes[gameState.current_hole - 1] >= 13 && 
+                <span style={{ color: COLORS.success, fontWeight: "bold" }}>✅ Scoring Opportunity</span>
+              }
+            </div>
+            {gameState.hole_descriptions?.[gameState.current_hole - 1] && (
+              <div style={{ marginTop: 8, fontSize: 13, color: COLORS.muted, fontStyle: "italic" }}>
+                {gameState.hole_descriptions[gameState.current_hole - 1]}
+              </div>
+            )}
+          </div>
+        )}
+        
         <button
           style={buttonStyle}
           onClick={playHole}
