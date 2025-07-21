@@ -552,5 +552,7 @@ def _serialize_game_state():
         "hole_history": game_state.get_hole_history(),
         "hole_stroke_indexes": game_state.hole_stroke_indexes,
         "hole_pars": game_state.hole_pars,
+        "hole_yards": getattr(game_state, "hole_yards", []),
+        "hole_descriptions": getattr(game_state, "hole_descriptions", []),
         "selected_course": game_state.selected_course,
     } 
