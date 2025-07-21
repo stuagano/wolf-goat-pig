@@ -322,44 +322,128 @@ class SimulationEngine:
         
         return game_state
     
-    def simulate_hole(self, game_state: GameState, human_decisions: dict) -> Tuple[GameState, List[str]]:
-        """Simulate a complete hole with AI decisions and shot outcomes"""
+    def _simulate_tee_shots(self, game_state: GameState) -> List[str]:
+        """Simulate tee shots for all players and report drive distance, accuracy, and remaining to green."""
         feedback = []
+        hole_idx = game_state.current_hole - 1
+        par = game_state.hole_pars[hole_idx] if game_state.hole_pars else 4
+        yards = game_state.hole_yards[hole_idx] if hasattr(game_state, 'hole_yards') and game_state.hole_yards else 400
+        tee_shot_results = {}
+        for player in game_state.players:
+            player_id = player["id"]
+            handicap = player["handicap"]
+            # Simulate drive distance based on handicap
+            if handicap <= 5:
+                drive = int(random.gauss(265, 12))
+            elif handicap <= 12:
+                drive = int(random.gauss(245, 15))
+            elif handicap <= 20:
+                drive = int(random.gauss(225, 18))
+            else:
+                drive = int(random.gauss(200, 20))
+            drive = max(100, min(drive, yards - 30))
+            # Simulate accuracy
+            shot_quality = random.choices(
+                ["excellent", "good", "average", "poor", "terrible"],
+                weights=[0.12, 0.38, 0.32, 0.15, 0.03], k=1
+            )[0]
+            if shot_quality == "excellent":
+                lie = "fairway"
+                penalty = 0
+            elif shot_quality == "good":
+                lie = random.choice(["fairway", "first cut"])
+                penalty = 0
+            elif shot_quality == "average":
+                lie = random.choice(["fairway", "rough"])
+                penalty = 0
+            elif shot_quality == "poor":
+                lie = random.choice(["rough", "bunker"])
+                penalty = 0
+            else:
+                lie = random.choice(["trees", "hazard", "deep rough"])
+                penalty = random.randint(1, 2)
+            remaining = max(30, yards - drive + penalty * 20)
+            tee_shot_results[player_id] = {
+                "drive": drive,
+                "lie": lie,
+                "remaining": remaining,
+                "shot_quality": shot_quality
+            }
+            player_name = player["name"]
+            feedback.append(f"{player_name}: {drive} yards, {lie}, {remaining} yards to green (tee shot: {shot_quality})")
+        # Optionally, store tee_shot_results in game_state for later phases
+        game_state.tee_shot_results = tee_shot_results
+        return feedback
+
+    def simulate_hole(self, game_state: GameState, human_decisions: dict) -> Tuple[GameState, List[str]]:
+        """Simulate a complete hole with correct Wolf Goat Pig flow: all tee shots first, then decisions, then play continues"""
+        feedback = []
+
+        # Phase 1: ALL players hit tee shots in hitting order
+        feedback.append(f"\n🏌️ **Hole {game_state.current_hole} - Tee Shots (in hitting order):**")
         
-        # Phase 1: Partnership decisions
+        # Get hitting order for this hole
+        hitting_order = game_state.hitting_order or [p["id"] for p in game_state.players]
+        
+        # Simulate tee shots for all players in order
+        tee_shot_results = {}
+        for player_id in hitting_order:
+            player = next(p for p in game_state.players if p["id"] == player_id)
+            tee_result = self._simulate_individual_tee_shot(player, game_state)
+            tee_shot_results[player_id] = tee_result
+            
+            player_name = player["name"]
+            if player_id == self._get_human_player_id(game_state):
+                feedback.append(f"🧑 **{player_name}:** {tee_result['drive']} yards, {tee_result['lie']}, {tee_result['remaining']} yards to green ({tee_result['shot_quality']})")
+            else:
+                feedback.append(f"💻 **{player_name}:** {tee_result['drive']} yards, {tee_result['lie']}, {tee_result['remaining']} yards to green ({tee_result['shot_quality']})")
+        
+        game_state.tee_shot_results = tee_shot_results
+
+        # Phase 2: Captain makes partnership decision AFTER seeing all tee shots
+        feedback.append(f"\n🤝 **Partnership Phase:**")
         captain_id = game_state.captain_id
         
         if captain_id in [cp.player_id for cp in self.computer_players]:
-            # Computer is captain - make partnership decision
+            # Computer captain makes decision
             captain_player = self._get_computer_player(captain_id)
             partnership_decision = self._make_computer_partnership_decision(captain_player, game_state)
             
             if partnership_decision == "solo":
                 game_state.dispatch_action("go_solo", {"captain_id": captain_id})
-                feedback.append(f"💻 {captain_player.name} decided to go solo!")
+                feedback.append(f"💻 **{captain_player.name}** decided to go solo!")
             elif partnership_decision:
-                # Request partnership
                 game_state.dispatch_action("request_partner", {
-                    "captain_id": captain_id, 
+                    "captain_id": captain_id,
                     "partner_id": partnership_decision
                 })
                 
-                # Partner response (if computer)
+                # Partner responds immediately
                 if partnership_decision in [cp.player_id for cp in self.computer_players]:
                     partner_player = self._get_computer_player(partnership_decision)
                     accept = partner_player.should_accept_partnership(captain_player.handicap, game_state)
-                    
                     if accept:
                         game_state.dispatch_action("accept_partner", {"partner_id": partnership_decision})
-                        feedback.append(f"💻 {partner_player.name} accepted the partnership with {captain_player.name}")
+                        feedback.append(f"💻 **{partner_player.name}** accepted the partnership with {captain_player.name}")
                     else:
                         game_state.dispatch_action("decline_partner", {"partner_id": partnership_decision})
-                        feedback.append(f"💻 {partner_player.name} declined the partnership - {captain_player.name} goes solo!")
+                        feedback.append(f"💻 **{partner_player.name}** declined the partnership - {captain_player.name} goes solo!")
+                else:
+                    # Human partner - use human decisions
+                    if human_decisions.get("accept_partnership", False):
+                        game_state.dispatch_action("accept_partner", {"partner_id": partnership_decision})
+                        feedback.append(f"🧑 You accepted the partnership with {captain_player.name}")
+                    else:
+                        game_state.dispatch_action("decline_partner", {"partner_id": partnership_decision})
+                        feedback.append(f"🧑 You declined the partnership - {captain_player.name} goes solo!")
+            else:
+                feedback.append(f"💻 **{captain_player.name}** couldn't find a suitable partner and goes solo!")
+                game_state.dispatch_action("go_solo", {"captain_id": captain_id})
         else:
-            # Human is captain - use their decisions
+            # Human captain makes decision
             if human_decisions.get("action") == "go_solo":
                 game_state.dispatch_action("go_solo", {"captain_id": captain_id})
-                feedback.append(f"🧑 You decided to go solo!")
+                feedback.append(f"🧑 **You** decided to go solo!")
             elif human_decisions.get("requested_partner"):
                 partner_id = human_decisions["requested_partner"]
                 game_state.dispatch_action("request_partner", {
@@ -367,44 +451,187 @@ class SimulationEngine:
                     "partner_id": partner_id
                 })
                 
-                # Computer partner response
+                # Computer partner responds
                 if partner_id in [cp.player_id for cp in self.computer_players]:
                     partner_player = self._get_computer_player(partner_id)
                     human_handicap = self._get_player_handicap(captain_id, game_state)
                     accept = partner_player.should_accept_partnership(human_handicap, game_state)
-                    
                     if accept:
                         game_state.dispatch_action("accept_partner", {"partner_id": partner_id})
-                        feedback.append(f"💻 {partner_player.name} accepted your partnership request")
+                        feedback.append(f"💻 **{partner_player.name}** accepted your partnership request")
                     else:
                         game_state.dispatch_action("decline_partner", {"partner_id": partner_id})
-                        feedback.append(f"💻 {partner_player.name} declined your partnership - you go solo!")
-        
-        # Phase 2: Doubling phase
-        doubling_feedback = self._simulate_doubling_phase(game_state, human_decisions)
-        feedback.extend(doubling_feedback)
-        
-        # Phase 3: Simulate actual golf shots
-        shot_feedback = self._simulate_shots(game_state)
+                        feedback.append(f"💻 **{partner_player.name}** declined your partnership - you go solo!")
+            else:
+                # No decision made - default to solo
+                feedback.append(f"🧑 **You** didn't make a partnership decision - going solo by default!")
+                game_state.dispatch_action("go_solo", {"captain_id": captain_id})
+
+        # Phase 3: Complete remaining shots for all players
+        feedback.append(f"\n⛳️ **Completing the Hole:**")
+        shot_feedback = self._simulate_remaining_shots(game_state, tee_shot_results)
         feedback.extend(shot_feedback)
-        
-        # Phase 4: Set up teams and calculate results
-        # Ensure teams are properly set for point calculation
+
+        # Phase 4: Doubling phase (after all shots are completed)
+        feedback.append(f"\n💰 **Doubling Phase:**")
+        doubling_feedback = self._simulate_doubling_phase(game_state, human_decisions)
+        if doubling_feedback:
+            feedback.extend(doubling_feedback)
+        else:
+            feedback.append("No doubling this hole.")
+
+        # Phase 5: Set up teams and calculate results
         if not hasattr(game_state, 'teams') or not game_state.teams:
-            # Default to solo play if no teams were set during partnership phase
             game_state.teams = {"type": "solo", "captain": game_state.captain_id, "opponents": [p["id"] for p in game_state.players if p["id"] != game_state.captain_id]}
         
         game_state.dispatch_action("calculate_hole_points", {})
-        
+
+        # Phase 6: Educational feedback
         educational_feedback = self._generate_educational_feedback(game_state, human_decisions)
         feedback.extend(educational_feedback)
-        
+
         # Advance to next hole
         if game_state.current_hole < 18:
             game_state.dispatch_action("next_hole", {})
-        
+
         return game_state, feedback
-    
+
+    def _simulate_individual_tee_shot(self, player: dict, game_state: GameState) -> dict:
+        """Simulate tee shot for a single player"""
+        player_id = player["id"]
+        handicap = player["handicap"]
+        
+        hole_idx = game_state.current_hole - 1
+        par = game_state.hole_pars[hole_idx] if game_state.hole_pars else 4
+        yards = game_state.hole_yards[hole_idx] if hasattr(game_state, 'hole_yards') and game_state.hole_yards else 400
+        
+        # Simulate drive distance based on handicap
+        if handicap <= 5:
+            drive = int(random.gauss(265, 12))
+        elif handicap <= 12:
+            drive = int(random.gauss(245, 15))
+        elif handicap <= 20:
+            drive = int(random.gauss(225, 18))
+        else:
+            drive = int(random.gauss(200, 20))
+        drive = max(100, min(drive, yards - 30))
+        
+        # Simulate accuracy
+        shot_quality = random.choices(
+            ["excellent", "good", "average", "poor", "terrible"],
+            weights=[0.12, 0.38, 0.32, 0.15, 0.03], k=1
+        )[0]
+        
+        if shot_quality == "excellent":
+            lie = "fairway"
+            penalty = 0
+        elif shot_quality == "good":
+            lie = random.choice(["fairway", "first cut"])
+            penalty = 0
+        elif shot_quality == "average":
+            lie = random.choice(["fairway", "rough"])
+            penalty = 0
+        elif shot_quality == "poor":
+            lie = random.choice(["rough", "bunker"])
+            penalty = 0
+        else:
+            lie = random.choice(["trees", "hazard", "deep rough"])
+            penalty = random.randint(1, 2)
+        
+        remaining = max(30, yards - drive + penalty * 20)
+        
+        return {
+            "drive": drive,
+            "lie": lie,
+            "remaining": remaining,
+            "shot_quality": shot_quality,
+            "penalty": penalty
+        }
+
+    def _simulate_remaining_shots(self, game_state: GameState, tee_shot_results: dict) -> List[str]:
+        """Simulate the remaining shots after tee shots to complete the hole"""
+        feedback = []
+        hole_par = game_state.hole_pars[game_state.current_hole - 1] if game_state.hole_pars else 4
+        
+        scores = {}
+        shot_details = {}
+        
+        for player in game_state.players:
+            player_id = player["id"]
+            handicap = player["handicap"]
+            
+            # Get net strokes for this hole
+            strokes = game_state.get_player_strokes()
+            net_strokes = strokes[player_id][game_state.current_hole]
+            
+            # Use tee shot result to influence final score
+            tee_result = tee_shot_results.get(player_id, {})
+            tee_quality = tee_result.get("shot_quality", "average")
+            remaining_distance = tee_result.get("remaining", 150)
+            
+            # Simulate remaining shots and final score
+            gross_score = self._simulate_player_final_score(handicap, hole_par, game_state.current_hole, game_state, tee_quality, remaining_distance)
+            net_score = max(1, gross_score - net_strokes)  # Can't go below 1
+            
+            scores[player_id] = int(net_score)
+            shot_details[player_id] = {
+                "gross": gross_score,
+                "net": net_score,
+                "strokes_received": net_strokes,
+                "tee_quality": tee_quality
+            }
+            
+            # Record score in game state
+            game_state.dispatch_action("record_net_score", {
+                "player_id": player_id,
+                "score": int(net_score)
+            })
+        
+        # Generate shot feedback
+        for player in game_state.players:
+            player_id = player["id"]
+            details = shot_details[player_id]
+            
+            if player_id == self._get_human_player_id(game_state):
+                feedback.append(f"🧑 **Your final score:** {details['gross']} gross, {details['net']} net (received {details['strokes_received']} strokes)")
+            else:
+                feedback.append(f"💻 **{player['name']}:** {details['gross']} gross, {details['net']} net (received {details['strokes_received']} strokes)")
+        
+        return feedback
+
+    def _simulate_player_final_score(self, handicap: float, par: int, hole_number: int, game_state: 'GameState' = None, tee_quality: str = "average", remaining_distance: float = 150) -> int:
+        """Simulate final score considering tee shot quality and remaining distance"""
+        base_score = self._simulate_player_score(handicap, par, hole_number, game_state)
+        
+        # Adjust based on tee shot quality
+        if tee_quality == "excellent":
+            adjustment = -0.3  # Excellent tee shot helps
+        elif tee_quality == "good":
+            adjustment = -0.1
+        elif tee_quality == "average":
+            adjustment = 0
+        elif tee_quality == "poor":
+            adjustment = 0.2
+        else:  # terrible
+            adjustment = 0.5
+        
+        # Adjust based on remaining distance (longer = harder)
+        if remaining_distance > 200:
+            adjustment += 0.3
+        elif remaining_distance > 150:
+            adjustment += 0.1
+        elif remaining_distance < 100:
+            adjustment -= 0.1
+        
+        # Apply adjustment with some randomness
+        if random.random() < abs(adjustment):
+            if adjustment > 0:
+                base_score += 1
+            else:
+                base_score = max(1, base_score - 1)
+        
+        return base_score
+
     def _make_computer_partnership_decision(self, captain: ComputerPlayer, game_state: GameState) -> Optional[str]:
         """Computer captain decides on partnership"""
         other_players = [cp for cp in self.computer_players if cp.player_id != captain.player_id]
@@ -475,51 +702,6 @@ class SimulationEngine:
                         game_state.dispatch_action("decline_double", {"team_id": target_team})
                         feedback.append("🧑 You declined the double - computer team wins at current stakes!")
                     break
-        
-        return feedback
-    
-    def _simulate_shots(self, game_state: GameState) -> List[str]:
-        """Simulate golf shots for all players based on their handicaps"""
-        feedback = []
-        hole_par = game_state.hole_pars[game_state.current_hole - 1] if game_state.hole_pars else 4
-        
-        scores = {}
-        shot_details = {}
-        
-        for player in game_state.players:
-            player_id = player["id"]
-            handicap = player["handicap"]
-            
-            # Get net strokes for this hole
-            strokes = game_state.get_player_strokes()
-            net_strokes = strokes[player_id][game_state.current_hole]
-            
-            # Simulate score based on handicap and hole difficulty
-            gross_score = self._simulate_player_score(handicap, hole_par, game_state.current_hole, game_state)
-            net_score = max(1, gross_score - net_strokes)  # Can't go below 1
-            
-            scores[player_id] = int(net_score)
-            shot_details[player_id] = {
-                "gross": gross_score,
-                "net": net_score,
-                "strokes_received": net_strokes
-            }
-            
-            # Record score in game state
-            game_state.dispatch_action("record_net_score", {
-                "player_id": player_id,
-                "score": int(net_score)
-            })
-        
-        # Generate shot feedback
-        for player in game_state.players:
-            player_id = player["id"]
-            details = shot_details[player_id]
-            
-            if player_id == self._get_human_player_id(game_state):
-                feedback.append(f"🧑 Your score: {details['gross']} gross, {details['net']} net (received {details['strokes_received']} strokes)")
-            else:
-                feedback.append(f"💻 {player['name']}: {details['gross']} gross, {details['net']} net (received {details['strokes_received']} strokes)")
         
         return feedback
     
@@ -900,27 +1082,6 @@ class SimulationEngine:
             if player["id"] == player_id:
                 return player["handicap"]
         return 18.0  # Default handicap
-    
-    def _make_computer_partnership_decision(self, captain_player: ComputerPlayer, game_state: GameState) -> str:
-        """Make partnership decision for computer captain"""
-        potential_partners = [p for p in game_state.players if p["id"] != captain_player.player_id]
-        
-        # Simple strategy: pick best handicap player
-        best_partner = None
-        best_handicap = 50
-        
-        for partner in potential_partners:
-            if partner["handicap"] < best_handicap:
-                best_handicap = partner["handicap"]
-                best_partner = partner["id"]
-        
-        # Sometimes go solo based on personality
-        if captain_player.personality == "aggressive" and random.random() < 0.3:
-            return "solo"
-        elif captain_player.personality == "conservative" and random.random() < 0.1:
-            return "solo"
-        
-        return best_partner if best_partner else "solo"
     
     def _get_player_name(self, player_id: str, game_state: GameState) -> str:
         """Get name for a player"""
