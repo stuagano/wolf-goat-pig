@@ -195,6 +195,7 @@ class HumanDecisions(BaseModel):
     requested_partner: Optional[str] = None
     offer_double: bool = False
     accept_double: bool = False
+    accept_partnership: bool = False
 
 class MonteCarloSetup(BaseModel):
     human_player: dict
@@ -370,7 +371,7 @@ def get_monte_carlo_detailed_results(num_games: int, setup: MonteCarloSetup):
 
 @app.post("/simulation/play-hole")
 def play_simulation_hole(decisions: HumanDecisions):
-    """Play one hole of the simulation with human decisions"""
+    """Play one hole of the simulation with human decisions (interactive flow)"""
     global game_state
     
     try:
@@ -379,11 +380,12 @@ def play_simulation_hole(decisions: HumanDecisions):
             "action": decisions.action,
             "requested_partner": decisions.requested_partner,
             "offer_double": decisions.offer_double,
-            "accept_double": decisions.accept_double
+            "accept_double": decisions.accept_double,
+            "accept_partnership": decisions.accept_partnership
         }
         
-        # Simulate the hole
-        updated_game_state, feedback = simulation_engine.simulate_hole(
+        # Simulate the hole (now returns interaction_needed)
+        updated_game_state, feedback, interaction_needed = simulation_engine.simulate_hole(
             game_state, 
             human_decisions
         )
@@ -391,11 +393,17 @@ def play_simulation_hole(decisions: HumanDecisions):
         # Update global game state
         game_state = updated_game_state
         
-        return {
+        response = {
             "status": "ok",
             "game_state": _serialize_game_state(),
             "feedback": feedback
         }
+        
+        # If interaction is needed, include it in response
+        if interaction_needed:
+            response["interaction_needed"] = interaction_needed
+        
+        return response
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

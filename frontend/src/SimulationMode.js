@@ -84,6 +84,10 @@ function SimulationMode() {
   const [ghinLoading, setGhinLoading] = useState({});
   const [ghinError, setGhinError] = useState({});
 
+  // Add state for interactive decisions
+  const [interactionNeeded, setInteractionNeeded] = useState(null);
+  const [pendingDecision, setPendingDecision] = useState({});
+
   useEffect(() => {
     fetchInitialData();
   }, []);
@@ -154,41 +158,58 @@ function SimulationMode() {
   const playHole = async () => {
     setLoading(true);
     try {
-      // With chronological backend, send default/empty decisions
-      // All decision-making happens automatically during simulation
-      const defaultDecisions = {
-        action: null,
-        requested_partner: null,
-        offer_double: false,
-        accept_double: false
+      // Send current pending decision or defaults
+      const decisions = {
+        action: pendingDecision.action || null,
+        requested_partner: pendingDecision.requested_partner || null,
+        offer_double: pendingDecision.offer_double || false,
+        accept_double: pendingDecision.accept_double || false,
+        accept_partnership: pendingDecision.accept_partnership || false
       };
       
       const response = await fetch(`${API_URL}/simulation/play-hole`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(defaultDecisions)
+        body: JSON.stringify(decisions)
       });
       
       const data = await response.json();
       if (data.status === "ok") {
         setGameState(data.game_state);
         setFeedback(data.feedback || []);
-        // Reset decisions for next hole (though they're not used anymore)
-        setHoleDecisions({
-          action: null,
-          requested_partner: null,
-          offer_double: false,
-          accept_double: false
-        });
+        
+        // Check if human interaction is needed
+        if (data.interaction_needed) {
+          setInteractionNeeded(data.interaction_needed);
+          setLoading(false); // Stop loading to show decision UI
+        } else {
+          // Hole completed, reset for next hole
+          setInteractionNeeded(null);
+          setPendingDecision({});
+          setHoleDecisions({
+            action: null,
+            requested_partner: null,
+            offer_double: false,
+            accept_double: false
+          });
+          setLoading(false);
+        }
       } else {
         alert("Error playing hole: " + (data.detail || "Unknown error"));
+        setLoading(false);
       }
     } catch (error) {
       console.error("Error playing hole:", error);
       alert("Error playing hole");
-    } finally {
       setLoading(false);
     }
+  };
+
+  const makeDecision = (decision) => {
+    setPendingDecision(decision);
+    setInteractionNeeded(null);
+    // Continue the hole with this decision
+    playHole();
   };
   
   const resetSimulation = () => {
@@ -497,6 +518,126 @@ function SimulationMode() {
           ))}
         </div>
       </div>
+      
+      {/* Interactive Decision UI */}
+      {interactionNeeded && (
+        <div style={{...cardStyle, background: "#fff7ed", border: "2px solid #f59e0b"}}>
+          <h3 style={{ color: "#f59e0b", marginBottom: 16 }}>🤔 Decision Required!</h3>
+          
+          {interactionNeeded.type === "captain_decision" && (
+            <div>
+              <p style={{ marginBottom: 20, fontWeight: "bold" }}>
+                {interactionNeeded.message}
+              </p>
+              
+              {/* Show tee shot results for context */}
+              <div style={{ background: "#f0f8ff", padding: 12, borderRadius: 8, marginBottom: 16 }}>
+                <h4 style={{ margin: "0 0 8px 0", color: "#4169E1" }}>📊 Tee Shot Results:</h4>
+                {Object.entries(interactionNeeded.tee_results || {}).map(([playerId, result]) => {
+                  const playerName = gameState?.players?.find(p => p.id === playerId)?.name || playerId;
+                  return (
+                    <div key={playerId} style={{ fontSize: 14, marginBottom: 4 }}>
+                      <strong>{playerName}:</strong> {result.drive} yards, {result.lie}, {result.remaining} to pin
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {/* Go Solo Option */}
+              <div style={{
+                border: "2px solid #10b981",
+                borderRadius: 8,
+                padding: 16,
+                marginBottom: 12,
+                background: "#f0f9f0",
+                cursor: "pointer"
+              }}
+              onClick={() => makeDecision({ action: "go_solo" })}
+              >
+                <h4 style={{ margin: "0 0 8px 0", color: "#10b981" }}>🏌️ Go Solo (Triple Points!)</h4>
+                <p style={{ margin: 0, fontSize: 14, color: "#666" }}>
+                  <strong>Risk:</strong> High - you vs everyone else<br/>
+                  <strong>Reward:</strong> Win 3 points from each opponent if successful
+                </p>
+              </div>
+              
+              {/* Partner Options */}
+              <h4 style={{ marginBottom: 12 }}>Or Request a Partner:</h4>
+              {interactionNeeded.options?.map(player => {
+                const handicapDiff = Math.abs(player.handicap - (gameState?.players?.find(p => p.id === "human")?.handicap || 18));
+                const isGoodMatch = handicapDiff <= 6;
+                
+                return (
+                  <div
+                    key={player.id}
+                    style={{
+                      border: "1px solid #d1d5db",
+                      borderRadius: 8,
+                      padding: 12,
+                      marginBottom: 8,
+                      background: "#fff",
+                      cursor: "pointer"
+                    }}
+                    onClick={() => makeDecision({ action: "request_partner", requested_partner: player.id })}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div>
+                        <div style={{ fontWeight: "bold" }}>💻 {player.name}</div>
+                        <div style={{ fontSize: 12, color: COLORS.muted }}>
+                          Handicap: {player.handicap} | Points: {player.points >= 0 ? "+" : ""}{player.points}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: "right", fontSize: 12 }}>
+                        {isGoodMatch ? (
+                          <span style={{ color: COLORS.success, fontWeight: "bold" }}>✅ Good Match</span>
+                        ) : (
+                          <span style={{ color: COLORS.warning }}>⚠️ Handicap Gap: {handicapDiff.toFixed(1)}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          
+          {interactionNeeded.type === "partnership_response" && (
+            <div>
+              <p style={{ marginBottom: 20, fontWeight: "bold", fontSize: 16 }}>
+                {interactionNeeded.message}
+              </p>
+              
+              <div style={{ display: "flex", gap: 12 }}>
+                <button
+                  style={{
+                    ...buttonStyle,
+                    background: "#10b981",
+                    flex: 1
+                  }}
+                  onClick={() => makeDecision({ accept_partnership: true })}
+                >
+                  ✅ Accept Partnership
+                </button>
+                
+                <button
+                  style={{
+                    ...buttonStyle,
+                    background: "#ef4444",
+                    flex: 1
+                  }}
+                  onClick={() => makeDecision({ accept_partnership: false })}
+                >
+                  ❌ Decline Partnership
+                </button>
+              </div>
+              
+              <p style={{ marginTop: 12, fontSize: 14, color: COLORS.muted, textAlign: "center" }}>
+                Choose wisely - this affects the entire hole outcome!
+              </p>
+            </div>
+          )}
+        </div>
+      )}
       
       {/* Play Hole Button - All decisions happen chronologically during play */}
       <div style={cardStyle}>
