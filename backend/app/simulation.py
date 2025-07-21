@@ -565,8 +565,12 @@ class SimulationEngine:
 
             # Phase 4: Doubling phase
             feedback.append("💰 **BETTING OPPORTUNITY**")
-            doubling_feedback = self._simulate_doubling_phase_chronological(game_state, human_decisions)
-            if doubling_feedback:
+            doubling_feedback, doubling_interaction = self._simulate_doubling_phase_chronological(game_state, human_decisions)
+            if doubling_interaction:
+                # Human betting decision needed
+                feedback.extend(doubling_feedback)
+                return game_state, feedback, doubling_interaction
+            elif doubling_feedback:
                 feedback.extend(doubling_feedback)
             else:
                 feedback.append("No additional betting this hole.")
@@ -800,30 +804,54 @@ class SimulationEngine:
         
         return best_partner.player_id if best_partner else None
     
-    def _simulate_doubling_phase(self, game_state: GameState, human_decisions: dict) -> List[str]:
-        """Simulate the doubling/betting phase"""
+    def _simulate_doubling_phase_chronological(self, game_state: GameState, human_decisions: dict) -> Tuple[List[str], dict]:
+        """Simulate the doubling/betting phase - INTERACTIVE for human training"""
         feedback = []
+        interaction_needed = None
         
-        # Check if human wants to offer double
+        # First check if human should be given opportunity to offer double
+        if not game_state.doubled_status:
+            human_id = self._get_human_player_id(game_state)
+            
+            # If human hasn't made their double decision yet, prompt them
+            if "offer_double" not in human_decisions:
+                # Give human the opportunity to offer a double
+                current_position = self._get_current_points(human_id, game_state)
+                team_advantage = self._assess_team_advantage(game_state)
+                
+                interaction_needed = {
+                    "type": "doubling_decision",
+                    "message": "Do you want to offer a double to increase the stakes?",
+                    "current_wager": game_state.base_wager,
+                    "doubled_wager": game_state.base_wager * 2,
+                    "current_position": current_position,
+                    "team_advantage": team_advantage,
+                    "context": "You can offer to double the stakes before the hole is scored."
+                }
+                return feedback, interaction_needed
+        
+        # Process human double offer if provided
         if human_decisions.get("offer_double") and not game_state.doubled_status:
-            # Determine target team
-            target_team = self._get_opposing_team_id(game_state, self._get_human_player_id(game_state))
+            human_id = self._get_human_player_id(game_state)
+            target_team = self._get_opposing_team_id(game_state, human_id)
             game_state.dispatch_action("offer_double", {
-                "offering_team_id": self._get_team_id_for_player(game_state, self._get_human_player_id(game_state)),
+                "offering_team_id": self._get_team_id_for_player(game_state, human_id),
                 "target_team_id": target_team
             })
+            
+            feedback.append("🧑 **You:** \"I'd like to double the stakes!\"")
             
             # Computer response to double
             computer_response = self._get_computer_double_response(game_state, target_team)
             if computer_response == "accept":
                 game_state.dispatch_action("accept_double", {"team_id": target_team})
-                feedback.append("💻 Computer team accepted your double! Stakes doubled!")
+                feedback.append("💻 **Computer team:** \"We accept your double! Stakes doubled!\"")
             else:
                 game_state.dispatch_action("decline_double", {"team_id": target_team})
-                feedback.append("💻 Computer team declined your double - you win the hole at current stakes!")
+                feedback.append("💻 **Computer team:** \"We decline - you win the hole at current stakes!\"")
         
-        # Check if computer wants to offer double
-        elif not game_state.doubled_status:
+        # Check if computer wants to offer double (only if human didn't offer)
+        elif not game_state.doubled_status and not human_decisions.get("offer_double", False):
             for comp_player in self.computer_players:
                 if comp_player.should_offer_double(game_state):
                     offering_team = self._get_team_id_for_player(game_state, comp_player.player_id)
@@ -834,65 +862,39 @@ class SimulationEngine:
                         "target_team_id": target_team
                     })
                     
-                    feedback.append(f"💻 {comp_player.name} offers to double your team!")
+                    feedback.append(f"💻 **{comp_player.name}:** \"We'd like to double your team!\"")
                     
-                    # Human response (from decisions or default)
+                    # Human needs to respond to computer double offer
+                    if "accept_double" not in human_decisions:
+                        current_position = self._get_current_points(self._get_human_player_id(game_state), game_state)
+                        team_advantage = self._assess_team_advantage(game_state)
+                        
+                        interaction_needed = {
+                            "type": "double_response",
+                            "message": f"{comp_player.name} wants to double the stakes! Do you accept?",
+                            "offering_player": comp_player.name,
+                            "current_wager": game_state.base_wager,
+                            "doubled_wager": game_state.base_wager * 2,
+                            "current_position": current_position,
+                            "team_advantage": team_advantage,
+                            "context": "If you decline, they win the hole at current stakes. If you accept, stakes double for everyone."
+                        }
+                        return feedback, interaction_needed
+                    
+                    # Process human response to computer double
                     if human_decisions.get("accept_double", False):
                         game_state.dispatch_action("accept_double", {"team_id": target_team})
-                        feedback.append("🧑 You accepted the double! Stakes doubled!")
+                        feedback.append("🧑 **You:** \"We accept the double! Stakes doubled!\"")
                     else:
                         game_state.dispatch_action("decline_double", {"team_id": target_team})
-                        feedback.append("🧑 You declined the double - computer team wins at current stakes!")
+                        feedback.append("🧑 **You:** \"We decline the double - you win at current stakes.\"")
                     break
         
-        return feedback
-    
-    def _simulate_doubling_phase_chronological(self, game_state: GameState, human_decisions: dict) -> List[str]:
-        """Simulate the doubling/betting phase"""
-        feedback = []
+        # If no doubling happened, show neutral message
+        if not feedback:
+            feedback.append("No doubling this hole - continuing with current stakes.")
         
-        # Check if human wants to offer double
-        if human_decisions.get("offer_double") and not game_state.doubled_status:
-            # Determine target team
-            target_team = self._get_opposing_team_id(game_state, self._get_human_player_id(game_state))
-            game_state.dispatch_action("offer_double", {
-                "offering_team_id": self._get_team_id_for_player(game_state, self._get_human_player_id(game_state)),
-                "target_team_id": target_team
-            })
-            
-            # Computer response to double
-            computer_response = self._get_computer_double_response(game_state, target_team)
-            if computer_response == "accept":
-                game_state.dispatch_action("accept_double", {"team_id": target_team})
-                feedback.append("💻 Computer team accepted your double! Stakes doubled!")
-            else:
-                game_state.dispatch_action("decline_double", {"team_id": target_team})
-                feedback.append("💻 Computer team declined your double - you win the hole at current stakes!")
-        
-        # Check if computer wants to offer double
-        elif not game_state.doubled_status:
-            for comp_player in self.computer_players:
-                if comp_player.should_offer_double(game_state):
-                    offering_team = self._get_team_id_for_player(game_state, comp_player.player_id)
-                    target_team = self._get_opposing_team_id(game_state, comp_player.player_id)
-                    
-                    game_state.dispatch_action("offer_double", {
-                        "offering_team_id": offering_team,
-                        "target_team_id": target_team
-                    })
-                    
-                    feedback.append(f"💻 {comp_player.name} offers to double your team!")
-                    
-                    # Human response (from decisions or default)
-                    if human_decisions.get("accept_double", False):
-                        game_state.dispatch_action("accept_double", {"team_id": target_team})
-                        feedback.append("🧑 You accepted the double! Stakes doubled!")
-                    else:
-                        game_state.dispatch_action("decline_double", {"team_id": target_team})
-                        feedback.append("🧑 You declined the double - computer team wins at current stakes!")
-                    break
-        
-        return feedback
+        return feedback, interaction_needed
     
     def _simulate_player_score(self, handicap: float, par: int, hole_number: int, game_state: 'GameState' = None) -> int:
         """Simulate a realistic score for a player based on their handicap and hole characteristics"""

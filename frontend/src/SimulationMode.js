@@ -636,6 +636,105 @@ function SimulationMode() {
               </p>
             </div>
           )}
+          
+          {interactionNeeded.type === "doubling_decision" && (
+            <div>
+              <p style={{ marginBottom: 20, fontWeight: "bold", fontSize: 16 }}>
+                {interactionNeeded.message}
+              </p>
+              
+              {/* Show betting context */}
+              <div style={{ background: "#f0f8ff", padding: 12, borderRadius: 8, marginBottom: 16 }}>
+                <h4 style={{ margin: "0 0 8px 0", color: "#4169E1" }}>💰 Betting Situation:</h4>
+                <div style={{ fontSize: 14 }}>
+                  <div><strong>Current wager:</strong> {interactionNeeded.current_wager} quarters</div>
+                  <div><strong>If doubled:</strong> {interactionNeeded.doubled_wager} quarters</div>
+                  <div><strong>Your position:</strong> {interactionNeeded.current_position >= 0 ? "+" : ""}{interactionNeeded.current_position} points</div>
+                  <div style={{ marginTop: 8, fontStyle: "italic", color: "#666" }}>
+                    {interactionNeeded.context}
+                  </div>
+                </div>
+              </div>
+              
+              <div style={{ display: "flex", gap: 12 }}>
+                <button
+                  style={{
+                    ...buttonStyle,
+                    background: "#f59e0b",
+                    flex: 1
+                  }}
+                  onClick={() => makeDecision({ offer_double: true })}
+                >
+                  💰 Offer Double
+                </button>
+                
+                <button
+                  style={{
+                    ...buttonStyle,
+                    background: "#6b7280",
+                    flex: 1
+                  }}
+                  onClick={() => makeDecision({ offer_double: false })}
+                >
+                  ↪️ Continue Current Stakes
+                </button>
+              </div>
+              
+              <p style={{ marginTop: 12, fontSize: 14, color: COLORS.muted, textAlign: "center" }}>
+                Doubling increases risk and reward - consider your position and hole difficulty!
+              </p>
+            </div>
+          )}
+          
+          {interactionNeeded.type === "double_response" && (
+            <div>
+              <p style={{ marginBottom: 20, fontWeight: "bold", fontSize: 16 }}>
+                {interactionNeeded.message}
+              </p>
+              
+              {/* Show betting context */}
+              <div style={{ background: "#fef3c7", padding: 12, borderRadius: 8, marginBottom: 16 }}>
+                <h4 style={{ margin: "0 0 8px 0", color: "#f59e0b" }}>⚠️ Double Offered:</h4>
+                <div style={{ fontSize: 14 }}>
+                  <div><strong>Offering player:</strong> {interactionNeeded.offering_player}</div>
+                  <div><strong>Current wager:</strong> {interactionNeeded.current_wager} quarters</div>
+                  <div><strong>If accepted:</strong> {interactionNeeded.doubled_wager} quarters</div>
+                  <div><strong>Your position:</strong> {interactionNeeded.current_position >= 0 ? "+" : ""}{interactionNeeded.current_position} points</div>
+                  <div style={{ marginTop: 8, fontStyle: "italic", color: "#666" }}>
+                    {interactionNeeded.context}
+                  </div>
+                </div>
+              </div>
+              
+              <div style={{ display: "flex", gap: 12 }}>
+                <button
+                  style={{
+                    ...buttonStyle,
+                    background: "#10b981",
+                    flex: 1
+                  }}
+                  onClick={() => makeDecision({ accept_double: true })}
+                >
+                  ✅ Accept Double
+                </button>
+                
+                <button
+                  style={{
+                    ...buttonStyle,
+                    background: "#ef4444",
+                    flex: 1
+                  }}
+                  onClick={() => makeDecision({ accept_double: false })}
+                >
+                  ❌ Decline Double
+                </button>
+              </div>
+              
+              <p style={{ marginTop: 12, fontSize: 14, color: COLORS.muted, textAlign: "center" }}>
+                Think carefully - declining means they win at current stakes!
+              </p>
+            </div>
+          )}
         </div>
       )}
       
