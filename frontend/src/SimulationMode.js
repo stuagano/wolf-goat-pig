@@ -687,14 +687,14 @@ function SimulationMode() {
         <button
           style={buttonStyle}
           onClick={playHole}
-          disabled={loading || (!isHumanCaptain && !gameState?.teams?.type)}
+          disabled={loading}
         >
           {loading ? "Playing hole..." : "⛳ Play This Hole"}
         </button>
         
-        {!isHumanCaptain && !gameState?.teams?.type && (
+        {loading && (
           <p style={{ color: COLORS.muted, marginTop: 8 }}>
-            Waiting for computer captain to make decisions...
+            Simulating hole and processing decisions...
           </p>
         )}
       </div>
