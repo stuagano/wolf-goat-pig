@@ -5,3 +5,4 @@ SQLAlchemy==2.0.30
 # For CORS (already used in main.py)
 python-multipart==0.0.9
 psycopg2-binary
+httpx
