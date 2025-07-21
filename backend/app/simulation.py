@@ -382,6 +382,13 @@ class SimulationEngine:
         # Phase 1: ALL players hit tee shots in hitting order
         feedback.append(f"\n🏌️ **Hole {game_state.current_hole} - Tee Shots (in hitting order):**")
         
+        # Show captain and hitting order for this hole
+        captain_name = next(p["name"] for p in game_state.players if p["id"] == game_state.captain_id)
+        hitting_order_names = [next(p["name"] for p in game_state.players if p["id"] == pid) for pid in game_state.hitting_order]
+        feedback.append(f"👑 **Captain:** {captain_name}")
+        feedback.append(f"🎯 **Hitting Order:** {' → '.join(hitting_order_names)}")
+        feedback.append("")
+        
         # Get hitting order for this hole
         hitting_order = game_state.hitting_order or [p["id"] for p in game_state.players]
         
@@ -493,6 +500,9 @@ class SimulationEngine:
         # Advance to next hole
         if game_state.current_hole < 18:
             game_state.dispatch_action("next_hole", {})
+            # Show next captain for educational purposes
+            next_captain_name = next(p["name"] for p in game_state.players if p["id"] == game_state.captain_id)
+            feedback.append(f"\n🔄 **Next Hole:** {next_captain_name} will be captain for Hole {game_state.current_hole} (captaincy rotates each hole)")
 
         return game_state, feedback
 
