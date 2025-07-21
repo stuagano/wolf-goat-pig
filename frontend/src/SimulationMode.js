@@ -78,6 +78,12 @@ function SimulationMode() {
     accept_double: false
   });
   
+  // GHIN lookup state for all slots
+  const [ghinSearch, setGhinSearch] = useState({}); // {human: {first_name, last_name}, comp1: {...}, ...}
+  const [ghinResults, setGhinResults] = useState({});
+  const [ghinLoading, setGhinLoading] = useState({});
+  const [ghinError, setGhinError] = useState({});
+
   useEffect(() => {
     fetchInitialData();
   }, []);
@@ -200,6 +206,44 @@ function SimulationMode() {
     updateComputerPlayer(index, "handicap", opponent.handicap);
     updateComputerPlayer(index, "personality", opponent.personality);
   };
+
+  // GHIN lookup handlers
+  const handleGhinSearchChange = (slot, field, value) => {
+    setGhinSearch(s => ({ ...s, [slot]: { ...s[slot], [field]: value } }));
+  };
+  const handleGhinLookup = async (slot) => {
+    const search = ghinSearch[slot] || {};
+    if (!search.last_name || !search.last_name.trim()) return;
+    setGhinLoading(l => ({ ...l, [slot]: true }));
+    setGhinError(e => ({ ...e, [slot]: '' }));
+    setGhinResults(r => ({ ...r, [slot]: [] }));
+    try {
+      const params = new URLSearchParams({
+        last_name: search.last_name,
+        ...(search.first_name ? { first_name: search.first_name } : {})
+      });
+      const res = await fetch(`${API_URL}/ghin/lookup?${params.toString()}`);
+      if (!res.ok) throw new Error('Lookup failed');
+      const data = await res.json();
+      setGhinResults(r => ({ ...r, [slot]: data }));
+    } catch (err) {
+      setGhinError(e => ({ ...e, [slot]: err.message }));
+    } finally {
+      setGhinLoading(l => ({ ...l, [slot]: false }));
+    }
+  };
+  const handleGhinSelect = (slot, golfer) => {
+    if (slot === 'human') {
+      setHumanPlayer(h => ({ ...h, name: golfer.name, handicap: golfer.handicap || '' }));
+    } else {
+      setComputerPlayers(players => players.map((p, i) => {
+        const slotId = `comp${i+1}`;
+        return slotId === slot ? { ...p, name: golfer.name, handicap: golfer.handicap || '' } : p;
+      }));
+    }
+    setGhinResults(r => ({ ...r, [slot]: [] }));
+    setGhinSearch(s => ({ ...s, [slot]: '' }));
+  };
   
   // Check if human is captain
   const isHumanCaptain = gameState?.captain_id === "human";
@@ -243,6 +287,36 @@ function SimulationMode() {
                   value={humanPlayer.handicap}
                   onChange={(e) => setHumanPlayer({...humanPlayer, handicap: parseFloat(e.target.value) || 18})}
                 />
+              </div>
+              <div>
+                <label>Your GHIN Name:</label>
+                <input
+                  type="text"
+                  placeholder="First Name (optional)"
+                  value={ghinSearch.human?.first_name || ''}
+                  onChange={e => handleGhinSearchChange('human', 'first_name', e.target.value)}
+                  style={inputStyle}
+                />
+                <input
+                  type="text"
+                  placeholder="Last Name (required)"
+                  value={ghinSearch.human?.last_name || ''}
+                  onChange={e => handleGhinSearchChange('human', 'last_name', e.target.value)}
+                  required
+                  style={inputStyle}
+                />
+                {ghinLoading.human && <span style={{ marginLeft: 8, fontSize: 14, color: COLORS.muted }}>Searching...</span>}
+                {ghinError.human && <span style={{ marginLeft: 8, fontSize: 14, color: COLORS.error }}>{ghinError.human}</span>}
+                {ghinResults.human?.length > 0 && (
+                  <div style={{ marginTop: 8, padding: 8, border: `1px solid ${COLORS.border}`, borderRadius: 6, background: COLORS.bg }}>
+                    <h5 style={{ margin: 0, fontSize: 14 }}>GHIN Results:</h5>
+                    {ghinResults.human.map(golfer => (
+                      <div key={golfer.id} style={{ cursor: "pointer", padding: "4px 8px", borderRadius: 4, marginBottom: 4, background: COLORS.bg, border: `1px solid ${COLORS.border}` }} onClick={() => handleGhinSelect('human', golfer)}>
+                        {golfer.name} (H: {golfer.handicap})
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -296,6 +370,36 @@ function SimulationMode() {
                       {opp.name} ({opp.handicap})
                     </button>
                   ))}
+                </div>
+                <div style={{ marginTop: 12 }}>
+                  <label>Opponent GHIN Name:</label>
+                  <input
+                    type="text"
+                    placeholder="First Name (optional)"
+                    value={ghinSearch[`comp${index + 1}`]?.first_name || ''}
+                    onChange={e => handleGhinSearchChange(`comp${index + 1}`, 'first_name', e.target.value)}
+                    style={inputStyle}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Last Name (required)"
+                    value={ghinSearch[`comp${index + 1}`]?.last_name || ''}
+                    onChange={e => handleGhinSearchChange(`comp${index + 1}`, 'last_name', e.target.value)}
+                    required
+                    style={inputStyle}
+                  />
+                  {ghinLoading[`comp${index + 1}`] && <span style={{ marginLeft: 8, fontSize: 14, color: COLORS.muted }}>Searching...</span>}
+                  {ghinError[`comp${index + 1}`] && <span style={{ marginLeft: 8, fontSize: 14, color: COLORS.error }}>{ghinError[`comp${index + 1}`]}</span>}
+                  {ghinResults[`comp${index + 1}`]?.length > 0 && (
+                    <div style={{ marginTop: 8, padding: 8, border: `1px solid ${COLORS.border}`, borderRadius: 6, background: COLORS.bg }}>
+                      <h5 style={{ margin: 0, fontSize: 14 }}>GHIN Results:</h5>
+                      {ghinResults[`comp${index + 1}`].map(golfer => (
+                        <div key={golfer.id} style={{ cursor: "pointer", padding: "4px 8px", borderRadius: 4, marginBottom: 4, background: COLORS.bg, border: `1px solid ${COLORS.border}` }} onClick={() => handleGhinSelect(`comp${index + 1}`, golfer)}>
+                          {golfer.name} (H: {golfer.handicap})
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

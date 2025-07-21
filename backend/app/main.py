@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, Body, HTTPException, Request, Path
+from fastapi import FastAPI, Depends, Body, HTTPException, Request, Path, Query
 from fastapi.middleware.cors import CORSMiddleware
 from . import models, schemas, crud, database
 # Ensure tables are created before anything else
@@ -10,6 +10,8 @@ from .game_state import game_state
 from .simulation import simulation_engine
 from pydantic import BaseModel
 from typing import List, Optional
+import os
+import httpx
 
 app = FastAPI()
 
@@ -464,6 +466,72 @@ def get_suggested_opponents():
             }
         ]
     }
+
+GHIN_AUTH_URL = "https://api2.ghin.com/api/v1/golfer_login.json"
+GHIN_SEARCH_URL = "https://api2.ghin.com/api/v1/golfers/search.json"
+
+@app.get("/ghin/lookup")
+def ghin_lookup(
+    last_name: str = Query(..., description="Golfer's last name"),
+    first_name: str = Query(None, description="Golfer's first name (optional)"),
+    page: int = Query(1),
+    per_page: int = Query(10)
+):
+    GHIN_API_USER = os.environ.get("GHIN_API_USER")
+    GHIN_API_PASS = os.environ.get("GHIN_API_PASS")
+    GHIN_API_STATIC_TOKEN = os.environ.get("GHIN_API_STATIC_TOKEN", "")
+    if not GHIN_API_USER or not GHIN_API_PASS:
+        return []
+    # Step 1: Authenticate to get JWT
+    auth_payload = {
+        "user": {
+            "password": GHIN_API_PASS,
+            "email_or_ghin": GHIN_API_USER,
+            "remember_me": False
+        },
+        "token": GHIN_API_STATIC_TOKEN,
+        "source": "GHINcom"
+    }
+    headers = {"User-Agent": "WolfGoatPig/1.0"}
+    try:
+        auth_resp = httpx.post(GHIN_AUTH_URL, json=auth_payload, headers=headers, timeout=10)
+        auth_resp.raise_for_status()
+        auth_data = auth_resp.json()
+        jwt = auth_data["golfer_user"]["golfer_user_token"]
+    except Exception as e:
+        print(f"GHIN auth error: {e}")
+        return []
+    # Step 2: Use JWT for golfer search
+    search_headers = {
+        "Authorization": f"Bearer {jwt}",
+        "User-Agent": "WolfGoatPig/1.0",
+        "Accept": "application/json"
+    }
+    params = {
+        "last_name": last_name,
+        "first_name": first_name,
+        "page": page,
+        "per_page": per_page,
+        "source": "GHINcom"
+    }
+    params = {k: v for k, v in params.items() if v is not None}
+    try:
+        search_resp = httpx.get(GHIN_SEARCH_URL, params=params, headers=search_headers, timeout=10)
+        search_resp.raise_for_status()
+        data = search_resp.json()
+        golfers = data.get("golfers", [])
+        return [
+            {
+                "name": f"{g.get('first_name', '')} {g.get('last_name', '')}",
+                "ghin": g.get("ghin_number"),
+                "club": g.get("club_name", g.get("primary_club_name", "")),
+                "handicap": g.get("handicap_index", g.get("display"))
+            }
+            for g in golfers
+        ]
+    except Exception as e:
+        print(f"GHIN search error: {e}")
+        return []
 
 # Helper to serialize game state for API
 

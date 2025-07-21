@@ -57,15 +57,58 @@ function GameSetupForm({ onSetup }) {
   const [courseName, setCourseName] = useState('');
   const [error, setError] = useState('');
   const [showCourseManager, setShowCourseManager] = useState(false);
+  // GHIN lookup state
+  const [ghinSearch, setGhinSearch] = useState({}); // {p1: {first_name, last_name}, ...}
+  const [ghinResults, setGhinResults] = useState({}); // {p1: [], ...}
+  const [ghinLoading, setGhinLoading] = useState({});
+  const [ghinError, setGhinError] = useState({});
+
   useEffect(() => {
     fetch(`${API_URL}/courses`).then(res => res.json()).then(data => {
       setCourses(Object.keys(data));
       if (Object.keys(data).length > 0) setCourseName(Object.keys(data)[0]);
     });
   }, []);
+
   const handleChange = (idx, field, value) => {
     setPlayers(players => players.map((p, i) => i === idx ? { ...p, [field]: value } : p));
   };
+
+  // GHIN lookup handlers
+  const handleGhinSearchChange = (pid, field, value) => {
+    setGhinSearch(s => ({ ...s, [pid]: { ...s[pid], [field]: value } }));
+  };
+  const handleGhinLookup = async (pid) => {
+    const search = ghinSearch[pid] || {};
+    if (!search.last_name || !search.last_name.trim()) return;
+    setGhinLoading(l => ({ ...l, [pid]: true }));
+    setGhinError(e => ({ ...e, [pid]: '' }));
+    setGhinResults(r => ({ ...r, [pid]: [] }));
+    try {
+      const params = new URLSearchParams({
+        last_name: search.last_name,
+        ...(search.first_name ? { first_name: search.first_name } : {})
+      });
+      const res = await fetch(`${API_URL}/ghin/lookup?${params.toString()}`);
+      if (!res.ok) throw new Error('Lookup failed');
+      const data = await res.json();
+      setGhinResults(r => ({ ...r, [pid]: data }));
+    } catch (err) {
+      setGhinError(e => ({ ...e, [pid]: err.message }));
+    } finally {
+      setGhinLoading(l => ({ ...l, [pid]: false }));
+    }
+  };
+  const handleGhinSelect = (pid, golfer) => {
+    setPlayers(players => players.map(p => p.id === pid ? {
+      ...p,
+      name: golfer.name,
+      handicap: golfer.handicap || '',
+    } : p));
+    setGhinResults(r => ({ ...r, [pid]: [] }));
+    setGhinSearch(s => ({ ...s, [pid]: '' }));
+  };
+
   const handleSubmit = async e => {
     e.preventDefault();
     if (players.some(p => !p.name || p.handicap === '' || !p.strength)) {
@@ -85,6 +128,7 @@ function GameSetupForm({ onSetup }) {
       setError(data.detail || 'Setup failed');
     }
   };
+
   return (
     <>
       {showCourseManager && <CourseManager onClose={() => setShowCourseManager(false)} onCoursesChanged={() => {
@@ -99,37 +143,53 @@ function GameSetupForm({ onSetup }) {
           </select>
           <button type="button" style={{ ...buttonStyle, background: COLORS.accent, marginLeft: 10, fontSize: 16, padding: "10px 18px" }} onClick={() => setShowCourseManager(true)}>Manage Courses</button>
         </div>
-        {players.map((p, i) => (
-          <div key={p.id} style={{ display: 'flex', gap: 8, marginBottom: 8, flexDirection: window.innerWidth < 600 ? 'column' : 'row' }}>
-            <input
-              style={{ ...inputStyle, flex: 2 }}
-              placeholder={`Player ${i + 1} Name`}
-              value={p.name}
-              onChange={e => handleChange(i, 'name', e.target.value)}
-              required
-            />
-            <input
-              style={{ ...inputStyle, flex: 1 }}
-              placeholder="Handicap"
-              type="number"
-              min="0"
-              step="0.5"
-              value={p.handicap}
-              onChange={e => handleChange(i, 'handicap', e.target.value)}
-              required
-            />
-            <select
-              style={{ ...inputStyle, flex: 1 }}
-              value={p.strength || ''}
-              onChange={e => handleChange(i, 'strength', e.target.value)}
-              required
-            >
-              <option value="">Strength</option>
-              <option value="Beginner">Beginner</option>
-              <option value="Average">Average</option>
-              <option value="Strong">Strong</option>
-              <option value="Expert">Expert</option>
-            </select>
+        {players.map((player, idx) => (
+          <div key={player.id} style={{ marginBottom: 18, border: '1px solid #eee', borderRadius: 8, padding: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="text"
+                placeholder="Name"
+                value={player.name}
+                onChange={e => handleChange(idx, 'name', e.target.value)}
+                style={{ width: 120, marginRight: 8 }}
+              />
+              <input
+                type="number"
+                placeholder="Handicap"
+                value={player.handicap}
+                onChange={e => handleChange(idx, 'handicap', e.target.value)}
+                style={{ width: 70, marginRight: 8 }}
+              />
+              <select
+                value={player.strength}
+                onChange={e => handleChange(idx, 'strength', e.target.value)}
+                style={{ width: 110, marginRight: 8 }}
+              >
+                <option value="">Strength</option>
+                <option value="Beginner">Beginner</option>
+                <option value="Average">Average</option>
+                <option value="Strong">Strong</option>
+                <option value="Expert">Expert</option>
+              </select>
+              {/* GHIN Lookup UI */}
+              <input type="text" placeholder="First Name (optional)" value={ghinSearch[player.id]?.first_name || ''} onChange={e => handleGhinSearchChange(player.id, 'first_name', e.target.value)} />
+              <input type="text" placeholder="Last Name (required)" value={ghinSearch[player.id]?.last_name || ''} onChange={e => handleGhinSearchChange(player.id, 'last_name', e.target.value)} required />
+              <button type="button" onClick={() => handleGhinLookup(player.id)} disabled={ghinLoading?.[player.id] || !ghinSearch[player.id]?.last_name} style={{ marginRight: 4 }}>
+                {ghinLoading?.[player.id] ? 'Searching...' : 'GHIN Lookup'}
+              </button>
+            </div>
+            {ghinError?.[player.id] && <div style={{ color: 'red', fontSize: 13 }}>{ghinError[player.id]}</div>}
+            {ghinResults?.[player.id]?.length > 0 && (
+              <div style={{ marginTop: 6, background: '#f9f9f9', border: '1px solid #ddd', borderRadius: 6, padding: 8 }}>
+                <div style={{ fontSize: 13, marginBottom: 4 }}>Select a golfer:</div>
+                {ghinResults[player.id].map(golfer => (
+                  <div key={golfer.ghin} style={{ padding: 4, cursor: 'pointer', borderBottom: '1px solid #eee' }} onClick={() => handleGhinSelect(player.id, golfer)}>
+                    <strong>{golfer.name}</strong> (GHIN: {golfer.ghin})<br />
+                    Club: {golfer.club} | Handicap: {golfer.handicap ?? 'N/A'}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ))}
         {error && <div style={{ color: COLORS.error, marginBottom: 8 }}>{error}</div>}
