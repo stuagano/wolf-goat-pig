@@ -564,3 +564,196 @@ def _serialize_game_state():
         "hole_descriptions": getattr(game_state, "hole_descriptions", []),
         "selected_course": game_state.selected_course,
     } 
+
+@app.post("/simulation/hit-tee-shot")
+def hit_tee_shot(player_data: dict):
+    """Hit tee shot for next player in order"""
+    global game_state
+    
+    try:
+        # Get next player to hit
+        current_player_idx = getattr(game_state, 'current_tee_player_idx', 0)
+        hitting_order = game_state.hitting_order or [p["id"] for p in game_state.players]
+        
+        if current_player_idx >= len(hitting_order):
+            return {"status": "error", "message": "All players have hit tee shots"}
+        
+        player_id = hitting_order[current_player_idx]
+        player = next(p for p in game_state.players if p["id"] == player_id)
+        
+        # Simulate this player's tee shot
+        tee_result = simulation_engine._simulate_individual_tee_shot(player, game_state)
+        
+        # Store result
+        if not hasattr(game_state, 'tee_shot_results'):
+            game_state.tee_shot_results = {}
+        game_state.tee_shot_results[player_id] = tee_result
+        
+        # Advance to next player
+        game_state.current_tee_player_idx = current_player_idx + 1
+        
+        # Create shot description
+        shot_desc = simulation_engine._create_shot_description(
+            tee_result['drive'], tee_result['lie'], 
+            tee_result['shot_quality'], tee_result['remaining'], 
+            game_state.hole_pars[game_state.current_hole - 1]
+        )
+        
+        all_tee_shots_complete = game_state.current_tee_player_idx >= len(hitting_order)
+        
+        return {
+            "status": "ok",
+            "player": player,
+            "tee_result": tee_result,
+            "shot_description": shot_desc,
+            "all_tee_shots_complete": all_tee_shots_complete,
+            "next_phase": "captain_decision" if all_tee_shots_complete else "tee_shots",
+            "game_state": _serialize_game_state()
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/simulation/make-captain-decision")
+def make_captain_decision(decision: dict):
+    """Captain makes partnership decision"""
+    global game_state
+    
+    try:
+        captain_id = game_state.captain_id
+        
+        if decision.get("action") == "go_solo":
+            game_state.dispatch_action("go_solo", {"captain_id": captain_id})
+            message = f"Captain goes solo! Wager doubled."
+            
+        elif decision.get("requested_partner"):
+            partner_id = decision["requested_partner"]
+            game_state.dispatch_action("request_partner", {
+                "captain_id": captain_id,
+                "partner_id": partner_id
+            })
+            partner_name = next(p["name"] for p in game_state.players if p["id"] == partner_id)
+            message = f"Captain requests {partner_name} as partner."
+            
+        return {
+            "status": "ok",
+            "message": message,
+            "teams_formed": bool(game_state.teams),
+            "next_phase": "partner_response" if decision.get("requested_partner") else "approach_shots",
+            "game_state": _serialize_game_state()
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/simulation/respond-partnership")
+def respond_partnership(response: dict):
+    """Respond to partnership request"""
+    global game_state
+    
+    try:
+        partner_id = response.get("partner_id")
+        accept = response.get("accept", False)
+        
+        if accept:
+            game_state.dispatch_action("accept_partner", {"partner_id": partner_id})
+            message = "Partnership accepted! Teams formed."
+        else:
+            game_state.dispatch_action("decline_partner", {"partner_id": partner_id})
+            message = "Partnership declined. Captain goes solo!"
+            
+        return {
+            "status": "ok",
+            "message": message,
+            "teams_formed": True,
+            "next_phase": "approach_shots",
+            "game_state": _serialize_game_state()
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/simulation/hit-approach-shots")
+def hit_approach_shots():
+    """Simulate approach shots for all players"""
+    global game_state
+    
+    try:
+        if not hasattr(game_state, 'tee_shot_results'):
+            return {"status": "error", "message": "Tee shots not completed"}
+            
+        # Simulate approach shots and scoring
+        approach_feedback = simulation_engine._simulate_remaining_shots_chronological(
+            game_state, game_state.tee_shot_results
+        )
+        
+        return {
+            "status": "ok",
+            "approach_feedback": approach_feedback,
+            "next_phase": "doubling",
+            "game_state": _serialize_game_state()
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/simulation/make-doubling-decision")
+def make_doubling_decision(decision: dict):
+    """Make or respond to doubling decision"""
+    global game_state
+    
+    try:
+        if decision.get("offer_double"):
+            # Human offers double
+            game_state.doubled_status = True
+            game_state.base_wager *= 2
+            message = "Double offered! Stakes increased."
+            
+        elif decision.get("accept_double"):
+            # Human accepts computer's double
+            game_state.doubled_status = True
+            message = "Double accepted! Stakes doubled."
+            
+        else:
+            message = "No additional betting this hole."
+            
+        return {
+            "status": "ok", 
+            "message": message,
+            "next_phase": "hole_completion",
+            "game_state": _serialize_game_state()
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/simulation/complete-hole")
+def complete_hole():
+    """Calculate hole results and advance to next hole"""
+    global game_state
+    
+    try:
+        # Calculate points
+        game_state.dispatch_action("calculate_hole_points", {})
+        
+        # Generate hole summary
+        hole_summary = simulation_engine._generate_hole_summary(game_state)
+        
+        # Advance to next hole if not finished
+        if game_state.current_hole < 18:
+            game_state.dispatch_action("next_hole", {})
+            next_captain_name = next(p["name"] for p in game_state.players if p["id"] == game_state.captain_id)
+            next_message = f"Moving to Hole {game_state.current_hole} - {next_captain_name} will be captain"
+        else:
+            next_message = "Game completed!"
+            
+        return {
+            "status": "ok",
+            "hole_summary": hole_summary,
+            "next_message": next_message,
+            "game_complete": game_state.current_hole > 18,
+            "game_state": _serialize_game_state()
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e)) 

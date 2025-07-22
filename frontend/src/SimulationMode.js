@@ -211,11 +211,191 @@ function SimulationMode() {
     }
   };
 
-  const makeDecision = (decision) => {
-    setPendingDecision(decision);
-    setInteractionNeeded(null);
-    // Continue the hole with this decision
-    playHole();
+  const hitTeeShot = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/simulation/hit-tee-shot`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({})
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Backend error: ${response.status} - ${errorText}`);
+      }
+      
+      const data = await response.json();
+      if (data.status === "ok") {
+        setGameState(data.game_state);
+        const newFeedback = [...feedback, `🏌️ ${data.player.name}: ${data.shot_description}`];
+        setFeedback(newFeedback);
+      } else {
+        alert("Error hitting tee shot: " + (data.message || "Unknown error"));
+      }
+    } catch (error) {
+      console.error("Error hitting tee shot:", error);
+      alert("Error hitting tee shot: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const makeCaptainDecision = async () => {
+    setLoading(true);
+    try {
+      // If human is captain, show decision UI
+      const humanPlayerId = gameState.players.find(p => !p.name.includes("Bot") && !p.name.includes("Carl") && !p.name.includes("Sam"))?.id;
+      
+      if (gameState.captain_id === humanPlayerId) {
+        // Show captain decision UI
+        setInteractionNeeded({
+          type: "captain_decision",
+          message: "You're the captain! Choose your strategy:",
+          options: gameState.players.filter(p => p.id !== gameState.captain_id)
+        });
+        setLoading(false);
+        return;
+      }
+      
+      // Computer captain makes decision automatically
+      const response = await fetch(`${API_URL}/simulation/make-captain-decision`, {
+        method: "POST", 
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "auto" }) // Let computer decide
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Backend error: ${response.status} - ${errorText}`);
+      }
+      
+      const data = await response.json();
+      if (data.status === "ok") {
+        setGameState(data.game_state);
+        setFeedback([...feedback, `👑 ${data.message}`]);
+      }
+    } catch (error) {
+      console.error("Error making captain decision:", error);
+      alert("Error making captain decision: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const hitApproachShots = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/simulation/hit-approach-shots`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({})
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Backend error: ${response.status} - ${errorText}`);
+      }
+      
+      const data = await response.json();
+      if (data.status === "ok") {
+        setGameState(data.game_state);
+        setFeedback([...feedback, ...data.approach_feedback]);
+      }
+    } catch (error) {
+      console.error("Error hitting approach shots:", error);
+      alert("Error hitting approach shots: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const makeDoublingDecision = async () => {
+    setLoading(true);
+    try {
+      // Show doubling decision UI for human
+      setInteractionNeeded({
+        type: "doubling_decision",
+        message: "Doubling opportunity! What would you like to do?",
+        current_wager: gameState.base_wager,
+        doubled_wager: gameState.base_wager * 2
+      });
+      setLoading(false);
+    } catch (error) {
+      console.error("Error in doubling decision:", error);
+    }
+  };
+
+  const completeHole = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/simulation/complete-hole`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({})
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Backend error: ${response.status} - ${errorText}`);
+      }
+      
+      const data = await response.json();
+      if (data.status === "ok") {
+        setGameState(data.game_state);
+        setFeedback([...feedback, ...data.hole_summary, data.next_message]);
+        
+        if (data.game_complete) {
+          setIsGameActive(false);
+        }
+      }
+    } catch (error) {
+      console.error("Error completing hole:", error);
+      alert("Error completing hole: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const makeDecision = async (decision) => {
+    setLoading(true);
+    try {
+      let endpoint, body;
+      
+      if (interactionNeeded.type === "captain_decision") {
+        endpoint = "/simulation/make-captain-decision";
+        body = decision;
+      } else if (interactionNeeded.type === "partnership_response") {
+        endpoint = "/simulation/respond-partnership"; 
+        body = decision;
+      } else if (interactionNeeded.type === "doubling_decision") {
+        endpoint = "/simulation/make-doubling-decision";
+        body = decision;
+      }
+      
+      const response = await fetch(`${API_URL}${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Backend error: ${response.status} - ${errorText}`);
+      }
+      
+      const data = await response.json();
+      if (data.status === "ok") {
+        setGameState(data.game_state);
+        setFeedback([...feedback, `🧑 ${data.message}`]);
+        setInteractionNeeded(null);
+      }
+    } catch (error) {
+      console.error("Error making decision:", error);
+      alert("Error making decision: " + error.message);
+    } finally {
+      setLoading(false);
+    }
   };
   
   const resetSimulation = () => {
@@ -781,17 +961,60 @@ function SimulationMode() {
           </div>
         )}
         
-        <button
-          style={buttonStyle}
-          onClick={playHole}
-          disabled={loading}
-        >
-          {loading ? "Playing hole..." : "⛳ Play This Hole"}
-        </button>
+        {/* Interactive Shot-by-Shot Controls */}
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <button
+            style={buttonStyle}
+            onClick={hitTeeShot}
+            disabled={loading || gameState?.all_tee_shots_complete}
+          >
+            {loading ? "Hitting..." : "🏌️ Hit Tee Shot"}
+          </button>
+          
+          {gameState?.all_tee_shots_complete && gameState?.captain_id && (
+            <button
+              style={buttonStyle}
+              onClick={makeCaptainDecision}
+              disabled={loading || gameState?.teams_formed}
+            >
+              {loading ? "Deciding..." : "👑 Make Captain Decision"}
+            </button>
+          )}
+          
+          {gameState?.teams_formed && (
+            <button
+              style={buttonStyle}
+              onClick={hitApproachShots}
+              disabled={loading || gameState?.approach_shots_complete}
+            >
+              {loading ? "Playing..." : "⛳ Hit Approach Shots"}
+            </button>
+          )}
+          
+          {gameState?.approach_shots_complete && (
+            <button
+              style={buttonStyle}
+              onClick={makeDoublingDecision}
+              disabled={loading || gameState?.doubling_complete}
+            >
+              {loading ? "Betting..." : "💰 Doubling Decision"}
+            </button>
+          )}
+          
+          {gameState?.doubling_complete && (
+            <button
+              style={buttonStyle}
+              onClick={completeHole}
+              disabled={loading}
+            >
+              {loading ? "Finishing..." : "✅ Complete Hole"}
+            </button>
+          )}
+        </div>
         
         {loading && (
           <p style={{ color: COLORS.muted, marginTop: 8 }}>
-            Simulating hole and processing decisions...
+            Processing...
           </p>
         )}
       </div>
