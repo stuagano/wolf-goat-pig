@@ -173,6 +173,12 @@ function SimulationMode() {
         body: JSON.stringify(decisions)
       });
       
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Backend error:", response.status, errorText);
+        throw new Error(`Backend error: ${response.status} - ${errorText}`);
+      }
+      
       const data = await response.json();
       if (data.status === "ok") {
         setGameState(data.game_state);

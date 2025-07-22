@@ -562,10 +562,6 @@ class SimulationEngine:
             feedback.append("⛳ **COMPLETING THE HOLE**")
             shot_feedback = self._simulate_remaining_shots_chronological(game_state, tee_shot_results)
             feedback.extend(shot_feedback)
-        else:
-            # Debug: Teams not formed properly
-            feedback.append(f"⚠️ **DEBUG:** Teams not formed. hasattr: {hasattr(game_state, 'teams')}, teams: {getattr(game_state, 'teams', 'MISSING')}")
-            return game_state, feedback, interaction_needed
 
             # Phase 4: Doubling phase
             feedback.append("💰 **BETTING OPPORTUNITY**")
@@ -582,6 +578,10 @@ class SimulationEngine:
 
             # Phase 5: Set up teams and calculate results
             game_state.dispatch_action("calculate_hole_points", {})
+        else:
+            # Debug: Teams not formed properly
+            feedback.append(f"⚠️ **DEBUG:** Teams not formed. hasattr: {hasattr(game_state, 'teams')}, teams: {getattr(game_state, 'teams', 'MISSING')}")
+            return game_state, feedback, interaction_needed
 
             # Phase 6: Hole summary and learning
             hole_summary = self._generate_hole_summary(game_state)
