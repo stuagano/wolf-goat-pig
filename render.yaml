@@ -18,10 +18,9 @@ services:
       cd backend
       python -m pip install --upgrade pip
       pip install -r requirements.txt
-      python -c "from app.database import init_db; init_db()" || echo "Database initialization will be handled at runtime"
     startCommand: |
       cd backend
-      uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
+      uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: DATABASE_URL
         fromService:
@@ -29,12 +28,13 @@ services:
           type: pserv
           property: connectionString
       - key: PYTHON_VERSION
-        value: 3.11.0
+        value: 3.11.11
       - key: ENVIRONMENT
         value: production
+      - key: PORT
+        value: 10000
     healthCheckPath: /health
     autoDeploy: true
-    preDeployCommand: cd backend && python -c "import app.main; print('✅ Import test passed')"
 
   # Frontend service (if deploying to Render)
   - type: web

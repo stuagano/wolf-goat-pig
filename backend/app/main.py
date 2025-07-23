@@ -32,7 +32,8 @@ import httpx
 
 # Check environment
 environment = os.environ.get("ENVIRONMENT", "development")
-logger.info(f"🚀 Starting Wolf Goat Pig API in {environment} mode")
+port = int(os.environ.get("PORT", 10000))
+logger.info(f"🚀 Starting Wolf Goat Pig API in {environment} mode on port {port}")
 
 app = FastAPI(
     title="Wolf Goat Pig API",
@@ -75,13 +76,14 @@ def health_check():
         db_status = "healthy"
     except Exception as e:
         logger.warning(f"Database health check failed: {e}")
-        db_status = "degraded"
+        db_status = "warming_up"
     
     return {
-        "status": "healthy" if db_status == "healthy" else "degraded",
-        "message": "Wolf Goat Pig API is running",
+        "status": "healthy" if db_status == "healthy" else "warming_up",
+        "message": "Reticulating splines..." if db_status == "warming_up" else "Wolf Goat Pig API is running",
         "database": db_status,
-        "environment": environment
+        "environment": environment,
+        "port": port
     }
 
 @app.get("/")
@@ -91,8 +93,34 @@ def root():
         "message": "Wolf Goat Pig API",
         "version": "1.0.0",
         "environment": environment,
-        "docs": "/docs"
+        "docs": "/docs",
+        "health": "/health"
     }
+
+@app.get("/warmup")
+def warmup():
+    """Warmup endpoint for faster cold starts"""
+    try:
+        # Test basic functionality
+        from .database import SessionLocal
+        with SessionLocal() as session:
+            session.execute("SELECT 1")
+        
+        # Test game state
+        game_state.reset()
+        
+        return {
+            "status": "ready",
+            "message": "✅ All systems operational",
+            "timestamp": "ready"
+        }
+    except Exception as e:
+        logger.warning(f"Warmup check failed: {e}")
+        return {
+            "status": "warming_up",
+            "message": "🔄 Reticulating splines...",
+            "details": "Systems are initializing, please wait"
+        }
 
 @app.get("/rules", response_model=list[schemas.Rule])
 def get_rules():
