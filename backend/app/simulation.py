@@ -578,10 +578,6 @@ class SimulationEngine:
 
             # Phase 5: Set up teams and calculate results
             game_state.dispatch_action("calculate_hole_points", {})
-        else:
-            # Debug: Teams not formed properly
-            feedback.append(f"⚠️ **DEBUG:** Teams not formed. hasattr: {hasattr(game_state, 'teams')}, teams: {getattr(game_state, 'teams', 'MISSING')}")
-            return game_state, feedback, interaction_needed
 
             # Phase 6: Hole summary and learning
             hole_summary = self._generate_hole_summary(game_state)
@@ -592,6 +588,9 @@ class SimulationEngine:
                 game_state.dispatch_action("next_hole", {})
                 next_captain_name = next(p["name"] for p in game_state.players if p["id"] == game_state.captain_id)
                 feedback.append(f"\n🔄 **Moving to Hole {game_state.current_hole}** - {next_captain_name} will be captain")
+        else:
+            # Debug: Teams not formed properly
+            feedback.append(f"⚠️ **DEBUG:** Teams not formed. hasattr: {hasattr(game_state, 'teams')}, teams: {getattr(game_state, 'teams', 'MISSING')}")
 
         return game_state, feedback, interaction_needed
 
