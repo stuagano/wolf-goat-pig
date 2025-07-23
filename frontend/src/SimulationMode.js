@@ -730,80 +730,162 @@ function SimulationMode() {
         <div style={{...cardStyle, background: "#fff7ed", border: "2px solid #f59e0b"}}>
           <h3 style={{ color: "#f59e0b", marginBottom: 16 }}>🤔 Decision Required!</h3>
           
-          {interactionNeeded.type === "captain_decision" && (
+          {(interactionNeeded.type === "captain_decision" || interactionNeeded.type === "captain_decision_mid_tee") && (
             <div>
               <p style={{ marginBottom: 20, fontWeight: "bold" }}>
                 {interactionNeeded.message}
               </p>
               
-              {/* Show tee shot results for context */}
-              <div style={{ background: "#f0f8ff", padding: 12, borderRadius: 8, marginBottom: 16 }}>
-                <h4 style={{ margin: "0 0 8px 0", color: "#4169E1" }}>📊 Tee Shot Results:</h4>
-                {Object.entries(interactionNeeded.tee_results || {}).map(([playerId, result]) => {
-                  const playerName = gameState?.players?.find(p => p.id === playerId)?.name || playerId;
-                  return (
-                    <div key={playerId} style={{ fontSize: 14, marginBottom: 4 }}>
-                      <strong>{playerName}:</strong> {result.drive} yards, {result.lie}, {result.remaining} to pin
-                    </div>
-                  );
-                })}
-              </div>
+              {/* Show context based on interaction type */}
+              {interactionNeeded.type === "captain_decision" && interactionNeeded.tee_results && (
+                <div style={{ background: "#f0f8ff", padding: 12, borderRadius: 8, marginBottom: 16 }}>
+                  <h4 style={{ margin: "0 0 8px 0", color: "#4169E1" }}>📊 Tee Shot Results:</h4>
+                  {Object.entries(interactionNeeded.tee_results || {}).map(([playerId, result]) => {
+                    const playerName = gameState?.players?.find(p => p.id === playerId)?.name || playerId;
+                    return (
+                      <div key={playerId} style={{ fontSize: 14, marginBottom: 4 }}>
+                        <strong>{playerName}:</strong> {result.drive} yards, {result.lie}, {result.remaining} to pin
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
               
-              {/* Go Solo Option */}
-              <div style={{
-                border: "2px solid #10b981",
-                borderRadius: 8,
-                padding: 16,
-                marginBottom: 12,
-                background: "#f0f9f0",
-                cursor: "pointer"
-              }}
-              onClick={() => makeDecision({ action: "go_solo" })}
-              >
-                <h4 style={{ margin: "0 0 8px 0", color: "#10b981" }}>🏌️ Go Solo (Triple Points!)</h4>
-                <p style={{ margin: 0, fontSize: 14, color: "#666" }}>
-                  <strong>Risk:</strong> High - you vs everyone else<br/>
-                  <strong>Reward:</strong> Win 3 points from each opponent if successful
-                </p>
-              </div>
+              {/* Show shot context for mid-tee decisions */}
+              {interactionNeeded.type === "captain_decision_mid_tee" && interactionNeeded.shot_context && (
+                <div style={{ background: "#f0fff0", padding: 12, borderRadius: 8, marginBottom: 16, border: "2px solid #10b981" }}>
+                  <h4 style={{ margin: "0 0 8px 0", color: "#10b981" }}>🎯 Just Happened:</h4>
+                  <div style={{ fontSize: 16, fontWeight: "bold" }}>{interactionNeeded.shot_context}</div>
+                </div>
+              )}
               
-              {/* Partner Options */}
-              <h4 style={{ marginBottom: 12 }}>Or Request a Partner:</h4>
-              {interactionNeeded.options?.map(player => {
-                const handicapDiff = Math.abs(player.handicap - (gameState?.players?.find(p => p.id === "human")?.handicap || 18));
-                const isGoodMatch = handicapDiff <= 6;
-                
-                return (
-                  <div
-                    key={player.id}
-                    style={{
-                      border: "1px solid #d1d5db",
+              {/* Handle mid-tee decision options */}
+              {interactionNeeded.type === "captain_decision_mid_tee" ? (
+                <div>
+                  {/* Show options from the backend */}
+                  {interactionNeeded.options?.map((option, index) => {
+                    if (option.action === "request_partner") {
+                      return (
+                        <div
+                          key={option.partner_id}
+                          style={{
+                            border: "2px solid #10b981",
+                            borderRadius: 8,
+                            padding: 16,
+                            marginBottom: 12,
+                            background: "#f0fff0",
+                            cursor: "pointer"
+                          }}
+                          onClick={() => makeDecision({ action: "request_partner", requested_partner: option.partner_id })}
+                        >
+                          <h4 style={{ margin: "0 0 8px 0", color: "#10b981" }}>🤝 Partner with {option.partner_name}</h4>
+                          <p style={{ margin: 0, fontSize: 14, color: "#666" }}>
+                            Great shot! Ask them to be your partner for this hole.
+                          </p>
+                        </div>
+                      );
+                    } else if (option.action === "keep_watching") {
+                      return (
+                        <div
+                          key="keep_watching"
+                          style={{
+                            border: "1px solid #f59e0b",
+                            borderRadius: 8,
+                            padding: 16,
+                            marginBottom: 12,
+                            background: "#fff8e1",
+                            cursor: "pointer"
+                          }}
+                          onClick={() => makeDecision({ action: "keep_watching" })}
+                        >
+                          <h4 style={{ margin: "0 0 8px 0", color: "#f59e0b" }}>👀 Keep Watching</h4>
+                          <p style={{ margin: 0, fontSize: 14, color: "#666" }}>
+                            Wait to see more shots ({option.remaining_players} players left)
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })}
+                  
+                  {/* Go Solo option if this is the last shot */}
+                  {interactionNeeded.can_go_solo && (
+                    <div style={{
+                      border: "2px solid #ef4444",
                       borderRadius: 8,
-                      padding: 12,
-                      marginBottom: 8,
-                      background: "#fff",
+                      padding: 16,
+                      marginBottom: 12,
+                      background: "#fef2f2",
                       cursor: "pointer"
                     }}
-                    onClick={() => makeDecision({ action: "request_partner", requested_partner: player.id })}
+                    onClick={() => makeDecision({ action: "go_solo" })}
+                    >
+                      <h4 style={{ margin: "0 0 8px 0", color: "#ef4444" }}>🏌️ Go Solo (Triple Points!)</h4>
+                      <p style={{ margin: 0, fontSize: 14, color: "#666" }}>
+                        Last shot - go it alone for maximum risk/reward!
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  {/* Traditional captain decision after all tee shots */}
+                  <div style={{
+                    border: "2px solid #10b981",
+                    borderRadius: 8,
+                    padding: 16,
+                    marginBottom: 12,
+                    background: "#f0f9f0",
+                    cursor: "pointer"
+                  }}
+                  onClick={() => makeDecision({ action: "go_solo" })}
                   >
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <div>
-                        <div style={{ fontWeight: "bold" }}>💻 {player.name}</div>
-                        <div style={{ fontSize: 12, color: COLORS.muted }}>
-                          Handicap: {player.handicap} | Points: {player.points >= 0 ? "+" : ""}{player.points}
+                    <h4 style={{ margin: "0 0 8px 0", color: "#10b981" }}>🏌️ Go Solo (Triple Points!)</h4>
+                    <p style={{ margin: 0, fontSize: 14, color: "#666" }}>
+                      <strong>Risk:</strong> High - you vs everyone else<br/>
+                      <strong>Reward:</strong> Win 3 points from each opponent if successful
+                    </p>
+                  </div>
+                  
+                  {/* Partner Options */}
+                  <h4 style={{ marginBottom: 12 }}>Or Request a Partner:</h4>
+                  {interactionNeeded.options?.map(player => {
+                    const handicapDiff = Math.abs(player.handicap - (gameState?.players?.find(p => p.id === "human")?.handicap || 18));
+                    const isGoodMatch = handicapDiff <= 6;
+                    
+                    return (
+                      <div
+                        key={player.id}
+                        style={{
+                          border: "1px solid #d1d5db",
+                          borderRadius: 8,
+                          padding: 12,
+                          marginBottom: 8,
+                          background: "#fff",
+                          cursor: "pointer"
+                        }}
+                        onClick={() => makeDecision({ action: "request_partner", requested_partner: player.id })}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div>
+                            <div style={{ fontWeight: "bold" }}>💻 {player.name}</div>
+                            <div style={{ fontSize: 12, color: COLORS.muted }}>
+                              Handicap: {player.handicap} | Points: {player.points >= 0 ? "+" : ""}{player.points}
+                            </div>
+                          </div>
+                          <div style={{ textAlign: "right", fontSize: 12 }}>
+                            {isGoodMatch ? (
+                              <span style={{ color: COLORS.success, fontWeight: "bold" }}>✅ Good Match</span>
+                            ) : (
+                              <span style={{ color: COLORS.warning }}>⚠️ Handicap Gap: {handicapDiff.toFixed(1)}</span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <div style={{ textAlign: "right", fontSize: 12 }}>
-                        {isGoodMatch ? (
-                          <span style={{ color: COLORS.success, fontWeight: "bold" }}>✅ Good Match</span>
-                        ) : (
-                          <span style={{ color: COLORS.warning }}>⚠️ Handicap Gap: {handicapDiff.toFixed(1)}</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
           

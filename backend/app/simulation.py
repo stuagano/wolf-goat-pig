@@ -399,27 +399,37 @@ class SimulationEngine:
             feedback.append(f"📝 **Description:** {description}")
         feedback.append("")
 
-        # Phase 1: Tee shots in hitting order with reactions
+        # Phase 1: Progressive tee shots with immediate captain decisions
         feedback.append("🏌️ **TEE SHOTS**")
         hitting_order = game_state.hitting_order or [p["id"] for p in game_state.players]
+        captain_id = game_state.captain_id
         
-        # Check if we already have tee shot results stored
-        if not hasattr(game_state, 'tee_shot_results') or not game_state.tee_shot_results:
-            tee_shot_results = {}
+        # Initialize tee shot tracking
+        if not hasattr(game_state, 'tee_shot_results'):
+            game_state.tee_shot_results = {}
+        if not hasattr(game_state, 'current_tee_shot_index'):
+            game_state.current_tee_shot_index = 0
             
-            for i, player_id in enumerate(hitting_order):
-                player = next(p for p in game_state.players if p["id"] == player_id)
+        tee_shot_results = game_state.tee_shot_results
+        current_index = game_state.current_tee_shot_index
+        
+        # Process tee shots one by one, allowing captain decisions after each
+        while current_index < len(hitting_order):
+            player_id = hitting_order[current_index]
+            player = next(p for p in game_state.players if p["id"] == player_id)
+            player_name = player["name"]
+            
+            # If this player hasn't hit yet, simulate their tee shot
+            if player_id not in tee_shot_results:
                 tee_result = self._simulate_individual_tee_shot(player, game_state)
                 tee_shot_results[player_id] = tee_result
                 
-                # Detailed tee shot description
-                player_name = player["name"]
+                # Show the tee shot result
                 drive_distance = tee_result['drive']
                 lie_description = tee_result['lie']
                 remaining = tee_result['remaining']
                 shot_quality = tee_result['shot_quality']
                 
-                # Create realistic shot description
                 shot_desc = self._create_shot_description(drive_distance, lie_description, shot_quality, remaining, par)
                 
                 if player_id == self._get_human_player_id(game_state):
@@ -429,24 +439,90 @@ class SimulationEngine:
                 
                 # Add reactions from other players after good/bad shots
                 if shot_quality in ["excellent", "terrible"]:
-                    reaction = self._generate_shot_reaction(shot_quality, player_name, i == 0)
+                    reaction = self._generate_shot_reaction(shot_quality, player_name, current_index == 0)
                     if reaction:
                         feedback.append(f"   💬 {reaction}")
-                
                 feedback.append("")
+                
+                # NOW CHECK IF CAPTAIN WANTS TO MAKE A DECISION
+                # Captain can only decide after seeing at least one non-captain shot
+                if current_index > 0 and not hasattr(game_state, 'teams') or not game_state.teams:
+                    # Captain evaluates this shot for potential partnership
+                    if captain_id in [cp.player_id for cp in self.computer_players]:
+                        # Computer captain decides immediately after each shot
+                        captain_decision = self._evaluate_shot_for_partnership(
+                            captain_id, player_id, tee_result, game_state, current_index
+                        )
+                        
+                        if captain_decision == "request_partner":
+                            captain_name = next(p["name"] for p in game_state.players if p["id"] == captain_id)
+                            game_state.dispatch_action("request_partner", {
+                                "captain_id": captain_id,
+                                "partner_id": player_id
+                            })
+                            feedback.append(f"💻 **{captain_name}:** \"Great shot {player_name}! Want to be partners?\"")
+                            
+                            # Handle partner response immediately
+                            if player_id == self._get_human_player_id(game_state):
+                                # Human player - need decision
+                                interaction_needed = {
+                                    "type": "partnership_response",
+                                    "message": f"{captain_name} saw your {shot_quality} shot and wants you as a partner!",
+                                    "captain_name": captain_name,
+                                    "partner_id": player_id,
+                                    "shot_context": f"Your shot: {shot_desc}"
+                                }
+                                game_state.current_tee_shot_index = current_index + 1
+                                return game_state, feedback, interaction_needed
+                            else:
+                                # Computer player responds
+                                partner_player = self._get_computer_player(player_id)
+                                captain_player = self._get_computer_player(captain_id)
+                                accept = partner_player.should_accept_partnership(captain_player.handicap, game_state)
+                                if accept:
+                                    game_state.dispatch_action("accept_partner", {"partner_id": player_id})
+                                    feedback.append(f"💻 **{player_name}:** \"Absolutely! Let's team up!\"")
+                                    break  # Partnership formed, stop taking more tee shots
+                                else:
+                                    game_state.dispatch_action("decline_partner", {"partner_id": player_id})
+                                    feedback.append(f"💻 **{player_name}:** \"Thanks, but I'll pass. Keep looking!\"")
+                        elif captain_decision == "go_solo" and current_index == len(hitting_order) - 1:
+                            # Captain decides to go solo after seeing all shots
+                            captain_name = next(p["name"] for p in game_state.players if p["id"] == captain_id)
+                            game_state.dispatch_action("go_solo", {"captain_id": captain_id})
+                            feedback.append(f"💻 **{captain_name}:** \"I've seen enough. Going solo!\"")
+                            break
+                    else:
+                        # Human captain - offer decision after each shot (if shot was good enough)
+                        if shot_quality in ["excellent", "good"] and player_id != captain_id:
+                            others_remaining = [p for p in game_state.players 
+                                             if p["id"] != captain_id and p["id"] not in tee_shot_results]
+                            
+                            interaction_needed = {
+                                "type": "captain_decision_mid_tee",
+                                "message": f"{player_name} just hit a {shot_quality} shot! Do you want to ask them to be your partner, or keep watching?",
+                                "shot_context": f"{player_name}: {shot_desc}",
+                                "options": [
+                                    {"action": "request_partner", "partner_id": player_id, "partner_name": player_name},
+                                    {"action": "keep_watching", "remaining_players": len(others_remaining)}
+                                ],
+                                "can_go_solo": current_index == len(hitting_order) - 1
+                            }
+                            game_state.current_tee_shot_index = current_index + 1
+                            return game_state, feedback, interaction_needed
             
-            game_state.tee_shot_results = tee_shot_results
-        else:
-            # Tee shots already completed, just show summary
-            tee_shot_results = game_state.tee_shot_results
-            feedback.append("(Tee shots completed)")
-            feedback.append("")
+            current_index += 1
+            game_state.current_tee_shot_index = current_index
+            
+            # Break if teams are formed
+            if hasattr(game_state, 'teams') and game_state.teams:
+                break
 
-        # Phase 2: Captain decision AFTER seeing all tee shots
+        # Phase 2: Final captain decision (if no partnership formed during tee shots)
         captain_id = game_state.captain_id
         captain_name = next(p["name"] for p in game_state.players if p["id"] == captain_id)
         
-        # Check if teams are already formed
+        # Check if teams are already formed during tee shots
         if not hasattr(game_state, 'teams') or not game_state.teams:
             feedback.append("🤝 **CAPTAIN'S DECISION**")
             
@@ -781,6 +857,55 @@ class SimulationEngine:
                 base_score = max(1, base_score - 1)
         
         return base_score
+
+    def _evaluate_shot_for_partnership(self, captain_id: str, shot_player_id: str, 
+                                      tee_result: dict, game_state: GameState, shot_index: int) -> str:
+        """Evaluate if captain should make partnership decision after seeing this shot"""
+        if captain_id == shot_player_id:
+            return "continue"  # Captain doesn't partner with themselves
+        
+        shot_quality = tee_result['shot_quality']
+        captain_player = self._get_computer_player(captain_id)
+        
+        # Aggressive personalities act faster on good shots
+        if captain_player.personality == "aggressive":
+            if shot_quality == "excellent":
+                return "request_partner"
+            elif shot_quality == "good" and shot_index >= 2:
+                return "request_partner"
+        
+        # Conservative personalities wait to see more shots
+        elif captain_player.personality == "conservative":
+            if shot_quality == "excellent" and shot_index >= 2:
+                return "request_partner"
+            elif shot_index == 3:  # Last shot, decide now
+                if shot_quality in ["excellent", "good"]:
+                    return "request_partner"
+                else:
+                    return "go_solo"
+        
+        # Strategic personalities consider handicap compatibility
+        elif captain_player.personality == "strategic":
+            shot_player = next(p for p in game_state.players if p["id"] == shot_player_id)
+            handicap_diff = abs(captain_player.handicap - shot_player["handicap"])
+            
+            if shot_quality == "excellent":
+                return "request_partner"
+            elif shot_quality == "good" and handicap_diff <= 5:
+                return "request_partner"
+            elif shot_index == 3 and shot_quality in ["good", "average"]:
+                return "request_partner" if handicap_diff <= 8 else "go_solo"
+        
+        # Balanced personalities use moderate criteria
+        else:  # balanced
+            if shot_quality == "excellent":
+                return "request_partner"
+            elif shot_quality == "good" and shot_index >= 1:
+                return "request_partner" 
+            elif shot_index == 3:
+                return "go_solo" if shot_quality in ["poor", "terrible"] else "request_partner"
+        
+        return "continue"  # Keep watching
 
     def _make_computer_partnership_decision(self, captain: ComputerPlayer, game_state: GameState) -> Optional[str]:
         """Computer captain decides on partnership"""
