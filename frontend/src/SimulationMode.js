@@ -211,6 +211,26 @@ function SimulationMode() {
     }
   };
 
+  const testNewEndpoints = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/simulation/test-new-endpoints`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Backend error: ${response.status} - ${errorText}`);
+      }
+      
+      const data = await response.json();
+      alert(`✅ New endpoints working! ${data.message}`);
+    } catch (error) {
+      console.error("Error testing endpoints:", error);
+      alert("❌ New endpoints not working: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const hitTeeShot = async () => {
     setLoading(true);
     try {
@@ -961,8 +981,16 @@ function SimulationMode() {
           </div>
         )}
         
-        {/* Interactive Shot-by-Shot Controls */}
+                  {/* Interactive Shot-by-Shot Controls */}
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <button
+            style={{...buttonStyle, background: "#10b981"}}
+            onClick={testNewEndpoints}
+            disabled={loading}
+          >
+            {loading ? "Testing..." : "🧪 Test New API"}
+          </button>
+          
           <button
             style={buttonStyle}
             onClick={hitTeeShot}
