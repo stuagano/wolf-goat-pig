@@ -4,16 +4,42 @@ from . import models, schemas, crud, database
 # Ensure tables are created before anything else
 # Call init_db before importing game_state
 
-database.init_db()
+import logging
+import os
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Initialize database with error handling
+try:
+    database.init_db()
+    logger.info("✅ Database initialized successfully")
+except Exception as e:
+    logger.error(f"❌ Database initialization failed: {e}")
+    if "could not translate host name" in str(e).lower():
+        logger.warning("💡 Database connection issue - will retry at runtime")
+    # Don't exit, let the service start and retry connections
 
 from .game_state import game_state
 from .simulation import simulation_engine
 from pydantic import BaseModel
 from typing import List, Optional
-import os
 import httpx
 
-app = FastAPI()
+# Check environment
+environment = os.environ.get("ENVIRONMENT", "development")
+port = int(os.environ.get("PORT", 10000))
+logger.info(f"🚀 Starting Wolf Goat Pig API in {environment} mode on port {port}")
+
+app = FastAPI(
+    title="Wolf Goat Pig API",
+    description="Interactive Golf Game Simulation API",
+    version="1.0.0"
+)
 
 # Allow all origins for MVP; restrict in production
 app.add_middleware(
@@ -30,13 +56,71 @@ app.add_middleware(
 )
 
 @app.on_event("startup")
-def startup():
-    database.init_db()
+async def startup():
+    """Enhanced startup with error handling"""
+    try:
+        database.init_db()
+        logger.info("✅ Database re-initialized on startup")
+    except Exception as e:
+        logger.error(f"❌ Startup database initialization failed: {e}")
+        # Continue anyway - database might become available later
 
 @app.get("/health")
 def health_check():
-    """Health check endpoint for Render"""
-    return {"status": "healthy", "message": "Wolf Goat Pig API is running"}
+    """Enhanced health check endpoint for Render"""
+    try:
+        # Test database connection
+        from .database import SessionLocal
+        with SessionLocal() as session:
+            session.execute("SELECT 1")
+        db_status = "healthy"
+    except Exception as e:
+        logger.warning(f"Database health check failed: {e}")
+        db_status = "warming_up"
+    
+    return {
+        "status": "healthy" if db_status == "healthy" else "warming_up",
+        "message": "Reticulating splines..." if db_status == "warming_up" else "Wolf Goat Pig API is running",
+        "database": db_status,
+        "environment": environment,
+        "port": port
+    }
+
+@app.get("/")
+def root():
+    """Root endpoint with API information"""
+    return {
+        "message": "Wolf Goat Pig API",
+        "version": "1.0.0",
+        "environment": environment,
+        "docs": "/docs",
+        "health": "/health"
+    }
+
+@app.get("/warmup")
+def warmup():
+    """Warmup endpoint for faster cold starts"""
+    try:
+        # Test basic functionality
+        from .database import SessionLocal
+        with SessionLocal() as session:
+            session.execute("SELECT 1")
+        
+        # Test game state
+        game_state.reset()
+        
+        return {
+            "status": "ready",
+            "message": "✅ All systems operational",
+            "timestamp": "ready"
+        }
+    except Exception as e:
+        logger.warning(f"Warmup check failed: {e}")
+        return {
+            "status": "warming_up",
+            "message": "🔄 Reticulating splines...",
+            "details": "Systems are initializing, please wait"
+        }
 
 @app.get("/rules", response_model=list[schemas.Rule])
 def get_rules():

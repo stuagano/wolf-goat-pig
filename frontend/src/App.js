@@ -4,6 +4,7 @@ import GameSetupForm from "./GameSetupForm";
 import CourseManager from "./CourseManager";
 import SimulationMode from "./SimulationMode";
 import MonteCarloSimulation from "./MonteCarloSimulation";
+import WarmupMessage from "./WarmupMessage";
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -760,17 +761,19 @@ function App() {
   }
 
   return (
-    <div>
-      <Navigation />
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/setup" element={<SetupPage onSetup={setGameState} />} />
-        <Route path="/game" element={gameState ? <GamePage gameState={gameState} setGameState={setGameState} loading={loading} setLoading={setLoading} /> : <Navigate to="/setup" />} />
-        <Route path="/simulation" element={<SimulationMode />} />
-        <Route path="/monte-carlo" element={<MonteCarloSimulation />} />
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
-    </div>
+    <WarmupMessage>
+      <div>
+        <Navigation />
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/setup" element={<SetupPage onSetup={setGameState} />} />
+          <Route path="/game" element={gameState ? <GamePage gameState={gameState} setGameState={setGameState} loading={loading} setLoading={setLoading} /> : <Navigate to="/setup" />} />
+          <Route path="/simulation" element={<SimulationMode />} />
+          <Route path="/monte-carlo" element={<MonteCarloSimulation />} />
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </div>
+    </WarmupMessage>
   );
 }
 

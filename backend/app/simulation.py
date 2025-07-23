@@ -550,11 +550,10 @@ class SimulationEngine:
                             "tee_results": tee_shot_results
                         }
                         return game_state, feedback, interaction_needed
-                
-                feedback.append("")
-            else:
-                feedback.append("🤝 **TEAMS FORMED**")
-                feedback.append("")
+        else:
+            # Teams are already formed
+            feedback.append("🤝 **TEAMS FORMED**")
+            feedback.append("")
 
         # Continue with rest of hole only if teams are formed
         if hasattr(game_state, 'teams') and game_state.teams:
