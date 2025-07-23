@@ -552,9 +552,10 @@ class SimulationEngine:
                         return game_state, feedback, interaction_needed
                 
                 feedback.append("")
-            else:
-                feedback.append("🤝 **TEAMS FORMED**")
-                feedback.append("")
+                
+        # Teams formation complete
+        feedback.append("🤝 **TEAMS FORMED**")
+        feedback.append("")
 
         # Continue with rest of hole only if teams are formed
         if hasattr(game_state, 'teams') and game_state.teams:
@@ -592,7 +593,7 @@ class SimulationEngine:
             # Debug: Teams not formed properly
             feedback.append(f"⚠️ **DEBUG:** Teams not formed. hasattr: {hasattr(game_state, 'teams')}, teams: {getattr(game_state, 'teams', 'MISSING')}")
 
-        return game_state, feedback, interaction_needed
+        return game_state, feedback, None
 
     def _simulate_individual_tee_shot(self, player: dict, game_state: GameState) -> dict:
         """Simulate tee shot for a single player"""
