@@ -407,6 +407,11 @@ def play_simulation_hole(decisions: HumanDecisions):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@app.get("/simulation/test-new-endpoints")
+def test_new_endpoints():
+    """Test if new endpoints are working"""
+    return {"status": "ok", "message": "New interactive endpoints are working!", "timestamp": "2025-01-22"}
+
 @app.get("/simulation/available-personalities")
 def get_available_personalities():
     """Get list of available computer player personalities"""
@@ -566,7 +571,7 @@ def _serialize_game_state():
     } 
 
 @app.post("/simulation/hit-tee-shot")
-def hit_tee_shot(player_data: dict):
+def hit_tee_shot():
     """Hit tee shot for next player in order"""
     global game_state
     
