@@ -1928,6 +1928,10 @@ class SimulationEngine:
         shot_seq = game_state.shot_sequence
         hitting_order = game_state.hitting_order or [p["id"] for p in game_state.players]
         
+        # Debug logging
+        print(f"🔍 get_next_shot_event: phase={shot_seq['phase']}, current_player_index={shot_seq['current_player_index']}, hitting_order={hitting_order}")
+        print(f"🔍 Players: {[p['id'] for p in game_state.players]}")
+        
         if shot_seq["phase"] == "tee_shots":
             if shot_seq["current_player_index"] < len(hitting_order):
                 player_id = hitting_order[shot_seq["current_player_index"]]

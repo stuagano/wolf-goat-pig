@@ -1012,6 +1012,10 @@ def play_next_shot() -> ShotEventResponse:
         if not game_state:
             raise HTTPException(status_code=400, detail="No active game")
         
+        print(f"🎯 /simulation/next-shot called")
+        print(f"🎯 Game state: current_hole={game_state.current_hole}, players={[p['id'] for p in game_state.players]}")
+        print(f"🎯 Hitting order: {game_state.hitting_order}")
+        
         # Determine current shot state
         shot_event = simulation_engine.get_next_shot_event(game_state)
         
