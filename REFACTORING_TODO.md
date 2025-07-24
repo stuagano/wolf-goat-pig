@@ -11,8 +11,8 @@
   - `id`, `name`, `handicap`, `points`, `strength`
   - Methods: `get_handicap_category()`, `get_strength_level()`
   - Validation: handicap range, name requirements
-- [ ] **Update**: All methods that currently use `player["id"]` syntax
-- [ ] **Files to update**: `game_state.py`, `simulation.py`, `main.py`
+- [x] **Update**: All methods that currently use `player["id"]` syntax
+- [x] **Files to update**: `game_state.py`, `simulation.py`, `main.py`
 
 #### ✅ **2. Create ShotResult Class**
 - [ ] **File**: `backend/app/domain/shot_result.py`
