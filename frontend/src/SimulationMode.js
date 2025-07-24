@@ -88,6 +88,11 @@ function SimulationMode() {
   const [interactionNeeded, setInteractionNeeded] = useState(null);
   const [pendingDecision, setPendingDecision] = useState({});
 
+  // New state for shot-by-shot simulation
+  const [shotProbabilities, setShotProbabilities] = useState(null);
+  const [shotState, setShotState] = useState(null);
+  const [hasNextShot, setHasNextShot] = useState(true);
+
   useEffect(() => {
     fetchInitialData();
   }, []);
@@ -422,6 +427,130 @@ function SimulationMode() {
     } catch (error) {
       console.error("Error making decision:", error);
       alert("Error making decision: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // NEW EVENT-DRIVEN SHOT FUNCTIONS
+  
+  const playNextShot = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/simulation/next-shot`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Backend error: ${response.status} - ${errorText}`);
+      }
+      
+      const data = await response.json();
+      if (data.status === "ok") {
+        setGameState(data.game_state);
+        setShotProbabilities(data.probabilities);
+        setHasNextShot(data.next_shot_available);
+        
+        // Add shot result to feedback
+        const newFeedback = [...feedback, data.shot_result.shot_description];
+        if (data.shot_result.reactions) {
+          newFeedback.push(...data.shot_result.reactions);
+        }
+        setFeedback(newFeedback);
+        
+        // Check for betting opportunity
+        if (data.betting_opportunity) {
+          setInteractionNeeded({
+            type: "betting_opportunity",
+            message: "Betting opportunity available!",
+            opportunity: data.betting_opportunity
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error playing next shot:", error);
+      alert("Error playing shot: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const fetchShotProbabilities = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/simulation/shot-probabilities`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Backend error: ${response.status} - ${errorText}`);
+      }
+      
+      const data = await response.json();
+      if (data.status === "ok") {
+        setShotProbabilities(data.probabilities);
+      }
+    } catch (error) {
+      console.error("Error fetching probabilities:", error);
+      alert("Error fetching probabilities: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const fetchShotState = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/simulation/current-shot-state`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Backend error: ${response.status} - ${errorText}`);
+      }
+      
+      const data = await response.json();
+      if (data.status === "ok") {
+        setShotState(data.shot_state);
+      }
+    } catch (error) {
+      console.error("Error fetching shot state:", error);
+      alert("Error fetching shot state: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const makeBettingDecision = async (decision) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/simulation/betting-decision`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(decision)
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Backend error: ${response.status} - ${errorText}`);
+      }
+      
+      const data = await response.json();
+      if (data.status === "ok") {
+        setGameState(data.game_state);
+        setFeedback([...feedback, `💰 ${data.decision_result.message}`]);
+        setInteractionNeeded(null);
+        
+        // Show betting probabilities in feedback
+        if (data.betting_probabilities) {
+          setShotProbabilities({
+            betting_analysis: data.betting_probabilities
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error making betting decision:", error);
+      alert("Error making betting decision: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -1032,6 +1161,74 @@ function SimulationMode() {
               </p>
             </div>
           )}
+          
+          {interactionNeeded.type === "betting_opportunity" && (
+            <div>
+              <p style={{ marginBottom: 20, fontWeight: "bold", fontSize: 16 }}>
+                {interactionNeeded.message}
+              </p>
+              
+              {/* Show shot context */}
+              <div style={{ background: "#f0fff0", padding: 12, borderRadius: 8, marginBottom: 16, border: "2px solid #10b981" }}>
+                <h4 style={{ margin: "0 0 8px 0", color: "#10b981" }}>🎯 Shot Analysis:</h4>
+                <div style={{ fontSize: 16, fontWeight: "bold", marginBottom: 8 }}>
+                  {interactionNeeded.opportunity.target_player.name}: {interactionNeeded.opportunity.shot_context.shot_description}
+                </div>
+                
+                {/* Show betting probabilities */}
+                {interactionNeeded.opportunity.betting_probabilities && (
+                  <div style={{ fontSize: 14 }}>
+                    <div><strong>Partnership Win Probability:</strong> {interactionNeeded.opportunity.betting_probabilities.win_probability}%</div>
+                    <div><strong>Team Strength:</strong> {interactionNeeded.opportunity.betting_probabilities.team_strength} avg handicap</div>
+                    <div><strong>Expected Points:</strong> {interactionNeeded.opportunity.betting_probabilities.expected_points >= 0 ? "+" : ""}{interactionNeeded.opportunity.betting_probabilities.expected_points}</div>
+                    <div><strong>Risk Level:</strong> {interactionNeeded.opportunity.betting_probabilities.risk_level}</div>
+                  </div>
+                )}
+              </div>
+              
+              <div style={{ display: "flex", gap: 12 }}>
+                <button
+                  style={{
+                    ...buttonStyle,
+                    background: "#10b981",
+                    flex: 1
+                  }}
+                  onClick={() => makeBettingDecision({ 
+                    action: "request_partner", 
+                    partner_id: interactionNeeded.opportunity.target_player.id 
+                  })}
+                >
+                  🤝 Request Partnership
+                </button>
+                
+                <button
+                  style={{
+                    ...buttonStyle,
+                    background: "#f59e0b",
+                    flex: 1
+                  }}
+                  onClick={() => makeBettingDecision({ action: "keep_watching" })}
+                >
+                  👀 Keep Watching
+                </button>
+                
+                <button
+                  style={{
+                    ...buttonStyle,
+                    background: "#ef4444",
+                    flex: 1
+                  }}
+                  onClick={() => makeBettingDecision({ action: "go_solo" })}
+                >
+                  🏌️ Go Solo
+                </button>
+              </div>
+              
+              <p style={{ marginTop: 12, fontSize: 14, color: COLORS.muted, textAlign: "center" }}>
+                💡 Analyze the probabilities above to make the optimal betting decision!
+              </p>
+            </div>
+          )}
         </div>
       )}
       
@@ -1072,7 +1269,7 @@ function SimulationMode() {
           </div>
         )}
         
-                  {/* Progressive Hole Simulation - Uses New Shot-by-Shot Flow */}
+        {/* Event-Driven Shot-by-Shot Simulation */}
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           <button
             style={{
@@ -1082,25 +1279,134 @@ function SimulationMode() {
               padding: "16px 32px",
               flex: 1
             }}
-            onClick={playHole}
-            disabled={loading || interactionNeeded}
+            onClick={playNextShot}
+            disabled={loading || interactionNeeded || !hasNextShot}
           >
-            {loading ? "Playing Hole..." : "🏌️ Play This Hole (Progressive Simulation)"}
+            {loading ? "Playing Shot..." : hasNextShot ? "🏌️ Play Next Shot" : "🏁 All Shots Complete"}
           </button>
           
-          {/* Debug button for testing */}
+          {/* Probability View Toggle */}
           <button
-            style={{...buttonStyle, background: "#6b7280"}}
-            onClick={testNewEndpoints}
+            style={{...buttonStyle, background: "#6366f1"}}
+            onClick={fetchShotProbabilities}
             disabled={loading}
           >
-            {loading ? "Testing..." : "🧪 Test API"}
+            📊 View Probabilities
+          </button>
+          
+          {/* Shot State Info */}
+          <button
+            style={{...buttonStyle, background: "#6b7280"}}
+            onClick={fetchShotState}
+            disabled={loading}
+          >
+            ℹ️ Shot State
           </button>
         </div>
         
+        {/* Shot Probabilities Display */}
+        {shotProbabilities && (
+          <div style={{
+            background: "#f0f8ff",
+            border: "2px solid #4169E1",
+            borderRadius: 12,
+            padding: 16,
+            marginTop: 16
+          }}>
+            <h4 style={{ margin: "0 0 12px 0", color: "#4169E1" }}>📊 Shot Probabilities</h4>
+            
+            {shotProbabilities.pre_shot && (
+              <div style={{ marginBottom: 16 }}>
+                <h5 style={{ margin: "0 0 8px 0" }}>Pre-Shot Expectations:</h5>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 8 }}>
+                  <div>🎯 Excellent: {shotProbabilities.pre_shot.excellent}%</div>
+                  <div>👍 Good: {shotProbabilities.pre_shot.good}%</div>
+                  <div>😐 Average: {shotProbabilities.pre_shot.average}%</div>
+                  <div>👎 Poor: {shotProbabilities.pre_shot.poor}%</div>
+                  <div>💥 Terrible: {shotProbabilities.pre_shot.terrible}%</div>
+                </div>
+                <div style={{ marginTop: 8, fontSize: 14, color: COLORS.muted }}>
+                  <div>{shotProbabilities.pre_shot.handicap_factor}</div>
+                  <div>{shotProbabilities.pre_shot.hole_difficulty}</div>
+                  <div>Expected Distance: {shotProbabilities.pre_shot.expected_distance?.expected} yards 
+                    ({shotProbabilities.pre_shot.expected_distance?.range})</div>
+                </div>
+              </div>
+            )}
+            
+            {shotProbabilities.outcome && (
+              <div style={{ marginBottom: 16 }}>
+                <h5 style={{ margin: "0 0 8px 0" }}>Scoring Probabilities from Position:</h5>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))", gap: 8 }}>
+                  <div>🦅 Birdie: {shotProbabilities.outcome.scoring_probabilities?.birdie}%</div>
+                  <div>📌 Par: {shotProbabilities.outcome.scoring_probabilities?.par}%</div>
+                  <div>☁️ Bogey: {shotProbabilities.outcome.scoring_probabilities?.bogey}%</div>
+                  <div>⛈️ Double+: {shotProbabilities.outcome.scoring_probabilities?.double_bogey_or_worse}%</div>
+                </div>
+                <div style={{ marginTop: 8, fontSize: 14, fontWeight: "bold" }}>
+                  Expected Score: {shotProbabilities.outcome.scoring_probabilities?.expected_score}
+                </div>
+              </div>
+            )}
+            
+            {shotProbabilities.betting_implications && (
+              <div>
+                <h5 style={{ margin: "0 0 8px 0" }}>💰 Betting Implications:</h5>
+                <div style={{ 
+                  background: shotProbabilities.betting_implications.partnership_appeal >= 70 ? "#f0fff0" : 
+                             shotProbabilities.betting_implications.partnership_appeal >= 50 ? "#fff8f0" : "#fff0f0",
+                  padding: 12,
+                  borderRadius: 8,
+                  border: "1px solid " + (shotProbabilities.betting_implications.partnership_appeal >= 70 ? "#10b981" : 
+                                         shotProbabilities.betting_implications.partnership_appeal >= 50 ? "#f59e0b" : "#ef4444")
+                }}>
+                  <div style={{ fontWeight: "bold" }}>
+                    Partnership Appeal: {shotProbabilities.betting_implications.partnership_appeal}%
+                  </div>
+                  <div style={{ fontSize: 14, marginTop: 4 }}>
+                    {shotProbabilities.betting_implications.recommendation}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* Current Shot State Display */}
+        {shotState && (
+          <div style={{
+            background: "#f9fafb",
+            border: "1px solid #d1d5db",
+            borderRadius: 8,
+            padding: 16,
+            marginTop: 16
+          }}>
+            <h4 style={{ margin: "0 0 12px 0" }}>📋 Current Shot State</h4>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+              <div>
+                <strong>Phase:</strong> {shotState.phase}
+              </div>
+              <div>
+                <strong>Shots Completed:</strong> {shotState.shots_completed}/{shotState.shots_completed + shotState.shots_remaining}
+              </div>
+              <div>
+                <strong>Next Player:</strong> {shotState.next_player ? 
+                  gameState?.players?.find(p => p.id === shotState.next_player)?.name || shotState.next_player 
+                  : "None"}
+              </div>
+              <div>
+                <strong>Captain:</strong> {gameState?.players?.find(p => p.id === shotState.captain_id)?.name || "Unknown"}
+              </div>
+              <div>
+                <strong>Teams Formed:</strong> {shotState.teams_formed ? "Yes" : "No"}
+              </div>
+            </div>
+          </div>
+        )}
+        
         <p style={{ fontSize: 14, color: COLORS.muted, marginTop: 8, textAlign: "center" }}>
-          ⚡ <strong>New Progressive Flow:</strong> Tee shots, captain decisions, and betting all happen in real-time as you play!
-          {interactionNeeded && <><br/>🔄 <strong>Decision needed above - choose your strategy!</strong></>}
+          ⚡ <strong>Event-Driven Architecture:</strong> Each shot shows detailed probabilities and betting implications!
+          {interactionNeeded && <><br/>🔄 <strong>Decision needed above - analyze the probabilities!</strong></>}
         </p>
         
         {loading && (

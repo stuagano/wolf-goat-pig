@@ -1904,5 +1904,584 @@ class SimulationEngine:
         
         return feedback
 
+    # NEW EVENT-DRIVEN SHOT ARCHITECTURE
+    
+    def get_next_shot_event(self, game_state: GameState) -> Optional[dict]:
+        """Determine what the next shot event should be"""
+        # Initialize shot tracking if needed
+        if not hasattr(game_state, 'shot_sequence'):
+            game_state.shot_sequence = {
+                "phase": "tee_shots",
+                "current_player_index": 0,
+                "completed_shots": [],
+                "pending_decisions": []
+            }
+        
+        shot_seq = game_state.shot_sequence
+        hitting_order = game_state.hitting_order or [p["id"] for p in game_state.players]
+        
+        if shot_seq["phase"] == "tee_shots":
+            if shot_seq["current_player_index"] < len(hitting_order):
+                player_id = hitting_order[shot_seq["current_player_index"]]
+                player = next(p for p in game_state.players if p["id"] == player_id)
+                
+                return {
+                    "type": "tee_shot",
+                    "player": player,
+                    "hole_info": self._get_hole_info(game_state),
+                    "shot_number": shot_seq["current_player_index"] + 1,
+                    "total_players": len(hitting_order)
+                }
+        
+        elif shot_seq["phase"] == "approach_shots":
+            # Handle approach shots for team members
+            if hasattr(game_state, 'teams') and game_state.teams:
+                # Logic for approach shots based on teams
+                return self._get_next_approach_shot(game_state)
+        
+        return None
+    
+    def execute_shot_event(self, game_state: GameState, shot_event: dict) -> Tuple[GameState, dict, dict]:
+        """Execute a shot event and return result with probabilities"""
+        if shot_event["type"] == "tee_shot":
+            return self._execute_tee_shot_event(game_state, shot_event)
+        elif shot_event["type"] == "approach_shot":
+            return self._execute_approach_shot_event(game_state, shot_event)
+        else:
+            raise ValueError(f"Unknown shot event type: {shot_event['type']}")
+    
+    def _execute_tee_shot_event(self, game_state: GameState, shot_event: dict) -> Tuple[GameState, dict, dict]:
+        """Execute a tee shot with detailed probabilities"""
+        player = shot_event["player"]
+        
+        # Calculate pre-shot probabilities
+        pre_shot_probs = self._calculate_tee_shot_probabilities(player, game_state)
+        
+        # Execute the actual shot
+        shot_result = self._simulate_individual_tee_shot(player, game_state)
+        
+        # Calculate post-shot probabilities and outcomes
+        post_shot_probs = self._calculate_post_shot_probabilities(shot_result, game_state)
+        
+        # Update shot sequence
+        game_state.shot_sequence["completed_shots"].append({
+            "player_id": player["id"],
+            "shot_result": shot_result,
+            "probabilities": pre_shot_probs
+        })
+        game_state.shot_sequence["current_player_index"] += 1
+        
+        # Create enhanced shot result
+        enhanced_result = {
+            **shot_result,
+            "player": player,
+            "shot_description": self._create_detailed_shot_description(shot_result, player, game_state),
+            "reactions": self._generate_shot_reactions(shot_result, player, game_state)
+        }
+        
+        # Combine probability information
+        probabilities = {
+            "pre_shot": pre_shot_probs,
+            "outcome": post_shot_probs,
+            "betting_implications": self._calculate_betting_implications(shot_result, game_state)
+        }
+        
+        return game_state, enhanced_result, probabilities
+    
+    def _calculate_tee_shot_probabilities(self, player: dict, game_state: GameState) -> dict:
+        """Calculate detailed probabilities for a tee shot"""
+        handicap = player["handicap"]
+        hole_info = self._get_hole_info(game_state)
+        
+        # Base probabilities based on handicap and hole difficulty
+        base_excellent = max(0.05, 0.25 - (handicap * 0.01))
+        base_good = max(0.15, 0.35 - (handicap * 0.008))
+        base_average = 0.35
+        base_poor = max(0.10, 0.15 + (handicap * 0.005))
+        base_terrible = max(0.05, 0.10 + (handicap * 0.003))
+        
+        # Adjust for hole difficulty
+        stroke_index = hole_info.get("stroke_index", 10)
+        difficulty_factor = (19 - stroke_index) / 18.0  # 1.0 = hardest, 0.055 = easiest
+        
+        # Harder holes reduce excellent/good, increase poor/terrible
+        excellent = base_excellent * (1 - difficulty_factor * 0.3)
+        good = base_good * (1 - difficulty_factor * 0.2)
+        average = base_average
+        poor = base_poor * (1 + difficulty_factor * 0.4)
+        terrible = base_terrible * (1 + difficulty_factor * 0.6)
+        
+        # Normalize to 100%
+        total = excellent + good + average + poor + terrible
+        
+        return {
+            "excellent": round(excellent / total * 100, 1),
+            "good": round(good / total * 100, 1),
+            "average": round(average / total * 100, 1),
+            "poor": round(poor / total * 100, 1),
+            "terrible": round(terrible / total * 100, 1),
+            "expected_distance": self._calculate_expected_distance(handicap, hole_info),
+            "handicap_factor": f"Handicap {handicap}: {'Low' if handicap <= 5 else 'Mid' if handicap <= 15 else 'High'} skill level",
+            "hole_difficulty": f"Stroke Index {stroke_index}: {'Hard' if stroke_index <= 6 else 'Medium' if stroke_index <= 12 else 'Easy'} hole"
+        }
+    
+    def _calculate_post_shot_probabilities(self, shot_result: dict, game_state: GameState) -> dict:
+        """Calculate probabilities and implications after a shot"""
+        shot_quality = shot_result["shot_quality"]
+        remaining = shot_result["remaining"]
+        lie = shot_result["lie"]
+        
+        # Calculate scoring probabilities from this position
+        scoring_probs = self._calculate_scoring_probabilities(remaining, lie, game_state)
+        
+        # Calculate partnership value
+        partnership_value = self._calculate_partnership_value(shot_result, game_state)
+        
+        return {
+            "scoring_probabilities": scoring_probs,
+            "partnership_value": partnership_value,
+            "position_quality": self._assess_position_quality(shot_result),
+            "strategic_implications": self._get_strategic_implications(shot_result, game_state)
+        }
+    
+    def _calculate_scoring_probabilities(self, remaining_yards: int, lie: str, game_state: GameState) -> dict:
+        """Calculate probability of different scores from current position"""
+        par = self._get_hole_info(game_state).get("par", 4)
+        
+        # Base probabilities by distance and lie
+        if remaining_yards <= 100:
+            if lie == "fairway":
+                birdie, par_score, bogey, double_bogey = 0.15, 0.55, 0.25, 0.05
+            elif lie in ["first cut", "rough"]:
+                birdie, par_score, bogey, double_bogey = 0.08, 0.45, 0.35, 0.12
+            else:  # bunker, trees, hazard
+                birdie, par_score, bogey, double_bogey = 0.02, 0.25, 0.45, 0.28
+        elif remaining_yards <= 150:
+            if lie == "fairway":
+                birdie, par_score, bogey, double_bogey = 0.10, 0.45, 0.35, 0.10
+            elif lie in ["first cut", "rough"]:
+                birdie, par_score, bogey, double_bogey = 0.05, 0.35, 0.45, 0.15
+            else:
+                birdie, par_score, bogey, double_bogey = 0.01, 0.20, 0.50, 0.29
+        else:  # > 150 yards
+            if lie == "fairway":
+                birdie, par_score, bogey, double_bogey = 0.05, 0.35, 0.45, 0.15
+            elif lie in ["first cut", "rough"]:
+                birdie, par_score, bogey, double_bogey = 0.02, 0.25, 0.50, 0.23
+            else:
+                birdie, par_score, bogey, double_bogey = 0.01, 0.15, 0.55, 0.29
+        
+        return {
+            "birdie": round(birdie * 100, 1),
+            "par": round(par_score * 100, 1),
+            "bogey": round(bogey * 100, 1),
+            "double_bogey_or_worse": round(double_bogey * 100, 1),
+            "expected_score": round(par - birdie + bogey + 2*double_bogey, 2)
+        }
+    
+    def check_betting_opportunity(self, game_state: GameState, shot_result: dict) -> Optional[dict]:
+        """Check if there's a betting opportunity after this shot"""
+        captain_id = game_state.captain_id
+        shot_player_id = shot_result["player"]["id"]
+        shot_quality = shot_result["shot_quality"]
+        
+        # Only offer betting opportunities for human captain or after good shots
+        if captain_id == self._get_human_player_id(game_state):
+            if shot_quality in ["excellent", "good"] and shot_player_id != captain_id:
+                return {
+                    "type": "partnership_opportunity",
+                    "target_player": shot_result["player"],
+                    "shot_context": shot_result,
+                    "betting_probabilities": self._calculate_betting_probabilities(game_state, {
+                        "action": "request_partner",
+                        "partner_id": shot_player_id
+                    })
+                }
+        
+        return None
+    
+    def calculate_betting_probabilities(self, game_state: GameState, decision: dict) -> dict:
+        """Calculate probabilities for betting decisions"""
+        if decision.get("action") == "request_partner":
+            return self._calculate_partnership_probabilities(game_state, decision)
+        elif decision.get("action") == "go_solo":
+            return self._calculate_solo_probabilities(game_state)
+        else:
+            return {}
+    
+    def _calculate_partnership_probabilities(self, game_state: GameState, decision: dict) -> dict:
+        """Calculate success probabilities for partnership strategy"""
+        captain_id = game_state.captain_id
+        partner_id = decision.get("partner_id")
+        
+        if not partner_id:
+            return {}
+        
+        captain = next(p for p in game_state.players if p["id"] == captain_id)
+        partner = next(p for p in game_state.players if p["id"] == partner_id)
+        
+        # Calculate team strength
+        avg_handicap = (captain["handicap"] + partner["handicap"]) / 2
+        handicap_synergy = 1.0 - abs(captain["handicap"] - partner["handicap"]) * 0.02
+        
+        # Base win probability against other team
+        base_win_prob = 0.5  # Start with 50/50
+        
+        # Adjust for team skill level
+        if avg_handicap <= 8:
+            base_win_prob += 0.15
+        elif avg_handicap <= 15:
+            base_win_prob += 0.05
+        else:
+            base_win_prob -= 0.05
+        
+        # Adjust for handicap compatibility
+        base_win_prob += (handicap_synergy - 1.0) * 0.2
+        
+        # Hole difficulty factor
+        hole_info = self._get_hole_info(game_state)
+        stroke_index = hole_info.get("stroke_index", 10)
+        if stroke_index <= 6:  # Hard hole
+            base_win_prob -= 0.05
+        elif stroke_index >= 14:  # Easy hole
+            base_win_prob += 0.05
+        
+        return {
+            "win_probability": round(min(0.85, max(0.15, base_win_prob)) * 100, 1),
+            "team_strength": round(avg_handicap, 1),
+            "handicap_compatibility": round(handicap_synergy * 100, 1),
+            "expected_points": round((base_win_prob * 2 - (1 - base_win_prob) * 2), 2),
+            "risk_level": "Low" if base_win_prob > 0.6 else "Medium" if base_win_prob > 0.4 else "High"
+        }
+    
+    def _calculate_solo_probabilities(self, game_state: GameState) -> dict:
+        """Calculate success probabilities for going solo"""
+        captain_id = game_state.captain_id
+        captain = next(p for p in game_state.players if p["id"] == captain_id)
+        
+        # Base solo win probability (1 vs 3 is harder)
+        base_win_prob = 0.25  # 25% base chance
+        
+        # Adjust for captain skill
+        if captain["handicap"] <= 5:
+            base_win_prob += 0.15
+        elif captain["handicap"] <= 10:
+            base_win_prob += 0.05
+        elif captain["handicap"] >= 20:
+            base_win_prob -= 0.10
+        
+        # Hole difficulty factor
+        hole_info = self._get_hole_info(game_state)
+        stroke_index = hole_info.get("stroke_index", 10)
+        if stroke_index <= 6:  # Hard hole - bad for solo
+            base_win_prob -= 0.10
+        elif stroke_index >= 14:  # Easy hole - better for solo
+            base_win_prob += 0.10
+        
+        return {
+            "win_probability": round(min(0.70, max(0.05, base_win_prob)) * 100, 1),
+            "expected_points": round((base_win_prob * 6 - (1 - base_win_prob) * 6), 2),
+            "risk_level": "Very High",
+            "handicap_advantage": f"Handicap {captain['handicap']}: {'Strong' if captain['handicap'] <= 10 else 'Moderate' if captain['handicap'] <= 18 else 'Challenging'} solo player"
+        }
+    
+    def has_next_shot(self, game_state: GameState) -> bool:
+        """Check if there are more shots available in current phase"""
+        if not hasattr(game_state, 'shot_sequence'):
+            return True
+        
+        shot_seq = game_state.shot_sequence
+        hitting_order = game_state.hitting_order or [p["id"] for p in game_state.players]
+        
+        if shot_seq["phase"] == "tee_shots":
+            return shot_seq["current_player_index"] < len(hitting_order)
+        
+        return False
+    
+    def get_current_shot_state(self, game_state: GameState) -> dict:
+        """Get comprehensive information about current shot state"""
+        if not hasattr(game_state, 'shot_sequence'):
+            return {"phase": "ready_to_start", "shots_remaining": 4}
+        
+        shot_seq = game_state.shot_sequence
+        hitting_order = game_state.hitting_order or [p["id"] for p in game_state.players]
+        
+        return {
+            "phase": shot_seq["phase"],
+            "current_player_index": shot_seq["current_player_index"],
+            "shots_completed": len(shot_seq["completed_shots"]),
+            "shots_remaining": len(hitting_order) - shot_seq["current_player_index"],
+            "completed_shots": shot_seq["completed_shots"],
+            "next_player": hitting_order[shot_seq["current_player_index"]] if shot_seq["current_player_index"] < len(hitting_order) else None,
+            "captain_id": game_state.captain_id,
+            "teams_formed": hasattr(game_state, 'teams') and bool(game_state.teams)
+        }
+    
+    def _get_hole_info(self, game_state: GameState) -> dict:
+        """Get current hole information"""
+        hole_idx = game_state.current_hole - 1
+        return {
+            "hole_number": game_state.current_hole,
+            "par": game_state.hole_pars[hole_idx] if game_state.hole_pars else 4,
+            "yards": game_state.hole_yards[hole_idx] if hasattr(game_state, 'hole_yards') and game_state.hole_yards else 400,
+            "stroke_index": game_state.hole_stroke_indexes[hole_idx] if game_state.hole_stroke_indexes else 10,
+            "description": game_state.hole_descriptions[hole_idx] if hasattr(game_state, 'hole_descriptions') and game_state.hole_descriptions else ""
+        }
+    
+    def _calculate_expected_distance(self, handicap: float, hole_info: dict) -> dict:
+        """Calculate expected drive distance based on handicap"""
+        # Base driving distance decreases with higher handicap
+        base_distance = 260 - (handicap * 4)  # Scratch golfer ~260, 20 handicap ~180
+        
+        # Add some variance
+        min_distance = int(base_distance * 0.8)
+        max_distance = int(base_distance * 1.2)
+        
+        return {
+            "expected": int(base_distance),
+            "range": f"{min_distance}-{max_distance} yards",
+            "percentile_25": int(base_distance * 0.9),
+            "percentile_75": int(base_distance * 1.1)
+        }
+
+    def _calculate_partnership_value(self, shot_result: dict, game_state: GameState) -> dict:
+        """Calculate the strategic value of partnering with this player"""
+        shot_quality = shot_result["shot_quality"]
+        remaining = shot_result["remaining"]
+        
+        # Base value from shot quality
+        if shot_quality == "excellent":
+            base_value = 85
+        elif shot_quality == "good":
+            base_value = 70
+        elif shot_quality == "average":
+            base_value = 50
+        elif shot_quality == "poor":
+            base_value = 30
+        else:  # terrible
+            base_value = 15
+        
+        # Adjust for position
+        if remaining <= 100:
+            position_bonus = 15
+        elif remaining <= 150:
+            position_bonus = 10
+        else:
+            position_bonus = 0
+        
+        return {
+            "partnership_appeal": min(100, base_value + position_bonus),
+            "reason": f"{shot_quality} shot, {remaining} yards remaining",
+            "strategic_value": "High" if base_value >= 70 else "Medium" if base_value >= 50 else "Low"
+        }
+    
+    def _assess_position_quality(self, shot_result: dict) -> dict:
+        """Assess the quality of the current position"""
+        lie = shot_result["lie"]
+        remaining = shot_result["remaining"]
+        
+        # Scoring positions
+        if lie == "fairway":
+            if remaining <= 100:
+                quality = "Excellent - Short iron to green"
+                score = 90
+            elif remaining <= 150:
+                quality = "Good - Mid iron opportunity"
+                score = 75
+            else:
+                quality = "Fair - Long approach needed"
+                score = 60
+        elif lie in ["first cut", "rough"]:
+            if remaining <= 120:
+                quality = "Good - Manageable from rough"
+                score = 65
+            else:
+                quality = "Challenging - Long shot from rough"
+                score = 45
+        else:  # bunker, trees, hazard
+            quality = "Difficult - Recovery shot needed"
+            score = 25
+        
+        return {
+            "quality_score": score,
+            "description": quality,
+            "lie_type": lie,
+            "distance_category": "Short" if remaining <= 100 else "Medium" if remaining <= 150 else "Long"
+        }
+    
+    def _get_strategic_implications(self, shot_result: dict, game_state: GameState) -> list:
+        """Get strategic implications and advice"""
+        implications = []
+        shot_quality = shot_result["shot_quality"]
+        remaining = shot_result["remaining"]
+        lie = shot_result["lie"]
+        
+        # Shot quality implications
+        if shot_quality == "excellent":
+            implications.append("🎯 This player is in excellent position - strong partnership candidate")
+        elif shot_quality == "terrible":
+            implications.append("⚠️ Poor position - consider other partnership options")
+        
+        # Distance implications
+        if remaining <= 100:
+            implications.append("🎯 Short approach shot - high birdie/par probability")
+        elif remaining > 200:
+            implications.append("📏 Long approach required - more challenging scoring")
+        
+        # Lie implications
+        if lie == "fairway":
+            implications.append("✅ Perfect lie - clean contact expected")
+        elif lie in ["trees", "hazard"]:
+            implications.append("🌲 Trouble lie - recovery shot needed")
+        
+        # Betting implications
+        captain_id = game_state.captain_id
+        if shot_result["player"]["id"] != captain_id:
+            if shot_quality in ["excellent", "good"]:
+                implications.append("💰 Good betting opportunity - consider partnership")
+            else:
+                implications.append("🤔 Wait for better partnership opportunity")
+        
+        return implications
+    
+    def _calculate_betting_implications(self, shot_result: dict, game_state: GameState) -> dict:
+        """Calculate betting implications and recommendations"""
+        shot_quality = shot_result["shot_quality"]
+        player_id = shot_result["player"]["id"]
+        captain_id = game_state.captain_id
+        
+        if player_id == captain_id:
+            return {
+                "recommendation": "N/A - Captain's own shot",
+                "partnership_appeal": 0,
+                "action": "continue"
+            }
+        
+        # Calculate partnership appeal
+        if shot_quality == "excellent":
+            appeal = 90
+            recommendation = "Strong partnership candidate - excellent position"
+            action = "consider_partnership"
+        elif shot_quality == "good":
+            appeal = 75
+            recommendation = "Good partnership option - solid position"
+            action = "consider_partnership"
+        elif shot_quality == "average":
+            appeal = 50
+            recommendation = "Moderate option - wait for better shots"
+            action = "keep_watching"
+        else:
+            appeal = 25
+            recommendation = "Poor position - look for other partners"
+            action = "keep_watching"
+        
+        return {
+            "partnership_appeal": appeal,
+            "recommendation": recommendation,
+            "action": action,
+            "shot_quality_factor": shot_quality
+        }
+    
+    def _create_detailed_shot_description(self, shot_result: dict, player: dict, game_state: GameState) -> str:
+        """Create detailed, realistic shot description"""
+        drive = shot_result["drive"]
+        lie = shot_result["lie"]
+        remaining = shot_result["remaining"]
+        quality = shot_result["shot_quality"]
+        
+        # Player identifier
+        player_icon = "🧑" if player["id"] == self._get_human_player_id(game_state) else "💻"
+        
+        # Quality descriptors
+        quality_desc = {
+            "excellent": "striped it",
+            "good": "hit a solid drive",
+            "average": "found the fairway",
+            "poor": "struggled off the tee",
+            "terrible": "got into trouble"
+        }
+        
+        # Lie descriptors
+        lie_desc = {
+            "fairway": "sitting pretty in the fairway",
+            "first cut": "in the first cut of rough",
+            "rough": "nestled in the rough",
+            "bunker": "caught the fairway bunker",
+            "trees": "behind some trees",
+            "hazard": "near the hazard",
+            "deep rough": "buried in thick rough"
+        }
+        
+        base_desc = f"{player_icon} **{player['name']}** {quality_desc.get(quality, 'hit their drive')} {drive} yards, {lie_desc.get(lie, f'in the {lie}')}, leaving {remaining} yards to the pin."
+        
+        # Add quality-specific reactions
+        if quality == "excellent":
+            base_desc += " 🎯 What a shot!"
+        elif quality == "terrible":
+            base_desc += " 😬 That's not what they were looking for."
+        
+        return base_desc
+    
+    def _generate_shot_reactions(self, shot_result: dict, player: dict, game_state: GameState) -> list:
+        """Generate realistic reactions from other players"""
+        reactions = []
+        quality = shot_result["shot_quality"]
+        
+        if quality == "excellent":
+            reactions.append("💬 \"Wow, great shot!\"")
+            reactions.append("💬 \"That's how you do it!\"")
+        elif quality == "terrible":
+            reactions.append("💬 \"Ouch, tough break.\"")
+            reactions.append("💬 \"Happens to the best of us.\"")
+        
+        return reactions
+    
+    def execute_betting_decision(self, game_state: GameState, decision: dict, betting_probs: dict) -> Tuple[GameState, dict]:
+        """Execute a betting decision with probability context"""
+        if decision.get("action") == "request_partner":
+            partner_id = decision.get("partner_id")
+            captain_id = game_state.captain_id
+            
+            # Execute partnership request
+            game_state.dispatch_action("request_partner", {
+                "captain_id": captain_id,
+                "partner_id": partner_id
+            })
+            
+            # Check if partner accepts (for computer players)
+            if partner_id in [cp.player_id for cp in self.computer_players]:
+                partner_player = self._get_computer_player(partner_id)
+                captain_player = self._get_computer_player(captain_id) if captain_id in [cp.player_id for cp in self.computer_players] else None
+                
+                if captain_player:
+                    accept = partner_player.should_accept_partnership(captain_player.handicap, game_state)
+                else:
+                    # Human captain
+                    human_handicap = next(p["handicap"] for p in game_state.players if p["id"] == captain_id)
+                    accept = partner_player.should_accept_partnership(human_handicap, game_state)
+                
+                if accept:
+                    game_state.dispatch_action("accept_partner", {"partner_id": partner_id})
+                    result_message = f"Partnership formed! {betting_probs.get('win_probability', 'Unknown')}% win probability."
+                else:
+                    game_state.dispatch_action("decline_partner", {"partner_id": partner_id})
+                    result_message = "Partnership declined. Captain going solo by default."
+            else:
+                result_message = "Partnership request sent to human player."
+            
+            return game_state, {"message": result_message, "action_taken": "partnership_request"}
+        
+        elif decision.get("action") == "go_solo":
+            captain_id = game_state.captain_id
+            game_state.dispatch_action("go_solo", {"captain_id": captain_id})
+            
+            win_prob = betting_probs.get('win_probability', 'Unknown')
+            return game_state, {
+                "message": f"Going solo! {win_prob}% win probability vs. field.",
+                "action_taken": "go_solo"
+            }
+        
+        return game_state, {"message": "No action taken", "action_taken": "none"}
+
 # Global simulation engine instance
 simulation_engine = SimulationEngine()
