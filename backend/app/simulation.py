@@ -1951,16 +1951,17 @@ class SimulationEngine:
     
     def execute_shot_event(self, game_state: GameState, shot_event: dict) -> Tuple[GameState, dict, dict]:
         """Execute a shot event and return result with probabilities"""
-        if shot_event["type"] == "tee_shot":
+        shot_type = _require_key(shot_event, "type", "shot_event")
+        if shot_type == "tee_shot":
             return self._execute_tee_shot_event(game_state, shot_event)
-        elif shot_event["type"] == "approach_shot":
+        elif shot_type == "approach_shot":
             return self._execute_approach_shot_event(game_state, shot_event)
         else:
-            raise ValueError(f"Unknown shot event type: {shot_event['type']}")
+            raise ValueError(f"Unknown shot event type: {shot_type}")
     
     def _execute_tee_shot_event(self, game_state: GameState, shot_event: dict) -> Tuple[GameState, dict, dict]:
         """Execute a tee shot with detailed probabilities"""
-        player = shot_event["player"]
+        player = _require_key(shot_event, "player", "shot_event")
         
         # Calculate pre-shot probabilities
         pre_shot_probs = self._calculate_tee_shot_probabilities(player, game_state)
@@ -2035,9 +2036,9 @@ class SimulationEngine:
     
     def _calculate_post_shot_probabilities(self, shot_result: dict, game_state: GameState) -> dict:
         """Calculate probabilities and implications after a shot"""
-        shot_quality = shot_result["shot_quality"]
-        remaining = shot_result["remaining"]
-        lie = shot_result["lie"]
+        shot_quality = _require_key(shot_result, "shot_quality", "shot_result")
+        remaining = _require_key(shot_result, "remaining", "shot_result")
+        lie = _require_key(shot_result, "lie", "shot_result")
         
         # Calculate scoring probabilities from this position
         scoring_probs = self._calculate_scoring_probabilities(remaining, lie, game_state)
@@ -2090,15 +2091,16 @@ class SimulationEngine:
     def check_betting_opportunity(self, game_state: GameState, shot_result: dict) -> Optional[dict]:
         """Check if there's a betting opportunity after this shot"""
         captain_id = game_state.captain_id
-        shot_player_id = shot_result["player"]["id"]
-        shot_quality = shot_result["shot_quality"]
+        player = _require_key(shot_result, "player", "shot_result")
+        shot_player_id = _require_key(player, "id", "shot_result.player")
+        shot_quality = _require_key(shot_result, "shot_quality", "shot_result")
         
         # Only offer betting opportunities for human captain or after good shots
         if captain_id == self._get_human_player_id(game_state):
             if shot_quality in ["excellent", "good"] and shot_player_id != captain_id:
                 return {
                     "type": "partnership_opportunity",
-                    "target_player": shot_result["player"],
+                    "target_player": player,
                     "shot_context": shot_result,
                     "betting_probabilities": self._calculate_betting_probabilities(game_state, {
                         "action": "request_partner",
