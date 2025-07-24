@@ -2491,6 +2491,25 @@ class SimulationEngine:
         
         return game_state, {"message": "No action taken", "action_taken": "none"}
 
+    def calculate_shot_probabilities(self, game_state: GameState) -> dict:
+        """Return probability calculations for the current shot scenario."""
+        # Try to get the next shot event (without advancing state)
+        shot_seq = getattr(game_state, 'shot_sequence', None)
+        hitting_order = getattr(game_state, 'hitting_order', [])
+        if not shot_seq or not hitting_order:
+            return {"error": "No shot sequence or hitting order available."}
+        if shot_seq["phase"] == "tee_shots":
+            idx = shot_seq["current_player_index"]
+            if idx < len(hitting_order):
+                player_id = hitting_order[idx]
+                player = next((p for p in game_state.players if p["id"] == player_id), None)
+                if player:
+                    pre_shot = self._calculate_tee_shot_probabilities(player, game_state)
+                    # No post-shot yet, so just return pre-shot
+                    return {"pre_shot": pre_shot}
+        # Could add more logic for approach shots, etc.
+        return {"info": "No active shot to calculate probabilities for."}
+
 # Global simulation engine instance
 simulation_engine = SimulationEngine()
 
