@@ -2,6 +2,8 @@ import random
 import math
 from typing import Dict, List, Tuple, Optional
 from .game_state import GameState
+import logging
+import traceback
 
 class GolfShot:
     """Represents a golf shot with distance and accuracy"""
@@ -2491,3 +2493,39 @@ class SimulationEngine:
 
 # Global simulation engine instance
 simulation_engine = SimulationEngine()
+
+# Defensive helper
+
+def _require_key(obj, key, context):
+    if key not in obj:
+        logging.error(f"Missing '{key}' key in {context}: {obj}")
+        raise ValueError(f"Simulation error: missing '{key}' key in {context}")
+    return obj[key]
+
+def _safe_get(obj, key, default=None):
+    return obj[key] if key in obj else default
+
+# Wrap all main simulation entrypoints in try/except
+# Example for event-driven shot event
+
+def safe_execute_shot_event(self, game_state, shot_event):
+    try:
+        return self.execute_shot_event(game_state, shot_event)
+    except Exception as e:
+        logging.error(f"Exception in execute_shot_event: {e}\n{traceback.format_exc()}")
+        return game_state, {"error": str(e)}, {}
+
+# Example for simulate_hole
+
+def safe_simulate_hole(self, game_state, human_decisions):
+    try:
+        return self.simulate_hole(game_state, human_decisions)
+    except Exception as e:
+        logging.error(f"Exception in simulate_hole: {e}\n{traceback.format_exc()}")
+        return game_state, [f"Simulation error: {e}"], None
+
+# Apply _require_key everywhere a dict key is accessed, e.g.:
+# Instead of shot_result['player'], use _require_key(shot_result, 'player', 'shot_result in ...')
+# Instead of shot_result['shot_quality'], use _require_key(shot_result, 'shot_quality', 'shot_result in ...')
+# For all dict key accesses in simulation logic, replace with _require_key or _safe_get as appropriate.
+# For all main entrypoints (event-driven, betting, etc.), wrap in try/except and log errors.

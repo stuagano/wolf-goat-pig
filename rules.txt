@@ -240,3 +240,16 @@ o   Free Rein:  when your partner has completed the hole, and your opponents can
 ·       Cancellation Theory:  The captain should be wary about becoming a pig by not selecting a partner who is very likely to tie the hole with him.  The two players will merely tie the hole, or cancel each other out.  Neither player wins, and the other players who did not contribute get an undeserving benefit.
 
 All Tee Sheet WGP Updates & Banter Members Standings Rules and History
+
+# Defensive Coding Standards (Wolf Goat Pig)
+
+- Always initialize all class attributes in __init__ and after deserialization, even if to None or an empty value.
+- Never use dict['key'] unless you are certain the key exists. Use a helper like _require_key(obj, key, context) for required keys, and _safe_get(obj, key, default) for optional keys. Log and raise a clear error if a required key is missing.
+- Use Pydantic models for all API request bodies and responses. Validate all incoming data for required fields, types, and value ranges. Return clear, descriptive error messages for all 400s (bad requests).
+- Wrap all database reads/writes in try/except blocks. Log all DB errors with context. On DB failure, return a safe fallback or error message—never crash.
+- Check all preconditions before state transitions (e.g., is the game active? are all required fields set?). Log and return a clear error if a precondition fails.
+- Use a FastAPI global exception handler to catch all unhandled exceptions. Return a JSON error with a unique error code and log the stack trace.
+- Use the logging module for all warnings, errors, and info. Include context (user, endpoint, payload, state) in every log. For critical errors, log the full stack trace (traceback.format_exc()).
+- Write tests that intentionally send bad/missing data to every endpoint and method. Assert that the response is a clear, descriptive error, not a crash or generic 500.
+- Always check backend response status and error messages in the frontend. Never assume a request will succeed; handle and display errors gracefully. Disable UI actions that would trigger invalid backend calls.
+- Document all possible error codes and messages for each endpoint. Use unique error codes for common failure modes (e.g., ERR_MISSING_FIELD, ERR_INVALID_STATE).

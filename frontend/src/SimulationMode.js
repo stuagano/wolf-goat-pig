@@ -93,6 +93,58 @@ function SimulationMode() {
   const [shotState, setShotState] = useState(null);
   const [hasNextShot, setHasNextShot] = useState(true);
 
+  // Add GHIN lookup modal/inline UI state
+  const [ghinLookupSlot, setGhinLookupSlot] = useState(null); // 'human' or 'comp1', 'comp2', 'comp3'
+  const [ghinLookupFirstName, setGhinLookupFirstName] = useState("");
+  const [ghinLookupLastName, setGhinLookupLastName] = useState("");
+  const [ghinLookupResults, setGhinLookupResults] = useState([]);
+  const [ghinLookupLoading, setGhinLookupLoading] = useState(false);
+  const [ghinLookupError, setGhinLookupError] = useState("");
+
+  const openGhinLookup = (slot) => {
+    setGhinLookupSlot(slot);
+    setGhinLookupFirstName("");
+    setGhinLookupLastName("");
+    setGhinLookupResults([]);
+    setGhinLookupLoading(false);
+    setGhinLookupError("");
+  };
+  const closeGhinLookup = () => {
+    setGhinLookupSlot(null);
+  };
+  const doGhinLookup = async () => {
+    if (!ghinLookupLastName.trim()) {
+      setGhinLookupError("Last name required");
+      return;
+    }
+    setGhinLookupLoading(true);
+    setGhinLookupError("");
+    setGhinLookupResults([]);
+    try {
+      const params = new URLSearchParams({ last_name: ghinLookupLastName, first_name: ghinLookupFirstName });
+      const res = await fetch(`${API_URL}/ghin/lookup?${params.toString()}`);
+      if (!res.ok) throw new Error("Lookup failed");
+      const data = await res.json();
+      setGhinLookupResults(data);
+      if (data.length === 0) setGhinLookupError("No golfers found");
+    } catch (err) {
+      setGhinLookupError("Lookup failed");
+    } finally {
+      setGhinLookupLoading(false);
+    }
+  };
+  const selectGhinGolfer = (golfer) => {
+    if (ghinLookupSlot === "human") {
+      setHumanPlayer(h => ({ ...h, name: golfer.name, handicap: golfer.handicap || "" }));
+    } else {
+      setComputerPlayers(players => players.map((p, i) => {
+        const slotId = `comp${i+1}`;
+        return slotId === ghinLookupSlot ? { ...p, name: golfer.name, handicap: golfer.handicap || "" } : p;
+      }));
+    }
+    closeGhinLookup();
+  };
+
   useEffect(() => {
     fetchInitialData();
   }, []);
@@ -423,7 +475,7 @@ function SimulationMode() {
                   placeholder="Enter your name"
                 />
               </div>
-              <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <label>Your Handicap:</label>
                 <input
                   style={inputStyle}
@@ -432,7 +484,29 @@ function SimulationMode() {
                   value={humanPlayer.handicap}
                   onChange={(e) => setHumanPlayer({...humanPlayer, handicap: parseFloat(e.target.value) || 18})}
                 />
+                <button style={{ ...buttonStyle, padding: "8px 12px", fontSize: 14 }} onClick={() => openGhinLookup("human")}>Lookup GHIN Handicap</button>
               </div>
+              {ghinLookupSlot === "human" && (
+                <div style={{ margin: "8px 0", padding: 12, background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8 }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <input style={inputStyle} placeholder="First Name (optional)" value={ghinLookupFirstName} onChange={e => setGhinLookupFirstName(e.target.value)} />
+                    <input style={inputStyle} placeholder="Last Name (required)" value={ghinLookupLastName} onChange={e => setGhinLookupLastName(e.target.value)} />
+                    <button style={{ ...buttonStyle, padding: "8px 12px", fontSize: 14 }} onClick={doGhinLookup} disabled={ghinLookupLoading}>Search</button>
+                    <button style={{ ...buttonStyle, background: COLORS.error, padding: "8px 12px", fontSize: 14 }} onClick={closeGhinLookup}>Cancel</button>
+                  </div>
+                  {ghinLookupLoading && <div style={{ color: COLORS.muted, marginTop: 8 }}>Searching...</div>}
+                  {ghinLookupError && <div style={{ color: COLORS.error, marginTop: 8 }}>{ghinLookupError}</div>}
+                  {ghinLookupResults.length > 0 && (
+                    <div style={{ marginTop: 8 }}>
+                      {ghinLookupResults.map((g, idx) => (
+                        <div key={idx} style={{ padding: 8, border: `1px solid ${COLORS.border}`, borderRadius: 6, marginBottom: 4, cursor: "pointer", background: "#fff" }} onClick={() => selectGhinGolfer(g)}>
+                          <strong>{g.name}</strong> (H: {g.handicap}) {g.club && <span style={{ color: COLORS.muted }}>@ {g.club}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               <div>
                 <label>Your GHIN Name:</label>
                 <input
@@ -481,7 +555,7 @@ function SimulationMode() {
                       onChange={(e) => updateComputerPlayer(index, "name", e.target.value)}
                     />
                   </div>
-                  <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <label>Handicap:</label>
                     <input
                       style={inputStyle}
@@ -490,7 +564,29 @@ function SimulationMode() {
                       value={comp.handicap || 18}
                       onChange={(e) => updateComputerPlayer(index, "handicap", parseFloat(e.target.value) || 18)}
                     />
+                    <button style={{ ...buttonStyle, padding: "8px 12px", fontSize: 14 }} onClick={() => openGhinLookup(`comp${index+1}`)}>Lookup GHIN Handicap</button>
                   </div>
+                  {ghinLookupSlot === `comp${index+1}` && (
+                    <div style={{ margin: "8px 0", padding: 12, background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8 }}>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <input style={inputStyle} placeholder="First Name (optional)" value={ghinLookupFirstName} onChange={e => setGhinLookupFirstName(e.target.value)} />
+                        <input style={inputStyle} placeholder="Last Name (required)" value={ghinLookupLastName} onChange={e => setGhinLookupLastName(e.target.value)} />
+                        <button style={{ ...buttonStyle, padding: "8px 12px", fontSize: 14 }} onClick={doGhinLookup} disabled={ghinLookupLoading}>Search</button>
+                        <button style={{ ...buttonStyle, background: COLORS.error, padding: "8px 12px", fontSize: 14 }} onClick={closeGhinLookup}>Cancel</button>
+                      </div>
+                      {ghinLookupLoading && <div style={{ color: COLORS.muted, marginTop: 8 }}>Searching...</div>}
+                      {ghinLookupError && <div style={{ color: COLORS.error, marginTop: 8 }}>{ghinLookupError}</div>}
+                      {ghinLookupResults.length > 0 && (
+                        <div style={{ marginTop: 8 }}>
+                          {ghinLookupResults.map((g, idx) => (
+                            <div key={idx} style={{ padding: 8, border: `1px solid ${COLORS.border}`, borderRadius: 6, marginBottom: 4, cursor: "pointer", background: "#fff" }} onClick={() => selectGhinGolfer(g)}>
+                              <strong>{g.name}</strong> (H: {g.handicap}) {g.club && <span style={{ color: COLORS.muted }}>@ {g.club}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div>
                     <label>Personality:</label>
                     <select

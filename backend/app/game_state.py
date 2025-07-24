@@ -99,16 +99,16 @@ class GameState:
             self.teams = {}
             self.base_wager = 1
             self.doubled_status = False
-            self.game_phase = None
+            self.game_phase = 'Regular'
             self.hole_scores = {}
-            self.game_status_message = "Please set up a new game."
+            self.game_status_message = "Time to toss the tees!"
             self.player_float_used = {}
             self.carry_over = False
             self.hole_history = []
             self._last_points = {}
-            self.hole_stroke_indexes = []
-            self.hole_pars = []
-            self.selected_course = None
+            # Defensive: always set event-driven fields
+            self.shot_sequence = None
+            self.tee_shot_results = None
 
     def reset(self):
         self.players: List[Dict] = [dict(player) for player in DEFAULT_PLAYERS]
@@ -345,25 +345,25 @@ class GameState:
     def _serialize(self):
         # Return a dict of all stateful fields
         return {
-            "players": self.players,
-            "current_hole": self.current_hole,
-            "hitting_order": self.hitting_order,
-            "captain_id": self.captain_id,
-            "teams": self.teams,
-            "base_wager": self.base_wager,
-            "doubled_status": self.doubled_status,
-            "game_phase": self.game_phase,
-            "hole_scores": self.hole_scores,
-            "game_status_message": self.game_status_message,
-            "player_float_used": self.player_float_used,
-            "carry_over": self.carry_over,
-            "hole_history": self.hole_history,
-            "_last_points": self._last_points,
-            "hole_stroke_indexes": self.hole_stroke_indexes,
-            "hole_pars": self.hole_pars,
+            "players": getattr(self, "players", []),
+            "current_hole": getattr(self, "current_hole", 1),
+            "hitting_order": getattr(self, "hitting_order", []),
+            "captain_id": getattr(self, "captain_id", None),
+            "teams": getattr(self, "teams", {}),
+            "base_wager": getattr(self, "base_wager", 1),
+            "doubled_status": getattr(self, "doubled_status", False),
+            "game_phase": getattr(self, "game_phase", 'Regular'),
+            "hole_scores": getattr(self, "hole_scores", {}),
+            "game_status_message": getattr(self, "game_status_message", "Time to toss the tees!"),
+            "player_float_used": getattr(self, "player_float_used", {}),
+            "carry_over": getattr(self, "carry_over", False),
+            "hole_history": getattr(self, "hole_history", []),
+            "_last_points": getattr(self, "_last_points", {}),
+            "hole_stroke_indexes": getattr(self, "hole_stroke_indexes", []),
+            "hole_pars": getattr(self, "hole_pars", []),
             "hole_yards": getattr(self, "hole_yards", []),
             "hole_descriptions": getattr(self, "hole_descriptions", []),
-            "selected_course": self.selected_course,
+            "selected_course": getattr(self, "selected_course", None),
             # Event-driven simulation state
             "shot_sequence": getattr(self, "shot_sequence", None),
             "tee_shot_results": getattr(self, "tee_shot_results", None),
@@ -392,6 +392,17 @@ class GameState:
         # Event-driven simulation state
         self.shot_sequence = data.get("shot_sequence", None)
         self.tee_shot_results = data.get("tee_shot_results", None)
+        # Defensive: always ensure all fields are set
+        if not hasattr(self, 'selected_course'):
+            self.selected_course = None
+        if not hasattr(self, 'hole_yards'):
+            self.hole_yards = [h["yards"] for h in DEFAULT_COURSES["Wing Point"]]
+        if not hasattr(self, 'hole_descriptions'):
+            self.hole_descriptions = [h.get("description", "") for h in DEFAULT_COURSES["Wing Point"]]
+        if not hasattr(self, 'shot_sequence'):
+            self.shot_sequence = None
+        if not hasattr(self, 'tee_shot_results'):
+            self.tee_shot_results = None
 
     def _save_to_db(self):
         """Save the current state as JSON in the DB (id=1) with error handling"""
