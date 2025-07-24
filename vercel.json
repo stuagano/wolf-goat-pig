@@ -17,5 +17,13 @@
   ],
   "env": {
     "REACT_APP_API_URL": "https://wolf-goat-pig-api.onrender.com"
-  }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, max-age=0" }
+      ]
+    }
+  ]
 } 
