@@ -546,6 +546,95 @@ def ghin_lookup(
         print(f"GHIN search error: {e}")
         return []
 
+@app.get("/ghin/diagnostic")
+def ghin_diagnostic():
+    """Diagnostic endpoint to check GHIN API configuration and connectivity"""
+    GHIN_API_USER = os.environ.get("GHIN_API_USER")
+    GHIN_API_PASS = os.environ.get("GHIN_API_PASS")
+    GHIN_API_STATIC_TOKEN = os.environ.get("GHIN_API_STATIC_TOKEN", "")
+    
+    diagnostic_info = {
+        "status": "checking",
+        "environment_variables": {
+            "GHIN_API_USER": "SET" if GHIN_API_USER else "MISSING",
+            "GHIN_API_PASS": "SET" if GHIN_API_PASS else "MISSING",
+            "GHIN_API_STATIC_TOKEN": "SET" if GHIN_API_STATIC_TOKEN else "MISSING"
+        },
+        "api_urls": {
+            "auth_url": GHIN_AUTH_URL,
+            "search_url": GHIN_SEARCH_URL
+        }
+    }
+    
+    # Test basic connectivity if credentials are available
+    if GHIN_API_USER and GHIN_API_PASS:
+        try:
+            # Test authentication
+            auth_payload = {
+                "user": {
+                    "password": GHIN_API_PASS,
+                    "email_or_ghin": GHIN_API_USER,
+                    "remember_me": False
+                },
+                "token": GHIN_API_STATIC_TOKEN,
+                "source": "GHINcom"
+            }
+            headers = {"User-Agent": "WolfGoatPig/1.0"}
+            
+            auth_resp = httpx.post(GHIN_AUTH_URL, json=auth_payload, headers=headers, timeout=10)
+            
+            if auth_resp.status_code == 200:
+                auth_data = auth_resp.json()
+                if "golfer_user" in auth_data and "golfer_user_token" in auth_data["golfer_user"]:
+                    diagnostic_info["auth_test"] = "SUCCESS"
+                    diagnostic_info["jwt_received"] = "YES"
+                    
+                    # Test a simple search
+                    jwt = auth_data["golfer_user"]["golfer_user_token"]
+                    search_headers = {
+                        "Authorization": f"Bearer {jwt}",
+                        "User-Agent": "WolfGoatPig/1.0",
+                        "Accept": "application/json"
+                    }
+                    search_params = {
+                        "last_name": "Smith",
+                        "first_name": "John",
+                        "page": 1,
+                        "per_page": 5,
+                        "source": "GHINcom"
+                    }
+                    
+                    search_resp = httpx.get(GHIN_SEARCH_URL, params=search_params, headers=search_headers, timeout=10)
+                    diagnostic_info["search_test"] = {
+                        "status_code": search_resp.status_code,
+                        "response_length": len(search_resp.text),
+                        "contains_golfers": "golfers" in search_resp.text
+                    }
+                    
+                    if search_resp.status_code == 200:
+                        search_data = search_resp.json()
+                        diagnostic_info["search_test"]["golfers_found"] = len(search_data.get("golfers", []))
+                        diagnostic_info["status"] = "WORKING"
+                    else:
+                        diagnostic_info["search_test"]["error"] = search_resp.text[:200]
+                        diagnostic_info["status"] = "AUTH_OK_SEARCH_FAILED"
+                else:
+                    diagnostic_info["auth_test"] = "FAILED - No JWT in response"
+                    diagnostic_info["auth_response_keys"] = list(auth_data.keys()) if isinstance(auth_data, dict) else "Not dict"
+                    diagnostic_info["status"] = "AUTH_FAILED"
+            else:
+                diagnostic_info["auth_test"] = f"FAILED - Status {auth_resp.status_code}"
+                diagnostic_info["auth_error"] = auth_resp.text[:200]
+                diagnostic_info["status"] = "AUTH_FAILED"
+                
+        except Exception as e:
+            diagnostic_info["auth_test"] = f"EXCEPTION - {str(e)}"
+            diagnostic_info["status"] = "ERROR"
+    else:
+        diagnostic_info["status"] = "CREDENTIALS_MISSING"
+    
+    return diagnostic_info
+
 # Helper to serialize game state for API
 
 def _serialize_game_state():
