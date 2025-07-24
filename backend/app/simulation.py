@@ -291,6 +291,8 @@ class SimulationEngine:
         if len(computer_configs) != 3:
             raise ValueError("Need exactly 3 computer player configurations")
         
+        print(f"🔧 setup_simulation called with human_player={human_player}, computer_configs={computer_configs}")
+        
         # Create computer players
         self.computer_players = []
         for config in computer_configs:
@@ -319,8 +321,13 @@ class SimulationEngine:
             } for cp in self.computer_players
         ]
         
+        print(f"🔧 All players setup: {all_players}")
+        
         game_state = GameState()
         game_state.setup_players(all_players, course_name)
+        
+        print(f"🔧 Game state after setup_players: current_hole={game_state.current_hole}, players={[p['id'] for p in game_state.players]}, hitting_order={game_state.hitting_order}")
+        
         # Initialize shot-by-shot state for event-driven simulation
         game_state.shot_sequence = {
             "phase": "tee_shots",
@@ -328,6 +335,9 @@ class SimulationEngine:
             "completed_shots": [],
             "pending_decisions": []
         }
+        
+        print(f"🔧 Shot sequence initialized: {game_state.shot_sequence}")
+        
         return game_state
     
     def _simulate_tee_shots(self, game_state: GameState) -> List[str]:

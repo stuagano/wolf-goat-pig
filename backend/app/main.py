@@ -261,6 +261,10 @@ def setup_simulation(setup: SimulationSetup):
         if len(setup.computer_players) != 3:
             raise HTTPException(status_code=400, detail="Need exactly 3 computer players")
         
+        print(f"🎯 /simulation/setup called")
+        print(f"🎯 Human player: {setup.human_player}")
+        print(f"🎯 Computer players: {[cp.dict() for cp in setup.computer_players]}")
+        
         # Convert to dict format expected by simulation engine
         human_player = {
             "id": setup.human_player.get("id", "human"),
@@ -277,6 +281,9 @@ def setup_simulation(setup: SimulationSetup):
             }
             for cp in setup.computer_players
         ]
+        
+        print(f"🎯 Converted human_player: {human_player}")
+        print(f"🎯 Converted computer_configs: {computer_configs}")
         
         # Setup simulation
         game_state = simulation_engine.setup_simulation(
