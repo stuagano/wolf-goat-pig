@@ -4,13 +4,14 @@ import json
 from sqlalchemy.orm import Session
 from .database import SessionLocal
 from .models import GameStateModel
+from .domain.player import Player
 
 # Default player names for MVP
 DEFAULT_PLAYERS = [
-    {"id": "p1", "name": "Bob", "points": 0, "handicap": 10.5, "strength": "Average"},
-    {"id": "p2", "name": "Scott", "points": 0, "handicap": 15, "strength": "Average"},
-    {"id": "p3", "name": "Vince", "points": 0, "handicap": 8, "strength": "Average"},
-    {"id": "p4", "name": "Mike", "points": 0, "handicap": 20.5, "strength": "Average"},
+    Player(id="p1", name="Bob", handicap=10.5),
+    Player(id="p2", name="Scott", handicap=15),
+    Player(id="p3", name="Vince", handicap=8),
+    Player(id="p4", name="Mike", handicap=20.5),
 ]
 
 # Example stroke index for 18 holes (1 = hardest, 18 = easiest)
@@ -111,7 +112,7 @@ class GameState:
             self.tee_shot_results = None
 
     def reset(self):
-        self.players: List[Dict] = [dict(player) for player in DEFAULT_PLAYERS]
+        self.players: List[Player] = DEFAULT_PLAYERS.copy()
         self.current_hole: int = 1
         self.hitting_order: List[str] = self._random_order()
         self.captain_id: str = self.hitting_order[0]
@@ -119,12 +120,12 @@ class GameState:
         self.base_wager: int = 1
         self.doubled_status: bool = False
         self.game_phase: str = 'Regular'
-        self.hole_scores: Dict[str, int] = {p["id"]: None for p in self.players}
+        self.hole_scores: Dict[str, int] = {p.id: None for p in self.players}
         self.game_status_message: str = "Time to toss the tees!"
-        self.player_float_used: Dict[str, bool] = {p["id"]: False for p in self.players}
+        self.player_float_used: Dict[str, bool] = {p.id: False for p in self.players}
         self.carry_over: bool = False
         self.hole_history: List[Dict] = []
-        self._last_points: Dict[str, int] = {p["id"]: 0 for p in self.players}
+        self._last_points: Dict[str, int] = {p.id: 0 for p in self.players}
         self.hole_stroke_indexes = [h["stroke_index"] for h in DEFAULT_COURSES["Wing Point"]]
         self.hole_pars = [h["par"] for h in DEFAULT_COURSES["Wing Point"]]
         self.hole_yards = [h["yards"] for h in DEFAULT_COURSES["Wing Point"]]
@@ -132,7 +133,7 @@ class GameState:
         self._save_to_db()
 
     def _random_order(self) -> List[str]:
-        ids = [p["id"] for p in DEFAULT_PLAYERS]
+        ids = [p.id for p in DEFAULT_PLAYERS]
         random.shuffle(ids)
         return ids
 
@@ -175,7 +176,7 @@ class GameState:
         if self.teams.get("type") != "pending" or self.teams.get("requested") != partner_id:
             raise ValueError("No pending partner request for this player.")
         captain_id = self.teams["captain"]
-        others = [p["id"] for p in self.players if p["id"] not in [captain_id, partner_id]]
+        others = [p.id for p in self.players if p.id not in [captain_id, partner_id]]
         self.teams = {"type": "partners", "team1": [captain_id, partner_id], "team2": others}
         self.game_status_message = f"{self._player_name(partner_id)} accepted. Teams formed."
         return "Partnership accepted."
@@ -185,14 +186,14 @@ class GameState:
         if self.teams.get("type") != "pending" or self.teams.get("requested") != partner_id:
             raise ValueError("No pending partner request for this player.")
         captain_id = self.teams["captain"]
-        others = [p["id"] for p in self.players if p["id"] != captain_id]
+        others = [p.id for p in self.players if p.id != captain_id]
         self.teams = {"type": "solo", "captain": captain_id, "opponents": others}
         self.base_wager *= 2  # On your own rule
         self.game_status_message = f"{self._player_name(partner_id)} declined. {self._player_name(captain_id)} goes solo! Wager doubled."
         return "Partnership declined. Captain goes solo."
 
     def go_solo(self, captain_id):
-        others = [p["id"] for p in self.players if p["id"] != captain_id]
+        others = [p.id for p in self.players if p.id != captain_id]
         self.teams = {"type": "solo", "captain": captain_id, "opponents": others}
         self.base_wager *= 2
         self.game_status_message = f"{self._player_name(captain_id)} goes solo! Wager doubled."
@@ -222,12 +223,16 @@ class GameState:
         return "Double declined. Offering team wins hole."
 
     def invoke_float(self, captain_id):
-        if self.player_float_used.get(captain_id):
-            raise ValueError("Float already used by this captain.")
-        self.base_wager *= 2
-        self.player_float_used[captain_id] = True
-        self.game_status_message = f"{self._player_name(captain_id)} invoked the float! Wager doubled."
-        return "Float invoked."
+        # Find the player and use their float
+        for player in self.players:
+            if player.id == captain_id:
+                if not player.use_float():
+                    raise ValueError("Float already used by this captain.")
+                self.base_wager *= 2
+                self.player_float_used[captain_id] = True  # Keep for backward compatibility
+                self.game_status_message = f"{self._player_name(captain_id)} invoked the float! Wager doubled."
+                return "Float invoked."
+        raise ValueError("Captain not found.")
 
     def toggle_option(self, captain_id):
         # For MVP, just double wager if captain is eligible
@@ -239,6 +244,13 @@ class GameState:
         if player_id not in self.hole_scores:
             raise ValueError("Invalid player ID.")
         self.hole_scores[player_id] = score
+        
+        # Also record the score in the Player object
+        for player in self.players:
+            if player.id == player_id:
+                player.record_hole_score(self.current_hole, score)
+                break
+        
         self.game_status_message = f"Score recorded for {self._player_name(player_id)}."
         return "Score recorded."
 
@@ -278,7 +290,7 @@ class GameState:
         else:
             msg = "Invalid team type for scoring."
         # Record hole history
-        points_now = {p["id"]: p["points"] for p in self.players}
+        points_now = {p.id: p.points for p in self.players}
         points_delta = {pid: points_now[pid] - self._last_points.get(pid, 0) for pid in points_now}
         self.hole_history.append({
             "hole": self.current_hole,
@@ -300,22 +312,22 @@ class GameState:
         odd_quarters = total_quarters % n_win
         # Award base points to all winners
         for p in self.players:
-            if p["id"] in winners:
-                p["points"] += per_winner
-            elif p["id"] in losers:
-                p["points"] -= base
+            if p.id in winners:
+                p.add_points(per_winner)
+            elif p.id in losers:
+                p.add_points(-base)
         msg = f"{' & '.join(self._player_name(pid) for pid in winners)} win {per_winner} quarter(s) each."
         # Karl Marx rule: assign odd quarter(s) to lowest scorer(s)
         if odd_quarters > 0:
             # Find winner(s) with lowest total points
-            winner_points = [(p["id"], p["points"]) for p in self.players if p["id"] in winners]
+            winner_points = [(p.id, p.points) for p in self.players if p.id in winners]
             min_points = min(points for _, points in winner_points)
             lowest = [pid for pid, points in winner_points if points == min_points]
             if len(lowest) == 1:
                 # Assign odd quarter(s) to the lowest
                 for p in self.players:
-                    if p["id"] == lowest[0]:
-                        p["points"] += odd_quarters
+                    if p.id == lowest[0]:
+                        p.add_points(odd_quarters)
                 msg += f" Karl Marx rule: {self._player_name(lowest[0])} receives {odd_quarters} extra quarter(s)."
             else:
                 msg += f" Karl Marx rule: Odd quarter(s) ({odd_quarters}) in limbo (tie among: {' & '.join(self._player_name(pid) for pid in lowest)})."
@@ -328,15 +340,20 @@ class GameState:
         self.captain_id = self.hitting_order[0]
         self.teams = {}
         self.doubled_status = False
-        self.hole_scores = {p["id"]: None for p in self.players}
+        self.hole_scores = {p.id: None for p in self.players}
+        
+        # Reset float usage for all players
+        for player in self.players:
+            player.reset_float()
+        
         self.game_status_message = f"Hole {self.current_hole}. {self._player_name(self.captain_id)} is captain."
         self._save_to_db()
         return "Advanced to next hole."
 
     def _player_name(self, pid):
         for p in self.players:
-            if p["id"] == pid:
-                return p["name"]
+            if p.id == pid:
+                return p.name
         return pid
 
     def get_hole_history(self):
@@ -344,8 +361,12 @@ class GameState:
 
     def _serialize(self):
         # Return a dict of all stateful fields
+        players = getattr(self, "players", [])
+        # Convert Player objects to dicts for serialization
+        players_data = [p.to_dict() if hasattr(p, 'to_dict') else p for p in players]
+        
         return {
-            "players": getattr(self, "players", []),
+            "players": players_data,
             "current_hole": getattr(self, "current_hole", 1),
             "hitting_order": getattr(self, "hitting_order", []),
             "captain_id": getattr(self, "captain_id", None),
@@ -370,20 +391,28 @@ class GameState:
         }
 
     def _deserialize(self, data):
-        self.players = data.get("players", [dict(player) for player in DEFAULT_PLAYERS])
+        # Convert player data to Player objects
+        players_data = data.get("players", [])
+        if players_data and isinstance(players_data[0], dict):
+            # Convert dict players to Player objects
+            self.players = [Player.from_dict(p) for p in players_data]
+        else:
+            # Fallback to default players
+            self.players = DEFAULT_PLAYERS.copy()
+        
         self.current_hole = data.get("current_hole", 1)
-        self.hitting_order = data.get("hitting_order", [p["id"] for p in DEFAULT_PLAYERS])
-        self.captain_id = data.get("captain_id", self.hitting_order[0])
+        self.hitting_order = data.get("hitting_order", [p.id for p in self.players])
+        self.captain_id = data.get("captain_id", self.hitting_order[0] if self.hitting_order else None)
         self.teams = data.get("teams", {})
         self.base_wager = data.get("base_wager", 1)
         self.doubled_status = data.get("doubled_status", False)
         self.game_phase = data.get("game_phase", 'Regular')
-        self.hole_scores = data.get("hole_scores", {p["id"]: None for p in self.players})
+        self.hole_scores = data.get("hole_scores", {p.id: None for p in self.players})
         self.game_status_message = data.get("game_status_message", "Time to toss the tees!")
-        self.player_float_used = data.get("player_float_used", {p["id"]: False for p in self.players})
+        self.player_float_used = data.get("player_float_used", {p.id: False for p in self.players})
         self.carry_over = data.get("carry_over", False)
         self.hole_history = data.get("hole_history", [])
-        self._last_points = data.get("_last_points", {p["id"]: 0 for p in self.players})
+        self._last_points = data.get("_last_points", {p.id: 0 for p in self.players})
         self.hole_stroke_indexes = data.get("hole_stroke_indexes", [h["stroke_index"] for h in DEFAULT_COURSES["Wing Point"]])
         self.hole_pars = data.get("hole_pars", [h["par"] for h in DEFAULT_COURSES["Wing Point"]])
         self.hole_yards = data.get("hole_yards", [h["yards"] for h in DEFAULT_COURSES["Wing Point"]])
@@ -577,8 +606,8 @@ class GameState:
         n_holes = len(self.hole_stroke_indexes)
         result = {}
         for player in self.players:
-            pid = player["id"]
-            hcap = float(player.get("handicap", 0))
+            pid = player.id
+            hcap = player.handicap
             strokes = {i+1: 0 for i in range(n_holes)}
             full_strokes = int(hcap)
             half_stroke = (hcap - full_strokes) >= 0.5
@@ -611,21 +640,31 @@ class GameState:
             if not all(k in p for k in ("id", "name", "handicap", "strength")):
                 raise ValueError("Each player must have id, name, handicap, and strength.")
         self.reset()  # <-- This ensures ALL state is cleared!
-        self.players = [dict(id=p["id"], name=p["name"], points=0, handicap=float(p["handicap"]), strength=p["strength"]) for p in players]
+        
+        # Convert dict players to Player objects
+        self.players = [
+            Player(
+                id=p["id"], 
+                name=p["name"], 
+                handicap=float(p["handicap"]), 
+                strength=p["strength"]
+            ) for p in players
+        ]
+        
         self.current_hole = 1
-        self.hitting_order = [p["id"] for p in self.players]
+        self.hitting_order = [p.id for p in self.players]
         random.shuffle(self.hitting_order)
         self.captain_id = self.hitting_order[0]
         self.teams = {}
         self.base_wager = 1
         self.doubled_status = False
         self.game_phase = 'Regular'
-        self.hole_scores = {p["id"]: None for p in self.players}
+        self.hole_scores = {p.id: None for p in self.players}
         self.game_status_message = "Players set. Time to toss the tees!"
-        self.player_float_used = {p["id"]: False for p in self.players}
+        self.player_float_used = {p.id: False for p in self.players}
         self.carry_over = False
         self.hole_history = []
-        self._last_points = {p["id"]: 0 for p in self.players}
+        self._last_points = {p.id: 0 for p in self.players}
         if course_name and course_name in self.courses:
             course = self.courses[course_name]
             self.selected_course = course_name

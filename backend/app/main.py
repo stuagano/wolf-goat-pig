@@ -753,8 +753,11 @@ def ghin_diagnostic():
 # Helper to serialize game state for API
 
 def _serialize_game_state():
+    # Convert Player objects to dicts for API serialization
+    players_data = [p.to_dict() if hasattr(p, 'to_dict') else p for p in game_state.players]
+    
     return {
-        "players": game_state.players,
+        "players": players_data,
         "current_hole": game_state.current_hole,
         "hitting_order": game_state.hitting_order,
         "captain_id": game_state.captain_id,

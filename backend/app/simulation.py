@@ -93,8 +93,8 @@ class ComputerPlayer:
     def _get_current_points(self, game_state: GameState) -> int:
         """Get current points for this player"""
         for player in game_state.players:
-            if player["id"] == self.player_id:
-                return player["points"]
+            if player.id == self.player_id:
+                return player.points
         return 0
     
     def _get_points_for_player(self, handicap: float, game_state: GameState) -> int:
@@ -348,8 +348,8 @@ class SimulationEngine:
         yards = game_state.hole_yards[hole_idx] if hasattr(game_state, 'hole_yards') and game_state.hole_yards else 400
         tee_shot_results = {}
         for player in game_state.players:
-            player_id = player["id"]
-            handicap = player["handicap"]
+            player_id = player.id
+            handicap = player.handicap
             # Simulate drive distance based on handicap
             if handicap <= 5:
                 drive = int(random.gauss(265, 12))
@@ -387,7 +387,7 @@ class SimulationEngine:
                 "remaining": remaining,
                 "shot_quality": shot_quality
             }
-            player_name = player["name"]
+            player_name = player.name
             feedback.append(f"{player_name}: {drive} yards, {lie}, {remaining} yards to green (tee shot: {shot_quality})")
         # Optionally, store tee_shot_results in game_state for later phases
         game_state.tee_shot_results = tee_shot_results
@@ -400,8 +400,8 @@ class SimulationEngine:
 
         # Show hole setup
         feedback.append(f"\n🏌️ **Hole {game_state.current_hole} Setup**")
-        captain_name = next(p["name"] for p in game_state.players if p["id"] == game_state.captain_id)
-        hitting_order_names = [next(p["name"] for p in game_state.players if p["id"] == pid) for pid in game_state.hitting_order]
+        captain_name = next(p.name for p in game_state.players if p.id == game_state.captain_id)
+        hitting_order_names = [next(p.name for p in game_state.players if p.id == pid) for pid in game_state.hitting_order]
         feedback.append(f"👑 **Captain:** {captain_name}")
         feedback.append(f"🎯 **Hitting Order:** {' → '.join(hitting_order_names)}")
         
@@ -419,7 +419,7 @@ class SimulationEngine:
 
         # Phase 1: Progressive tee shots with immediate captain decisions
         feedback.append("🏌️ **TEE SHOTS**")
-        hitting_order = game_state.hitting_order or [p["id"] for p in game_state.players]
+        hitting_order = game_state.hitting_order or [p.id for p in game_state.players]
         captain_id = game_state.captain_id
         
         # Initialize tee shot tracking
@@ -434,8 +434,8 @@ class SimulationEngine:
         # Process tee shots one by one, allowing captain decisions after each
         while current_index < len(hitting_order):
             player_id = hitting_order[current_index]
-            player = next(p for p in game_state.players if p["id"] == player_id)
-            player_name = player["name"]
+            player = next(p for p in game_state.players if p.id == player_id)
+            player_name = player.name
             
             # If this player hasn't hit yet, simulate their tee shot
             if player_id not in tee_shot_results:
@@ -1454,22 +1454,22 @@ class SimulationEngine:
     def _get_current_points(self, player_id: str, game_state: GameState) -> int:
         """Get current points for a specific player"""
         for player in game_state.players:
-            if player["id"] == player_id:
-                return player["points"]
+            if player.id == player_id:
+                return player.points
         return 0
     
     def _get_player_handicap(self, player_id: str, game_state: GameState) -> float:
         """Get handicap for a player"""
         for player in game_state.players:
-            if player["id"] == player_id:
-                return player["handicap"]
+            if player.id == player_id:
+                return player.handicap
         return 18.0
     
     def _get_player_name(self, player_id: str, game_state: GameState) -> str:
         """Get name for a player"""
         for player in game_state.players:
-            if player["id"] == player_id:
-                return player["name"]
+            if player.id == player_id:
+                return player.name
         return player_id
     
     def _get_team_id_for_player(self, game_state: GameState, player_id: str) -> str:
