@@ -105,6 +105,94 @@ cd ../frontend && npm start
 
 ---
 
+## 🏌️ Simulation Mode: Event-Driven Shot-by-Shot Flow
+
+Wolf Goat Pig Simulation Mode now uses a fully event-driven, shot-by-shot architecture for realistic, interactive golf gameplay and betting practice.
+
+### Key Concepts
+- **Chronological, shot-by-shot simulation**: Each shot is its own event, with visible probability calculations and betting opportunities.
+- **Interactive Decisions**: The backend returns `interaction_needed` flags when human input is required (e.g., captain choices, partnership responses, doubling decisions).
+- **Stateful Progression**: The backend maintains a persistent `GameState` with all shot, team, and betting context, updated after every API call.
+- **Frontend Integration**: The frontend advances the simulation by calling the next-shot endpoint and rendering all context, probabilities, and decision UIs.
+
+### Core Backend Endpoints
+
+#### 1. `/simulation/setup` (POST)
+Initializes a new simulation with player and course selection.
+- **Payload:**
+  ```json
+  {
+    "human_player": {"id": "p1", "name": "Bob", "handicap": 10.5},
+    "computer_players": [
+      {"id": "p2", "name": "Scott", "handicap": 15, "personality": "aggressive"},
+      {"id": "p3", "name": "Vince", "handicap": 8, "personality": "strategic"},
+      {"id": "p4", "name": "Mike", "handicap": 20.5, "personality": "conservative"}
+    ],
+    "course_name": "Wing Point"
+  }
+  ```
+- **Returns:** `{ "status": "ok", "game_state": { ... } }`
+
+#### 2. `/simulation/next-shot` (POST)
+Plays the next individual shot event (tee or approach) and returns all context, probabilities, and any betting opportunities.
+- **Returns:**
+  ```json
+  {
+    "status": "ok",
+    "shot_event": { ... },
+    "shot_result": { ... },
+    "probabilities": { ... },
+    "betting_opportunity": { ... },
+    "game_state": { ... },
+    "next_shot_available": true
+  }
+  ```
+
+#### 3. `/simulation/shot-probabilities` (GET)
+Returns probability calculations for the current shot scenario.
+- **Returns:** `{ "status": "ok", "probabilities": { ... }, "game_state": { ... } }`
+
+#### 4. `/simulation/betting-decision` (POST)
+Submit a betting/partnership/solo decision after a shot, with probability context.
+- **Payload:**
+  ```json
+  { "action": "request_partner", "partner_id": "p3" }
+  ```
+- **Returns:** `{ "status": "ok", "decision_result": { ... }, "betting_probabilities": { ... }, "game_state": { ... } }`
+
+#### 5. `/simulation/current-shot-state` (GET)
+Returns detailed information about the current shot state and available actions.
+- **Returns:** `{ "status": "ok", "shot_state": { ... }, "game_state": { ... } }`
+
+### GameState & State Management
+- The backend serializes all simulation state, including:
+  - `shot_sequence`: Current phase, player index, completed shots, pending decisions
+  - `tee_shot_results`: Results and context for all tee shots
+  - `hitting_order`, `captain_id`, `teams`, `doubled_status`, etc.
+- State is updated and returned after every event, so the frontend can always render the latest context.
+
+### Frontend Usage Pattern
+- On simulation setup, immediately call `/simulation/next-shot` to start the first shot event.
+- After each shot, update UI with returned `shot_event`, `shot_result`, `probabilities`, and any `betting_opportunity`.
+- When `betting_opportunity` is present, show decision UI and submit the user's choice to `/simulation/betting-decision`.
+- Use `/simulation/shot-probabilities` and `/simulation/current-shot-state` to display real-time context and probabilities.
+- Continue calling `/simulation/next-shot` until the hole/game is complete.
+
+### Example Flow
+1. **Setup**: POST to `/simulation/setup` with player/course config.
+2. **First Shot**: POST to `/simulation/next-shot` → returns tee shot event, probabilities.
+3. **Betting Opportunity**: If present, POST to `/simulation/betting-decision`.
+4. **Next Shot**: POST to `/simulation/next-shot` again.
+5. **Repeat**: Continue until hole/game complete.
+
+### Developer Notes
+- All new endpoints are documented in `/docs` (Swagger UI).
+- See `backend/app/simulation.py` for event-driven engine logic.
+- See `frontend/src/SimulationMode.js` for frontend integration.
+- GameState serialization/deserialization includes all new event-driven fields for robust state management.
+
+---
+
 ## 🧪 Functional Testing
 
 After deployment, you can run comprehensive functional tests to verify everything is working:

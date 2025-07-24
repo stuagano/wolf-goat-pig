@@ -95,6 +95,40 @@ def test_simulation():
         print(f"❌ Error setting up simulation: {e}")
         return
     
+    # Test 4: Event-driven shot-by-shot progression
+    print("\n4. Testing event-driven shot-by-shot progression...")
+    try:
+        # Play first shot
+        response = requests.post(f"{API_URL}/simulation/next-shot")
+        if response.status_code == 200:
+            shot_result = response.json()
+            print(f"✅ First shot event: {shot_result['shot_event']}")
+            print(f"   Shot result: {shot_result['shot_result']['shot_description']}")
+            print(f"   Probabilities: {json.dumps(shot_result['probabilities'], indent=2)}")
+            print(f"   Next shot available: {shot_result['next_shot_available']}")
+        else:
+            print(f"❌ Failed to play first shot: {response.status_code}")
+            print(f"   Response: {response.text}")
+            return
+        # Play subsequent shots until no more
+        shot_count = 1
+        while shot_result.get('next_shot_available') and shot_count < 10:
+            response = requests.post(f"{API_URL}/simulation/next-shot")
+            if response.status_code == 200:
+                shot_result = response.json()
+                shot_count += 1
+                print(f"   Shot {shot_count}: {shot_result['shot_result']['shot_description']}")
+                print(f"     Probabilities: {json.dumps(shot_result['probabilities'], indent=2)}")
+                print(f"     Next shot available: {shot_result['next_shot_available']}")
+            else:
+                print(f"❌ Failed to play shot {shot_count}: {response.status_code}")
+                print(f"   Response: {response.text}")
+                break
+        print(f"✅ Completed {shot_count} shot events.")
+    except Exception as e:
+        print(f"❌ Error during event-driven shot progression: {e}")
+        return
+    
     # Test 4: Play a hole
     print("\n4. Testing hole simulation...")
     hole_decisions = {

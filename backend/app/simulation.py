@@ -319,7 +319,13 @@ class SimulationEngine:
         
         game_state = GameState()
         game_state.setup_players(all_players, course_name)
-        
+        # Initialize shot-by-shot state for event-driven simulation
+        game_state.shot_sequence = {
+            "phase": "tee_shots",
+            "current_player_index": 0,
+            "completed_shots": [],
+            "pending_decisions": []
+        }
         return game_state
     
     def _simulate_tee_shots(self, game_state: GameState) -> List[str]:

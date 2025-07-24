@@ -8,8 +8,8 @@ database.init_db()
 
 from .game_state import game_state
 from .simulation import simulation_engine
-from pydantic import BaseModel
-from typing import List, Optional
+from pydantic import BaseModel, Field
+from typing import List, Optional, Any, Dict
 import os
 import httpx
 
@@ -854,9 +854,50 @@ def complete_hole():
 
 # Add new shot-based event endpoints after existing simulation endpoints
 
-@app.post("/simulation/next-shot")
-def play_next_shot():
-    """Play the next individual shot in the hole with probability display"""
+class ShotEventResponse(BaseModel):
+    status: str
+    shot_event: Optional[dict]
+    shot_result: Optional[dict]
+    probabilities: Optional[dict]
+    betting_opportunity: Optional[dict]
+    game_state: dict
+    next_shot_available: bool
+
+class ShotProbabilitiesResponse(BaseModel):
+    status: str
+    probabilities: dict
+    game_state: dict
+
+class BettingDecisionRequest(BaseModel):
+    action: str
+    partner_id: Optional[str] = None
+    # Add other fields as needed for betting/solo/doubling
+
+class BettingDecisionResponse(BaseModel):
+    status: str
+    decision: dict
+    decision_result: dict
+    betting_probabilities: dict
+    game_state: dict
+
+class CurrentShotStateResponse(BaseModel):
+    status: str
+    shot_state: dict
+    game_state: dict
+
+@app.post("/simulation/next-shot", response_model=ShotEventResponse)
+def play_next_shot() -> ShotEventResponse:
+    """Play the next individual shot in the hole with probability display
+    
+    Returns:
+        status: "ok"
+        shot_event: dict (shot context)
+        shot_result: dict (result of shot)
+        probabilities: dict (pre/post shot, betting)
+        betting_opportunity: dict (if present)
+        game_state: dict (full state)
+        next_shot_available: bool
+    """
     global game_state
     
     try:
@@ -893,9 +934,15 @@ def play_next_shot():
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.get("/simulation/shot-probabilities")
-def get_shot_probabilities():
-    """Get probability calculations for the current shot scenario"""
+@app.get("/simulation/shot-probabilities", response_model=ShotProbabilitiesResponse)
+def get_shot_probabilities() -> ShotProbabilitiesResponse:
+    """Get probability calculations for the current shot scenario
+    
+    Returns:
+        status: "ok"
+        probabilities: dict
+        game_state: dict
+    """
     global game_state
     
     try:
@@ -913,9 +960,19 @@ def get_shot_probabilities():
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.post("/simulation/betting-decision")
-def make_betting_decision(decision: dict):
-    """Make a betting decision after seeing shot results with probability context"""
+@app.post("/simulation/betting-decision", response_model=BettingDecisionResponse)
+def make_betting_decision(decision: BettingDecisionRequest) -> BettingDecisionResponse:
+    """Make a betting decision after seeing shot results with probability context
+    
+    Args:
+        decision: BettingDecisionRequest (action, partner_id, etc.)
+    Returns:
+        status: "ok"
+        decision: dict
+        decision_result: dict
+        betting_probabilities: dict
+        game_state: dict
+    """
     global game_state
     
     try:
@@ -940,9 +997,15 @@ def make_betting_decision(decision: dict):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.get("/simulation/current-shot-state")
-def get_current_shot_state():
-    """Get detailed information about the current shot state and available actions"""
+@app.get("/simulation/current-shot-state", response_model=CurrentShotStateResponse)
+def get_current_shot_state() -> CurrentShotStateResponse:
+    """Get detailed information about the current shot state and available actions
+    
+    Returns:
+        status: "ok"
+        shot_state: dict
+        game_state: dict
+    """
     global game_state
     
     try:

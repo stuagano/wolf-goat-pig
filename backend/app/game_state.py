@@ -361,6 +361,12 @@ class GameState:
             "_last_points": self._last_points,
             "hole_stroke_indexes": self.hole_stroke_indexes,
             "hole_pars": self.hole_pars,
+            "hole_yards": getattr(self, "hole_yards", []),
+            "hole_descriptions": getattr(self, "hole_descriptions", []),
+            "selected_course": self.selected_course,
+            # Event-driven simulation state
+            "shot_sequence": getattr(self, "shot_sequence", None),
+            "tee_shot_results": getattr(self, "tee_shot_results", None),
         }
 
     def _deserialize(self, data):
@@ -380,6 +386,12 @@ class GameState:
         self._last_points = data.get("_last_points", {p["id"]: 0 for p in self.players})
         self.hole_stroke_indexes = data.get("hole_stroke_indexes", [h["stroke_index"] for h in DEFAULT_COURSES["Wing Point"]])
         self.hole_pars = data.get("hole_pars", [h["par"] for h in DEFAULT_COURSES["Wing Point"]])
+        self.hole_yards = data.get("hole_yards", [h["yards"] for h in DEFAULT_COURSES["Wing Point"]])
+        self.hole_descriptions = data.get("hole_descriptions", [h.get("description", "") for h in DEFAULT_COURSES["Wing Point"]])
+        self.selected_course = data.get("selected_course", None)
+        # Event-driven simulation state
+        self.shot_sequence = data.get("shot_sequence", None)
+        self.tee_shot_results = data.get("tee_shot_results", None)
 
     def _save_to_db(self):
         """Save the current state as JSON in the DB (id=1) with error handling"""
