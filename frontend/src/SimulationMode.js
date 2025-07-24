@@ -378,6 +378,15 @@ function SimulationMode() {
   };
 
   const makeDecision = async (decision) => {
+    // For mid-tee decisions, we need to continue the progressive hole simulation
+    if (interactionNeeded.type === "captain_decision_mid_tee") {
+      setPendingDecision(decision);
+      setInteractionNeeded(null);
+      // Continue playing the hole with the decision
+      playHole();
+      return;
+    }
+    
     setLoading(true);
     try {
       let endpoint, body;
@@ -1063,64 +1072,36 @@ function SimulationMode() {
           </div>
         )}
         
-                  {/* Interactive Shot-by-Shot Controls */}
+                  {/* Progressive Hole Simulation - Uses New Shot-by-Shot Flow */}
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           <button
-            style={{...buttonStyle, background: "#10b981"}}
+            style={{
+              ...buttonStyle,
+              background: COLORS.primary,
+              fontSize: 18,
+              padding: "16px 32px",
+              flex: 1
+            }}
+            onClick={playHole}
+            disabled={loading || interactionNeeded}
+          >
+            {loading ? "Playing Hole..." : "🏌️ Play This Hole (Progressive Simulation)"}
+          </button>
+          
+          {/* Debug button for testing */}
+          <button
+            style={{...buttonStyle, background: "#6b7280"}}
             onClick={testNewEndpoints}
             disabled={loading}
           >
-            {loading ? "Testing..." : "🧪 Test New API"}
+            {loading ? "Testing..." : "🧪 Test API"}
           </button>
-          
-          <button
-            style={buttonStyle}
-            onClick={hitTeeShot}
-            disabled={loading || gameState?.all_tee_shots_complete}
-          >
-            {loading ? "Hitting..." : "🏌️ Hit Tee Shot"}
-          </button>
-          
-          {gameState?.all_tee_shots_complete && gameState?.captain_id && (
-            <button
-              style={buttonStyle}
-              onClick={makeCaptainDecision}
-              disabled={loading || gameState?.teams_formed}
-            >
-              {loading ? "Deciding..." : "👑 Make Captain Decision"}
-            </button>
-          )}
-          
-          {gameState?.teams_formed && (
-            <button
-              style={buttonStyle}
-              onClick={hitApproachShots}
-              disabled={loading || gameState?.approach_shots_complete}
-            >
-              {loading ? "Playing..." : "⛳ Hit Approach Shots"}
-            </button>
-          )}
-          
-          {gameState?.approach_shots_complete && (
-            <button
-              style={buttonStyle}
-              onClick={makeDoublingDecision}
-              disabled={loading || gameState?.doubling_complete}
-            >
-              {loading ? "Betting..." : "💰 Doubling Decision"}
-            </button>
-          )}
-          
-          {gameState?.doubling_complete && (
-            <button
-              style={buttonStyle}
-              onClick={completeHole}
-              disabled={loading}
-            >
-              {loading ? "Finishing..." : "✅ Complete Hole"}
-            </button>
-          )}
         </div>
+        
+        <p style={{ fontSize: 14, color: COLORS.muted, marginTop: 8, textAlign: "center" }}>
+          ⚡ <strong>New Progressive Flow:</strong> Tee shots, captain decisions, and betting all happen in real-time as you play!
+          {interactionNeeded && <><br/>🔄 <strong>Decision needed above - choose your strategy!</strong></>}
+        </p>
         
         {loading && (
           <p style={{ color: COLORS.muted, marginTop: 8 }}>
