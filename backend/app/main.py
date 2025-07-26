@@ -1342,13 +1342,13 @@ def ghin_diagnostic():
 
 def _serialize_game_state():
     # Convert Player objects to dicts for API serialization
-    players_data = [p.to_dict() if hasattr(p, 'to_dict') else p for p in game_state.players]
+    players_data = [p.to_dict() if hasattr(p, 'to_dict') else p for p in game_state.player_manager.players]
     
     return {
         "players": players_data,
         "current_hole": game_state.current_hole,
-        "hitting_order": game_state.hitting_order,
-        "captain_id": game_state.captain_id,
+        "hitting_order": game_state.player_manager.hitting_order,
+        "captain_id": game_state.player_manager.captain_id,
         "teams": game_state.betting_state.teams,
         "base_wager": game_state.betting_state.base_wager,
         "doubled_status": game_state.betting_state.doubled_status,
@@ -1358,11 +1358,11 @@ def _serialize_game_state():
         "player_float_used": game_state.player_float_used,
         "carry_over": game_state.carry_over,
         "hole_history": game_state.get_hole_history(),
-                    "hole_stroke_indexes": game_state.course_manager.hole_stroke_indexes,
-            "hole_pars": game_state.course_manager.hole_pars,
-            "hole_yards": game_state.course_manager.hole_yards,
-            "hole_descriptions": [h.get("description", "") for h in game_state.course_manager.course_data.get(game_state.course_manager.selected_course, [])] if game_state.course_manager.selected_course else [],
-            "selected_course": game_state.course_manager.selected_course,
+        "hole_stroke_indexes": game_state.course_manager.hole_stroke_indexes,
+        "hole_pars": game_state.course_manager.hole_pars,
+        "hole_yards": game_state.course_manager.hole_yards,
+        "hole_descriptions": [h.get("description", "") for h in game_state.course_manager.course_data.get(game_state.course_manager.selected_course, [])] if game_state.course_manager.selected_course else [],
+        "selected_course": game_state.course_manager.selected_course,
     } 
 
 @app.post("/simulation/hit-tee-shot")
