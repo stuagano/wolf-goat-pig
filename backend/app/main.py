@@ -11,6 +11,8 @@ database.init_db()
 from .game_state import game_state
 from .simulation import simulation_engine
 from .course_import import CourseImporter, import_course_by_name, import_course_from_json, save_course_to_database
+from .domain.shot_result import ShotResult
+from .domain.player import Player
 from pydantic import BaseModel, Field
 from typing import List, Optional, Any, Dict
 import os
@@ -24,14 +26,38 @@ import tempfile
 logger = logging.getLogger(__name__)
 
 # Response model classes
+class ShotResultResponse(BaseModel):
+    """Pydantic model for ShotResult serialization"""
+    player: dict
+    drive: int
+    lie: str
+    remaining: int
+    shot_quality: str
+    penalty: int = 0
+    hole_number: Optional[int] = None
+    shot_number: Optional[int] = None
+    wind_factor: Optional[float] = None
+    pressure_factor: Optional[float] = None
+    position_quality: Optional[dict] = None
+    scoring_probability: Optional[dict] = None
+    partnership_value: Optional[dict] = None
+    strategic_implications: Optional[list] = None
+    shot_description: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
 class ShotEventResponse(BaseModel):
     status: str
     shot_event: Optional[dict]
-    shot_result: Optional[dict]
+    shot_result: Optional[ShotResultResponse]  # Use proper Pydantic model
     probabilities: Optional[dict]
     betting_opportunity: Optional[dict]
     game_state: dict
     next_shot_available: bool
+    
+    class Config:
+        from_attributes = True  # Allow automatic serialization of dataclasses
 
 class ShotProbabilitiesResponse(BaseModel):
     status: str
@@ -958,10 +984,33 @@ def play_next_shot() -> ShotEventResponse:
                 "opportunity": betting_opportunity
             }
         
+        # Convert ShotResult object to Pydantic model for proper serialization
+        shot_result_response = None
+        if shot_result and shot_result.get("shot_result"):
+            shot_result_obj = shot_result.get("shot_result")
+            # Create ShotResultResponse from ShotResult object
+            shot_result_response = ShotResultResponse(
+                player=shot_result_obj.player.to_dict(),
+                drive=shot_result_obj.drive,
+                lie=shot_result_obj.lie,
+                remaining=shot_result_obj.remaining,
+                shot_quality=shot_result_obj.shot_quality,
+                penalty=shot_result_obj.penalty,
+                hole_number=shot_result_obj.hole_number,
+                shot_number=shot_result_obj.shot_number,
+                wind_factor=shot_result_obj.wind_factor,
+                pressure_factor=shot_result_obj.pressure_factor,
+                position_quality=shot_result_obj.get_position_quality(),
+                scoring_probability=shot_result_obj.get_scoring_probability(),
+                partnership_value=shot_result_obj.get_partnership_value(),
+                strategic_implications=shot_result_obj.get_strategic_implications(),
+                shot_description=shot_result_obj.get_shot_description()
+            )
+        
         return ShotEventResponse(
             status="ok",
             shot_event=shot_event,
-            shot_result=shot_result,
+            shot_result=shot_result_response,
             probabilities=probabilities,
             betting_opportunity=betting_opportunity,
             game_state=_serialize_game_state(),

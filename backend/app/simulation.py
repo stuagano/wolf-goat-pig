@@ -1156,9 +1156,9 @@ class SimulationEngine:
         )
         game_state.shot_state.next_shot()
         
-        # Create enhanced shot result
+        # Create enhanced shot result with ShotResult object
         enhanced_result = {
-            **shot_result.to_dict(),
+            "shot_result": shot_result,
             "player": player,
             "shot_description": self._create_detailed_shot_description(shot_result, player, game_state),
             "reactions": self._generate_shot_reactions(shot_result, player, game_state)
@@ -1597,9 +1597,9 @@ class SimulationEngine:
         )
         game_state.shot_state.next_shot()
         
-        # Create enhanced shot result
+        # Create enhanced shot result with ShotResult object
         enhanced_result = {
-            **shot_result.to_dict(),
+            "shot_result": shot_result,
             "player": player,
             "shot_description": self._create_detailed_shot_description(shot_result, player, game_state),
             "reactions": self._generate_shot_reactions(shot_result, player, game_state)
