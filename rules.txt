@@ -253,3 +253,74 @@ All Tee Sheet WGP Updates & Banter Members Standings Rules and History
 - Write tests that intentionally send bad/missing data to every endpoint and method. Assert that the response is a clear, descriptive error, not a crash or generic 500.
 - Always check backend response status and error messages in the frontend. Never assume a request will succeed; handle and display errors gracefully. Disable UI actions that would trigger invalid backend calls.
 - Document all possible error codes and messages for each endpoint. Use unique error codes for common failure modes (e.g., ERR_MISSING_FIELD, ERR_INVALID_STATE).
+
+# Unit Testing Requirements (Wolf Goat Pig)
+
+## MANDATORY: Run Tests Before Every Commit
+
+**NEVER commit changes without running the test suite first!**
+
+### Quick Development Testing
+```bash
+# Run quick validation tests
+python backend/run_simulation_tests.py
+
+# Run specific scenario tests
+python backend/run_simulation_tests.py partnership_decline
+python backend/run_simulation_tests.py partnership_accept
+python backend/run_simulation_tests.py betting_state
+python backend/run_simulation_tests.py shot_simulation
+
+# Run development workflow validation
+python backend/dev_workflow.py validate
+```
+
+### Comprehensive Testing
+```bash
+# Run all unit tests
+pytest backend/tests/test_simulation_components.py -v
+
+# Run all integration tests
+pytest backend/tests/test_integration_scenarios.py -v
+
+# Run full test suite
+pytest backend/tests/ -v
+```
+
+### Test Coverage Requirements
+- **Unit Tests**: Test individual components in isolation (betting state, shot simulation, computer players)
+- **Integration Tests**: Test complete game scenarios and end-to-end workflows
+- **Edge Case Tests**: Test invalid inputs, error conditions, and boundary cases
+- **Functional Tests**: Test that partnership decline/acceptance logic works correctly
+
+### Pre-Commit Checklist
+1. ✅ Run `python backend/run_simulation_tests.py` - ALL TESTS MUST PASS
+2. ✅ Run `python backend/dev_workflow.py validate` - VALIDATION MUST PASS
+3. ✅ Test any new functionality with specific scenario tests
+4. ✅ Verify partnership logic works (decline = solo, accept = partnership)
+5. ✅ Check that shot simulation progresses chronologically
+6. ✅ Ensure no lie type validation errors occur
+7. ✅ Confirm game state consistency throughout simulation
+
+### Test Failure Protocol
+- **NEVER commit if tests fail** - Fix the issue first
+- **NEVER skip tests** - All tests must pass before committing
+- **Debug failures** using `python backend/dev_workflow.py interactive`
+- **Add new tests** for any new functionality or bug fixes
+- **Update tests** if you change existing behavior
+
+### Testing Framework Components
+- `backend/tests/test_simulation_components.py` - Unit tests for isolated components
+- `backend/tests/test_integration_scenarios.py` - Integration tests for complete scenarios
+- `backend/run_simulation_tests.py` - Quick test runner for development
+- `backend/dev_workflow.py` - Interactive debugging and validation tools
+
+### Common Test Scenarios
+- Partnership decline → Captain goes solo
+- Partnership acceptance → Teams formed correctly
+- Shot simulation → Chronological progression works
+- Betting state → State transitions are correct
+- Computer players → AI decisions are logical
+- Edge cases → Invalid inputs handled gracefully
+
+**REMEMBER: The simulation engine is complex. Always test before committing to prevent regressions and ensure functional correctness.**
