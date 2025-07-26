@@ -377,13 +377,13 @@ function SimulationMode() {
     }
   };
 
-  // Enhanced playNextShot with better error handling
+  // Enhanced playNextShot with better error handling - using chronological approach
   const playNextShot = async () => {
     if (loading || interactionNeeded) return;
     
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/simulation/next-shot`, {
+      const response = await fetch(`${API_URL}/simulation/play-hole`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(pendingDecision)
@@ -398,12 +398,10 @@ function SimulationMode() {
       
       if (data.status === "ok") {
         setGameState(data.game_state);
-        setHasNextShot(data.next_shot_available);
         
-        // Add shot result to feedback
-        if (data.shot_result) {
-          const shotDesc = data.shot_result.shot_description || "Shot completed";
-          setFeedback(prev => [...prev, `🏌️ ${shotDesc}`]);
+        // Add feedback from the chronological simulation
+        if (data.feedback && data.feedback.length > 0) {
+          setFeedback(prev => [...prev, ...data.feedback]);
         }
         
         // Handle interaction needed
@@ -413,20 +411,6 @@ function SimulationMode() {
         } else {
           setInteractionNeeded(null);
           setPendingDecision({});
-        }
-        
-        // Show probabilities if available
-        if (data.probabilities) {
-          setShotProbabilities(data.probabilities);
-        }
-        
-        // Show betting opportunity if available
-        if (data.betting_opportunity) {
-          setInteractionNeeded({
-            type: "betting_opportunity",
-            message: "A betting opportunity has arisen!",
-            opportunity: data.betting_opportunity
-          });
         }
         
       } else {
