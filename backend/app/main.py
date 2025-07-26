@@ -71,11 +71,12 @@ app.add_middleware(
         "127.0.0.1",
         "wolf-goat-pig-api.onrender.com",
         "wolf-goat-pig.vercel.app",
+        "wolf-goat-im4paxvvp-stuaganos-projects.vercel.app",
         os.getenv("FRONTEND_URL", "").replace("https://", "").replace("http://", "")
     ]
 )
 
-# CORS middleware
+# CORS middleware - Allow any Vercel subdomain for flexibility
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -84,6 +85,14 @@ app.add_middleware(
         "https://wolf-goat-pig.vercel.app",
         "https://wolf-goat-pig-frontend.onrender.com",
         os.getenv("FRONTEND_URL", "http://localhost:3000")
+    ] + [
+        # Allow any Vercel subdomain
+        f"https://{subdomain}.vercel.app" 
+        for subdomain in [
+            "wolf-goat-pig",
+            "wolf-goat-im4paxvvp-stuaganos-projects",
+            # Add more subdomains as needed
+        ]
     ],
     allow_credentials=True,
     allow_methods=["*"],
