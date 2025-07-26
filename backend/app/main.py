@@ -102,9 +102,7 @@ app.add_middleware(
     ]
 )
 
-# Custom CORS middleware to handle wildcard patterns
-from starlette.middleware.cors import CORSMiddleware as BaseCORSMiddleware
-import re
+# CORS configuration
 
 # Standard CORS middleware with permissive configuration
 app.add_middleware(
@@ -115,8 +113,8 @@ app.add_middleware(
         "https://wolf-goat-pig.vercel.app",
         "https://wolf-goat-pig-frontend.onrender.com",
         "https://wolf-goat-im4paxvvp-stuaganos-projects.vercel.app",
-        "https://*.vercel.app",
-        "https://*.onrender.com",
+        "https://wolf-goat-pig-git-main-stuaganos-projects.vercel.app",
+        "https://wolf-goat-pig-stuaganos-projects.vercel.app",
         "*"  # Allow all origins for development/debugging
     ],
     allow_credentials=True,
