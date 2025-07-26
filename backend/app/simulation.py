@@ -349,32 +349,7 @@ class SimulationEngine:
         
         return game_state
     
-    def _simulate_tee_shots(self, game_state: GameState) -> List[str]:
-        """Simulate tee shots for all players and report drive distance, accuracy, and remaining to green."""
-        feedback = []
-        hole_idx = game_state.current_hole - 1
-        par = game_state.course_manager.hole_pars[hole_idx] if game_state.course_manager.hole_pars else 4
-        yards = game_state.course_manager.hole_yards[hole_idx] if game_state.course_manager.hole_yards else 400
-        tee_shot_results = {}
-        
-        for player in game_state.player_manager.players:
-            # Ensure we have a Player object
-            if isinstance(player, dict):
-                from .domain.player import Player
-                player_obj = Player.from_dict(player)
-            else:
-                player_obj = player
-            
-            # Use ShotSimulator service for tee shot simulation
-            shot_result = ShotSimulator.simulate_individual_tee_shot(player_obj, game_state)
-            tee_shot_results[player_obj.id] = shot_result
-            
-            player_name = player_obj.name
-            feedback.append(f"{player_name}: {shot_result.drive} yards, {shot_result.lie}, {shot_result.remaining} yards to green (tee shot: {shot_result.shot_quality})")
-        
-        # Store tee_shot_results in game_state for later phases
-        game_state.tee_shot_results = tee_shot_results
-        return feedback
+
 
     def simulate_hole(self, game_state: GameState, human_decisions: Dict[str, Any]) -> Tuple[GameState, List[str], Optional[Dict[str, Any]]]:
         """Simulate a complete hole chronologically - shot by shot, decision by decision"""
@@ -549,27 +524,13 @@ class SimulationEngine:
             
         return advantage
 
-    def _simulate_remaining_shots(self, game_state: GameState, tee_shot_results: Dict[str, Any]) -> List[str]:
-        """Simulate the remaining shots after tee shots to complete the hole"""
-        return ShotSimulator.simulate_remaining_shots(game_state, tee_shot_results)
+
 
     def _simulate_remaining_shots_chronological(self, game_state: GameState, tee_shot_results: Dict[str, Any]) -> List[str]:
         """Simulate the remaining shots after tee shots to complete the hole"""
         return ShotSimulator.simulate_remaining_shots_chronological(game_state, tee_shot_results)
 
-    def _simulate_player_final_score(self, handicap: float, par: int, hole_number: int, game_state: Optional[GameState] = None, tee_quality: str = "average", remaining_distance: float = 150) -> int:
-        """Simulate final score considering tee shot quality and remaining distance"""
-        return ShotSimulator.simulate_player_final_score(handicap, par, hole_number, game_state, tee_quality, remaining_distance)
 
-
-
-
-    
-
-    
-    def _simulate_player_score(self, handicap: float, par: int, hole_number: int, game_state: Optional[GameState] = None) -> int:
-        """Simulate a realistic score for a player based on their handicap and hole characteristics"""
-        return ShotSimulator.simulate_player_score(handicap, par, hole_number, game_state)
     
     def _generate_educational_feedback(self, game_state: GameState, human_decisions: Dict[str, Any]) -> List[str]:
         """Generate educational feedback about what the human could have done differently"""
@@ -1487,81 +1448,7 @@ class SimulationEngine:
         """Calculate probabilities for betting decisions"""
         return ProbabilityCalculator.calculate_betting_probabilities(game_state, decision)
     
-    def _calculate_partnership_probabilities(self, game_state: GameState, decision: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate success probabilities for partnership strategy"""
-        captain_id = game_state.player_manager.captain_id
-        partner_id = decision.get("partner_id")
-        
-        if not partner_id:
-            return {}
-        
-        captain = next(p for p in game_state.player_manager.players if p.id == captain_id)
-        partner = next(p for p in game_state.player_manager.players if p.id == partner_id)
-        
-        # Calculate team strength
-        avg_handicap = (captain.handicap + partner.handicap) / 2
-        handicap_synergy = 1.0 - abs(captain.handicap - partner.handicap) * 0.02
-        
-        # Base win probability against other team
-        base_win_prob = 0.5  # Start with 50/50
-        
-        # Adjust for team skill level
-        if avg_handicap <= 8:
-            base_win_prob += 0.15
-        elif avg_handicap <= 15:
-            base_win_prob += 0.05
-        else:
-            base_win_prob -= 0.05
-        
-        # Adjust for handicap compatibility
-        base_win_prob += (handicap_synergy - 1.0) * 0.2
-        
-        # Hole difficulty factor
-        hole_info = ProbabilityCalculator._get_hole_info(game_state)
-        stroke_index = hole_info.get("stroke_index", 10)
-        if stroke_index <= 6:  # Hard hole
-            base_win_prob -= 0.05
-        elif stroke_index >= 14:  # Easy hole
-            base_win_prob += 0.05
-        
-        return {
-            "win_probability": round(min(0.85, max(0.15, base_win_prob)) * 100, 1),
-            "team_strength": round(avg_handicap, 1),
-            "handicap_compatibility": round(handicap_synergy * 100, 1),
-            "expected_points": round((base_win_prob * 2 - (1 - base_win_prob) * 2), 2),
-            "risk_level": "Low" if base_win_prob > 0.6 else "Medium" if base_win_prob > 0.4 else "High"
-        }
-    
-    def _calculate_solo_probabilities(self, game_state: GameState) -> Dict[str, Any]:
-        """Calculate success probabilities for going solo"""
-        captain_id = game_state.player_manager.captain_id
-        captain = next(p for p in game_state.player_manager.players if p.id == captain_id)
-        
-        # Base solo win probability (1 vs 3 is harder)
-        base_win_prob = 0.25  # 25% base chance
-        
-        # Adjust for captain skill
-        if captain.handicap <= 5:
-            base_win_prob += 0.15
-        elif captain.handicap <= 10:
-            base_win_prob += 0.05
-        elif captain.handicap >= 20:
-            base_win_prob -= 0.10
-        
-        # Hole difficulty factor
-        hole_info = ProbabilityCalculator._get_hole_info(game_state)
-        stroke_index = hole_info.get("stroke_index", 10)
-        if stroke_index <= 6:  # Hard hole - bad for solo
-            base_win_prob -= 0.10
-        elif stroke_index >= 14:  # Easy hole - better for solo
-            base_win_prob += 0.10
-        
-        return {
-            "win_probability": round(min(0.70, max(0.05, base_win_prob)) * 100, 1),
-            "expected_points": round((base_win_prob * 6 - (1 - base_win_prob) * 6), 2),
-            "risk_level": "Very High",
-            "handicap_advantage": f"Handicap {captain.handicap}: {'Strong' if captain.handicap <= 10 else 'Moderate' if captain.handicap <= 18 else 'Challenging'} solo player"
-        }
+
     
     def has_next_shot(self, game_state: GameState) -> bool:
         """Check if there are more shots available in current phase"""
