@@ -847,6 +847,57 @@ def get_monte_carlo_detailed_results(num_games: int, setup: MonteCarloSetup):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@app.post("/simulation/play-next-shot")
+def play_next_shot(decisions: HumanDecisions):
+    """Play the next individual shot in the simulation"""
+    try:
+        if not game_state:
+            raise HTTPException(status_code=400, detail="No active simulation. Please set up a simulation first.")
+        
+        # Convert Pydantic model to dict for simulation engine
+        human_decisions = {
+            "action": decisions.action,
+            "requested_partner": decisions.requested_partner,
+            "offer_double": decisions.offer_double,
+            "accept_double": decisions.accept_double,
+            "accept_partnership": decisions.accept_partnership
+        }
+        
+        # Remove None values
+        human_decisions = {k: v for k, v in human_decisions.items() if v is not None}
+        
+        # Run shot-by-shot simulation
+        try:
+            shot_result, feedback, next_shot_available, interaction_needed = simulation_engine.play_next_shot(
+                game_state, human_decisions
+            )
+        except Exception as e:
+            logging.error(f"Shot simulation error: {str(e)}")
+            logging.error(traceback.format_exc())
+            raise HTTPException(status_code=500, detail=f"Shot simulation error: {str(e)}")
+        
+        # Prepare response
+        response = {
+            "status": "ok",
+            "game_state": _serialize_game_state(),
+            "feedback": feedback or [],
+            "next_shot_available": next_shot_available,
+            "shot_result": shot_result
+        }
+        
+        # Add interaction needed if present
+        if interaction_needed:
+            response["interaction_needed"] = interaction_needed
+        
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Unexpected error in play_next_shot: {str(e)}")
+        logging.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
 @app.post("/simulation/play-hole")
 def play_simulation_hole(decisions: HumanDecisions):
     """Play a hole with interactive decision points"""

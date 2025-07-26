@@ -377,13 +377,13 @@ function SimulationMode() {
     }
   };
 
-  // Enhanced playNextShot with better error handling - using chronological approach
+  // Enhanced playNextShot with better error handling - using shot-by-shot approach
   const playNextShot = async () => {
     if (loading || interactionNeeded) return;
     
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/simulation/play-hole`, {
+      const response = await fetch(`${API_URL}/simulation/play-next-shot`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(pendingDecision)
@@ -399,9 +399,14 @@ function SimulationMode() {
       if (data.status === "ok") {
         setGameState(data.game_state);
         
-        // Add feedback from the chronological simulation
+        // Add feedback from the shot simulation
         if (data.feedback && data.feedback.length > 0) {
           setFeedback(prev => [...prev, ...data.feedback]);
+        }
+        
+        // Handle shot result
+        if (data.shot_result) {
+          setFeedback(prev => [...prev, `🎯 Shot Result: ${JSON.stringify(data.shot_result)}`]);
         }
         
         // Handle interaction needed
@@ -412,6 +417,9 @@ function SimulationMode() {
           setInteractionNeeded(null);
           setPendingDecision({});
         }
+        
+        // Update next shot availability
+        setHasNextShot(data.next_shot_available);
         
       } else {
         throw new Error(data.message || 'Unknown error occurred');
@@ -771,38 +779,41 @@ function SimulationMode() {
         </div>
       </div>
       
-      {/* Interactive Decision UI */}
+      {/* Interactive Decision UI - PROMINENT POSITION */}
       {interactionNeeded && (
         <div style={{
           ...cardStyle,
-          border: `3px solid ${COLORS.primary}`,
+          border: `4px solid ${COLORS.primary}`,
           background: "#f0f8ff",
-          position: "relative"
+          position: "relative",
+          marginBottom: 24,
+          boxShadow: "0 4px 20px rgba(25, 118, 210, 0.15)"
         }}>
           <div style={{
             position: "absolute",
-            top: -10,
+            top: -15,
             left: 20,
             background: COLORS.primary,
             color: "white",
-            padding: "4px 12px",
-            borderRadius: 12,
-            fontSize: 12,
-            fontWeight: "bold"
+            padding: "6px 16px",
+            borderRadius: 16,
+            fontSize: 14,
+            fontWeight: "bold",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.2)"
           }}>
             🤔 DECISION REQUIRED
           </div>
           
-          <h3 style={{ color: COLORS.primary, marginBottom: 16 }}>
+          <h2 style={{ color: COLORS.primary, marginBottom: 20, fontSize: 24 }}>
             {interactionNeeded.type === "captain_decision" && "👑 Captain's Decision"}
             {interactionNeeded.type === "captain_decision_mid_tee" && "🎯 Mid-Tee Decision"}
             {interactionNeeded.type === "partnership_response" && "🤝 Partnership Response"}
             {interactionNeeded.type === "doubling_decision" && "💰 Doubling Decision"}
             {interactionNeeded.type === "double_response" && "💸 Double Response"}
             {interactionNeeded.type === "betting_opportunity" && "🎲 Betting Opportunity"}
-          </h3>
+          </h2>
           
-          <p style={{ marginBottom: 20, fontWeight: "bold", fontSize: 16 }}>
+          <p style={{ marginBottom: 24, fontWeight: "bold", fontSize: 18, lineHeight: 1.5 }}>
             {interactionNeeded.message}
           </p>
           
@@ -862,8 +873,8 @@ function SimulationMode() {
                 </div>
               )}
               
-              {/* Decision Options */}
-              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              {/* Decision Options - LARGER BUTTONS */}
+              <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 24 }}>
                 {interactionNeeded.type === "captain_decision_mid_tee" ? (
                   <>
                     {interactionNeeded.options?.map((option, index) => {
@@ -875,21 +886,34 @@ function SimulationMode() {
                             ...buttonStyle,
                             background: isRequestPartner ? "#10b981" : "#6366f1",
                             flex: 1,
-                            minWidth: 200,
-                            position: "relative"
+                            minWidth: 250,
+                            padding: "20px 32px",
+                            fontSize: 18,
+                            fontWeight: "bold",
+                            position: "relative",
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                            transition: "all 0.3s ease"
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.style.transform = "translateY(-2px)";
+                            e.target.style.boxShadow = "0 6px 20px rgba(0,0,0,0.2)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.transform = "translateY(0)";
+                            e.target.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
                           }}
                           onClick={() => makeDecision({ action: "request_partner", requested_partner: option.partner_id })}
                           disabled={loading}
                         >
                           {isRequestPartner && (
-                            <div style={{ position: "absolute", top: -8, right: -8, background: "#059669", color: "white", borderRadius: "50%", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>
+                            <div style={{ position: "absolute", top: -12, right: -12, background: "#059669", color: "white", borderRadius: "50%", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, boxShadow: "0 2px 8px rgba(0,0,0,0.3)" }}>
                               ⭐
                             </div>
                           )}
-                          🤝 Ask {option.partner_name} to Partner
+                          <div style={{ fontSize: 20, marginBottom: 8 }}>🤝 Ask {option.partner_name} to Partner</div>
                           {isRequestPartner && option.partnership_advantage > 0 && (
-                            <div style={{ fontSize: 12, marginTop: 4 }}>
-                              +{option.partnership_advantage.toFixed(1)} advantage
+                            <div style={{ fontSize: 16, fontWeight: "bold", marginTop: 8 }}>
+                              +{option.partnership_advantage.toFixed(1)} stroke advantage
                             </div>
                           )}
                         </button>
@@ -901,12 +925,26 @@ function SimulationMode() {
                         ...buttonStyle,
                         background: "#f59e0b",
                         flex: 1,
-                        minWidth: 200
+                        minWidth: 250,
+                        padding: "20px 32px",
+                        fontSize: 18,
+                        fontWeight: "bold",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                        transition: "all 0.3s ease"
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.transform = "translateY(-2px)";
+                        e.target.style.boxShadow = "0 6px 20px rgba(0,0,0,0.2)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.transform = "translateY(0)";
+                        e.target.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
                       }}
                       onClick={() => makeDecision({ action: "keep_watching" })}
                       disabled={loading}
                     >
-                      👀 Keep Watching ({interactionNeeded.options?.find(o => o.action === "keep_watching")?.remaining_players || 0} more players)
+                      <div style={{ fontSize: 20, marginBottom: 8 }}>👀 Keep Watching</div>
+                      <div style={{ fontSize: 16 }}>({interactionNeeded.options?.find(o => o.action === "keep_watching")?.remaining_players || 0} more players)</div>
                     </button>
                     
                     {interactionNeeded.can_go_solo && (
@@ -915,12 +953,26 @@ function SimulationMode() {
                           ...buttonStyle,
                           background: "#ef4444",
                           flex: 1,
-                          minWidth: 200
+                          minWidth: 250,
+                          padding: "20px 32px",
+                          fontSize: 18,
+                          fontWeight: "bold",
+                          boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                          transition: "all 0.3s ease"
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.transform = "translateY(-2px)";
+                          e.target.style.boxShadow = "0 6px 20px rgba(0,0,0,0.2)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.transform = "translateY(0)";
+                          e.target.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
                         }}
                         onClick={() => makeDecision({ action: "go_solo" })}
                         disabled={loading}
                       >
-                        🏌️ Go Solo (2x wager)
+                        <div style={{ fontSize: 20, marginBottom: 8 }}>🏌️ Go Solo</div>
+                        <div style={{ fontSize: 16 }}>(2x wager)</div>
                       </button>
                     )}
                   </>
@@ -930,24 +982,54 @@ function SimulationMode() {
                       style={{
                         ...buttonStyle,
                         background: "#10b981",
-                        flex: 1
+                        flex: 1,
+                        minWidth: 250,
+                        padding: "20px 32px",
+                        fontSize: 18,
+                        fontWeight: "bold",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                        transition: "all 0.3s ease"
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.transform = "translateY(-2px)";
+                        e.target.style.boxShadow = "0 6px 20px rgba(0,0,0,0.2)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.transform = "translateY(0)";
+                        e.target.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
                       }}
                       onClick={() => makeDecision({ action: "request_partner" })}
                       disabled={loading}
                     >
-                      🤝 Request Partner
+                      <div style={{ fontSize: 20, marginBottom: 8 }}>🤝 Request Partner</div>
+                      <div style={{ fontSize: 16 }}>Team up for better odds</div>
                     </button>
                     
                     <button
                       style={{
                         ...buttonStyle,
                         background: "#ef4444",
-                        flex: 1
+                        flex: 1,
+                        minWidth: 250,
+                        padding: "20px 32px",
+                        fontSize: 18,
+                        fontWeight: "bold",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                        transition: "all 0.3s ease"
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.transform = "translateY(-2px)";
+                        e.target.style.boxShadow = "0 6px 20px rgba(0,0,0,0.2)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.transform = "translateY(0)";
+                        e.target.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
                       }}
                       onClick={() => makeDecision({ action: "go_solo" })}
                       disabled={loading}
                     >
-                      🏌️ Go Solo (2x wager)
+                      <div style={{ fontSize: 20, marginBottom: 8 }}>🏌️ Go Solo</div>
+                      <div style={{ fontSize: 16 }}>(2x wager)</div>
                     </button>
                   </>
                 )}
@@ -984,29 +1066,59 @@ function SimulationMode() {
                 )}
               </div>
               
-              <div style={{ display: "flex", gap: 12 }}>
+              <div style={{ display: "flex", gap: 16, marginTop: 24 }}>
                 <button
                   style={{
                     ...buttonStyle,
                     background: "#10b981",
-                    flex: 1
+                    flex: 1,
+                    minWidth: 250,
+                    padding: "20px 32px",
+                    fontSize: 18,
+                    fontWeight: "bold",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                    transition: "all 0.3s ease"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = "translateY(-2px)";
+                    e.target.style.boxShadow = "0 6px 20px rgba(0,0,0,0.2)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = "translateY(0)";
+                    e.target.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
                   }}
                   onClick={() => makeDecision({ accept_partnership: true })}
                   disabled={loading}
                 >
-                  ✅ Accept Partnership
+                  <div style={{ fontSize: 20, marginBottom: 8 }}>✅ Accept Partnership</div>
+                  <div style={{ fontSize: 16 }}>Join forces for better odds</div>
                 </button>
                 
                 <button
                   style={{
                     ...buttonStyle,
                     background: "#ef4444",
-                    flex: 1
+                    flex: 1,
+                    minWidth: 250,
+                    padding: "20px 32px",
+                    fontSize: 18,
+                    fontWeight: "bold",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                    transition: "all 0.3s ease"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = "translateY(-2px)";
+                    e.target.style.boxShadow = "0 6px 20px rgba(0,0,0,0.2)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = "translateY(0)";
+                    e.target.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
                   }}
                   onClick={() => makeDecision({ accept_partnership: false })}
                   disabled={loading}
                 >
-                  ❌ Decline Partnership
+                  <div style={{ fontSize: 20, marginBottom: 8 }}>❌ Decline Partnership</div>
+                  <div style={{ fontSize: 16 }}>Play your own game</div>
                 </button>
               </div>
               
@@ -1029,29 +1141,59 @@ function SimulationMode() {
                 )}
               </div>
               
-              <div style={{ display: "flex", gap: 12 }}>
+              <div style={{ display: "flex", gap: 16, marginTop: 24 }}>
                 <button
                   style={{
                     ...buttonStyle,
                     background: "#10b981",
-                    flex: 1
+                    flex: 1,
+                    minWidth: 250,
+                    padding: "20px 32px",
+                    fontSize: 18,
+                    fontWeight: "bold",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                    transition: "all 0.3s ease"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = "translateY(-2px)";
+                    e.target.style.boxShadow = "0 6px 20px rgba(0,0,0,0.2)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = "translateY(0)";
+                    e.target.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
                   }}
                   onClick={() => makeDecision({ offer_double: true })}
                   disabled={loading}
                 >
-                  💰 Offer Double
+                  <div style={{ fontSize: 20, marginBottom: 8 }}>💰 Offer Double</div>
+                  <div style={{ fontSize: 16 }}>Increase the stakes</div>
                 </button>
                 
                 <button
                   style={{
                     ...buttonStyle,
                     background: "#f59e0b",
-                    flex: 1
+                    flex: 1,
+                    minWidth: 250,
+                    padding: "20px 32px",
+                    fontSize: 18,
+                    fontWeight: "bold",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                    transition: "all 0.3s ease"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = "translateY(-2px)";
+                    e.target.style.boxShadow = "0 6px 20px rgba(0,0,0,0.2)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = "translateY(0)";
+                    e.target.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
                   }}
                   onClick={() => makeDecision({ offer_double: false })}
                   disabled={loading}
                 >
-                  🚫 Don't Double
+                  <div style={{ fontSize: 20, marginBottom: 8 }}>🚫 Don't Double</div>
+                  <div style={{ fontSize: 16 }}>Keep current stakes</div>
                 </button>
               </div>
               
@@ -1075,29 +1217,59 @@ function SimulationMode() {
                 )}
               </div>
               
-              <div style={{ display: "flex", gap: 12 }}>
+              <div style={{ display: "flex", gap: 16, marginTop: 24 }}>
                 <button
                   style={{
                     ...buttonStyle,
                     background: "#10b981",
-                    flex: 1
+                    flex: 1,
+                    minWidth: 250,
+                    padding: "20px 32px",
+                    fontSize: 18,
+                    fontWeight: "bold",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                    transition: "all 0.3s ease"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = "translateY(-2px)";
+                    e.target.style.boxShadow = "0 6px 20px rgba(0,0,0,0.2)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = "translateY(0)";
+                    e.target.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
                   }}
                   onClick={() => makeDecision({ accept_double: true })}
                   disabled={loading}
                 >
-                  ✅ Accept Double
+                  <div style={{ fontSize: 20, marginBottom: 8 }}>✅ Accept Double</div>
+                  <div style={{ fontSize: 16 }}>Double the stakes</div>
                 </button>
                 
                 <button
                   style={{
                     ...buttonStyle,
                     background: "#ef4444",
-                    flex: 1
+                    flex: 1,
+                    minWidth: 250,
+                    padding: "20px 32px",
+                    fontSize: 18,
+                    fontWeight: "bold",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                    transition: "all 0.3s ease"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = "translateY(-2px)";
+                    e.target.style.boxShadow = "0 6px 20px rgba(0,0,0,0.2)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = "translateY(0)";
+                    e.target.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
                   }}
                   onClick={() => makeDecision({ accept_double: false })}
                   disabled={loading}
                 >
-                  ❌ Decline Double
+                  <div style={{ fontSize: 20, marginBottom: 8 }}>❌ Decline Double</div>
+                  <div style={{ fontSize: 16 }}>Keep current stakes</div>
                 </button>
               </div>
               
@@ -1132,12 +1304,26 @@ function SimulationMode() {
                 )}
               </div>
               
-              <div style={{ display: "flex", gap: 12 }}>
+              <div style={{ display: "flex", gap: 16, marginTop: 24 }}>
                 <button
                   style={{
                     ...buttonStyle,
                     background: "#10b981",
-                    flex: 1
+                    flex: 1,
+                    minWidth: 200,
+                    padding: "20px 32px",
+                    fontSize: 18,
+                    fontWeight: "bold",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                    transition: "all 0.3s ease"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = "translateY(-2px)";
+                    e.target.style.boxShadow = "0 6px 20px rgba(0,0,0,0.2)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = "translateY(0)";
+                    e.target.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
                   }}
                   onClick={() => makeBettingDecision({ 
                     action: "request_partner", 
@@ -1145,31 +1331,62 @@ function SimulationMode() {
                   })}
                   disabled={loading}
                 >
-                  🤝 Request Partnership
+                  <div style={{ fontSize: 20, marginBottom: 8 }}>🤝 Request Partnership</div>
+                  <div style={{ fontSize: 16 }}>Team up for better odds</div>
                 </button>
                 
                 <button
                   style={{
                     ...buttonStyle,
                     background: "#f59e0b",
-                    flex: 1
+                    flex: 1,
+                    minWidth: 200,
+                    padding: "20px 32px",
+                    fontSize: 18,
+                    fontWeight: "bold",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                    transition: "all 0.3s ease"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = "translateY(-2px)";
+                    e.target.style.boxShadow = "0 6px 20px rgba(0,0,0,0.2)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = "translateY(0)";
+                    e.target.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
                   }}
                   onClick={() => makeBettingDecision({ action: "keep_watching" })}
                   disabled={loading}
                 >
-                  👀 Keep Watching
+                  <div style={{ fontSize: 20, marginBottom: 8 }}>👀 Keep Watching</div>
+                  <div style={{ fontSize: 16 }}>Wait for more shots</div>
                 </button>
                 
                 <button
                   style={{
                     ...buttonStyle,
                     background: "#ef4444",
-                    flex: 1
+                    flex: 1,
+                    minWidth: 200,
+                    padding: "20px 32px",
+                    fontSize: 18,
+                    fontWeight: "bold",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                    transition: "all 0.3s ease"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = "translateY(-2px)";
+                    e.target.style.boxShadow = "0 6px 20px rgba(0,0,0,0.2)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = "translateY(0)";
+                    e.target.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
                   }}
                   onClick={() => makeBettingDecision({ action: "go_solo" })}
                   disabled={loading}
                 >
-                  🏌️ Go Solo
+                  <div style={{ fontSize: 20, marginBottom: 8 }}>🏌️ Go Solo</div>
+                  <div style={{ fontSize: 16 }}>Play alone (2x wager)</div>
                 </button>
               </div>
               
@@ -1386,11 +1603,50 @@ function SimulationMode() {
         )}
       </div>
       
-      {/* Feedback */}
+      {/* Section Divider */}
       {feedback.length > 0 && (
-        <div style={cardStyle}>
-          <h3>📋 Hole Analysis & Learning</h3>
-          <div style={{ maxHeight: 600, overflowY: "auto", border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: 16 }}>
+        <div style={{ 
+          margin: "40px 0 20px 0", 
+          borderTop: `3px solid ${COLORS.border}`, 
+          position: "relative" 
+        }}>
+          <div style={{
+            position: "absolute",
+            top: -15,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: COLORS.bg,
+            padding: "8px 20px",
+            borderRadius: 20,
+            border: `2px solid ${COLORS.border}`,
+            fontSize: 16,
+            fontWeight: "bold",
+            color: COLORS.text
+          }}>
+            📚 Game History & Analysis
+          </div>
+        </div>
+      )}
+      
+      {/* Feedback - MOVED TO BOTTOM */}
+      {feedback.length > 0 && (
+        <div style={{
+          ...cardStyle,
+          background: "#fafafa",
+          border: `2px solid ${COLORS.border}`,
+          marginBottom: 40
+        }}>
+          <h3 style={{ color: COLORS.text, marginBottom: 20, fontSize: 20 }}>
+            📋 Hole Analysis & Learning
+          </h3>
+          <div style={{ 
+            maxHeight: 500, 
+            overflowY: "auto", 
+            border: `1px solid ${COLORS.border}`, 
+            borderRadius: 8, 
+            padding: 16,
+            background: "white"
+          }}>
             {feedback.map((message, index) => {
               // Parse different types of feedback for better styling
               const isHeader = message.includes("**") && message.includes(":**");

@@ -8,23 +8,87 @@ from .probability_calculator import ProbabilityCalculator
 class BettingEngine:
     @staticmethod
     def check_betting_opportunity(game_state: GameState, shot_result: ShotResult, computer_players: List) -> Optional[dict]:
-        """Check if there's a betting opportunity after this shot"""
+        """Check if there's a betting opportunity after this shot - like poker betting rounds"""
         captain_id = game_state.player_manager.captain_id
         shot_player_id = shot_result.player.id
         shot_quality = shot_result.shot_quality
+        remaining_distance = shot_result.remaining
         
-        # Only offer betting opportunities for human captain or after good shots
-        if captain_id == BettingEngine._get_human_player_id(game_state):
-            if shot_quality in ["excellent", "good"] and shot_player_id != captain_id:
-                return {
-                    "type": "partnership_opportunity",
-                    "target_player": shot_result.player.to_dict(),
-                    "shot_context": shot_result.to_dict(),
-                    "betting_probabilities": ProbabilityCalculator.calculate_betting_probabilities(game_state, {
-                        "action": "request_partner",
-                        "partner_id": shot_player_id
-                    })
-                }
+        # Only offer betting opportunities to the captain (big blind)
+        if shot_player_id == captain_id:
+            return None
+        
+        # Check if we have partnerships formed
+        teams = game_state.betting_state.teams
+        if not teams or teams.get("type") == "none":
+            return None
+        
+        # Get hole information
+        hole_info = game_state.course_manager.get_current_hole_info(game_state.current_hole)
+        par = hole_info.get("par", 4)
+        
+        # Determine if this is a good betting opportunity based on shot quality and position
+        betting_scenarios = []
+        
+        # Excellent shots create doubling opportunities
+        if shot_quality == "excellent":
+            betting_scenarios.append({
+                "message": f"💎 {shot_result.player.name} hit an excellent shot! Great time to double the stakes!",
+                "options": ["offer_double", "pass"],
+                "type": "doubling_opportunity"
+            })
+        
+        # Terrible shots create doubling opportunities for the opposing team
+        elif shot_quality == "terrible":
+            betting_scenarios.append({
+                "message": f"😬 {shot_result.player.name} hit a terrible shot! Your team has the advantage - double the stakes?",
+                "options": ["offer_double", "pass"],
+                "type": "doubling_opportunity"
+            })
+        
+        # Approach shots near the green create strategic betting opportunities
+        elif remaining_distance < 50 and shot_quality in ["good", "excellent"]:
+            betting_scenarios.append({
+                "message": f"🎯 {shot_result.player.name} is in great position for birdie! Time to raise the stakes?",
+                "options": ["offer_double", "pass"],
+                "type": "doubling_opportunity"
+            })
+        
+        # Long putts for birdie create exciting betting opportunities
+        elif remaining_distance < 20 and par == 4 and shot_quality in ["good", "excellent"]:
+            betting_scenarios.append({
+                "message": f"🐦 {shot_result.player.name} has a birdie putt! This could be worth doubling!",
+                "options": ["offer_double", "pass"],
+                "type": "doubling_opportunity"
+            })
+        
+        # Random betting opportunities (like poker)
+        elif random.random() < 0.3:  # 30% chance
+            betting_scenarios.append({
+                "message": f"🎲 Feeling lucky? {shot_result.player.name} just hit a {shot_quality} shot. Double or nothing?",
+                "options": ["offer_double", "pass"],
+                "type": "doubling_opportunity"
+            })
+        
+        # Partnership opportunities after good shots (original logic)
+        elif shot_quality in ["excellent", "good"] and shot_player_id != captain_id:
+            betting_scenarios.append({
+                "message": f"🤝 {shot_result.player.name} hit a great shot! Want to team up?",
+                "options": ["request_partner", "pass"],
+                "type": "partnership_opportunity",
+                "target_player": shot_result.player.to_dict(),
+                "shot_context": shot_result.to_dict()
+            })
+        
+        # Return the first betting scenario if any exist
+        if betting_scenarios:
+            scenario = betting_scenarios[0]
+            if scenario["type"] == "partnership_opportunity":
+                scenario["betting_probabilities"] = ProbabilityCalculator.calculate_betting_probabilities(game_state, {
+                    "action": "request_partner",
+                    "partner_id": shot_player_id
+                })
+            return scenario
         
         return None
 

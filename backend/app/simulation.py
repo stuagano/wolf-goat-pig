@@ -351,6 +351,235 @@ class SimulationEngine:
     
 
 
+    def play_next_shot(self, game_state: GameState, human_decisions: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]], List[str], bool, Optional[Dict[str, Any]]]:
+        """Play the next individual shot in the simulation with interactive betting opportunities"""
+        feedback = []
+        
+        # Handle human decisions first
+        if human_decisions:
+            # Handle partnership decisions
+            if "accept_partnership" in human_decisions:
+                partner_id = human_decisions.get("partner_id")
+                accept = human_decisions.get("accept_partnership", False)
+                
+                if accept:
+                    game_state.dispatch_action("accept_partner", {"partner_id": partner_id})
+                    feedback.append(f"🧑 **You:** \"Absolutely! Let's team up!\"")
+                else:
+                    if game_state.betting_state.teams.get("type") == "pending":
+                        game_state.dispatch_action("decline_partner", {"partner_id": partner_id})
+                        feedback.append(f"🧑 **You:** \"Thanks, but I'll pass.\"")
+            
+            # Handle doubling decisions
+            if "offer_double" in human_decisions:
+                game_state.dispatch_action("offer_double", {})
+                feedback.append(f"💰 **You:** \"I'm doubling the stakes!\"")
+            
+            if "accept_double" in human_decisions:
+                game_state.dispatch_action("accept_double", {})
+                feedback.append(f"💰 **You:** \"I accept the double!\"")
+            
+            if "decline_double" in human_decisions:
+                game_state.dispatch_action("decline_double", {})
+                feedback.append(f"💰 **You:** \"I'll pass on the double.\"")
+            
+            # Handle other decisions
+            if "action" in human_decisions and human_decisions["action"] == "go_solo":
+                game_state.dispatch_action("go_solo", {})
+                feedback.append(f"🧑 **You:** \"I'll go solo on this one.\"")
+        
+        # Get current shot state
+        shot_state = game_state.shot_state
+        
+        # Determine what type of shot to play next
+        if shot_state.phase == "tee_shots":
+            # Play next tee shot
+            current_player_id = game_state.player_manager.hitting_order[shot_state.current_player_index]
+            current_player = next(p for p in game_state.player_manager.players if p.id == current_player_id)
+            
+            # Simulate tee shot
+            shot_result = ShotSimulator.simulate_individual_tee_shot(current_player, game_state)
+            
+            # Add shot to game state
+            if game_state.hole_scores is None:
+                game_state.hole_scores = {}
+            if current_player_id not in game_state.hole_scores or game_state.hole_scores[current_player_id] is None:
+                game_state.hole_scores[current_player_id] = []
+            game_state.hole_scores[current_player_id].append(shot_result)
+            
+            # Generate feedback
+            shot_description = self._create_shot_description(
+                shot_result.drive, shot_result.lie, shot_result.shot_quality, 
+                shot_result.remaining, game_state.course_manager.get_current_hole_info(game_state.current_hole)["par"]
+            )
+            feedback.append(f"🏌️ **{current_player.name}:** {shot_description}")
+            
+            # Add shot reaction
+            reaction = self._generate_shot_reaction(shot_result.shot_quality, current_player.name, True)
+            if reaction:
+                feedback.append(f"💬 {reaction}")
+            
+            # Move to next player
+            shot_state.current_player_index += 1
+            shot_state.add_completed_shot(current_player_id, shot_result.to_dict())
+            
+            # Check if all tee shots are done
+            if shot_state.current_player_index >= len(game_state.player_manager.hitting_order):
+                shot_state.phase = "partnership_decisions"
+                shot_state.current_player_index = 0
+                feedback.append("🎯 **All tee shots complete!** Time for partnership decisions.")
+                
+                # Check if captain needs to make a decision
+                captain_id = game_state.player_manager.captain_id
+                if captain_id == self._get_human_player_id(game_state):
+                    interaction_needed = {
+                        "type": "captain_decision",
+                        "message": "You're the captain! Do you want to go solo or request a partner?",
+                        "options": ["go_solo", "request_partner"]
+                    }
+                    return None, feedback, False, interaction_needed
+                else:
+                    # Computer captain makes decision
+                    computer_captain = self._get_computer_player(captain_id)
+                    if computer_captain.should_go_solo(game_state):
+                        game_state.dispatch_action("go_solo", {})
+                        captain_name = next(p.name for p in game_state.player_manager.players if p.id == captain_id)
+                        feedback.append(f"💻 **{captain_name}:** \"I'll go solo on this one!\"")
+                    else:
+                        # Request partner
+                        available_partners = [pid for pid in game_state.player_manager.hitting_order if pid != captain_id]
+                        if available_partners:
+                            partner_id = available_partners[0]  # Simple selection for now
+                            game_state.dispatch_action("request_partner", {"partner_id": partner_id})
+                            captain_name = next(p.name for p in game_state.player_manager.players if p.id == captain_id)
+                            partner_name = next(p.name for p in game_state.player_manager.players if p.id == partner_id)
+                            feedback.append(f"💻 **{captain_name}:** \"{partner_name}, want to team up?\"")
+                            
+                            # Check if partner is human
+                            if partner_id == self._get_human_player_id(game_state):
+                                interaction_needed = {
+                                    "type": "partnership_response",
+                                    "message": f"{captain_name} wants to team up with you!",
+                                    "captain_name": captain_name
+                                }
+                                return None, feedback, False, interaction_needed
+            
+            # Check for betting opportunities after each shot
+            betting_opportunity = self.check_betting_opportunity(game_state, shot_result)
+            if betting_opportunity:
+                interaction_needed = {
+                    "type": "betting_opportunity",
+                    "message": betting_opportunity["message"],
+                    "options": betting_opportunity["options"]
+                }
+                return shot_result.to_dict(), feedback, False, interaction_needed
+            
+            return shot_result.to_dict(), feedback, True, None
+            
+        elif shot_state.phase == "partnership_decisions":
+            # Handle partnership phase
+            if not game_state.betting_state.teams or game_state.betting_state.teams.get("type") == "none":
+                # No partnerships formed, move to approach shots
+                shot_state.phase = "approach_shots"
+                shot_state.current_player_index = 0
+                feedback.append("⛳ **No partnerships formed.** Moving to approach shots.")
+            
+            return None, feedback, True, None
+            
+        elif shot_state.phase == "approach_shots":
+            # Play approach shots with betting opportunities
+            current_player_id = game_state.player_manager.hitting_order[shot_state.current_player_index]
+            current_player = next(p for p in game_state.player_manager.players if p.id == current_player_id)
+            
+            # Simulate approach shot
+            remaining_distance = 150  # Simplified for now
+            shot_result = ShotSimulator.simulate_approach_shot(current_player, remaining_distance, game_state)
+            
+            # Add shot to game state
+            if current_player_id not in game_state.hole_scores or game_state.hole_scores[current_player_id] is None:
+                game_state.hole_scores[current_player_id] = []
+            game_state.hole_scores[current_player_id].append(shot_result)
+            
+            # Generate feedback
+            shot_description = self._create_shot_description(
+                shot_result.drive, shot_result.lie, shot_result.shot_quality, 
+                shot_result.remaining, game_state.course_manager.get_current_hole_info(game_state.current_hole)["par"]
+            )
+            feedback.append(f"⛳ **{current_player.name}:** {shot_description}")
+            
+            # Move to next player
+            shot_state.current_player_index += 1
+            shot_state.add_completed_shot(current_player_id, shot_result.to_dict())
+            
+            # Check if all approach shots are done
+            if shot_state.current_player_index >= len(game_state.player_manager.hitting_order):
+                shot_state.phase = "putting"
+                shot_state.current_player_index = 0
+                feedback.append("🏌️ **Approach shots complete.** Moving to putting.")
+            
+            # Check for betting opportunities after approach shots
+            betting_opportunity = self.check_betting_opportunity(game_state, shot_result)
+            if betting_opportunity:
+                interaction_needed = {
+                    "type": "betting_opportunity",
+                    "message": betting_opportunity["message"],
+                    "options": betting_opportunity["options"]
+                }
+                return shot_result.to_dict(), feedback, False, interaction_needed
+            
+            return shot_result.to_dict(), feedback, True, None
+            
+        elif shot_state.phase == "putting":
+            # Play putting with betting opportunities
+            current_player_id = game_state.player_manager.hitting_order[shot_state.current_player_index]
+            current_player = next(p for p in game_state.player_manager.players if p.id == current_player_id)
+            
+            # Simulate putt
+            distance_to_pin = 10  # Simplified for now
+            shot_result = ShotSimulator._simulate_putt(current_player, distance_to_pin, game_state)
+            
+            # Add shot to game state
+            if current_player_id not in game_state.hole_scores or game_state.hole_scores[current_player_id] is None:
+                game_state.hole_scores[current_player_id] = []
+            game_state.hole_scores[current_player_id].append(shot_result)
+            
+            # Generate feedback
+            if shot_result.made_shot:
+                feedback.append(f"🏁 **{current_player.name}:** **Hole completed in {len(game_state.hole_scores[current_player_id])} strokes**")
+            else:
+                shot_description = self._create_shot_description(
+                    shot_result.drive, shot_result.lie, shot_result.shot_quality, 
+                    shot_result.remaining, game_state.course_manager.get_current_hole_info(game_state.current_hole)["par"]
+                )
+                feedback.append(f"🏌️ **{current_player.name}:** {shot_description}")
+            
+            # Move to next player
+            shot_state.current_player_index += 1
+            shot_state.add_completed_shot(current_player_id, shot_result.to_dict())
+            
+            # Check if all players have completed the hole
+            completed_players = sum(1 for pid in game_state.player_manager.hitting_order 
+                                  if game_state.hole_scores.get(pid) and any(hasattr(shot, 'made_shot') and shot.made_shot for shot in game_state.hole_scores[pid]))
+            
+            if completed_players >= len(game_state.player_manager.hitting_order):
+                shot_state.phase = "hole_complete"
+                feedback.append("🏁 **Hole complete!**")
+                return None, feedback, False, None
+            
+            # Check for betting opportunities after putts
+            betting_opportunity = self.check_betting_opportunity(game_state, shot_result)
+            if betting_opportunity:
+                interaction_needed = {
+                    "type": "betting_opportunity",
+                    "message": betting_opportunity["message"],
+                    "options": betting_opportunity["options"]
+                }
+                return shot_result.to_dict(), feedback, False, interaction_needed
+            
+            return shot_result.to_dict(), feedback, True, None
+        
+        return None, feedback, False, None
+
     def simulate_hole(self, game_state: GameState, human_decisions: Dict[str, Any]) -> Tuple[GameState, List[str], Optional[Dict[str, Any]]]:
         """Simulate a complete hole chronologically - shot by shot, decision by decision"""
         feedback = []
