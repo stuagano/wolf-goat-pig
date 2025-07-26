@@ -162,12 +162,6 @@ class ShotSimulator:
     def _get_human_player_id(game_state: GameState) -> str:
         # Utility to get the human player id
         for player in game_state.player_manager.players:
-<<<<<<< HEAD
-            if hasattr(player, 'is_human') and player.is_human:
-                return player.id
-        # Fallback: assume first player is human
-        return game_state.player_manager.players[0].id 
-=======
             # Handle both Player objects and dictionaries
             if hasattr(player, 'id'):
                 # This is a Player object, check if it has is_human attribute
@@ -184,5 +178,4 @@ class ShotSimulator:
                 return first_player.id
             else:
                 return first_player["id"]
-        return "p1"  # Ultimate fallback 
->>>>>>> d8796ccad87326b7e37e8bd9b63813171b8896f5
+        return "p1"  # Ultimate fallback
