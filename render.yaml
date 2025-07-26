@@ -15,10 +15,12 @@ services:
     region: oregon
     buildCommand: |
       cd backend
+      pip install --upgrade pip
       pip install -r requirements.txt
     startCommand: |
       cd backend
-      uvicorn app.main:app --host 0.0.0.0 --port $PORT
+      python -c "from app.database import init_db; init_db()"
+      uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
     envVars:
       - key: DATABASE_URL
         fromService:
@@ -27,10 +29,18 @@ services:
           property: connectionString
       - key: PYTHON_VERSION
         value: 3.11.0
+      - key: ENVIRONMENT
+        value: production
+      - key: FRONTEND_URL
+        value: https://wolf-goat-pig.vercel.app
     healthCheckPath: /health
     autoDeploy: true
+    disk:
+      name: wolf-goat-pig-api-disk
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
 
-  # Frontend service (if deploying to Render)
+  # Frontend service (if deploying to Render instead of Vercel)
   - type: web
     name: wolf-goat-pig-frontend
     env: static
@@ -38,10 +48,19 @@ services:
     region: oregon
     buildCommand: |
       cd frontend
-      npm install
+      npm ci --only=production
       npm run build
     staticPublishPath: ./frontend/build
     envVars:
       - key: REACT_APP_API_URL
         value: https://wolf-goat-pig-api.onrender.com
+      - key: NODE_ENV
+        value: production
     autoDeploy: true
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=86400
+      - path: /static/**
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
