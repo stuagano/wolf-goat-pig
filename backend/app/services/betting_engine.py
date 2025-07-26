@@ -18,8 +18,8 @@ class BettingEngine:
             if shot_quality in ["excellent", "good"] and shot_player_id != captain_id:
                 return {
                     "type": "partnership_opportunity",
-                    "target_player": shot_result.player,
-                    "shot_context": shot_result,
+                    "target_player": shot_result.player.to_dict(),
+                    "shot_context": shot_result.to_dict(),
                     "betting_probabilities": ProbabilityCalculator.calculate_betting_probabilities(game_state, {
                         "action": "request_partner",
                         "partner_id": shot_player_id
