@@ -36,6 +36,51 @@ npm start
 
 ---
 
+## Project Architecture
+
+### Backend Structure
+```
+backend/
+├── app/
+│   ├── main.py              # FastAPI application and routes
+│   ├── game_state.py        # Core game state management
+│   ├── simulation.py        # Event-driven simulation engine
+│   ├── domain/              # Domain models and logic
+│   │   ├── player.py        # Player class with handicap/scoring
+│   │   └── shot_result.py   # Shot result modeling
+│   ├── state/               # State management classes
+│   │   ├── betting_state.py # Betting logic and team management
+│   │   └── __init__.py      
+│   ├── models.py            # SQLAlchemy models
+│   ├── schemas.py           # Pydantic schemas
+│   └── database.py          # Database configuration
+├── requirements.txt
+└── venv/
+```
+
+### Key Architectural Improvements
+
+#### 🎯 **Modular State Management**
+The application now uses a clean separation of concerns with dedicated state classes:
+
+- **`GameState`**: Core game flow, hole progression, and player management
+- **`BettingState`**: All betting logic including partnerships, doubling, and team management
+- **`Player`**: Individual player state with handicap calculations and scoring
+- **`ShotResult`**: Shot modeling and probability calculations
+
+#### 🏌️ **Domain-Driven Design**
+- **Domain Models**: `Player` and `ShotResult` classes encapsulate golf-specific logic
+- **State Classes**: Clean separation between game state and betting state
+- **Simulation Engine**: Event-driven architecture for realistic shot-by-shot gameplay
+
+#### ⚡ **Benefits of New Architecture**
+- **Maintainability**: Betting logic is isolated from game flow logic
+- **Testability**: Each component can be tested independently
+- **Reusability**: State classes can be used in different contexts
+- **Extensibility**: Easy to add new betting rules or game modes
+
+---
+
 ## Deployment
 
 ### Backend (Render.com)
@@ -64,7 +109,7 @@ This project is ready for free-tier deployment on popular cloud services:
 | Netlify   | Yes        | React      | Static, instant, custom domains       |
 
 ### Backend (Render.com)
-- Free web service tier is perfect for FastAPI.
+- Free web service tier is perfect for FastAPI.xx
 - Service may "sleep" after 15 minutes of inactivity (cold start delay).
 - No credit card required for free tier.
 
@@ -97,17 +142,33 @@ cd ../frontend && npm start
 
 ---
 
-## Notes
-- The backend uses in-memory state for the MVP (no persistent DB needed).
-- All game logic is in `backend/app/game_state.py`.
-- The frontend is in `frontend/src/App.js`.
-- For production, set up CORS and environment variables as needed.
+## Game Features
+
+### 🎮 Core Wolf Goat Pig Rules
+- **4-Player Format**: Human vs 3 computer opponents with different personalities
+- **Captain Rotation**: Rotates each hole in hitting order
+- **Partnership Decisions**: Request partners or go solo after seeing tee shots
+- **Doubling**: Increase stakes with strategic doubling decisions
+- **Karl Marx Rule**: Fair distribution of odd quarters to lowest scorers
+- **Handicap Integration**: Full USGA handicap support with stroke allocation
+
+### 🏌️ Realistic Golf Simulation
+- **Shot-by-Shot Progression**: Event-driven simulation with probability calculations
+- **Course Management**: Multiple courses with detailed hole descriptions
+- **Handicap-Based Difficulty**: Shots adjusted based on player skill and hole difficulty
+- **Interactive Decision Points**: Real-time betting decisions with context
+
+### 🧠 Computer AI Personalities
+- **Aggressive**: Takes risks, likely to go solo or accept doubles
+- **Conservative**: Plays it safe, only bets with strong advantages
+- **Strategic**: Makes calculated decisions based on game state
+- **Balanced**: Mix of strategies with moderate risk tolerance
 
 ---
 
 ## 🏌️ Simulation Mode: Event-Driven Shot-by-Shot Flow
 
-Wolf Goat Pig Simulation Mode now uses a fully event-driven, shot-by-shot architecture for realistic, interactive golf gameplay and betting practice.
+Wolf Goat Pig Simulation Mode uses a fully event-driven, shot-by-shot architecture for realistic, interactive golf gameplay and betting practice.
 
 ### Key Concepts
 - **Chronological, shot-by-shot simulation**: Each shot is its own event, with visible probability calculations and betting opportunities.
@@ -164,12 +225,19 @@ Submit a betting/partnership/solo decision after a shot, with probability contex
 Returns detailed information about the current shot state and available actions.
 - **Returns:** `{ "status": "ok", "shot_state": { ... }, "game_state": { ... } }`
 
-### GameState & State Management
-- The backend serializes all simulation state, including:
-  - `shot_sequence`: Current phase, player index, completed shots, pending decisions
-  - `tee_shot_results`: Results and context for all tee shots
-  - `hitting_order`, `captain_id`, `teams`, `doubled_status`, etc.
-- State is updated and returned after every event, so the frontend can always render the latest context.
+### State Management & Architecture
+The application uses a modular state management system:
+
+- **`GameState`**: Manages overall game flow, hole progression, and player state
+- **`BettingState`**: Handles all betting logic including:
+  - Team formation (partnerships vs solo)
+  - Doubling decisions and stake management
+  - Karl Marx rule for point distribution
+  - Betting tips and strategy advice
+- **`Player`**: Encapsulates individual player data with handicap calculations
+- **Event-Driven Simulation**: Shot-by-shot progression with interactive decision points
+
+State is serialized and persisted between API calls, ensuring consistent gameplay and the ability to resume sessions.
 
 ### Frontend Usage Pattern
 - On simulation setup, immediately call `/simulation/next-shot` to start the first shot event.
@@ -186,10 +254,11 @@ Returns detailed information about the current shot state and available actions.
 5. **Repeat**: Continue until hole/game complete.
 
 ### Developer Notes
-- All new endpoints are documented in `/docs` (Swagger UI).
+- All endpoints are documented in `/docs` (Swagger UI).
 - See `backend/app/simulation.py` for event-driven engine logic.
+- See `backend/app/state/betting_state.py` for betting logic implementation.
 - See `frontend/src/SimulationMode.js` for frontend integration.
-- GameState serialization/deserialization includes all new event-driven fields for robust state management.
+- GameState serialization/deserialization includes all event-driven fields for robust state management.
 
 ---
 
@@ -224,6 +293,22 @@ Tests generate a detailed report at `functional_test_report.json` with:
 - Frontend functionality
 - API connectivity
 - Error details and timestamps
+
+---
+
+## Development Notes
+
+### Recent Architectural Improvements
+- **✅ Modular State Management**: Extracted `BettingState` from `GameState` for better separation of concerns
+- **✅ Domain Models**: Refactored `Player` class with proper encapsulation
+- **✅ Event-Driven Simulation**: Shot-by-shot gameplay with interactive decision points
+- **✅ Defensive Coding**: Comprehensive error handling and null checks
+
+### Future Enhancements
+- **Course Data Modeling**: Extract course/hole logic into dedicated classes
+- **Shot State Management**: Further modularize shot sequence state
+- **Monte Carlo Analysis**: Enhanced statistical analysis features
+- **GHIN Integration**: Real golfer handicap lookup and validation
 
 ---
 

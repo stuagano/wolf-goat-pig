@@ -5,6 +5,10 @@ from sqlalchemy.orm import Session
 from .database import SessionLocal
 from .models import GameStateModel
 from .domain.player import Player
+from .state.betting_state import BettingState
+from .state.shot_state import ShotState
+from .state.player_manager import PlayerManager
+from .state.course_manager import CourseManager
 
 # Default player names for MVP
 DEFAULT_PLAYERS = [
@@ -85,73 +89,44 @@ class GameState:
     def __init__(self):
         self._db_session = SessionLocal()
         self._load_from_db()
-        self.courses = dict(DEFAULT_COURSES)
-        self.selected_course = None
-        self.hole_stroke_indexes = [h["stroke_index"] for h in DEFAULT_COURSES["Wing Point"]]
-        self.hole_pars = [h["par"] for h in DEFAULT_COURSES["Wing Point"]]
-        self.hole_yards = [h["yards"] for h in DEFAULT_COURSES["Wing Point"]]
-        self.hole_descriptions = [h.get("description", "") for h in DEFAULT_COURSES["Wing Point"]]
-        # If the DB is empty (first run), do NOT auto-populate players or state
-        if not hasattr(self, 'players') or self.players is None:
-            self.players = []
-            self.current_hole = None
-            self.hitting_order = []
-            self.captain_id = None
-            self.teams = {}
-            self.base_wager = 1
-            self.doubled_status = False
-            self.game_phase = 'Regular'
-            self.hole_scores = {}
-            self.game_status_message = "Time to toss the tees!"
-            self.player_float_used = {}
-            self.carry_over = False
-            self.hole_history = []
-            self._last_points = {}
-            # Defensive: always set event-driven fields
-            self.shot_sequence = None
-            self.tee_shot_results = None
+        self.course_manager = getattr(self, 'course_manager', CourseManager())
+        if not hasattr(self, 'player_manager') or self.player_manager is None:
+            self.player_manager = PlayerManager(DEFAULT_PLAYERS.copy())
+        self.current_hole = getattr(self, 'current_hole', 1)
+        self.betting_state = getattr(self, 'betting_state', BettingState())
+        self.hole_scores = getattr(self, 'hole_scores', {p.id: None for p in self.player_manager.players})
+        self.game_status_message = getattr(self, 'game_status_message', "Time to toss the tees!")
+        self.player_float_used = getattr(self, 'player_float_used', {p.id: False for p in self.player_manager.players})
+        self.carry_over = getattr(self, 'carry_over', False)
+        self.hole_history = getattr(self, 'hole_history', [])
+        self._last_points = getattr(self, '_last_points', {p.id: 0 for p in self.player_manager.players})
+        self.shot_state = getattr(self, 'shot_state', ShotState())
+        self.tee_shot_results = getattr(self, 'tee_shot_results', None)
 
     def reset(self):
-        self.players: List[Player] = DEFAULT_PLAYERS.copy()
-        self.current_hole: int = 1
-        self.hitting_order: List[str] = self._random_order()
-        self.captain_id: str = self.hitting_order[0]
-        self.teams: Dict = {}
-        self.base_wager: int = 1
-        self.doubled_status: bool = False
-        self.game_phase: str = 'Regular'
-        self.hole_scores: Dict[str, int] = {p.id: None for p in self.players}
-        self.game_status_message: str = "Time to toss the tees!"
-        self.player_float_used: Dict[str, bool] = {p.id: False for p in self.players}
-        self.carry_over: bool = False
-        self.hole_history: List[Dict] = []
-        self._last_points: Dict[str, int] = {p.id: 0 for p in self.players}
-        self.hole_stroke_indexes = [h["stroke_index"] for h in DEFAULT_COURSES["Wing Point"]]
-        self.hole_pars = [h["par"] for h in DEFAULT_COURSES["Wing Point"]]
-        self.hole_yards = [h["yards"] for h in DEFAULT_COURSES["Wing Point"]]
-        self.hole_descriptions = [h.get("description", "") for h in DEFAULT_COURSES["Wing Point"]]
+        self.player_manager = PlayerManager(DEFAULT_PLAYERS.copy())
+        self.current_hole = 1
+        self.betting_state = BettingState()
+        self.hole_scores = {p.id: None for p in self.player_manager.players}
+        self.game_status_message = "Time to toss the tees!"
+        self.player_float_used = {p.id: False for p in self.player_manager.players}
+        self.carry_over = False
+        self.hole_history = []
+        self._last_points = {p.id: 0 for p in self.player_manager.players}
+        self.course_manager = CourseManager()
+        self.shot_state = ShotState()
+        self.tee_shot_results = None
         self._save_to_db()
 
-    def _random_order(self) -> List[str]:
-        ids = [p.id for p in DEFAULT_PLAYERS]
-        random.shuffle(ids)
-        return ids
-
     def dispatch_action(self, action, payload):
-        if action == "request_partner":
-            return self.request_partner(payload.get("captain_id"), payload.get("partner_id"))
-        elif action == "accept_partner":
-            return self.accept_partner(payload.get("partner_id"))
-        elif action == "decline_partner":
-            return self.decline_partner(payload.get("partner_id"))
-        elif action == "go_solo":
-            return self.go_solo(payload.get("captain_id"))
-        elif action == "offer_double":
-            return self.offer_double(payload.get("offering_team_id"), payload.get("target_team_id"))
-        elif action == "accept_double":
-            return self.accept_double(payload.get("team_id"))
-        elif action == "decline_double":
-            return self.decline_double(payload.get("team_id"))
+        # Betting actions are delegated to BettingState
+        betting_actions = ["request_partner", "accept_partner", "decline_partner", "go_solo", 
+                          "offer_double", "accept_double", "decline_double"]
+        if action in betting_actions:
+            result = self.betting_state.dispatch_action(action, payload, self.player_manager.players)
+            self.game_status_message = f"Captain {self._player_name(payload.get('captain_id', ''))} {result.split('.')[0].lower()}." if 'captain_id' in payload else result
+            self._save_to_db()
+            return result
         elif action == "invoke_float":
             return self.invoke_float(payload.get("captain_id"))
         elif action == "toggle_option":
@@ -165,70 +140,15 @@ class GameState:
         else:
             raise ValueError(f"Unknown action: {action}")
 
-    def request_partner(self, captain_id, partner_id):
-        self.game_status_message = f"Captain {self._player_name(captain_id)} requests {self._player_name(partner_id)} as partner. Awaiting response."
-        # For MVP, just set teams as pending
-        self.teams = {"type": "pending", "captain": captain_id, "requested": partner_id}
-        return "Partner requested."
 
-    def accept_partner(self, partner_id):
-        # For MVP, finalize teams
-        if self.teams.get("type") != "pending" or self.teams.get("requested") != partner_id:
-            raise ValueError("No pending partner request for this player.")
-        captain_id = self.teams["captain"]
-        others = [p.id for p in self.players if p.id not in [captain_id, partner_id]]
-        self.teams = {"type": "partners", "team1": [captain_id, partner_id], "team2": others}
-        self.game_status_message = f"{self._player_name(partner_id)} accepted. Teams formed."
-        return "Partnership accepted."
-
-    def decline_partner(self, partner_id):
-        # For MVP, captain goes solo
-        if self.teams.get("type") != "pending" or self.teams.get("requested") != partner_id:
-            raise ValueError("No pending partner request for this player.")
-        captain_id = self.teams["captain"]
-        others = [p.id for p in self.players if p.id != captain_id]
-        self.teams = {"type": "solo", "captain": captain_id, "opponents": others}
-        self.base_wager *= 2  # On your own rule
-        self.game_status_message = f"{self._player_name(partner_id)} declined. {self._player_name(captain_id)} goes solo! Wager doubled."
-        return "Partnership declined. Captain goes solo."
-
-    def go_solo(self, captain_id):
-        others = [p.id for p in self.players if p.id != captain_id]
-        self.teams = {"type": "solo", "captain": captain_id, "opponents": others}
-        self.base_wager *= 2
-        self.game_status_message = f"{self._player_name(captain_id)} goes solo! Wager doubled."
-        return "Captain goes solo."
-
-    def offer_double(self, offering_team_id, target_team_id):
-        if self.doubled_status:
-            raise ValueError("Double already offered or accepted on this hole.")
-        self.doubled_status = True
-        self.game_status_message = f"Team {offering_team_id} offers to double Team {target_team_id}. Awaiting response."
-        return "Double offered."
-
-    def accept_double(self, team_id):
-        if not self.doubled_status:
-            raise ValueError("No double to accept.")
-        self.base_wager *= 2
-        self.doubled_status = False
-        self.game_status_message = f"Team {team_id} accepted the double. Wager doubled!"
-        return "Double accepted."
-
-    def decline_double(self, team_id):
-        if not self.doubled_status:
-            raise ValueError("No double to decline.")
-        self.doubled_status = False
-        self.game_status_message = f"Team {team_id} declined the double. Offering team wins at prior stake."
-        # For MVP, just set a flag; real logic would award points here
-        return "Double declined. Offering team wins hole."
 
     def invoke_float(self, captain_id):
         # Find the player and use their float
-        for player in self.players:
+        for player in self.player_manager.players:
             if player.id == captain_id:
                 if not player.use_float():
                     raise ValueError("Float already used by this captain.")
-                self.base_wager *= 2
+                self.betting_state.base_wager *= 2
                 self.player_float_used[captain_id] = True  # Keep for backward compatibility
                 self.game_status_message = f"{self._player_name(captain_id)} invoked the float! Wager doubled."
                 return "Float invoked."
@@ -236,7 +156,7 @@ class GameState:
 
     def toggle_option(self, captain_id):
         # For MVP, just double wager if captain is eligible
-        self.base_wager *= 2
+        self.betting_state.base_wager *= 2
         self.game_status_message = f"{self._player_name(captain_id)} toggled the option. Wager doubled."
         return "Option toggled."
 
@@ -246,7 +166,7 @@ class GameState:
         self.hole_scores[player_id] = score
         
         # Also record the score in the Player object
-        for player in self.players:
+        for player in self.player_manager.players:
             if player.id == player_id:
                 player.record_hole_score(self.current_hole, score)
                 break
@@ -255,103 +175,48 @@ class GameState:
         return "Score recorded."
 
     def calculate_hole_points(self):
-        # Ensure all scores are entered
-        if any(v is None for v in self.hole_scores.values()):
-            raise ValueError("Not all scores entered.")
-        if not self.teams or self.teams.get("type") not in ("partners", "solo"):
-            raise ValueError("Teams not set for this hole.")
-        base = self.base_wager
-        msg = ""
-        # Determine teams
-        if self.teams["type"] == "partners":
-            team1 = self.teams["team1"]  # [captain, partner]
-            team2 = self.teams["team2"]  # [other1, other2]
-            team1_score = min(self.hole_scores[pid] for pid in team1)
-            team2_score = min(self.hole_scores[pid] for pid in team2)
-            if team1_score < team2_score:
-                # team1 wins
-                msg = self._distribute_points_karl_marx(winners=team1, losers=team2, base=base)
-            elif team2_score < team1_score:
-                msg = self._distribute_points_karl_marx(winners=team2, losers=team1, base=base)
-            else:
-                msg = "Hole halved. No points awarded."
-        elif self.teams["type"] == "solo":
-            captain = self.teams["captain"]
-            opponents = self.teams["opponents"]
-            captain_score = self.hole_scores[captain]
-            opp_score = min(self.hole_scores[pid] for pid in opponents)
-            if captain_score < opp_score:
-                # Captain wins against 3
-                msg = self._distribute_points_karl_marx(winners=[captain], losers=opponents, base=base)
-            elif opp_score < captain_score:
-                msg = self._distribute_points_karl_marx(winners=opponents, losers=[captain], base=base)
-            else:
-                msg = "Hole halved. No points awarded."
-        else:
-            msg = "Invalid team type for scoring."
+        # Delegate to BettingState for points calculation
+        msg = self.betting_state.calculate_hole_points(self.hole_scores, self.player_manager.players)
+        
         # Record hole history
-        points_now = {p.id: p.points for p in self.players}
+        points_now = {p.id: p.points for p in self.player_manager.players}
         points_delta = {pid: points_now[pid] - self._last_points.get(pid, 0) for pid in points_now}
         self.hole_history.append({
             "hole": self.current_hole,
-            "hitting_order": list(self.hitting_order),
+            "hitting_order": list(self.player_manager.hitting_order),
             "net_scores": dict(self.hole_scores),
             "points_delta": dict(points_delta),
-            "teams": dict(self.teams),
+            "teams": dict(self.betting_state.teams),
         })
         self._last_points = dict(points_now)
         self.game_status_message = msg
         self._save_to_db()
         return msg
 
-    def _distribute_points_karl_marx(self, winners, losers, base):
-        n_win = len(winners)
-        n_lose = len(losers)
-        total_quarters = base * n_lose
-        per_winner = total_quarters // n_win
-        odd_quarters = total_quarters % n_win
-        # Award base points to all winners
-        for p in self.players:
-            if p.id in winners:
-                p.add_points(per_winner)
-            elif p.id in losers:
-                p.add_points(-base)
-        msg = f"{' & '.join(self._player_name(pid) for pid in winners)} win {per_winner} quarter(s) each."
-        # Karl Marx rule: assign odd quarter(s) to lowest scorer(s)
-        if odd_quarters > 0:
-            # Find winner(s) with lowest total points
-            winner_points = [(p.id, p.points) for p in self.players if p.id in winners]
-            min_points = min(points for _, points in winner_points)
-            lowest = [pid for pid, points in winner_points if points == min_points]
-            if len(lowest) == 1:
-                # Assign odd quarter(s) to the lowest
-                for p in self.players:
-                    if p.id == lowest[0]:
-                        p.add_points(odd_quarters)
-                msg += f" Karl Marx rule: {self._player_name(lowest[0])} receives {odd_quarters} extra quarter(s)."
-            else:
-                msg += f" Karl Marx rule: Odd quarter(s) ({odd_quarters}) in limbo (tie among: {' & '.join(self._player_name(pid) for pid in lowest)})."
-        return msg
+
 
     def next_hole(self):
         self.current_hole += 1
-        # Rotate hitting order
-        self.hitting_order = self.hitting_order[1:] + [self.hitting_order[0]]
-        self.captain_id = self.hitting_order[0]
-        self.teams = {}
-        self.doubled_status = False
-        self.hole_scores = {p.id: None for p in self.players}
+        self.player_manager.rotate_captain()
+        self.betting_state.reset_hole()
+        self.hole_scores = {p.id: None for p in self.player_manager.players}
+        
+        # Reset shot state for new hole
+        if hasattr(self, 'shot_state'):
+            self.shot_state.reset_for_hole()
+        else:
+            self.shot_state = ShotState()
         
         # Reset float usage for all players
-        for player in self.players:
+        for player in self.player_manager.players:
             player.reset_float()
         
-        self.game_status_message = f"Hole {self.current_hole}. {self._player_name(self.captain_id)} is captain."
+        self.game_status_message = f"Hole {self.current_hole}. {self.player_manager.captain_id} is captain."
         self._save_to_db()
         return "Advanced to next hole."
 
     def _player_name(self, pid):
-        for p in self.players:
+        for p in self.player_manager.players:
             if p.id == pid:
                 return p.name
         return pid
@@ -361,77 +226,112 @@ class GameState:
 
     def _serialize(self):
         # Return a dict of all stateful fields
-        players = getattr(self, "players", [])
+        players = getattr(self, "player_manager", PlayerManager()).players
         # Convert Player objects to dicts for serialization
         players_data = [p.to_dict() if hasattr(p, 'to_dict') else p for p in players]
         
+        # Get betting state data
+        betting_state_data = getattr(self, "betting_state", BettingState()).to_dict()
+        
         return {
-            "players": players_data,
+            "player_manager": self.player_manager.to_dict(),
             "current_hole": getattr(self, "current_hole", 1),
-            "hitting_order": getattr(self, "hitting_order", []),
-            "captain_id": getattr(self, "captain_id", None),
-            "teams": getattr(self, "teams", {}),
-            "base_wager": getattr(self, "base_wager", 1),
-            "doubled_status": getattr(self, "doubled_status", False),
-            "game_phase": getattr(self, "game_phase", 'Regular'),
+            "betting_state": betting_state_data,
             "hole_scores": getattr(self, "hole_scores", {}),
             "game_status_message": getattr(self, "game_status_message", "Time to toss the tees!"),
             "player_float_used": getattr(self, "player_float_used", {}),
             "carry_over": getattr(self, "carry_over", False),
             "hole_history": getattr(self, "hole_history", []),
             "_last_points": getattr(self, "_last_points", {}),
-            "hole_stroke_indexes": getattr(self, "hole_stroke_indexes", []),
-            "hole_pars": getattr(self, "hole_pars", []),
-            "hole_yards": getattr(self, "hole_yards", []),
-            "hole_descriptions": getattr(self, "hole_descriptions", []),
-            "selected_course": getattr(self, "selected_course", None),
+            "course_manager": getattr(self, "course_manager", CourseManager()).to_dict(),
             # Event-driven simulation state
-            "shot_sequence": getattr(self, "shot_sequence", None),
+            "shot_state": getattr(self, "shot_state", ShotState()).to_dict(),
             "tee_shot_results": getattr(self, "tee_shot_results", None),
+            # Backward compatibility - keep old betting fields for migration
+            "players": players_data,
+            "hitting_order": list(self.player_manager.hitting_order),
+            "captain_id": self.player_manager.captain_id,
+            "teams": betting_state_data.get("teams", {}),
+            "base_wager": betting_state_data.get("base_wager", 1),
+            "doubled_status": betting_state_data.get("doubled_status", False),
+            "game_phase": betting_state_data.get("game_phase", 'Regular'),
         }
 
     def _deserialize(self, data):
         # Convert player data to Player objects
-        players_data = data.get("players", [])
-        if players_data and isinstance(players_data[0], dict):
-            # Convert dict players to Player objects
-            self.players = [Player.from_dict(p) for p in players_data]
+        if "player_manager" in data:
+            self.player_manager = PlayerManager()
+            self.player_manager.from_dict(data["player_manager"])
         else:
-            # Fallback to default players
-            self.players = DEFAULT_PLAYERS.copy()
+            # Backward compatibility
+            players_data = data.get("players", [])
+            if players_data and isinstance(players_data[0], dict):
+                self.player_manager = PlayerManager([Player.from_dict(p) for p in players_data])
+            else:
+                self.player_manager = PlayerManager(DEFAULT_PLAYERS.copy())
+            self.player_manager.hitting_order = data.get("hitting_order", [p.id for p in self.player_manager.players])
+            self.player_manager.captain_id = data.get("captain_id", self.player_manager.hitting_order[0] if self.player_manager.hitting_order else None)
         
         self.current_hole = data.get("current_hole", 1)
-        self.hitting_order = data.get("hitting_order", [p.id for p in self.players])
-        self.captain_id = data.get("captain_id", self.hitting_order[0] if self.hitting_order else None)
-        self.teams = data.get("teams", {})
-        self.base_wager = data.get("base_wager", 1)
-        self.doubled_status = data.get("doubled_status", False)
-        self.game_phase = data.get("game_phase", 'Regular')
-        self.hole_scores = data.get("hole_scores", {p.id: None for p in self.players})
+        # Handle betting state - check for new format first, then fall back to old format
+        if "betting_state" in data:
+            self.betting_state = BettingState()
+            self.betting_state.from_dict(data["betting_state"])
+        else:
+            # Backward compatibility - migrate from old format
+            self.betting_state = BettingState()
+            self.betting_state.teams = data.get("teams", {})
+            self.betting_state.base_wager = data.get("base_wager", 1)
+            self.betting_state.doubled_status = data.get("doubled_status", False)
+            self.betting_state.game_phase = data.get("game_phase", 'Regular')
+        
+        self.hole_scores = data.get("hole_scores", {p.id: None for p in self.player_manager.players})
         self.game_status_message = data.get("game_status_message", "Time to toss the tees!")
-        self.player_float_used = data.get("player_float_used", {p.id: False for p in self.players})
+        self.player_float_used = data.get("player_float_used", {p.id: False for p in self.player_manager.players})
         self.carry_over = data.get("carry_over", False)
         self.hole_history = data.get("hole_history", [])
-        self._last_points = data.get("_last_points", {p.id: 0 for p in self.players})
-        self.hole_stroke_indexes = data.get("hole_stroke_indexes", [h["stroke_index"] for h in DEFAULT_COURSES["Wing Point"]])
-        self.hole_pars = data.get("hole_pars", [h["par"] for h in DEFAULT_COURSES["Wing Point"]])
-        self.hole_yards = data.get("hole_yards", [h["yards"] for h in DEFAULT_COURSES["Wing Point"]])
-        self.hole_descriptions = data.get("hole_descriptions", [h.get("description", "") for h in DEFAULT_COURSES["Wing Point"]])
-        self.selected_course = data.get("selected_course", None)
+        self._last_points = data.get("_last_points", {p.id: 0 for p in self.player_manager.players})
+        # Handle course manager - check for new format first, then fall back to old format
+        if "course_manager" in data:
+            self.course_manager = CourseManager()
+            self.course_manager.from_dict(data["course_manager"])
+        else:
+            # Backward compatibility - migrate from old format
+            self.course_manager = CourseManager()
+            self.course_manager.selected_course = data.get("selected_course", None)
+            self.course_manager.hole_stroke_indexes = data.get("hole_stroke_indexes", [h["stroke_index"] for h in DEFAULT_COURSES["Wing Point"]])
+            self.course_manager.hole_pars = data.get("hole_pars", [h["par"] for h in DEFAULT_COURSES["Wing Point"]])
+            self.course_manager.hole_yards = data.get("hole_yards", [h["yards"] for h in DEFAULT_COURSES["Wing Point"]])
+            # Note: hole_descriptions not preserved in CourseManager, but can be reconstructed from course_data
         # Event-driven simulation state
-        self.shot_sequence = data.get("shot_sequence", None)
+        if "shot_state" in data:
+            self.shot_state = ShotState()
+            self.shot_state.from_dict(data["shot_state"])
+        else:
+            # Backward compatibility - migrate from old shot_sequence format
+            self.shot_state = ShotState()
+            if "shot_sequence" in data and data["shot_sequence"]:
+                old_seq = data["shot_sequence"]
+                self.shot_state.phase = old_seq.get("phase", "tee_shots")
+                self.shot_state.current_player_index = old_seq.get("current_player_index", 0)
+                self.shot_state.pending_decisions = old_seq.get("pending_decisions", [])
+                # Convert old completed_shots format
+                for shot_data in old_seq.get("completed_shots", []):
+                    self.shot_state.add_completed_shot(
+                        shot_data.get("player_id", ""),
+                        shot_data.get("shot_result", {}),
+                        shot_data.get("probabilities")
+                    )
         self.tee_shot_results = data.get("tee_shot_results", None)
-        # Defensive: always ensure all fields are set
-        if not hasattr(self, 'selected_course'):
-            self.selected_course = None
-        if not hasattr(self, 'hole_yards'):
-            self.hole_yards = [h["yards"] for h in DEFAULT_COURSES["Wing Point"]]
-        if not hasattr(self, 'hole_descriptions'):
-            self.hole_descriptions = [h.get("description", "") for h in DEFAULT_COURSES["Wing Point"]]
-        if not hasattr(self, 'shot_sequence'):
-            self.shot_sequence = None
+        # Defensive: always ensure course_manager is set
+        if not hasattr(self, 'course_manager'):
+            self.course_manager = CourseManager()
+        if not hasattr(self, 'shot_state'):
+            self.shot_state = ShotState()
         if not hasattr(self, 'tee_shot_results'):
             self.tee_shot_results = None
+        if not hasattr(self, 'betting_state'):
+            self.betting_state = BettingState()
 
     def _save_to_db(self):
         """Save the current state as JSON in the DB (id=1) with error handling"""
@@ -465,166 +365,36 @@ class GameState:
             self.reset()
 
     def get_betting_tips(self):
-        tips = []
-        # --- Double offered ---
-        if self.doubled_status:
-            tips.append("A double has been offered. If you're ahead, accepting can increase your winnings, but beware of a comeback! If you're behind, declining gives the other team the hole at the current stake.")
-            # Context-aware: compare handicaps
-            if self.teams and self.teams.get("type") in ("partners", "solo"):
-                tips.extend(self._handicap_context_tips(double_pending=True))
-        # --- Opportunity to double back ---
-        if self.teams and self.teams.get("type") in ("partners", "solo") and not self.doubled_status:
-            tips.append("Consider offering a double if you feel confident in your team's position, or to pressure the opponents.")
-            tips.extend(self._handicap_context_tips(double_pending=False))
-        # --- Going solo ---
-        if self.teams and self.teams.get("type") == "solo":
-            tips.append("Going solo doubles the wager, but you must beat the best ball of the other three. Only go solo if you're confident in your shot or need to catch up.")
-        # --- Points/momentum ---
-        points = [p["points"] for p in self.players]
-        max_points = max(points)
-        min_points = min(points)
-        if max_points - min_points >= 6:
-            leader = [p["name"] for p in self.players if p["points"] == max_points][0]
-            trailer = [p["name"] for p in self.players if p["points"] == min_points][0]
-            tips.append(f"{leader} is ahead by a large margin. Consider playing conservatively to protect your lead, or offer a double to pressure opponents. {trailer}, if you're behind, taking more risks (like going solo or accepting a double) can help you catch up.")
-        # --- Float/option usage ---
-        unused_floats = [p["name"] for p in self.players if not self.player_float_used.get(p["id"], False)]
-        if self.teams and self.teams.get("type") and self.captain_id in [p["id"] for p in self.players]:
-            if not self.player_float_used.get(self.captain_id, False):
-                tips.append("You haven't used your float yet. Consider saving it for a high-stakes hole or when you're behind.")
-            tips.append("The Option can be powerful if you're the captain and have lost the most quarters. Use it to double the wager and turn the tide.")
-        # --- Carry-over/high-stakes holes ---
-        if self.carry_over:
-            tips.append("There's a carry-over in effect. The current hole is worth extra—play aggressively if you need to catch up, or defensively if you're ahead.")
-        if self.current_hole >= 13:
-            tips.append("On Hoepfinger or double-value holes, consider your risk tolerance before accepting or offering a double.")
-        # --- Endgame ---
-        if self.current_hole >= 16:
-            tips.append("On the final holes, consider the overall standings. Sometimes it's better to lock in a win than risk it all.")
-            tips.append("If you're in contention for the Pettit Trophy, play conservatively on the last few holes.")
-        # --- Karl Marx rule awareness ---
-        if self.teams and self.teams.get("type") in ("partners", "solo"):
-            n_win = 2 if self.teams["type"] == "partners" else 1
-            n_lose = 2 if self.teams["type"] == "partners" else 3
-            total_quarters = self.base_wager * n_lose
-            if total_quarters % n_win != 0:
-                tips.append("If quarters can't be divided evenly, the Karl Marx rule applies. The player furthest down will owe fewer quarters—factor this into your risk calculations.")
-        # --- Psychological/table talk tips ---
-        tips.append("If the other team is offering a double, they may be bluffing. Consider their recent performance before accepting.")
-        tips.append("Use table talk to gauge your opponents' confidence before making a big bet.")
-        # --- General tip ---
-        tips.append("Remember: If you decline a double, the offering team wins the hole at the current wager.")
-        # --- Hoepfinger phase ---
-        if self.current_hole >= 17:
-            tips.append("Hoepfinger phase: The player furthest down chooses their spot in the rotation. Strategic position can be crucial!")
-        # --- Player strength context ---
-        if self.teams and self.teams.get("type") in ("partners", "solo"):
-            player_by_id = {p["id"]: p for p in self.players}
-            if self.teams["type"] == "partners":
-                t1 = self.teams["team1"]
-                t2 = self.teams["team2"]
-                t1_strengths = [player_by_id[pid].get("strength", "Average") for pid in t1]
-                t2_strengths = [player_by_id[pid].get("strength", "Average") for pid in t2]
-                if any(s in ("Strong", "Expert") for s in t1_strengths):
-                    tips.append("Team 1 has a strong player—consider aggressive betting if the situation allows.")
-                if all(s == "Beginner" for s in t1_strengths):
-                    tips.append("Team 1 is all beginners—consider caution with doubles or going solo.")
-                if any(s in ("Strong", "Expert") for s in t2_strengths):
-                    tips.append("Team 2 has a strong player—be cautious if betting against them.")
-                if all(s == "Beginner" for s in t2_strengths):
-                    tips.append("Team 2 is all beginners—consider aggressive play if you are stronger.")
-            elif self.teams["type"] == "solo":
-                captain = self.teams["captain"]
-                opps = self.teams["opponents"]
-                cap_strength = player_by_id[captain].get("strength", "Average")
-                opp_strengths = [player_by_id[pid].get("strength", "Average") for pid in opps]
-                if cap_strength in ("Strong", "Expert"):
-                    tips.append("The captain is strong—going solo or accepting a double may be favorable.")
-                if all(s == "Beginner" for s in opp_strengths):
-                    tips.append("All opponents are beginners—captain may want to play aggressively.")
-        return tips
+        return self.betting_state.get_betting_tips(self.player_manager.players, self.current_hole, self.player_float_used, self.carry_over)
 
-    def _handicap_context_tips(self, double_pending):
-        """
-        Returns a list of context-aware tips based on net strokes for the current hole and teams.
-        """
-        tips = []
-        if not self.teams or self.teams.get("type") not in ("partners", "solo"):
-            return tips
-        player_by_id = {p["id"]: p for p in self.players}
-        strokes = self.get_player_strokes()  # {player_id: {hole_number: stroke_type}}
-        hole = self.current_hole
-        # For each player, get strokes for this hole
-        net_strokes = {pid: strokes[pid][hole] for pid in strokes}
-        if self.teams["type"] == "partners":
-            t1 = self.teams["team1"]
-            t2 = self.teams["team2"]
-            # For each team, best net advantage (lowest gross - strokes)
-            t1_strokes = [net_strokes[pid] for pid in t1]
-            t2_strokes = [net_strokes[pid] for pid in t2]
-            t1_hcap = sum(player_by_id[pid]["handicap"] for pid in t1)
-            t2_hcap = sum(player_by_id[pid]["handicap"] for pid in t2)
-            t1_min = min(t1_strokes)
-            t2_min = min(t2_strokes)
-            net_diff = t2_min - t1_min  # positive: team1 net advantage
-            if abs(net_diff) >= 1:
-                if net_diff > 0:
-                    tips.append(f"On this hole, Team 1 receives {abs(net_diff):.1f} more net strokes than Team 2. This is a favorable hole for Team 1.")
-                else:
-                    tips.append(f"On this hole, Team 2 receives {abs(net_diff):.1f} more net strokes than Team 1. This is a favorable hole for Team 2.")
-            elif abs(t1_hcap - t2_hcap) >= 6:
-                # fallback to overall handicap if net is close
-                if t1_hcap < t2_hcap:
-                    tips.append(f"Team 1 (avg handicap {t1_hcap/2:.1f}) is much stronger overall, but this hole is even on net strokes.")
-                else:
-                    tips.append(f"Team 2 (avg handicap {t2_hcap/2:.1f}) is much stronger overall, but this hole is even on net strokes.")
-        elif self.teams["type"] == "solo":
-            captain = self.teams["captain"]
-            opps = self.teams["opponents"]
-            cap_stroke = net_strokes[captain]
-            opp_strokes = [net_strokes[pid] for pid in opps]
-            opp_min = min(opp_strokes)
-            net_diff = opp_min - cap_stroke
-            cap_hcap = player_by_id[captain]["handicap"]
-            opp_hcap = sum(player_by_id[pid]["handicap"] for pid in opps) / len(opps)
-            if abs(net_diff) >= 1:
-                if net_diff > 0:
-                    tips.append(f"On this hole, the captain receives {abs(net_diff):.1f} more net strokes than the best opponent. Favorable for the captain.")
-                else:
-                    tips.append(f"On this hole, the opponents receive {abs(net_diff):.1f} more net strokes than the captain. Favorable for the opponents.")
-            elif abs(cap_hcap - opp_hcap) >= 4:
-                if cap_hcap < opp_hcap:
-                    tips.append(f"Captain (handicap {cap_hcap}) is much stronger overall, but this hole is even on net strokes.")
-                else:
-                    tips.append(f"Opponents (avg handicap {opp_hcap:.1f}) are much stronger overall, but this hole is even on net strokes.")
-        return tips
+
 
     def get_player_strokes(self):
         """
         Returns a dict: {player_id: {hole_number: stroke_type}}, where stroke_type is 1 (full stroke), 0.5 (half), or 0 (none)
         """
-        n_holes = len(self.hole_stroke_indexes)
+        n_holes = len(self.course_manager.hole_stroke_indexes)
         result = {}
-        for player in self.players:
+        for player in self.player_manager.players:
             pid = player.id
             hcap = player.handicap
             strokes = {i+1: 0 for i in range(n_holes)}
             full_strokes = int(hcap)
             half_stroke = (hcap - full_strokes) >= 0.5
             # Full strokes
-            for i, idx in enumerate(self.hole_stroke_indexes):
+            for i, idx in enumerate(self.course_manager.hole_stroke_indexes):
                 if idx <= full_strokes:
                     strokes[i+1] = 1
             # If handicap > n_holes, assign extra strokes (second stroke) to lowest index holes
             if full_strokes > n_holes:
                 extra = full_strokes - n_holes
-                hardest = sorted(range(n_holes), key=lambda i: self.hole_stroke_indexes[i])[:extra]
+                hardest = sorted(range(n_holes), key=lambda i: self.course_manager.hole_stroke_indexes[i])[:extra]
                 for i in hardest:
                     strokes[i+1] += 1
             # Half stroke: assign to next hardest hole
             if half_stroke:
                 # Find the next hardest hole not already getting an extra stroke
-                eligible = sorted([(i, self.hole_stroke_indexes[i]) for i in range(n_holes) if strokes[i+1] == 0], key=lambda x: x[1])
+                eligible = sorted([(i, self.course_manager.hole_stroke_indexes[i]) for i in range(n_holes) if strokes[i+1] == 0], key=lambda x: x[1])
                 if eligible:
                     strokes[eligible[0][0]+1] = 0.5
             result[pid] = strokes
@@ -642,7 +412,7 @@ class GameState:
         self.reset()  # <-- This ensures ALL state is cleared!
         
         # Convert dict players to Player objects
-        self.players = [
+        player_objs = [
             Player(
                 id=p["id"], 
                 name=p["name"], 
@@ -651,42 +421,30 @@ class GameState:
             ) for p in players
         ]
         
+        self.player_manager.setup_players(player_objs)
+        
         self.current_hole = 1
-        self.hitting_order = [p.id for p in self.players]
-        random.shuffle(self.hitting_order)
-        self.captain_id = self.hitting_order[0]
-        self.teams = {}
-        self.base_wager = 1
-        self.doubled_status = False
-        self.game_phase = 'Regular'
-        self.hole_scores = {p.id: None for p in self.players}
+        self.betting_state.reset()
+        self.hole_scores = {p.id: None for p in self.player_manager.players}
         self.game_status_message = "Players set. Time to toss the tees!"
-        self.player_float_used = {p.id: False for p in self.players}
+        self.player_float_used = {p.id: False for p in self.player_manager.players}
         self.carry_over = False
         self.hole_history = []
-        self._last_points = {p.id: 0 for p in self.players}
-        if course_name and course_name in self.courses:
-            course = self.courses[course_name]
-            self.selected_course = course_name
-            self.hole_stroke_indexes = [h["stroke_index"] for h in course]
-            self.hole_pars = [h["par"] for h in course]
-            self.hole_yards = [h["yards"] for h in course]
-            self.hole_descriptions = [h.get("description", "") for h in course]
+        self._last_points = {p.id: 0 for p in self.player_manager.players}
+        if course_name:
+            self.course_manager.load_course(course_name)
         else:
-            self.selected_course = None
-            self.hole_stroke_indexes = [h["stroke_index"] for h in DEFAULT_COURSES["Wing Point"]]
-            self.hole_pars = [h["par"] for h in DEFAULT_COURSES["Wing Point"]]
-            self.hole_yards = [h["yards"] for h in DEFAULT_COURSES["Wing Point"]]
-            self.hole_descriptions = [h.get("description", "") for h in DEFAULT_COURSES["Wing Point"]]
+            self.course_manager = CourseManager()
         self._save_to_db()
 
     def get_courses(self):
-        return self.courses
+        return self.course_manager.get_courses()
 
     def add_course(self, course_data):
         """Add a new course with validation"""
         name = course_data["name"]
-        if name in self.courses:
+        courses = self.course_manager.get_courses()
+        if name in courses:
             raise ValueError(f"Course '{name}' already exists")
         
         holes = course_data["holes"]
@@ -710,33 +468,23 @@ class GameState:
         
         # Sort holes by hole number for consistency
         sorted_holes = sorted(holes, key=lambda h: h["hole_number"])
-        self.courses[name] = sorted_holes
+        self.course_manager.add_course(name, sorted_holes)
         return True
 
     def delete_course(self, course_name):
         """Delete a course"""
-        if course_name not in self.courses:
-            raise ValueError(f"Course '{course_name}' not found")
-        
-        # If this was the selected course, reset to default
-        if self.selected_course == course_name:
-            self.selected_course = None
-            self.hole_stroke_indexes = [h["stroke_index"] for h in DEFAULT_COURSES["Wing Point"]]
-            self.hole_pars = [h["par"] for h in DEFAULT_COURSES["Wing Point"]]
-            self.hole_yards = [h["yards"] for h in DEFAULT_COURSES["Wing Point"]]
-            self.hole_descriptions = [h.get("description", "") for h in DEFAULT_COURSES["Wing Point"]]
-        
-        del self.courses[course_name]
+        self.course_manager.delete_course(course_name)
         return True
 
     def update_course(self, course_name, course_data):
         """Update an existing course"""
-        if course_name not in self.courses:
+        courses = self.course_manager.get_courses()
+        if course_name not in courses:
             raise ValueError(f"Course '{course_name}' not found")
         
         # If renaming, check new name doesn't exist
         new_name = course_data.get("name", course_name)
-        if new_name != course_name and new_name in self.courses:
+        if new_name != course_name and new_name in courses:
             raise ValueError(f"Course '{new_name}' already exists")
         
         # Update course data
@@ -759,99 +507,27 @@ class GameState:
             
             # If renaming, delete old and add new
             if new_name != course_name:
-                del self.courses[course_name]
-                self.courses[new_name] = sorted_holes
-                # Update selected course if it was this one
-                if self.selected_course == course_name:
-                    self.selected_course = new_name
+                self.course_manager.delete_course(course_name)
+                self.course_manager.add_course(new_name, sorted_holes)
             else:
-                self.courses[course_name] = sorted_holes
-            
-            # If this is the currently selected course, update game state
-            if self.selected_course in [course_name, new_name]:
-                self.hole_stroke_indexes = [h["stroke_index"] for h in sorted_holes]
-                self.hole_pars = [h["par"] for h in sorted_holes]
-                self.hole_yards = [h["yards"] for h in sorted_holes]
-                self.hole_descriptions = [h.get("description", "") for h in sorted_holes]
+                self.course_manager.update_course(course_name, sorted_holes)
         
         return True
 
     def get_course_stats(self, course_name):
         """Get statistics for a course"""
-        if course_name not in self.courses:
-            raise ValueError(f"Course '{course_name}' not found")
-        
-        course = self.courses[course_name]
-        total_par = sum(h["par"] for h in course)
-        total_yards = sum(h["yards"] for h in course)
-        
-        par_counts = {3: 0, 4: 0, 5: 0, 6: 0}
-        for hole in course:
-            par_counts[hole["par"]] += 1
-        
-        longest_hole = max(course, key=lambda h: h["yards"])
-        shortest_hole = min(course, key=lambda h: h["yards"])
-        
-        # Calculate difficulty rating based on yards and par
-        difficulty_score = 0
-        for hole in course:
-            # Higher difficulty for longer holes and harder stroke indexes
-            yard_factor = hole["yards"] / (hole["par"] * 100)  # Normalize by par
-            stroke_factor = (19 - hole["stroke_index"]) / 18  # Lower stroke index = harder
-            difficulty_score += yard_factor * stroke_factor
-        
-        return {
-            "total_par": total_par,
-            "total_yards": total_yards,
-            "par_3_count": par_counts[3],
-            "par_4_count": par_counts[4], 
-            "par_5_count": par_counts[5],
-            "par_6_count": par_counts[6],
-            "average_yards_per_hole": total_yards / 18,
-            "longest_hole": longest_hole,
-            "shortest_hole": shortest_hole,
-            "difficulty_rating": round(difficulty_score, 2)
-        }
+        return self.course_manager.get_course_stats(course_name)
 
     def get_current_hole_info(self):
         """Get detailed information about the current hole"""
         if not hasattr(self, 'current_hole') or self.current_hole is None:
             return None
         
-        hole_idx = self.current_hole - 1
-        if hole_idx < 0 or hole_idx >= len(self.hole_pars):
-            return None
-        
-        return {
-            "hole_number": self.current_hole,
-            "par": self.hole_pars[hole_idx],
-            "yards": self.hole_yards[hole_idx] if hasattr(self, 'hole_yards') else None,
-            "stroke_index": self.hole_stroke_indexes[hole_idx],
-            "description": self.hole_descriptions[hole_idx] if hasattr(self, 'hole_descriptions') else "",
-            "selected_course": self.selected_course
-        }
+        return self.course_manager.get_current_hole_info(self.current_hole)
 
     def get_hole_difficulty_factor(self, hole_number):
         """Calculate difficulty factor for a specific hole for simulation"""
-        hole_idx = hole_number - 1
-        if hole_idx < 0 or hole_idx >= len(self.hole_stroke_indexes):
-            return 1.0
-        
-        # Combine stroke index difficulty with distance
-        stroke_index = self.hole_stroke_indexes[hole_idx]
-        stroke_difficulty = (19 - stroke_index) / 18  # 0-1, higher = more difficult
-        
-        if hasattr(self, 'hole_yards') and hole_idx < len(self.hole_yards):
-            par = self.hole_pars[hole_idx]
-            yards = self.hole_yards[hole_idx]
-            # Normalize yards by par (longer than expected = harder)
-            expected_yards = {3: 150, 4: 400, 5: 550}
-            yard_difficulty = min(1.5, yards / expected_yards.get(par, 400))
-            
-            # Combine factors
-            return 0.7 * stroke_difficulty + 0.3 * (yard_difficulty - 0.5)
-        
-        return stroke_difficulty
+        return self.course_manager.get_hole_difficulty_factor(hole_number)
 
 # Singleton game state for MVP (in-memory)
 game_state = GameState() 

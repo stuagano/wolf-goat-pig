@@ -14,15 +14,25 @@
 - [x] **Update**: All methods that currently use `player["id"]` syntax
 - [x] **Files to update**: `game_state.py`, `simulation.py`, `main.py`
 
-#### ✅ **2. Create ShotResult Class**
-- [ ] **File**: `backend/app/domain/shot_result.py`
-- [ ] **Replace**: Shot dictionaries throughout codebase
-- [ ] **Features**:
+#### ✅ **2. Create ShotResult Class** ✅ **COMPLETED**
+- [x] **File**: `backend/app/domain/shot_result.py`
+- [x] **Replace**: Shot dictionaries throughout codebase
+- [x] **Features**:
   - `player`, `drive`, `lie`, `remaining`, `quality`, `penalty`
   - Methods: `get_position_quality()`, `get_scoring_probability()`
   - Validation: distance ranges, lie types
-- [ ] **Update**: All methods that currently use `shot_result["drive"]` syntax
-- [ ] **Files to update**: `simulation.py` (most methods)
+- [x] **Update**: All methods that currently use `shot_result["drive"]` syntax
+- [x] **Files to update**: `simulation.py` (most methods)
+
+**Completed Implementation Details:**
+- ✅ Created comprehensive ShotResult class with enums for quality and lie types
+- ✅ Added validation in `__post_init__` for distance ranges and valid values
+- ✅ Implemented strategic analysis methods: `get_position_quality()`, `get_scoring_probability()`, `get_partnership_value()`
+- ✅ Added realistic shot descriptions with `get_shot_description()`
+- ✅ Updated `_simulate_tee_shots()` to create ShotResult objects instead of dictionaries
+- ✅ Updated all probability calculation methods to work with both ShotResult objects and dictionaries (backwards compatibility)
+- ✅ Updated main.py API endpoint to handle ShotResult serialization properly
+- ✅ Maintained defensive coding with proper null checks and fallbacks [[memory:4277323]]
 
 #### ✅ **3. Create Hole Class**
 - [ ] **File**: `backend/app/domain/hole.py`
@@ -45,14 +55,15 @@
 - [ ] **Update**: `GameState` to use `BettingState` composition
 - [ ] **Files to update**: `game_state.py`, `simulation.py`
 
-#### ✅ **5. Create ShotState Class**
-- [ ] **File**: `backend/app/state/shot_state.py`
-- [ ] **Extract from**: `GameState.shot_sequence`
-- [ ] **Features**:
+#### ✅ **5. Create ShotState Class** 
+- [x] **File**: `backend/app/state/shot_state.py`
+- [x] **Extract from**: `GameState.shot_sequence`
+- [x] **Features**:
   - `phase`, `current_player_index`, `completed_shots`, `pending_decisions`
   - Methods: `next_shot()`, `add_completed_shot()`, `has_next_shot()`
-- [ ] **Update**: Event-driven simulation logic
-- [ ] **Files to update**: `simulation.py`
+- [x] **Update**: Event-driven simulation logic
+- [x] **Files to update**: `simulation.py`
+- [x] **Completed**: Extracted shot sequence management into dedicated ShotState class with proper serialization/deserialization and backward compatibility
 
 #### ✅ **6. Create PlayerManager Class**
 - [ ] **File**: `backend/app/state/player_manager.py`
@@ -66,55 +77,55 @@
 ### **Priority 3: Service Layer**
 
 #### ✅ **7. Create ProbabilityCalculator Service**
-- [ ] **File**: `backend/app/services/probability_calculator.py`
-- [ ] **Extract from**: `SimulationEngine` probability methods
-- [ ] **Features**:
+- [x] **File**: `backend/app/services/probability_calculator.py`
+- [x] **Extract from**: `SimulationEngine` probability methods
+- [x] **Features**:
   - `calculate_tee_shot_probabilities()`
   - `calculate_post_shot_probabilities()`
   - `calculate_betting_probabilities()`
   - `calculate_scoring_probabilities()`
-- [ ] **Update**: All probability calculation logic
-- [ ] **Files to update**: `simulation.py`
+- [x] **Update**: All probability calculation logic
+- [x] **Files to update**: `simulation.py`
+- [x] **Completed**: Extracted all probability calculation methods into dedicated ProbabilityCalculator service with proper static methods and helper functions
 
 #### ✅ **8. Create ShotSimulator Service**
-- [ ] **File**: `backend/app/services/shot_simulator.py`
-- [ ] **Extract from**: `SimulationEngine` shot simulation methods
-- [ ] **Features**:
+- [x] **File**: `backend/app/services/shot_simulator.py`
+- [x] **Extract from**: `SimulationEngine` shot simulation methods
+- [x] **Features**:
   - `simulate_tee_shot()`, `simulate_approach_shot()`
   - `simulate_player_score()`, `simulate_individual_tee_shot()`
-- [ ] **Update**: Shot execution logic
-- [ ] **Files to update**: `simulation.py`
+- [x] **Update**: Shot execution logic
+- [x] **Files to update**: `simulation.py`
+- [x] **Completed**: Extracted all shot simulation methods into dedicated ShotSimulator service with proper static methods and helper functions
 
 #### ✅ **9. Create BettingEngine Service**
-- [ ] **File**: `backend/app/services/betting_engine.py`
-- [ ] **Extract from**: `SimulationEngine` betting methods
-- [ ] **Features**:
+- [x] **File**: `backend/app/services/betting_engine.py`
+- [x] **Extract from**: `SimulationEngine` betting methods
+- [x] **Features**:
   - `check_betting_opportunity()`, `execute_betting_decision()`
   - `make_computer_partnership_decision()`
-- [ ] **Update**: Betting decision logic
-- [ ] **Files to update**: `simulation.py`
+- [x] **Update**: Betting decision logic
+- [x] **Files to update**: `simulation.py`
+- [x] **Completed**: Extracted all betting-related methods into dedicated BettingEngine service with proper static methods and helper functions
 
 ### **Priority 4: Data Structures**
 
 #### ✅ **10. Use Dataclasses for Simple Structures**
-- [ ] **File**: `backend/app/domain/data_structures.py`
-- [ ] **Create dataclasses for**:
-  - `@dataclass BettingOpportunity`
-  - `@dataclass ShotEvent`
-  - `@dataclass Team`
-  - `@dataclass GamePhase`
-- [ ] **Update**: Replace dictionary structures
-- [ ] **Files to update**: Throughout codebase
+- [x] **Files**: `backend/app/state/betting_state.py`, `backend/app/state/shot_state.py`, and all relevant simple state containers
+- [x] **Refactor**: All simple state containers (BettingState, ShotState, and their fields) now use @dataclass with proper field defaults
+- [x] **Update**: Serialization/deserialization logic and all methods remain compatible
+- [x] **Completed**: All simple state containers are dataclasses, with logic and serialization preserved
 
 #### ✅ **11. Create CourseManager Class**
-- [ ] **File**: `backend/app/domain/course_manager.py`
-- [ ] **Extract from**: `GameState` course management
-- [ ] **Features**:
+- [x] **File**: `backend/app/state/course_manager.py`
+- [x] **Extract from**: `GameState` course management
+- [x] **Features**:
   - Course CRUD operations
   - Hole management
   - Course statistics
-- [ ] **Update**: Course-related operations
-- [ ] **Files to update**: `game_state.py`
+- [x] **Update**: Course-related operations
+- [x] **Files to update**: `game_state.py`, `simulation.py`, `main.py`
+- [x] **Completed**: Extracted all course-related state and logic into dedicated CourseManager class with proper dataclass structure and serialization
 
 ### **Priority 5: Integration & Testing**
 

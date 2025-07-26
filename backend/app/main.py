@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, Body, HTTPException, Request, Path, Query
+from fastapi import FastAPI, Depends, Body, HTTPException, Request, Path, Query, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from . import models, schemas, crud, database
 # Ensure tables are created before anything else
@@ -8,12 +8,15 @@ database.init_db()
 
 from .game_state import game_state
 from .simulation import simulation_engine
+from .course_import import CourseImporter, import_course_by_name, import_course_from_json, save_course_to_database
 from pydantic import BaseModel, Field
 from typing import List, Optional, Any, Dict
 import os
 import httpx
 import logging
 import traceback
+import json
+import tempfile
 
 app = FastAPI()
 
@@ -216,6 +219,280 @@ def compare_courses(course1: str, course2: str):
         }
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+# Course Import Endpoints
+class CourseImportRequest(BaseModel):
+    course_name: str
+    state: Optional[str] = None
+    city: Optional[str] = None
+
+@app.post("/courses/import/search")
+async def import_course_by_search(request: CourseImportRequest):
+    """Import a course by searching external databases"""
+    try:
+        logger.info(f"Importing course: {request.course_name}")
+        
+        # Import course from external sources
+        course_data = await import_course_by_name(
+            request.course_name, 
+            request.state, 
+            request.city
+        )
+        
+        if not course_data:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Course '{request.course_name}' not found in any external database"
+            )
+        
+        # Save to database
+        success = save_course_to_database(course_data)
+        if not success:
+            raise HTTPException(
+                status_code=500, 
+                detail="Failed to save course to database"
+            )
+        
+        # Convert to response format
+        holes = []
+        for hole in course_data.holes_data:
+            holes.append({
+                "hole_number": hole["hole_number"],
+                "par": hole["par"],
+                "yards": hole["yards"],
+                "handicap": hole["handicap"],
+                "description": hole.get("description", ""),
+                "tee_box": hole.get("tee_box", "regular")
+            })
+        
+        return {
+            "status": "success",
+            "message": f"Course '{course_data.name}' imported successfully from {course_data.source}",
+            "course": {
+                "name": course_data.name,
+                "description": course_data.description,
+                "total_par": course_data.total_par,
+                "total_yards": course_data.total_yards,
+                "course_rating": course_data.course_rating,
+                "slope_rating": course_data.slope_rating,
+                "holes": holes,
+                "source": course_data.source,
+                "last_updated": course_data.last_updated,
+                "location": course_data.location,
+                "website": course_data.website,
+                "phone": course_data.phone
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Course import error: {e}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Import failed: {str(e)}"
+        )
+
+@app.post("/courses/import/file")
+async def import_course_from_file(file: UploadFile = File(...)):
+    """Import a course from a JSON file upload"""
+    try:
+        # Validate file type
+        if not file.filename.endswith('.json'):
+            raise HTTPException(
+                status_code=400, 
+                detail="Only JSON files are supported"
+            )
+        
+        # Read file content
+        content = await file.read()
+        try:
+            course_json = json.loads(content.decode('utf-8'))
+        except json.JSONDecodeError:
+            raise HTTPException(
+                status_code=400, 
+                detail="Invalid JSON format"
+            )
+        
+        # Save to temporary file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp_file:
+            json.dump(course_json, temp_file)
+            temp_file_path = temp_file.name
+        
+        try:
+            # Import from file
+            course_data = await import_course_from_json(temp_file_path)
+            
+            if not course_data:
+                raise HTTPException(
+                    status_code=400, 
+                    detail="Failed to parse course data from file"
+                )
+            
+            # Save to database
+            success = save_course_to_database(course_data)
+            if not success:
+                raise HTTPException(
+                    status_code=500, 
+                    detail="Failed to save course to database"
+                )
+            
+            # Convert to response format
+            holes = []
+            for hole in course_data.holes_data:
+                holes.append({
+                    "hole_number": hole["hole_number"],
+                    "par": hole["par"],
+                    "yards": hole["yards"],
+                    "handicap": hole["handicap"],
+                    "description": hole.get("description", ""),
+                    "tee_box": hole.get("tee_box", "regular")
+                })
+            
+            return {
+                "status": "success",
+                "message": f"Course '{course_data.name}' imported successfully from file",
+                "course": {
+                    "name": course_data.name,
+                    "description": course_data.description,
+                    "total_par": course_data.total_par,
+                    "total_yards": course_data.total_yards,
+                    "course_rating": course_data.course_rating,
+                    "slope_rating": course_data.slope_rating,
+                    "holes": holes,
+                    "source": course_data.source,
+                    "last_updated": course_data.last_updated,
+                    "location": course_data.location,
+                    "website": course_data.website,
+                    "phone": course_data.phone
+                }
+            }
+            
+        finally:
+            # Clean up temporary file
+            os.unlink(temp_file_path)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"File import error: {e}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"File import failed: {str(e)}"
+        )
+
+@app.get("/courses/import/sources")
+def get_import_sources():
+    """Get available import sources and their status"""
+    api_keys = {
+        "usga_api_key": bool(os.getenv("USGA_API_KEY")),
+        "ghin_api_key": bool(os.getenv("GHIN_API_KEY")),
+        "golf_now_api_key": bool(os.getenv("GOLF_NOW_API_KEY")),
+        "thegrint_api_key": bool(os.getenv("THEGRINT_API_KEY"))
+    }
+    
+    sources = [
+        {
+            "name": "USGA",
+            "description": "United States Golf Association course database",
+            "available": api_keys["usga_api_key"],
+            "requires_api_key": True,
+            "endpoint": "/courses/import/search"
+        },
+        {
+            "name": "GHIN",
+            "description": "Golf Handicap and Information Network",
+            "available": True,  # GHIN doesn't require API key for basic search
+            "requires_api_key": False,
+            "endpoint": "/courses/import/search"
+        },
+        {
+            "name": "GolfNow",
+            "description": "GolfNow course database",
+            "available": api_keys["golf_now_api_key"],
+            "requires_api_key": True,
+            "endpoint": "/courses/import/search"
+        },
+        {
+            "name": "TheGrint",
+            "description": "TheGrint golf course database",
+            "available": api_keys["thegrint_api_key"],
+            "requires_api_key": True,
+            "endpoint": "/courses/import/search"
+        },
+        {
+            "name": "JSON File",
+            "description": "Import from JSON file upload",
+            "available": True,
+            "requires_api_key": False,
+            "endpoint": "/courses/import/file"
+        }
+    ]
+    
+    return {
+        "sources": sources,
+        "configured_sources": sum(1 for source in sources if source["available"]),
+        "total_sources": len(sources)
+    }
+
+@app.post("/courses/import/preview")
+async def preview_course_import(request: CourseImportRequest):
+    """Preview course data before importing (doesn't save to database)"""
+    try:
+        logger.info(f"Previewing course import: {request.course_name}")
+        
+        # Import course from external sources
+        course_data = await import_course_by_name(
+            request.course_name, 
+            request.state, 
+            request.city
+        )
+        
+        if not course_data:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Course '{request.course_name}' not found in any external database"
+            )
+        
+        # Convert to response format
+        holes = []
+        for hole in course_data.holes_data:
+            holes.append({
+                "hole_number": hole["hole_number"],
+                "par": hole["par"],
+                "yards": hole["yards"],
+                "handicap": hole["handicap"],
+                "description": hole.get("description", ""),
+                "tee_box": hole.get("tee_box", "regular")
+            })
+        
+        return {
+            "status": "preview",
+            "message": f"Course '{course_data.name}' found in {course_data.source}",
+            "course": {
+                "name": course_data.name,
+                "description": course_data.description,
+                "total_par": course_data.total_par,
+                "total_yards": course_data.total_yards,
+                "course_rating": course_data.course_rating,
+                "slope_rating": course_data.slope_rating,
+                "holes": holes,
+                "source": course_data.source,
+                "last_updated": course_data.last_updated,
+                "location": course_data.location,
+                "website": course_data.website,
+                "phone": course_data.phone
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Course preview error: {e}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Preview failed: {str(e)}"
+        )
 
 @app.get("/game/current-hole")
 def get_current_hole_info():

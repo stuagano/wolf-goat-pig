@@ -1,0 +1,155 @@
+{
+  "name": "Pebble Beach Golf Links",
+  "description": "Iconic coastal golf course on the Monterey Peninsula, host to multiple U.S. Open Championships. Known for its dramatic ocean views and challenging holes along the Pacific coastline.",
+  "course_rating": 75.5,
+  "slope_rating": 145,
+  "location": "Pebble Beach, CA",
+  "website": "https://www.pebblebeach.com/golf/pebble-beach-golf-links/",
+  "phone": "(831) 622-8723",
+  "holes_data": [
+    {
+      "hole_number": 1,
+      "par": 4,
+      "yards": 380,
+      "handicap": 11,
+      "description": "Opening hole with a slight dogleg right. Fairway bunkers guard the landing area. Approach shot to a well-bunkered green.",
+      "tee_box": "regular"
+    },
+    {
+      "hole_number": 2,
+      "par": 5,
+      "yards": 516,
+      "handicap": 5,
+      "description": "Reachable par 5 for long hitters. Water hazard on the right side of the fairway. Second shot must carry over water to reach the green.",
+      "tee_box": "regular"
+    },
+    {
+      "hole_number": 3,
+      "par": 4,
+      "yards": 404,
+      "handicap": 9,
+      "description": "Straightaway par 4 with a narrow fairway. Trees line both sides. Approach shot to an elevated green with deep bunkers.",
+      "tee_box": "regular"
+    },
+    {
+      "hole_number": 4,
+      "par": 4,
+      "yards": 331,
+      "handicap": 15,
+      "description": "Short par 4 with a dogleg left. Risk/reward hole where players can try to drive the green or lay up for a short approach.",
+      "tee_box": "regular"
+    },
+    {
+      "hole_number": 5,
+      "par": 3,
+      "yards": 195,
+      "handicap": 7,
+      "description": "Long par 3 over a deep ravine. Wind can be a significant factor. Large green with multiple tiers.",
+      "tee_box": "regular"
+    },
+    {
+      "hole_number": 6,
+      "par": 5,
+      "yards": 523,
+      "handicap": 1,
+      "description": "Challenging par 5 with a narrow fairway. Out of bounds left, trees right. Three-shot hole for most players.",
+      "tee_box": "regular"
+    },
+    {
+      "hole_number": 7,
+      "par": 3,
+      "yards": 106,
+      "description": "Famous short par 3 with ocean backdrop. Small green surrounded by bunkers. Club selection is crucial despite the short distance.",
+      "handicap": 17,
+      "tee_box": "regular"
+    },
+    {
+      "hole_number": 8,
+      "par": 4,
+      "yards": 428,
+      "handicap": 3,
+      "description": "Long par 4 with a dramatic ocean view. Dogleg right with a narrow landing area. Approach shot to a green perched above the ocean.",
+      "tee_box": "regular"
+    },
+    {
+      "hole_number": 9,
+      "par": 4,
+      "yards": 462,
+      "handicap": 13,
+      "description": "Uphill par 4 with a blind tee shot. Fairway slopes from right to left. Large green with subtle breaks.",
+      "tee_box": "regular"
+    },
+    {
+      "hole_number": 10,
+      "par": 4,
+      "yards": 495,
+      "handicap": 2,
+      "description": "Long par 4 with ocean views. Narrow fairway with bunkers on both sides. Approach shot to a green with ocean backdrop.",
+      "tee_box": "regular"
+    },
+    {
+      "hole_number": 11,
+      "par": 4,
+      "yards": 390,
+      "handicap": 12,
+      "description": "Medium-length par 4 with a dogleg left. Trees guard the corner. Approach shot to a well-bunkered green.",
+      "tee_box": "regular"
+    },
+    {
+      "hole_number": 12,
+      "par": 3,
+      "yards": 202,
+      "handicap": 8,
+      "description": "Long par 3 with ocean views. Wind can be a major factor. Large green with multiple pin positions.",
+      "tee_box": "regular"
+    },
+    {
+      "hole_number": 13,
+      "par": 4,
+      "yards": 445,
+      "handicap": 4,
+      "description": "Challenging par 4 with a narrow fairway. Out of bounds left, trees right. Approach shot to an elevated green.",
+      "tee_box": "regular"
+    },
+    {
+      "hole_number": 14,
+      "par": 5,
+      "yards": 580,
+      "handicap": 6,
+      "description": "Long par 5 with a dogleg right. Three-shot hole for most players. Well-bunkered green with ocean views.",
+      "tee_box": "regular"
+    },
+    {
+      "hole_number": 15,
+      "par": 4,
+      "yards": 397,
+      "handicap": 14,
+      "description": "Medium-length par 4 with a slight dogleg left. Fairway bunkers guard the landing area. Approach shot to a large green.",
+      "tee_box": "regular"
+    },
+    {
+      "hole_number": 16,
+      "par": 4,
+      "yards": 403,
+      "handicap": 10,
+      "description": "Straightaway par 4 with ocean views. Narrow fairway with bunkers on both sides. Approach shot to a green with ocean backdrop.",
+      "tee_box": "regular"
+    },
+    {
+      "hole_number": 17,
+      "par": 3,
+      "yards": 178,
+      "handicap": 16,
+      "description": "Iconic par 3 with ocean backdrop. Small green surrounded by bunkers. Wind and distance control are crucial.",
+      "tee_box": "regular"
+    },
+    {
+      "hole_number": 18,
+      "par": 5,
+      "yards": 543,
+      "handicap": 18,
+      "description": "Famous finishing hole along the ocean. Dogleg left with a narrow fairway. Second shot must carry over the ocean to reach the green.",
+      "tee_box": "regular"
+    }
+  ]
+} 

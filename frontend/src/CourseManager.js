@@ -1,48 +1,39 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
+import CourseImport from './CourseImport';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
+
 const COLORS = {
-  primary: "#1976d2",
-  accent: "#00bcd4",
-  warning: "#ff9800",
-  error: "#d32f2f",
-  success: "#388e3c",
-  bg: "#f9fafe",
-  card: "#fff",
-  border: "#e0e0e0",
-  text: "#222",
-  muted: "#888",
+  primary: "#2E7D32",
+  secondary: "#4CAF50",
+  accent: "#81C784",
+  background: "#F1F8E9",
+  text: "#1B5E20",
+  error: "#D32F2F",
+  warning: "#F57C00",
+  success: "#388E3C"
 };
+
 const cardStyle = {
-  background: COLORS.card,
+  background: "white",
   borderRadius: 12,
-  boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-  padding: 16,
-  marginBottom: 18,
-  border: `1px solid ${COLORS.border}`,
+  padding: 24,
+  margin: "16px 0",
+  boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+  border: "1px solid #e0e0e0"
 };
+
 const buttonStyle = {
   background: COLORS.primary,
-  color: "#fff",
+  color: "white",
   border: "none",
   borderRadius: 8,
-  padding: "10px 18px",
-  fontWeight: 600,
+  padding: "12px 24px",
   fontSize: 16,
-  minHeight: 44,
-  margin: "8px 0",
-  boxShadow: "0 1px 4px rgba(25, 118, 210, 0.08)",
+  fontWeight: "bold",
   cursor: "pointer",
-  transition: "background 0.2s",
-};
-const inputStyle = {
-  border: `1px solid ${COLORS.border}`,
-  borderRadius: 6,
-  padding: "10px 12px",
-  fontSize: 16,
-  minHeight: 36,
-  width: 60,
-  margin: "4px 0",
+  margin: "8px 4px",
+  transition: "background-color 0.2s"
 };
 
 function CourseManager({ onClose, onCoursesChanged }) {
@@ -52,10 +43,22 @@ function CourseManager({ onClose, onCoursesChanged }) {
   const [error, setError] = useState("");
   const [editIdx, setEditIdx] = useState(null);
   const [editCourse, setEditCourse] = useState(null);
+  const [showImport, setShowImport] = useState(false);
 
   useEffect(() => {
-    fetch(`${API_URL}/courses`).then(res => res.json()).then(data => setCourses(Object.entries(data)));
+    fetchCourses();
   }, []);
+
+  const fetchCourses = async () => {
+    try {
+      const response = await fetch(`${API_URL}/courses`);
+      const data = await response.json();
+      setCourses(Object.entries(data));
+    } catch (error) {
+      console.error("Error fetching courses:", error);
+      setError("Failed to load courses");
+    }
+  };
 
   const handleAdd = async e => {
     e.preventDefault();
@@ -90,141 +93,292 @@ function CourseManager({ onClose, onCoursesChanged }) {
     }
   };
 
-  const handleDelete = async name => {
-    if (!window.confirm(`Delete course '${name}'?`)) return;
-    const res = await fetch(`${API_URL}/courses/${encodeURIComponent(name)}`, { method: "DELETE" });
-    if (res.ok) {
-      const data = await res.json();
-      setCourses(Object.entries(data));
-      onCoursesChanged && onCoursesChanged();
+  const handleDelete = async (courseName) => {
+    if (!window.confirm(`Delete course "${courseName}"?`)) return;
+    
+    try {
+      const response = await fetch(`${API_URL}/courses/${encodeURIComponent(courseName)}`, {
+        method: "DELETE"
+      });
+      
+      if (response.ok) {
+        await fetchCourses();
+        onCoursesChanged && onCoursesChanged();
+      } else {
+        const data = await response.json();
+        setError(data.detail || "Delete failed");
+      }
+    } catch (error) {
+      setError("Failed to delete course");
     }
   };
 
-  const handleEdit = (idx, name, holes) => {
-    setEditIdx(idx);
-    setEditCourse({ name, holes: holes.map(h => ({ ...h })) });
+  const handleEdit = (courseName) => {
+    const course = courses.find(([name]) => name === courseName);
+    if (course) {
+      setEditCourse(course[1]);
+      setEditIdx(courses.findIndex(([name]) => name === courseName));
+    }
   };
 
-  const handleEditChange = (i, field, value) => {
-    setEditCourse(ec => ({
-      ...ec,
-      holes: ec.holes.map((h, idx) => idx === i ? { ...h, [field]: value } : h)
-    }));
+  const handleSaveEdit = async () => {
+    if (!editCourse) return;
+    
+    try {
+      const response = await fetch(`${API_URL}/courses/${encodeURIComponent(editCourse.name)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editCourse)
+      });
+      
+      if (response.ok) {
+        await fetchCourses();
+        setEditCourse(null);
+        setEditIdx(null);
+        onCoursesChanged && onCoursesChanged();
+      } else {
+        const data = await response.json();
+        setError(data.detail || "Update failed");
+      }
+    } catch (error) {
+      setError("Failed to update course");
+    }
   };
 
-  const handleEditSave = async () => {
-    const { name, holes } = editCourse;
-    if (!name.trim() || holes.some(x => !x.stroke_index || !x.par)) {
-      setError("All 18 holes (stroke index and par) required.");
-      return;
-    }
-    const formattedHoles = holes.map(h => ({
-      stroke_index: Number(h.stroke_index),
-      par: Number(h.par),
-      handicap: h.handicap ? Number(h.handicap) : undefined
-    }));
-    const res = await fetch(`${API_URL}/courses`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, holes: formattedHoles }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setCourses(Object.entries(data));
-      setEditIdx(null);
-      setEditCourse(null);
-      setError("");
-      onCoursesChanged && onCoursesChanged();
-    } else {
-      const data = await res.json();
-      setError(data.detail || "Edit failed");
-    }
+  const handleCancelEdit = () => {
+    setEditCourse(null);
+    setEditIdx(null);
+  };
+
+  const handleCourseImported = (importedCourse) => {
+    // Refresh the courses list
+    fetchCourses();
+    onCoursesChanged && onCoursesChanged();
+    setShowImport(false);
   };
 
   return (
-    <div style={{ ...cardStyle, maxWidth: 700, margin: "40px auto", background: COLORS.bg }}>
-      <h2 style={{ color: COLORS.primary, marginBottom: 12 }}>Course Management</h2>
-      {onClose && <button style={{ ...buttonStyle, float: "right", marginTop: -36 }} onClick={onClose}>Close</button>}
-      <h3 style={{ marginTop: 0 }}>Existing Courses</h3>
-      <ul style={{ paddingLeft: 18 }}>
-        {courses.map(([name, holes], idx) => (
-          <li key={name} style={{ marginBottom: 10 }}>
-            <b>{name}</b> &nbsp;
-            <span style={{ fontSize: 13, color: COLORS.muted }}>Stroke Indexes: {holes.map(h => h.stroke_index).join(", ")}</span>
-            <span style={{ fontSize: 13, color: COLORS.muted, marginLeft: 8 }}>Pars: {holes.map(h => h.par).join(", ")}</span>
-            {holes[0]?.handicap !== undefined && <span style={{ fontSize: 13, color: COLORS.muted, marginLeft: 8 }}>Handicaps: {holes.map(h => h.handicap ?? "-").join(", ")}</span>}
-            <button style={{ ...buttonStyle, background: COLORS.error, marginLeft: 10, fontSize: 13, padding: "4px 10px" }} onClick={() => handleDelete(name)}>Delete</button>
-            <button style={{ ...buttonStyle, background: COLORS.accent, marginLeft: 6, fontSize: 13, padding: "4px 10px" }} onClick={() => handleEdit(idx, name, holes)}>Edit</button>
-            {editIdx === idx && editCourse && (
-              <div style={{ marginTop: 10, background: COLORS.card, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: 10 }}>
-                <h4>Edit {name}</h4>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                  {editCourse.holes.map((h, i) => (
-                    <span key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", marginRight: 8 }}>
-                      <input
-                        style={{ ...inputStyle, width: 36, marginBottom: 2 }}
-                        placeholder={`SI ${i + 1}`}
-                        value={h.stroke_index}
-                        onChange={e => handleEditChange(i, "stroke_index", e.target.value)}
-                        maxLength={2}
-                      />
-                      <input
-                        style={{ ...inputStyle, width: 36 }}
-                        placeholder="Par"
-                        value={h.par}
-                        onChange={e => handleEditChange(i, "par", e.target.value)}
-                        maxLength={1}
-                      />
-                      <input
-                        style={{ ...inputStyle, width: 36 }}
-                        placeholder="Hcp"
-                        value={h.handicap ?? ""}
-                        onChange={e => handleEditChange(i, "handicap", e.target.value)}
-                        maxLength={2}
-                      />
-                    </span>
-                  ))}
-                </div>
-                <button style={{ ...buttonStyle, background: COLORS.success, marginTop: 8 }} onClick={handleEditSave}>Save</button>
-                <button style={{ ...buttonStyle, background: COLORS.warning, marginLeft: 8, marginTop: 8 }} onClick={() => { setEditIdx(null); setEditCourse(null); }}>Cancel</button>
-              </div>
-            )}
-          </li>
-        ))}
-      </ul>
-      <h3>Add New Course</h3>
-      <form onSubmit={handleAdd} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <input style={{ ...inputStyle, width: 220 }} placeholder="Course Name" value={newName} onChange={e => setNewName(e.target.value)} />
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-          {Array(18).fill(0).map((_, i) => (
-            <span key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", marginRight: 8 }}>
-              <input
-                style={{ ...inputStyle, width: 36, marginBottom: 2 }}
-                placeholder={`SI ${i + 1}`}
-                value={newHoles[i]?.stroke_index || ""}
-                onChange={e => setNewHoles(newHoles.map((h, idx) => idx === i ? { ...h, stroke_index: e.target.value } : h))}
-                maxLength={2}
-              />
-              <input
-                style={{ ...inputStyle, width: 36 }}
-                placeholder="Par"
-                value={newHoles[i]?.par || ""}
-                onChange={e => setNewHoles(newHoles.map((h, idx) => idx === i ? { ...h, par: e.target.value } : h))}
-                maxLength={1}
-              />
-              <input
-                style={{ ...inputStyle, width: 36 }}
-                placeholder="Hcp"
-                value={newHoles[i]?.handicap || ""}
-                onChange={e => setNewHoles(newHoles.map((h, idx) => idx === i ? { ...h, handicap: e.target.value } : h))}
-                maxLength={2}
-              />
-            </span>
-          ))}
+    <div style={{ 
+      position: "fixed", 
+      top: 0, 
+      left: 0, 
+      right: 0, 
+      bottom: 0, 
+      background: "rgba(0, 0, 0, 0.5)", 
+      display: "flex", 
+      justifyContent: "center", 
+      alignItems: "center",
+      zIndex: 1000
+    }}>
+      <div style={{ 
+        background: COLORS.background, 
+        borderRadius: 16, 
+        padding: 24, 
+        maxWidth: 1200, 
+        maxHeight: "90vh", 
+        overflow: "auto",
+        width: "90%"
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <h1 style={{ color: COLORS.text, margin: 0 }}>Course Management</h1>
+          <button
+            onClick={onClose}
+            style={{
+              background: "none",
+              border: "none",
+              fontSize: 24,
+              cursor: "pointer",
+              color: "#666"
+            }}
+          >
+            ×
+          </button>
         </div>
-        {error && <div style={{ color: COLORS.error }}>{error}</div>}
-        <button type="submit" style={{ ...buttonStyle, width: 180 }}>Add Course</button>
-      </form>
+
+        {error && (
+          <div style={{
+            background: "#ffebee",
+            color: COLORS.error,
+            padding: 12,
+            borderRadius: 8,
+            marginBottom: 16,
+            border: `1px solid ${COLORS.error}`
+          }}>
+            ❌ {error}
+          </div>
+        )}
+
+        {/* Import Button */}
+        <div style={{ marginBottom: 20 }}>
+          <button
+            onClick={() => setShowImport(true)}
+            style={{
+              ...buttonStyle,
+              background: COLORS.secondary,
+              marginRight: 12
+            }}
+          >
+            📥 Import Course
+          </button>
+          <span style={{ color: "#666", fontSize: 14 }}>
+            Import real course ratings and slopes from external databases
+          </span>
+        </div>
+
+        {/* Add New Course Form */}
+        <div style={cardStyle}>
+          <h2 style={{ color: COLORS.text, marginBottom: 16 }}>Add New Course</h2>
+          <form onSubmit={handleAdd}>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: "block", marginBottom: 8, fontWeight: "bold", color: COLORS.text }}>
+                Course Name:
+              </label>
+              <input
+                type="text"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  border: "2px solid #e0e0e0",
+                  borderRadius: 8,
+                  fontSize: 16
+                }}
+                placeholder="Enter course name"
+              />
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: "block", marginBottom: 8, fontWeight: "bold", color: COLORS.text }}>
+                Hole Data (18 holes):
+              </label>
+              <div style={{ 
+                display: "grid", 
+                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
+                gap: 12 
+              }}>
+                {newHoles.map((hole, idx) => (
+                  <div key={idx} style={{ 
+                    background: "#f5f5f5", 
+                    padding: 12, 
+                    borderRadius: 8 
+                  }}>
+                    <div style={{ fontWeight: "bold", marginBottom: 8 }}>Hole {idx + 1}</div>
+                    <input
+                      type="number"
+                      placeholder="Stroke Index"
+                      value={hole.stroke_index}
+                      onChange={(e) => {
+                        const newHolesCopy = [...newHoles];
+                        newHolesCopy[idx] = { ...hole, stroke_index: e.target.value };
+                        setNewHoles(newHolesCopy);
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "8px",
+                        border: "1px solid #ddd",
+                        borderRadius: 4,
+                        marginBottom: 8
+                      }}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Par"
+                      value={hole.par}
+                      onChange={(e) => {
+                        const newHolesCopy = [...newHoles];
+                        newHolesCopy[idx] = { ...hole, par: e.target.value };
+                        setNewHoles(newHolesCopy);
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "8px",
+                        border: "1px solid #ddd",
+                        borderRadius: 4
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <button type="submit" style={buttonStyle}>
+              Add Course
+            </button>
+          </form>
+        </div>
+
+        {/* Existing Courses */}
+        <div style={cardStyle}>
+          <h2 style={{ color: COLORS.text, marginBottom: 16 }}>Existing Courses</h2>
+          {courses.length === 0 ? (
+            <p style={{ color: "#666", textAlign: "center", padding: 20 }}>
+              No courses found. Add a course above or import one from external sources.
+            </p>
+          ) : (
+            <div style={{ display: "grid", gap: 16 }}>
+              {courses.map(([name, course], idx) => (
+                <div key={name} style={{ 
+                  background: "#f5f5f5", 
+                  padding: 16, 
+                  borderRadius: 8,
+                  border: editIdx === idx ? `2px solid ${COLORS.primary}` : "1px solid #ddd"
+                }}>
+                  {editIdx === idx ? (
+                    <div>
+                      <input
+                        type="text"
+                        value={editCourse.name}
+                        onChange={(e) => setEditCourse({ ...editCourse, name: e.target.value })}
+                        style={{
+                          width: "100%",
+                          padding: "8px",
+                          border: "1px solid #ddd",
+                          borderRadius: 4,
+                          marginBottom: 8
+                        }}
+                      />
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button onClick={handleSaveEdit} style={{ ...buttonStyle, background: COLORS.success }}>
+                          Save
+                        </button>
+                        <button onClick={handleCancelEdit} style={{ ...buttonStyle, background: "#666" }}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <h3 style={{ margin: 0, color: COLORS.text }}>{name}</h3>
+                        <p style={{ margin: "4px 0", color: "#666", fontSize: 14 }}>
+                          {course.holes?.length || 0} holes
+                        </p>
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button onClick={() => handleEdit(name)} style={{ ...buttonStyle, background: COLORS.secondary }}>
+                          Edit
+                        </button>
+                        <button onClick={() => handleDelete(name)} style={{ ...buttonStyle, background: COLORS.error }}>
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Course Import Modal */}
+        {showImport && (
+          <CourseImport
+            onClose={() => setShowImport(false)}
+            onCourseImported={handleCourseImported}
+          />
+        )}
+      </div>
     </div>
   );
 }
