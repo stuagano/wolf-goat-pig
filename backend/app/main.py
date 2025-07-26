@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, Body, HTTPException, Request, Path, Query, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse
 from . import models, schemas, crud, database
 # Ensure tables are created before anything else
 # Call init_db before importing game_state
@@ -106,41 +106,18 @@ app.add_middleware(
 from starlette.middleware.cors import CORSMiddleware as BaseCORSMiddleware
 import re
 
-class WildcardCORSMiddleware(BaseCORSMiddleware):
-    def __init__(self, app, **kwargs):
-        super().__init__(app, **kwargs)
-        self.wildcard_patterns = [
-            r"https://.*\.vercel\.app$",  # Any Vercel subdomain
-            r"https://.*\.onrender\.com$",  # Any Render subdomain
-            r"https://.*-.*-.*\.vercel\.app$",  # Vercel with dashes
-            r"https://.*\.vercel\.app$",  # Any Vercel subdomain (redundant but explicit)
-        ]
-    
-    def is_origin_allowed(self, origin: str) -> bool:
-        # Check exact matches first
-        if origin in self.allow_origins:
-            logger.info(f"CORS: Origin {origin} matched exact allow_origins")
-            return True
-        
-        # Check wildcard patterns
-        for pattern in self.wildcard_patterns:
-            if re.match(pattern, origin):
-                logger.info(f"CORS: Origin {origin} matched pattern {pattern}")
-                return True
-        
-        logger.warning(f"CORS: Origin {origin} not allowed. Patterns: {self.wildcard_patterns}")
-        return False
-
-# CORS middleware with wildcard support
+# Standard CORS middleware with permissive configuration
 app.add_middleware(
-    WildcardCORSMiddleware,
+    CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "https://wolf-goat-pig.vercel.app",
         "https://wolf-goat-pig-frontend.onrender.com",
-        "https://wolf-goat-im4paxvvp-stuaganos-projects.vercel.app",  # Specific Vercel deployment URL
-        os.getenv("FRONTEND_URL", "http://localhost:3000")
+        "https://wolf-goat-im4paxvvp-stuaganos-projects.vercel.app",
+        "https://*.vercel.app",
+        "https://*.onrender.com",
+        "*"  # Allow all origins for development/debugging
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -166,20 +143,7 @@ def health_check():
     """Health check endpoint for Render"""
     return {"status": "healthy", "message": "Wolf Goat Pig API is running"}
 
-@app.options("/{full_path:path}")
-async def options_handler(request: Request):
-    """Handle CORS preflight requests"""
-    origin = request.headers.get("origin")
-    logger.info(f"CORS preflight request from origin: {origin}")
-    return Response(
-        status_code=200,
-        headers={
-            "Access-Control-Allow-Origin": origin or "*",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-            "Access-Control-Allow-Headers": "*",
-            "Access-Control-Allow-Credentials": "true",
-        }
-    )
+
 
 @app.get("/rules", response_model=list[schemas.Rule])
 def get_rules():
