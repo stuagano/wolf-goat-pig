@@ -107,8 +107,8 @@ class ComputerPlayer:
     def _get_points_for_player(self, handicap: float, game_state: GameState) -> int:
         """Get points for a player with given handicap"""
         for player in game_state.player_manager.players:
-            if abs(player["handicap"] - handicap) < 0.1:
-                return player["points"]
+            if abs(player.handicap - handicap) < 0.1:
+                return player.points
         return 0
     
     def _assess_hole_difficulty(self, game_state: GameState) -> float:
@@ -973,9 +973,9 @@ class SimulationEngine:
         """Get the human player ID (first player that's not a computer)"""
         comp_ids = {cp.player_id for cp in self.computer_players}
         for player in game_state.player_manager.players:
-            if player["id"] not in comp_ids:
-                return player["id"]
-        return game_state.player_manager.players[0]["id"]  # Fallback
+            if player.id not in comp_ids:
+                return player.id
+        return game_state.player_manager.players[0].id  # Fallback
     
     def _get_current_points(self, player_id: str, game_state: GameState) -> int:
         """Get current points for a specific player"""
@@ -1146,7 +1146,7 @@ class SimulationEngine:
             
             # Get final scores
             final_scores = {
-                player["id"]: player["points"]
+                player.id: player.points
                 for player in game_state.player_manager.players
             }
             
@@ -1168,8 +1168,8 @@ class SimulationEngine:
         # Get current points for human player
         current_points = 0
         for player in game_state.player_manager.players:
-            if player["id"] == human_player["id"]:
-                current_points = player["points"]
+            if player.id == human_player["id"]:
+                current_points = player.points
                 break
         
         # Default decisions
@@ -1184,7 +1184,7 @@ class SimulationEngine:
             # Human is captain - make partnership decision
             
             # Assess potential partners
-            potential_partners = [p for p in game_state.player_manager.players if p["id"] != human_player["id"]]
+            potential_partners = [p for p in game_state.player_manager.players if p.id != human_player["id"]]
             
             # Simple strategy: prefer partners with similar or better handicaps
             human_handicap = human_player["handicap"]
@@ -1509,7 +1509,7 @@ class SimulationEngine:
         
         # Update shot state
         game_state.shot_state.add_completed_shot(
-            player["id"],
+            player.id,
             shot_result,
             pre_shot_probs
         )
@@ -1709,7 +1709,7 @@ class SimulationEngine:
             quality = shot_result["shot_quality"]
         
         # Player identifier
-        player_icon = "🧑" if player["id"] == self._get_human_player_id(game_state) else "💻"
+        player_icon = "🧑" if player.id == self._get_human_player_id(game_state) else "💻"
         
         # Quality descriptors
         quality_desc = {

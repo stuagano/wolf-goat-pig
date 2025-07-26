@@ -255,10 +255,23 @@ class BettingEngine:
     def _get_human_player_id(game_state: GameState) -> str:
         """Get the human player ID"""
         for player in game_state.player_manager.players:
-            if player.get("is_human", False):
-                return player["id"]
+            # Handle both Player objects and dictionaries
+            if hasattr(player, 'id'):
+                # This is a Player object, check if it has is_human attribute
+                if hasattr(player, 'is_human') and player.is_human:
+                    return player.id
+            else:
+                # This is a dictionary
+                if player.get("is_human", False):
+                    return player["id"]
         # Fallback: assume first player is human
-        return game_state.player_manager.players[0]["id"]
+        if game_state.player_manager.players:
+            first_player = game_state.player_manager.players[0]
+            if hasattr(first_player, 'id'):
+                return first_player.id
+            else:
+                return first_player["id"]
+        return "p1"  # Ultimate fallback
 
     @staticmethod
     def _get_current_points(player_id: str, game_state: GameState) -> int:
@@ -277,10 +290,18 @@ class BettingEngine:
         team2_handicaps = []
         
         for player in game_state.player_manager.players:
-            if player["id"] in game_state.betting_state.teams.get("team1", []):
-                team1_handicaps.append(player["handicap"])
-            elif player["id"] in game_state.betting_state.teams.get("team2", []):
-                team2_handicaps.append(player["handicap"])
+            # Handle both Player objects and dictionaries
+            if hasattr(player, 'id'):
+                player_id = player.id
+                player_handicap = player.handicap
+            else:
+                player_id = player["id"]
+                player_handicap = player["handicap"]
+                
+            if player_id in game_state.betting_state.teams.get("team1", []):
+                team1_handicaps.append(player_handicap)
+            elif player_id in game_state.betting_state.teams.get("team2", []):
+                team2_handicaps.append(player_handicap)
         
         if not team1_handicaps or not team2_handicaps:
             return 0.0
