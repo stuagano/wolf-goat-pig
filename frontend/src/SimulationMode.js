@@ -255,14 +255,46 @@ function SimulationMode() {
     }
   };
 
-  // NEW EVENT-DRIVEN SHOT FUNCTIONS
-  
-  const playNextShot = async () => {
+  // Add the missing makeDecision function and improve interactive flow
+  const makeDecision = async (decision) => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/simulation/next-shot`, {
+      // Determine which endpoint to use based on decision type
+      let endpoint = '/simulation/play-hole';
+      let payload = { ...decision };
+      
+      // Handle different decision types
+      if (decision.action === 'request_partner' || decision.action === 'go_solo' || decision.action === 'keep_watching') {
+        // Captain decisions during tee shots
+        endpoint = '/simulation/play-hole';
+        payload = {
+          action: decision.action,
+          requested_partner: decision.requested_partner || decision.partner_id
+        };
+      } else if (decision.accept_partnership !== undefined) {
+        // Partnership response
+        endpoint = '/simulation/play-hole';
+        payload = {
+          accept_partnership: decision.accept_partnership
+        };
+      } else if (decision.offer_double !== undefined) {
+        // Doubling decisions
+        endpoint = '/simulation/betting-decision';
+        payload = {
+          action: decision.offer_double ? 'offer_double' : 'decline_double'
+        };
+      } else if (decision.accept_double !== undefined) {
+        // Double response
+        endpoint = '/simulation/betting-decision';
+        payload = {
+          action: decision.accept_double ? 'accept_double' : 'decline_double'
+        };
+      }
+
+      const response = await fetch(`${API_URL}${endpoint}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" }
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
       });
       
       if (!response.ok) {
@@ -271,30 +303,152 @@ function SimulationMode() {
       }
       
       const data = await response.json();
+      
+      if (data.status === "ok") {
+        // Update game state
+        setGameState(data.game_state);
+        
+        // Add feedback messages
+        if (data.feedback && Array.isArray(data.feedback)) {
+          setFeedback(prev => [...prev, ...data.feedback]);
+        } else if (data.decision_result?.message) {
+          setFeedback(prev => [...prev, `💰 ${data.decision_result.message}`]);
+        }
+        
+        // Handle interaction needed
+        if (data.interaction_needed) {
+          setInteractionNeeded(data.interaction_needed);
+        } else {
+          setInteractionNeeded(null);
+          setPendingDecision({});
+        }
+        
+        // Update shot state if available
+        if (data.next_shot_available !== undefined) {
+          setHasNextShot(data.next_shot_available);
+        }
+        
+        // Show probabilities if available
+        if (data.probabilities) {
+          setShotProbabilities(data.probabilities);
+        }
+        
+        // Show betting probabilities if available
+        if (data.betting_probabilities) {
+          setShotProbabilities(prev => ({
+            ...prev,
+            betting_analysis: data.betting_probabilities
+          }));
+        }
+        
+        // Auto-continue if no interaction needed and shots available
+        if (!data.interaction_needed && data.next_shot_available) {
+          // Small delay to let user see the feedback
+          setTimeout(() => {
+            if (!loading && !interactionNeeded) {
+              playNextShot();
+            }
+          }, 1500);
+        }
+        
+      } else {
+        throw new Error(data.message || 'Unknown error occurred');
+      }
+      
+    } catch (error) {
+      console.error("Error making decision:", error);
+      
+      // Provide user-friendly error messages
+      let errorMessage = "Error making decision: ";
+      if (error.message.includes("Backend error: 500")) {
+        errorMessage += "Server error - please try again";
+      } else if (error.message.includes("Backend error: 400")) {
+        errorMessage += "Invalid decision - please check your choice";
+      } else if (error.message.includes("fetch")) {
+        errorMessage += "Network error - check your connection";
+      } else {
+        errorMessage += error.message;
+      }
+      
+      // Add error to feedback instead of alert
+      setFeedback(prev => [...prev, `❌ ${errorMessage}`]);
+      
+      // Clear interaction needed to prevent stuck state
+      setInteractionNeeded(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Enhanced playNextShot with better error handling
+  const playNextShot = async () => {
+    if (loading || interactionNeeded) return;
+    
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/simulation/next-shot`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pendingDecision)
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Backend error: ${response.status} - ${errorText}`);
+      }
+      
+      const data = await response.json();
+      
       if (data.status === "ok") {
         setGameState(data.game_state);
-        setShotProbabilities(data.probabilities);
         setHasNextShot(data.next_shot_available);
         
         // Add shot result to feedback
-        const newFeedback = [...feedback, data.shot_result.shot_description];
-        if (data.shot_result.reactions) {
-          newFeedback.push(...data.shot_result.reactions);
+        if (data.shot_result) {
+          const shotDesc = data.shot_result.shot_description || "Shot completed";
+          setFeedback(prev => [...prev, `🏌️ ${shotDesc}`]);
         }
-        setFeedback(newFeedback);
         
-        // Check for betting opportunity
+        // Handle interaction needed
+        if (data.interaction_needed) {
+          setInteractionNeeded(data.interaction_needed);
+          setPendingDecision({});
+        } else {
+          setInteractionNeeded(null);
+          setPendingDecision({});
+        }
+        
+        // Show probabilities if available
+        if (data.probabilities) {
+          setShotProbabilities(data.probabilities);
+        }
+        
+        // Show betting opportunity if available
         if (data.betting_opportunity) {
           setInteractionNeeded({
             type: "betting_opportunity",
-            message: "Betting opportunity available!",
+            message: "A betting opportunity has arisen!",
             opportunity: data.betting_opportunity
           });
         }
+        
+      } else {
+        throw new Error(data.message || 'Unknown error occurred');
       }
+      
     } catch (error) {
       console.error("Error playing next shot:", error);
-      alert("Error playing shot: " + error.message);
+      
+      let errorMessage = "Error playing shot: ";
+      if (error.message.includes("Backend error: 500")) {
+        errorMessage += "Server error - please try again";
+      } else if (error.message.includes("fetch")) {
+        errorMessage += "Network error - check your connection";
+      } else {
+        errorMessage += error.message;
+      }
+      
+      setFeedback(prev => [...prev, `❌ ${errorMessage}`]);
     } finally {
       setLoading(false);
     }
@@ -732,173 +886,216 @@ function SimulationMode() {
       
       {/* Interactive Decision UI */}
       {interactionNeeded && (
-        <div style={{...cardStyle, background: "#fff7ed", border: "2px solid #f59e0b"}}>
-          <h3 style={{ color: "#f59e0b", marginBottom: 16 }}>🤔 Decision Required!</h3>
+        <div style={{
+          ...cardStyle,
+          border: `3px solid ${COLORS.primary}`,
+          background: "#f0f8ff",
+          position: "relative"
+        }}>
+          <div style={{
+            position: "absolute",
+            top: -10,
+            left: 20,
+            background: COLORS.primary,
+            color: "white",
+            padding: "4px 12px",
+            borderRadius: 12,
+            fontSize: 12,
+            fontWeight: "bold"
+          }}>
+            🤔 DECISION REQUIRED
+          </div>
           
+          <h3 style={{ color: COLORS.primary, marginBottom: 16 }}>
+            {interactionNeeded.type === "captain_decision" && "👑 Captain's Decision"}
+            {interactionNeeded.type === "captain_decision_mid_tee" && "🎯 Mid-Tee Decision"}
+            {interactionNeeded.type === "partnership_response" && "🤝 Partnership Response"}
+            {interactionNeeded.type === "doubling_decision" && "💰 Doubling Decision"}
+            {interactionNeeded.type === "double_response" && "💸 Double Response"}
+            {interactionNeeded.type === "betting_opportunity" && "🎲 Betting Opportunity"}
+          </h3>
+          
+          <p style={{ marginBottom: 20, fontWeight: "bold", fontSize: 16 }}>
+            {interactionNeeded.message}
+          </p>
+          
+          {/* Captain Decision with Tee Results */}
           {(interactionNeeded.type === "captain_decision" || interactionNeeded.type === "captain_decision_mid_tee") && (
             <div>
-              <p style={{ marginBottom: 20, fontWeight: "bold" }}>
-                {interactionNeeded.message}
-              </p>
-              
-              {/* Show context based on interaction type */}
+              {/* Show tee shot results if available */}
               {interactionNeeded.type === "captain_decision" && interactionNeeded.tee_results && (
-                <div style={{ background: "#f0f8ff", padding: 12, borderRadius: 8, marginBottom: 16 }}>
-                  <h4 style={{ margin: "0 0 8px 0", color: "#4169E1" }}>📊 Tee Shot Results:</h4>
+                <div style={{ background: "#f8f9fa", padding: 12, borderRadius: 8, marginBottom: 16, border: "1px solid #dee2e6" }}>
+                  <h4 style={{ margin: "0 0 8px 0", color: "#495057" }}>📊 Tee Shot Results:</h4>
                   {Object.entries(interactionNeeded.tee_results || {}).map(([playerId, result]) => {
-                    const playerName = gameState?.players?.find(p => p.id === playerId)?.name || playerId;
+                    const isCaptain = playerId === gameState?.captain_id;
+                    const isHuman = playerId === "human";
                     return (
-                      <div key={playerId} style={{ fontSize: 14, marginBottom: 4 }}>
-                        <strong>{playerName}:</strong> {result.drive} yards, {result.lie}, {result.remaining} to pin
+                      <div key={playerId} style={{
+                        padding: 8,
+                        marginBottom: 4,
+                        borderRadius: 6,
+                        background: isCaptain ? "#e3f2fd" : "#f5f5f5",
+                        border: isCaptain ? "2px solid #2196f3" : "1px solid #ddd"
+                      }}>
+                        <div style={{ fontWeight: "bold", color: isCaptain ? "#1976d2" : "#333" }}>
+                          {isCaptain ? "👑 " : ""}{isHuman ? "🧑 " : "💻 "}{result.name}
+                          {isCaptain && " (Captain)"}
+                        </div>
+                        <div style={{ fontSize: 14, color: "#666" }}>{result.shot_description}</div>
+                        {result.partnership_advantage !== undefined && (
+                          <div style={{ 
+                            fontSize: 12, 
+                            color: result.partnership_advantage > 0 ? "#2e7d32" : "#d32f2f",
+                            fontWeight: "bold"
+                          }}>
+                            Partnership Advantage: {result.partnership_advantage > 0 ? "+" : ""}{result.partnership_advantage.toFixed(1)} strokes
+                          </div>
+                        )}
                       </div>
                     );
                   })}
                 </div>
               )}
               
-              {/* Show shot context for mid-tee decisions */}
+              {/* Show current shot context for mid-tee decisions */}
               {interactionNeeded.type === "captain_decision_mid_tee" && interactionNeeded.shot_context && (
-                <div style={{ background: "#f0fff0", padding: 12, borderRadius: 8, marginBottom: 16, border: "2px solid #10b981" }}>
-                  <h4 style={{ margin: "0 0 8px 0", color: "#10b981" }}>🎯 Just Happened:</h4>
+                <div style={{ background: "#fff3cd", padding: 12, borderRadius: 8, marginBottom: 16, border: "2px solid #ffc107" }}>
+                  <h4 style={{ margin: "0 0 8px 0", color: "#856404" }}>🎯 Current Shot:</h4>
                   <div style={{ fontSize: 16, fontWeight: "bold" }}>{interactionNeeded.shot_context}</div>
-                </div>
-              )}
-              
-              {/* Handle mid-tee decision options */}
-              {interactionNeeded.type === "captain_decision_mid_tee" ? (
-                <div>
-                  {/* Show options from the backend */}
-                  {interactionNeeded.options?.map((option, index) => {
-                    if (option.action === "request_partner") {
-                      return (
-                        <div
-                          key={option.partner_id}
-                          style={{
-                            border: "2px solid #10b981",
-                            borderRadius: 8,
-                            padding: 16,
-                            marginBottom: 12,
-                            background: "#f0fff0",
-                            cursor: "pointer"
-                          }}
-                          onClick={() => makeDecision({ action: "request_partner", requested_partner: option.partner_id })}
-                        >
-                          <h4 style={{ margin: "0 0 8px 0", color: "#10b981" }}>🤝 Partner with {option.partner_name}</h4>
-                          <p style={{ margin: 0, fontSize: 14, color: "#666" }}>
-                            Great shot! Ask them to be your partner for this hole.
-                          </p>
-                        </div>
-                      );
-                    } else if (option.action === "keep_watching") {
-                      return (
-                        <div
-                          key="keep_watching"
-                          style={{
-                            border: "1px solid #f59e0b",
-                            borderRadius: 8,
-                            padding: 16,
-                            marginBottom: 12,
-                            background: "#fff8e1",
-                            cursor: "pointer"
-                          }}
-                          onClick={() => makeDecision({ action: "keep_watching" })}
-                        >
-                          <h4 style={{ margin: "0 0 8px 0", color: "#f59e0b" }}>👀 Keep Watching</h4>
-                          <p style={{ margin: 0, fontSize: 14, color: "#666" }}>
-                            Wait to see more shots ({option.remaining_players} players left)
-                          </p>
-                        </div>
-                      );
-                    }
-                    return null;
-                  })}
-                  
-                  {/* Go Solo option if this is the last shot */}
-                  {interactionNeeded.can_go_solo && (
-                    <div style={{
-                      border: "2px solid #ef4444",
-                      borderRadius: 8,
-                      padding: 16,
-                      marginBottom: 12,
-                      background: "#fef2f2",
-                      cursor: "pointer"
-                    }}
-                    onClick={() => makeDecision({ action: "go_solo" })}
-                    >
-                      <h4 style={{ margin: "0 0 8px 0", color: "#ef4444" }}>🏌️ Go Solo (Triple Points!)</h4>
-                      <p style={{ margin: 0, fontSize: 14, color: "#666" }}>
-                        Last shot - go it alone for maximum risk/reward!
-                      </p>
+                  {interactionNeeded.partnership_advantage !== undefined && (
+                    <div style={{ 
+                      marginTop: 8,
+                      fontSize: 14, 
+                      color: interactionNeeded.partnership_advantage > 0 ? "#2e7d32" : "#d32f2f",
+                      fontWeight: "bold"
+                    }}>
+                      Partnership Advantage: {interactionNeeded.partnership_advantage > 0 ? "+" : ""}{interactionNeeded.partnership_advantage.toFixed(1)} strokes
                     </div>
                   )}
                 </div>
-              ) : (
-                <div>
-                  {/* Traditional captain decision after all tee shots */}
-                  <div style={{
-                    border: "2px solid #10b981",
-                    borderRadius: 8,
-                    padding: 16,
-                    marginBottom: 12,
-                    background: "#f0f9f0",
-                    cursor: "pointer"
-                  }}
-                  onClick={() => makeDecision({ action: "go_solo" })}
-                  >
-                    <h4 style={{ margin: "0 0 8px 0", color: "#10b981" }}>🏌️ Go Solo (Triple Points!)</h4>
-                    <p style={{ margin: 0, fontSize: 14, color: "#666" }}>
-                      <strong>Risk:</strong> High - you vs everyone else<br/>
-                      <strong>Reward:</strong> Win 3 points from each opponent if successful
-                    </p>
-                  </div>
-                  
-                  {/* Partner Options */}
-                  <h4 style={{ marginBottom: 12 }}>Or Request a Partner:</h4>
-                  {interactionNeeded.options?.map(player => {
-                    const handicapDiff = Math.abs(player.handicap - (gameState?.players?.find(p => p.id === "human")?.handicap || 18));
-                    const isGoodMatch = handicapDiff <= 6;
-                    
-                    return (
-                      <div
-                        key={player.id}
-                        style={{
-                          border: "1px solid #d1d5db",
-                          borderRadius: 8,
-                          padding: 12,
-                          marginBottom: 8,
-                          background: "#fff",
-                          cursor: "pointer"
-                        }}
-                        onClick={() => makeDecision({ action: "request_partner", requested_partner: player.id })}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                          <div>
-                            <div style={{ fontWeight: "bold" }}>💻 {player.name}</div>
-                            <div style={{ fontSize: 12, color: COLORS.muted }}>
-                              Handicap: {player.handicap} | Points: {player.points >= 0 ? "+" : ""}{player.points}
-                            </div>
-                          </div>
-                          <div style={{ textAlign: "right", fontSize: 12 }}>
-                            {isGoodMatch ? (
-                              <span style={{ color: COLORS.success, fontWeight: "bold" }}>✅ Good Match</span>
-                            ) : (
-                              <span style={{ color: COLORS.warning }}>⚠️ Handicap Gap: {handicapDiff.toFixed(1)}</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
               )}
+              
+              {/* Decision Options */}
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                {interactionNeeded.type === "captain_decision_mid_tee" ? (
+                  <>
+                    {interactionNeeded.options?.map((option, index) => {
+                      const isRequestPartner = option.action === "request_partner";
+                      return (
+                        <button
+                          key={index}
+                          style={{
+                            ...buttonStyle,
+                            background: isRequestPartner ? "#10b981" : "#6366f1",
+                            flex: 1,
+                            minWidth: 200,
+                            position: "relative"
+                          }}
+                          onClick={() => makeDecision({ action: "request_partner", requested_partner: option.partner_id })}
+                          disabled={loading}
+                        >
+                          {isRequestPartner && (
+                            <div style={{ position: "absolute", top: -8, right: -8, background: "#059669", color: "white", borderRadius: "50%", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>
+                              ⭐
+                            </div>
+                          )}
+                          🤝 Ask {option.partner_name} to Partner
+                          {isRequestPartner && option.partnership_advantage > 0 && (
+                            <div style={{ fontSize: 12, marginTop: 4 }}>
+                              +{option.partnership_advantage.toFixed(1)} advantage
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                    
+                    <button
+                      style={{
+                        ...buttonStyle,
+                        background: "#f59e0b",
+                        flex: 1,
+                        minWidth: 200
+                      }}
+                      onClick={() => makeDecision({ action: "keep_watching" })}
+                      disabled={loading}
+                    >
+                      👀 Keep Watching ({interactionNeeded.options?.find(o => o.action === "keep_watching")?.remaining_players || 0} more players)
+                    </button>
+                    
+                    {interactionNeeded.can_go_solo && (
+                      <button
+                        style={{
+                          ...buttonStyle,
+                          background: "#ef4444",
+                          flex: 1,
+                          minWidth: 200
+                        }}
+                        onClick={() => makeDecision({ action: "go_solo" })}
+                        disabled={loading}
+                      >
+                        🏌️ Go Solo (2x wager)
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <button
+                      style={{
+                        ...buttonStyle,
+                        background: "#10b981",
+                        flex: 1
+                      }}
+                      onClick={() => makeDecision({ action: "request_partner" })}
+                      disabled={loading}
+                    >
+                      🤝 Request Partner
+                    </button>
+                    
+                    <button
+                      style={{
+                        ...buttonStyle,
+                        background: "#ef4444",
+                        flex: 1
+                      }}
+                      onClick={() => makeDecision({ action: "go_solo" })}
+                      disabled={loading}
+                    >
+                      🏌️ Go Solo (2x wager)
+                    </button>
+                  </>
+                )}
+              </div>
+              
+              {/* Strategic Tips */}
+              <div style={{ marginTop: 16, padding: 12, background: "#e8f5e8", borderRadius: 8, border: "1px solid #4caf50" }}>
+                <h4 style={{ margin: "0 0 8px 0", color: "#2e7d32" }}>💡 Strategic Tips:</h4>
+                <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14, color: "#2e7d32" }}>
+                  <li>Consider stroke index - harder holes favor partnerships</li>
+                  <li>Look at partnership advantages - positive numbers are good</li>
+                  <li>Your game position affects risk tolerance</li>
+                  <li>Going solo doubles the wager but you must beat the best ball</li>
+                </ul>
+              </div>
             </div>
           )}
           
+          {/* Partnership Response */}
           {interactionNeeded.type === "partnership_response" && (
             <div>
-              <p style={{ marginBottom: 20, fontWeight: "bold", fontSize: 16 }}>
-                {interactionNeeded.message}
-              </p>
+              <div style={{ background: "#fff3cd", padding: 12, borderRadius: 8, marginBottom: 16, border: "2px solid #ffc107" }}>
+                <h4 style={{ margin: "0 0 8px 0", color: "#856404" }}>🤝 Partnership Request:</h4>
+                <div style={{ fontSize: 16, fontWeight: "bold" }}>{interactionNeeded.shot_context}</div>
+                {interactionNeeded.partnership_advantage !== undefined && (
+                  <div style={{ 
+                    marginTop: 8,
+                    fontSize: 14, 
+                    color: interactionNeeded.partnership_advantage > 0 ? "#2e7d32" : "#d32f2f",
+                    fontWeight: "bold"
+                  }}>
+                    Team Advantage: {interactionNeeded.partnership_advantage > 0 ? "+" : ""}{interactionNeeded.partnership_advantage.toFixed(1)} strokes
+                  </div>
+                )}
+              </div>
               
               <div style={{ display: "flex", gap: 12 }}>
                 <button
@@ -908,6 +1105,7 @@ function SimulationMode() {
                     flex: 1
                   }}
                   onClick={() => makeDecision({ accept_partnership: true })}
+                  disabled={loading}
                 >
                   ✅ Accept Partnership
                 </button>
@@ -919,44 +1117,40 @@ function SimulationMode() {
                     flex: 1
                   }}
                   onClick={() => makeDecision({ accept_partnership: false })}
+                  disabled={loading}
                 >
                   ❌ Decline Partnership
                 </button>
               </div>
               
               <p style={{ marginTop: 12, fontSize: 14, color: COLORS.muted, textAlign: "center" }}>
-                Choose wisely - this affects the entire hole outcome!
+                💡 Consider the team advantage and your current game position!
               </p>
             </div>
           )}
           
+          {/* Doubling Decision */}
           {interactionNeeded.type === "doubling_decision" && (
             <div>
-              <p style={{ marginBottom: 20, fontWeight: "bold", fontSize: 16 }}>
-                {interactionNeeded.message}
-              </p>
-              
-              {/* Show betting context */}
-              <div style={{ background: "#f0f8ff", padding: 12, borderRadius: 8, marginBottom: 16 }}>
-                <h4 style={{ margin: "0 0 8px 0", color: "#4169E1" }}>💰 Betting Situation:</h4>
-                <div style={{ fontSize: 14 }}>
-                  <div><strong>Current wager:</strong> {interactionNeeded.current_wager} quarters</div>
-                  <div><strong>If doubled:</strong> {interactionNeeded.doubled_wager} quarters</div>
-                  <div><strong>Your position:</strong> {interactionNeeded.current_position >= 0 ? "+" : ""}{interactionNeeded.current_position} points</div>
-                  <div style={{ marginTop: 8, fontStyle: "italic", color: "#666" }}>
-                    {interactionNeeded.context}
-                  </div>
-                </div>
+              <div style={{ background: "#f0f8ff", padding: 12, borderRadius: 8, marginBottom: 16, border: "2px solid #4169E1" }}>
+                <h4 style={{ margin: "0 0 8px 0", color: "#4169E1" }}>💰 Doubling Opportunity:</h4>
+                <div><strong>Current wager:</strong> {interactionNeeded.current_wager} quarters</div>
+                <div><strong>If doubled:</strong> {interactionNeeded.doubled_wager} quarters</div>
+                <div><strong>Your position:</strong> {interactionNeeded.current_position >= 0 ? "+" : ""}{interactionNeeded.current_position} points</div>
+                {interactionNeeded.context && (
+                  <div style={{ marginTop: 8, fontSize: 14, color: "#666" }}>{interactionNeeded.context}</div>
+                )}
               </div>
               
               <div style={{ display: "flex", gap: 12 }}>
                 <button
                   style={{
                     ...buttonStyle,
-                    background: "#f59e0b",
+                    background: "#10b981",
                     flex: 1
                   }}
                   onClick={() => makeDecision({ offer_double: true })}
+                  disabled={loading}
                 >
                   💰 Offer Double
                 </button>
@@ -964,39 +1158,34 @@ function SimulationMode() {
                 <button
                   style={{
                     ...buttonStyle,
-                    background: "#6b7280",
+                    background: "#f59e0b",
                     flex: 1
                   }}
                   onClick={() => makeDecision({ offer_double: false })}
+                  disabled={loading}
                 >
-                  ↪️ Continue Current Stakes
+                  🚫 Don't Double
                 </button>
               </div>
               
               <p style={{ marginTop: 12, fontSize: 14, color: COLORS.muted, textAlign: "center" }}>
-                Doubling increases risk and reward - consider your position and hole difficulty!
+                Think carefully - doubling increases both risk and reward!
               </p>
             </div>
           )}
           
+          {/* Double Response */}
           {interactionNeeded.type === "double_response" && (
             <div>
-              <p style={{ marginBottom: 20, fontWeight: "bold", fontSize: 16 }}>
-                {interactionNeeded.message}
-              </p>
-              
-              {/* Show betting context */}
-              <div style={{ background: "#fef3c7", padding: 12, borderRadius: 8, marginBottom: 16 }}>
-                <h4 style={{ margin: "0 0 8px 0", color: "#f59e0b" }}>⚠️ Double Offered:</h4>
-                <div style={{ fontSize: 14 }}>
-                  <div><strong>Offering player:</strong> {interactionNeeded.offering_player}</div>
-                  <div><strong>Current wager:</strong> {interactionNeeded.current_wager} quarters</div>
-                  <div><strong>If accepted:</strong> {interactionNeeded.doubled_wager} quarters</div>
-                  <div><strong>Your position:</strong> {interactionNeeded.current_position >= 0 ? "+" : ""}{interactionNeeded.current_position} points</div>
-                  <div style={{ marginTop: 8, fontStyle: "italic", color: "#666" }}>
-                    {interactionNeeded.context}
-                  </div>
-                </div>
+              <div style={{ background: "#fff3cd", padding: 12, borderRadius: 8, marginBottom: 16, border: "2px solid #ffc107" }}>
+                <h4 style={{ margin: "0 0 8px 0", color: "#856404" }}>💸 Double Offered:</h4>
+                <div><strong>Offering player:</strong> {interactionNeeded.offering_player}</div>
+                <div><strong>Current wager:</strong> {interactionNeeded.current_wager} quarters</div>
+                <div><strong>If accepted:</strong> {interactionNeeded.doubled_wager} quarters</div>
+                <div><strong>Your position:</strong> {interactionNeeded.current_position >= 0 ? "+" : ""}{interactionNeeded.current_position} points</div>
+                {interactionNeeded.context && (
+                  <div style={{ marginTop: 8, fontSize: 14, color: "#666" }}>{interactionNeeded.context}</div>
+                )}
               </div>
               
               <div style={{ display: "flex", gap: 12 }}>
@@ -1007,6 +1196,7 @@ function SimulationMode() {
                     flex: 1
                   }}
                   onClick={() => makeDecision({ accept_double: true })}
+                  disabled={loading}
                 >
                   ✅ Accept Double
                 </button>
@@ -1018,6 +1208,7 @@ function SimulationMode() {
                     flex: 1
                   }}
                   onClick={() => makeDecision({ accept_double: false })}
+                  disabled={loading}
                 >
                   ❌ Decline Double
                 </button>
@@ -1029,6 +1220,7 @@ function SimulationMode() {
             </div>
           )}
           
+          {/* Betting Opportunity */}
           {interactionNeeded.type === "betting_opportunity" && (
             <div>
               <p style={{ marginBottom: 20, fontWeight: "bold", fontSize: 16 }}>
@@ -1064,6 +1256,7 @@ function SimulationMode() {
                     action: "request_partner", 
                     partner_id: interactionNeeded.opportunity.target_player.id 
                   })}
+                  disabled={loading}
                 >
                   🤝 Request Partnership
                 </button>
@@ -1075,6 +1268,7 @@ function SimulationMode() {
                     flex: 1
                   }}
                   onClick={() => makeBettingDecision({ action: "keep_watching" })}
+                  disabled={loading}
                 >
                   👀 Keep Watching
                 </button>
@@ -1086,6 +1280,7 @@ function SimulationMode() {
                     flex: 1
                   }}
                   onClick={() => makeBettingDecision({ action: "go_solo" })}
+                  disabled={loading}
                 >
                   🏌️ Go Solo
                 </button>
@@ -1094,6 +1289,27 @@ function SimulationMode() {
               <p style={{ marginTop: 12, fontSize: 14, color: COLORS.muted, textAlign: "center" }}>
                 💡 Analyze the probabilities above to make the optimal betting decision!
               </p>
+            </div>
+          )}
+          
+          {/* Loading State */}
+          {loading && (
+            <div style={{ 
+              position: "absolute", 
+              top: 0, 
+              left: 0, 
+              right: 0, 
+              bottom: 0, 
+              background: "rgba(255,255,255,0.8)", 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "center",
+              borderRadius: 12
+            }}>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 24, marginBottom: 8 }}>⏳</div>
+                <div>Processing decision...</div>
+              </div>
             </div>
           )}
         </div>

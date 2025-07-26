@@ -12,6 +12,8 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Any, Dict
 import os
 import httpx
+import logging
+import traceback
 
 app = FastAPI()
 
@@ -431,11 +433,12 @@ def get_monte_carlo_detailed_results(num_games: int, setup: MonteCarloSetup):
 
 @app.post("/simulation/play-hole")
 def play_simulation_hole(decisions: HumanDecisions):
-    """Play one hole of the simulation with human decisions (interactive flow)"""
-    global game_state
-    
+    """Play a hole with interactive decision points"""
     try:
-        # Convert decisions to dict
+        if not game_state:
+            raise HTTPException(status_code=400, detail="No active simulation. Please set up a simulation first.")
+        
+        # Convert Pydantic model to dict for simulation engine
         human_decisions = {
             "action": decisions.action,
             "requested_partner": decisions.requested_partner,
@@ -444,28 +447,195 @@ def play_simulation_hole(decisions: HumanDecisions):
             "accept_partnership": decisions.accept_partnership
         }
         
-        # Simulate the hole (now returns interaction_needed)
-        updated_game_state, feedback, interaction_needed = simulation_engine.simulate_hole(
-            game_state, 
-            human_decisions
-        )
+        # Remove None values
+        human_decisions = {k: v for k, v in human_decisions.items() if v is not None}
         
-        # Update global game state
-        game_state = updated_game_state
+        # Run simulation with enhanced error handling
+        try:
+            updated_game_state, feedback, interaction_needed = simulation_engine.simulate_hole(
+                game_state, human_decisions
+            )
+        except Exception as e:
+            logging.error(f"Simulation error: {str(e)}")
+            logging.error(traceback.format_exc())
+            raise HTTPException(status_code=500, detail=f"Simulation error: {str(e)}")
         
+        # Prepare response with consistent structure
         response = {
             "status": "ok",
             "game_state": _serialize_game_state(),
-            "feedback": feedback
+            "feedback": feedback or [],
+            "next_shot_available": True  # Default for hole-based simulation
         }
         
-        # If interaction is needed, include it in response
+        # Add interaction needed if present
         if interaction_needed:
             response["interaction_needed"] = interaction_needed
+            response["next_shot_available"] = False  # Pause for decision
+        
+        # Add probabilities if available
+        try:
+            probabilities = simulation_engine.calculate_shot_probabilities(game_state)
+            if probabilities:
+                response["probabilities"] = probabilities
+        except Exception as e:
+            logging.warning(f"Could not calculate probabilities: {e}")
         
         return response
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        logging.error(f"Unexpected error in play_simulation_hole: {str(e)}")
+        logging.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+@app.post("/simulation/next-shot", response_model=ShotEventResponse)
+def play_next_shot() -> ShotEventResponse:
+    """Play the next shot in the event-driven simulation"""
+    try:
+        if not game_state:
+            raise HTTPException(status_code=400, detail="No active simulation")
+        
+        # Get next shot event
+        shot_event = simulation_engine.get_next_shot_event(game_state)
+        
+        if not shot_event:
+            # No more shots available
+            return ShotEventResponse(
+                status="ok",
+                shot_event=None,
+                shot_result=None,
+                probabilities=None,
+                betting_opportunity=None,
+                game_state=_serialize_game_state(),
+                next_shot_available=False
+            )
+        
+        # Execute the shot event
+        try:
+            updated_game_state, shot_result, betting_opportunity = simulation_engine.execute_shot_event(
+                game_state, shot_event
+            )
+        except Exception as e:
+            logging.error(f"Shot execution error: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Shot execution error: {str(e)}")
+        
+        # Calculate probabilities for next shot
+        probabilities = None
+        try:
+            probabilities = simulation_engine.calculate_shot_probabilities(game_state)
+        except Exception as e:
+            logging.warning(f"Could not calculate probabilities: {e}")
+        
+        # Check if there are more shots available
+        has_next_shot = simulation_engine.has_next_shot(game_state)
+        
+        # Check for interaction needed
+        interaction_needed = None
+        if betting_opportunity and betting_opportunity.get("requires_decision"):
+            interaction_needed = {
+                "type": "betting_opportunity",
+                "message": "A betting opportunity has arisen!",
+                "opportunity": betting_opportunity
+            }
+        
+        return ShotEventResponse(
+            status="ok",
+            shot_event=shot_event,
+            shot_result=shot_result,
+            probabilities=probabilities,
+            betting_opportunity=betting_opportunity,
+            game_state=_serialize_game_state(),
+            next_shot_available=has_next_shot and not interaction_needed
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Unexpected error in play_next_shot: {str(e)}")
+        logging.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+@app.post("/simulation/betting-decision", response_model=BettingDecisionResponse)
+def make_betting_decision(decision: BettingDecisionRequest) -> BettingDecisionResponse:
+    """Make a betting decision (partnership, doubling, etc.)"""
+    try:
+        if not game_state:
+            raise HTTPException(status_code=400, detail="No active simulation")
+        
+        # Validate decision
+        if not decision.action:
+            raise HTTPException(status_code=400, detail="Decision action is required")
+        
+        # Calculate betting probabilities
+        try:
+            betting_probs = simulation_engine.calculate_betting_probabilities(game_state, decision.dict())
+        except Exception as e:
+            logging.warning(f"Could not calculate betting probabilities: {e}")
+            betting_probs = {}
+        
+        # Execute the decision
+        try:
+            updated_game_state, decision_result = simulation_engine.execute_betting_decision(
+                game_state, decision.dict(), betting_probs
+            )
+        except Exception as e:
+            logging.error(f"Decision execution error: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Decision execution error: {str(e)}")
+        
+        return BettingDecisionResponse(
+            status="ok",
+            decision=decision.dict(),
+            decision_result=decision_result,
+            betting_probabilities=betting_probs,
+            game_state=_serialize_game_state()
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Unexpected error in make_betting_decision: {str(e)}")
+        logging.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+@app.get("/simulation/shot-probabilities", response_model=ShotProbabilitiesResponse)
+def get_shot_probabilities() -> ShotProbabilitiesResponse:
+    """Get current shot probabilities"""
+    try:
+        if not game_state:
+            raise HTTPException(status_code=400, detail="No active simulation")
+        
+        probabilities = simulation_engine.calculate_shot_probabilities(game_state)
+        
+        return ShotProbabilitiesResponse(
+            status="ok",
+            probabilities=probabilities or {},
+            game_state=_serialize_game_state()
+        )
+        
+    except Exception as e:
+        logging.error(f"Error getting shot probabilities: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+@app.get("/simulation/current-shot-state", response_model=CurrentShotStateResponse)
+def get_current_shot_state() -> CurrentShotStateResponse:
+    """Get current shot state information"""
+    try:
+        if not game_state:
+            raise HTTPException(status_code=400, detail="No active simulation")
+        
+        shot_state = simulation_engine.get_current_shot_state(game_state)
+        
+        return CurrentShotStateResponse(
+            status="ok",
+            shot_state=shot_state or {},
+            game_state=_serialize_game_state()
+        )
+        
+    except Exception as e:
+        logging.error(f"Error getting shot state: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 @app.get("/simulation/test-new-endpoints")
 def test_new_endpoints():
@@ -761,20 +931,20 @@ def _serialize_game_state():
         "current_hole": game_state.current_hole,
         "hitting_order": game_state.hitting_order,
         "captain_id": game_state.captain_id,
-        "teams": game_state.teams,
-        "base_wager": game_state.base_wager,
-        "doubled_status": game_state.doubled_status,
-        "game_phase": game_state.game_phase,
+        "teams": game_state.betting_state.teams,
+        "base_wager": game_state.betting_state.base_wager,
+        "doubled_status": game_state.betting_state.doubled_status,
+        "game_phase": game_state.betting_state.game_phase,
         "hole_scores": game_state.hole_scores,
         "game_status_message": game_state.game_status_message,
         "player_float_used": game_state.player_float_used,
         "carry_over": game_state.carry_over,
         "hole_history": game_state.get_hole_history(),
-        "hole_stroke_indexes": game_state.hole_stroke_indexes,
-        "hole_pars": game_state.hole_pars,
-        "hole_yards": getattr(game_state, "hole_yards", []),
-        "hole_descriptions": getattr(game_state, "hole_descriptions", []),
-        "selected_course": game_state.selected_course,
+                    "hole_stroke_indexes": game_state.course_manager.hole_stroke_indexes,
+            "hole_pars": game_state.course_manager.hole_pars,
+            "hole_yards": game_state.course_manager.hole_yards,
+            "hole_descriptions": [h.get("description", "") for h in game_state.course_manager.course_data.get(game_state.course_manager.selected_course, [])] if game_state.course_manager.selected_course else [],
+            "selected_course": game_state.course_manager.selected_course,
     } 
 
 @app.post("/simulation/hit-tee-shot")
@@ -804,19 +974,31 @@ def hit_tee_shot():
         # Advance to next player
         game_state.current_tee_player_idx = current_player_idx + 1
         
-        # Create shot description
-        shot_desc = simulation_engine._create_shot_description(
-            tee_result['drive'], tee_result['lie'], 
-            tee_result['shot_quality'], tee_result['remaining'], 
-            game_state.hole_pars[game_state.current_hole - 1]
-        )
+        # Create shot description - handle both ShotResult objects and dictionaries
+        if hasattr(tee_result, 'drive'):
+            # ShotResult object
+            shot_desc = simulation_engine._create_shot_description(
+                tee_result.drive, tee_result.lie,
+                tee_result.shot_quality, tee_result.remaining,
+                game_state.course_manager.hole_pars[game_state.current_hole - 1]
+            )
+        else:
+            # Dictionary fallback
+            shot_desc = simulation_engine._create_shot_description(
+                tee_result['drive'], tee_result['lie'], 
+                tee_result['shot_quality'], tee_result['remaining'], 
+                game_state.course_manager.hole_pars[game_state.current_hole - 1]
+            )
         
         all_tee_shots_complete = game_state.current_tee_player_idx >= len(hitting_order)
+        
+        # Convert ShotResult to dict for JSON serialization
+        tee_result_dict = tee_result.to_dict() if hasattr(tee_result, 'to_dict') else tee_result
         
         return {
             "status": "ok",
             "player": player,
-            "tee_result": tee_result,
+            "tee_result": tee_result_dict,
             "shot_description": shot_desc,
             "all_tee_shots_complete": all_tee_shots_complete,
             "next_phase": "captain_decision" if all_tee_shots_complete else "tee_shots",
@@ -850,7 +1032,7 @@ def make_captain_decision(decision: dict):
         return {
             "status": "ok",
             "message": message,
-            "teams_formed": bool(game_state.teams),
+            "teams_formed": bool(game_state.betting_state.teams),
             "next_phase": "partner_response" if decision.get("requested_partner") else "approach_shots",
             "game_state": _serialize_game_state()
         }
@@ -917,13 +1099,13 @@ def make_doubling_decision(decision: dict):
     try:
         if decision.get("offer_double"):
             # Human offers double
-            game_state.doubled_status = True
-            game_state.base_wager *= 2
+            game_state.betting_state.doubled_status = True
+            game_state.betting_state.base_wager *= 2
             message = "Double offered! Stakes increased."
             
         elif decision.get("accept_double"):
             # Human accepts computer's double
-            game_state.doubled_status = True
+            game_state.betting_state.doubled_status = True
             message = "Double accepted! Stakes doubled."
             
         else:
@@ -1002,145 +1184,3 @@ class CurrentShotStateResponse(BaseModel):
     status: str
     shot_state: dict
     game_state: dict
-
-@app.post("/simulation/next-shot", response_model=ShotEventResponse)
-def play_next_shot() -> ShotEventResponse:
-    """Play the next individual shot in the hole with probability display
-    
-    Returns:
-        status: "ok"
-        shot_event: dict (shot context)
-        shot_result: dict (result of shot)
-        probabilities: dict (pre/post shot, betting)
-        betting_opportunity: dict (if present)
-        game_state: dict (full state)
-        next_shot_available: bool
-    """
-    global game_state
-    
-    try:
-        if not game_state:
-            raise HTTPException(status_code=400, detail="No active game")
-        
-        print(f"🎯 /simulation/next-shot called")
-        print(f"🎯 Game state: current_hole={game_state.current_hole}, players={[p['id'] for p in game_state.players]}")
-        print(f"🎯 Hitting order: {game_state.hitting_order}")
-        
-        # Determine current shot state
-        shot_event = simulation_engine.get_next_shot_event(game_state)
-        
-        if not shot_event:
-            raise HTTPException(status_code=400, detail="No shots available")
-        
-        # Execute the shot with probabilities
-        updated_game_state, shot_result, probabilities = simulation_engine.execute_shot_event(
-            game_state, shot_event
-        )
-        
-        # Update global state
-        game_state = updated_game_state
-        
-        # Check if betting decision is available after this shot
-        betting_opportunity = simulation_engine.check_betting_opportunity(game_state, shot_result)
-        
-        return {
-            "status": "ok",
-            "shot_event": shot_event,
-            "shot_result": shot_result,
-            "probabilities": probabilities,
-            "betting_opportunity": betting_opportunity,
-            "game_state": _serialize_game_state(),
-            "next_shot_available": simulation_engine.has_next_shot(game_state)
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-@app.get("/simulation/shot-probabilities", response_model=ShotProbabilitiesResponse)
-def get_shot_probabilities() -> ShotProbabilitiesResponse:
-    """Get probability calculations for the current shot scenario
-    
-    Returns:
-        status: "ok"
-        probabilities: dict
-        game_state: dict
-    """
-    global game_state
-    
-    try:
-        if not game_state:
-            raise HTTPException(status_code=400, detail="No active game")
-        
-        probabilities = simulation_engine.calculate_shot_probabilities(game_state)
-        
-        return {
-            "status": "ok",
-            "probabilities": probabilities,
-            "game_state": _serialize_game_state()
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-@app.post("/simulation/betting-decision", response_model=BettingDecisionResponse)
-def make_betting_decision(decision: BettingDecisionRequest) -> BettingDecisionResponse:
-    """Make a betting decision after seeing shot results with probability context
-    
-    Args:
-        decision: BettingDecisionRequest (action, partner_id, etc.)
-    Returns:
-        status: "ok"
-        decision: dict
-        decision_result: dict
-        betting_probabilities: dict
-        game_state: dict
-    """
-    global game_state
-    
-    try:
-        # Calculate betting probabilities for context
-        betting_probs = simulation_engine.calculate_betting_probabilities(game_state, decision)
-        
-        # Execute the betting decision
-        updated_game_state, decision_result = simulation_engine.execute_betting_decision(
-            game_state, decision, betting_probs
-        )
-        
-        game_state = updated_game_state
-        
-        return {
-            "status": "ok",
-            "decision": decision,
-            "decision_result": decision_result,
-            "betting_probabilities": betting_probs,
-            "game_state": _serialize_game_state()
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-@app.get("/simulation/current-shot-state", response_model=CurrentShotStateResponse)
-def get_current_shot_state() -> CurrentShotStateResponse:
-    """Get detailed information about the current shot state and available actions
-    
-    Returns:
-        status: "ok"
-        shot_state: dict
-        game_state: dict
-    """
-    global game_state
-    
-    try:
-        if not game_state:
-            raise HTTPException(status_code=400, detail="No active game")
-        
-        shot_state = simulation_engine.get_current_shot_state(game_state)
-        
-        return {
-            "status": "ok",
-            "shot_state": shot_state,
-            "game_state": _serialize_game_state()
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
