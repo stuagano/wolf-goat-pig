@@ -381,6 +381,47 @@ class SimulationEngine:
         feedback = []
         interaction_needed = None
 
+        # Handle partnership response if this is a response to a partnership request
+        if "accept_partnership" in human_decisions:
+            partner_id = human_decisions.get("partner_id")
+            accept = human_decisions.get("accept_partnership", False)
+            
+            if accept:
+                game_state.dispatch_action("accept_partner", {"partner_id": partner_id})
+                partner_name = next(p.name for p in game_state.player_manager.players if p.id == partner_id)
+                feedback.append(f"🧑 **You:** \"Absolutely! Let's team up!\"")
+            else:
+                game_state.dispatch_action("decline_partner", {"partner_id": partner_id})
+                captain_name = next(p.name for p in game_state.player_manager.players if p.id == game_state.player_manager.captain_id)
+                feedback.append(f"🧑 **You:** \"Thanks, but I'll pass.\"")
+                feedback.append(f"💻 **{captain_name}:** \"Fine, I'll go solo then!\"")
+
+        # Handle partnership response from human partner (when human is asked to be partner)
+        if "accept" in human_decisions and "partner_id" in human_decisions:
+            # When human is asked to be partner, partner_id should be the human's ID
+            human_id = self._get_human_player_id(game_state)
+            accept = human_decisions.get("accept", False)
+            
+            if accept:
+                game_state.dispatch_action("accept_partner", {"partner_id": human_id})
+                captain_name = next(p.name for p in game_state.player_manager.players if p.id == game_state.player_manager.captain_id)
+                feedback.append(f"🧑 **You:** \"Absolutely! Let's do this!\"")
+            else:
+                # If there's no pending partnership request, just go solo directly
+                if game_state.betting_state.teams.get("type") == "pending":
+                    game_state.dispatch_action("decline_partner", {"partner_id": human_id})
+                    captain_name = next(p.name for p in game_state.player_manager.players if p.id == game_state.player_manager.captain_id)
+                    feedback.append(f"🧑 **You:** \"Thanks, but I think I'll pass. Keep looking!\"")
+                    # Get the actual captain name from the pending request
+                    pending_captain_id = game_state.betting_state.teams.get("captain")
+                    pending_captain_name = next(p.name for p in game_state.player_manager.players if p.id == pending_captain_id)
+                    feedback.append(f"💻 **{pending_captain_name}:** \"Fine, I'll go solo then!\"")
+                else:
+                    # No pending request, just go solo
+                    game_state.dispatch_action("go_solo", {"captain_id": game_state.player_manager.captain_id})
+                    captain_name = next(p.name for p in game_state.player_manager.players if p.id == game_state.player_manager.captain_id)
+                    feedback.append(f"🧑 **You:** \"I'll go solo.\"")
+
         # Show hole setup
         feedback.append(f"\n🏌️ **Hole {game_state.current_hole} Setup**")
         captain_name = next(p.name for p in game_state.player_manager.players if p.id == game_state.player_manager.captain_id)
