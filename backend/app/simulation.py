@@ -314,10 +314,10 @@ class SimulationEngine:
         # Setup game state with all players
         all_players = [
             {
-                            "id": human_player.id,
-            "name": human_player.name,
-            "handicap": human_player.handicap,
-            "strength": self._handicap_to_strength(human_player.handicap)
+                "id": human_player["id"],
+                "name": human_player["name"],
+                "handicap": human_player["handicap"],
+                "strength": self._handicap_to_strength(human_player["handicap"])
             }
         ] + [
             {
