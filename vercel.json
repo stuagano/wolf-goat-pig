@@ -30,7 +30,7 @@
     }
   ],
   "env": {
-    "REACT_APP_API_URL": "https://wolf-goat-pig-api.onrender.com",
+    "REACT_APP_API_URL": "https://wolf-goat-pig.onrender.com",
     "NODE_ENV": "production"
   },
   "headers": [
