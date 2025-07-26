@@ -70,29 +70,45 @@ app.add_middleware(
         "localhost",
         "127.0.0.1",
         "wolf-goat-pig-api.onrender.com",
-        "wolf-goat-pig.vercel.app",
-        "wolf-goat-im4paxvvp-stuaganos-projects.vercel.app",
+        "*.vercel.app",  # Allow any Vercel subdomain
+        "*.onrender.com",  # Allow any Render subdomain
         os.getenv("FRONTEND_URL", "").replace("https://", "").replace("http://", "")
     ]
 )
 
-# CORS middleware - Allow any Vercel subdomain for flexibility
+# Custom CORS middleware to handle wildcard patterns
+from starlette.middleware.cors import CORSMiddleware as BaseCORSMiddleware
+import re
+
+class WildcardCORSMiddleware(BaseCORSMiddleware):
+    def __init__(self, app, **kwargs):
+        super().__init__(app, **kwargs)
+        self.wildcard_patterns = [
+            r"https://.*\.vercel\.app$",  # Any Vercel subdomain
+            r"https://.*\.onrender\.com$",  # Any Render subdomain
+        ]
+    
+    def is_origin_allowed(self, origin: str) -> bool:
+        # Check exact matches first
+        if origin in self.allow_origins:
+            return True
+        
+        # Check wildcard patterns
+        for pattern in self.wildcard_patterns:
+            if re.match(pattern, origin):
+                return True
+        
+        return False
+
+# CORS middleware with wildcard support
 app.add_middleware(
-    CORSMiddleware,
+    WildcardCORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "https://wolf-goat-pig.vercel.app",
         "https://wolf-goat-pig-frontend.onrender.com",
         os.getenv("FRONTEND_URL", "http://localhost:3000")
-    ] + [
-        # Allow any Vercel subdomain
-        f"https://{subdomain}.vercel.app" 
-        for subdomain in [
-            "wolf-goat-pig",
-            "wolf-goat-im4paxvvp-stuaganos-projects",
-            # Add more subdomains as needed
-        ]
     ],
     allow_credentials=True,
     allow_methods=["*"],
