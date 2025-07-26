@@ -17,6 +17,11 @@ backend/*.db
 frontend/node_modules/
 frontend/build/
 frontend/.env
+frontend/.env.local
+frontend/.env.production
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
 
 # System
 .DS_Store
@@ -24,10 +29,59 @@ frontend/.env
 
 # Logs
 *.log
+logs/
 
 # Editor
 .vscode/
 .idea/
+*.sublime-*
 
 # OS
-Thumbs.db 
+Thumbs.db
+
+# Deployment
+.vercel
+.render
+dist/
+build/
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.development
+
+# Cache directories
+.cache/
+.npm/
+.yarn/
+
+# Coverage reports
+coverage/
+.nyc_output/
+.coverage
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# IDE and editor files
+*.code-workspace
+.project
+.classpath
+.settings/
+
+# MacOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~ 
