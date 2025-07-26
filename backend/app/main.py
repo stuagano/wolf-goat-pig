@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Depends, Body, HTTPException, Request, Path, Query, UploadFile, File
-# CORS middleware removed
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from . import models, schemas, crud, database
@@ -102,7 +102,14 @@ app.add_middleware(
     ]
 )
 
-# CORS middleware removed - no restrictions
+# Super permissive CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow ALL origins
+    allow_credentials=False,  # Must be False when allow_origins=["*"]
+    allow_methods=["*"],  # Allow ALL methods
+    allow_headers=["*"],  # Allow ALL headers
+)
 
 # Global exception handler
 @app.exception_handler(Exception)
