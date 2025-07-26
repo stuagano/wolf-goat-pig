@@ -69,8 +69,8 @@ app.add_middleware(
     allowed_hosts=["*"] if os.getenv("ENVIRONMENT") == "development" else [
         "localhost",
         "127.0.0.1",
-        "*.onrender.com",
-        "*.vercel.app",
+        "wolf-goat-pig-api.onrender.com",
+        "wolf-goat-pig.vercel.app",
         os.getenv("FRONTEND_URL", "").replace("https://", "").replace("http://", "")
     ]
 )
@@ -81,8 +81,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://127.0.0.1:3000",
-        "https://*.vercel.app",
-        "https://*.onrender.com",
+        "https://wolf-goat-pig.vercel.app",
+        "https://wolf-goat-pig-frontend.onrender.com",
         os.getenv("FRONTEND_URL", "http://localhost:3000")
     ],
     allow_credentials=True,
@@ -138,7 +138,24 @@ def start_game():
 
 @app.get("/game/state")
 def get_game_state():
-    return _serialize_game_state()
+    """Get current game state with defensive error handling"""
+    try:
+        return _serialize_game_state()
+    except Exception as e:
+        logger.error(f"Game state endpoint error: {e}")
+        # Return a safe default state
+        return {
+            "current_hole": 1,
+            "players": [],
+            "teams": {},
+            "base_wager": 1,
+            "doubled_status": False,
+            "game_phase": "Regular",
+            "hole_scores": {},
+            "game_status_message": "Game state unavailable",
+            "player_float_used": {},
+            "carry_over": False
+        }
 
 @app.post("/game/action")
 def game_action(data: dict = Body(...)):
@@ -152,11 +169,21 @@ def game_action(data: dict = Body(...)):
 
 @app.get("/game/tips")
 def get_betting_tips():
-    return {"tips": game_state.get_betting_tips()}
+    """Get betting tips with defensive error handling"""
+    try:
+        return {"tips": game_state.get_betting_tips()}
+    except Exception as e:
+        logger.error(f"Betting tips endpoint error: {e}")
+        return {"tips": ["Game tips unavailable at the moment."]}
 
 @app.get("/game/player_strokes")
 def get_player_strokes():
-    return game_state.get_player_strokes()
+    """Get player strokes with defensive error handling"""
+    try:
+        return game_state.get_player_strokes()
+    except Exception as e:
+        logger.error(f"Player strokes endpoint error: {e}")
+        return {"strokes": {}}
 
 @app.get("/courses")
 def get_courses():
