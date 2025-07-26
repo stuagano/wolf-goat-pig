@@ -9,7 +9,7 @@ def _require_key(obj, key, context):
 class ProbabilityCalculator:
     @staticmethod
     def calculate_tee_shot_probabilities(player: dict, game_state: GameState) -> dict:
-        handicap = player["handicap"]
+        handicap = player.handicap
         hole_info = ProbabilityCalculator._get_hole_info(game_state)
         base_excellent = max(0.05, 0.25 - (handicap * 0.01))
         base_good = max(0.15, 0.35 - (handicap * 0.008))

@@ -18,6 +18,38 @@ import traceback
 import json
 import tempfile
 
+# Response model classes
+class ShotEventResponse(BaseModel):
+    status: str
+    shot_event: Optional[dict]
+    shot_result: Optional[dict]
+    probabilities: Optional[dict]
+    betting_opportunity: Optional[dict]
+    game_state: dict
+    next_shot_available: bool
+
+class ShotProbabilitiesResponse(BaseModel):
+    status: str
+    probabilities: dict
+    game_state: dict
+
+class BettingDecisionRequest(BaseModel):
+    action: str
+    partner_id: Optional[str] = None
+    # Add other fields as needed for betting/solo/doubling
+
+class BettingDecisionResponse(BaseModel):
+    status: str
+    decision: dict
+    decision_result: dict
+    betting_probabilities: dict
+    game_state: dict
+
+class CurrentShotStateResponse(BaseModel):
+    status: str
+    shot_state: dict
+    game_state: dict
+
 app = FastAPI()
 
 # Allow all origins for MVP; restrict in production
@@ -611,7 +643,7 @@ def run_monte_carlo_simulation(setup: MonteCarloSetup):
         summary = results.get_summary()
         
         # Add additional insights
-        human_id = setup.human_player["id"]
+        human_id = setup.human_player.id  # This should be a Player object
         human_stats = summary["player_statistics"][human_id]
         
         # Generate insights
@@ -663,7 +695,7 @@ def run_monte_carlo_simulation(setup: MonteCarloSetup):
             "simulation_details": {
                 "total_games": setup.num_simulations,
                 "course": setup.course_name or "Standard Course",
-                "human_player": setup.human_player["name"],
+                "human_player": setup.human_player.name,  # This should be a Player object
                 "opponents": [cp.name for cp in setup.computer_players]
             }
         }
@@ -1232,13 +1264,13 @@ def hit_tee_shot():
     try:
         # Get next player to hit
         current_player_idx = getattr(game_state, 'current_tee_player_idx', 0)
-        hitting_order = game_state.hitting_order or [p["id"] for p in game_state.players]
+        hitting_order = game_state.player_manager.hitting_order or [p.id for p in game_state.player_manager.players]
         
         if current_player_idx >= len(hitting_order):
             return {"status": "error", "message": "All players have hit tee shots"}
         
         player_id = hitting_order[current_player_idx]
-        player = next(p for p in game_state.players if p["id"] == player_id)
+        player = next(p for p in game_state.player_manager.players if p.id == player_id)
         
         # Simulate this player's tee shot
         tee_result = simulation_engine._simulate_individual_tee_shot(player, game_state)
@@ -1303,7 +1335,7 @@ def make_captain_decision(decision: dict):
                 "captain_id": captain_id,
                 "partner_id": partner_id
             })
-            partner_name = next(p["name"] for p in game_state.players if p["id"] == partner_id)
+            partner_name = next(p.name for p in game_state.player_manager.players if p.id == partner_id)
             message = f"Captain requests {partner_name} as partner."
             
         return {
@@ -1413,7 +1445,7 @@ def complete_hole():
         # Advance to next hole if not finished
         if game_state.current_hole < 18:
             game_state.dispatch_action("next_hole", {})
-            next_captain_name = next(p["name"] for p in game_state.players if p["id"] == game_state.captain_id)
+            next_captain_name = next(p.name for p in game_state.player_manager.players if p.id == game_state.captain_id)
             next_message = f"Moving to Hole {game_state.current_hole} - {next_captain_name} will be captain"
         else:
             next_message = "Game completed!"
@@ -1430,34 +1462,3 @@ def complete_hole():
         raise HTTPException(status_code=400, detail=str(e)) # Deployment check Tue Jul 22 20:10:12 PDT 2025
 
 # Add new shot-based event endpoints after existing simulation endpoints
-
-class ShotEventResponse(BaseModel):
-    status: str
-    shot_event: Optional[dict]
-    shot_result: Optional[dict]
-    probabilities: Optional[dict]
-    betting_opportunity: Optional[dict]
-    game_state: dict
-    next_shot_available: bool
-
-class ShotProbabilitiesResponse(BaseModel):
-    status: str
-    probabilities: dict
-    game_state: dict
-
-class BettingDecisionRequest(BaseModel):
-    action: str
-    partner_id: Optional[str] = None
-    # Add other fields as needed for betting/solo/doubling
-
-class BettingDecisionResponse(BaseModel):
-    status: str
-    decision: dict
-    decision_result: dict
-    betting_probabilities: dict
-    game_state: dict
-
-class CurrentShotStateResponse(BaseModel):
-    status: str
-    shot_state: dict
-    game_state: dict

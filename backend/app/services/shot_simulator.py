@@ -63,8 +63,8 @@ class ShotSimulator:
         scores = {}
         shot_details = {}
         for player in game_state.player_manager.players:
-            player_id = player["id"]
-            handicap = player["handicap"]
+            player_id = player.id
+            handicap = player.handicap
             strokes = game_state.get_player_strokes()
             net_strokes = strokes[player_id][game_state.current_hole]
             tee_result = tee_shot_results.get(player_id)
@@ -91,12 +91,12 @@ class ShotSimulator:
                 "score": int(net_score)
             })
         for player in game_state.player_manager.players:
-            player_id = player["id"]
+            player_id = player.id
             details = shot_details[player_id]
             if player_id == ShotSimulator._get_human_player_id(game_state):
                 feedback.append(f"🧑 **Your final score:** {details['gross']} gross, {details['net']} net (received {details['strokes_received']} strokes)")
             else:
-                feedback.append(f"💻 **{player['name']}:** {details['gross']} gross, {details['net']} net (received {details['strokes_received']} strokes)")
+                feedback.append(f"💻 **{player.name}:** {details['gross']} gross, {details['net']} net (received {details['strokes_received']} strokes)")
         return feedback
 
     @staticmethod
@@ -151,7 +151,7 @@ class ShotSimulator:
     def _get_human_player_id(game_state: GameState) -> str:
         # Utility to get the human player id
         for player in game_state.player_manager.players:
-            if player.get("is_human", False):
-                return player["id"]
+            if hasattr(player, 'is_human') and player.is_human:
+                return player.id
         # Fallback: assume first player is human
-        return game_state.player_manager.players[0]["id"] 
+        return game_state.player_manager.players[0].id 

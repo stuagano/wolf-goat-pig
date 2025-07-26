@@ -54,7 +54,7 @@ class BettingEngine:
                     accept = partner_player.should_accept_partnership(captain_player.handicap, game_state)
                 else:
                     # Human captain
-                    human_handicap = next(p["handicap"] for p in game_state.player_manager.players if p["id"] == captain_id)
+                    human_handicap = next(p.handicap for p in game_state.player_manager.players if p.id == captain_id)
                     accept = partner_player.should_accept_partnership(human_handicap, game_state)
                 
                 if accept:
@@ -136,8 +136,8 @@ class BettingEngine:
         
         # Strategic personalities consider handicap compatibility
         elif captain_player.personality == "strategic":
-            shot_player = next(p for p in game_state.player_manager.players if p["id"] == shot_player_id)
-            handicap_diff = abs(captain_player.handicap - shot_player["handicap"])
+            shot_player = next(p for p in game_state.player_manager.players if p.id == shot_player_id)
+            handicap_diff = abs(captain_player.handicap - shot_player.handicap)
             
             if shot_quality == "excellent":
                 return "request_partner"
@@ -255,10 +255,10 @@ class BettingEngine:
     def _get_human_player_id(game_state: GameState) -> str:
         """Get the human player ID"""
         for player in game_state.player_manager.players:
-            if player.get("is_human", False):
-                return player["id"]
+            if hasattr(player, 'is_human') and player.is_human:
+                return player.id
         # Fallback: assume first player is human
-        return game_state.player_manager.players[0]["id"]
+        return game_state.player_manager.players[0].id
 
     @staticmethod
     def _get_current_points(player_id: str, game_state: GameState) -> int:
@@ -277,10 +277,10 @@ class BettingEngine:
         team2_handicaps = []
         
         for player in game_state.player_manager.players:
-            if player["id"] in game_state.betting_state.teams.get("team1", []):
-                team1_handicaps.append(player["handicap"])
-            elif player["id"] in game_state.betting_state.teams.get("team2", []):
-                team2_handicaps.append(player["handicap"])
+            if player.id in game_state.betting_state.teams.get("team1", []):
+                team1_handicaps.append(player.handicap)
+            elif player.id in game_state.betting_state.teams.get("team2", []):
+                team2_handicaps.append(player.handicap)
         
         if not team1_handicaps or not team2_handicaps:
             return 0.0

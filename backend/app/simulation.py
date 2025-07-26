@@ -1,6 +1,6 @@
 import random
 import math
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Any
 from .game_state import GameState
 import logging
 import traceback
@@ -107,8 +107,8 @@ class ComputerPlayer:
     def _get_points_for_player(self, handicap: float, game_state: GameState) -> int:
         """Get points for a player with given handicap"""
         for player in game_state.player_manager.players:
-            if abs(player["handicap"] - handicap) < 0.1:
-                return player["points"]
+            if abs(player.handicap - handicap) < 0.1:
+                return player.points
         return 0
     
     def _assess_hole_difficulty(self, game_state: GameState) -> float:
@@ -172,8 +172,8 @@ class ComputerPlayer:
             stroke_advantage = their_strokes - our_strokes
             
             # Consider handicap differences
-            our_handicaps = [p["handicap"] for p in game_state.player_manager.players if p["id"] in our_team]
-            their_handicaps = [p["handicap"] for p in game_state.player_manager.players if p["id"] in their_team]
+            our_handicaps = [p.handicap for p in game_state.player_manager.players if p.id in our_team]
+            their_handicaps = [p.handicap for p in game_state.player_manager.players if p.id in their_team]
             
             handicap_advantage = (sum(their_handicaps) - sum(our_handicaps)) / 20.0
             
@@ -314,10 +314,10 @@ class SimulationEngine:
         # Setup game state with all players
         all_players = [
             {
-                "id": human_player["id"],
-                "name": human_player["name"],
-                "handicap": human_player["handicap"],
-                "strength": self._handicap_to_strength(human_player["handicap"])
+                            "id": human_player.id,
+            "name": human_player.name,
+            "handicap": human_player.handicap,
+            "strength": self._handicap_to_strength(human_player.handicap)
             }
         ] + [
             {
@@ -333,7 +333,7 @@ class SimulationEngine:
         game_state = GameState()
         game_state.setup_players(all_players, course_name)
         
-        print(f"🔧 Game state after setup_players: current_hole={game_state.current_hole}, players={[p['id'] for p in game_state.player_manager.players]}, hitting_order={game_state.player_manager.hitting_order}")
+        print(f"🔧 Game state after setup_players: current_hole={game_state.current_hole}, players={[p.id for p in game_state.player_manager.players]}, hitting_order={game_state.player_manager.hitting_order}")
         
         # Initialize shot-by-shot state for event-driven simulation
         if not hasattr(game_state, 'shot_state') or game_state.shot_state is None:
@@ -774,10 +774,10 @@ class SimulationEngine:
                         feedback.append(f"• Consider offering a double when facing stronger opponents to increase pressure")
                     
                     # Suggest better partners
-                    alternative_partners = [p for p in game_state.player_manager.players if p["id"] not in team1 and p["id"] != human_id]
+                    alternative_partners = [p for p in game_state.player_manager.players if p.id not in team1 and p.id != human_id]
                     if alternative_partners:
-                        best_alt = min(alternative_partners, key=lambda p: abs(p["handicap"] - human_handicap))
-                        feedback.append(f"💡 {best_alt['name']} (hdcp {best_alt['handicap']:.1f}) might have been a better handicap match")
+                        best_alt = min(alternative_partners, key=lambda p: abs(p.handicap - human_handicap))
+                        feedback.append(f"💡 {best_alt.name} (hdcp {best_alt.handicap:.1f}) might have been a better handicap match")
         
         elif hole_history["teams"].get("type") == "solo":
             captain = hole_history["teams"]["captain"]
@@ -973,9 +973,9 @@ class SimulationEngine:
         """Get the human player ID (first player that's not a computer)"""
         comp_ids = {cp.player_id for cp in self.computer_players}
         for player in game_state.player_manager.players:
-            if player["id"] not in comp_ids:
-                return player["id"]
-        return game_state.player_manager.players[0]["id"]  # Fallback
+            if player.id not in comp_ids:
+                return player.id
+        return game_state.player_manager.players[0].id  # Fallback
     
     def _get_current_points(self, player_id: str, game_state: GameState) -> int:
         """Get current points for a specific player"""
@@ -1146,7 +1146,7 @@ class SimulationEngine:
             
             # Get final scores
             final_scores = {
-                player["id"]: player["points"]
+                player.id: player.points
                 for player in game_state.player_manager.players
             }
             
@@ -1168,8 +1168,8 @@ class SimulationEngine:
         # Get current points for human player
         current_points = 0
         for player in game_state.player_manager.players:
-            if player["id"] == human_player["id"]:
-                current_points = player["points"]
+            if player.id == human_player.id:
+                current_points = player.points
                 break
         
         # Default decisions
@@ -1180,20 +1180,20 @@ class SimulationEngine:
             "accept_double": False
         }
         
-        if captain_id == human_player["id"]:
+        if captain_id == human_player.id:
             # Human is captain - make partnership decision
             
             # Assess potential partners
-            potential_partners = [p for p in game_state.player_manager.players if p["id"] != human_player["id"]]
+            potential_partners = [p for p in game_state.player_manager.players if p.id != human_player.id]
             
             # Simple strategy: prefer partners with similar or better handicaps
-            human_handicap = human_player["handicap"]
+            human_handicap = human_player.handicap
             best_partner = None
             best_compatibility = -999
             
             for partner in potential_partners:
-                partner_handicap = partner["handicap"]
-                partner_points = partner["points"]
+                partner_handicap = partner.handicap
+                partner_points = partner.points
                 
                 # Calculate compatibility score
                 handicap_diff = abs(human_handicap - partner_handicap)
@@ -1218,7 +1218,7 @@ class SimulationEngine:
                 current_points < 2):  # Don't go solo when ahead
                 decisions["action"] = "go_solo"
             elif best_partner:
-                decisions["requested_partner"] = best_partner["id"]
+                decisions["requested_partner"] = best_partner.id
         
         # Doubling decisions (simplified strategy)
         if not game_state.betting_state.doubled_status:
@@ -1341,10 +1341,10 @@ class SimulationEngine:
                         feedback.append(f"• Consider offering a double when facing stronger opponents to increase pressure.")
                     
                     # Suggest better partners
-                    alternative_partners = [p for p in game_state.player_manager.players if p["id"] not in team1 and p["id"] != human_id]
+                    alternative_partners = [p for p in game_state.player_manager.players if p.id not in team1 and p.id != human_id]
                     if alternative_partners:
-                        best_alt = min(alternative_partners, key=lambda p: abs(p["handicap"] - human_handicap))
-                        feedback.append(f"💡 {best_alt['name']} (hdcp {best_alt['handicap']:.1f}) might have been a better handicap match.")
+                        best_alt = min(alternative_partners, key=lambda p: abs(p.handicap - human_handicap))
+                        feedback.append(f"💡 {best_alt.name} (hdcp {best_alt.handicap:.1f}) might have been a better handicap match.")
         
         elif hole_history["teams"].get("type") == "solo":
             captain = hole_history["teams"]["captain"]
@@ -1457,16 +1457,16 @@ class SimulationEngine:
             game_state.shot_state = ShotState()
         
         shot_state = game_state.shot_state
-        hitting_order = game_state.player_manager.hitting_order or [p["id"] for p in game_state.player_manager.players]
+        hitting_order = game_state.player_manager.hitting_order or [p.id for p in game_state.player_manager.players]
         
         # Debug logging
         print(f"🔍 get_next_shot_event: phase={shot_state.phase}, current_player_index={shot_state.current_player_index}, hitting_order={hitting_order}")
-        print(f"🔍 Players: {[p['id'] for p in game_state.player_manager.players]}")
+        print(f"🔍 Players: {[p.id for p in game_state.player_manager.players]}")
         
         if shot_state.phase == "tee_shots":
             current_player_id = shot_state.get_current_player_id(hitting_order)
             if current_player_id:
-                player = next(p for p in game_state.player_manager.players if p["id"] == current_player_id)
+                player = next(p for p in game_state.player_manager.players if p.id == current_player_id)
                 
                 return {
                     "type": "tee_shot",
@@ -1509,7 +1509,7 @@ class SimulationEngine:
         
         # Update shot state
         game_state.shot_state.add_completed_shot(
-            player["id"],
+            player.id,
             shot_result,
             pre_shot_probs
         )
@@ -1550,12 +1550,12 @@ class SimulationEngine:
         if not partner_id:
             return {}
         
-        captain = next(p for p in game_state.player_manager.players if p["id"] == captain_id)
-        partner = next(p for p in game_state.player_manager.players if p["id"] == partner_id)
+        captain = next(p for p in game_state.player_manager.players if p.id == captain_id)
+        partner = next(p for p in game_state.player_manager.players if p.id == partner_id)
         
         # Calculate team strength
-        avg_handicap = (captain["handicap"] + partner["handicap"]) / 2
-        handicap_synergy = 1.0 - abs(captain["handicap"] - partner["handicap"]) * 0.02
+        avg_handicap = (captain.handicap + partner.handicap) / 2
+        handicap_synergy = 1.0 - abs(captain.handicap - partner.handicap) * 0.02
         
         # Base win probability against other team
         base_win_prob = 0.5  # Start with 50/50
@@ -1590,17 +1590,17 @@ class SimulationEngine:
     def _calculate_solo_probabilities(self, game_state: GameState) -> Dict[str, Any]:
         """Calculate success probabilities for going solo"""
         captain_id = game_state.player_manager.captain_id
-        captain = next(p for p in game_state.player_manager.players if p["id"] == captain_id)
+        captain = next(p for p in game_state.player_manager.players if p.id == captain_id)
         
         # Base solo win probability (1 vs 3 is harder)
         base_win_prob = 0.25  # 25% base chance
         
         # Adjust for captain skill
-        if captain["handicap"] <= 5:
+        if captain.handicap <= 5:
             base_win_prob += 0.15
-        elif captain["handicap"] <= 10:
+        elif captain.handicap <= 10:
             base_win_prob += 0.05
-        elif captain["handicap"] >= 20:
+        elif captain.handicap >= 20:
             base_win_prob -= 0.10
         
         # Hole difficulty factor
@@ -1615,7 +1615,7 @@ class SimulationEngine:
             "win_probability": round(min(0.70, max(0.05, base_win_prob)) * 100, 1),
             "expected_points": round((base_win_prob * 6 - (1 - base_win_prob) * 6), 2),
             "risk_level": "Very High",
-            "handicap_advantage": f"Handicap {captain['handicap']}: {'Strong' if captain['handicap'] <= 10 else 'Moderate' if captain['handicap'] <= 18 else 'Challenging'} solo player"
+            "handicap_advantage": f"Handicap {captain.handicap}: {'Strong' if captain.handicap <= 10 else 'Moderate' if captain.handicap <= 18 else 'Challenging'} solo player"
         }
     
     def has_next_shot(self, game_state: GameState) -> bool:
@@ -1623,7 +1623,7 @@ class SimulationEngine:
         if not hasattr(game_state, 'shot_state') or game_state.shot_state is None:
             return True
         
-        hitting_order = game_state.player_manager.hitting_order or [p["id"] for p in game_state.player_manager.players]
+        hitting_order = game_state.player_manager.hitting_order or [p.id for p in game_state.player_manager.players]
         return game_state.shot_state.has_next_shot(hitting_order)
     
     def get_current_shot_state(self, game_state: GameState) -> Dict[str, Any]:
@@ -1631,7 +1631,7 @@ class SimulationEngine:
         if not hasattr(game_state, 'shot_state') or game_state.shot_state is None:
             return {"phase": "ready_to_start", "shots_remaining": 4}
         
-        hitting_order = game_state.player_manager.hitting_order or [p["id"] for p in game_state.player_manager.players]
+        hitting_order = game_state.player_manager.hitting_order or [p.id for p in game_state.player_manager.players]
         
         summary = game_state.shot_state.get_phase_summary(hitting_order)
         summary.update({
@@ -1709,7 +1709,7 @@ class SimulationEngine:
             quality = shot_result["shot_quality"]
         
         # Player identifier
-        player_icon = "🧑" if player["id"] == self._get_human_player_id(game_state) else "💻"
+        player_icon = "🧑" if player.id == self._get_human_player_id(game_state) else "💻"
         
         # Quality descriptors
         quality_desc = {
@@ -1731,7 +1731,7 @@ class SimulationEngine:
             "deep rough": "buried in thick rough"
         }
         
-        base_desc = f"{player_icon} **{player['name']}** {quality_desc.get(quality, 'hit their drive')} {drive} yards, {lie_desc.get(lie, f'in the {lie}')}, leaving {remaining} yards to the pin."
+        base_desc = f"{player_icon} **{player.name}** {quality_desc.get(quality, 'hit their drive')} {drive} yards, {lie_desc.get(lie, f'in the {lie}')}, leaving {remaining} yards to the pin."
         
         # Add quality-specific reactions
         if quality == "excellent":
@@ -1769,7 +1769,7 @@ class SimulationEngine:
         if shot_state.phase == "tee_shots":
             current_player_id = shot_state.get_current_player_id(hitting_order)
             if current_player_id:
-                player = next((p for p in game_state.player_manager.players if p["id"] == current_player_id), None)
+                player = next((p for p in game_state.player_manager.players if p.id == current_player_id), None)
                 if player:
                     pre_shot = ProbabilityCalculator.calculate_tee_shot_probabilities(player, game_state)
                     # No post-shot yet, so just return pre-shot
