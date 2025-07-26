@@ -361,15 +361,20 @@ class SimulationEngine:
             partner_id = human_decisions.get("partner_id")
             accept = human_decisions.get("accept_partnership", False)
             
-            if accept:
-                game_state.dispatch_action("accept_partner", {"partner_id": partner_id})
-                partner_name = next(p.name for p in game_state.player_manager.players if p.id == partner_id)
-                feedback.append(f"🧑 **You:** \"Absolutely! Let's team up!\"")
+            # Check if there's actually a pending partnership request
+            if game_state.betting_state.teams.get("type") == "pending":
+                if accept:
+                    game_state.dispatch_action("accept_partner", {"partner_id": partner_id})
+                    partner_name = next(p.name for p in game_state.player_manager.players if p.id == partner_id)
+                    feedback.append(f"🧑 **You:** \"Absolutely! Let's team up!\"")
+                else:
+                    game_state.dispatch_action("decline_partner", {"partner_id": partner_id})
+                    captain_name = next(p.name for p in game_state.player_manager.players if p.id == game_state.player_manager.captain_id)
+                    feedback.append(f"🧑 **You:** \"Thanks, but I'll pass.\"")
+                    feedback.append(f"💻 **{captain_name}:** \"Fine, I'll go solo then!\"")
             else:
-                game_state.dispatch_action("decline_partner", {"partner_id": partner_id})
-                captain_name = next(p.name for p in game_state.player_manager.players if p.id == game_state.player_manager.captain_id)
-                feedback.append(f"🧑 **You:** \"Thanks, but I'll pass.\"")
-                feedback.append(f"💻 **{captain_name}:** \"Fine, I'll go solo then!\"")
+                # No pending request, just continue with normal play
+                feedback.append(f"🧑 **You:** \"I'll play my own game.\"")
 
         # Handle partnership response from human partner (when human is asked to be partner)
         if "accept" in human_decisions and "partner_id" in human_decisions:
@@ -382,20 +387,17 @@ class SimulationEngine:
                 captain_name = next(p.name for p in game_state.player_manager.players if p.id == game_state.player_manager.captain_id)
                 feedback.append(f"🧑 **You:** \"Absolutely! Let's do this!\"")
             else:
-                # If there's no pending partnership request, just go solo directly
+                # Check if there's a pending partnership request
                 if game_state.betting_state.teams.get("type") == "pending":
                     game_state.dispatch_action("decline_partner", {"partner_id": human_id})
-                    captain_name = next(p.name for p in game_state.player_manager.players if p.id == game_state.player_manager.captain_id)
                     feedback.append(f"🧑 **You:** \"Thanks, but I think I'll pass. Keep looking!\"")
                     # Get the actual captain name from the pending request
                     pending_captain_id = game_state.betting_state.teams.get("captain")
                     pending_captain_name = next(p.name for p in game_state.player_manager.players if p.id == pending_captain_id)
                     feedback.append(f"💻 **{pending_captain_name}:** \"Fine, I'll go solo then!\"")
                 else:
-                    # No pending request, just go solo
-                    game_state.dispatch_action("go_solo", {"captain_id": game_state.player_manager.captain_id})
-                    captain_name = next(p.name for p in game_state.player_manager.players if p.id == game_state.player_manager.captain_id)
-                    feedback.append(f"🧑 **You:** \"I'll go solo.\"")
+                    # No pending request, just continue with normal play
+                    feedback.append(f"🧑 **You:** \"I'll play my own game.\"")
 
         # Show hole setup
         feedback.append(f"\n🏌️ **Hole {game_state.current_hole} Setup**")
@@ -478,9 +480,15 @@ class SimulationEngine:
                         game_state.betting_state.accept_partner(requested_partner, game_state.player_manager.players)
                         feedback.append(f"💻 **{requested_name}:** \"Absolutely! Let's do this!\"")
                     else:
-                        game_state.betting_state.decline_partner(requested_partner, game_state.player_manager.players)
-                        feedback.append(f"💻 **{requested_name}:** \"Thanks, but I'll pass.\"")
-                        feedback.append(f"💻 **{captain_name}:** \"Fine, I'll go solo then!\"")
+                        # Check if there's still a pending request before declining
+                        if game_state.betting_state.teams.get("type") == "pending":
+                            game_state.betting_state.decline_partner(requested_partner, game_state.player_manager.players)
+                            feedback.append(f"💻 **{requested_name}:** \"Thanks, but I'll pass.\"")
+                            feedback.append(f"💻 **{captain_name}:** \"Fine, I'll go solo then!\"")
+                        else:
+                            # No pending request, captain goes solo
+                            game_state.betting_state.go_solo(captain_id, game_state.player_manager.players)
+                            feedback.append(f"💻 **{captain_name}:** \"I'll go solo.\"")
         
                 # Phase 3: Simulate remaining shots chronologically
         feedback.append("\n🎯 **APPROACH SHOTS & PUTTING**")
@@ -488,8 +496,12 @@ class SimulationEngine:
         feedback.extend(remaining_feedback)
         
         # Phase 4: Calculate points and provide educational feedback
-        points_message = game_state.calculate_hole_points()
-        feedback.append(f"💰 **Points:** {points_message}")
+        if game_state.betting_state.teams and game_state.betting_state.teams.get("type") in ("partners", "solo"):
+            points_message = game_state.calculate_hole_points()
+            feedback.append(f"💰 **Points:** {points_message}")
+        else:
+            # No teams formed, just show individual scores
+            feedback.append("💰 **Points:** No partnerships formed - individual stroke play")
         
         # Add educational feedback
         educational_feedback = self._generate_educational_feedback(game_state, human_decisions)

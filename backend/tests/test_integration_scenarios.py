@@ -3,8 +3,12 @@ Integration tests for complete game scenarios
 Test end-to-end flows with realistic data
 """
 import pytest
-from backend.app.simulation import SimulationEngine
-from backend.app.domain.player import Player
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+from app.simulation import SimulationEngine
+from app.domain.player import Player
 
 
 class TestCompleteGameScenarios:

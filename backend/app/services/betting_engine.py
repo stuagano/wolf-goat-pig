@@ -60,8 +60,14 @@ class BettingEngine:
                     game_state.dispatch_action("accept_partner", {"partner_id": partner_id})
                     result_message = f"Partnership formed! {betting_probs.get('win_probability', 'Unknown')}% win probability."
                 else:
-                    game_state.dispatch_action("decline_partner", {"partner_id": partner_id})
-                    result_message = "Partnership declined. Captain going solo by default."
+                    # Check if there's a pending request before declining
+                    if game_state.betting_state.teams.get("type") == "pending":
+                        game_state.dispatch_action("decline_partner", {"partner_id": partner_id})
+                        result_message = "Partnership declined. Captain going solo by default."
+                    else:
+                        # No pending request, just go solo
+                        game_state.dispatch_action("go_solo", {"captain_id": game_state.player_manager.captain_id})
+                        result_message = "Captain going solo."
             else:
                 result_message = "Partnership request sent to human player."
             

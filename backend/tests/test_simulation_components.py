@@ -4,10 +4,14 @@ Focus on testing individual pieces in isolation
 """
 import pytest
 from unittest.mock import Mock, patch
-from backend.app.simulation import SimulationEngine, ComputerPlayer
-from backend.app.domain.player import Player
-from backend.app.state.betting_state import BettingState
-from backend.app.game_state import GameState
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+from app.simulation import SimulationEngine, ComputerPlayer
+from app.domain.player import Player
+from app.state.betting_state import BettingState
+from app.game_state import GameState
 
 
 class TestComputerPlayer:
@@ -16,7 +20,12 @@ class TestComputerPlayer:
     def test_should_accept_partnership_when_behind(self):
         player = ComputerPlayer("comp1", "Alice", 8.0, "balanced")
         game_state = Mock()
-        game_state.get_current_points.return_value = -5  # Behind
+        
+        # Mock the player_manager.players to be iterable
+        mock_player = Mock()
+        mock_player.id = "comp1"
+        mock_player.points = -5  # Behind
+        game_state.player_manager.players = [mock_player]
         
         result = player.should_accept_partnership(12.0, game_state)
         assert result == True  # Should accept when behind
@@ -24,7 +33,12 @@ class TestComputerPlayer:
     def test_should_go_solo_when_ahead(self):
         player = ComputerPlayer("comp1", "Alice", 8.0, "aggressive")
         game_state = Mock()
-        game_state.get_current_points.return_value = 5  # Ahead
+        
+        # Mock the player_manager.players to be iterable
+        mock_player = Mock()
+        mock_player.id = "comp1"
+        mock_player.points = 5  # Ahead
+        game_state.player_manager.players = [mock_player]
         
         result = player.should_go_solo(game_state)
         assert result == True  # Aggressive player ahead should go solo
@@ -76,11 +90,9 @@ class TestBettingState:
 class TestShotSimulation:
     """Test shot simulation logic in isolation"""
     
-    @patch('backend.app.services.shot_simulator.random')
-    def test_approach_shot_simulation(self, mock_random):
-        from backend.app.services.shot_simulator import ShotSimulator
+    def test_approach_shot_simulation(self):
+        from app.services.shot_simulator import ShotSimulator
         
-        mock_random.uniform.return_value = 0.8  # Consistent test
         player = Player("test", "Test", 12.0)
         game_state = Mock()
         game_state.current_hole = 1
@@ -99,12 +111,24 @@ class TestPartnershipAdvantage:
         engine = SimulationEngine()
         game_state = Mock()
         
-        # Mock player handicaps
-        def mock_get_handicap(player_id):
-            handicaps = {"captain": 10.0, "partner": 12.0, "other1": 15.0, "other2": 18.0}
-            return handicaps.get(player_id, 15.0)
+        # Mock the player_manager.players to be iterable
+        mock_captain = Mock()
+        mock_captain.id = "captain"
+        mock_captain.handicap = 10.0
         
-        game_state.get_player_handicap = mock_get_handicap
+        mock_partner = Mock()
+        mock_partner.id = "partner"
+        mock_partner.handicap = 12.0
+        
+        mock_other1 = Mock()
+        mock_other1.id = "other1"
+        mock_other1.handicap = 15.0
+        
+        mock_other2 = Mock()
+        mock_other2.id = "other2"
+        mock_other2.handicap = 18.0
+        
+        game_state.player_manager.players = [mock_captain, mock_partner, mock_other1, mock_other2]
         
         advantage = engine._calculate_partnership_advantage("captain", "partner", game_state)
         
@@ -117,12 +141,14 @@ class TestPartnershipAdvantage:
 class TestSimulationFlow:
     """Test simulation flow with mocked dependencies"""
     
-    @patch('backend.app.services.shot_simulator.ShotSimulator.simulate_remaining_shots_chronological')
+    @patch('app.services.shot_simulator.ShotSimulator.simulate_remaining_shots_chronological')
     def test_simulation_with_mocked_shots(self, mock_shots):
         engine = SimulationEngine()
         human_player = Player("human", "You", 12.0)
         computer_configs = [
-            {"id": "comp1", "name": "Alice", "handicap": 8.0, "personality": "balanced"}
+            {"id": "comp1", "name": "Alice", "handicap": 8.0, "personality": "balanced"},
+            {"id": "comp2", "name": "Bob", "handicap": 15.0, "personality": "aggressive"},
+            {"id": "comp3", "name": "Charlie", "handicap": 20.0, "personality": "conservative"}
         ]
         
         game_state = engine.setup_simulation(human_player, computer_configs)
