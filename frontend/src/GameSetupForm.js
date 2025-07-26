@@ -48,10 +48,10 @@ const inputStyle = {
 
 function GameSetupForm({ onSetup }) {
   const [players, setPlayers] = useState([
-    { id: 'p1', name: '', handicap: '', strength: '' },
-    { id: 'p2', name: '', handicap: '', strength: '' },
-    { id: 'p3', name: '', handicap: '', strength: '' },
-    { id: 'p4', name: '', handicap: '', strength: '' },
+    { id: 'p1', name: '', handicap: '', strength: '', is_human: true },
+    { id: 'p2', name: '', handicap: '', strength: '', is_human: true },
+    { id: 'p3', name: '', handicap: '', strength: '', is_human: true },
+    { id: 'p4', name: '', handicap: '', strength: '', is_human: true },
   ]);
   const [courses, setCourses] = useState([]);
   const [courseName, setCourseName] = useState('');
@@ -104,6 +104,7 @@ function GameSetupForm({ onSetup }) {
       ...p,
       name: golfer.name,
       handicap: golfer.handicap || '',
+      is_human: true  // All players in GameSetupForm are human
     } : p));
     setGhinResults(r => ({ ...r, [pid]: [] }));
     setGhinSearch(s => ({ ...s, [pid]: '' }));
