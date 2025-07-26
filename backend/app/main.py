@@ -104,22 +104,13 @@ app.add_middleware(
 
 # CORS configuration
 
-# Standard CORS middleware with permissive configuration
+# Super permissive CORS middleware for development
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "https://wolf-goat-pig.vercel.app",
-        "https://wolf-goat-pig-frontend.onrender.com",
-        "https://wolf-goat-im4paxvvp-stuaganos-projects.vercel.app",
-        "https://wolf-goat-pig-git-main-stuaganos-projects.vercel.app",
-        "https://wolf-goat-pig-stuaganos-projects.vercel.app",
-        "*"  # Allow all origins for development/debugging
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=["*"],  # Allow ALL origins
+    allow_credentials=False,  # Must be False when allow_origins=["*"]
+    allow_methods=["*"],  # Allow ALL methods
+    allow_headers=["*"],  # Allow ALL headers
 )
 
 # Global exception handler
