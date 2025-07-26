@@ -50,8 +50,11 @@ class BettingEngine:
                     accept = partner_player.should_accept_partnership(captain_player.handicap, game_state)
                 else:
                     # Human captain
-                    human_handicap = next(p.handicap for p in game_state.player_manager.players if p.id == captain_id)
-                    accept = partner_player.should_accept_partnership(human_handicap, game_state)
+                    human_player = next((p for p in game_state.player_manager.players if p.id == captain_id), None)
+                    if human_player:
+                        accept = partner_player.should_accept_partnership(human_player.handicap, game_state)
+                    else:
+                        accept = False  # Fallback if captain not found
                 
                 if accept:
                     game_state.dispatch_action("accept_partner", {"partner_id": partner_id})
@@ -259,7 +262,10 @@ class BettingEngine:
     @staticmethod
     def _get_current_points(player_id: str, game_state: GameState) -> int:
         """Get current points for a player"""
-        return game_state.get_player_points().get(player_id, 0)
+        for player in game_state.player_manager.players:
+            if player.id == player_id:
+                return player.points
+        return 0
 
     @staticmethod
     def _assess_team_advantage(game_state: GameState) -> float:
