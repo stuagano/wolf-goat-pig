@@ -528,6 +528,10 @@ class GameState:
     def get_hole_difficulty_factor(self, hole_number):
         """Calculate difficulty factor for a specific hole for simulation"""
         return self.course_manager.get_hole_difficulty_factor(hole_number)
+    
+    def get_human_player_id(self) -> str:
+        """Get the human player ID using centralized utility"""
+        return Player.get_human_player_id(self.player_manager.players)
 
 # Singleton game state for MVP (in-memory)
 game_state = GameState() 

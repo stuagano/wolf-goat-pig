@@ -1,19 +1,16 @@
 from typing import Dict, Any, Optional
 from ..game_state import GameState
+from ..domain.player import Player
+from ..domain.shot_result import ShotResult
 
-def _require_key(obj, key, context):
-    if key not in obj:
-        raise KeyError(f"Missing key '{key}' in {context}")
-    return obj[key]
+
 
 class ProbabilityCalculator:
     @staticmethod
-    def calculate_tee_shot_probabilities(player: dict, game_state: GameState) -> dict:
-        # Handle both Player objects and dictionaries
-        if hasattr(player, 'handicap'):
-            handicap = player.handicap
-        else:
-            handicap = player["handicap"]
+    def calculate_tee_shot_probabilities(player: Player, game_state: GameState) -> dict:
+        """Calculate tee shot probabilities for a Player object"""
+        # Always expect Player objects
+        handicap = player.handicap
         hole_info = ProbabilityCalculator._get_hole_info(game_state)
         base_excellent = max(0.05, 0.25 - (handicap * 0.01))
         base_good = max(0.15, 0.35 - (handicap * 0.008))
@@ -40,15 +37,13 @@ class ProbabilityCalculator:
         }
 
     @staticmethod
-    def calculate_post_shot_probabilities(shot_result, game_state: GameState) -> dict:
-        if hasattr(shot_result, 'shot_quality'):
-            shot_quality = shot_result.shot_quality
-            remaining = shot_result.remaining
-            lie = shot_result.lie
-        else:
-            shot_quality = _require_key(shot_result, "shot_quality", "shot_result")
-            remaining = _require_key(shot_result, "remaining", "shot_result")
-            lie = _require_key(shot_result, "lie", "shot_result")
+    def calculate_post_shot_probabilities(shot_result: ShotResult, game_state: GameState) -> dict:
+        """Calculate post-shot probabilities for a ShotResult object"""
+        # Always expect ShotResult objects
+        shot_quality = shot_result.shot_quality
+        remaining = shot_result.remaining
+        lie = shot_result.lie
+        
         scoring_probs = ProbabilityCalculator.calculate_scoring_probabilities(remaining, lie, game_state)
         partnership_value = ProbabilityCalculator._calculate_partnership_value(shot_result, game_state)
         return {
@@ -100,13 +95,14 @@ class ProbabilityCalculator:
     # --- Helper methods ---
     @staticmethod
     def _get_hole_info(game_state: GameState) -> dict:
+        """Get current hole information from course manager"""
         hole_idx = game_state.current_hole - 1
         return {
             "hole_number": game_state.current_hole,
-            "par": game_state.hole_pars[hole_idx] if game_state.hole_pars else 4,
-            "yards": game_state.hole_yards[hole_idx] if hasattr(game_state, 'hole_yards') and game_state.hole_yards else 400,
-            "stroke_index": game_state.hole_stroke_indexes[hole_idx] if game_state.hole_stroke_indexes else 10,
-            "description": game_state.hole_descriptions[hole_idx] if hasattr(game_state, 'hole_descriptions') and game_state.hole_descriptions else ""
+            "par": game_state.course_manager.hole_pars[hole_idx] if game_state.course_manager.hole_pars else 4,
+            "yards": game_state.course_manager.hole_yards[hole_idx] if game_state.course_manager.hole_yards else 400,
+            "stroke_index": game_state.course_manager.hole_stroke_indexes[hole_idx] if game_state.course_manager.hole_stroke_indexes else 10,
+            "description": game_state.course_manager.course_data.get(str(game_state.current_hole), {}).get("description", "") if game_state.course_manager.course_data else ""
         }
 
     @staticmethod
@@ -122,13 +118,12 @@ class ProbabilityCalculator:
         }
 
     @staticmethod
-    def _calculate_partnership_value(shot_result, game_state: GameState) -> dict:
-        if hasattr(shot_result, 'shot_quality'):
-            shot_quality = shot_result.shot_quality
-            remaining = shot_result.remaining
-        else:
-            shot_quality = shot_result["shot_quality"]
-            remaining = shot_result["remaining"]
+    def _calculate_partnership_value(shot_result: ShotResult, game_state: GameState) -> dict:
+        """Calculate partnership value for a ShotResult object"""
+        # Always expect ShotResult objects
+        shot_quality = shot_result.shot_quality
+        remaining = shot_result.remaining
+        
         if shot_quality == "excellent":
             base_value = 85
         elif shot_quality == "good":
@@ -139,12 +134,14 @@ class ProbabilityCalculator:
             base_value = 30
         else:
             base_value = 15
+            
         if remaining <= 100:
             position_bonus = 15
         elif remaining <= 150:
             position_bonus = 10
         else:
             position_bonus = 0
+            
         return {
             "partnership_appeal": min(100, base_value + position_bonus),
             "reason": f"{shot_quality} shot, {remaining} yards remaining",
@@ -152,9 +149,12 @@ class ProbabilityCalculator:
         }
 
     @staticmethod
-    def _assess_position_quality(shot_result: dict) -> dict:
-        lie = shot_result["lie"]
-        remaining = shot_result["remaining"]
+    def _assess_position_quality(shot_result: ShotResult) -> dict:
+        """Assess position quality for a ShotResult object"""
+        # Always expect ShotResult objects
+        lie = shot_result.lie
+        remaining = shot_result.remaining
+        
         if lie == "fairway":
             if remaining <= 100:
                 quality = "Excellent - Short iron to green"
@@ -175,6 +175,7 @@ class ProbabilityCalculator:
         else:
             quality = "Difficult - Recovery shot needed"
             score = 25
+            
         return {
             "quality_score": score,
             "description": quality,
@@ -183,7 +184,8 @@ class ProbabilityCalculator:
         }
 
     @staticmethod
-    def _get_strategic_implications(shot_result: dict, game_state: GameState) -> list:
+    def _get_strategic_implications(shot_result: ShotResult, game_state: GameState) -> list:
+        """Get strategic implications for a ShotResult object"""
         implications = []
         # Placeholder for strategic advice logic
         return implications 

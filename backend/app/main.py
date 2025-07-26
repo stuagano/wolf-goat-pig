@@ -627,8 +627,15 @@ class ComputerPlayerConfig(BaseModel):
     handicap: float
     personality: str = "balanced"  # aggressive, conservative, balanced, strategic
 
+class HumanPlayerConfig(BaseModel):
+    """Configuration for human player setup"""
+    id: str
+    name: str
+    handicap: float
+    is_human: bool = True
+
 class SimulationSetup(BaseModel):
-    human_player: dict
+    human_player: HumanPlayerConfig
     computer_players: List[ComputerPlayerConfig]
     course_name: Optional[str] = None
 
@@ -640,7 +647,7 @@ class HumanDecisions(BaseModel):
     accept_partnership: bool = False
 
 class MonteCarloSetup(BaseModel):
-    human_player: dict
+    human_player: HumanPlayerConfig
     computer_players: List[ComputerPlayerConfig]
     num_simulations: int = 100
     course_name: Optional[str] = None
@@ -659,16 +666,21 @@ def setup_simulation(setup: SimulationSetup):
             raise HTTPException(status_code=400, detail="Need exactly 3 computer players")
         
         print(f"🎯 /simulation/setup called")
-        print(f"🎯 Human player: {setup.human_player}")
+        print(f"🎯 Human player: {setup.human_player.dict()}")
         print(f"🎯 Computer players: {[cp.dict() for cp in setup.computer_players]}")
         
-        # Convert to dict format expected by simulation engine
-        human_player = {
-            "id": setup.human_player.get("id", "human"),
-            "name": setup.human_player.get("name", "Human Player"),
-            "handicap": setup.human_player.get("handicap", 18)
-        }
+        # Convert to Player objects for simulation engine
+        from .domain.player import Player
         
+        # Create human player object
+        human_player = Player(
+            id=setup.human_player.id,
+            name=setup.human_player.name,
+            handicap=setup.human_player.handicap,
+            is_human=setup.human_player.is_human
+        )
+        
+        # Create computer player configs
         computer_configs = [
             {
                 "id": cp.id,
@@ -679,10 +691,10 @@ def setup_simulation(setup: SimulationSetup):
             for cp in setup.computer_players
         ]
         
-        print(f"🎯 Converted human_player: {human_player}")
-        print(f"🎯 Converted computer_configs: {computer_configs}")
+        print(f"🎯 Created human_player: {human_player}")
+        print(f"🎯 Computer configs: {computer_configs}")
         
-        # Setup simulation
+        # Setup simulation with Player object
         game_state = simulation_engine.setup_simulation(
             human_player, computer_configs, setup.course_name
         )
@@ -707,7 +719,18 @@ def run_monte_carlo_simulation(setup: MonteCarloSetup):
         if setup.num_simulations < 1 or setup.num_simulations > 1000:
             raise HTTPException(status_code=400, detail="Number of simulations must be between 1 and 1000")
         
-        # Convert computer player configs to dict format
+        # Convert to Player objects for simulation engine
+        from .domain.player import Player
+        
+        # Create human player object
+        human_player = Player(
+            id=setup.human_player.id,
+            name=setup.human_player.name,
+            handicap=setup.human_player.handicap,
+            is_human=setup.human_player.is_human
+        )
+        
+        # Create computer player configs
         computer_configs = [
             {
                 "id": cp.id,
@@ -719,7 +742,7 @@ def run_monte_carlo_simulation(setup: MonteCarloSetup):
         
         # Run Monte Carlo simulation
         results = simulation_engine.run_monte_carlo_simulation(
-            setup.human_player,
+            human_player,
             computer_configs,
             setup.num_simulations,
             setup.course_name
@@ -729,7 +752,7 @@ def run_monte_carlo_simulation(setup: MonteCarloSetup):
         summary = results.get_summary()
         
         # Add additional insights
-        human_id = setup.human_player.id  # This should be a Player object
+        human_id = human_player.id
         human_stats = summary["player_statistics"][human_id]
         
         # Generate insights
@@ -1358,8 +1381,9 @@ def hit_tee_shot():
         player_id = hitting_order[current_player_idx]
         player = next(p for p in game_state.player_manager.players if p.id == player_id)
         
-        # Simulate this player's tee shot
-        tee_result = simulation_engine._simulate_individual_tee_shot(player, game_state)
+        # Simulate this player's tee shot using ShotSimulator service
+        from .services.shot_simulator import ShotSimulator
+        tee_result = ShotSimulator.simulate_individual_tee_shot(player, game_state)
         
         # Store result
         if not hasattr(game_state, 'tee_shot_results'):

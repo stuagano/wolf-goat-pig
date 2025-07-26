@@ -293,7 +293,7 @@ class SimulationEngine:
         self.shot_history: List[Dict] = []
         self.educational_feedback: List[str] = []
         
-    def setup_simulation(self, human_player: Dict[str, Any], computer_configs: List[Dict[str, Any]], course_name: Optional[str] = None) -> GameState:
+    def setup_simulation(self, human_player: Player, computer_configs: List[Dict[str, Any]], course_name: Optional[str] = None) -> GameState:
         """Setup a simulation game with one human and three computer players"""
         if len(computer_configs) != 3:
             raise ValueError("Need exactly 3 computer player configurations")
@@ -311,13 +311,13 @@ class SimulationEngine:
             )
             self.computer_players.append(comp_player)
         
-        # Setup game state with all players (as dictionaries, which setup_players expects)
+        # Setup game state with Player objects
         all_players = [
             {
-                "id": human_player["id"],
-                "name": human_player["name"],
-                "handicap": human_player["handicap"],
-                "strength": self._handicap_to_strength_string(human_player["handicap"])
+                "id": human_player.id,
+                "name": human_player.name,
+                "handicap": human_player.handicap,
+                "strength": self._handicap_to_strength_string(human_player.handicap)
             }
         ] + [
             {
@@ -340,6 +340,10 @@ class SimulationEngine:
             game_state.shot_state = ShotState()
         else:
             game_state.shot_state.reset_for_hole()
+        
+        # Initialize tee shot results
+        game_state.tee_shot_results = {}
+        game_state.current_tee_shot_index = 0
         
         print(f"🔧 Shot state initialized: {game_state.shot_state}")
         
@@ -418,7 +422,7 @@ class SimulationEngine:
             
             # If this player hasn't hit yet, simulate their tee shot
             if player_id not in tee_shot_results:
-                tee_result = self._simulate_individual_tee_shot(player, game_state)
+                tee_result = ShotSimulator.simulate_individual_tee_shot(player, game_state)
                 tee_shot_results[player_id] = tee_result
                 
                 # Show the tee shot result
@@ -983,12 +987,8 @@ class SimulationEngine:
         raise ValueError(f"Computer player {player_id} not found")
     
     def _get_human_player_id(self, game_state: GameState) -> str:
-        """Get the human player ID (first player that's not a computer)"""
-        comp_ids = {cp.player_id for cp in self.computer_players}
-        for player in game_state.player_manager.players:
-            if player.id not in comp_ids:
-                return player.id
-        return game_state.player_manager.players[0].id  # Fallback
+        """Get the human player ID consistently using GameState utility"""
+        return game_state.get_human_player_id()
     
     def _get_current_points(self, player_id: str, game_state: GameState) -> int:
         """Get current points for a specific player"""
@@ -1111,7 +1111,7 @@ class SimulationEngine:
             
         return expectations
 
-    def run_monte_carlo_simulation(self, human_player: Dict[str, Any], computer_configs: List[Dict[str, Any]], 
+    def run_monte_carlo_simulation(self, human_player: Player, computer_configs: List[Dict[str, Any]], 
                                    num_simulations: int = 100, course_name: Optional[str] = None,
                                    progress_callback=None) -> MonteCarloResults:
         """
@@ -1172,7 +1172,7 @@ class SimulationEngine:
         
         return results
     
-    def _generate_monte_carlo_human_decisions(self, game_state: GameState, human_player: Dict[str, Any]) -> Dict[str, Any]:
+    def _generate_monte_carlo_human_decisions(self, game_state: GameState, human_player: Player) -> Dict[str, Any]:
         """
         Generate automatic decisions for human player in Monte Carlo simulation
         Uses a balanced strategy similar to computer AI
@@ -1181,7 +1181,7 @@ class SimulationEngine:
         # Get current points for human player
         current_points = 0
         for player in game_state.player_manager.players:
-            if player.id == human_player["id"]:
+            if player.id == human_player.id:
                 current_points = player.points
                 break
         
@@ -1197,7 +1197,7 @@ class SimulationEngine:
             # Human is captain - make partnership decision
             
             # Assess potential partners
-            potential_partners = [p for p in game_state.player_manager.players if p.id != human_player["id"]]
+            potential_partners = [p for p in game_state.player_manager.players if p.id != human_player.id]
             
             # Simple strategy: prefer partners with similar or better handicaps
             human_handicap = human_player.handicap
@@ -1499,7 +1499,10 @@ class SimulationEngine:
     
     def execute_shot_event(self, game_state: GameState, shot_event: Dict[str, Any]) -> Tuple[GameState, Dict[str, Any], Dict[str, Any]]:
         """Execute a shot event and return result with probabilities"""
-        shot_type = _require_key(shot_event, "type", "shot_event")
+        shot_type = shot_event.get("type")
+        if not shot_type:
+            raise ValueError("Missing 'type' key in shot_event")
+            
         if shot_type == "tee_shot":
             return self._execute_tee_shot_event(game_state, shot_event)
         elif shot_type == "approach_shot":
@@ -1509,13 +1512,15 @@ class SimulationEngine:
     
     def _execute_tee_shot_event(self, game_state: GameState, shot_event: Dict[str, Any]) -> Tuple[GameState, Dict[str, Any], Dict[str, Any]]:
         """Execute a tee shot with detailed probabilities"""
-        player = _require_key(shot_event, "player", "shot_event")
+        player = shot_event.get("player")
+        if not player:
+            raise ValueError("Missing 'player' key in shot_event")
         
         # Calculate pre-shot probabilities
         pre_shot_probs = ProbabilityCalculator.calculate_tee_shot_probabilities(player, game_state)
         
-        # Execute the actual shot
-        shot_result = self._simulate_individual_tee_shot(player, game_state)
+        # Execute the actual shot using ShotSimulator service
+        shot_result = ShotSimulator.simulate_individual_tee_shot(player, game_state)
         
         # Calculate post-shot probabilities and outcomes
         post_shot_probs = ProbabilityCalculator.calculate_post_shot_probabilities(shot_result, game_state)
@@ -1547,7 +1552,7 @@ class SimulationEngine:
     
 
     
-    def check_betting_opportunity(self, game_state: GameState, shot_result: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def check_betting_opportunity(self, game_state: GameState, shot_result: ShotResult) -> Optional[Dict[str, Any]]:
         """Check if there's a betting opportunity after this shot"""
         return BettingEngine.check_betting_opportunity(game_state, shot_result, self.computer_players)
     
@@ -1664,15 +1669,11 @@ class SimulationEngine:
         
         return implications
     
-    def _calculate_betting_implications(self, shot_result: Dict[str, Any], game_state: GameState) -> Dict[str, Any]:
+    def _calculate_betting_implications(self, shot_result: ShotResult, game_state: GameState) -> Dict[str, Any]:
         """Calculate betting implications and recommendations"""
-        # Handle both ShotResult objects and dictionaries for backwards compatibility
-        if hasattr(shot_result, 'shot_quality'):
-            shot_quality = shot_result.shot_quality
-            player_id = shot_result.player.id
-        else:
-            shot_quality = shot_result["shot_quality"]
-            player_id = shot_result["player"]["id"]
+        # Always expect ShotResult objects
+        shot_quality = shot_result.shot_quality
+        player_id = shot_result.player.id
         captain_id = game_state.player_manager.captain_id
         
         if player_id == captain_id:
@@ -1707,19 +1708,13 @@ class SimulationEngine:
             "shot_quality_factor": shot_quality
         }
     
-    def _create_detailed_shot_description(self, shot_result: Dict[str, Any], player: Dict[str, Any], game_state: GameState) -> str:
+    def _create_detailed_shot_description(self, shot_result: ShotResult, player: Player, game_state: GameState) -> str:
         """Create detailed, realistic shot description"""
-        # Handle both ShotResult objects and dictionaries for backwards compatibility
-        if hasattr(shot_result, 'drive'):
-            drive = shot_result.drive
-            lie = shot_result.lie
-            remaining = shot_result.remaining
-            quality = shot_result.shot_quality
-        else:
-            drive = shot_result["drive"]
-            lie = shot_result["lie"]
-            remaining = shot_result["remaining"]
-            quality = shot_result["shot_quality"]
+        # Always expect ShotResult and Player objects
+        drive = shot_result.drive
+        lie = shot_result.lie
+        remaining = shot_result.remaining
+        quality = shot_result.shot_quality
         
         # Player identifier
         player_icon = "🧑" if player.id == self._get_human_player_id(game_state) else "💻"
@@ -1754,10 +1749,10 @@ class SimulationEngine:
         
         return base_desc
     
-    def _generate_shot_reactions(self, shot_result: Dict[str, Any], player: Dict[str, Any], game_state: GameState) -> List[str]:
+    def _generate_shot_reactions(self, shot_result: ShotResult, player: Player, game_state: GameState) -> List[str]:
         """Generate realistic reactions from other players"""
         reactions = []
-        quality = shot_result["shot_quality"]
+        quality = shot_result.shot_quality
         
         if quality == "excellent":
             reactions.append("💬 \"Wow, great shot!\"")
@@ -1795,12 +1790,6 @@ simulation_engine = SimulationEngine()
 
 # Defensive helper
 
-def _require_key(obj, key, context):
-    if key not in obj:
-        logging.error(f"Missing '{key}' key in {context}: {obj}")
-        raise ValueError(f"Simulation error: missing '{key}' key in {context}")
-    return obj[key]
-
 def _safe_get(obj, key, default=None):
     return obj[key] if key in obj else default
 
@@ -1823,8 +1812,6 @@ def safe_simulate_hole(self, game_state, human_decisions):
         logging.error(f"Exception in simulate_hole: {e}\n{traceback.format_exc()}")
         return game_state, [f"Simulation error: {e}"], None
 
-# Apply _require_key everywhere a dict key is accessed, e.g.:
-# Instead of shot_result['player'], use _require_key(shot_result, 'player', 'shot_result in ...')
-# Instead of shot_result['shot_quality'], use _require_key(shot_result, 'shot_quality', 'shot_result in ...')
-# For all dict key accesses in simulation logic, replace with _require_key or _safe_get as appropriate.
+# Note: All ShotResult and Player objects are now properly typed and handled consistently.
+# The simulation engine now conforms to the object-oriented architecture.
 # For all main entrypoints (event-driven, betting, etc.), wrap in try/except and log errors.

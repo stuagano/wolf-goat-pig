@@ -1,28 +1,24 @@
 import random
 from typing import List, Dict, Any, Optional, Tuple
 from ..game_state import GameState
+from ..domain.player import Player
+from ..domain.shot_result import ShotResult
 from .probability_calculator import ProbabilityCalculator
-
-def _require_key(obj, key, context):
-    if key not in obj:
-        raise KeyError(f"Missing key '{key}' in {context}")
-    return obj[key]
 
 class BettingEngine:
     @staticmethod
-    def check_betting_opportunity(game_state: GameState, shot_result: dict, computer_players: List) -> Optional[dict]:
+    def check_betting_opportunity(game_state: GameState, shot_result: ShotResult, computer_players: List) -> Optional[dict]:
         """Check if there's a betting opportunity after this shot"""
         captain_id = game_state.player_manager.captain_id
-        player = _require_key(shot_result, "player", "shot_result")
-        shot_player_id = _require_key(player, "id", "shot_result.player")
-        shot_quality = _require_key(shot_result, "shot_quality", "shot_result")
+        shot_player_id = shot_result.player.id
+        shot_quality = shot_result.shot_quality
         
         # Only offer betting opportunities for human captain or after good shots
         if captain_id == BettingEngine._get_human_player_id(game_state):
             if shot_quality in ["excellent", "good"] and shot_player_id != captain_id:
                 return {
                     "type": "partnership_opportunity",
-                    "target_player": player,
+                    "target_player": shot_result.player,
                     "shot_context": shot_result,
                     "betting_probabilities": ProbabilityCalculator.calculate_betting_probabilities(game_state, {
                         "action": "request_partner",
@@ -109,13 +105,17 @@ class BettingEngine:
 
     @staticmethod
     def evaluate_shot_for_partnership(captain_id: str, shot_player_id: str, 
-                                    tee_result: dict, game_state: GameState, shot_index: int, computer_players: List) -> str:
+                                    tee_result: ShotResult, game_state: GameState, shot_index: int, computer_players: List) -> str:
         """Evaluate if captain should make partnership decision after seeing this shot"""
         if captain_id == shot_player_id:
             return "continue"  # Captain doesn't partner with themselves
         
-        shot_quality = tee_result['shot_quality']
+        shot_quality = tee_result.shot_quality
         captain_player = BettingEngine._get_computer_player(captain_id, computer_players)
+        
+        # If captain is human (not in computer_players), return continue to let human decide
+        if captain_player is None:
+            return "continue"  # Human captain makes decisions interactively
         
         # Aggressive personalities act faster on good shots
         if captain_player.personality == "aggressive":
@@ -253,25 +253,8 @@ class BettingEngine:
 
     @staticmethod
     def _get_human_player_id(game_state: GameState) -> str:
-        """Get the human player ID"""
-        for player in game_state.player_manager.players:
-            # Handle both Player objects and dictionaries
-            if hasattr(player, 'id'):
-                # This is a Player object, check if it has is_human attribute
-                if hasattr(player, 'is_human') and player.is_human:
-                    return player.id
-            else:
-                # This is a dictionary
-                if player.get("is_human", False):
-                    return player["id"]
-        # Fallback: assume first player is human
-        if game_state.player_manager.players:
-            first_player = game_state.player_manager.players[0]
-            if hasattr(first_player, 'id'):
-                return first_player.id
-            else:
-                return first_player["id"]
-        return "p1"  # Ultimate fallback
+        """Get the human player ID consistently using GameState utility"""
+        return game_state.get_human_player_id()
 
     @staticmethod
     def _get_current_points(player_id: str, game_state: GameState) -> int:
@@ -290,14 +273,10 @@ class BettingEngine:
         team2_handicaps = []
         
         for player in game_state.player_manager.players:
-            # Handle both Player objects and dictionaries
-            if hasattr(player, 'id'):
-                player_id = player.id
-                player_handicap = player.handicap
-            else:
-                player_id = player["id"]
-                player_handicap = player["handicap"]
-                
+            # Always work with Player objects
+            player_id = player.id
+            player_handicap = player.handicap
+            
             if player_id in game_state.betting_state.teams.get("team1", []):
                 team1_handicaps.append(player_handicap)
             elif player_id in game_state.betting_state.teams.get("team2", []):

@@ -42,6 +42,7 @@ class Player:
     handicap: float
     points: int = 0
     strength: Optional[str] = None
+    is_human: bool = False  # Flag to identify human players
     
     # Game state fields
     hole_scores: dict = field(default_factory=dict)
@@ -154,6 +155,7 @@ class Player:
             "handicap": self.handicap,
             "points": self.points,
             "strength": self.strength,
+            "is_human": self.is_human,
             "hole_scores": self.hole_scores.copy(),
             "float_used": self.float_used,
             "last_points": self.last_points
@@ -168,6 +170,7 @@ class Player:
             handicap=data["handicap"],
             points=data.get("points", 0),
             strength=data.get("strength"),
+            is_human=data.get("is_human", False),
             hole_scores=data.get("hole_scores", {}),
             float_used=data.get("float_used", False),
             last_points=data.get("last_points", 0)
@@ -192,3 +195,25 @@ class Player:
     def __hash__(self) -> int:
         """Hash based on player ID."""
         return hash(self.id) 
+
+    @staticmethod
+    def get_human_player_id(players: list) -> str:
+        """
+        Get the human player ID from a list of players.
+        This is a centralized utility function for human player identification.
+        
+        Args:
+            players: List of Player objects
+            
+        Returns:
+            str: The ID of the human player, or first player as fallback
+        """
+        for player in players:
+            if hasattr(player, 'is_human') and player.is_human:
+                return player.id
+        
+        # Fallback: assume first player is human (for backward compatibility)
+        if players:
+            return players[0].id
+        
+        return "p1"  # Ultimate fallback 
