@@ -1484,7 +1484,7 @@ class SimulationEngine:
                 return {
                     "type": "tee_shot",
                     "player": player,
-                    "hole_info": self._get_hole_info(game_state),
+                    "hole_info": ProbabilityCalculator._get_hole_info(game_state),
                     "shot_number": shot_state.current_player_index + 1,
                     "total_players": len(hitting_order)
                 }
@@ -1590,7 +1590,7 @@ class SimulationEngine:
         base_win_prob += (handicap_synergy - 1.0) * 0.2
         
         # Hole difficulty factor
-        hole_info = self._get_hole_info(game_state)
+        hole_info = ProbabilityCalculator._get_hole_info(game_state)
         stroke_index = hole_info.get("stroke_index", 10)
         if stroke_index <= 6:  # Hard hole
             base_win_prob -= 0.05
@@ -1622,7 +1622,7 @@ class SimulationEngine:
             base_win_prob -= 0.10
         
         # Hole difficulty factor
-        hole_info = self._get_hole_info(game_state)
+        hole_info = ProbabilityCalculator._get_hole_info(game_state)
         stroke_index = hole_info.get("stroke_index", 10)
         if stroke_index <= 6:  # Hard hole - bad for solo
             base_win_prob -= 0.10
