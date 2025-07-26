@@ -1111,6 +1111,67 @@ class SimulationEngine:
             
         return expectations
 
+    def _get_next_approach_shot(self, game_state: GameState) -> Optional[Dict[str, Any]]:
+        """Get the next approach shot event for team members"""
+        shot_state = game_state.shot_state
+        hitting_order = game_state.player_manager.hitting_order or [p.id for p in game_state.player_manager.players]
+        
+        # Get next player for approach shot
+        current_player_id = shot_state.get_current_player_id(hitting_order)
+        if current_player_id:
+            player = next(p for p in game_state.player_manager.players if p.id == current_player_id)
+            
+            return {
+                "type": "approach_shot",
+                "player": player,
+                "hole_info": ProbabilityCalculator._get_hole_info(game_state),
+                "shot_number": shot_state.current_player_index + 1,
+                "total_players": 2  # Only 2 players take approach shots in partnership
+            }
+        
+        return None
+
+    def _execute_approach_shot_event(self, game_state: GameState, shot_event: Dict[str, Any]) -> Tuple[GameState, Dict[str, Any], Dict[str, Any]]:
+        """Execute an approach shot event and return result with probabilities"""
+        player = shot_event.get("player")
+        if not player:
+            raise ValueError("Missing 'player' key in shot_event")
+        
+        # Get remaining distance from tee shot results
+        tee_results = getattr(game_state, 'tee_shot_results', {})
+        player_tee_result = tee_results.get(player.id, {})
+        remaining_distance = player_tee_result.get('remaining', 150) if isinstance(player_tee_result, dict) else 150
+        
+        # Execute the approach shot using ShotSimulator service
+        shot_result = ShotSimulator.simulate_approach_shot(player, remaining_distance, game_state)
+        
+        # Calculate post-shot probabilities
+        post_shot_probs = ProbabilityCalculator.calculate_post_shot_probabilities(shot_result, game_state)
+        
+        # Update shot state
+        game_state.shot_state.add_completed_shot(
+            player.id,
+            shot_result,
+            {}  # No pre-shot probabilities for approach shots
+        )
+        game_state.shot_state.next_shot()
+        
+        # Create enhanced shot result
+        enhanced_result = {
+            **shot_result,
+            "player": player,
+            "shot_description": self._create_detailed_shot_description(shot_result, player, game_state),
+            "reactions": self._generate_shot_reactions(shot_result, player, game_state)
+        }
+        
+        # Combine probability information
+        probabilities = {
+            "outcome": post_shot_probs,
+            "betting_implications": self._calculate_betting_implications(shot_result, game_state)
+        }
+        
+        return game_state, enhanced_result, probabilities
+
     def run_monte_carlo_simulation(self, human_player: Player, computer_configs: List[Dict[str, Any]], 
                                    num_simulations: int = 100, course_name: Optional[str] = None,
                                    progress_callback=None) -> MonteCarloResults:
@@ -1494,6 +1555,9 @@ class SimulationEngine:
             if hasattr(game_state, 'betting_state') and game_state.betting_state.teams:
                 # Logic for approach shots based on teams
                 return self._get_next_approach_shot(game_state)
+            else:
+                # No teams formed, skip approach shots
+                return None
         
         return None
     
