@@ -441,258 +441,78 @@ class SimulationEngine:
             feedback.append(f"📝 **Description:** {description}")
         feedback.append("")
 
-        # Phase 1: Progressive tee shots with immediate captain decisions
+        # Phase 1: All players tee off first
         feedback.append("🏌️ **TEE SHOTS**")
         hitting_order = game_state.player_manager.hitting_order or [p.id for p in game_state.player_manager.players]
-        captain_id = game_state.player_manager.captain_id
         
-        # Initialize tee shot tracking
-        if not hasattr(game_state, 'tee_shot_results'):
-            game_state.tee_shot_results = {}
-        if not hasattr(game_state, 'current_tee_shot_index'):
-            game_state.current_tee_shot_index = 0
-            
-        tee_shot_results = game_state.tee_shot_results
-        current_index = game_state.current_tee_shot_index
-        
-        # Process tee shots one by one, allowing captain decisions after each
-        while current_index < len(hitting_order):
-            player_id = hitting_order[current_index]
+        # Simulate all tee shots first
+        tee_shot_results = {}
+        for player_id in hitting_order:
             player = next(p for p in game_state.player_manager.players if p.id == player_id)
             player_name = player.name
             
-            # If this player hasn't hit yet, simulate their tee shot
-            if player_id not in tee_shot_results:
-                tee_result = ShotSimulator.simulate_individual_tee_shot(player, game_state)
-                tee_shot_results[player_id] = tee_result
-                
-                # Show the tee shot result
-                drive_distance = tee_result.drive
-                lie_description = tee_result.lie
-                remaining = tee_result.remaining
-                shot_quality = tee_result.shot_quality
-                
-                shot_desc = self._create_shot_description(drive_distance, lie_description, shot_quality, remaining, par)
-                
-                if player_id == self._get_human_player_id(game_state):
-                    feedback.append(f"🧑 **{player_name}:** {shot_desc}")
-                else:
-                    feedback.append(f"💻 **{player_name}:** {shot_desc}")
-                
-                # Add reactions from other players after good/bad shots
-                if shot_quality in ["excellent", "terrible"]:
-                    reaction = self._generate_shot_reaction(shot_quality, player_name, current_index == 0)
-                    if reaction:
-                        feedback.append(f"   💬 {reaction}")
-                feedback.append("")
-                
-                # NOW CHECK IF CAPTAIN WANTS TO MAKE A DECISION
-                # Captain can only decide after seeing at least one non-captain shot
-                if current_index > 0 and (not hasattr(game_state, 'betting_state') or not game_state.betting_state.teams):
-                    # Captain evaluates this shot for potential partnership
-                    if captain_id in [cp.player_id for cp in self.computer_players]:
-                        # Computer captain decides immediately after each shot
-                        captain_decision = BettingEngine.evaluate_shot_for_partnership(
-                            captain_id, player_id, tee_result, game_state, current_index, self.computer_players
-                        )
-                        
-                        if captain_decision == "request_partner":
-                            captain_name = next(p.name for p in game_state.player_manager.players if p.id == captain_id)
-                            game_state.dispatch_action("request_partner", {
-                                "captain_id": captain_id,
-                                "partner_id": player_id
-                            })
-                            feedback.append(f"💻 **{captain_name}:** \"Great shot {player_name}! Want to be partners?\"")
-                            
-                            # Handle partner response immediately
-                            if player_id == self._get_human_player_id(game_state):
-                                # Human player - need decision
-                                interaction_needed = {
-                                    "type": "partnership_response",
-                                    "message": f"{captain_name} saw your {shot_quality} shot and wants you as a partner!",
-                                    "captain_name": captain_name,
-                                    "partner_id": player_id,
-                                    "shot_context": f"Your shot: {shot_desc}",
-                                    "captain_shot_quality": shot_quality,
-                                    "partnership_advantage": self._calculate_partnership_advantage(captain_id, player_id, game_state)
-                                }
-                                game_state.current_tee_shot_index = current_index + 1
-                                return game_state, feedback, interaction_needed
-                            else:
-                                # Computer player responds
-                                partner_player = self._get_computer_player(player_id)
-                                captain_player = self._get_computer_player(captain_id)
-                                accept = partner_player.should_accept_partnership(captain_player.handicap, game_state)
-                                if accept:
-                                    game_state.dispatch_action("accept_partner", {"partner_id": player_id})
-                                    feedback.append(f"💻 **{player_name}:** \"Absolutely! Let's team up!\"")
-                                    break  # Partnership formed, stop taking more tee shots
-                                else:
-                                    game_state.dispatch_action("decline_partner", {"partner_id": player_id})
-                                    feedback.append(f"💻 **{player_name}:** \"Thanks, but I'll pass. Keep looking!\"")
-                        elif captain_decision == "go_solo" and current_index == len(hitting_order) - 1:
-                            # Captain decides to go solo after seeing all shots
-                            captain_name = next(p.name for p in game_state.player_manager.players if p.id == captain_id)
-                            game_state.dispatch_action("go_solo", {"captain_id": captain_id})
-                            feedback.append(f"💻 **{captain_name}:** \"I've seen enough. Going solo!\"")
-                            break
-                    else:
-                        # Human captain - check if they've made a decision or need to make one
-                        if "action" in human_decisions:
-                            # Process human captain's mid-tee decision
-                            if human_decisions.get("action") == "request_partner":
-                                partner_id = human_decisions.get("requested_partner", player_id)
-                                partner_name = next(p.name for p in game_state.player_manager.players if p.id == partner_id)
-                                game_state.dispatch_action("request_partner", {
-                                    "captain_id": captain_id,
-                                    "partner_id": partner_id
-                                })
-                                feedback.append(f"🧑 **You:** \"{partner_name}, want to be my partner?\"")
-                                
-                                # Computer partner responds immediately
-                                if partner_id in [cp.player_id for cp in self.computer_players]:
-                                    partner_player = self._get_computer_player(partner_id)
-                                    human_handicap = self._get_player_handicap(captain_id, game_state)
-                                    accept = partner_player.should_accept_partnership(human_handicap, game_state)
-                                    if accept:
-                                        game_state.dispatch_action("accept_partner", {"partner_id": partner_id})
-                                        feedback.append(f"💻 **{partner_name}:** \"Absolutely! Let's do this.\"")
-                                        break  # Partnership formed, stop taking more tee shots
-                                    else:
-                                        game_state.dispatch_action("decline_partner", {"partner_id": partner_id})
-                                        feedback.append(f"💻 **{partner_name}:** \"Thanks, but I think I'll pass. Keep looking!\"")
-                                else:
-                                    # Human partner - need separate interaction
-                                    interaction_needed = {
-                                        "type": "partnership_response",
-                                        "message": f"You asked {partner_name} to be your partner. They need to respond.",
-                                        "captain_name": "You",
-                                        "partner_id": partner_id,
-                                        "shot_context": f"Partnership request after: {shot_desc}",
-                                        "partnership_advantage": self._calculate_partnership_advantage(captain_id, partner_id, game_state)
-                                    }
-                                    game_state.current_tee_shot_index = current_index + 1
-                                    return game_state, feedback, interaction_needed
-                            elif human_decisions.get("action") == "go_solo":
-                                captain_name = next(p.name for p in game_state.player_manager.players if p.id == captain_id)
-                                game_state.dispatch_action("go_solo", {"captain_id": captain_id})
-                                feedback.append(f"🧑 **You:** \"I'm going solo!\"")
-                                break
-                            elif human_decisions.get("action") == "keep_watching":
-                                # Continue to next player
-                                pass
-                        else:
-                            # Offer decision after each shot (if shot was good enough)
-                            if shot_quality in ["excellent", "good"] and player_id != captain_id:
-                                others_remaining = [p for p in game_state.player_manager.players 
-                                                 if p.id != captain_id and p.id not in tee_shot_results]
-                                
-                                # Calculate partnership advantage for this player
-                                partnership_advantage = self._calculate_partnership_advantage(captain_id, player_id, game_state)
-                                
-                                interaction_needed = {
-                                    "type": "captain_decision_mid_tee",
-                                    "message": f"{player_name} just hit a {shot_quality} shot! Do you want to ask them to be your partner, or keep watching?",
-                                    "shot_context": f"{player_name}: {shot_desc}",
-                                    "shot_quality": shot_quality,
-                                    "partnership_advantage": partnership_advantage,
-                                    "options": [
-                                        {"action": "request_partner", "partner_id": player_id, "partner_name": player_name},
-                                        {"action": "keep_watching", "remaining_players": len(others_remaining)}
-                                    ],
-                                    "can_go_solo": current_index == len(hitting_order) - 1,
-                                    "current_tee_shots": {k: v.__dict__ for k, v in tee_shot_results.items()}
-                                }
-                                game_state.current_tee_shot_index = current_index + 1
-                                return game_state, feedback, interaction_needed
-                
-                current_index += 1
-                game_state.current_tee_shot_index = current_index
+            # Simulate tee shot
+            tee_result = ShotSimulator.simulate_individual_tee_shot(player, game_state)
+            tee_shot_results[player_id] = tee_result
             
-            # If we've processed all tee shots and no partnership formed, captain must decide
-            if current_index >= len(hitting_order) and not game_state.betting_state.teams:
-                if captain_id == self._get_human_player_id(game_state):
-                    # Human captain needs to decide
-                    if "action" not in human_decisions:
-                        # Show all tee shot results and ask for decision
-                        tee_results_summary = {}
-                        for pid, result in tee_shot_results.items():
-                            player_name = next(p.name for p in game_state.player_manager.players if p.id == pid)
-                            tee_results_summary[pid] = {
-                                "name": player_name,
-                                "shot_description": self._create_shot_description(
-                                    result.drive, result.lie, result.shot_quality, result.remaining, par
-                                ),
-                                "shot_quality": result.shot_quality,
-                                "partnership_advantage": self._calculate_partnership_advantage(captain_id, pid, game_state)
-                            }
-                        
-                        interaction_needed = {
-                            "type": "captain_decision",
-                            "message": f"You've seen all the tee shots. What's your decision, Captain?",
-                            "tee_results": tee_results_summary,
-                            "options": [
-                                {"action": "go_solo", "description": "Go solo (2x wager)"},
-                                {"action": "request_partner", "description": "Request a partner"}
-                            ],
-                            "current_hole_info": hole_info
-                        }
-                        return game_state, feedback, interaction_needed
+            # Show the tee shot result
+            drive_distance = tee_result.drive
+            lie_description = tee_result.lie
+            remaining = tee_result.remaining
+            shot_quality = tee_result.shot_quality
+            
+            shot_desc = self._create_shot_description(drive_distance, lie_description, shot_quality, remaining, par)
+            
+            if player_id == self._get_human_player_id(game_state):
+                feedback.append(f"🧑 **{player_name}:** {shot_desc}")
+            else:
+                feedback.append(f"💻 **{player_name}:** {shot_desc}")
+            
+            # Add shot reaction
+            reaction = self._generate_shot_reaction(shot_quality, player_name, True)
+            if reaction:
+                feedback.append(f"  💬 {reaction}")
+        
+        # Phase 2: Partnership decisions after all tee shots
+        captain_id = game_state.player_manager.captain_id
+        captain_name = next(p.name for p in game_state.player_manager.players if p.id == captain_id)
+        
+        # Check if captain needs to make partnership decisions
+        if game_state.betting_state.teams.get("type") == "pending":
+            requested_partner = game_state.betting_state.teams.get("requested")
+            if requested_partner:
+                requested_name = next(p.name for p in game_state.player_manager.players if p.id == requested_partner)
+                feedback.append(f"\n🤝 **Partnership Decision:** {captain_name} asked {requested_name} to be partner")
+                
+                # Check if human needs to respond
+                if requested_partner == self._get_human_player_id(game_state):
+                    interaction_needed = {
+                        "type": "partnership_response",
+                        "message": f"{captain_name} is asking you to be their partner. Do you accept?",
+                        "captain_name": captain_name,
+                        "captain_id": captain_id,
+                        "partner_id": requested_partner
+                    }
+                    return game_state, feedback, interaction_needed
                 else:
-                    # Computer captain decides
-                    captain_player = self._get_computer_player(captain_id)
-                    if captain_player.should_go_solo(game_state):
-                        game_state.dispatch_action("go_solo", {"captain_id": captain_id})
-                        feedback.append(f"💻 **{captain_name}:** \"I'm going solo!\"")
+                    # Computer partner responds
+                    partner_player = next(p for p in game_state.player_manager.players if p.id == requested_partner)
+                    computer_partner = self._get_computer_player(requested_partner)
+                    
+                    if computer_partner.should_accept_partnership(captain_player.handicap, game_state):
+                        game_state.betting_state.accept_partner(requested_partner, game_state.player_manager.players)
+                        feedback.append(f"💻 **{requested_name}:** \"Absolutely! Let's do this!\"")
                     else:
-                        # Find best partner
-                        best_partner = None
-                        best_advantage = -1
-                        for pid, result in tee_shot_results.items():
-                            if pid != captain_id:
-                                advantage = self._calculate_partnership_advantage(captain_id, pid, game_state)
-                                if advantage > best_advantage:
-                                    best_advantage = advantage
-                                    best_partner = pid
-                        
-                        if best_partner:
-                            partner_name = next(p.name for p in game_state.player_manager.players if p.id == best_partner)
-                            game_state.dispatch_action("request_partner", {
-                                "captain_id": captain_id,
-                                "partner_id": best_partner
-                            })
-                            feedback.append(f"💻 **{captain_name}:** \"{partner_name}, let's team up!\"")
-                            
-                            # Handle partner response
-                            if best_partner == self._get_human_player_id(game_state):
-                                interaction_needed = {
-                                    "type": "partnership_response",
-                                    "message": f"{captain_name} wants you as a partner!",
-                                    "captain_name": captain_name,
-                                    "partner_id": best_partner,
-                                    "shot_context": f"Captain's decision after seeing all shots",
-                                    "partnership_advantage": best_advantage
-                                }
-                                return game_state, feedback, interaction_needed
-                            else:
-                                partner_player = self._get_computer_player(best_partner)
-                                accept = partner_player.should_accept_partnership(
-                                    self._get_player_handicap(captain_id, game_state), game_state
-                                )
-                                if accept:
-                                    game_state.dispatch_action("accept_partner", {"partner_id": best_partner})
-                                    feedback.append(f"💻 **{partner_name}:** \"Absolutely! Let's do this!\"")
-                                else:
-                                    game_state.dispatch_action("decline_partner", {"partner_id": best_partner})
-                                    feedback.append(f"💻 **{partner_name}:** \"Thanks, but I'll pass.\"")
-                                    # Captain goes solo after rejection
-                                    game_state.dispatch_action("go_solo", {"captain_id": captain_id})
-                                    feedback.append(f"💻 **{captain_name}:** \"Fine, I'll go solo then!\"")
+                        game_state.betting_state.decline_partner(requested_partner, game_state.player_manager.players)
+                        feedback.append(f"💻 **{requested_name}:** \"Thanks, but I'll pass.\"")
+                        feedback.append(f"💻 **{captain_name}:** \"Fine, I'll go solo then!\"")
         
-        # Phase 2: Simulate remaining shots and complete the hole
-        feedback.extend(self._simulate_remaining_shots_chronological(game_state, tee_shot_results))
+                # Phase 3: Simulate remaining shots chronologically
+        feedback.append("\n🎯 **APPROACH SHOTS & PUTTING**")
+        remaining_feedback = self._simulate_remaining_shots_chronological(game_state, tee_shot_results)
+        feedback.extend(remaining_feedback)
         
-        # Phase 3: Calculate points and provide educational feedback
+        # Phase 4: Calculate points and provide educational feedback
         points_message = game_state.calculate_hole_points()
         feedback.append(f"💰 **Points:** {points_message}")
         
@@ -704,6 +524,8 @@ class SimulationEngine:
         game_state.next_hole()
         
         return game_state, feedback, None
+        
+
 
     def _calculate_partnership_advantage(self, captain_id: str, partner_id: str, game_state: GameState) -> float:
         """Calculate the advantage of a potential partnership"""
