@@ -4,6 +4,7 @@ import GameSetupForm from "./GameSetupForm";
 import CourseManager from "./CourseManager";
 import SimulationMode from "./SimulationMode";
 import MonteCarloSimulation from "./MonteCarloSimulation";
+import WolfGoatPigGame from "./WolfGoatPigGame";
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -178,6 +179,9 @@ function Navigation() {
           </button>
           <button style={navButtonStyle} onClick={() => navigate('/setup')}>
             Regular Game
+          </button>
+          <button style={navButtonStyle} onClick={() => navigate('/wolf-goat-pig')}>
+            🐺🐐🐷 WGP Game
           </button>
           <button style={navButtonStyle} onClick={() => navigate('/simulation')}>
             🎮 Simulation Mode
@@ -768,6 +772,7 @@ function App() {
         <Route path="/game" element={gameState ? <GamePage gameState={gameState} setGameState={setGameState} loading={loading} setLoading={setLoading} /> : <Navigate to="/setup" />} />
         <Route path="/simulation" element={<SimulationMode />} />
         <Route path="/monte-carlo" element={<MonteCarloSimulation />} />
+        <Route path="/wolf-goat-pig" element={<WolfGoatPigGame />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </div>

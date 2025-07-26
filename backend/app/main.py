@@ -1322,6 +1322,448 @@ def ghin_diagnostic():
     
     return diagnostic_info
 
+# Wolf Goat Pig API Endpoints
+from .wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer
+
+# Global game instance (in production, this would be stored in database/redis)
+wgp_game_instance = None
+
+class WGPGameRequest(BaseModel):
+    player_count: int = Field(..., ge=4, le=6)
+    players: List[dict]
+    double_points_round: bool = False
+    annual_banquet: bool = False
+
+class WGPActionRequest(BaseModel):
+    captain_id: Optional[str] = None
+    partner_id: Optional[str] = None
+    player_id: Optional[str] = None
+    aardvark_id: Optional[str] = None
+    target_team: Optional[str] = None
+    accept: Optional[bool] = None
+    use_duncan: Optional[bool] = False
+    use_tunkarri: Optional[bool] = False
+    gambit_players: Optional[List[str]] = None
+
+class WGPScoresRequest(BaseModel):
+    scores: Dict[str, int]
+
+@app.post("/wgp/start-game")
+async def start_wgp_game(request: WGPGameRequest):
+    """Start a new Wolf Goat Pig game"""
+    global wgp_game_instance
+    
+    try:
+        # Create WGP players from request
+        wgp_players = [
+            WGPPlayer(
+                id=player["id"],
+                name=player["name"],
+                handicap=player["handicap"]
+            )
+            for player in request.players
+        ]
+        
+        # Create new game instance
+        wgp_game_instance = WolfGoatPigSimulation(
+            player_count=request.player_count,
+            players=wgp_players
+        )
+        
+        # Set special conditions
+        wgp_game_instance.double_points_round = request.double_points_round
+        wgp_game_instance.annual_banquet = request.annual_banquet
+        
+        return {
+            "status": "game_started",
+            "message": "Wolf Goat Pig game started successfully!",
+            "game_state": wgp_game_instance.get_game_state()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error starting WGP game: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/wgp/request-partner")
+async def request_partner(request: WGPActionRequest):
+    """Captain requests a partner"""
+    global wgp_game_instance
+    
+    if not wgp_game_instance:
+        raise HTTPException(status_code=400, detail="No active game")
+    
+    try:
+        result = wgp_game_instance.request_partner(
+            captain_id=request.captain_id,
+            partner_id=request.partner_id
+        )
+        
+        return {
+            **result,
+            "game_state": wgp_game_instance.get_game_state()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error requesting partner: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/wgp/respond-partnership")
+async def respond_partnership(request: WGPActionRequest):
+    """Respond to partnership request"""
+    global wgp_game_instance
+    
+    if not wgp_game_instance:
+        raise HTTPException(status_code=400, detail="No active game")
+    
+    try:
+        result = wgp_game_instance.respond_to_partnership(
+            partner_id=request.partner_id,
+            accept=request.accept
+        )
+        
+        return {
+            **result,
+            "game_state": wgp_game_instance.get_game_state()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error responding to partnership: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/wgp/captain-go-solo")
+async def captain_go_solo(request: WGPActionRequest):
+    """Captain decides to go solo"""
+    global wgp_game_instance
+    
+    if not wgp_game_instance:
+        raise HTTPException(status_code=400, detail="No active game")
+    
+    try:
+        result = wgp_game_instance.captain_go_solo(
+            captain_id=request.captain_id,
+            use_duncan=request.use_duncan or False
+        )
+        
+        return {
+            **result,
+            "game_state": wgp_game_instance.get_game_state()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error captain going solo: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/wgp/aardvark-request-team")
+async def aardvark_request_team(request: WGPActionRequest):
+    """Aardvark requests to join a team"""
+    global wgp_game_instance
+    
+    if not wgp_game_instance:
+        raise HTTPException(status_code=400, detail="No active game")
+    
+    try:
+        result = wgp_game_instance.aardvark_request_team(
+            aardvark_id=request.aardvark_id,
+            target_team=request.target_team
+        )
+        
+        return {
+            **result,
+            "game_state": wgp_game_instance.get_game_state()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error aardvark requesting team: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/wgp/respond-aardvark")
+async def respond_aardvark(request: WGPActionRequest):
+    """Respond to aardvark request"""
+    global wgp_game_instance
+    
+    if not wgp_game_instance:
+        raise HTTPException(status_code=400, detail="No active game")
+    
+    try:
+        result = wgp_game_instance.respond_to_aardvark(
+            team_id=request.target_team,
+            accept=request.accept
+        )
+        
+        return {
+            **result,
+            "game_state": wgp_game_instance.get_game_state()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error responding to aardvark: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/wgp/aardvark-go-solo")
+async def aardvark_go_solo(request: WGPActionRequest):
+    """Aardvark decides to go solo"""
+    global wgp_game_instance
+    
+    if not wgp_game_instance:
+        raise HTTPException(status_code=400, detail="No active game")
+    
+    try:
+        result = wgp_game_instance.aardvark_go_solo(
+            aardvark_id=request.aardvark_id,
+            use_tunkarri=request.use_tunkarri or False
+        )
+        
+        return {
+            **result,
+            "game_state": wgp_game_instance.get_game_state()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error aardvark going solo: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/wgp/offer-double")
+async def offer_double(request: WGPActionRequest):
+    """Offer a double"""
+    global wgp_game_instance
+    
+    if not wgp_game_instance:
+        raise HTTPException(status_code=400, detail="No active game")
+    
+    try:
+        result = wgp_game_instance.offer_double(
+            offering_player_id=request.player_id,
+            target_team=request.target_team
+        )
+        
+        return {
+            **result,
+            "game_state": wgp_game_instance.get_game_state()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error offering double: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/wgp/accept-double")
+async def accept_double(request: WGPActionRequest):
+    """Accept a double"""
+    global wgp_game_instance
+    
+    if not wgp_game_instance:
+        raise HTTPException(status_code=400, detail="No active game")
+    
+    try:
+        result = wgp_game_instance.respond_to_double(
+            responding_team=request.target_team or "team1",
+            accept=True,
+            gambit_players=request.gambit_players
+        )
+        
+        return {
+            **result,
+            "game_state": wgp_game_instance.get_game_state()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error accepting double: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/wgp/decline-double")
+async def decline_double(request: WGPActionRequest):
+    """Decline a double"""
+    global wgp_game_instance
+    
+    if not wgp_game_instance:
+        raise HTTPException(status_code=400, detail="No active game")
+    
+    try:
+        result = wgp_game_instance.respond_to_double(
+            responding_team=request.target_team or "team1",
+            accept=False
+        )
+        
+        return {
+            **result,
+            "game_state": wgp_game_instance.get_game_state()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error declining double: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/wgp/invoke-float")
+async def invoke_float(request: WGPActionRequest):
+    """Captain invokes The Float"""
+    global wgp_game_instance
+    
+    if not wgp_game_instance:
+        raise HTTPException(status_code=400, detail="No active game")
+    
+    try:
+        result = wgp_game_instance.invoke_float(
+            captain_id=request.captain_id
+        )
+        
+        return {
+            **result,
+            "game_state": wgp_game_instance.get_game_state()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error invoking float: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/wgp/enter-scores")
+async def enter_scores(request: WGPScoresRequest):
+    """Enter hole scores and calculate points"""
+    global wgp_game_instance
+    
+    if not wgp_game_instance:
+        raise HTTPException(status_code=400, detail="No active game")
+    
+    try:
+        result = wgp_game_instance.enter_hole_scores(request.scores)
+        
+        return {
+            **result,
+            "game_state": wgp_game_instance.get_game_state()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error entering scores: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/wgp/advance-hole")
+async def advance_hole():
+    """Advance to the next hole"""
+    global wgp_game_instance
+    
+    if not wgp_game_instance:
+        raise HTTPException(status_code=400, detail="No active game")
+    
+    try:
+        result = wgp_game_instance.advance_to_next_hole()
+        
+        return {
+            **result,
+            "game_state": wgp_game_instance.get_game_state()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error advancing hole: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/wgp/game-state")
+async def get_game_state():
+    """Get current game state"""
+    global wgp_game_instance
+    
+    if not wgp_game_instance:
+        raise HTTPException(status_code=400, detail="No active game")
+    
+    try:
+        return {
+            "status": "success",
+            "game_state": wgp_game_instance.get_game_state()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting game state: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/wgp/reset-game")
+async def reset_game():
+    """Reset/end current game"""
+    global wgp_game_instance
+    
+    try:
+        wgp_game_instance = None
+        
+        return {
+            "status": "success",
+            "message": "Game reset successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error resetting game: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Monte Carlo simulation endpoint for Wolf Goat Pig
+@app.post("/wgp/monte-carlo")
+async def run_wgp_monte_carlo(request: BaseModel):
+    """Run Monte Carlo simulation for Wolf Goat Pig strategies"""
+    try:
+        # This would implement Monte Carlo analysis of different strategies
+        # For now, return a placeholder response
+        return {
+            "status": "not_implemented",
+            "message": "Monte Carlo simulation for Wolf Goat Pig is not yet implemented"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error running Monte Carlo: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/wgp/rules")
+async def get_wgp_rules():
+    """Get Wolf Goat Pig rules documentation"""
+    try:
+        # Read rules from the rules.txt file
+        rules_summary = {
+            "basic_game": {
+                "title": "Basic Game Structure",
+                "description": "Wolf Goat Pig is played with 4, 5, or 6 players. The first player each hole is the Captain.",
+                "rules": [
+                    "Hitting order is determined randomly on first hole, then rotates",
+                    "Captain may request a partner for best ball play",
+                    "Players may go solo (Pig) against all others",
+                    "Aardvark players (5th/6th) can request to join teams"
+                ]
+            },
+            "special_phases": {
+                "title": "Special Game Phases",
+                "description": "Wolf Goat Pig has special phases that modify gameplay",
+                "rules": [
+                    "Vinnie's Variation: Holes 13-16 in 4-man game (double base bet)",
+                    "Hoepfinger Phase: Final holes where Goat chooses hitting position",
+                    "Joe's Special: Goat sets hole value in Hoepfinger (2, 4, or 8 quarters)"
+                ]
+            },
+            "betting_conventions": {
+                "title": "Betting Conventions",
+                "description": "Complex betting rules govern quarter distribution",
+                "rules": [
+                    "Base wager starts at 1 quarter per hole",
+                    "The Float: Captain may double base wager once per round",
+                    "The Option: Auto-double if Captain is furthest down",
+                    "Doubles: Teams may offer/accept doubles during play",
+                    "Karl Marx Rule: Furthest down player pays/receives less"
+                ]
+            },
+            "special_bets": {
+                "title": "Special Betting Rules",
+                "description": "Advanced betting scenarios and payouts",
+                "rules": [
+                    "The Duncan: Captain going solo gets 3-for-2 payout",
+                    "The Tunkarri: Aardvark going solo gets 3-for-2 payout",
+                    "Ackerley's Gambit: Team members can opt out of doubles",
+                    "Tossing the Aardvark: Rejected aardvark doubles the wager",
+                    "Line of Scrimmage: No doubles from players past furthest ball"
+                ]
+            }
+        }
+        
+        return {
+            "status": "success",
+            "rules": rules_summary
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting rules: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Helper to serialize game state for API
 
 def _serialize_game_state():
