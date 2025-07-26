@@ -20,6 +20,9 @@ import traceback
 import json
 import tempfile
 
+# Configure logging
+logger = logging.getLogger(__name__)
+
 # Response model classes
 class ShotEventResponse(BaseModel):
     status: str
