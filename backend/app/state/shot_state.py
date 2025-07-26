@@ -3,8 +3,8 @@ from dataclasses import dataclass, field
 
 
 @dataclass
-class ShotResult:
-    """Data class for individual shot results"""
+class ShotStateEntry:
+    """Data class for tracking shot state entries"""
     player_id: str
     shot_result: Dict[str, Any]
     probabilities: Optional[Dict[str, Any]] = None
@@ -18,7 +18,7 @@ class ShotState:
     """
     phase: str = "tee_shots"
     current_player_index: int = 0
-    completed_shots: List[ShotResult] = field(default_factory=list)
+    completed_shots: List[ShotStateEntry] = field(default_factory=list)
     pending_decisions: List[Dict[str, Any]] = field(default_factory=list)
 
     def reset_for_hole(self):
@@ -39,7 +39,7 @@ class ShotState:
     def add_completed_shot(self, player_id: str, shot_result: Dict[str, Any], 
                           probabilities: Optional[Dict[str, Any]] = None):
         """Add a completed shot to the sequence"""
-        shot = ShotResult(
+        shot = ShotStateEntry(
             player_id=player_id,
             shot_result=shot_result,
             probabilities=probabilities
@@ -160,10 +160,10 @@ class ShotState:
         self.current_player_index = data.get("current_player_index", 0)
         self.pending_decisions = data.get("pending_decisions", [])
         
-        # Convert completed shots back to ShotResult objects
+        # Convert completed shots back to ShotStateEntry objects
         self.completed_shots = []
         for shot_data in data.get("completed_shots", []):
-            shot = ShotResult(
+            shot = ShotStateEntry(
                 player_id=shot_data.get("player_id", ""),
                 shot_result=shot_data.get("shot_result", {}),
                 probabilities=shot_data.get("probabilities")
