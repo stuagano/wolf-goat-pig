@@ -958,19 +958,22 @@ def play_next_shot() -> ShotEventResponse:
         
         # Execute the shot event
         try:
-            updated_game_state, shot_result, betting_opportunity = simulation_engine.execute_shot_event(
+            updated_game_state, shot_result, probabilities = simulation_engine.execute_shot_event(
                 game_state, shot_event
             )
         except Exception as e:
             logging.error(f"Shot execution error: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Shot execution error: {str(e)}")
         
-        # Calculate probabilities for next shot
-        probabilities = None
-        try:
-            probabilities = simulation_engine.calculate_shot_probabilities(game_state)
-        except Exception as e:
-            logging.warning(f"Could not calculate probabilities: {e}")
+        # Check for betting opportunity after the shot
+        betting_opportunity = None
+        if shot_result and shot_result.get("shot_result"):
+            try:
+                betting_opportunity = simulation_engine.check_betting_opportunity(
+                    game_state, shot_result.get("shot_result")
+                )
+            except Exception as e:
+                logging.warning(f"Could not check betting opportunity: {e}")
         
         # Check if there are more shots available
         has_next_shot = simulation_engine.has_next_shot(game_state)
