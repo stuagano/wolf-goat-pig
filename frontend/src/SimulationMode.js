@@ -62,7 +62,8 @@ function SimulationMode() {
     id: "human",
     name: "",
     handicap: 18,
-    strength: "Average"
+    strength: "Average",
+    is_human: true
   });
   const [computerPlayers, setComputerPlayers] = useState([]);
   const [suggestedOpponents, setSuggestedOpponents] = useState([]);
@@ -135,11 +136,11 @@ function SimulationMode() {
   };
   const selectGhinGolfer = (golfer) => {
     if (ghinLookupSlot === "human") {
-      setHumanPlayer(h => ({ ...h, name: golfer.name, handicap: golfer.handicap || "" }));
+      setHumanPlayer(h => ({ ...h, name: golfer.name, handicap: golfer.handicap || "", is_human: true }));
     } else {
       setComputerPlayers(players => players.map((p, i) => {
         const slotId = `comp${i+1}`;
-        return slotId === ghinLookupSlot ? { ...p, name: golfer.name, handicap: golfer.handicap || "" } : p;
+        return slotId === ghinLookupSlot ? { ...p, name: golfer.name, handicap: golfer.handicap || "", is_human: false } : p;
       }));
     }
     closeGhinLookup();
@@ -168,9 +169,9 @@ function SimulationMode() {
       // Set default computer players
       if (opponentsData.opponents && opponentsData.opponents.length >= 3) {
         setComputerPlayers([
-          { id: "comp1", ...opponentsData.opponents[0] },
-          { id: "comp2", ...opponentsData.opponents[1] },
-          { id: "comp3", ...opponentsData.opponents[2] }
+          { id: "comp1", ...opponentsData.opponents[0], is_human: false },
+          { id: "comp2", ...opponentsData.opponents[1], is_human: false },
+          { id: "comp3", ...opponentsData.opponents[2], is_human: false }
         ]);
       }
     } catch (error) {
@@ -585,11 +586,11 @@ function SimulationMode() {
   };
   const handleGhinSelect = (slot, golfer) => {
     if (slot === 'human') {
-      setHumanPlayer(h => ({ ...h, name: golfer.name, handicap: golfer.handicap || '' }));
+      setHumanPlayer(h => ({ ...h, name: golfer.name, handicap: golfer.handicap || '', is_human: true }));
     } else {
       setComputerPlayers(players => players.map((p, i) => {
         const slotId = `comp${i+1}`;
-        return slotId === slot ? { ...p, name: golfer.name, handicap: golfer.handicap || '' } : p;
+        return slotId === slot ? { ...p, name: golfer.name, handicap: golfer.handicap || '', is_human: false } : p;
       }));
     }
     setGhinResults(r => ({ ...r, [slot]: [] }));

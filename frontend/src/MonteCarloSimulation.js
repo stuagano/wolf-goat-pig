@@ -6,12 +6,13 @@ const MonteCarloSimulation = () => {
     humanPlayer: {
       id: 'human',
       name: 'Stuart',
-      handicap: 10
+      handicap: 10,
+      is_human: true
     },
     computerPlayers: [
-      { id: 'comp1', name: 'Tiger Bot', handicap: 2.0, personality: 'aggressive' },
-      { id: 'comp2', name: 'Strategic Sam', handicap: 8.5, personality: 'strategic' },
-      { id: 'comp3', name: 'Conservative Carl', handicap: 15.0, personality: 'conservative' }
+      { id: 'comp1', name: 'Tiger Bot', handicap: 2.0, personality: 'aggressive', is_human: false },
+      { id: 'comp2', name: 'Strategic Sam', handicap: 8.5, personality: 'strategic', is_human: false },
+      { id: 'comp3', name: 'Conservative Carl', handicap: 15.0, personality: 'conservative', is_human: false }
     ],
     numSimulations: 100,
     courseName: ''
