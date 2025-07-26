@@ -1168,7 +1168,7 @@ class SimulationEngine:
         # Get current points for human player
         current_points = 0
         for player in game_state.player_manager.players:
-            if player.id == human_player.id:
+            if player.id == human_player["id"]:
                 current_points = player.points
                 break
         
@@ -1184,7 +1184,7 @@ class SimulationEngine:
             # Human is captain - make partnership decision
             
             # Assess potential partners
-            potential_partners = [p for p in game_state.player_manager.players if p.id != human_player.id]
+            potential_partners = [p for p in game_state.player_manager.players if p.id != human_player["id"]]
             
             # Simple strategy: prefer partners with similar or better handicaps
             human_handicap = human_player.handicap

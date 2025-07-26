@@ -63,8 +63,13 @@ class ShotSimulator:
         scores = {}
         shot_details = {}
         for player in game_state.player_manager.players:
-            player_id = player.id
-            handicap = player.handicap
+            # Handle both Player objects and dictionaries
+            if hasattr(player, 'id'):
+                player_id = player.id
+                handicap = player.handicap
+            else:
+                player_id = player["id"]
+                handicap = player["handicap"]
             strokes = game_state.get_player_strokes()
             net_strokes = strokes[player_id][game_state.current_hole]
             tee_result = tee_shot_results.get(player_id)
@@ -91,12 +96,18 @@ class ShotSimulator:
                 "score": int(net_score)
             })
         for player in game_state.player_manager.players:
-            player_id = player.id
+            # Handle both Player objects and dictionaries
+            if hasattr(player, 'id'):
+                player_id = player.id
+                player_name = player.name
+            else:
+                player_id = player["id"]
+                player_name = player["name"]
             details = shot_details[player_id]
             if player_id == ShotSimulator._get_human_player_id(game_state):
                 feedback.append(f"🧑 **Your final score:** {details['gross']} gross, {details['net']} net (received {details['strokes_received']} strokes)")
             else:
-                feedback.append(f"💻 **{player.name}:** {details['gross']} gross, {details['net']} net (received {details['strokes_received']} strokes)")
+                feedback.append(f"💻 **{player_name}:** {details['gross']} gross, {details['net']} net (received {details['strokes_received']} strokes)")
         return feedback
 
     @staticmethod
@@ -151,7 +162,27 @@ class ShotSimulator:
     def _get_human_player_id(game_state: GameState) -> str:
         # Utility to get the human player id
         for player in game_state.player_manager.players:
+<<<<<<< HEAD
             if hasattr(player, 'is_human') and player.is_human:
                 return player.id
         # Fallback: assume first player is human
         return game_state.player_manager.players[0].id 
+=======
+            # Handle both Player objects and dictionaries
+            if hasattr(player, 'id'):
+                # This is a Player object, check if it has is_human attribute
+                if hasattr(player, 'is_human') and player.is_human:
+                    return player.id
+            else:
+                # This is a dictionary
+                if player.get("is_human", False):
+                    return player["id"]
+        # Fallback: assume first player is human
+        if game_state.player_manager.players:
+            first_player = game_state.player_manager.players[0]
+            if hasattr(first_player, 'id'):
+                return first_player.id
+            else:
+                return first_player["id"]
+        return "p1"  # Ultimate fallback 
+>>>>>>> d8796ccad87326b7e37e8bd9b63813171b8896f5

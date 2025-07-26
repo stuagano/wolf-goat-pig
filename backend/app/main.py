@@ -1,5 +1,7 @@
 from fastapi import FastAPI, Depends, Body, HTTPException, Request, Path, Query, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.responses import JSONResponse
 from . import models, schemas, crud, database
 # Ensure tables are created before anything else
 # Call init_db before importing game_state
@@ -50,21 +52,50 @@ class CurrentShotStateResponse(BaseModel):
     shot_state: dict
     game_state: dict
 
-app = FastAPI()
+app = FastAPI(
+    title="Wolf Goat Pig Golf Simulation API",
+    description="A comprehensive golf betting simulation API with real course data import",
+    version="1.0.0",
+    docs_url="/docs" if os.getenv("ENVIRONMENT") != "production" else None,
+    redoc_url="/redoc" if os.getenv("ENVIRONMENT") != "production" else None
+)
 
-# Allow all origins for MVP; restrict in production
+# Trusted host middleware for security
+app.add_middleware(
+    TrustedHostMiddleware, 
+    allowed_hosts=["*"] if os.getenv("ENVIRONMENT") == "development" else [
+        "localhost",
+        "127.0.0.1",
+        "*.onrender.com",
+        "*.vercel.app",
+        os.getenv("FRONTEND_URL", "").replace("https://", "").replace("http://", "")
+    ]
+)
+
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "*",  # For development
-        "https://wolf-goat-pig.vercel.app",  # Vercel frontend
-        "https://wolf-goat-pig-frontend.onrender.com",  # Render frontend
-        "http://localhost:3000"  # Local development
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://*.vercel.app",
+        "https://*.onrender.com",
+        os.getenv("FRONTEND_URL", "http://localhost:3000")
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Global exception handler
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Global exception: {exc}")
+    logger.error(f"Traceback: {traceback.format_exc()}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error", "error": str(exc) if os.getenv("ENVIRONMENT") == "development" else "Something went wrong"}
+    )
 
 @app.on_event("startup")
 def startup():
