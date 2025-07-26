@@ -148,7 +148,7 @@ class ShotSimulator:
             lie = "green" if remaining <= 10 else "fairway"
             penalty = 0
         elif shot_quality == "average":
-            lie = "green" if remaining <= 15 else "rough"
+            lie = "fairway" if remaining <= 15 else "rough"
             penalty = 0
         elif shot_quality == "poor":
             lie = "rough" if remaining <= 20 else "bunker"
