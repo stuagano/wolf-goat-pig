@@ -1723,16 +1723,6 @@ class SimulationEngine:
         
         return summary
     
-
-
-        if shot_result["player"]["id"] != captain_id:
-            if shot_quality in ["excellent", "good"]:
-                implications.append("💰 Good betting opportunity - consider partnership")
-            else:
-                implications.append("🤔 Wait for better partnership opportunity")
-        
-        return implications
-    
     def _calculate_betting_implications(self, shot_result: ShotResult, game_state: GameState) -> Dict[str, Any]:
         """Calculate betting implications and recommendations"""
         # Always expect ShotResult objects
