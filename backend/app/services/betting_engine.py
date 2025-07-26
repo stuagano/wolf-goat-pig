@@ -1,7 +1,7 @@
 import random
 from typing import List, Dict, Any, Optional, Tuple
-from backend.app.game_state import GameState
-from backend.app.services.probability_calculator import ProbabilityCalculator
+from ..game_state import GameState
+from .probability_calculator import ProbabilityCalculator
 
 def _require_key(obj, key, context):
     if key not in obj:

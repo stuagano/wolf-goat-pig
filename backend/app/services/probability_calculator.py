@@ -1,5 +1,5 @@
 from typing import Dict, Any, Optional
-from backend.app.game_state import GameState
+from ..game_state import GameState
 
 def _require_key(obj, key, context):
     if key not in obj:

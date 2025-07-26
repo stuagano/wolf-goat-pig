@@ -1,6 +1,29 @@
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any
-from backend.app.game_state import DEFAULT_COURSES
+
+# Default course data to avoid circular imports
+DEFAULT_COURSES = {
+    "Wing Point Golf & Country Club": [
+        {"hole_number": 1, "par": 4, "yards": 420, "stroke_index": 5},
+        {"hole_number": 2, "par": 4, "yards": 385, "stroke_index": 13},
+        {"hole_number": 3, "par": 5, "yards": 580, "stroke_index": 1},
+        {"hole_number": 4, "par": 3, "yards": 165, "stroke_index": 17},
+        {"hole_number": 5, "par": 4, "yards": 445, "stroke_index": 7},
+        {"hole_number": 6, "par": 4, "yards": 395, "stroke_index": 11},
+        {"hole_number": 7, "par": 5, "yards": 520, "stroke_index": 15},
+        {"hole_number": 8, "par": 3, "yards": 185, "stroke_index": 3},
+        {"hole_number": 9, "par": 4, "yards": 410, "stroke_index": 9},
+        {"hole_number": 10, "par": 4, "yards": 455, "stroke_index": 2},
+        {"hole_number": 11, "par": 5, "yards": 545, "stroke_index": 16},
+        {"hole_number": 12, "par": 3, "yards": 175, "stroke_index": 18},
+        {"hole_number": 13, "par": 4, "yards": 435, "stroke_index": 4},
+        {"hole_number": 14, "par": 4, "yards": 415, "stroke_index": 8},
+        {"hole_number": 15, "par": 3, "yards": 155, "stroke_index": 14},
+        {"hole_number": 16, "par": 4, "yards": 425, "stroke_index": 6},
+        {"hole_number": 17, "par": 5, "yards": 535, "stroke_index": 12},
+        {"hole_number": 18, "par": 4, "yards": 350, "stroke_index": 10}
+    ]
+}
 
 @dataclass
 class CourseManager:
@@ -47,7 +70,8 @@ class CourseManager:
             del self.course_data[course_name]
             if self.selected_course == course_name:
                 self.selected_course = None
-                self.load_course(next(iter(self.course_data)))
+                if self.course_data:
+                    self.load_course(next(iter(self.course_data)))
 
     def update_course(self, course_name: str, holes: List[Dict[str, Any]]):
         if course_name not in self.course_data:

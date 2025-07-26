@@ -1,8 +1,8 @@
 import random
 from typing import List, Dict, Any, Optional
-from backend.app.domain.player import Player
-from backend.app.domain.shot_result import ShotResult
-from backend.app.game_state import GameState
+from ..domain.player import Player
+from ..domain.shot_result import ShotResult
+from ..game_state import GameState
 
 class ShotSimulator:
     @staticmethod

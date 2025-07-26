@@ -1,5 +1,5 @@
 from typing import List, Dict, Optional
-from backend.app.domain.player import Player
+from ..domain.player import Player
 
 class PlayerManager:
     """
