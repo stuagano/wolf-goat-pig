@@ -1841,31 +1841,3 @@ class SimulationEngine:
 
 # Global simulation engine instance
 simulation_engine = SimulationEngine()
-
-# Defensive helper
-
-def _safe_get(obj, key, default=None):
-    return obj[key] if key in obj else default
-
-# Wrap all main simulation entrypoints in try/except
-# Example for event-driven shot event
-
-def safe_execute_shot_event(self, game_state, shot_event):
-    try:
-        return self.execute_shot_event(game_state, shot_event)
-    except Exception as e:
-        logging.error(f"Exception in execute_shot_event: {e}\n{traceback.format_exc()}")
-        return game_state, {"error": str(e)}, {}
-
-# Example for simulate_hole
-
-def safe_simulate_hole(self, game_state, human_decisions):
-    try:
-        return self.simulate_hole(game_state, human_decisions)
-    except Exception as e:
-        logging.error(f"Exception in simulate_hole: {e}\n{traceback.format_exc()}")
-        return game_state, [f"Simulation error: {e}"], None
-
-# Note: All ShotResult and Player objects are now properly typed and handled consistently.
-# The simulation engine now conforms to the object-oriented architecture.
-# For all main entrypoints (event-driven, betting, etc.), wrap in try/except and log errors.
