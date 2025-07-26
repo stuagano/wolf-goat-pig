@@ -311,24 +311,24 @@ class SimulationEngine:
             )
             self.computer_players.append(comp_player)
         
-        # Setup game state with all players
+        # Setup game state with all players (as dictionaries, which setup_players expects)
         all_players = [
             {
                 "id": human_player["id"],
                 "name": human_player["name"],
                 "handicap": human_player["handicap"],
-                "strength": self._handicap_to_strength(human_player["handicap"])
+                "strength": self._handicap_to_strength_string(human_player["handicap"])
             }
         ] + [
             {
                 "id": cp.player_id,
                 "name": cp.name,
                 "handicap": cp.handicap,
-                "strength": self._handicap_to_strength(cp.handicap)
+                "strength": self._handicap_to_strength_string(cp.handicap)
             } for cp in self.computer_players
         ]
         
-        print(f"🔧 All players setup: {all_players}")
+        print(f"🔧 All players setup: {[p['name'] for p in all_players]}")
         
         game_state = GameState()
         game_state.setup_players(all_players, course_name)
@@ -897,6 +897,19 @@ class SimulationEngine:
             return 5
         else:
             return 4
+    
+    def _handicap_to_strength_string(self, handicap: float) -> str:
+        """Convert handicap to strength string for Player objects"""
+        if handicap <= 5:
+            return "excellent"
+        elif handicap <= 10:
+            return "good"
+        elif handicap <= 15:
+            return "average"
+        elif handicap <= 20:
+            return "below_average"
+        else:
+            return "poor"
     
     def _assess_hole_difficulty(self, game_state: GameState) -> float:
         """Assess how difficult the current hole is (0=easy, 1=very hard)"""
