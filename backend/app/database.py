@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
@@ -57,7 +57,7 @@ def init_db():
         # Test database connection
         db = SessionLocal()
         try:
-            db.execute("SELECT 1")
+            db.execute(text("SELECT 1"))
             logger.info("Database connection test successful")
         except Exception as e:
             logger.error(f"Database connection test failed: {e}")
