@@ -1,4 +1,4 @@
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator
 from typing import List, Optional
 from datetime import datetime
 
@@ -8,7 +8,7 @@ class Rule(BaseModel):
     description: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class HoleInfo(BaseModel):
     hole_number: int
@@ -18,19 +18,22 @@ class HoleInfo(BaseModel):
     description: Optional[str] = None
     tee_box: str = "regular"
 
-    @validator('par')
+    @field_validator('par')
+    @classmethod
     def validate_par(cls, v):
         if not 3 <= v <= 6:
             raise ValueError('Par must be between 3 and 6')
         return v
 
-    @validator('handicap')
+    @field_validator('handicap')
+    @classmethod
     def validate_handicap(cls, v):
         if not 1 <= v <= 18:
             raise ValueError('Handicap must be between 1 and 18')
         return v
 
-    @validator('yards')
+    @field_validator('yards')
+    @classmethod
     def validate_yards(cls, v):
         if v < 100:
             raise ValueError('Yards must be at least 100')
@@ -43,7 +46,8 @@ class CourseCreate(BaseModel):
     description: Optional[str] = None
     holes: List[HoleInfo]
 
-    @validator('holes')
+    @field_validator('holes')
+    @classmethod
     def validate_holes(cls, v):
         if len(v) != 18:
             raise ValueError('Course must have exactly 18 holes')
@@ -65,7 +69,8 @@ class CourseCreate(BaseModel):
         
         return v
 
-    @validator('name')
+    @field_validator('name')
+    @classmethod
     def validate_name(cls, v):
         if not v or len(v.strip()) < 3:
             raise ValueError('Course name must be at least 3 characters')
@@ -84,14 +89,15 @@ class CourseResponse(BaseModel):
     updated_at: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class CourseUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     holes: Optional[List[HoleInfo]] = None
 
-    @validator('holes')
+    @field_validator('holes')
+    @classmethod
     def validate_holes_update(cls, v):
         if v is not None:
             # Same validation as CourseCreate
