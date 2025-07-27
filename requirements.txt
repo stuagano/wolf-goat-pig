@@ -1,1 +1,11 @@
-httpx 
+# Wolf Goat Pig Golf Simulation - Production Dependencies
+fastapi==0.110.0
+uvicorn[standard]==0.29.0
+SQLAlchemy==2.0.30
+python-multipart==0.0.9
+psycopg2-binary==2.9.9
+httpx==0.27.0
+python-dotenv==1.0.1
+pydantic==2.6.0
+pytest==8.4.1
+pytest-asyncio==0.24.0 

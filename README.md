@@ -1,316 +1,273 @@
-# Wolf Goat Pig MVP
+# Wolf Goat Pig Golf Simulation
 
-🌐 **Live Demo**: [https://wolf-goat-pig.vercel.app](https://wolf-goat-pig.vercel.app)
+A sophisticated golf betting simulation system with interactive gameplay, real-time decision making, and comprehensive timeline tracking.
 
-This is a full-stack MVP web app for tracking a 4-man Wolf Goat Pig golf game, with all core rules, betting, and scoring logic.
+## 🏌️ Features
 
----
+- **Interactive Golf Simulation**: Realistic shot-by-shot gameplay with handicap-based scoring
+- **Wolf Goat Pig Rules**: Complete implementation of the classic golf betting game
+- **Unified Action API**: Centralized game logic with consistent REST API
+- **Timeline System**: Chronological event tracking for all game actions
+- **Real GHIN Integration**: Authentic golfer data and handicap lookup
+- **Monte Carlo Analysis**: Statistical simulation for strategy optimization
+- **Responsive Frontend**: Modern React.js interface with real-time updates
 
-## Prerequisites
-- **Python 3.8+** (for backend)
-- **Node.js 16+ & npm** (for frontend)
+## 🚀 Quick Start
 
----
+### Local Development
 
-## Local Development
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/wolf-goat-pig.git
+   cd wolf-goat-pig
+   ```
 
-### 1. Backend (FastAPI)
+2. **Backend Setup**
+   ```bash
+   cd backend
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
+
+3. **Database Setup**
+   ```bash
+   python -c "from app.database import init_db; init_db()"
+   ```
+
+4. **Start Backend Server**
+   ```bash
+   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+   ```
+
+5. **Frontend Setup** (in a new terminal)
+   ```bash
+   cd frontend
+   npm install
+   npm start
+   ```
+
+6. **Access the Application**
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:8000
+   - API Documentation: http://localhost:8000/docs
+
+### Environment Variables
+
+Create a `.env` file in the backend directory:
+
+```bash
+# Database
+DATABASE_URL=sqlite:///./wolf_goat_pig.db
+
+# Environment
+ENVIRONMENT=development
+
+# GHIN API (optional)
+GHIN_API_USER=your_email@domain.com
+GHIN_API_PASS=your_password
+GHIN_API_STATIC_TOKEN=optional_token
+
+# Frontend URL
+FRONTEND_URL=http://localhost:3000
+```
+
+## 🧪 Testing
+
+Run the comprehensive test suite:
 
 ```bash
 cd backend
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+python -m pytest tests/test_unified_action_api.py -v
 ```
-- The backend will run at `http://localhost:8000`
 
-### 2. Frontend (React)
+## 🚀 Deployment
+
+### Render Deployment
+
+1. **Fork/Clone** this repository to your GitHub account
+2. **Connect to Render**:
+   - Go to [render.com](https://render.com)
+   - Create a new Web Service
+   - Connect your GitHub repository
+   - Use the `render.yaml` configuration
+
+3. **Environment Variables** (set in Render dashboard):
+   ```
+   ENVIRONMENT=production
+   DATABASE_URL=<your-postgresql-url>
+   GHIN_API_USER=<your-ghin-email>
+   GHIN_API_PASS=<your-ghin-password>
+   FRONTEND_URL=https://your-frontend-url.vercel.app
+   ```
+
+### Vercel Deployment (Frontend)
+
+1. **Deploy Frontend**:
+   ```bash
+   cd frontend
+   npm run build
+   ```
+
+2. **Connect to Vercel**:
+   - Go to [vercel.com](https://vercel.com)
+   - Import your GitHub repository
+   - Vercel will automatically detect the React app
+
+3. **Environment Variables** (set in Vercel dashboard):
+   ```
+   REACT_APP_API_URL=https://your-backend-url.onrender.com
+   NODE_ENV=production
+   ```
+
+### Local Production Deployment
+
+1. **Build Frontend**:
+   ```bash
+   cd frontend
+   npm run build
+   ```
+
+2. **Start Production Backend**:
+   ```bash
+   cd backend
+   uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+   ```
+
+## 📁 Project Structure
+
+```
+wolf-goat-pig/
+├── backend/
+│   ├── app/
+│   │   ├── main.py              # FastAPI application
+│   │   ├── database.py          # Database models and setup
+│   │   ├── game_state.py        # Game state management
+│   │   └── wolf_goat_pig_simulation.py  # Core game logic
+│   ├── tests/
+│   │   └── test_unified_action_api.py   # Comprehensive test suite
+│   ├── requirements.txt         # Python dependencies
+│   └── Procfile                # Deployment configuration
+├── frontend/
+│   ├── src/
+│   │   ├── components/          # React components
+│   │   ├── pages/              # Page components
+│   │   └── App.js              # Main application
+│   ├── package.json            # Node.js dependencies
+│   └── public/                 # Static assets
+├── render.yaml                 # Render deployment config
+├── vercel.json                 # Vercel deployment config
+└── requirements.txt            # Root dependencies
+```
+
+## 🔧 API Endpoints
+
+### Unified Action API
+
+All game interactions go through the unified Action API:
+
+```http
+POST /wgp/{game_id}/action
+```
+
+**Action Types:**
+- `INITIALIZE_GAME` - Start a new game
+- `PLAY_SHOT` - Take a shot
+- `REQUEST_PARTNERSHIP` - Request a partner
+- `RESPOND_PARTNERSHIP` - Accept/decline partnership
+- `DECLARE_SOLO` - Go solo
+- `OFFER_DOUBLE` - Offer to double the bet
+- `ACCEPT_DOUBLE` - Accept/decline double
+- `ADVANCE_HOLE` - Move to next hole
+
+### Timeline Events
+
+The system generates chronological timeline events for all actions:
+- `game_start` - Game initialization
+- `hole_start` - New hole begins
+- `shot` - Player takes a shot
+- `partnership_request` - Partnership requested
+- `partnership_response` - Partnership accepted/declined
+- `partnership_decision` - Captain decides solo/partner
+- `double_offer` - Double bet offered
+- `double_response` - Double bet accepted/declined
+
+## 🎮 Game Rules
+
+### Wolf Goat Pig Basics
+
+1. **4 Players**: Each with different handicaps
+2. **Captain Rotation**: Captain changes each hole
+3. **Partnership Phase**: Captain can request partner or go solo
+4. **Betting**: Doubles can be offered during play
+5. **Scoring**: Net scores with handicap adjustments
+6. **Points**: Winners take quarters from losers
+
+### Key Features
+
+- **Handicap Integration**: Real GHIN handicap lookup
+- **Stroke Allocation**: Proper stroke index assignment
+- **Team Formation**: Dynamic partnership decisions
+- **Betting System**: Real-time double opportunities
+- **Educational Feedback**: Strategy insights and analysis
+
+## 🛠️ Development
+
+### Adding New Features
+
+1. **Backend Changes**:
+   - Add new action types to `main.py`
+   - Implement game logic in `wolf_goat_pig_simulation.py`
+   - Add timeline events for tracking
+   - Update tests in `test_unified_action_api.py`
+
+2. **Frontend Changes**:
+   - Add new components in `frontend/src/components/`
+   - Update pages in `frontend/src/pages/`
+   - Test with the Action API
+
+### Testing
 
 ```bash
-cd frontend
-npm install
-npm start
-```
-- The frontend will run at `http://localhost:3000` and proxy API requests to the backend.
+# Run all tests
+cd backend
+python -m pytest tests/ -v
 
----
+# Run specific test
+python -m pytest tests/test_unified_action_api.py::TestUnifiedActionAPI::test_initialize_game -v
 
-## Project Architecture
-
-### Backend Structure
-```
-backend/
-├── app/
-│   ├── main.py              # FastAPI application and routes
-│   ├── game_state.py        # Core game state management
-│   ├── simulation.py        # Event-driven simulation engine
-│   ├── domain/              # Domain models and logic
-│   │   ├── player.py        # Player class with handicap/scoring
-│   │   └── shot_result.py   # Shot result modeling
-│   ├── state/               # State management classes
-│   │   ├── betting_state.py # Betting logic and team management
-│   │   └── __init__.py      
-│   ├── models.py            # SQLAlchemy models
-│   ├── schemas.py           # Pydantic schemas
-│   └── database.py          # Database configuration
-├── requirements.txt
-└── venv/
+# Run with coverage
+python -m pytest tests/ --cov=app --cov-report=html
 ```
 
-### Key Architectural Improvements
+## 📊 Performance
 
-#### 🎯 **Modular State Management**
-The application now uses a clean separation of concerns with dedicated state classes:
+- **Backend**: FastAPI with async support
+- **Database**: SQLAlchemy with PostgreSQL/SQLite
+- **Frontend**: React with optimized builds
+- **Testing**: Comprehensive test suite with 14 test scenarios
+- **Deployment**: Render (backend) + Vercel (frontend)
 
-- **`GameState`**: Core game flow, hole progression, and player management
-- **`BettingState`**: All betting logic including partnerships, doubling, and team management
-- **`Player`**: Individual player state with handicap calculations and scoring
-- **`ShotResult`**: Shot modeling and probability calculations
+## 🤝 Contributing
 
-#### 🏌️ **Domain-Driven Design**
-- **Domain Models**: `Player` and `ShotResult` classes encapsulate golf-specific logic
-- **State Classes**: Clean separation between game state and betting state
-- **Simulation Engine**: Event-driven architecture for realistic shot-by-shot gameplay
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new functionality
+5. Run the test suite
+6. Submit a pull request
 
-#### ⚡ **Benefits of New Architecture**
-- **Maintainability**: Betting logic is isolated from game flow logic
-- **Testability**: Each component can be tested independently
-- **Reusability**: State classes can be used in different contexts
-- **Extensibility**: Easy to add new betting rules or game modes
+## 📄 License
 
----
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Deployment
+## 🆘 Support
 
-### Backend (Render.com)
-- Create a new **Web Service** on [Render](https://render.com/)
-- Use the `backend/` folder as the root
-- Set the start command: `uvicorn app.main:app --host 0.0.0.0 --port 10000`
-- Add a build command: `pip install -r requirements.txt`
-- Expose port `10000`
-
-### Frontend (Vercel/Netlify)
-- Deploy the `frontend/` folder
-- For **Vercel**: Just import the repo, set root to `frontend/`
-- For **Netlify**: Set build command to `npm run build` and publish directory to `build/`
-- Set environment variable (if needed) to point to backend API URL
+For issues and questions:
+- Check the [API Documentation](http://localhost:8000/docs) when running locally
+- Review the test suite for usage examples
+- Open an issue on GitHub
 
 ---
 
-## Free-Tier Cloud Deployment Tips
-
-This project is ready for free-tier deployment on popular cloud services:
-
-| Service   | Free Tier? | Used For   | Notes                                 |
-|-----------|------------|------------|---------------------------------------|
-| Render    | Yes        | FastAPI    | Web Service, may sleep after idle     |
-| Vercel    | Yes        | React      | Static, instant, custom domains       |
-| Netlify   | Yes        | React      | Static, instant, custom domains       |
-
-### Backend (Render.com)
-- Free web service tier is perfect for FastAPI.xx
-- Service may "sleep" after 15 minutes of inactivity (cold start delay).
-- No credit card required for free tier.
-
-### Frontend (Vercel/Netlify)
-- Both have generous free tiers for static React apps.
-- No sleep, instant static hosting.
-- Generous bandwidth and build minutes for small projects.
-
-### CORS and API URLs
-- Make sure your backend allows CORS from your frontend domain (Render and Vercel/Netlify).
-- In production, set the frontend API base URL to your deployed backend (e.g., `https://your-backend.onrender.com`).
-- You can use an environment variable like `REACT_APP_API_URL` in your frontend and reference it in your code (e.g., `process.env.REACT_APP_API_URL`).
-
----
-
-## Helper Scripts
-
-- If you want to automate setup, you can create a script like `dev.sh`:
-
-```bash
-#!/bin/bash
-# Start backend
-cd backend && source venv/bin/activate && uvicorn app.main:app --reload &
-# Start frontend
-cd ../frontend && npm start
-```
-
-- Make it executable: `chmod +x dev.sh`
-- Run with: `./dev.sh`
-
----
-
-## Game Features
-
-### 🎮 Core Wolf Goat Pig Rules
-- **4-Player Format**: Human vs 3 computer opponents with different personalities
-- **Captain Rotation**: Rotates each hole in hitting order
-- **Partnership Decisions**: Request partners or go solo after seeing tee shots
-- **Doubling**: Increase stakes with strategic doubling decisions
-- **Karl Marx Rule**: Fair distribution of odd quarters to lowest scorers
-- **Handicap Integration**: Full USGA handicap support with stroke allocation
-
-### 🏌️ Realistic Golf Simulation
-- **Shot-by-Shot Progression**: Event-driven simulation with probability calculations
-- **Course Management**: Multiple courses with detailed hole descriptions
-- **Handicap-Based Difficulty**: Shots adjusted based on player skill and hole difficulty
-- **Interactive Decision Points**: Real-time betting decisions with context
-
-### 🧠 Computer AI Personalities
-- **Aggressive**: Takes risks, likely to go solo or accept doubles
-- **Conservative**: Plays it safe, only bets with strong advantages
-- **Strategic**: Makes calculated decisions based on game state
-- **Balanced**: Mix of strategies with moderate risk tolerance
-
----
-
-## 🏌️ Simulation Mode: Event-Driven Shot-by-Shot Flow
-
-Wolf Goat Pig Simulation Mode uses a fully event-driven, shot-by-shot architecture for realistic, interactive golf gameplay and betting practice.
-
-### Key Concepts
-- **Chronological, shot-by-shot simulation**: Each shot is its own event, with visible probability calculations and betting opportunities.
-- **Interactive Decisions**: The backend returns `interaction_needed` flags when human input is required (e.g., captain choices, partnership responses, doubling decisions).
-- **Stateful Progression**: The backend maintains a persistent `GameState` with all shot, team, and betting context, updated after every API call.
-- **Frontend Integration**: The frontend advances the simulation by calling the next-shot endpoint and rendering all context, probabilities, and decision UIs.
-
-### Core Backend Endpoints
-
-#### 1. `/simulation/setup` (POST)
-Initializes a new simulation with player and course selection.
-- **Payload:**
-  ```json
-  {
-    "human_player": {"id": "p1", "name": "Bob", "handicap": 10.5},
-    "computer_players": [
-      {"id": "p2", "name": "Scott", "handicap": 15, "personality": "aggressive"},
-      {"id": "p3", "name": "Vince", "handicap": 8, "personality": "strategic"},
-      {"id": "p4", "name": "Mike", "handicap": 20.5, "personality": "conservative"}
-    ],
-    "course_name": "Wing Point"
-  }
-  ```
-- **Returns:** `{ "status": "ok", "game_state": { ... } }`
-
-#### 2. `/simulation/next-shot` (POST)
-Plays the next individual shot event (tee or approach) and returns all context, probabilities, and any betting opportunities.
-- **Returns:**
-  ```json
-  {
-    "status": "ok",
-    "shot_event": { ... },
-    "shot_result": { ... },
-    "probabilities": { ... },
-    "betting_opportunity": { ... },
-    "game_state": { ... },
-    "next_shot_available": true
-  }
-  ```
-
-#### 3. `/simulation/shot-probabilities` (GET)
-Returns probability calculations for the current shot scenario.
-- **Returns:** `{ "status": "ok", "probabilities": { ... }, "game_state": { ... } }`
-
-#### 4. `/simulation/betting-decision` (POST)
-Submit a betting/partnership/solo decision after a shot, with probability context.
-- **Payload:**
-  ```json
-  { "action": "request_partner", "partner_id": "p3" }
-  ```
-- **Returns:** `{ "status": "ok", "decision_result": { ... }, "betting_probabilities": { ... }, "game_state": { ... } }`
-
-#### 5. `/simulation/current-shot-state` (GET)
-Returns detailed information about the current shot state and available actions.
-- **Returns:** `{ "status": "ok", "shot_state": { ... }, "game_state": { ... } }`
-
-### State Management & Architecture
-The application uses a modular state management system:
-
-- **`GameState`**: Manages overall game flow, hole progression, and player state
-- **`BettingState`**: Handles all betting logic including:
-  - Team formation (partnerships vs solo)
-  - Doubling decisions and stake management
-  - Karl Marx rule for point distribution
-  - Betting tips and strategy advice
-- **`Player`**: Encapsulates individual player data with handicap calculations
-- **Event-Driven Simulation**: Shot-by-shot progression with interactive decision points
-
-State is serialized and persisted between API calls, ensuring consistent gameplay and the ability to resume sessions.
-
-### Frontend Usage Pattern
-- On simulation setup, immediately call `/simulation/next-shot` to start the first shot event.
-- After each shot, update UI with returned `shot_event`, `shot_result`, `probabilities`, and any `betting_opportunity`.
-- When `betting_opportunity` is present, show decision UI and submit the user's choice to `/simulation/betting-decision`.
-- Use `/simulation/shot-probabilities` and `/simulation/current-shot-state` to display real-time context and probabilities.
-- Continue calling `/simulation/next-shot` until the hole/game is complete.
-
-### Example Flow
-1. **Setup**: POST to `/simulation/setup` with player/course config.
-2. **First Shot**: POST to `/simulation/next-shot` → returns tee shot event, probabilities.
-3. **Betting Opportunity**: If present, POST to `/simulation/betting-decision`.
-4. **Next Shot**: POST to `/simulation/next-shot` again.
-5. **Repeat**: Continue until hole/game complete.
-
-### Developer Notes
-- All endpoints are documented in `/docs` (Swagger UI).
-- See `backend/app/simulation.py` for event-driven engine logic.
-- See `backend/app/state/betting_state.py` for betting logic implementation.
-- See `frontend/src/SimulationMode.js` for frontend integration.
-- GameState serialization/deserialization includes all event-driven fields for robust state management.
-
----
-
-## 🧪 Functional Testing
-
-After deployment, you can run comprehensive functional tests to verify everything is working:
-
-### Quick Test (Recommended)
-```bash
-./run_tests.sh
-```
-
-### Manual Setup and Test
-```bash
-# Setup testing environment
-python3 setup_testing.py
-
-# Run functional tests
-python3 functional_test_suite.py
-```
-
-### What the Tests Check
-- ✅ **Deployment Status**: Polls Render and Vercel services until ready
-- ✅ **Frontend Loading**: Tests both Vercel and Render frontend URLs
-- ✅ **API Connectivity**: Verifies frontend can connect to backend
-- ✅ **Simulation Mode**: Tests course selection and UI elements
-- ✅ **Course Data**: Verifies sample courses are loaded
-
-### Test Report
-Tests generate a detailed report at `functional_test_report.json` with:
-- Service health status
-- Frontend functionality
-- API connectivity
-- Error details and timestamps
-
----
-
-## Development Notes
-
-### Recent Architectural Improvements
-- **✅ Modular State Management**: Extracted `BettingState` from `GameState` for better separation of concerns
-- **✅ Domain Models**: Refactored `Player` class with proper encapsulation
-- **✅ Event-Driven Simulation**: Shot-by-shot gameplay with interactive decision points
-- **✅ Defensive Coding**: Comprehensive error handling and null checks
-
-### Future Enhancements
-- **Course Data Modeling**: Extract course/hole logic into dedicated classes
-- **Shot State Management**: Further modularize shot sequence state
-- **Monte Carlo Analysis**: Enhanced statistical analysis features
-- **GHIN Integration**: Real golfer handicap lookup and validation
-
----
-
-## Questions?
-Open an issue or contact the maintainer. 
+**Wolf Goat Pig Golf Simulation** - The most realistic golf betting experience with interactive gameplay and educational insights. 

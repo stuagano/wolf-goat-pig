@@ -14,7 +14,6 @@ services:
     plan: free
     region: oregon
     buildCommand: |
-      cd backend
       pip install --upgrade pip
       pip install -r requirements.txt
     startCommand: |
@@ -28,11 +27,17 @@ services:
           type: pserv
           property: connectionString
       - key: PYTHON_VERSION
-        value: 3.11.0
+        value: 3.12.8
       - key: ENVIRONMENT
         value: production
       - key: FRONTEND_URL
         value: https://wolf-goat-pig.vercel.app
+      - key: GHIN_API_USER
+        value: ""
+      - key: GHIN_API_PASS
+        value: ""
+      - key: GHIN_API_STATIC_TOKEN
+        value: ""
     healthCheckPath: /health
     autoDeploy: true
     disk:
