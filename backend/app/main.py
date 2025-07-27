@@ -1701,6 +1701,66 @@ async def reset_game():
         logger.error(f"Error resetting game: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/wgp/enable-shot-progression")
+async def enable_shot_progression():
+    """Enable shot-by-shot progression with betting analysis"""
+    global wgp_game_instance
+    
+    if not wgp_game_instance:
+        raise HTTPException(status_code=400, detail="No active game")
+    
+    try:
+        result = wgp_game_instance.enable_shot_progression()
+        
+        return {
+            **result,
+            "game_state": wgp_game_instance.get_game_state(),
+            "hole_progression": wgp_game_instance.get_hole_progression_state()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error enabling shot progression: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/wgp/simulate-shot")
+async def simulate_shot(request: WGPActionRequest):
+    """Simulate a single shot with betting analysis"""
+    global wgp_game_instance
+    
+    if not wgp_game_instance:
+        raise HTTPException(status_code=400, detail="No active game")
+    
+    try:
+        result = wgp_game_instance.simulate_shot(request.player_id)
+        
+        return {
+            **result,
+            "hole_progression": wgp_game_instance.get_hole_progression_state()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error simulating shot: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/wgp/hole-progression")
+async def get_hole_progression():
+    """Get current hole progression state"""
+    global wgp_game_instance
+    
+    if not wgp_game_instance:
+        raise HTTPException(status_code=400, detail="No active game")
+    
+    try:
+        return {
+            "status": "success",
+            "hole_progression": wgp_game_instance.get_hole_progression_state(),
+            "game_state": wgp_game_instance.get_game_state()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting hole progression: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Monte Carlo simulation endpoint for Wolf Goat Pig
 @app.post("/wgp/monte-carlo")
 async def run_wgp_monte_carlo(request: BaseModel):

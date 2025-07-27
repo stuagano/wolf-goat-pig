@@ -83,6 +83,37 @@ class HoleState:
     balls_in_hole: List[str] = field(default_factory=list)  # Players who holed out
     concessions: Dict[str, str] = field(default_factory=dict)  # "good but not in"
     
+@dataclass
+class WGPShotResult:
+    """Represents a shot result in Wolf Goat Pig with betting implications"""
+    player_id: str
+    shot_number: int
+    lie_type: str  # "tee", "fairway", "rough", "bunker", "green"
+    distance_to_pin: float
+    shot_quality: str  # "excellent", "good", "average", "poor", "terrible"
+    made_shot: bool = False
+    penalty_strokes: int = 0
+    betting_implications: Optional[Dict] = None
+
+@dataclass
+class WGPBettingOpportunity:
+    """Represents a betting opportunity during hole play"""
+    opportunity_type: str  # "double", "strategic", "partnership_change"
+    message: str
+    options: List[str]
+    probability_analysis: Dict[str, float]
+    recommended_action: str
+    risk_assessment: str  # "low", "medium", "high"
+
+@dataclass
+class WGPHoleProgression:
+    """Tracks shot-by-shot progression through a hole"""
+    hole_number: int
+    shots_taken: Dict[str, List[WGPShotResult]] = field(default_factory=dict)
+    current_shot_order: List[str] = field(default_factory=list)
+    betting_opportunities: List[WGPBettingOpportunity] = field(default_factory=list)
+    hole_complete: bool = False
+    
 class WolfGoatPigSimulation:
     """
     Complete Wolf Goat Pig simulation implementing all rules from rules.txt
@@ -99,6 +130,11 @@ class WolfGoatPigSimulation:
         self.hole_states: Dict[int, HoleState] = {}
         self.double_points_round = False  # Major championship days
         self.annual_banquet = False  # Annual banquet day
+        
+        # Shot progression and betting analysis
+        self.hole_progression: Optional[WGPHoleProgression] = None
+        self.betting_analysis_enabled = True
+        self.shot_simulation_mode = False  # Enable for shot-by-shot play
         
         # Game progression tracking
         self.hoepfinger_start_hole = self._get_hoepfinger_start_hole()
@@ -960,6 +996,388 @@ class WolfGoatPigSimulation:
                 ]
             }
         }
+
+    def enable_shot_progression(self) -> Dict[str, Any]:
+        """Enable shot-by-shot progression mode for betting analysis"""
+        self.shot_simulation_mode = True
+        if not self.hole_progression:
+            self.hole_progression = WGPHoleProgression(hole_number=self.current_hole)
+            # Initialize shot tracking for all players
+            for player in self.players:
+                self.hole_progression.shots_taken[player.id] = []
+            self._determine_shot_order()
+        
+        return {
+            "status": "shot_progression_enabled",
+            "message": "Shot-by-shot progression enabled with betting analysis",
+            "current_hole": self.current_hole,
+            "shot_order": self.hole_progression.current_shot_order
+        }
+    
+    def simulate_shot(self, player_id: str) -> Dict[str, Any]:
+        """Simulate a single shot with betting opportunity analysis"""
+        if not self.shot_simulation_mode or not self.hole_progression:
+            raise ValueError("Shot progression mode not enabled")
+        
+        player = next(p for p in self.players if p.id == player_id)
+        shot_number = len(self.hole_progression.shots_taken[player_id]) + 1
+        
+        # Simulate shot result based on player skill and situation
+        shot_result = self._simulate_player_shot(player, shot_number)
+        self.hole_progression.shots_taken[player_id].append(shot_result)
+        
+        # Analyze betting opportunities after this shot
+        betting_opportunity = self._analyze_betting_opportunity(shot_result)
+        if betting_opportunity:
+            self.hole_progression.betting_opportunities.append(betting_opportunity)
+        
+        # Get next player in order
+        next_player = self._get_next_shot_player()
+        
+        # Check if hole is complete
+        hole_complete = self._check_hole_completion()
+        if hole_complete:
+            self.hole_progression.hole_complete = True
+        
+        return {
+            "status": "shot_completed",
+            "shot_result": {
+                "player_id": shot_result.player_id,
+                "shot_number": shot_result.shot_number,
+                "lie_type": shot_result.lie_type,
+                "distance_to_pin": shot_result.distance_to_pin,
+                "shot_quality": shot_result.shot_quality,
+                "made_shot": shot_result.made_shot
+            },
+            "betting_opportunity": betting_opportunity.__dict__ if betting_opportunity else None,
+            "betting_analysis": self._generate_betting_analysis(shot_result),
+            "next_player": next_player,
+            "hole_complete": hole_complete,
+            "game_state": self.get_game_state()
+        }
+    
+    def get_hole_progression_state(self) -> Dict[str, Any]:
+        """Get current hole progression state"""
+        if not self.hole_progression:
+            return {"shot_mode_enabled": False}
+        
+        return {
+            "shot_mode_enabled": True,
+            "hole_number": self.hole_progression.hole_number,
+            "shots_taken": {
+                player_id: [
+                    {
+                        "shot_number": shot.shot_number,
+                        "lie_type": shot.lie_type,
+                        "distance_to_pin": shot.distance_to_pin,
+                        "shot_quality": shot.shot_quality,
+                        "made_shot": shot.made_shot
+                    }
+                    for shot in shots
+                ]
+                for player_id, shots in self.hole_progression.shots_taken.items()
+            },
+            "betting_opportunities": [
+                {
+                    "type": opp.opportunity_type,
+                    "message": opp.message,
+                    "options": opp.options,
+                    "recommended_action": opp.recommended_action,
+                    "risk_assessment": opp.risk_assessment
+                }
+                for opp in self.hole_progression.betting_opportunities
+            ],
+            "next_player": self._get_next_shot_player(),
+            "hole_complete": self.hole_progression.hole_complete
+        }
+
+    # Helper methods for shot progression
+    def _determine_shot_order(self):
+        """Determine order for shot-by-shot play"""
+        hole_state = self.hole_states[self.current_hole]
+        self.hole_progression.current_shot_order = hole_state.hitting_order.copy()
+    
+    def _simulate_player_shot(self, player: WGPPlayer, shot_number: int) -> WGPShotResult:
+        """Simulate a single shot for a player"""
+        # Determine lie type based on shot number and previous results
+        if shot_number == 1:
+            lie_type = "tee"
+            distance_to_pin = random.uniform(150, 450)  # Tee shot distance
+        else:
+            # Get previous shot
+            prev_shots = self.hole_progression.shots_taken[player.id]
+            if prev_shots:
+                prev_distance = prev_shots[-1].distance_to_pin
+                lie_type = self._determine_lie_type(prev_shots[-1])
+                distance_to_pin = max(0, prev_distance - random.uniform(50, 200))
+            else:
+                lie_type = "fairway"
+                distance_to_pin = random.uniform(50, 150)
+        
+        # Simulate shot quality based on player handicap and lie
+        shot_quality = self._determine_shot_quality(player.handicap, lie_type)
+        
+        # Determine if shot was made (holed out)
+        made_shot = distance_to_pin < 5 and random.random() > 0.7
+        if made_shot:
+            distance_to_pin = 0
+        
+        return WGPShotResult(
+            player_id=player.id,
+            shot_number=shot_number,
+            lie_type=lie_type,
+            distance_to_pin=distance_to_pin,
+            shot_quality=shot_quality,
+            made_shot=made_shot
+        )
+    
+    def _determine_lie_type(self, prev_shot: WGPShotResult) -> str:
+        """Determine lie type based on previous shot quality"""
+        if prev_shot.shot_quality == "excellent":
+            return random.choice(["fairway", "green"])
+        elif prev_shot.shot_quality == "good":
+            return random.choice(["fairway", "fairway", "green"])
+        elif prev_shot.shot_quality == "average":
+            return random.choice(["fairway", "rough"])
+        elif prev_shot.shot_quality == "poor":
+            return random.choice(["rough", "bunker"])
+        else:  # terrible
+            return random.choice(["rough", "bunker", "rough"])
+    
+    def _determine_shot_quality(self, handicap: float, lie_type: str) -> str:
+        """Determine shot quality based on handicap and lie"""
+        # Base probability on handicap (lower handicap = better shots)
+        skill_factor = max(0, 1 - (handicap / 30))
+        
+        # Adjust for lie difficulty
+        lie_difficulty = {
+            "tee": 0.9,
+            "fairway": 1.0,
+            "green": 1.1,
+            "rough": 0.7,
+            "bunker": 0.5
+        }
+        
+        adjusted_skill = skill_factor * lie_difficulty.get(lie_type, 1.0)
+        
+        # Determine quality
+        rand = random.random()
+        if rand < adjusted_skill * 0.2:
+            return "excellent"
+        elif rand < adjusted_skill * 0.5:
+            return "good"
+        elif rand < adjusted_skill * 0.8:
+            return "average"
+        elif rand < 0.9:
+            return "poor"
+        else:
+            return "terrible"
+    
+    def _analyze_betting_opportunity(self, shot_result: WGPShotResult) -> Optional[WGPBettingOpportunity]:
+        """Analyze if this shot creates a betting opportunity"""
+        hole_state = self.hole_states[self.current_hole]
+        
+        # Skip if teams not formed yet
+        if hole_state.teams.type == "pending":
+            return None
+        
+        # Skip if already doubled
+        if hole_state.betting.doubled:
+            return None
+        
+        # Analyze shot for betting implications
+        opportunity = None
+        
+        if shot_result.shot_quality == "excellent":
+            opportunity = WGPBettingOpportunity(
+                opportunity_type="double",
+                message=f"💎 {self._get_player_name(shot_result.player_id)} hit an EXCELLENT shot! Perfect time to double!",
+                options=["offer_double", "pass"],
+                probability_analysis=self._calculate_doubling_odds(shot_result),
+                recommended_action="offer_double",
+                risk_assessment="low"
+            )
+        
+        elif shot_result.shot_quality == "terrible":
+            opportunity = WGPBettingOpportunity(
+                opportunity_type="double",
+                message=f"😬 {self._get_player_name(shot_result.player_id)} hit a TERRIBLE shot! Your team has the advantage!",
+                options=["offer_double", "pass"],
+                probability_analysis=self._calculate_doubling_odds(shot_result),
+                recommended_action="offer_double",
+                risk_assessment="medium"
+            )
+        
+        elif shot_result.distance_to_pin < 20 and shot_result.shot_quality in ["good", "excellent"]:
+            opportunity = WGPBettingOpportunity(
+                opportunity_type="strategic",
+                message=f"🎯 {self._get_player_name(shot_result.player_id)} is close to the pin! Great doubling position!",
+                options=["offer_double", "wait", "pass"],
+                probability_analysis=self._calculate_doubling_odds(shot_result),
+                recommended_action="offer_double",
+                risk_assessment="low"
+            )
+        
+        elif random.random() < 0.25:  # 25% chance for general opportunities
+            opportunity = WGPBettingOpportunity(
+                opportunity_type="strategic",
+                message=f"🎲 Good time to press the action after {self._get_player_name(shot_result.player_id)}'s {shot_result.shot_quality} shot",
+                options=["offer_double", "pass"],
+                probability_analysis=self._calculate_doubling_odds(shot_result),
+                recommended_action="pass",
+                risk_assessment="medium"
+            )
+        
+        return opportunity
+    
+    def _calculate_doubling_odds(self, shot_result: WGPShotResult) -> Dict[str, float]:
+        """Calculate probability analysis for doubling decisions"""
+        hole_state = self.hole_states[self.current_hole]
+        
+        # Calculate team advantage based on shot
+        shot_advantage = {
+            "excellent": 0.8,
+            "good": 0.65,
+            "average": 0.5,
+            "poor": 0.35,
+            "terrible": 0.2
+        }[shot_result.shot_quality]
+        
+        # Adjust for distance to pin
+        if shot_result.distance_to_pin < 10:
+            shot_advantage += 0.2
+        elif shot_result.distance_to_pin < 30:
+            shot_advantage += 0.1
+        elif shot_result.distance_to_pin > 100:
+            shot_advantage -= 0.1
+        
+        # Calculate team handicap advantages
+        team_skill_diff = self._calculate_team_skill_difference(hole_state.teams)
+        
+        # Combine factors
+        win_probability = min(0.95, max(0.05, shot_advantage + team_skill_diff))
+        confidence = abs(win_probability - 0.5) * 2  # How confident we are
+        
+        return {
+            "win_probability": round(win_probability, 2),
+            "confidence": round(confidence, 2),
+            "shot_quality_factor": shot_advantage,
+            "team_skill_factor": team_skill_diff,
+            "distance_factor": shot_result.distance_to_pin
+        }
+    
+    def _generate_betting_analysis(self, shot_result: WGPShotResult) -> Dict[str, Any]:
+        """Generate comprehensive betting analysis for human players"""
+        analysis = {
+            "shot_assessment": {
+                "quality_rating": shot_result.shot_quality,
+                "distance_remaining": shot_result.distance_to_pin,
+                "strategic_value": "high" if shot_result.shot_quality in ["excellent", "good"] else "low"
+            },
+            "team_position": {
+                "current_wager": self.hole_states[self.current_hole].betting.current_wager,
+                "potential_double": self.hole_states[self.current_hole].betting.current_wager * 2,
+                "momentum": "positive" if shot_result.shot_quality in ["excellent", "good"] else "negative"
+            },
+            "strategic_recommendations": self._generate_strategic_recommendations(shot_result),
+            "computer_tendencies": self._analyze_computer_tendencies()
+        }
+        
+        return analysis
+    
+    def _generate_strategic_recommendations(self, shot_result: WGPShotResult) -> List[str]:
+        """Generate strategic recommendations based on current situation"""
+        recommendations = []
+        
+        if shot_result.shot_quality == "excellent":
+            recommendations.append("🎯 Consider doubling immediately - excellent shot gives strong advantage")
+            recommendations.append("💪 This is an ideal time to press the action")
+        
+        elif shot_result.shot_quality == "terrible":
+            recommendations.append("🛡️ Be cautious - opponent's poor shot creates opportunity but don't overcommit")
+            recommendations.append("⚖️ Evaluate team strength before doubling")
+        
+        elif shot_result.distance_to_pin < 20:
+            recommendations.append("🥅 Close to pin - high probability scoring opportunity")
+            recommendations.append("🎲 Good position for strategic doubling")
+        
+        return recommendations
+    
+    def _analyze_computer_tendencies(self) -> Dict[str, Any]:
+        """Analyze computer player tendencies for strategic insight"""
+        if not hasattr(self, 'computer_players'):
+            return {}
+        
+        tendencies = {}
+        for player_id, computer_player in self.computer_players.items():
+            personality = computer_player.personality
+            tendencies[player_id] = {
+                "personality": personality,
+                "betting_style": self._get_personality_betting_style(personality),
+                "double_acceptance": self._get_personality_double_tendency(personality)
+            }
+        
+        return tendencies
+    
+    def _get_personality_betting_style(self, personality: str) -> str:
+        """Get betting style description for personality"""
+        styles = {
+            "aggressive": "High risk, frequent doubling",
+            "conservative": "Low risk, selective doubling", 
+            "balanced": "Moderate risk, situational doubling",
+            "strategic": "Calculated risk, position-based doubling"
+        }
+        return styles.get(personality, "Unknown")
+    
+    def _get_personality_double_tendency(self, personality: str) -> str:
+        """Get double acceptance tendency for personality"""
+        tendencies = {
+            "aggressive": "Accepts most doubles",
+            "conservative": "Declines risky doubles",
+            "balanced": "Situational acceptance",
+            "strategic": "Analyzes before accepting"
+        }
+        return tendencies.get(personality, "Unknown")
+    
+    def _get_next_shot_player(self) -> Optional[str]:
+        """Get next player to shoot"""
+        if not self.hole_progression:
+            return None
+        
+        # Find player with fewest shots who hasn't holed out
+        min_shots = float('inf')
+        next_player = None
+        
+        for player_id in self.hole_progression.current_shot_order:
+            shots_taken = len(self.hole_progression.shots_taken[player_id])
+            last_shot = self.hole_progression.shots_taken[player_id][-1] if self.hole_progression.shots_taken[player_id] else None
+            
+            # Skip if player has holed out
+            if last_shot and last_shot.made_shot:
+                continue
+                
+            if shots_taken < min_shots:
+                min_shots = shots_taken
+                next_player = player_id
+        
+        return next_player
+    
+    def _check_hole_completion(self) -> bool:
+        """Check if hole is complete (all players holed out or max shots reached)"""
+        if not self.hole_progression:
+            return False
+        
+        for player_id in self.hole_progression.current_shot_order:
+            shots = self.hole_progression.shots_taken[player_id]
+            if not shots:
+                return False
+            
+            last_shot = shots[-1]
+            # Continue if player hasn't holed out and hasn't reached max shots
+            if not last_shot.made_shot and len(shots) < 8:
+                return False
+        
+        return True
 
 # Utility functions for AI decision making
 

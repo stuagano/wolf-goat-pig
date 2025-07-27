@@ -48,6 +48,10 @@ const WolfGoatPigGame = () => {
   const [message, setMessage] = useState('');
   const [scores, setScores] = useState({});
   const [showRules, setShowRules] = useState(false);
+  const [shotProgressionMode, setShotProgressionMode] = useState(false);
+  const [holeProgression, setHoleProgression] = useState(null);
+  const [bettingAnalysis, setBettingAnalysis] = useState(null);
+  const [bettingOpportunity, setBettingOpportunity] = useState(null);
 
   useEffect(() => {
     // Initialize default players based on count
@@ -182,6 +186,52 @@ const WolfGoatPigGame = () => {
 
   const advanceHole = async () => {
     await makeAction('advance-hole');
+  };
+
+  const enableShotProgression = async () => {
+    try {
+      const response = await fetch(`${API_URL}/wgp/enable-shot-progression`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setShotProgressionMode(true);
+        setHoleProgression(data.hole_progression);
+        setMessage('Shot progression enabled! Watch for betting opportunities.');
+      } else {
+        setMessage('Error enabling shot progression');
+      }
+    } catch (error) {
+      setMessage('Network error enabling shot progression');
+    }
+  };
+
+  const simulateShot = async (playerId) => {
+    try {
+      const response = await fetch(`${API_URL}/wgp/simulate-shot`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ player_id: playerId })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setHoleProgression(data.hole_progression);
+        setBettingAnalysis(data.betting_analysis);
+        setBettingOpportunity(data.betting_opportunity);
+        setMessage(`${getPlayerName(playerId)} hits a ${data.shot_result.shot_quality} shot!`);
+        
+        if (data.betting_opportunity) {
+          setMessage(`${data.betting_opportunity.message}`);
+        }
+      } else {
+        setMessage('Error simulating shot');
+      }
+    } catch (error) {
+      setMessage('Network error simulating shot');
+    }
   };
 
   const renderGameSetup = () => (
@@ -414,6 +464,12 @@ const WolfGoatPigGame = () => {
         
         {/* Current Action */}
         {renderCurrentAction()}
+
+        {/* Shot Progression Mode */}
+        {renderShotProgressionInterface()}
+
+        {/* Betting Analysis */}
+        {renderBettingAnalysis()}
 
         {/* Score Entry */}
         {renderScoreEntry()}
@@ -658,6 +714,175 @@ const WolfGoatPigGame = () => {
             </button>
           )}
         </div>
+      </div>
+    );
+  };
+
+  const renderShotProgressionInterface = () => {
+    const { teams } = gameState?.hole_state || {};
+    
+    if (teams?.type === 'pending' || !gameState) return null;
+
+    return (
+      <div style={cardStyle}>
+        <h3>Shot Progression & Betting Analysis</h3>
+        
+        {!shotProgressionMode ? (
+          <div style={{ textAlign: 'center', padding: 20 }}>
+            <p>Enable shot-by-shot progression to access real-time betting opportunities and analysis!</p>
+            <button
+              onClick={enableShotProgression}
+              style={{...buttonStyle, background: COLORS.accent}}
+            >
+              🎯 Enable Shot Progression
+            </button>
+          </div>
+        ) : (
+          <div>
+            {/* Shot Controls */}
+            {holeProgression?.next_player && !holeProgression?.hole_complete && (
+              <div style={{ marginBottom: 15 }}>
+                <h4>Next Shot: {getPlayerName(holeProgression.next_player)}</h4>
+                <button
+                  onClick={() => simulateShot(holeProgression.next_player)}
+                  style={{...buttonStyle, background: COLORS.success}}
+                >
+                  🏌️ Hit Shot
+                </button>
+              </div>
+            )}
+
+            {/* Current Hole Progress */}
+            {holeProgression?.shots_taken && (
+              <div style={{ marginBottom: 15 }}>
+                <h4>Hole Progress</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
+                  {Object.entries(holeProgression.shots_taken).map(([playerId, shots]) => (
+                    <div key={playerId} style={{
+                      padding: 10,
+                      border: `1px solid ${COLORS.border}`,
+                      borderRadius: 8,
+                      background: '#f9f9f9'
+                    }}>
+                      <div style={{ fontWeight: 'bold' }}>{getPlayerName(playerId)}</div>
+                      {shots.map((shot, index) => (
+                        <div key={index} style={{ fontSize: 12, margin: '2px 0' }}>
+                          Shot {shot.shot_number}: {shot.shot_quality} 
+                          {shot.made_shot ? ' ⛳ HOLED!' : ` (${Math.round(shot.distance_to_pin)}ft)`}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Betting Opportunity */}
+            {bettingOpportunity && (
+              <div style={{
+                ...cardStyle,
+                background: '#fff3e0',
+                border: `3px solid ${COLORS.warning}`
+              }}>
+                <h4 style={{ color: COLORS.warning }}>🎲 Betting Opportunity!</h4>
+                <p>{bettingOpportunity.message}</p>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  {bettingOpportunity.options.map(option => (
+                    <button
+                      key={option}
+                      onClick={() => {
+                        if (option === 'offer_double') {
+                          makeAction('offer-double', { player_id: gameState.players[0].id });
+                        }
+                        setBettingOpportunity(null);
+                      }}
+                      style={{
+                        ...buttonStyle,
+                        background: option === bettingOpportunity.recommended_action 
+                          ? COLORS.success 
+                          : COLORS.muted
+                      }}
+                    >
+                      {option === 'offer_double' ? '💰 Double' : 
+                       option === 'pass' ? '👋 Pass' : 
+                       option === 'wait' ? '⏳ Wait' : option}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ marginTop: 10, fontSize: 12 }}>
+                  <strong>Recommendation:</strong> {bettingOpportunity.recommended_action} 
+                  <span style={{ marginLeft: 10 }}>
+                    <strong>Risk:</strong> {bettingOpportunity.risk_assessment}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderBettingAnalysis = () => {
+    if (!bettingAnalysis || !shotProgressionMode) return null;
+
+    return (
+      <div style={cardStyle}>
+        <h3>📊 Betting Analysis</h3>
+        
+        {/* Shot Assessment */}
+        {bettingAnalysis.shot_assessment && (
+          <div style={{ marginBottom: 15 }}>
+            <h4>Shot Impact</h4>
+            <div style={{ fontSize: 14 }}>
+              <div>Quality: <strong>{bettingAnalysis.shot_assessment.quality_rating}</strong></div>
+              <div>Distance: <strong>{Math.round(bettingAnalysis.shot_assessment.distance_remaining)}ft</strong></div>
+              <div>Strategic Value: <strong>{bettingAnalysis.shot_assessment.strategic_value}</strong></div>
+            </div>
+          </div>
+        )}
+
+        {/* Strategic Recommendations */}
+        {bettingAnalysis.strategic_recommendations?.length > 0 && (
+          <div style={{ marginBottom: 15 }}>
+            <h4>💡 Strategic Recommendations</h4>
+            <ul style={{ margin: 0, fontSize: 14 }}>
+              {bettingAnalysis.strategic_recommendations.map((rec, index) => (
+                <li key={index}>{rec}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Computer Player Tendencies */}
+        {bettingAnalysis.computer_tendencies && Object.keys(bettingAnalysis.computer_tendencies).length > 0 && (
+          <div style={{ marginBottom: 15 }}>
+            <h4>🤖 Computer Player Analysis</h4>
+            {Object.entries(bettingAnalysis.computer_tendencies).map(([playerId, tendency]) => (
+              <div key={playerId} style={{ 
+                margin: '5px 0', 
+                padding: 8, 
+                background: '#f0f0f0', 
+                borderRadius: 4,
+                fontSize: 12 
+              }}>
+                <strong>{getPlayerName(playerId)}:</strong> {tendency.betting_style}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Team Position */}
+        {bettingAnalysis.team_position && (
+          <div>
+            <h4>Team Position</h4>
+            <div style={{ fontSize: 14 }}>
+              <div>Current Wager: <strong>{bettingAnalysis.team_position.current_wager} quarters</strong></div>
+              <div>If Doubled: <strong>{bettingAnalysis.team_position.potential_double} quarters</strong></div>
+              <div>Momentum: <strong>{bettingAnalysis.team_position.momentum}</strong></div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
