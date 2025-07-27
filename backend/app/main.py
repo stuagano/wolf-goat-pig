@@ -1374,6 +1374,17 @@ async def start_wgp_game(request: WGPGameRequest):
         wgp_game_instance.double_points_round = request.double_points_round
         wgp_game_instance.annual_banquet = request.annual_banquet
         
+        # Store computer player configurations
+        wgp_game_instance.computer_players = {}
+        for player in request.players:
+            if player.get("isComputer", False):
+                from .wolf_goat_pig_simulation import WGPComputerPlayer
+                wgp_player = next(p for p in wgp_players if p.id == player["id"])
+                wgp_game_instance.computer_players[player["id"]] = WGPComputerPlayer(
+                    wgp_player, 
+                    player.get("personality", "balanced")
+                )
+        
         return {
             "status": "game_started",
             "message": "Wolf Goat Pig game started successfully!",
@@ -1705,6 +1716,84 @@ async def run_wgp_monte_carlo(request: BaseModel):
     except Exception as e:
         logger.error(f"Error running Monte Carlo: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/wgp/computer-action")
+async def computer_action():
+    """Process automatic computer player actions"""
+    global wgp_game_instance
+    
+    if not wgp_game_instance:
+        raise HTTPException(status_code=400, detail="No active game")
+    
+    try:
+        # Check if there's a pending action that needs computer input
+        state = wgp_game_instance.get_game_state()
+        hole_state = state.get("hole_state", {})
+        teams = hole_state.get("teams", {})
+        
+        # Handle pending partnership requests
+        if teams.get("type") == "pending" and hasattr(wgp_game_instance, 'computer_players'):
+            captain_id = teams.get("captain")
+            
+            # If captain is computer, make decision
+            if captain_id in wgp_game_instance.computer_players:
+                computer_player = wgp_game_instance.computer_players[captain_id]
+                
+                # Decide whether to go solo or request partner
+                if computer_player.should_go_solo(state):
+                    result = wgp_game_instance.captain_go_solo(captain_id)
+                    return {
+                        **result,
+                        "computer_action": f"{computer_player.player.name} (Computer) decides to go solo",
+                        "game_state": wgp_game_instance.get_game_state()
+                    }
+                else:
+                    # Choose a partner (simple strategy: pick best handicap available)
+                    available_partners = [p["id"] for p in state["players"] 
+                                        if p["id"] != captain_id]
+                    if available_partners:
+                        # Pick partner with best handicap
+                        partner_handicaps = [(p["id"], p["handicap"]) for p in state["players"] 
+                                           if p["id"] in available_partners]
+                        best_partner = min(partner_handicaps, key=lambda x: x[1])[0]
+                        
+                        result = wgp_game_instance.request_partner(captain_id, best_partner)
+                        return {
+                            **result,
+                            "computer_action": f"{computer_player.player.name} (Computer) requests partnership with {wgp_game_instance._get_player_name(best_partner)}",
+                            "game_state": wgp_game_instance.get_game_state()
+                        }
+        
+        # Handle pending partnership responses
+        pending_request = teams.get("pending_request")
+        if pending_request and pending_request.get("type") == "partnership":
+            requested_partner = pending_request.get("requested")
+            captain_id = pending_request.get("captain")
+            
+            if requested_partner in wgp_game_instance.computer_players:
+                computer_player = wgp_game_instance.computer_players[requested_partner]
+                captain = next(p for p in wgp_game_instance.players if p.id == captain_id)
+                
+                # Make partnership decision
+                accept = computer_player.should_accept_partnership(captain, state)
+                result = wgp_game_instance.respond_to_partnership(requested_partner, accept)
+                
+                action_text = "accepts" if accept else "declines"
+                return {
+                    **result,
+                    "computer_action": f"{computer_player.player.name} (Computer) {action_text} partnership",
+                    "game_state": wgp_game_instance.get_game_state()
+                }
+        
+        return {
+            "status": "no_action_needed",
+            "message": "No computer action required at this time",
+            "game_state": wgp_game_instance.get_game_state()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error processing computer action: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/wgp/rules")
 async def get_wgp_rules():

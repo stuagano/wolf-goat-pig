@@ -53,11 +53,14 @@ const WolfGoatPigGame = () => {
     // Initialize default players based on count
     const defaultNames = ['Bob', 'Scott', 'Vince', 'Mike', 'Terry', 'Bill'];
     const defaultHandicaps = [10.5, 15, 8, 20.5, 12, 18];
+    const defaultPersonalities = ['balanced', 'aggressive', 'conservative', 'strategic', 'balanced', 'aggressive'];
     
     const newPlayers = Array.from({ length: playerCount }, (_, i) => ({
       id: `p${i + 1}`,
       name: defaultNames[i] || `Player ${i + 1}`,
-      handicap: defaultHandicaps[i] || 15
+      handicap: defaultHandicaps[i] || 15,
+      isComputer: i > 0, // First player is human, rest are computer
+      personality: defaultPersonalities[i] || 'balanced'
     }));
     
     setPlayers(newPlayers);
@@ -81,6 +84,9 @@ const WolfGoatPigGame = () => {
         setGameState(data.game_state);
         setGameStarted(true);
         setMessage('Game started! Time to toss the tees!');
+        
+        // Trigger computer actions if needed
+        setTimeout(() => processComputerActions(), 2000);
       } else {
         setMessage('Error starting game');
       }
@@ -111,12 +117,40 @@ const WolfGoatPigGame = () => {
             ...data
           });
         }
+        
+        // Trigger computer actions after human actions
+        setTimeout(() => processComputerActions(), 1000);
       } else {
         const error = await response.json();
         setMessage(`Error: ${error.detail || 'Action failed'}`);
       }
     } catch (error) {
       setMessage('Network error');
+    }
+  };
+
+  const processComputerActions = async () => {
+    try {
+      const response = await fetch(`${API_URL}/wgp/computer-action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.status !== 'no_action_needed') {
+          setGameState(data.game_state);
+          setMessage(data.computer_action || data.message);
+          setCurrentAction(null);
+          
+          // Continue processing if more computer actions needed
+          if (data.status === 'pending') {
+            setTimeout(() => processComputerActions(), 1500);
+          }
+        }
+      }
+    } catch (error) {
+      console.log('Computer action error:', error);
     }
   };
 
@@ -167,11 +201,38 @@ const WolfGoatPigGame = () => {
         </select>
       </div>
 
+      <div style={{ 
+        marginBottom: 20, 
+        padding: 15, 
+        background: '#fff3e0', 
+        border: `2px solid ${COLORS.warning}`, 
+        borderRadius: 8 
+      }}>
+        <h4 style={{ margin: '0 0 10px 0', color: COLORS.warning }}>
+          🤖 Computer Player Support
+        </h4>
+        <p style={{ margin: 0, fontSize: 14 }}>
+          You can now play Wolf Goat Pig with computer opponents! Simply toggle any player from 
+          👤 Human to 🤖 Computer and select their personality. Computer players will automatically 
+          make decisions for partnerships, going solo, betting, and all other Wolf Goat Pig actions.
+        </p>
+      </div>
+
       <div style={{ marginBottom: 20 }}>
         <h3>Player Configuration</h3>
         {players.map((player, index) => (
-          <div key={player.id} style={{ margin: '10px 0', display: 'flex', alignItems: 'center' }}>
-            <span style={{ width: 60 }}>P{index + 1}:</span>
+          <div key={player.id} style={{ 
+            margin: '10px 0', 
+            display: 'flex', 
+            alignItems: 'center',
+            padding: 10,
+            border: `2px solid ${player.isComputer ? COLORS.accent : COLORS.primary}`,
+            borderRadius: 8,
+            background: player.isComputer ? '#e0f7fa' : '#e3f2fd'
+          }}>
+            <span style={{ width: 60, fontWeight: 'bold' }}>
+              P{index + 1}: {player.isComputer ? '🤖' : '👤'}
+            </span>
             <input
               type="text"
               value={player.name}
@@ -195,6 +256,34 @@ const WolfGoatPigGame = () => {
               placeholder="HCP"
               step="0.5"
             />
+            <select
+              value={player.isComputer ? 'computer' : 'human'}
+              onChange={(e) => {
+                const newPlayers = [...players];
+                newPlayers[index].isComputer = e.target.value === 'computer';
+                setPlayers(newPlayers);
+              }}
+              style={{ padding: 8, margin: '0 10px', width: 100 }}
+            >
+              <option value="human">👤 Human</option>
+              <option value="computer">🤖 Computer</option>
+            </select>
+            {player.isComputer && (
+              <select
+                value={player.personality}
+                onChange={(e) => {
+                  const newPlayers = [...players];
+                  newPlayers[index].personality = e.target.value;
+                  setPlayers(newPlayers);
+                }}
+                style={{ padding: 8, margin: '0 10px', width: 120 }}
+              >
+                <option value="aggressive">🔥 Aggressive</option>
+                <option value="conservative">🛡️ Conservative</option>
+                <option value="balanced">⚖️ Balanced</option>
+                <option value="strategic">🧠 Strategic</option>
+              </select>
+            )}
           </div>
         ))}
       </div>
