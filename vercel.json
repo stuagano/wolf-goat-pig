@@ -30,7 +30,7 @@
     }
   ],
   "env": {
-    "REACT_APP_API_URL": "https://wolf-goat-pig.onrender.com",
+    "REACT_APP_API_URL": "https://wolf-goat-pig-api.onrender.com",
     "NODE_ENV": "production"
   },
   "headers": [
@@ -49,10 +49,5 @@
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
       ]
     }
-  ],
-  "functions": {
-    "frontend/build/**": {
-      "includeFiles": "frontend/build/**"
-    }
-  }
+  ]
 } 
