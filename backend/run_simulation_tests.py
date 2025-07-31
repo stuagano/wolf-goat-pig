@@ -7,7 +7,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from app.simulation import SimulationEngine
+from app.wolf_goat_pig_simulation import WolfGoatPigSimulation
 from app.domain.player import Player
 from app.state.betting_state import BettingState
 
@@ -17,38 +17,42 @@ def test_partnership_decline_scenario():
     print("🧪 Testing Partnership Decline Scenario")
     print("=" * 50)
     
-    engine = SimulationEngine()
-    human_player = Player("human", "You", 12.0)
-    computer_configs = [
-        {"id": "comp1", "name": "Alice", "handicap": 8.0, "personality": "balanced"},
-        {"id": "comp2", "name": "Bob", "handicap": 15.0, "personality": "aggressive"},
-        {"id": "comp3", "name": "Charlie", "handicap": 20.0, "personality": "conservative"}
+    from app.wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer
+    
+    simulation = WolfGoatPigSimulation(player_count=4)
+    players = [
+        WGPPlayer("p1", "Player1", 12.0),  # Captain
+        WGPPlayer("p2", "Player2", 15.0),  # Requested partner
+        WGPPlayer("p3", "Player3", 8.0),
+        WGPPlayer("p4", "Player4", 20.0)
     ]
     
-    game_state = engine.setup_simulation(human_player, computer_configs, 'Wing Point Golf & Country Club')
+    # Initialize simulation properly
+    simulation.players = players
+    simulation.current_hole = 1
+    simulation._initialize_hole(1)
     
-    # Setup partnership request
-    game_state.betting_state.request_partner('comp1', 'human')
-    print(f"✅ Initial teams state: {game_state.betting_state.teams}")
+    # Check who the captain is
+    hole_state = simulation.hole_states[simulation.current_hole]
+    print(f"🔍 Captain: {hole_state.teams.captain}")
+    print(f"🔍 Hitting order: {hole_state.hitting_order}")
     
-    # Human declines partnership
-    human_decisions = {'accept': False, 'partner_id': 'human'}
+    # Test partnership request and decline
+    captain_id = hole_state.teams.captain
+    result1 = simulation.request_partner(captain_id, "p2")  # Captain requests partner
+    print(f"✅ Partnership requested: {result1.get('status')}")
     
-    # Check teams state before simulation (should be pending)
-    print(f"✅ Teams before simulation: {game_state.betting_state.teams}")
+    result2 = simulation.respond_to_partnership("p2", False)  # Partner declines
+    print(f"✅ Partnership declined: {result2.get('status')}")
     
-    # Run simulation and capture intermediate state
-    game_state, feedback, interaction_needed = engine.simulate_hole(game_state, human_decisions)
+    # Check that captain went solo
+    hole_state = simulation.hole_states[simulation.current_hole]
+    print(f"✅ Teams type: {hole_state.teams.type}")
+    print(f"✅ Base wager: {hole_state.betting.base_wager}")
+    print(f"✅ Current wager: {hole_state.betting.current_wager}")
     
-    print(f"✅ Final teams state: {game_state.betting_state.teams}")
-    print(f"✅ Doubled status: {game_state.betting_state.doubled_status}")
-    print(f"✅ Current hole: {game_state.current_hole}")
-    
-    # Verify the fix worked by checking feedback messages
-    feedback_text = " ".join(feedback).lower()
-    print(f"🔍 Feedback text: {feedback_text}")
-    assert "decline" in feedback_text or "solo" in feedback_text or "pass" in feedback_text, "Should mention decline or solo in feedback"
-    assert game_state.current_hole == 2, "Should advance to next hole"
+    assert hole_state.teams.type == "solo", "Should be solo after decline"
+    assert hole_state.betting.current_wager == 2, "Current wager should double after decline"
     print("✅ Partnership decline scenario PASSED")
 
 
@@ -57,38 +61,42 @@ def test_partnership_acceptance_scenario():
     print("\n🧪 Testing Partnership Acceptance Scenario")
     print("=" * 50)
     
-    engine = SimulationEngine()
-    human_player = Player("human", "You", 12.0)
-    computer_configs = [
-        {"id": "comp1", "name": "Alice", "handicap": 8.0, "personality": "balanced"},
-        {"id": "comp2", "name": "Bob", "handicap": 15.0, "personality": "aggressive"},
-        {"id": "comp3", "name": "Charlie", "handicap": 20.0, "personality": "conservative"}
+    from app.wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer
+    
+    simulation = WolfGoatPigSimulation(player_count=4)
+    players = [
+        WGPPlayer("p1", "Player1", 12.0),  # Captain
+        WGPPlayer("p2", "Player2", 15.0),  # Requested partner
+        WGPPlayer("p3", "Player3", 8.0),
+        WGPPlayer("p4", "Player4", 20.0)
     ]
     
-    game_state = engine.setup_simulation(human_player, computer_configs, 'Wing Point Golf & Country Club')
+    # Initialize simulation properly
+    simulation.players = players
+    simulation.current_hole = 1
+    simulation._initialize_hole(1)
     
-    # Setup partnership request
-    game_state.betting_state.request_partner('comp1', 'human')
-    print(f"✅ Initial teams state: {game_state.betting_state.teams}")
+    # Check who the captain is
+    hole_state = simulation.hole_states[simulation.current_hole]
+    print(f"🔍 Captain: {hole_state.teams.captain}")
+    print(f"🔍 Hitting order: {hole_state.hitting_order}")
     
-    # Human accepts partnership
-    human_decisions = {'accept': True, 'partner_id': 'human'}
+    # Test partnership request and acceptance
+    captain_id = hole_state.teams.captain
+    result1 = simulation.request_partner(captain_id, "p2")  # Captain requests partner
+    print(f"✅ Partnership requested: {result1.get('status')}")
     
-    # Check teams state before simulation (should be pending)
-    print(f"✅ Teams before simulation: {game_state.betting_state.teams}")
+    result2 = simulation.respond_to_partnership("p2", True)  # Partner accepts
+    print(f"✅ Partnership accepted: {result2.get('status')}")
     
-    # Run simulation
-    game_state, feedback, interaction_needed = engine.simulate_hole(game_state, human_decisions)
+    # Check that partnership was formed
+    hole_state = simulation.hole_states[simulation.current_hole]
+    print(f"✅ Teams type: {hole_state.teams.type}")
+    print(f"✅ Team 1: {hole_state.teams.team1}")
+    print(f"✅ Team 2: {hole_state.teams.team2}")
     
-    print(f"✅ Final teams state: {game_state.betting_state.teams}")
-    print(f"✅ Doubled status: {game_state.betting_state.doubled_status}")
-    print(f"✅ Current hole: {game_state.current_hole}")
-    
-    # Verify the fix worked by checking feedback messages
-    feedback_text = " ".join(feedback).lower()
-    print(f"🔍 Feedback text: {feedback_text}")
-    assert "accept" in feedback_text or "team" in feedback_text or "absolutely" in feedback_text, "Should mention acceptance or team in feedback"
-    assert game_state.current_hole == 2, "Should advance to next hole"
+    assert hole_state.teams.type == "partners", "Should be partners after acceptance"
+    assert captain_id in hole_state.teams.team1 and "p2" in hole_state.teams.team1, "Captain and partner should be on team1"
     print("✅ Partnership acceptance scenario PASSED")
 
 
@@ -130,19 +138,31 @@ def test_shot_simulation_isolated():
     print("\n🧪 Testing Shot Simulation Logic (Isolated)")
     print("=" * 50)
     
-    from app.services.shot_simulator import ShotSimulator
-    from app.domain.shot_result import ShotResult
+    from app.wolf_goat_pig_simulation import WolfGoatPigSimulation
+    from app.domain.player import Player
     
-    player = Player("test", "Test", 12.0)
-    game_state = type('MockGameState', (), {'current_hole': 1})()
+    # Test shot simulation via WGP simulation
+    simulation = WolfGoatPigSimulation(player_count=4)
+    human_player = Player("p1", "Test1", 12.0)
+    computer_configs = [
+        {"id": "p2", "name": "Test2", "handicap": 15.0, "personality": "balanced"},
+        {"id": "p3", "name": "Test3", "handicap": 8.0, "personality": "aggressive"},
+        {"id": "p4", "name": "Test4", "handicap": 20.0, "personality": "conservative"}
+    ]
     
-    # Test approach shot
-    result = ShotSimulator.simulate_approach_shot(player, 150, game_state)
-    print(f"✅ Approach shot result: {result}")
+    game_state = simulation.setup_simulation(human_player, computer_configs, "default_course")
     
-    assert hasattr(result, 'remaining'), "Should have remaining distance"
-    assert hasattr(result, 'lie'), "Should have lie type"
-    assert hasattr(result, 'shot_quality'), "Should have shot quality"
+    # Enable shot progression mode
+    simulation.enable_shot_progression()
+    result = simulation.simulate_shot("p1")
+    
+    shot_result = result.get('shot_result', {})
+    print(f"✅ Shot simulation result: distance={shot_result.get('distance_to_pin')}, lie={shot_result.get('lie_type')}")
+    
+    assert 'shot_result' in result, "Should have shot result"
+    assert 'distance_to_pin' in shot_result, "Should have distance to pin"
+    assert 'lie_type' in shot_result, "Should have lie type"
+    assert 'shot_quality' in shot_result, "Should have shot quality"
     print("✅ Shot simulation logic PASSED")
 
 

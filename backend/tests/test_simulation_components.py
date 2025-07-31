@@ -8,7 +8,7 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from app.simulation import SimulationEngine, ComputerPlayer
+from app.wolf_goat_pig_simulation import WolfGoatPigSimulation
 from app.domain.player import Player
 from app.state.betting_state import BettingState
 from app.game_state import GameState
@@ -108,7 +108,7 @@ class TestPartnershipAdvantage:
     """Test partnership advantage calculations"""
     
     def test_partnership_advantage_calculation(self):
-        engine = SimulationEngine()
+        engine = WolfGoatPigSimulation()
         game_state = Mock()
         
         # Mock the player_manager.players to be iterable
@@ -143,7 +143,7 @@ class TestSimulationFlow:
     
     @patch('app.services.shot_simulator.ShotSimulator.simulate_remaining_shots_chronological')
     def test_simulation_with_mocked_shots(self, mock_shots):
-        engine = SimulationEngine()
+        engine = WolfGoatPigSimulation()
         human_player = Player("human", "You", 12.0)
         computer_configs = [
             {"id": "comp1", "name": "Alice", "handicap": 8.0, "personality": "balanced"},

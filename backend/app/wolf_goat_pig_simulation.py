@@ -121,6 +121,8 @@ class HoleState:
     stroke_advantages: Dict[str, StrokeAdvantage] = field(default_factory=dict)
     hole_par: int = 4  # Default par, can be overridden
     stroke_index: int = 10  # Default stroke index, can be overridden
+    hole_yardage: int = 400  # Default yardage
+    hole_difficulty: str = "Medium"  # Easy, Medium, Hard, Very Hard
     
     # Hole completion tracking
     scores: Dict[str, Optional[int]] = field(default_factory=dict)
@@ -132,7 +134,50 @@ class HoleState:
     current_shot_number: int = 1
     hole_complete: bool = False
     wagering_closed: bool = False  # No more betting once ball is holed
+    tee_shots_complete: int = 0  # Count of completed tee shots
+    partnership_deadline_passed: bool = False  # Can no longer request partnerships
+    invitation_windows: Dict[str, bool] = field(default_factory=dict)  # Track who can still be invited
     
+    def set_hole_info(self, par: int = None, yardage: int = None, stroke_index: int = None):
+        """Set hole information with realistic defaults"""
+        import random
+        
+        # Set par with realistic distribution
+        if par is None:
+            par_weights = [0.15, 0.65, 0.18, 0.02]  # Par 3, 4, 5, 6 weights
+            self.hole_par = random.choices([3, 4, 5, 6], weights=par_weights)[0]
+        else:
+            self.hole_par = par
+            
+        # Set yardage based on par
+        if yardage is None:
+            if self.hole_par == 3:
+                self.hole_yardage = random.randint(120, 220)
+            elif self.hole_par == 4:
+                self.hole_yardage = random.randint(300, 450)
+            elif self.hole_par == 5:
+                self.hole_yardage = random.randint(480, 650)
+            else:  # Par 6
+                self.hole_yardage = random.randint(650, 800)
+        else:
+            self.hole_yardage = yardage
+            
+        # Set stroke index (1 = hardest, 18 = easiest)
+        if stroke_index is None:
+            self.stroke_index = random.randint(1, 18)
+        else:
+            self.stroke_index = stroke_index
+            
+        # Determine difficulty based on par, yardage, and stroke index
+        if self.stroke_index <= 4:
+            self.hole_difficulty = "Very Hard"
+        elif self.stroke_index <= 8:
+            self.hole_difficulty = "Hard"
+        elif self.stroke_index <= 14:
+            self.hole_difficulty = "Medium"
+        else:
+            self.hole_difficulty = "Easy"
+
     def calculate_stroke_advantages(self, players: List['WGPPlayer']):
         """Calculate stroke advantages for all players on this hole"""
         self.stroke_advantages = {}
@@ -298,6 +343,142 @@ class HoleState:
         
         # Player can bet if they're not further from hole than line of scrimmage
         return player_pos.distance_to_pin >= line_pos.distance_to_pin
+    
+    def can_request_partnership(self, captain_id: str, target_id: str) -> bool:
+        """Check if captain can still request this player as partner based on timing rules"""
+        if self.partnership_deadline_passed:
+            return False
+        
+        # Check invitation window for specific player
+        return self.invitation_windows.get(target_id, True)
+    
+    def can_offer_double(self, player_id: str) -> bool:
+        """Check if a player can offer a double based on line of scrimmage rules"""
+        # No betting allowed once ball is holed
+        if self.wagering_closed:
+            return False
+        
+        # No doubles if player has passed line of scrimmage
+        if self.line_of_scrimmage and player_id != self.line_of_scrimmage:
+            # Check if this player is closer to hole than line of scrimmage
+            if player_id in self.ball_positions and self.line_of_scrimmage in self.ball_positions:
+                player_distance = self.ball_positions[player_id].distance_to_pin
+                scrimmage_distance = self.ball_positions[self.line_of_scrimmage].distance_to_pin
+                if player_distance < scrimmage_distance:
+                    return False
+        
+        return True
+    
+    def has_ball_been_holed(self) -> bool:
+        """Check if any ball has been holed (closes betting)"""
+        return len(self.balls_in_hole) > 0
+    
+    def close_betting_if_ball_holed(self):
+        """Close betting if any ball has been holed"""
+        if self.has_ball_been_holed():
+            self.wagering_closed = True
+    
+    def get_approach_shot_betting_opportunities(self) -> List[Dict[str, Any]]:
+        """Identify betting opportunities during approach shots and around the green"""
+        opportunities = []
+        
+        if self.wagering_closed:
+            return opportunities
+        
+        # Count players on green vs still approaching
+        players_on_green = []
+        players_approaching = []
+        
+        for player_id, ball_pos in self.ball_positions.items():
+            if ball_pos.holed or ball_pos.conceded:
+                continue
+            elif ball_pos.lie_type == "green":
+                players_on_green.append(player_id)
+            else:
+                players_approaching.append(player_id)
+        
+        # Strategic betting moments:
+        
+        # 1. When all players are on the green (putting duel)
+        if len(players_approaching) == 0 and len(players_on_green) >= 2:
+            opportunities.append({
+                "type": "putting_duel",
+                "description": "All players on green - prime time for doubles",
+                "strategic_value": "high"
+            })
+        
+        # 2. When most players are on green but one is still approaching
+        elif len(players_approaching) == 1 and len(players_on_green) >= 2:
+            opportunities.append({
+                "type": "pressure_approach",
+                "description": "One player still needs to get on green",
+                "strategic_value": "medium",
+                "approaching_player": players_approaching[0]
+            })
+        
+        # 3. When someone has a short approach shot (within 100 yards)
+        for player_id, ball_pos in self.ball_positions.items():
+            if (not ball_pos.holed and not ball_pos.conceded and 
+                ball_pos.lie_type in ["fairway", "rough"] and 
+                ball_pos.distance_to_pin <= 100):
+                opportunities.append({
+                    "type": "short_approach",
+                    "description": f"Player has short approach shot ({ball_pos.distance_to_pin:.0f} yards)",
+                    "strategic_value": "medium",
+                    "player": player_id,
+                    "distance": ball_pos.distance_to_pin
+                })
+        
+        return opportunities
+    
+    def should_offer_betting_after_shot(self, player_id: str) -> bool:
+        """Determine if betting opportunities should be offered after a shot"""
+        if self.wagering_closed:
+            return False
+        
+        # Don't offer betting after every shot - only at strategic moments
+        opportunities = self.get_approach_shot_betting_opportunities()
+        return len(opportunities) > 0
+    
+    def process_tee_shot(self, player_id: str, shot_result: 'WGPShotResult'):
+        """Process a tee shot and update partnership invitation windows"""
+        # Add the shot
+        self.add_shot(player_id, shot_result)
+        
+        # Update tee shot count
+        if self.tee_shots_complete < len(self.hitting_order):
+            self.tee_shots_complete += 1
+        
+        # Update invitation windows based on the rule:
+        # "No player may be invited after they have hit their tee shot AND the next shot has been played as well"
+        
+        # Close invitation window for this player once they've hit
+        self.invitation_windows[player_id] = False
+        
+        # If this is the 4th tee shot, partnership deadline has passed completely
+        if self.tee_shots_complete >= len(self.hitting_order):
+            self.partnership_deadline_passed = True
+        
+        # If there's a next player in tee order, and current player + next player have both hit,
+        # then partnership opportunities are closed for current player
+        current_index = self.hitting_order.index(player_id)
+        if current_index < len(self.hitting_order) - 1:
+            next_player = self.hitting_order[current_index + 1]
+            # Next player's window closes when they hit AND the shot after them is played
+            # This will be handled when the subsequent shot is processed
+        
+    def get_available_partners_for_captain(self, captain_id: str) -> List[str]:
+        """Get players that captain can still invite based on timing rules"""
+        available = []
+        
+        if self.partnership_deadline_passed:
+            return available
+        
+        for player_id in self.hitting_order:
+            if player_id != captain_id and self.can_request_partnership(captain_id, player_id):
+                available.append(player_id)
+        
+        return available
     
     def get_team_positions(self) -> Dict[str, List[BallPosition]]:
         """Get ball positions grouped by team"""
@@ -502,6 +683,14 @@ class WolfGoatPigSimulation:
             shots_completed={p.id: False for p in self.players}
         )
         
+        # Initialize invitation windows - all players can be invited initially
+        hole_state.invitation_windows = {p.id: True for p in self.players}
+        hole_state.tee_shots_complete = 0
+        hole_state.partnership_deadline_passed = False
+        
+        # Set hole information (par, yardage, difficulty)
+        hole_state.set_hole_info()
+        
         # Calculate stroke advantages for all players on this hole
         hole_state.calculate_stroke_advantages(self.players)
         
@@ -535,6 +724,10 @@ class WolfGoatPigSimulation:
     def _rotate_hitting_order(self, hole_number: int) -> List[str]:
         """Rotate hitting order for subsequent holes"""
         if hole_number == 1:
+            return self._random_hitting_order()
+        
+        # Check if previous hole exists, if not use random order
+        if hole_number - 1 not in self.hole_states:
             return self._random_hitting_order()
             
         previous_order = self.hole_states[hole_number - 1].hitting_order
@@ -802,9 +995,9 @@ class WolfGoatPigSimulation:
         """Offer a double to the opposing team"""
         hole_state = self.hole_states[self.current_hole]
         
-        # Check Line of Scrimmage rule
-        if hole_state.betting.line_of_scrimmage == offering_player_id:
-            raise ValueError("Cannot offer double - player is past line of scrimmage")
+        # Check Line of Scrimmage rule - use the proper can_offer_double method
+        if not hole_state.can_offer_double(offering_player_id):
+            raise ValueError("Cannot offer double - player has passed line of scrimmage or betting is closed")
             
         # Check if double already offered
         if hole_state.betting.doubled:
@@ -928,6 +1121,260 @@ class WolfGoatPigSimulation:
             hole_state.betting.carry_over = True
             
         return points_result
+    
+    def get_post_hole_analysis(self, hole_number: int) -> Dict[str, Any]:
+        """Generate comprehensive post-hole analysis"""
+        if hole_number not in self.hole_states:
+            raise ValueError(f"Hole {hole_number} not found")
+            
+        hole_state = self.hole_states[hole_number]
+        
+        # Basic hole information
+        analysis = {
+            "hole_number": hole_number,
+            "game_phase": self.game_phase.value,
+            "final_teams": self._analyze_final_teams(hole_state),
+            "betting_summary": self._analyze_betting_summary(hole_state),
+            "scoring_analysis": self._analyze_scoring(hole_state),
+            "strategic_insights": self._generate_strategic_insights(hole_state),
+            "point_distribution": self._analyze_point_distribution(hole_state),
+            "key_decisions": self._analyze_key_decisions(hole_state),
+            "performance_ratings": self._generate_performance_ratings(hole_state),
+            "what_if_scenarios": self._generate_what_if_scenarios(hole_state)
+        }
+        
+        return analysis
+    
+    def _analyze_final_teams(self, hole_state: HoleState) -> Dict[str, Any]:
+        """Analyze final team composition and formation process"""
+        teams = hole_state.teams
+        
+        team_analysis = {
+            "formation_type": teams.type,
+            "captain": self._get_player_name(teams.captain),
+            "captain_id": teams.captain
+        }
+        
+        if teams.type == "partners":
+            team_analysis.update({
+                "team1": [self._get_player_name(pid) for pid in teams.team1],
+                "team2": [self._get_player_name(pid) for pid in teams.team2],
+                "partnership_formed": True,
+                "partnership_details": {
+                    "captain_partner": self._get_player_name(teams.team1[1]) if len(teams.team1) > 1 else None,
+                    "opposition": [self._get_player_name(pid) for pid in teams.team2]
+                }
+            })
+        elif teams.type == "solo":
+            team_analysis.update({
+                "solo_player": self._get_player_name(teams.solo_player),
+                "opponents": [self._get_player_name(pid) for pid in teams.opponents],
+                "solo_risk_level": "HIGH" if hole_state.betting.current_wager > 2 else "MEDIUM"
+            })
+        
+        return team_analysis
+    
+    def _analyze_betting_summary(self, hole_state: HoleState) -> Dict[str, Any]:
+        """Analyze all betting activity on the hole"""
+        betting = hole_state.betting
+        
+        betting_summary = {
+            "starting_wager": betting.base_wager,
+            "final_wager": betting.current_wager,
+            "wager_multiplier": betting.current_wager / betting.base_wager,
+            "special_rules_invoked": []
+        }
+        
+        # Check which special rules were used
+        if betting.duncan_invoked:
+            betting_summary["special_rules_invoked"].append("The Duncan (3-for-2 odds)")
+        if betting.tunkarri_invoked:
+            betting_summary["special_rules_invoked"].append("The Tunkarri (Aardvark solo)")
+        if betting.big_dick_invoked:
+            betting_summary["special_rules_invoked"].append("The Big Dick (18th hole)")
+        if betting.option_invoked:
+            betting_summary["special_rules_invoked"].append("The Option (losing captain)")
+        if betting.float_invoked:
+            betting_summary["special_rules_invoked"].append("The Float (captain's choice)")
+        if betting.joes_special_value:
+            betting_summary["special_rules_invoked"].append(f"Joe's Special ({betting.joes_special_value} quarters)")
+        if betting.carry_over:
+            betting_summary["special_rules_invoked"].append("Carry-over from previous hole")
+        if betting.ping_pong_count > 0:
+            betting_summary["special_rules_invoked"].append(f"Ping Pong Aardvark ({betting.ping_pong_count}x)")
+        
+        return betting_summary
+    
+    def _analyze_scoring(self, hole_state: HoleState) -> Dict[str, Any]:
+        """Analyze scoring performance and outcomes"""
+        if not hole_state.scores:
+            return {"scores_entered": False}
+            
+        scores = hole_state.scores
+        
+        # Calculate net scores with handicaps
+        net_scores = {}
+        for player_id, gross_score in scores.items():
+            stroke_advantage = hole_state.stroke_advantages.get(player_id, 0)
+            if isinstance(stroke_advantage, (int, float)):
+                net_scores[player_id] = gross_score - stroke_advantage
+            else:
+                net_scores[player_id] = gross_score
+        
+        # Find best performances
+        best_gross = min(scores.values())
+        best_net = min(net_scores.values())
+        best_gross_players = [pid for pid, score in scores.items() if score == best_gross]
+        best_net_players = [pid for pid, score in net_scores.items() if score == best_net]
+        
+        return {
+            "scores_entered": True,
+            "gross_scores": {pid: scores[pid] for pid in scores},
+            "net_scores": net_scores,
+            "best_gross_score": best_gross,
+            "best_net_score": best_net,
+            "best_gross_players": [self._get_player_name(pid) for pid in best_gross_players],
+            "best_net_players": [self._get_player_name(pid) for pid in best_net_players],
+            "score_spread": max(scores.values()) - min(scores.values())
+        }
+    
+    def _analyze_point_distribution(self, hole_state: HoleState) -> Dict[str, Any]:
+        """Analyze how points were distributed"""
+        if not hasattr(hole_state, 'points_result') or not hole_state.scores:
+            return {"points_calculated": False}
+            
+        # Calculate points distribution
+        points_result = self._calculate_hole_points(hole_state)
+        
+        winners = points_result.get("winners", [])
+        points_changes = points_result.get("points_changes", {})
+        
+        return {
+            "points_calculated": True,
+            "winners": [self._get_player_name(pid) for pid in winners],
+            "points_changes": {
+                self._get_player_name(pid): change 
+                for pid, change in points_changes.items()
+            },
+            "total_quarters_in_play": sum(abs(change) for change in points_changes.values()) // 2,
+            "biggest_winner": max(points_changes.items(), key=lambda x: x[1])[0] if points_changes else None,
+            "biggest_loser": min(points_changes.items(), key=lambda x: x[1])[0] if points_changes else None,
+            "halved": points_result.get("halved", False)
+        }
+    
+    def _generate_strategic_insights(self, hole_state: HoleState) -> List[str]:
+        """Generate strategic insights about the hole"""
+        insights = []
+        
+        # Team formation insights
+        if hole_state.teams.type == "partners":
+            insights.append("Partnership strategy: Sharing risk and reward with a teammate")
+            if hole_state.betting.current_wager > hole_state.betting.base_wager:
+                insights.append("Aggressive betting: Partnerships encouraged confidence in doubling")
+        elif hole_state.teams.type == "solo":
+            insights.append("Solo strategy: High risk, high reward - going it alone")
+            if hole_state.betting.duncan_invoked:
+                insights.append("Duncan rule applied: 3-for-2 odds increased potential reward")
+        
+        # Betting insights
+        wager_ratio = hole_state.betting.current_wager / hole_state.betting.base_wager
+        if wager_ratio >= 4:
+            insights.append("Heavy betting action: Multiple doubles created high-stakes hole")
+        elif wager_ratio >= 2:
+            insights.append("Moderate betting: One double increased the pressure")
+        
+        # Special rule insights
+        if hole_state.betting.big_dick_invoked:
+            insights.append("Big Dick challenge: Ultimate high-stakes gamble on final hole")
+        if hole_state.betting.ping_pong_count > 0:
+            insights.append("Ping Pong Aardvark: Complex team dynamics with multiple tosses")
+        
+        return insights
+    
+    def _analyze_key_decisions(self, hole_state: HoleState) -> List[Dict[str, Any]]:
+        """Analyze key decisions made during the hole"""
+        decisions = []
+        
+        # Team formation decision
+        if hole_state.teams.type == "partners":
+            decisions.append({
+                "decision": "Partnership Formation",
+                "player": self._get_player_name(hole_state.teams.captain),
+                "action": f"Requested {self._get_player_name(hole_state.teams.team1[1]) if len(hole_state.teams.team1) > 1 else 'unknown'} as partner",
+                "outcome": "Partnership accepted",
+                "impact": "Shared risk/reward strategy"
+            })
+        elif hole_state.teams.type == "solo":
+            decisions.append({
+                "decision": "Solo Declaration",
+                "player": self._get_player_name(hole_state.teams.solo_player),
+                "action": "Went solo against the field",
+                "outcome": "Playing alone",
+                "impact": f"Doubled base wager to {hole_state.betting.current_wager}"
+            })
+        
+        # Betting decisions
+        if hole_state.betting.current_wager > hole_state.betting.base_wager:
+            decisions.append({
+                "decision": "Double Offer",
+                "action": "Offered to double the wager",
+                "outcome": "Double accepted",
+                "impact": f"Wager increased to {hole_state.betting.current_wager}"
+            })
+        
+        return decisions
+    
+    def _generate_performance_ratings(self, hole_state: HoleState) -> Dict[str, Any]:
+        """Generate performance ratings for each player"""
+        if not hole_state.scores:
+            return {"ratings_available": False}
+            
+        ratings = {}
+        scores = hole_state.scores
+        
+        # Calculate performance relative to handicap and field
+        for player_id, score in scores.items():
+            player_name = self._get_player_name(player_id)
+            
+            # Simple rating system
+            field_average = sum(scores.values()) / len(scores)
+            relative_performance = field_average - score  # Positive is better than average
+            
+            if relative_performance >= 2:
+                rating = "EXCELLENT"
+            elif relative_performance >= 1:
+                rating = "GOOD"
+            elif relative_performance >= -1:
+                rating = "AVERAGE"
+            else:
+                rating = "POOR"
+            
+            ratings[player_name] = {
+                "rating": rating,
+                "score": score,
+                "relative_to_field": relative_performance
+            }
+        
+        return ratings
+    
+    def _generate_what_if_scenarios(self, hole_state: HoleState) -> List[str]:
+        """Generate what-if scenarios for strategic learning"""
+        scenarios = []
+        
+        if hole_state.teams.type == "partners":
+            scenarios.append("What if captain had gone solo instead? Higher risk but potentially higher reward")
+            scenarios.append("What if different partnership was formed? Team dynamics could have changed")
+        
+        if hole_state.teams.type == "solo":
+            scenarios.append("What if solo player had requested a partner? Shared risk might have been safer")
+        
+        if hole_state.betting.current_wager == hole_state.betting.base_wager:
+            scenarios.append("What if someone had offered a double? Could have increased the stakes")
+        
+        if hole_state.betting.current_wager > hole_state.betting.base_wager:
+            scenarios.append("What if the double was declined? Hole would have ended with smaller stakes")
+        
+        return scenarios
     
     def advance_to_next_hole(self) -> Dict[str, Any]:
         """Advance to the next hole"""
@@ -1441,6 +1888,130 @@ class WolfGoatPigSimulation:
                     points_changes[loser] -= 1
         
         return points_changes
+    
+    def offer_big_dick(self, player_id: str) -> Dict[str, Any]:
+        """
+        The Big Dick: Player with most points can risk all winnings on hole 18
+        Others must unanimously accept or individual players can use Ackerley's Gambit
+        """
+        if self.current_hole != 18:
+            raise ValueError("Big Dick can only be offered on hole 18")
+            
+        player = next(p for p in self.players if p.id == player_id)
+        
+        # Must be the player with the most points
+        max_points = max(p.points for p in self.players)
+        if player.points != max_points or max_points <= 0:
+            raise ValueError("Big Dick can only be offered by player with most points (and positive points)")
+            
+        hole_state = self.hole_states[self.current_hole]
+        hole_state.betting.big_dick_invoked = True
+        
+        # Set up the challenge
+        big_dick_wager = abs(player.points)  # Risk all winnings
+        
+        return {
+            "status": "big_dick_offered",
+            "challenger": player_id,
+            "challenger_name": player.name,
+            "wager_amount": big_dick_wager,
+            "message": f"{player.name} offers The Big Dick! Risking {big_dick_wager} quarters against the field.",
+            "requires_unanimous_acceptance": True
+        }
+    
+    def accept_big_dick(self, accepting_players: List[str]) -> Dict[str, Any]:
+        """
+        Accept or reject The Big Dick challenge
+        If not unanimous, individual players can use Ackerley's Gambit
+        """
+        hole_state = self.hole_states[self.current_hole]
+        if not hole_state.betting.big_dick_invoked:
+            raise ValueError("No Big Dick challenge active")
+            
+        challenger_id = next(p.id for p in self.players if p.points == max(p.points for p in self.players))
+        challenger = next(p for p in self.players if p.id == challenger_id)
+        
+        other_players = [p for p in self.players if p.id != challenger_id]
+        
+        if len(accepting_players) == len(other_players):
+            # Unanimous acceptance - standard Big Dick rules
+            hole_state.teams = TeamFormation(
+                type="solo",
+                solo_player=challenger_id,
+                opponents=[p.id for p in other_players],
+                captain=challenger_id
+            )
+            hole_state.betting.current_wager = abs(challenger.points)
+            
+            return {
+                "status": "big_dick_accepted",
+                "message": f"Big Dick unanimously accepted! {challenger.name} vs the field for {abs(challenger.points)} quarters.",
+                "teams_formed": True
+            }
+        else:
+            # Not unanimous - handle Ackerley's Gambit
+            declining_players = [p.id for p in other_players if p.id not in accepting_players]
+            
+            # Accepting players split the challenge
+            if accepting_players:
+                wager_per_player = abs(challenger.points) // len(accepting_players)
+                hole_state.betting.ackerley_gambit = {
+                    "accepting_players": accepting_players,
+                    "declining_players": declining_players,
+                    "wager_per_accepting_player": wager_per_player
+                }
+                
+                return {
+                    "status": "big_dick_gambit",
+                    "message": f"Ackerley's Gambit invoked! {len(accepting_players)} players accept the challenge.",
+                    "accepting_players": [self._get_player_name(pid) for pid in accepting_players],
+                    "declining_players": [self._get_player_name(pid) for pid in declining_players],
+                    "wager_per_player": wager_per_player
+                }
+            else:
+                # No one accepts
+                return {
+                    "status": "big_dick_declined",
+                    "message": "Big Dick challenge declined by all players.",
+                    "teams_formed": False
+                }
+    
+    def ping_pong_aardvark(self, team_id: str, aardvark_id: str) -> Dict[str, Any]:
+        """
+        Ping Pong the Aardvark: Team can re-toss an Aardvark, doubling the bet again
+        A team cannot toss the same Aardvark twice on the same hole
+        """
+        hole_state = self.hole_states[self.current_hole]
+        
+        # Check if this aardvark was already tossed to this team
+        if aardvark_id in hole_state.betting.tossed_aardvarks:
+            raise ValueError("Cannot ping pong the same Aardvark twice on the same hole")
+            
+        # Add to tossed list
+        hole_state.betting.tossed_aardvarks.append(aardvark_id)
+        hole_state.betting.ping_pong_count += 1
+        
+        # Double the bet again
+        hole_state.betting.current_wager *= 2
+        
+        # Determine where the aardvark goes next
+        available_teams = [t for t in ["team1", "team2", "team3"] if t != team_id]
+        if available_teams:
+            next_team = random.choice(available_teams)
+            
+            return {
+                "status": "aardvark_ping_ponged",
+                "message": f"Aardvark {self._get_player_name(aardvark_id)} ping ponged to {next_team}! Wager doubled to {hole_state.betting.current_wager}.",
+                "new_wager": hole_state.betting.current_wager,
+                "ping_pong_count": hole_state.betting.ping_pong_count,
+                "aardvark_destination": next_team
+            }
+        else:
+            return {
+                "status": "aardvark_stuck",
+                "message": f"No more teams available! Aardvark {self._get_player_name(aardvark_id)} must stay.",
+                "new_wager": hole_state.betting.current_wager
+            }
     
     def _finish_game(self) -> Dict[str, Any]:
         """Finish the game and determine final results"""
@@ -2510,3 +3081,315 @@ class WolfGoatPigSimulation:
         base_score = par + int(handicap / 4)
         variation = random.randint(-2, 2)
         return max(par - 2, base_score + variation)
+    
+    # ADVANCED ANALYTICS METHODS
+    
+    def get_advanced_analytics(self) -> Dict[str, Any]:
+        """Get comprehensive analytics dashboard data"""
+        return {
+            "performance_trends": self._get_performance_trends(),
+            "betting_analysis": self._get_betting_analysis(),
+            "partnership_chemistry": self._get_partnership_chemistry(),
+            "game_statistics": self._get_game_statistics(),
+            "risk_analysis": self._get_risk_analysis(),
+            "prediction_models": self._get_prediction_models()
+        }
+    
+    def _get_performance_trends(self) -> Dict[str, Any]:
+        """Analyze performance trends over completed holes"""
+        trends = {}
+        
+        for player in self.players:
+            player_holes = []
+            points_history = []
+            cumulative_points = 0
+            
+            for hole_num in sorted(self.hole_states.keys()):
+                hole_state = self.hole_states[hole_num]
+                if hole_state.hole_complete and hole_state.points_awarded:
+                    player_points = hole_state.points_awarded.get(player.id, 0)
+                    cumulative_points += player_points
+                    player_holes.append({
+                        "hole": hole_num,
+                        "points": player_points,
+                        "cumulative": cumulative_points,
+                        "team_type": hole_state.teams.type,
+                        "was_captain": hole_state.teams.captain == player.id,
+                        "wager": hole_state.betting.current_wager
+                    })
+                    points_history.append(player_points)
+            
+            # Calculate trend metrics
+            if len(points_history) >= 3:
+                recent_avg = sum(points_history[-3:]) / 3
+                early_avg = sum(points_history[:3]) / 3
+                trend_direction = "improving" if recent_avg > early_avg else "declining"
+            else:
+                trend_direction = "insufficient_data"
+            
+            trends[player.id] = {
+                "name": player.name,
+                "hole_by_hole": player_holes,
+                "current_points": player.points,
+                "holes_played": len(player_holes),
+                "average_per_hole": player.points / max(1, len(player_holes)),
+                "trend_direction": trend_direction,
+                "best_hole": max(points_history) if points_history else 0,
+                "worst_hole": min(points_history) if points_history else 0,
+                "consistency": self._calculate_consistency(points_history)
+            }
+        
+        return trends
+    
+    def _get_betting_analysis(self) -> Dict[str, Any]:
+        """Analyze betting patterns and success rates"""
+        analysis = {
+            "wager_escalation": [],
+            "special_rules_frequency": {},
+            "success_rates": {},
+            "risk_reward_analysis": {}
+        }
+        
+        total_wagers = []
+        special_rules_count = {}
+        
+        for hole_num, hole_state in self.hole_states.items():
+            if hole_state.hole_complete:
+                total_wagers.append(hole_state.betting.current_wager)
+                
+                # Track special rules
+                if hole_state.betting.doubled:
+                    special_rules_count["doubled"] = special_rules_count.get("doubled", 0) + 1
+                if hole_state.betting.duncan_invoked:
+                    special_rules_count["duncan"] = special_rules_count.get("duncan", 0) + 1
+                if hole_state.betting.tunkarri_invoked:
+                    special_rules_count["tunkarri"] = special_rules_count.get("tunkarri", 0) + 1
+                if hole_state.betting.ping_pong_count > 0:
+                    special_rules_count["ping_pong"] = special_rules_count.get("ping_pong", 0) + 1
+        
+        # Calculate success rates by strategy
+        for player in self.players:
+            solo_wins = 0
+            solo_attempts = 0
+            partnership_wins = 0
+            partnership_attempts = 0
+            
+            for hole_state in self.hole_states.values():
+                if not hole_state.hole_complete or not hole_state.points_awarded:
+                    continue
+                    
+                player_points = hole_state.points_awarded.get(player.id, 0)
+                
+                if hole_state.teams.type == "solo" and hole_state.teams.solo_player == player.id:
+                    solo_attempts += 1
+                    if player_points > 0:
+                        solo_wins += 1
+                elif hole_state.teams.type == "partners":
+                    if player.id in hole_state.teams.team1 or player.id in hole_state.teams.team2:
+                        partnership_attempts += 1
+                        if player_points > 0:
+                            partnership_wins += 1
+            
+            analysis["success_rates"][player.id] = {
+                "name": player.name,
+                "solo_success_rate": solo_wins / max(1, solo_attempts),
+                "partnership_success_rate": partnership_wins / max(1, partnership_attempts),
+                "solo_attempts": solo_attempts,
+                "partnership_attempts": partnership_attempts
+            }
+        
+        analysis["wager_escalation"] = total_wagers
+        analysis["special_rules_frequency"] = special_rules_count
+        analysis["average_wager"] = sum(total_wagers) / max(1, len(total_wagers))
+        analysis["max_wager"] = max(total_wagers) if total_wagers else 0
+        
+        return analysis
+    
+    def _get_partnership_chemistry(self) -> Dict[str, Any]:
+        """Analyze partnership combinations and their success rates"""
+        chemistry = {}
+        partnerships = {}
+        
+        for hole_state in self.hole_states.values():
+            if not hole_state.hole_complete or hole_state.teams.type != "partners":
+                continue
+                
+            # Get team combinations
+            if hole_state.teams.team1 and len(hole_state.teams.team1) == 2:
+                team1_key = tuple(sorted(hole_state.teams.team1))
+                if team1_key not in partnerships:
+                    partnerships[team1_key] = {"attempts": 0, "wins": 0, "points": 0}
+                partnerships[team1_key]["attempts"] += 1
+                
+                # Check if this team won
+                if hole_state.points_awarded:
+                    team1_points = sum(hole_state.points_awarded.get(p, 0) for p in hole_state.teams.team1)
+                    partnerships[team1_key]["points"] += team1_points
+                    if team1_points > 0:
+                        partnerships[team1_key]["wins"] += 1
+            
+            if hole_state.teams.team2 and len(hole_state.teams.team2) == 2:
+                team2_key = tuple(sorted(hole_state.teams.team2))
+                if team2_key not in partnerships:
+                    partnerships[team2_key] = {"attempts": 0, "wins": 0, "points": 0}
+                partnerships[team2_key]["attempts"] += 1
+                
+                if hole_state.points_awarded:
+                    team2_points = sum(hole_state.points_awarded.get(p, 0) for p in hole_state.teams.team2)
+                    partnerships[team2_key]["points"] += team2_points
+                    if team2_points > 0:
+                        partnerships[team2_key]["wins"] += 1
+        
+        # Convert to readable format
+        for partnership, stats in partnerships.items():
+            player1_name = self._get_player_name(partnership[0])
+            player2_name = self._get_player_name(partnership[1])
+            partnership_name = f"{player1_name} & {player2_name}"
+            
+            chemistry[partnership_name] = {
+                "player_ids": list(partnership),
+                "attempts": stats["attempts"],
+                "wins": stats["wins"],
+                "success_rate": stats["wins"] / max(1, stats["attempts"]),
+                "total_points": stats["points"],
+                "average_points": stats["points"] / max(1, stats["attempts"]),
+                "chemistry_rating": self._calculate_chemistry_rating(stats)
+            }
+        
+        return chemistry
+    
+    def _get_game_statistics(self) -> Dict[str, Any]:
+        """Get overall game statistics"""
+        completed_holes = len([h for h in self.hole_states.values() if h.hole_complete])
+        
+        return {
+            "holes_completed": completed_holes,
+            "current_hole": self.current_hole,
+            "game_phase": self.game_phase.value,
+            "player_count": len(self.players),
+            "total_points_awarded": sum(p.points for p in self.players),
+            "leader": max(self.players, key=lambda p: p.points).name if self.players else None,
+            "closest_competition": self._get_competition_tightness(),
+            "holes_remaining": 18 - completed_holes,
+            "estimated_completion_time": f"{(18 - completed_holes) * 15} minutes"
+        }
+    
+    def _get_risk_analysis(self) -> Dict[str, Any]:
+        """Analyze risk-taking patterns and outcomes"""
+        risk_analysis = {}
+        
+        for player in self.players:
+            high_risk_moves = 0
+            high_risk_successes = 0
+            conservative_moves = 0
+            conservative_successes = 0
+            
+            for hole_state in self.hole_states.values():
+                if not hole_state.hole_complete:
+                    continue
+                    
+                player_points = hole_state.points_awarded.get(player.id, 0) if hole_state.points_awarded else 0
+                
+                # Classify moves as high-risk or conservative
+                if hole_state.teams.type == "solo" and hole_state.teams.solo_player == player.id:
+                    high_risk_moves += 1
+                    if player_points > 0:
+                        high_risk_successes += 1
+                elif hole_state.betting.current_wager >= hole_state.betting.base_wager * 2:
+                    high_risk_moves += 1
+                    if player_points > 0:
+                        high_risk_successes += 1
+                else:
+                    conservative_moves += 1
+                    if player_points > 0:
+                        conservative_successes += 1
+            
+            risk_analysis[player.id] = {
+                "name": player.name,
+                "risk_appetite": "high" if high_risk_moves > conservative_moves else "conservative",
+                "high_risk_success_rate": high_risk_successes / max(1, high_risk_moves),
+                "conservative_success_rate": conservative_successes / max(1, conservative_moves),
+                "total_high_risk_moves": high_risk_moves,
+                "total_conservative_moves": conservative_moves,
+                "risk_reward_ratio": (high_risk_successes * 2) / max(1, high_risk_moves + conservative_moves)
+            }
+        
+        return risk_analysis
+    
+    def _get_prediction_models(self) -> Dict[str, Any]:
+        """Generate prediction models for game outcomes"""
+        current_standings = sorted(self.players, key=lambda p: p.points, reverse=True)
+        holes_remaining = 18 - len([h for h in self.hole_states.values() if h.hole_complete])
+        
+        predictions = {}
+        for i, player in enumerate(current_standings):
+            # Simple prediction based on current performance and position
+            position_factor = (len(self.players) - i) / len(self.players)
+            consistency = self._calculate_consistency([hole_state.points_awarded.get(player.id, 0) 
+                                                    for hole_state in self.hole_states.values() 
+                                                    if hole_state.hole_complete and hole_state.points_awarded])
+            
+            win_probability = (position_factor * 0.6 + consistency * 0.4) * 100
+            
+            predictions[player.id] = {
+                "name": player.name,
+                "current_position": i + 1,
+                "current_points": player.points,
+                "win_probability": min(95, max(5, win_probability)),
+                "projected_final_points": player.points + (holes_remaining * 0.5),
+                "key_factors": self._get_key_factors(player)
+            }
+        
+        return predictions
+    
+    def _calculate_consistency(self, scores: List[float]) -> float:
+        """Calculate consistency score (lower variance = higher consistency)"""
+        if len(scores) < 2:
+            return 0.5
+        
+        avg = sum(scores) / len(scores)
+        variance = sum((x - avg) ** 2 for x in scores) / len(scores)
+        return max(0, min(1, 1 - (variance / 10)))  # Normalize to 0-1
+    
+    def _calculate_chemistry_rating(self, stats: Dict) -> str:
+        """Calculate partnership chemistry rating"""
+        success_rate = stats["wins"] / max(1, stats["attempts"])
+        if success_rate >= 0.7:
+            return "Excellent"
+        elif success_rate >= 0.5:
+            return "Good"
+        elif success_rate >= 0.3:
+            return "Average"
+        else:
+            return "Poor"
+    
+    def _get_competition_tightness(self) -> str:
+        """Determine how close the competition is"""
+        if len(self.players) < 2:
+            return "N/A"
+        
+        sorted_players = sorted(self.players, key=lambda p: p.points, reverse=True)
+        point_spread = sorted_players[0].points - sorted_players[-1].points
+        
+        if point_spread <= 2:
+            return "Very tight"
+        elif point_spread <= 5:
+            return "Competitive"
+        elif point_spread <= 10:
+            return "Moderate lead"
+        else:
+            return "Runaway leader"
+    
+    def _get_key_factors(self, player: WGPPlayer) -> List[str]:
+        """Get key factors affecting player's chances"""
+        factors = []
+        
+        if player.points > 0:
+            factors.append("Currently ahead")
+        elif player.points < -5:
+            factors.append("Needs aggressive play")
+        
+        # Add more sophisticated analysis based on game state
+        factors.append("Consistent performer" if self._calculate_consistency([0, 1, -1, 2]) > 0.6 else "Variable performance")
+        
+        return factors

@@ -193,10 +193,10 @@ class DeploymentValidator:
         print("🔍 Testing simulation engine...")
         
         try:
-            from app.simulation import SimulationEngine
+            from app.wolf_goat_pig_simulation import WolfGoatPigSimulation
             from app.domain.player import Player
             
-            engine = SimulationEngine()
+            engine = WolfGoatPigSimulation()
             
             # Test setup
             human_player = Player('human', 'Human', 15.0)

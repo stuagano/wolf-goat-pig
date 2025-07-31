@@ -7,7 +7,7 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from app.simulation import SimulationEngine
+from app.wolf_goat_pig_simulation import WolfGoatPigSimulation
 from app.domain.player import Player
 
 

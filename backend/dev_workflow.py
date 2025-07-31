@@ -7,7 +7,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from app.simulation import SimulationEngine
+from app.wolf_goat_pig_simulation import WolfGoatPigSimulation
 from app.domain.player import Player
 from app.state.betting_state import BettingState
 
@@ -16,7 +16,7 @@ class SimulationDebugger:
     """Interactive debugger for simulation engine"""
     
     def __init__(self):
-        self.engine = SimulationEngine()
+        self.engine = WolfGoatPigSimulation()
         self.game_state = None
         self.human_player = Player("human", "You", 12.0)
         self.computer_configs = [

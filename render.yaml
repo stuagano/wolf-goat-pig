@@ -13,13 +13,12 @@ services:
     env: python
     plan: free
     region: oregon
+    rootDir: .
     buildCommand: |
       pip install --upgrade pip
       pip install -r requirements.txt
     startCommand: |
-      cd backend
-      python -c "from app.database import init_db; init_db()"
-      uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
+      cd backend && python -c "from app.database import init_db; init_db()" && cd .. && uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT --workers 1
     envVars:
       - key: DATABASE_URL
         fromService:

@@ -342,7 +342,8 @@ This implementation provides exactly what you described:
 - `GET /health` - Health check
 - `GET /rules` - Get Wolf Goat Pig rules
 - `GET /courses` - Get available courses
-- `POST /courses` - Add new course
+- `POST /courses` - Add new course1
+
 - `PUT /courses/{name}` - Update course
 - `DELETE /courses/{name}` - Delete course
 - `POST /courses/import/*` - Course import endpoints

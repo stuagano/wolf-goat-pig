@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wolf Goat Pig - Hole Visualization Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .hole-viz {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: 2px solid #3498db;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .hole-title {
+            color: #2c3e50;
+            margin-top: 0;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        .hole-layout {
+            position: relative;
+            width: 400px;
+            height: 200px;
+            margin: 0 auto;
+            background: linear-gradient(to right, #006400 0%, #90EE90 20%, #90EE90 80%, #006400 100%);
+            border-radius: 8px;
+            border: 2px solid #228B22;
+            overflow: visible;
+        }
+        .tee-box {
+            position: absolute;
+            right: -5px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 30px;
+            height: 60px;
+            background-color: #8B4513;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .pin {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            background-color: #000;
+            border-radius: 50%;
+            border: 3px solid white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+        .green-circle {
+            position: absolute;
+            left: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 80px;
+            height: 80px;
+            background-color: rgba(0, 100, 0, 0.3);
+            border-radius: 50%;
+            border: 2px dashed #006400;
+            pointer-events: none;
+        }
+        .scrimmage-line {
+            position: absolute;
+            left: 120px; /* Charlie at ~280yd */
+            top: 0;
+            width: 2px;
+            height: 100%;
+            background-color: #e74c3c;
+            opacity: 0.8;
+            z-index: 1;
+        }
+        .scrimmage-label {
+            position: absolute;
+            top: -25px;
+            left: -30px;
+            background-color: #e74c3c;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        .player-ball {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background-color: white;
+            border-radius: 50%;
+            z-index: 3;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .player-label {
+            position: absolute;
+            background-color: #3498db;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: bold;
+            white-space: nowrap;
+            z-index: 4;
+            text-align: center;
+            min-width: 50px;
+        }
+        .lie-indicator {
+            position: absolute;
+            width: 12px;
+            height: 4px;
+            border-radius: 2px;
+            z-index: 2;
+        }
+        .legend {
+            margin-top: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            font-size: 12px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .legend-color {
+            width: 12px;
+            height: 4px;
+            border-radius: 2px;
+        }
+        .strategic-info {
+            margin-top: 15px;
+            padding: 12px;
+            background-color: #ecf0f1;
+            border-radius: 6px;
+        }
+        .info-title {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+        .info-text {
+            font-size: 12px;
+            color: #34495e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 style="text-align: center; color: #2c3e50;">
+            🏌️ Wolf Goat Pig - Hole Visualization Test
+        </h1>
+        
+        <div style="margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 8px;">
+            <h3>Test Scenario:</h3>
+            <p><strong>Hole 3 - Par 4, 420 yards, Hard difficulty</strong></p>
+            <ul>
+                <li>Charlie (p3) is at line of scrimmage - 280 yards out, furthest from hole, can offer doubles</li>
+                <li>Alice (p1) is 180 yards out - cannot offer doubles (past scrimmage line)</li>
+                <li>Bob (p2) is 85 yards in rough - cannot offer doubles</li>
+                <li>Dave (p4) is 12 yards on green - cannot offer doubles, putting for birdie</li>
+            </ul>
+        </div>
+
+        <div class="hole-viz">
+            <h3 class="hole-title">
+                🏌️ Hole 3 Visualization - Par 4 (420 yards)
+            </h3>
+
+            <!-- Hole Layout -->
+            <div class="hole-layout">
+                
+                <!-- Tee Box -->
+                <div class="tee-box">TEE</div>
+
+                <!-- Pin/Hole -->
+                <div class="pin">⛳</div>
+
+                <!-- Green Circle -->
+                <div class="green-circle"></div>
+
+                <!-- Line of Scrimmage -->
+                <div class="scrimmage-line">
+                    <div class="scrimmage-label">LINE OF SCRIMMAGE</div>
+                </div>
+
+                <!-- Charlie - Line of Scrimmage (280yd) -->
+                <div class="player-ball" style="left: 112px; top: 70px; border: 3px solid #9b59b6; box-shadow: 0 0 10px #e74c3c;"></div>
+                <div class="lie-indicator" style="left: 118px; top: 90px; background-color: #90EE90;"></div>
+                <div class="player-label" style="left: 95px; top: 98px; background-color: #9b59b6; border: 2px solid #e74c3c;">
+                    Charlie<br><span style="font-size: 8px; opacity: 0.9;">280yd</span>
+                </div>
+
+                <!-- Alice (180yd) -->
+                <div class="player-ball" style="left: 208px; top: 40px; border: 3px solid #3498db;"></div>
+                <div class="lie-indicator" style="left: 214px; top: 60px; background-color: #90EE90;"></div>
+                <div class="player-label" style="left: 191px; top: 68px; background-color: #3498db;">
+                    Alice<br><span style="font-size: 8px; opacity: 0.9;">180yd</span>
+                </div>
+
+                <!-- Bob (85yd) -->
+                <div class="player-ball" style="left: 288px; top: 130px; border: 3px solid #27ae60;"></div>
+                <div class="lie-indicator" style="left: 294px; top: 150px; background-color: #228B22;"></div>
+                <div class="player-label" style="left: 271px; top: 158px; background-color: #27ae60;">
+                    Bob<br><span style="font-size: 8px; opacity: 0.9;">85yd</span>
+                </div>
+
+                <!-- Dave (12yd on green) -->
+                <div class="player-ball" style="left: 372px; top: 110px; border: 3px solid #f39c12;"></div>
+                <div class="lie-indicator" style="left: 378px; top: 130px; background-color: #006400;"></div>
+                <div class="player-label" style="left: 355px; top: 138px; background-color: #f39c12;">
+                    Dave<br><span style="font-size: 8px; opacity: 0.9;">12yd</span>
+                </div>
+
+                <!-- Distance Markers -->
+                <div style="position: absolute; left: 320px; top: -15px; font-size: 8px; color: #34495e; font-weight: bold;">100yd</div>
+                <div style="position: absolute; left: 240px; top: -15px; font-size: 8px; color: #34495e; font-weight: bold;">200yd</div>
+                <div style="position: absolute; left: 160px; top: -15px; font-size: 8px; color: #34495e; font-weight: bold;">300yd</div>
+            </div>
+
+            <!-- Legend -->
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #8B4513;"></div>
+                    <span>Tee</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #90EE90;"></div>
+                    <span>Fairway</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #228B22;"></div>
+                    <span>Rough</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #F4A460;"></div>
+                    <span>Bunker</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #006400;"></div>
+                    <span>Green</span>
+                </div>
+                <div class="legend-item">
+                    <div style="width: 12px; height: 2px; background-color: #e74c3c;"></div>
+                    <span>Line of Scrimmage</span>
+                </div>
+            </div>
+
+            <!-- Strategic Information -->
+            <div class="strategic-info">
+                <div class="info-title">Strategic Information:</div>
+                <div class="info-text">
+                    • <strong>Line of Scrimmage:</strong> Charlie (280yd from pin) - furthest player from hole<br>
+                    • <strong>Betting Restriction:</strong> Only Charlie can offer doubles (Alice, Bob, Dave are past the line)<br>
+                    • <strong>Current Wager:</strong> 2 quarters<br>
+                    • <strong>Key Decision:</strong> Dave has a short putt for birdie - prime time for strategic doubles
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top: 20px; padding: 15px; background-color: #e8f5e8; border-radius: 8px;">
+            <h4 style="color: #27ae60;">✅ Visualization Test Results:</h4>
+            <ul style="color: #2c3e50;">
+                <li>✅ Line of scrimmage correctly shows at Charlie's position (280yd) with red line</li>
+                <li>✅ Ball positions displayed with proper lie type colors (fairway=light green, rough=dark green, green=dark green)</li>
+                <li>✅ Player names and distances clearly labeled with colored badges</li>
+                <li>✅ Strategic information explains betting rules and current situation</li>
+                <li>✅ Green circle and hole pin properly positioned at left end</li>
+                <li>✅ Tee box positioned at right end</li>
+                <li>✅ Charlie's ball has red glow indicating line of scrimmage player</li>
+                <li>✅ Distance markers help understand scale</li>
+            </ul>
+        </div>
+
+        <div style="margin-top: 20px; padding: 15px; background-color: #fff3cd; border-radius: 8px;">
+            <h4 style="color: #856404;">🎯 Strategic Implications:</h4>
+            <p style="color: #856404; margin: 8px 0;">
+                In this scenario, only Charlie can offer a double because he's at the line of scrimmage. 
+                Dave is in perfect position for birdie, making this a critical moment for doubles. 
+                Alice and Bob, being closer to the hole, cannot make double offers due to line of scrimmage rules.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

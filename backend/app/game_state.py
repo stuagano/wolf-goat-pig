@@ -533,5 +533,9 @@ class GameState:
         """Get the human player ID using centralized utility"""
         return Player.get_human_player_id(self.player_manager.players)
 
+    def get_state(self):
+        """Get the current game state as a dictionary"""
+        return self._serialize()
+
 # Singleton game state for MVP (in-memory)
 game_state = GameState() 

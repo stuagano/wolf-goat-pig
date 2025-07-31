@@ -5,6 +5,9 @@ import CourseManager from "./CourseManager";
 import SimulationMode from "./SimulationMode";
 import MonteCarloSimulation from "./MonteCarloSimulation";
 import WolfGoatPigGame from "./WolfGoatPigGame";
+import UnifiedActionDemo from "./UnifiedActionDemo";
+import EnhancedWGPInterface from "./components/EnhancedWGPInterface";
+import { WolfGoatPigDashboard } from "./components";
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -189,6 +192,12 @@ function Navigation() {
           <button style={navButtonStyle} onClick={() => navigate('/monte-carlo')}>
             🎲 Monte Carlo
           </button>
+          <button style={navButtonStyle} onClick={() => navigate('/dashboard')}>
+            🎨 Widget Dashboard
+          </button>
+          <button style={navButtonStyle} onClick={() => navigate('/enhanced')}>
+            🚀 Enhanced Interface
+          </button>
         </div>
       </div>
     </nav>
@@ -208,7 +217,7 @@ function HomePage() {
           "We accept bad golf, but not bad betting"
         </p>
         
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 30 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20, marginBottom: 30 }}>
           <div style={cardStyle}>
             <h3 style={{ color: COLORS.primary }}>🎮 Simulation Mode</h3>
             <p>
@@ -234,6 +243,48 @@ function HomePage() {
               onClick={() => navigate('/setup')}
             >
               Set Up Game
+            </button>
+          </div>
+          
+          <div style={cardStyle}>
+            <h3 style={{ color: COLORS.primary }}>🎨 Widget Dashboard</h3>
+            <p>
+              Check out the beautiful new widgets for displaying Wolf Goat Pig data! See shot results, 
+              betting opportunities, and strategic analysis in a modern, interactive interface.
+            </p>
+            <button 
+              style={buttonStyle}
+              onClick={() => navigate('/dashboard')}
+            >
+              View Dashboard
+            </button>
+          </div>
+          
+          <div style={cardStyle}>
+            <h3 style={{ color: COLORS.primary }}>🚀 Enhanced Interface</h3>
+            <p>
+              Experience the enhanced Wolf Goat Pig interface with big decision buttons, comprehensive hole state
+              visualization, enhanced timeline, and detailed post-hole analysis with strategic insights!
+            </p>
+            <button 
+              style={buttonStyle}
+              onClick={() => navigate('/enhanced')}
+            >
+              Try Enhanced Interface
+            </button>
+          </div>
+          
+          <div style={cardStyle}>
+            <h3 style={{ color: COLORS.primary }}>🔧 Unified Action API</h3>
+            <p>
+              Experience the unified action API demo! This shows how the backend centralizes all game logic
+              and provides rich context for the frontend. Great for developers and API testing.
+            </p>
+            <button 
+              style={buttonStyle}
+              onClick={() => navigate('/unified-demo')}
+            >
+              Try Unified API
             </button>
           </div>
         </div>
@@ -773,6 +824,9 @@ function App() {
         <Route path="/simulation" element={<SimulationMode />} />
         <Route path="/monte-carlo" element={<MonteCarloSimulation />} />
         <Route path="/wolf-goat-pig" element={<WolfGoatPigGame />} />
+        <Route path="/dashboard" element={<WolfGoatPigDashboard />} />
+        <Route path="/unified-demo" element={<UnifiedActionDemo />} />
+        <Route path="/enhanced" element={<EnhancedWGPInterface />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </div>

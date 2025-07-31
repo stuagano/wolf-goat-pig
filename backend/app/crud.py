@@ -1,5 +1,4 @@
 from . import models, database
 
-def get_rules():
-    db = database.SessionLocal()
+def get_rules(db):
     return db.query(models.Rule).all() 

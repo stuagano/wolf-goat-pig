@@ -7,7 +7,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from app.simulation import SimulationEngine
+from app.wolf_goat_pig_simulation import WolfGoatPigSimulation
 from app.game_state import GameState
 
 def test_simulation_with_courses():
@@ -16,7 +16,7 @@ def test_simulation_with_courses():
     print("=" * 50)
     
     # Create simulation engine
-    engine = SimulationEngine()
+    engine = WolfGoatPigSimulation()
     
     # Test human player
     human_player = {
