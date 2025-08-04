@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from typing import Optional, Dict, Any
 from enum import Enum
 from .player import Player
+from .shot_range_analysis import ShotRangeAnalyzer, RiskProfile
 
 
 class ShotQuality(Enum):
@@ -57,6 +58,7 @@ class ShotResult:
     _position_quality: Optional[Dict[str, Any]] = None
     _scoring_probability: Optional[Dict[str, Any]] = None
     _partnership_value: Optional[Dict[str, Any]] = None
+    _shot_range_analysis: Optional[Dict[str, Any]] = None
     
     def __post_init__(self):
         """Validate and set default values after initialization."""
@@ -116,6 +118,12 @@ class ShotResult:
         if self._partnership_value is None:
             self._calculate_partnership_value()
         return self._partnership_value
+    
+    def get_shot_range_analysis(self) -> Dict[str, Any]:
+        """Get poker-style range analysis for next shot."""
+        if self._shot_range_analysis is None:
+            self._calculate_shot_range_analysis()
+        return self._shot_range_analysis
     
     def _calculate_position_quality(self) -> None:
         """Calculate position quality based on lie and remaining distance."""
@@ -222,6 +230,28 @@ class ShotResult:
             "handicap_bonus": handicap_bonus
         }
     
+    def _calculate_shot_range_analysis(self) -> None:
+        """Calculate poker-style shot range analysis for next shot."""
+        # Build game situation context
+        game_situation = {
+            "hole_number": self.hole_number or 1,
+            "partnership_formed": False,  # Will be updated by game state
+            "match_critical": self.pressure_factor and self.pressure_factor > 0.7,
+            "trailing_significantly": False,  # Will be updated by game state
+            "hazards_present": self.remaining > 150,
+            "risk_reward_available": True,
+            "hero_shot_possible": self.remaining > 200,
+            "opponent_style": "balanced"  # Default, will be updated
+        }
+        
+        # Perform range analysis
+        self._shot_range_analysis = ShotRangeAnalyzer.analyze_shot_selection(
+            lie_type=self.lie,
+            distance_to_pin=self.remaining,
+            player_handicap=self.player.handicap,
+            game_situation=game_situation
+        )
+    
     def get_strategic_implications(self) -> list:
         """Get strategic implications and advice for this shot."""
         implications = []
@@ -305,6 +335,7 @@ class ShotResult:
             "position_quality": self.get_position_quality(),
             "scoring_probability": self.get_scoring_probability(),
             "partnership_value": self.get_partnership_value(),
+            "shot_range_analysis": self.get_shot_range_analysis(),
             "strategic_implications": self.get_strategic_implications(),
             "shot_description": self.get_shot_description()
         }

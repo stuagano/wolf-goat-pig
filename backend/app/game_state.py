@@ -8,7 +8,7 @@ from .domain.player import Player
 from .state.betting_state import BettingState
 from .state.shot_state import ShotState
 from .state.player_manager import PlayerManager
-from .state.course_manager import CourseManager
+from .state.course_manager import CourseManager, DEFAULT_COURSES
 
 # Default player names for MVP
 DEFAULT_PLAYERS = [
@@ -19,71 +19,7 @@ DEFAULT_PLAYERS = [
 ]
 
 # Example stroke index for 18 holes (1 = hardest, 18 = easiest)
-DEFAULT_HOLE_STROKE_INDEXES = [1, 15, 7, 13, 3, 17, 9, 11, 5, 2, 16, 8, 14, 4, 18, 10, 12, 6]
 
-# Enhanced course data with yards for simulation mode
-DEFAULT_COURSES = {
-    "Wing Point": [
-        {"hole_number": 1, "stroke_index": 5, "par": 5, "yards": 476, "description": "Par 5 opening hole. Long, straight, reachable in two for long hitters."},
-        {"hole_number": 2, "stroke_index": 15, "par": 3, "yards": 175, "description": "Short par 3. Watch for wind and tricky green."},
-        {"hole_number": 3, "stroke_index": 1, "par": 4, "yards": 401, "description": "Difficult par 4. Long and demanding with a tough approach."},
-        {"hole_number": 4, "stroke_index": 17, "par": 3, "yards": 133, "description": "Shortest hole on the course. Precision required."},
-        {"hole_number": 5, "stroke_index": 7, "par": 5, "yards": 498, "description": "Par 5 with risk/reward second shot. Birdie opportunity."},
-        {"hole_number": 6, "stroke_index": 11, "par": 4, "yards": 351, "description": "Dogleg par 4. Position off the tee is key."},
-        {"hole_number": 7, "stroke_index": 9, "par": 4, "yards": 316, "description": "Short par 4. Play for position, not distance."},
-        {"hole_number": 8, "stroke_index": 13, "par": 4, "yards": 294, "description": "Drivable par 4 for long hitters. Risk/reward."},
-        {"hole_number": 9, "stroke_index": 3, "par": 4, "yards": 340, "description": "Tough finishing hole on the front. Demanding approach."},
-        {"hole_number": 10, "stroke_index": 16, "par": 3, "yards": 239, "description": "Long par 3. Club selection is crucial."},
-        {"hole_number": 11, "stroke_index": 2, "par": 4, "yards": 401, "description": "Strong par 4. Demands accuracy off the tee."},
-        {"hole_number": 12, "stroke_index": 14, "par": 3, "yards": 204, "description": "Mid-length par 3. Green is well protected."},
-        {"hole_number": 13, "stroke_index": 8, "par": 4, "yards": 310, "description": "Short par 4. Good birdie chance."},
-        {"hole_number": 14, "stroke_index": 10, "par": 4, "yards": 317, "description": "Dogleg par 4. Play to the corner for best angle."},
-        {"hole_number": 15, "stroke_index": 18, "par": 4, "yards": 396, "description": "Easiest hole on the course. Play aggressively."},
-        {"hole_number": 16, "stroke_index": 4, "par": 4, "yards": 358, "description": "Challenging par 4. Demanding approach shot."},
-        {"hole_number": 17, "stroke_index": 12, "par": 5, "yards": 490, "description": "Par 5. Reachable in two for long hitters."},
-        {"hole_number": 18, "stroke_index": 6, "par": 4, "yards": 394, "description": "Strong finishing hole. Demanding tee shot and approach."},
-    ],
-    "Championship Links": [
-        {"hole_number": 1, "stroke_index": 7, "par": 4, "yards": 450, "description": "Opening hole with wide fairway but challenging approach to elevated green."},
-        {"hole_number": 2, "stroke_index": 15, "par": 3, "yards": 185, "description": "Long par 3 with deep bunkers and wind factor."},
-        {"hole_number": 3, "stroke_index": 1, "par": 5, "yards": 620, "description": "Monster par 5 requiring three solid shots. Water hazard on the right."},
-        {"hole_number": 4, "stroke_index": 3, "par": 4, "yards": 485, "description": "Long par 4 with narrow fairway and difficult green complex."},
-        {"hole_number": 5, "stroke_index": 11, "par": 4, "yards": 420, "description": "Dogleg left with strategic bunkering. Position is key."},
-        {"hole_number": 6, "stroke_index": 17, "par": 5, "yards": 580, "description": "Reachable par 5 with risk/reward second shot over water."},
-        {"hole_number": 7, "stroke_index": 5, "par": 4, "yards": 465, "description": "Long par 4 with out of bounds left and water right."},
-        {"hole_number": 8, "stroke_index": 13, "par": 3, "yards": 195, "description": "Elevated tee with wind factor. Green slopes severely."},
-        {"hole_number": 9, "stroke_index": 9, "par": 4, "yards": 440, "description": "Finishing hole with water hazard and dramatic green setting."},
-        {"hole_number": 10, "stroke_index": 2, "par": 4, "yards": 470, "description": "Challenging par 4 with narrow landing area and difficult approach."},
-        {"hole_number": 11, "stroke_index": 16, "par": 5, "yards": 600, "description": "Long par 5 requiring three solid shots. Strategic layup area."},
-        {"hole_number": 12, "stroke_index": 14, "par": 3, "yards": 175, "description": "Short par 3 with island green. Wind and pressure factor."},
-        {"hole_number": 13, "stroke_index": 18, "par": 4, "yards": 400, "description": "Short par 4, drivable for long hitters. Risk/reward hole."},
-        {"hole_number": 14, "stroke_index": 4, "par": 4, "yards": 480, "description": "Long par 4 with narrow fairway and challenging green."},
-        {"hole_number": 15, "stroke_index": 12, "par": 5, "yards": 590, "description": "Three-shot par 5 with water hazard crossing the fairway."},
-        {"hole_number": 16, "stroke_index": 8, "par": 4, "yards": 460, "description": "Dogleg right with water hazard. Demanding tee shot and approach."},
-        {"hole_number": 17, "stroke_index": 10, "par": 3, "yards": 165, "description": "Short par 3 with deep bunkers and wind factor."},
-        {"hole_number": 18, "stroke_index": 6, "par": 4, "yards": 655, "description": "Epic finishing hole with water hazard and dramatic green setting."},
-    ],
-    "Executive Course": [
-        {"hole_number": 1, "stroke_index": 9, "par": 4, "yards": 320, "description": "Short opening hole with wide fairway. Good for building confidence."},
-        {"hole_number": 2, "stroke_index": 17, "par": 3, "yards": 140, "description": "Short par 3 with large green. Good for practicing irons."},
-        {"hole_number": 3, "stroke_index": 5, "par": 4, "yards": 350, "description": "Straightaway par 4 with minimal hazards. Fairway is generous."},
-        {"hole_number": 4, "stroke_index": 15, "par": 4, "yards": 155, "description": "Elevated tee with wind factor. Green slopes from back to front."},
-        {"hole_number": 5, "stroke_index": 3, "par": 4, "yards": 365, "description": "Slight dogleg with bunkers protecting the green."},
-        {"hole_number": 6, "stroke_index": 11, "par": 5, "yards": 480, "description": "Short par 5 reachable in two. Good for practicing long approach shots."},
-        {"hole_number": 7, "stroke_index": 7, "par": 4, "yards": 340, "description": "Straight par 4 with water hazard on the right."},
-        {"hole_number": 8, "stroke_index": 13, "par": 3, "yards": 150, "description": "Short par 3 with bunkers around the green."},
-        {"hole_number": 9, "stroke_index": 1, "par": 4, "yards": 355, "description": "Finishing hole with elevated green. Approach shot requires extra club."},
-        {"hole_number": 10, "stroke_index": 8, "par": 4, "yards": 330, "description": "Short par 4 with wide fairway. Good scoring opportunity."},
-        {"hole_number": 11, "stroke_index": 16, "par": 4, "yards": 145, "description": "Short par 4 with large green. Wind can be a factor."},
-        {"hole_number": 12, "stroke_index": 4, "par": 4, "yards": 360, "description": "Straightaway par 4 with bunkers protecting the green."},
-        {"hole_number": 13, "stroke_index": 14, "par": 4, "yards": 160, "description": "Elevated tee with wind factor. Green slopes from back to front."},
-        {"hole_number": 14, "stroke_index": 2, "par": 4, "yards": 375, "description": "Longest par 4 on the course. Requires solid tee shot and approach."},
-        {"hole_number": 15, "stroke_index": 12, "par": 5, "yards": 490, "description": "Short par 5 reachable in two. Water hazard on the right."},
-        {"hole_number": 16, "stroke_index": 6, "par": 4, "yards": 345, "description": "Dogleg left with strategic bunkering. Position is key."},
-        {"hole_number": 17, "stroke_index": 18, "par": 4, "yards": 135, "description": "Shortest hole on the course. Good for practicing short irons."},
-        {"hole_number": 18, "stroke_index": 10, "par": 4, "yards": 350, "description": "Finishing hole with water hazard and dramatic green setting."},
-    ],
-}
 
 class GameState:
     def __init__(self):
@@ -299,9 +235,9 @@ class GameState:
             # Backward compatibility - migrate from old format
             self.course_manager = CourseManager()
             self.course_manager.selected_course = data.get("selected_course", None)
-            self.course_manager.hole_stroke_indexes = data.get("hole_stroke_indexes", [h["stroke_index"] for h in DEFAULT_COURSES["Wing Point"]])
-            self.course_manager.hole_pars = data.get("hole_pars", [h["par"] for h in DEFAULT_COURSES["Wing Point"]])
-            self.course_manager.hole_yards = data.get("hole_yards", [h["yards"] for h in DEFAULT_COURSES["Wing Point"]])
+            self.course_manager.hole_stroke_indexes = data.get("hole_stroke_indexes", [h["stroke_index"] for h in DEFAULT_COURSES["Wing Point Golf & Country Club"]])
+            self.course_manager.hole_pars = data.get("hole_pars", [h["par"] for h in DEFAULT_COURSES["Wing Point Golf & Country Club"]])
+            self.course_manager.hole_yards = data.get("hole_yards", [h["yards"] for h in DEFAULT_COURSES["Wing Point Golf & Country Club"]])
             # Note: hole_descriptions not preserved in CourseManager, but can be reconstructed from course_data
         # Event-driven simulation state
         if "shot_state" in data:

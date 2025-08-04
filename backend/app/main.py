@@ -11,6 +11,7 @@ from .wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer
 from .course_import import CourseImporter, import_course_by_name, import_course_from_json, save_course_to_database
 from .domain.shot_result import ShotResult
 from .domain.player import Player
+from .domain.shot_range_analysis import analyze_shot_decision
 from pydantic import BaseModel, Field
 from typing import List, Optional, Any, Dict
 import os
@@ -1367,5 +1368,43 @@ def _serialize_game_state():
     except Exception as e:
         logger.error(f"Error serializing game state: {e}")
         return {}
+
+
+# Shot Range Analysis Endpoint
+class ShotRangeAnalysisRequest(BaseModel):
+    """Request model for shot range analysis"""
+    lie_type: str = Field(..., description="Current lie (fairway, rough, bunker, etc)")
+    distance_to_pin: float = Field(..., description="Distance to pin in yards")
+    player_handicap: float = Field(..., description="Player's handicap")
+    hole_number: int = Field(..., description="Current hole number")
+    team_situation: str = Field(default="solo", description="Team situation (solo, partners)")
+    score_differential: int = Field(default=0, description="Current score differential")
+    opponent_styles: List[str] = Field(default=[], description="Opponent playing styles")
+
+
+@app.post("/wgp/shot-range-analysis")
+async def get_shot_range_analysis(request: ShotRangeAnalysisRequest):
+    """Get poker-style shot range analysis for decision making"""
+    try:
+        # Perform shot range analysis
+        analysis = analyze_shot_decision(
+            current_lie=request.lie_type,
+            distance=request.distance_to_pin,
+            player_handicap=request.player_handicap,
+            hole_number=request.hole_number,
+            team_situation=request.team_situation,
+            score_differential=request.score_differential,
+            opponent_styles=request.opponent_styles
+        )
+        
+        return {
+            "status": "success",
+            "analysis": analysis,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in shot range analysis: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to analyze shot range: {str(e)}")
 
 

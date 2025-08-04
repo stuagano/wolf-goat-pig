@@ -5,52 +5,25 @@ import {
   GameStateWidget,
   StrategicAnalysisWidget
 } from './components';
-
-const API_URL = process.env.REACT_APP_API_URL || '';
-
-const COLORS = {
-  primary: '#1976d2',
-  accent: '#00bcd4',
-  warning: '#ff9800',
-  error: '#d32f2f',
-  success: '#388e3c',
-  bg: '#f9fafe',
-  card: '#fff',
-  border: '#e0e0e0',
-  text: '#222',
-  muted: '#888',
-  hoepfinger: '#9c27b0',
-  vinnie: '#795548'
-};
-
-const cardStyle = {
-  background: COLORS.card,
-  borderRadius: 12,
-  boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-  padding: 16,
-  marginBottom: 18,
-  border: `1px solid ${COLORS.border}`,
-};
-
-const buttonStyle = {
-  background: COLORS.primary,
-  color: '#fff',
-  border: 'none',
-  borderRadius: 8,
-  padding: '12px 20px',
-  fontWeight: 600,
-  fontSize: 16,
-  margin: '4px',
-  cursor: 'pointer',
-  transition: 'background 0.2s',
-};
+import { useTheme } from './theme/Provider';
+import { useGame } from './context';
 
 const WolfGoatPigGame = () => {
-  const [gameState, setGameState] = useState(null);
+  const theme = useTheme();
+  const { 
+    gameState, 
+    setGameState, 
+    loading, 
+    setLoading, 
+    error, 
+    clearError,
+    fetchGameState,
+    makeGameAction 
+  } = useGame();
+  
   const [availableActions, setAvailableActions] = useState([]);
   const [logMessages, setLogMessages] = useState([]);
   const [timelineEvents, setTimelineEvents] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [gameId] = useState('wgp-game-123');
   const [playerCount, setPlayerCount] = useState(4);
   const [players, setPlayers] = useState([]);
@@ -135,7 +108,7 @@ const WolfGoatPigGame = () => {
     if (!gameState) return null;
 
     return (
-      <div style={cardStyle}>
+      <div style={theme.cardStyle}>
         <GameStateWidget 
           gameState={gameState}
           currentHole={gameState.current_hole}
@@ -150,8 +123,8 @@ const WolfGoatPigGame = () => {
     if (availableActions.length === 0) return null;
 
     return (
-      <div style={cardStyle}>
-        <h3 style={{ color: COLORS.primary, marginBottom: '15px' }}>Available Actions</h3>
+      <div style={theme.cardStyle}>
+        <h3 style={{ color: theme.colors.primary, marginBottom: '15px' }}>Available Actions</h3>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
           {availableActions.map((action, index) => (
             <button
@@ -159,7 +132,7 @@ const WolfGoatPigGame = () => {
               onClick={() => sendAction(action.action_type, action.payload)}
               disabled={loading}
               style={{
-                ...buttonStyle,
+                ...theme.buttonStyle,
                 opacity: loading ? 0.6 : 1,
                 cursor: loading ? 'not-allowed' : 'pointer'
               }}
@@ -176,8 +149,8 @@ const WolfGoatPigGame = () => {
   const renderLogMessages = () => {
     return (
       <div style={{ 
-        ...cardStyle,
-        backgroundColor: COLORS.secondary, 
+        ...theme.cardStyle,
+        backgroundColor: theme.colors.accent, 
         color: 'white',
         maxHeight: '300px',
         overflowY: 'auto'
@@ -189,7 +162,7 @@ const WolfGoatPigGame = () => {
             style={{ 
               marginBottom: '10px',
               padding: '10px',
-              backgroundColor: log.isError ? COLORS.error : COLORS.primary,
+              backgroundColor: log.isError ? theme.colors.error : theme.colors.primary,
               borderRadius: '5px'
             }}
           >
@@ -208,8 +181,8 @@ const WolfGoatPigGame = () => {
 
     return (
       <div style={{ 
-        ...cardStyle,
-        backgroundColor: COLORS.warning
+        ...theme.cardStyle,
+        backgroundColor: theme.colors.warning
       }}>
         <h3 style={{ marginBottom: '15px' }}>Timeline Events</h3>
         <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
@@ -227,14 +200,14 @@ const WolfGoatPigGame = () => {
               <div style={{ fontWeight: 'bold', color: getEventColor(event.type) }}>
                 {getEventIcon(event.type)} {event.type.replace('_', ' ').toUpperCase()}
               </div>
-              <div style={{ color: COLORS.text }}>{event.description}</div>
+              <div style={{ color: theme.colors.textPrimary }}>{event.description}</div>
               {event.player_name && (
-                <div style={{ fontSize: '12px', opacity: 0.7, color: COLORS.text }}>
+                <div style={{ fontSize: '12px', opacity: 0.7, color: theme.colors.textPrimary }}>
                   Player: {event.player_name}
                 </div>
               )}
               {event.details && (
-                <div style={{ fontSize: '12px', opacity: 0.7, color: COLORS.text, marginTop: '5px' }}>
+                <div style={{ fontSize: '12px', opacity: 0.7, color: theme.colors.textPrimary, marginTop: '5px' }}>
                   {renderEventDetails(event.details)}
                 </div>
               )}
@@ -261,15 +234,15 @@ const WolfGoatPigGame = () => {
 
   const getEventColor = (type) => {
     switch (type) {
-      case 'hole_start': return COLORS.primary;
-      case 'shot': return COLORS.success;
-      case 'partnership_request': return COLORS.accent;
-      case 'partnership_response': return COLORS.success;
-      case 'partnership_decision': return COLORS.warning;
-      case 'double_offer': return COLORS.error;
-      case 'double_response': return COLORS.error;
-      case 'concession': return COLORS.secondary;
-      default: return COLORS.dark;
+      case 'hole_start': return theme.colors.primary;
+      case 'shot': return theme.colors.success;
+      case 'partnership_request': return theme.colors.accent;
+      case 'partnership_response': return theme.colors.success;
+      case 'partnership_decision': return theme.colors.warning;
+      case 'double_offer': return theme.colors.error;
+      case 'double_response': return theme.colors.error;
+      case 'concession': return theme.colors.accent;
+      default: return theme.colors.gray800;
     }
   };
 
@@ -295,8 +268,8 @@ const WolfGoatPigGame = () => {
 
   const renderGameSetup = () => (
     <div style={{ maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
-      <div style={cardStyle}>
-        <h2 style={{ color: COLORS.primary, textAlign: 'center', marginBottom: '30px' }}>
+      <div style={theme.cardStyle}>
+        <h2 style={{ color: theme.colors.primary, textAlign: 'center', marginBottom: '30px' }}>
           Wolf Goat Pig Setup
         </h2>
         
@@ -310,7 +283,7 @@ const WolfGoatPigGame = () => {
             style={{
               padding: '10px',
               borderRadius: '5px',
-              border: `1px solid ${COLORS.border}`,
+              border: `1px solid ${theme.colors.border}`,
               fontSize: '16px'
             }}
           >
@@ -321,7 +294,7 @@ const WolfGoatPigGame = () => {
         </div>
 
         <div style={{ marginBottom: '20px' }}>
-          <h3 style={{ color: COLORS.primary, marginBottom: '15px' }}>Players:</h3>
+          <h3 style={{ color: theme.colors.primary, marginBottom: '15px' }}>Players:</h3>
           {players.map((player, index) => (
             <div key={index} style={{ 
               display: 'grid', 
@@ -329,7 +302,7 @@ const WolfGoatPigGame = () => {
               gap: '10px', 
               marginBottom: '10px',
               padding: '10px',
-              backgroundColor: COLORS.bg,
+              backgroundColor: theme.colors.background,
               borderRadius: '5px'
             }}>
               <div>
@@ -347,7 +320,7 @@ const WolfGoatPigGame = () => {
             onClick={initializeGame}
             disabled={loading}
             style={{
-              ...buttonStyle,
+              ...theme.buttonStyle,
               fontSize: '18px',
               padding: '15px 30px',
               opacity: loading ? 0.6 : 1,
@@ -364,7 +337,7 @@ const WolfGoatPigGame = () => {
   const renderGame = () => {
     return (
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
-        <h1 style={{ color: COLORS.primary, textAlign: 'center', marginBottom: '30px' }}>
+        <h1 style={{ color: theme.colors.primary, textAlign: 'center', marginBottom: '30px' }}>
           Wolf Goat Pig Game
         </h1>
         
@@ -377,7 +350,7 @@ const WolfGoatPigGame = () => {
           <div style={{ 
             textAlign: 'center', 
             padding: '20px',
-            color: COLORS.accent,
+            color: theme.colors.accent,
             fontSize: '18px'
           }}>
             Processing action...
@@ -388,7 +361,7 @@ const WolfGoatPigGame = () => {
   };
 
   return (
-    <div style={{ backgroundColor: COLORS.bg, minHeight: '100vh' }}>
+    <div style={{ backgroundColor: theme.colors.background, minHeight: '100vh' }}>
       {!gameState ? renderGameSetup() : renderGame()}
     </div>
   );

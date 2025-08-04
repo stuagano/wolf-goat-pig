@@ -14,7 +14,7 @@ A sophisticated golf betting simulation system with interactive gameplay, real-t
 
 ## 🚀 Quick Start
 
-### Local Development
+### Automated Installation (Recommended)
 
 1. **Clone the repository**
    ```bash
@@ -22,7 +22,28 @@ A sophisticated golf betting simulation system with interactive gameplay, real-t
    cd wolf-goat-pig
    ```
 
-2. **Backend Setup**
+2. **Run the consolidated installer**
+   ```bash
+   python install.py
+   ```
+
+3. **Start the servers**
+   ```bash
+   # Backend
+   cd backend && python -m uvicorn app.main:app --reload
+   
+   # Frontend (in new terminal)
+   cd frontend && npm start
+   ```
+
+4. **Access the Application**
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:8000
+   - API Documentation: http://localhost:8000/docs
+
+### Manual Installation (Legacy)
+
+1. **Backend Setup**
    ```bash
    cd backend
    python -m venv venv
@@ -30,27 +51,16 @@ A sophisticated golf betting simulation system with interactive gameplay, real-t
    pip install -r requirements.txt
    ```
 
-3. **Database Setup**
+2. **Database Setup**
    ```bash
    python -c "from app.database import init_db; init_db()"
    ```
 
-4. **Start Backend Server**
-   ```bash
-   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-   ```
-
-5. **Frontend Setup** (in a new terminal)
+3. **Frontend Setup**
    ```bash
    cd frontend
    npm install
-   npm start
    ```
-
-6. **Access the Application**
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:8000
-   - API Documentation: http://localhost:8000/docs
 
 ### Environment Variables
 

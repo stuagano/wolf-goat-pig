@@ -26,6 +26,7 @@ frontend/yarn-error.log*
 # System
 .DS_Store
 *.swp
+.crush/
 
 # Logs
 *.log
