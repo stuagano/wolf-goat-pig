@@ -58,9 +58,8 @@ function SimulationMode() {
   // const [pendingDecision, setPendingDecision] = useState({}); // Also from context
 
   // New state for shot-by-shot simulation
-  const [shotProbabilities, setShotProbabilities] = useState(null);
+  // Note: shotProbabilities, setShotProbabilities, hasNextShot, setHasNextShot come from useGame() context above
   const [shotState, setShotState] = useState(null);
-  const [hasNextShot, setHasNextShot] = useState(true);
 
   // GHIN lookup modal state
   const [ghinLookupSlot, setGhinLookupSlot] = useState(null); // 'human' or 'comp1', 'comp2', 'comp3'
