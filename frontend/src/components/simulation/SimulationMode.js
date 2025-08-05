@@ -54,9 +54,8 @@ function SimulationMode() {
     accept_double: false
   });
   
-  // Add state for interactive decisions
-  const [interactionNeeded, setInteractionNeeded] = useState(null);
-  const [pendingDecision, setPendingDecision] = useState({});
+  // Note: interactionNeeded and setInteractionNeeded come from useGame() context above
+  // const [pendingDecision, setPendingDecision] = useState({}); // Also from context
 
   // New state for shot-by-shot simulation
   const [shotProbabilities, setShotProbabilities] = useState(null);
