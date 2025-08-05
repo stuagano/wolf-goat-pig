@@ -31,6 +31,13 @@ function SimulationMode() {
     createGame,
     makeGameAction
   } = useGame();
+
+  // Helper functions for missing setters
+  const setIsGameActive = (active) => active ? startGame(gameState) : endGame();
+  const setFeedback = (message) => {
+    clearFeedback();
+    if (message) addFeedback(message);
+  };
   
   // Setup state
   const [humanPlayer, setHumanPlayer] = useState({
