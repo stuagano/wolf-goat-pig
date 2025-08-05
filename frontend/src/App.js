@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
 import { UnifiedGameInterface } from "./components/game";
-import { MonteCarloSimulation } from "./components/simulation";
+import { SimulationMode, MonteCarloSimulation } from "./components/simulation";
 import ShotRangeAnalyzer from "./components/ShotRangeAnalyzer";
 import { ThemeProvider, useTheme } from "./theme/Provider";
 import { GameProvider } from "./context";
@@ -59,6 +59,9 @@ function Navigation() {
           </button>
           <button style={navButtonStyle} onClick={() => navigate('/game')}>
             🎮 Game
+          </button>
+          <button style={navButtonStyle} onClick={() => navigate('/simulation')}>
+            🎲 Simulation
           </button>
           <button style={navButtonStyle} onClick={() => navigate('/analytics')}>
             📊 Analytics
@@ -248,7 +251,8 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/game" element={<UnifiedGameInterface />} />
-          <Route path="/simulation" element={<MonteCarloSimulation />} />
+          <Route path="/simulation" element={<SimulationMode />} />
+          <Route path="/monte-carlo" element={<MonteCarloSimulation />} />
           <Route path="/analytics" element={<ShotRangeAnalyzer />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
