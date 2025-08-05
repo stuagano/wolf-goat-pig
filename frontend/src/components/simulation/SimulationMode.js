@@ -6,7 +6,7 @@ import { GameSetup, GamePlay } from "./";
 const API_URL = process.env.REACT_APP_API_URL || "";
 
 function SimulationMode() {
-  const theme = useTheme();
+  // const theme = useTheme(); // Unused for now
   const { 
     gameState, 
     setGameState, 
