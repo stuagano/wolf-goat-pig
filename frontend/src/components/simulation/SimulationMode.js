@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { useTheme } from "./theme/Provider";
-import { useGame } from "./context";
-import { GameSetup, GamePlay } from "./components/simulation";
+import { useTheme } from "../../theme/Provider";
+import { useGame } from "../../context";
+import { GameSetup, GamePlay } from "./";
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 

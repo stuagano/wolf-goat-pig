@@ -1,16 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
-import { GameSetupForm } from "./components/game";
-import { CourseManager } from "./components/game";
-import { SimulationMode } from "./components/simulation";
-import { MonteCarloSimulation } from "./components/simulation";
-import { UnifiedActionDemo } from "./components/game";
 import { UnifiedGameInterface } from "./components/game";
-import { WolfGoatPigDashboard } from "./components";
+import { MonteCarloSimulation } from "./components/simulation";
 import ShotRangeAnalyzer from "./components/ShotRangeAnalyzer";
 import { ThemeProvider, useTheme } from "./theme/Provider";
 import { GameProvider } from "./context";
-import { HomePage, SetupPage, GamePage } from "./pages";
+import { HomePage } from "./pages";
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -60,28 +55,13 @@ function Navigation() {
         <h1 style={{ margin: 0 }}>🐺🐐🐷 Wolf Goat Pig</h1>
         <div>
           <button style={navButtonStyle} onClick={() => navigate('/')}>
-            Home
+            🏠 Home
           </button>
-          <button style={navButtonStyle} onClick={() => navigate('/setup')}>
-            Regular Game
+          <button style={navButtonStyle} onClick={() => navigate('/game')}>
+            🎮 Game
           </button>
-          <button style={navButtonStyle} onClick={() => navigate('/wolf-goat-pig')}>
-            🐺🐐🐷 WGP Game
-          </button>
-          <button style={navButtonStyle} onClick={() => navigate('/simulation')}>
-            🎮 Simulation Mode
-          </button>
-          <button style={navButtonStyle} onClick={() => navigate('/monte-carlo')}>
-            🎲 Monte Carlo
-          </button>
-          <button style={navButtonStyle} onClick={() => navigate('/dashboard')}>
-            🎨 Widget Dashboard
-          </button>
-          <button style={navButtonStyle} onClick={() => navigate('/enhanced')}>
-            🚀 Enhanced Interface
-          </button>
-          <button style={navButtonStyle} onClick={() => navigate('/shot-analyzer')}>
-            🎯 Shot Analyzer
+          <button style={navButtonStyle} onClick={() => navigate('/analytics')}>
+            📊 Analytics
           </button>
         </div>
       </div>
@@ -267,15 +247,9 @@ function App() {
         <Navigation />
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/setup" element={<SetupPage onSetup={setGameState} />} />
-          <Route path="/game" element={gameState ? <GamePage gameState={gameState} setGameState={setGameState} loading={loading} setLoading={setLoading} /> : <Navigate to="/setup" />} />
-          <Route path="/simulation" element={<SimulationMode />} />
-          <Route path="/monte-carlo" element={<MonteCarloSimulation />} />
-          <Route path="/wolf-goat-pig" element={<UnifiedGameInterface mode="regular" />} />
-          <Route path="/dashboard" element={<WolfGoatPigDashboard />} />
-          <Route path="/unified-demo" element={<UnifiedActionDemo />} />
-          <Route path="/enhanced" element={<UnifiedGameInterface mode="enhanced" />} />
-          <Route path="/shot-analyzer" element={<ShotRangeAnalyzer />} />
+          <Route path="/game" element={<UnifiedGameInterface />} />
+          <Route path="/simulation" element={<MonteCarloSimulation />} />
+          <Route path="/analytics" element={<ShotRangeAnalyzer />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </div>

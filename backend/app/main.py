@@ -113,8 +113,33 @@ def startup():
 
 @app.get("/health")
 def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+    """Enhanced health check endpoint with database connectivity test"""
+    try:
+        # Test database connection
+        db = database.SessionLocal()
+        try:
+            # Simple query to test DB connectivity
+            db.execute("SELECT 1")
+            db_status = "connected"
+        except Exception as e:
+            logger.error(f"Database health check failed: {e}")
+            db_status = "disconnected"
+            raise HTTPException(status_code=503, detail="Database unavailable")
+        finally:
+            db.close()
+        
+        return {
+            "status": "healthy",
+            "timestamp": datetime.now().isoformat(),
+            "database": db_status,
+            "environment": os.getenv("ENVIRONMENT", "unknown"),
+            "version": "1.0.0"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        raise HTTPException(status_code=503, detail="Service unavailable")
 
 @app.get("/rules", response_model=list[schemas.Rule])
 def get_rules():

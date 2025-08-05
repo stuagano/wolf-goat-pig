@@ -4,9 +4,9 @@ import {
   BettingOpportunityWidget,
   GameStateWidget,
   StrategicAnalysisWidget
-} from './components';
-import { useTheme } from './theme/Provider';
-import { useGame } from './context';
+} from '../';
+import { useTheme } from '../../theme/Provider';
+import { useGame } from '../../context';
 
 const WolfGoatPigGame = () => {
   const theme = useTheme();
