@@ -1,0 +1,157 @@
+# Wolf-Goat-Pig Docker Compose Configuration
+# Provides easy setup for development and testing environments
+
+version: '3.8'
+
+services:
+  # =============================================================================
+  # Wolf-Goat-Pig API Service
+  # =============================================================================
+  wgp-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: wgp-api
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - DATABASE_URL=${DATABASE_URL:-}
+      - HOST=0.0.0.0
+      - PORT=8000
+      - SKIP_SEEDING=${SKIP_SEEDING:-false}
+      - AUTO_RELOAD=${AUTO_RELOAD:-true}
+      - ENABLE_DOCS=${ENABLE_DOCS:-true}
+    volumes:
+      # Mount source code for development (hot reload)
+      - ./app:/app/app:ro
+      - ./tests:/app/tests:ro
+      - ./startup.py:/app/startup.py:ro
+      # Mount data directory for SQLite persistence
+      - wgp-data:/app/data
+      - wgp-logs:/app/logs
+    depends_on:
+      - wgp-db
+    networks:
+      - wgp-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # =============================================================================
+  # PostgreSQL Database (optional)
+  # =============================================================================
+  wgp-db:
+    image: postgres:15-alpine
+    container_name: wgp-db
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-wolf_goat_pig}
+      - POSTGRES_USER=${POSTGRES_USER:-wgp}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-wgp_password}
+    volumes:
+      - wgp-postgres-data:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    networks:
+      - wgp-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-wgp} -d ${POSTGRES_DB:-wolf_goat_pig}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    profiles:
+      - postgres
+
+  # =============================================================================
+  # Redis Cache (optional - for future features)
+  # =============================================================================
+  wgp-redis:
+    image: redis:7-alpine
+    container_name: wgp-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - wgp-redis-data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - wgp-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    profiles:
+      - redis
+
+  # =============================================================================
+  # Nginx Reverse Proxy (optional - for production-like setup)
+  # =============================================================================
+  wgp-nginx:
+    image: nginx:alpine
+    container_name: wgp-nginx
+    ports:
+      - "${NGINX_PORT:-80}:80"
+      - "${NGINX_SSL_PORT:-443}:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - wgp-api
+    networks:
+      - wgp-network
+    restart: unless-stopped
+    profiles:
+      - nginx
+
+  # =============================================================================
+  # Database Admin Interface (optional)
+  # =============================================================================
+  wgp-adminer:
+    image: adminer:latest
+    container_name: wgp-adminer
+    ports:
+      - "${ADMINER_PORT:-8080}:8080"
+    environment:
+      - ADMINER_DEFAULT_SERVER=wgp-db
+      - ADMINER_DESIGN=nette
+    depends_on:
+      - wgp-db
+    networks:
+      - wgp-network
+    restart: unless-stopped
+    profiles:
+      - admin
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  wgp-network:
+    driver: bridge
+    name: wgp-network
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  wgp-data:
+    name: wgp-data
+    driver: local
+  wgp-logs:
+    name: wgp-logs
+    driver: local
+  wgp-postgres-data:
+    name: wgp-postgres-data
+    driver: local
+  wgp-redis-data:
+    name: wgp-redis-data
+    driver: local

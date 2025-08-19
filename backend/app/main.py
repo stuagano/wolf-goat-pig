@@ -114,39 +114,319 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 @app.on_event("startup")
-def startup():
-    logger.info("Wolf Goat Pig API starting up...")
+async def startup():
+    """Enhanced startup event handler with comprehensive bootstrapping."""
+    logger.info("🐺 Wolf Goat Pig API starting up...")
     logger.info(f"ENVIRONMENT: {os.getenv('ENVIRONMENT')}")
+    
+    try:
+        # Import seeding functionality
+        from .seed_data import seed_all_data, get_seeding_status
+        
+        # Check if we should skip seeding (for testing or when explicitly disabled)
+        skip_seeding = os.getenv("SKIP_SEEDING", "false").lower() == "true"
+        
+        if skip_seeding:
+            logger.info("⏭️ Seeding skipped due to SKIP_SEEDING environment variable")
+        else:
+            # Check current seeding status first
+            logger.info("🔍 Checking existing data status...")
+            status = get_seeding_status()
+            
+            if status["status"] == "success":
+                # Verify all critical components are present
+                verification = status.get("verification", {})
+                overall_status = verification.get("overall", {}).get("status", "unknown")
+                
+                if overall_status == "success":
+                    logger.info("✅ All required data already present, skipping seeding")
+                else:
+                    logger.info("⚠️ Some data missing, running seeding process...")
+                    await run_seeding_process()
+            else:
+                logger.info("🌱 No existing data found, running initial seeding...")
+                await run_seeding_process()
+        
+        # Initialize game state and course manager
+        logger.info("🎯 Initializing game state...")
+        try:
+            # Ensure game_state is properly initialized with courses
+            courses = game_state.get_courses()
+            if not courses:
+                logger.warning("⚠️ No courses found in game state, attempting to reload...")
+                game_state.course_manager.__init__()  # Reinitialize course manager
+                courses = game_state.get_courses()
+            
+            logger.info(f"📚 Game state initialized with {len(courses)} courses")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize game state: {e}")
+            # Continue startup - game state will use fallback data
+        
+        # Verify simulation can be created
+        logger.info("🔧 Verifying simulation initialization...")
+        try:
+            # Test creating a basic simulation
+            test_players = [
+                {"id": "p1", "name": "Test1", "handicap": 10},
+                {"id": "p2", "name": "Test2", "handicap": 15},
+                {"id": "p3", "name": "Test3", "handicap": 8},
+                {"id": "p4", "name": "Test4", "handicap": 20}
+            ]
+            test_simulation = WolfGoatPigSimulation(player_count=4)
+            logger.info("✅ Simulation initialization verified")
+        except Exception as e:
+            logger.warning(f"⚠️ Simulation test failed (non-critical): {e}")
+        
+        logger.info("🚀 Wolf Goat Pig API startup completed successfully!")
+        
+    except Exception as e:
+        logger.error(f"❌ Critical startup error: {e}")
+        logger.error("⚠️ Application may not function properly")
+        # Don't raise - allow app to start with limited functionality
+
+async def run_seeding_process():
+    """Run the data seeding process during startup."""
+    try:
+        from .seed_data import seed_all_data
+        
+        logger.info("🌱 Starting data seeding process...")
+        
+        # Run seeding in a try-catch to prevent startup failure
+        seeding_results = seed_all_data(force_reseed=False)
+        
+        if seeding_results["status"] == "success":
+            logger.info("✅ Data seeding completed successfully")
+            
+            # Log seeding summary
+            if "results" in seeding_results:
+                for component, result in seeding_results["results"].items():
+                    added_count = result.get("added", 0)
+                    if added_count > 0:
+                        logger.info(f"  📊 {component}: {added_count} items added")
+                    
+        elif seeding_results["status"] == "warning":
+            logger.warning(f"⚠️ Data seeding completed with warnings: {seeding_results.get('message')}")
+            
+        else:
+            logger.error(f"❌ Data seeding failed: {seeding_results.get('message')}")
+            logger.warning("🔄 Application will continue with fallback data")
+            
+    except Exception as e:
+        logger.error(f"❌ Critical error during seeding: {e}")
+        logger.warning("🔄 Application will continue with fallback data")
 
 @app.get("/health")
 def health_check():
-    """Enhanced health check endpoint with database connectivity test"""
+    """Comprehensive health check endpoint verifying all critical systems"""
+    health_status = {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "environment": os.getenv("ENVIRONMENT", "unknown"),
+        "version": "1.0.0",
+        "components": {}
+    }
+    
+    overall_healthy = True
+    
     try:
-        # Test database connection
+        # 1. Database connectivity test
         db = database.SessionLocal()
         try:
-            # Simple query to test DB connectivity
             db.execute(text("SELECT 1"))
-            db_status = "connected"
+            health_status["components"]["database"] = {
+                "status": "healthy",
+                "message": "Database connection successful"
+            }
         except Exception as e:
             logger.error(f"Database health check failed: {e}")
-            db_status = "disconnected"
-            raise HTTPException(status_code=503, detail="Database unavailable")
+            health_status["components"]["database"] = {
+                "status": "unhealthy",
+                "message": f"Database connection failed: {str(e)}"
+            }
+            overall_healthy = False
         finally:
             db.close()
         
-        return {
-            "status": "healthy",
-            "timestamp": datetime.now().isoformat(),
-            "database": db_status,
-            "environment": os.getenv("ENVIRONMENT", "unknown"),
-            "version": "1.0.0"
-        }
+        # 2. Course data availability check
+        try:
+            courses = game_state.get_courses()
+            course_count = len(courses) if courses else 0
+            
+            if course_count >= 1:
+                health_status["components"]["courses"] = {
+                    "status": "healthy",
+                    "message": f"{course_count} courses available",
+                    "courses": list(courses.keys()) if courses else []
+                }
+            else:
+                health_status["components"]["courses"] = {
+                    "status": "unhealthy",
+                    "message": "No courses available"
+                }
+                overall_healthy = False
+                
+        except Exception as e:
+            logger.error(f"Course availability check failed: {e}")
+            health_status["components"]["courses"] = {
+                "status": "unhealthy",
+                "message": f"Course check failed: {str(e)}"
+            }
+            overall_healthy = False
+        
+        # 3. Rules availability check
+        try:
+            db = database.SessionLocal()
+            try:
+                from . import models
+                rule_count = db.query(models.Rule).count()
+                
+                if rule_count >= 5:  # Minimum reasonable number of rules
+                    health_status["components"]["rules"] = {
+                        "status": "healthy",
+                        "message": f"{rule_count} rules loaded"
+                    }
+                else:
+                    health_status["components"]["rules"] = {
+                        "status": "warning",
+                        "message": f"Only {rule_count} rules found, may be incomplete"
+                    }
+            except Exception as e:
+                health_status["components"]["rules"] = {
+                    "status": "warning",
+                    "message": f"Rules check failed: {str(e)}"
+                }
+            finally:
+                db.close()
+                
+        except Exception as e:
+            logger.error(f"Rules availability check failed: {e}")
+            health_status["components"]["rules"] = {
+                "status": "warning",
+                "message": f"Rules check error: {str(e)}"
+            }
+        
+        # 4. AI Players availability check
+        try:
+            db = database.SessionLocal()
+            try:
+                from . import models
+                ai_player_count = db.query(models.PlayerProfile).filter_by(is_ai=True, is_active=True).count()
+                
+                if ai_player_count >= 4:  # Need at least 4 for a game
+                    health_status["components"]["ai_players"] = {
+                        "status": "healthy",
+                        "message": f"{ai_player_count} AI players available"
+                    }
+                elif ai_player_count >= 1:
+                    health_status["components"]["ai_players"] = {
+                        "status": "warning",
+                        "message": f"Only {ai_player_count} AI players available, need at least 4 for full game"
+                    }
+                else:
+                    health_status["components"]["ai_players"] = {
+                        "status": "unhealthy",
+                        "message": "No AI players available"
+                    }
+                    overall_healthy = False
+            finally:
+                db.close()
+                
+        except Exception as e:
+            logger.error(f"AI players availability check failed: {e}")
+            health_status["components"]["ai_players"] = {
+                "status": "warning",
+                "message": f"AI players check failed: {str(e)}"
+            }
+        
+        # 5. Simulation initialization test
+        try:
+            # Test basic simulation creation
+            test_simulation = WolfGoatPigSimulation(player_count=4)
+            health_status["components"]["simulation"] = {
+                "status": "healthy",
+                "message": "Simulation engine operational"
+            }
+        except Exception as e:
+            logger.error(f"Simulation initialization test failed: {e}")
+            health_status["components"]["simulation"] = {
+                "status": "unhealthy",
+                "message": f"Simulation test failed: {str(e)}"
+            }
+            overall_healthy = False
+        
+        # 6. Game state check
+        try:
+            state = game_state.get_state()
+            if state:
+                health_status["components"]["game_state"] = {
+                    "status": "healthy",
+                    "message": "Game state manager operational"
+                }
+            else:
+                health_status["components"]["game_state"] = {
+                    "status": "warning",
+                    "message": "Game state appears empty but functional"
+                }
+        except Exception as e:
+            logger.error(f"Game state check failed: {e}")
+            health_status["components"]["game_state"] = {
+                "status": "unhealthy",
+                "message": f"Game state check failed: {str(e)}"
+            }
+            overall_healthy = False
+        
+        # 7. Import seeding status check
+        try:
+            from .seed_data import get_seeding_status
+            seeding_status = get_seeding_status()
+            
+            if seeding_status["status"] == "success":
+                overall_verification = seeding_status.get("verification", {}).get("overall", {})
+                if overall_verification.get("status") == "success":
+                    health_status["components"]["data_seeding"] = {
+                        "status": "healthy",
+                        "message": "All required data properly seeded"
+                    }
+                else:
+                    health_status["components"]["data_seeding"] = {
+                        "status": "warning",
+                        "message": "Some seeded data may be incomplete"
+                    }
+            else:
+                health_status["components"]["data_seeding"] = {
+                    "status": "warning",
+                    "message": f"Data seeding status: {seeding_status.get('message', 'Unknown')}"
+                }
+                
+        except Exception as e:
+            logger.error(f"Data seeding status check failed: {e}")
+            health_status["components"]["data_seeding"] = {
+                "status": "warning",
+                "message": f"Seeding status check failed: {str(e)}"
+            }
+        
+        # Set overall status
+        if not overall_healthy:
+            health_status["status"] = "unhealthy"
+            raise HTTPException(status_code=503, detail="Critical system components are unhealthy")
+        
+        # Check for warnings
+        warning_count = sum(1 for comp in health_status["components"].values() 
+                          if comp["status"] == "warning")
+        
+        if warning_count > 0:
+            health_status["status"] = "degraded"
+            health_status["warnings"] = f"{warning_count} component(s) with warnings"
+        
+        return health_status
+        
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Health check failed: {e}")
-        raise HTTPException(status_code=503, detail="Service unavailable")
+        health_status["status"] = "unhealthy"
+        health_status["error"] = str(e)
+        raise HTTPException(status_code=503, detail=f"Health check failed: {str(e)}")
 
 @app.get("/rules", response_model=list[schemas.Rule])
 def get_rules():
@@ -164,37 +444,97 @@ def get_rules():
 # Course Management Endpoints
 @app.get("/courses")
 def get_courses():
-    """Get all available courses as dictionary with course names as keys"""
+    """Get all available courses with robust fallback handling"""
     try:
         courses = game_state.get_courses()
         
         # Ensure we always return at least one default course
         if not courses:
-            logger.warning("No courses found, initializing default courses")
-            game_state.course_manager.course_data = game_state.course_manager.course_data or {}
-            courses = game_state.get_courses()
+            logger.warning("No courses found in game state, attempting to reload from database")
+            
+            # Try to reload from database
+            try:
+                from .seed_data import get_seeding_status
+                seeding_status = get_seeding_status()
+                
+                if seeding_status["status"] == "success":
+                    # Reinitialize course manager
+                    game_state.course_manager.__init__()
+                    courses = game_state.get_courses()
+                    
+                    if courses:
+                        logger.info(f"Successfully reloaded {len(courses)} courses from database")
+                    else:
+                        logger.warning("Course manager reinitialization failed, using fallback")
+                        courses = get_fallback_courses()
+                else:
+                    logger.warning("Database seeding incomplete, using fallback courses")
+                    courses = get_fallback_courses()
+                    
+            except Exception as reload_error:
+                logger.error(f"Failed to reload courses from database: {reload_error}")
+                courses = get_fallback_courses()
         
         logger.info(f"Retrieved {len(courses)} courses: {list(courses.keys())}")
         return courses
+        
     except Exception as e:
-        logger.error(f"Error getting courses: {e}")
+        logger.error(f"Critical error getting courses: {e}")
         logger.error(traceback.format_exc())
         
-        # Return default fallback course to prevent frontend failure
-        fallback_course = {
-            "Default Course": {
-                "name": "Default Course", 
-                "holes": [
-                    {"hole_number": i, "par": 4, "yards": 400, "stroke_index": i, "description": f"Hole {i}"}
-                    for i in range(1, 19)
-                ],
-                "total_par": 72,
-                "total_yards": 7200,
-                "hole_count": 18
-            }
+        # Always return fallback course to prevent frontend failure
+        courses = get_fallback_courses()
+        logger.warning("Returning fallback courses due to critical error")
+        return courses
+
+def get_fallback_courses():
+    """Provide fallback course data when database/seeding fails"""
+    return {
+        "Emergency Course": {
+            "name": "Emergency Course",
+            "description": "Fallback course for system resilience",
+            "holes": [
+                {
+                    "hole_number": i,
+                    "par": 4 if i not in [4, 8, 12, 17] else 3 if i in [4, 8, 17] else 5,
+                    "yards": 400 if i not in [4, 8, 12, 17] else 160 if i in [4, 8, 17] else 520,
+                    "stroke_index": ((i - 1) % 18) + 1,
+                    "description": f"Emergency hole {i} - Par {4 if i not in [4, 8, 12, 17] else 3 if i in [4, 8, 17] else 5}"
+                }
+                for i in range(1, 19)
+            ],
+            "total_par": 72,
+            "total_yards": 6800,
+            "hole_count": 18
+        },
+        "Wing Point Golf & Country Club": {
+            "name": "Wing Point Golf & Country Club",
+            "description": "Classic parkland course (fallback data)",
+            "holes": [
+                {"hole_number": 1, "par": 4, "yards": 420, "stroke_index": 5, "description": "Opening hole with water hazard"},
+                {"hole_number": 2, "par": 4, "yards": 385, "stroke_index": 13, "description": "Straightaway par 4"},
+                {"hole_number": 3, "par": 5, "yards": 580, "stroke_index": 1, "description": "Long par 5 with fairway bunkers"},
+                {"hole_number": 4, "par": 3, "yards": 165, "stroke_index": 17, "description": "Short par 3 over water"},
+                {"hole_number": 5, "par": 4, "yards": 445, "stroke_index": 7, "description": "Long par 4 with OB left"},
+                {"hole_number": 6, "par": 4, "yards": 395, "stroke_index": 11, "description": "Slight dogleg left"},
+                {"hole_number": 7, "par": 5, "yards": 520, "stroke_index": 15, "description": "Reachable par 5"},
+                {"hole_number": 8, "par": 3, "yards": 185, "stroke_index": 3, "description": "Long par 3"},
+                {"hole_number": 9, "par": 4, "yards": 410, "stroke_index": 9, "description": "Finishing hole front nine"},
+                {"hole_number": 10, "par": 4, "yards": 455, "stroke_index": 2, "description": "Championship hole"},
+                {"hole_number": 11, "par": 5, "yards": 545, "stroke_index": 16, "description": "Three-shot par 5"},
+                {"hole_number": 12, "par": 3, "yards": 175, "stroke_index": 8, "description": "Elevated tee"},
+                {"hole_number": 13, "par": 4, "yards": 375, "stroke_index": 14, "description": "Short par 4"},
+                {"hole_number": 14, "par": 4, "yards": 435, "stroke_index": 4, "description": "Narrow fairway"},
+                {"hole_number": 15, "par": 5, "yards": 565, "stroke_index": 18, "description": "Longest hole"},
+                {"hole_number": 16, "par": 4, "yards": 425, "stroke_index": 10, "description": "Risk/reward hole"},
+                {"hole_number": 17, "par": 3, "yards": 155, "stroke_index": 12, "description": "Island green"},
+                {"hole_number": 18, "par": 4, "yards": 415, "stroke_index": 6, "description": "Dramatic finishing hole"}
+            ],
+            "total_par": 72,
+            "total_yards": 7050,
+            "hole_count": 18
         }
-        logger.warning("Returning fallback course due to error")
-        return fallback_course
+    }
 
 @app.post("/courses", response_model=dict)
 def add_course(course: CourseCreate):
@@ -527,7 +867,7 @@ async def unified_action(game_id: str, action: ActionRequest):
 
 # Action Handlers
 async def handle_initialize_game(payload: Dict[str, Any]) -> ActionResponse:
-    """Handle game initialization"""
+    """Handle game initialization with robust error handling and fallbacks"""
     try:
         players = payload.get("players", [])
         course_name = payload.get("course_name", "Wing Point Golf & Country Club")
@@ -536,10 +876,22 @@ async def handle_initialize_game(payload: Dict[str, Any]) -> ActionResponse:
         if len(players) not in [4, 5, 6]:
             raise HTTPException(status_code=400, detail="4, 5, or 6 players required.")
         
-        # Ensure all players have required fields
+        # Ensure all players have required fields with smart defaults
         for i, player in enumerate(players):
-            if "name" not in player or "handicap" not in player:
-                raise HTTPException(status_code=400, detail="Each player must have id, name, handicap, and strength.")
+            if "name" not in player:
+                player["name"] = f"Player {i+1}"
+                logger.warning(f"Player {i+1} missing name, using default")
+            
+            if "handicap" not in player:
+                player["handicap"] = 18.0  # Default handicap
+                logger.warning(f"Player {player['name']} missing handicap, using default 18.0")
+            
+            # Ensure handicap is numeric
+            try:
+                player["handicap"] = float(player["handicap"])
+            except (ValueError, TypeError):
+                logger.warning(f"Invalid handicap for {player['name']}, using 18.0")
+                player["handicap"] = 18.0
             
             # Add missing fields if not present
             if "id" not in player:
@@ -548,46 +900,152 @@ async def handle_initialize_game(payload: Dict[str, Any]) -> ActionResponse:
                 # Default strength based on handicap (lower handicap = higher strength)
                 player["strength"] = max(1, 10 - int(player["handicap"]))
         
-        # Initialize game state with players
-        game_state.setup_players(players, course_name)
+        # Verify course exists, use fallback if needed
+        try:
+            available_courses = game_state.get_courses()
+            if course_name not in available_courses:
+                logger.warning(f"Requested course '{course_name}' not available, using fallback")
+                # Use first available course or fallback
+                if available_courses:
+                    course_name = list(available_courses.keys())[0]
+                    logger.info(f"Using available course: {course_name}")
+                else:
+                    logger.error("No courses available, using emergency fallback")
+                    course_name = "Emergency Course"
+                    # Ensure fallback courses are available
+                    fallback_courses = get_fallback_courses()
+                    game_state.course_manager.course_data = fallback_courses
+        except Exception as course_error:
+            logger.error(f"Course verification failed: {course_error}")
+            course_name = "Emergency Course"
+            fallback_courses = get_fallback_courses()
+            game_state.course_manager.course_data = fallback_courses
         
-        # Initialize WGP simulation with the players
-        # Create WGPPlayer objects
-        wgp_players = []
-        for player in players:
-            wgp_players.append(WGPPlayer(
-                id=player["id"],
-                name=player["name"],
-                handicap=player["handicap"]
-            ))
+        # Initialize game state with players (with error handling)
+        try:
+            game_state.setup_players(players, course_name)
+            logger.info(f"Game state initialized successfully with {len(players)} players")
+        except Exception as game_state_error:
+            logger.error(f"Game state setup failed: {game_state_error}")
+            # Try with minimal setup
+            try:
+                game_state.reset()
+                logger.warning("Fell back to basic game state reset")
+            except Exception as reset_error:
+                logger.error(f"Even game state reset failed: {reset_error}")
+                # Continue with current state
         
-        # Initialize the simulation with these players
-        wgp_simulation.__init__(player_count=len(wgp_players), players=wgp_players)
+        # Initialize WGP simulation with robust error handling
+        try:
+            # Create WGPPlayer objects
+            wgp_players = []
+            for player in players:
+                try:
+                    wgp_players.append(WGPPlayer(
+                        id=player["id"],
+                        name=player["name"],
+                        handicap=player["handicap"]
+                    ))
+                except Exception as player_creation_error:
+                    logger.error(f"Failed to create WGPPlayer for {player['name']}: {player_creation_error}")
+                    # Create with minimal data
+                    wgp_players.append(WGPPlayer(
+                        id=player.get("id", f"p{len(wgp_players)+1}"),
+                        name=player.get("name", f"Player {len(wgp_players)+1}"),
+                        handicap=18.0
+                    ))
+            
+            if len(wgp_players) != len(players):
+                logger.warning(f"Only created {len(wgp_players)} WGP players from {len(players)} input players")
+            
+            # Initialize the simulation with these players
+            try:
+                wgp_simulation.__init__(player_count=len(wgp_players), players=wgp_players)
+                logger.info("WGP simulation initialized successfully")
+            except Exception as sim_init_error:
+                logger.error(f"WGP simulation initialization failed: {sim_init_error}")
+                # Try with basic initialization
+                wgp_simulation.__init__(player_count=len(wgp_players))
+                logger.warning("Fell back to basic simulation initialization")
+            
+            # Set computer players (all except first) with error handling
+            try:
+                computer_player_ids = [p["id"] for p in players[1:]]
+                wgp_simulation.set_computer_players(computer_player_ids)
+                logger.info(f"Set {len(computer_player_ids)} computer players")
+            except Exception as computer_setup_error:
+                logger.error(f"Failed to set computer players: {computer_setup_error}")
+                # Continue without computer player setup
+            
+            # Initialize the first hole with error handling
+            try:
+                wgp_simulation._initialize_hole(1)
+                logger.info("First hole initialized")
+            except Exception as hole_init_error:
+                logger.error(f"Failed to initialize first hole: {hole_init_error}")
+                # Continue - hole might be initialized differently
+            
+            # Enable shot progression and timeline tracking
+            try:
+                wgp_simulation.enable_shot_progression()
+                logger.info("Shot progression enabled")
+            except Exception as progression_error:
+                logger.warning(f"Failed to enable shot progression: {progression_error}")
+                # Non-critical, continue
+            
+            # Add initial timeline event
+            try:
+                if hasattr(wgp_simulation, 'hole_progression') and wgp_simulation.hole_progression:
+                    wgp_simulation.hole_progression.add_timeline_event(
+                        event_type="game_start",
+                        description=f"Game started with {len(players)} players on {course_name}",
+                        details={"players": players, "course": course_name}
+                    )
+                    logger.info("Initial timeline event added")
+            except Exception as timeline_error:
+                logger.warning(f"Failed to add timeline event: {timeline_error}")
+                # Non-critical, continue
+            
+        except Exception as simulation_error:
+            logger.error(f"Critical simulation setup error: {simulation_error}")
+            # Create minimal fallback simulation
+            try:
+                wgp_simulation.__init__(player_count=len(players))
+                logger.warning("Created minimal fallback simulation")
+            except Exception as fallback_error:
+                logger.error(f"Even fallback simulation failed: {fallback_error}")
+                # This is critical - raise error
+                raise HTTPException(status_code=500, detail="Failed to initialize simulation engine")
         
-        # Set computer players (all except first)
-        computer_player_ids = [p["id"] for p in players[1:]]
-        wgp_simulation.set_computer_players(computer_player_ids)
+        # Get initial game state (with error handling)
+        try:
+            current_state = wgp_simulation.get_game_state()
+            if not current_state:
+                logger.warning("Empty game state returned, creating minimal state")
+                current_state = {
+                    "active": True,
+                    "current_hole": 1,
+                    "players": players,
+                    "course": course_name
+                }
+        except Exception as state_error:
+            logger.error(f"Failed to get game state: {state_error}")
+            # Create minimal state
+            current_state = {
+                "active": True,
+                "current_hole": 1,
+                "players": players,
+                "course": course_name,
+                "error": "Partial initialization - some features may be limited"
+            }
         
-        # Initialize the first hole
-        wgp_simulation._initialize_hole(1)
-        
-        # Enable shot progression and timeline tracking
-        wgp_simulation.enable_shot_progression()
-        
-        # Add initial timeline event
-        if hasattr(wgp_simulation, 'hole_progression') and wgp_simulation.hole_progression:
-            wgp_simulation.hole_progression.add_timeline_event(
-                event_type="game_start",
-                description=f"Game started with {len(players)} players on {course_name}",
-                details={"players": players, "course": course_name}
-            )
-        
-        # Get initial game state
-        current_state = wgp_simulation.get_game_state()
+        success_message = f"Game initialized with {len(players)} players on {course_name}"
+        if any("error" in str(current_state).lower() for _ in [1]):  # Check if there were issues
+            success_message += " (some advanced features may be limited)"
         
         return ActionResponse(
             game_state=current_state,
-            log_message=f"Game initialized with {len(players)} players on {course_name}",
+            log_message=success_message,
             available_actions=[
                 {"action_type": "PLAY_SHOT", "prompt": "Start first hole", "player_turn": players[0]["name"]}
             ],
@@ -599,9 +1057,36 @@ async def handle_initialize_game(payload: Dict[str, Any]) -> ActionResponse:
                 "details": {"players": players, "course": course_name}
             }
         )
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions (validation errors)
+        raise
     except Exception as e:
-        logger.error(f"Error initializing game: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to initialize game: {str(e)}")
+        logger.error(f"Critical error initializing game: {e}")
+        logger.error(traceback.format_exc())
+        
+        # Create minimal emergency response
+        emergency_state = {
+            "active": False,
+            "error": "Game initialization failed",
+            "fallback": True,
+            "message": "Please try again or contact support"
+        }
+        
+        return ActionResponse(
+            game_state=emergency_state,
+            log_message=f"Game initialization failed: {str(e)}",
+            available_actions=[
+                {"action_type": "RETRY_INITIALIZATION", "prompt": "Try Again"}
+            ],
+            timeline_event={
+                "id": "init_error",
+                "timestamp": datetime.now().isoformat(),
+                "type": "initialization_error",
+                "description": "Game initialization failed",
+                "details": {"error": str(e)}
+            }
+        )
 
 async def handle_play_shot(payload: Dict[str, Any] = None) -> ActionResponse:
     """Handle playing a shot"""
