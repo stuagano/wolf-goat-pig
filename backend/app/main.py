@@ -2687,4 +2687,392 @@ def get_analytics_overview():
     finally:
         db.close()
 
+# ============================================================================
+# SIMULATION API ENDPOINTS
+# ============================================================================
+
+# Request/Response models for simulation endpoints
+class SimulationSetupRequest(BaseModel):
+    """Request model for simulation setup"""
+    players: List[Dict[str, Any]]
+    course_id: Optional[int] = None
+    computer_players: Optional[List[str]] = []
+    personalities: Optional[List[str]] = []
+    game_options: Optional[Dict[str, Any]] = {}
+
+class SimulationPlayShotRequest(BaseModel):
+    """Request model for playing next shot"""
+    decision: Optional[Dict[str, Any]] = {}
+
+class SimulationPlayHoleRequest(BaseModel):
+    """Request model for hole simulation decision"""
+    decision: Dict[str, Any]
+
+class BettingDecisionRequest(BaseModel):
+    """Request model for betting decisions"""
+    decision: Dict[str, Any]
+
+@app.post("/simulation/setup")
+def setup_simulation(request: SimulationSetupRequest):
+    """Initialize a new simulation with specified players and configuration"""
+    global wgp_simulation
+    
+    try:
+        logger.info("Setting up new simulation...")
+        
+        # Validate players
+        if not request.players or len(request.players) < 4:
+            raise HTTPException(status_code=400, detail="At least 4 players required")
+        
+        if len(request.players) > 6:
+            raise HTTPException(status_code=400, detail="Maximum 6 players allowed")
+        
+        # Create WGPPlayer objects
+        wgp_players = []
+        for i, player_data in enumerate(request.players):
+            wgp_player = WGPPlayer(
+                id=player_data.get("id", f"player_{i+1}"),
+                name=player_data.get("name", f"Player {i+1}"),
+                handicap=float(player_data.get("handicap", 10))
+            )
+            wgp_players.append(wgp_player)
+        
+        # Initialize simulation with players
+        wgp_simulation = WolfGoatPigSimulation(
+            player_count=len(wgp_players),
+            players=wgp_players
+        )
+        
+        # Set computer players if specified
+        if request.computer_players:
+            personalities = request.personalities or ["balanced"] * len(request.computer_players)
+            wgp_simulation.set_computer_players(request.computer_players, personalities)
+        
+        # Load course if specified
+        if request.course_id:
+            try:
+                courses = game_state.get_courses()
+                selected_course = next((c for c in courses if c.id == request.course_id), None)
+                if selected_course:
+                    # Set course for simulation
+                    logger.info(f"Using course: {selected_course.name}")
+            except Exception as course_error:
+                logger.warning(f"Could not load course {request.course_id}: {course_error}")
+        
+        # Initialize hole 1
+        wgp_simulation._initialize_hole(1)
+        wgp_simulation.enable_shot_progression()
+        
+        # Get initial game state
+        game_state_data = wgp_simulation.get_game_state()
+        
+        logger.info("Simulation setup completed successfully")
+        
+        return {
+            "success": True,
+            "message": "Simulation initialized successfully",
+            "game_state": game_state_data,
+            "players": [
+                {
+                    "id": p.id,
+                    "name": p.name, 
+                    "handicap": p.handicap,
+                    "points": p.points
+                } for p in wgp_simulation.players
+            ],
+            "current_hole": wgp_simulation.current_hole
+        }
+        
+    except Exception as e:
+        logger.error(f"Simulation setup failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to setup simulation: {str(e)}")
+
+@app.post("/simulation/play-next-shot")
+def play_next_shot(request: SimulationPlayShotRequest = None):
+    """Simulate the next shot in the current hole"""
+    global wgp_simulation
+    
+    try:
+        if not wgp_simulation:
+            raise HTTPException(status_code=400, detail="Simulation not initialized. Call /simulation/setup first.")
+        
+        # Get next player to shoot
+        next_player = wgp_simulation._get_next_shot_player()
+        if not next_player:
+            raise HTTPException(status_code=400, detail="No player available to shoot")
+        
+        # Simulate the shot
+        shot_response = wgp_simulation.simulate_shot(next_player)
+        
+        # Get updated game state
+        updated_state = wgp_simulation.get_game_state()
+        
+        # Get next shot player info
+        next_shot_player = wgp_simulation._get_next_shot_player()
+        next_player_name = wgp_simulation._get_player_name(next_shot_player) if next_shot_player else None
+        
+        return {
+            "success": True,
+            "shot_result": shot_response,
+            "game_state": updated_state,
+            "next_player": next_player_name,
+            "hole_complete": updated_state.get("hole_complete", False)
+        }
+        
+    except Exception as e:
+        logger.error(f"Play next shot failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to play next shot: {str(e)}")
+
+@app.post("/simulation/play-hole")
+def simulate_hole(request: SimulationPlayHoleRequest):
+    """Complete simulation of an entire hole with given decisions"""
+    global wgp_simulation
+    
+    try:
+        if not wgp_simulation:
+            raise HTTPException(status_code=400, detail="Simulation not initialized. Call /simulation/setup first.")
+        
+        # Process the decision for hole simulation
+        decision = request.decision
+        
+        # For now, simulate all shots for the hole
+        hole_results = []
+        max_shots = 20  # Safety limit
+        shot_count = 0
+        
+        while shot_count < max_shots:
+            next_player = wgp_simulation._get_next_shot_player()
+            if not next_player:
+                break
+                
+            # Simulate shot
+            shot_response = wgp_simulation.simulate_shot(next_player)
+            hole_results.append(shot_response)
+            shot_count += 1
+            
+            # Check if hole is complete
+            game_state_data = wgp_simulation.get_game_state()
+            if game_state_data.get("hole_complete", False):
+                break
+        
+        updated_state = wgp_simulation.get_game_state()
+        
+        return {
+            "success": True,
+            "hole_results": hole_results,
+            "game_state": updated_state,
+            "shots_played": shot_count
+        }
+        
+    except Exception as e:
+        logger.error(f"Hole simulation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to simulate hole: {str(e)}")
+
+@app.get("/simulation/available-personalities")
+def get_available_personalities():
+    """Get list of available AI personality types"""
+    try:
+        personalities = [
+            {
+                "id": "aggressive",
+                "name": "Aggressive",
+                "description": "Takes risks, goes for bold shots and betting decisions"
+            },
+            {
+                "id": "conservative", 
+                "name": "Conservative",
+                "description": "Plays it safe, avoids risky bets and shots"
+            },
+            {
+                "id": "balanced",
+                "name": "Balanced",
+                "description": "Balanced approach to risk and reward"
+            },
+            {
+                "id": "strategic",
+                "name": "Strategic", 
+                "description": "Focuses on long-term game positioning"
+            },
+            {
+                "id": "maverick",
+                "name": "Maverick",
+                "description": "Unpredictable playing style, keeps opponents guessing"
+            }
+        ]
+        
+        return {
+            "success": True,
+            "personalities": personalities
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get personalities: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get personalities: {str(e)}")
+
+@app.get("/simulation/suggested-opponents")
+def get_suggested_opponents():
+    """Get list of suggested AI opponent configurations"""
+    try:
+        opponents = [
+            {
+                "id": "classic_quartet",
+                "name": "Classic Quartet",
+                "description": "Traditional Wolf Goat Pig characters",
+                "players": [
+                    {"name": "Clive", "handicap": 8, "personality": "aggressive"},
+                    {"name": "Gary", "handicap": 12, "personality": "conservative"},
+                    {"name": "Bernard", "handicap": 15, "personality": "strategic"}
+                ]
+            },
+            {
+                "id": "mixed_bag",
+                "name": "Mixed Bag",
+                "description": "Diverse skill levels and personalities",
+                "players": [
+                    {"name": "Alex", "handicap": 5, "personality": "balanced"},
+                    {"name": "Sam", "handicap": 18, "personality": "maverick"},
+                    {"name": "Jordan", "handicap": 22, "personality": "conservative"}
+                ]
+            },
+            {
+                "id": "high_rollers",
+                "name": "High Rollers", 
+                "description": "Aggressive betting and low handicaps",
+                "players": [
+                    {"name": "Ace", "handicap": 3, "personality": "aggressive"},
+                    {"name": "Blade", "handicap": 6, "personality": "aggressive"},
+                    {"name": "Chase", "handicap": 9, "personality": "strategic"}
+                ]
+            }
+        ]
+        
+        return {
+            "success": True,
+            "opponents": opponents
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get suggested opponents: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get suggested opponents: {str(e)}")
+
+@app.get("/simulation/shot-probabilities")  
+def get_shot_probabilities():
+    """Get current shot outcome probabilities for the active player"""
+    global wgp_simulation
+    
+    try:
+        if not wgp_simulation:
+            raise HTTPException(status_code=400, detail="Simulation not initialized")
+        
+        # Get next player to shoot
+        next_player = wgp_simulation._get_next_shot_player()
+        if not next_player:
+            return {"success": True, "probabilities": {}}
+        
+        # Get current hole state
+        hole_state = wgp_simulation.hole_states.get(wgp_simulation.current_hole)
+        if not hole_state:
+            return {"success": True, "probabilities": {}}
+        
+        # Get player's current ball position
+        ball_position = hole_state.get_player_ball_position(next_player)
+        
+        # Calculate probabilities based on lie type and distance
+        probabilities = {
+            "excellent": 0.15,
+            "good": 0.35, 
+            "average": 0.30,
+            "poor": 0.15,
+            "disaster": 0.05
+        }
+        
+        # Adjust based on lie type
+        if ball_position:
+            if ball_position.lie_type == "tee":
+                probabilities.update({
+                    "excellent": 0.25,
+                    "good": 0.40,
+                    "average": 0.25,
+                    "poor": 0.08,
+                    "disaster": 0.02
+                })
+            elif ball_position.lie_type == "rough":
+                probabilities.update({
+                    "excellent": 0.08,
+                    "good": 0.22,
+                    "average": 0.35,
+                    "poor": 0.25,
+                    "disaster": 0.10
+                })
+            elif ball_position.lie_type == "bunker":
+                probabilities.update({
+                    "excellent": 0.05,
+                    "good": 0.15,
+                    "average": 0.30,
+                    "poor": 0.35,
+                    "disaster": 0.15
+                })
+        
+        return {
+            "success": True,
+            "probabilities": probabilities,
+            "player_id": next_player,
+            "ball_position": {
+                "lie_type": ball_position.lie_type if ball_position else "unknown",
+                "distance_to_pin": ball_position.distance_to_pin if ball_position else 0
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get shot probabilities: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get shot probabilities: {str(e)}")
+
+@app.post("/simulation/betting-decision")
+def make_betting_decision(request: BettingDecisionRequest):
+    """Process a betting decision in the simulation"""
+    global wgp_simulation
+    
+    try:
+        if not wgp_simulation:
+            raise HTTPException(status_code=400, detail="Simulation not initialized")
+        
+        decision = request.decision
+        decision_type = decision.get("type")
+        player_id = decision.get("player_id")
+        
+        result = {"success": False, "message": "Unknown decision type"}
+        
+        # Process different types of betting decisions
+        if decision_type == "partnership_request":
+            partner_id = decision.get("partner_id")
+            if partner_id:
+                result = wgp_simulation.request_partner(player_id, partner_id)
+                
+        elif decision_type == "partnership_response":
+            accept = decision.get("accept", False)
+            result = wgp_simulation.respond_to_partnership(player_id, accept)
+            
+        elif decision_type == "double_offer":
+            result = wgp_simulation.offer_double(player_id)
+            
+        elif decision_type == "double_response":
+            accept = decision.get("accept", False)
+            result = wgp_simulation.respond_to_double("responding_team", accept)
+            
+        elif decision_type == "go_solo":
+            result = wgp_simulation.captain_go_solo(player_id)
+            
+        # Get updated game state
+        updated_state = wgp_simulation.get_game_state()
+        
+        return {
+            "success": True,
+            "decision_result": result,
+            "game_state": updated_state
+        }
+        
+    except Exception as e:
+        logger.error(f"Betting decision failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to process betting decision: {str(e)}")
+
 
