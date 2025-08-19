@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { useTheme } from "../../theme/Provider";
 import { useGame } from "../../context";
 import { GameSetup, GamePlay } from "./";
 
@@ -28,8 +27,6 @@ function SimulationMode() {
     setShotProbabilities,
     hasNextShot,
     setHasNextShot,
-    createGame,
-    makeGameAction
   } = useGame();
 
   // Helper functions for missing setters
@@ -53,8 +50,8 @@ function SimulationMode() {
   const [selectedCourse, setSelectedCourse] = useState("");
   const [courses, setCourses] = useState({});
   
-  // Hole decisions
-  const [holeDecisions, setHoleDecisions] = useState({
+  // Hole decisions - setHoleDecisions used for resetting state between simulations
+  const [, setHoleDecisions] = useState({
     action: null,
     requested_partner: null,
     offer_double: false,
@@ -67,57 +64,9 @@ function SimulationMode() {
   // New state for shot-by-shot simulation
   // Note: All simulation state (shotProbabilities, shotState, hasNextShot, etc.) comes from useGame() context above
 
-  // GHIN lookup modal state
-  const [ghinLookupSlot, setGhinLookupSlot] = useState(null); // 'human' or 'comp1', 'comp2', 'comp3'
-  const [ghinLookupFirstName, setGhinLookupFirstName] = useState("");
-  const [ghinLookupLastName, setGhinLookupLastName] = useState("");
-  const [ghinLookupResults, setGhinLookupResults] = useState([]);
-  const [ghinLookupLoading, setGhinLookupLoading] = useState(false);
-  const [ghinLookupError, setGhinLookupError] = useState("");
+  // GHIN lookup functionality removed - was not being used in current UI
 
-  const openGhinLookup = (slot) => {
-    setGhinLookupSlot(slot);
-    setGhinLookupFirstName("");
-    setGhinLookupLastName("");
-    setGhinLookupResults([]);
-    setGhinLookupLoading(false);
-    setGhinLookupError("");
-  };
-  const closeGhinLookup = () => {
-    setGhinLookupSlot(null);
-  };
-  const doGhinLookup = async () => {
-    if (!ghinLookupLastName.trim()) {
-      setGhinLookupError("Last name required");
-      return;
-    }
-    setGhinLookupLoading(true);
-    setGhinLookupError("");
-    setGhinLookupResults([]);
-    try {
-      const params = new URLSearchParams({ last_name: ghinLookupLastName, first_name: ghinLookupFirstName });
-      const res = await fetch(`${API_URL}/ghin/lookup?${params.toString()}`);
-      if (!res.ok) throw new Error("Lookup failed");
-      const data = await res.json();
-      setGhinLookupResults(data);
-      if (data.length === 0) setGhinLookupError("No golfers found");
-    } catch (err) {
-      setGhinLookupError("Lookup failed");
-    } finally {
-      setGhinLookupLoading(false);
-    }
-  };
-  const selectGhinGolfer = (golfer) => {
-    if (ghinLookupSlot === "human") {
-      setHumanPlayer(h => ({ ...h, name: golfer.name, handicap: golfer.handicap || "", is_human: true }));
-    } else {
-      setComputerPlayers(players => players.map((p, i) => {
-        const slotId = `comp${i+1}`;
-        return slotId === ghinLookupSlot ? { ...p, name: golfer.name, handicap: golfer.handicap || "", is_human: false } : p;
-      }));
-    }
-    closeGhinLookup();
-  };
+  // GHIN lookup functions removed - functionality not currently exposed in UI
 
   useEffect(() => {
     fetchInitialData();
@@ -175,13 +124,7 @@ function SimulationMode() {
         offer_double: false,
         accept_double: false
       });
-      // Reset GHIN lookup state
-      setGhinLookupSlot(null);
-      setGhinLookupFirstName("");
-      setGhinLookupLastName("");
-      setGhinLookupResults([]);
-      setGhinLookupLoading(false);
-      setGhinLookupError("");
+      // GHIN lookup state reset removed - functionality not currently used
       
       const response = await fetch(`${API_URL}/simulation/setup`, {
         method: "POST",
@@ -211,25 +154,7 @@ function SimulationMode() {
     }
   };
   
-  const testNewEndpoints = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_URL}/simulation/test-new-endpoints`);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Backend error: ${response.status} - ${errorText}`);
-      }
-      
-      const data = await response.json();
-      alert(`✅ New endpoints working! ${data.message}`);
-    } catch (error) {
-      console.error("Error testing endpoints:", error);
-      alert("❌ New endpoints not working: " + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Removed unused testNewEndpoints function
 
   // Add the missing makeDecision function and improve interactive flow
   const makeDecision = async (decision) => {
@@ -355,8 +280,7 @@ function SimulationMode() {
       setLoading(false);
     }
   };
-
-  // Enhanced playNextShot with better error handling - using shot-by-shot approach
+  
   const playNextShot = async () => {
     if (loading || interactionNeeded) return;
     
@@ -422,85 +346,6 @@ function SimulationMode() {
     }
   };
   
-  const fetchShotProbabilities = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_URL}/simulation/shot-probabilities`);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Backend error: ${response.status} - ${errorText}`);
-      }
-      
-      const data = await response.json();
-      if (data.status === "ok") {
-        setShotProbabilities(data.probabilities);
-      }
-    } catch (error) {
-      console.error("Error fetching probabilities:", error);
-      alert("Error fetching probabilities: " + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  const fetchShotState = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_URL}/simulation/current-shot-state`);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Backend error: ${response.status} - ${errorText}`);
-      }
-      
-      const data = await response.json();
-      if (data.status === "ok") {
-        setShotState(data.shot_state);
-      }
-    } catch (error) {
-      console.error("Error fetching shot state:", error);
-      alert("Error fetching shot state: " + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  const makeBettingDecision = async (decision) => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_URL}/simulation/betting-decision`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(decision)
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Backend error: ${response.status} - ${errorText}`);
-      }
-      
-      const data = await response.json();
-      if (data.status === "ok") {
-        setGameState(data.game_state);
-        setFeedback([...feedback, `💰 ${data.decision_result.message}`]);
-        setInteractionNeeded(null);
-        
-        // Show betting probabilities in feedback
-        if (data.betting_probabilities) {
-          setShotProbabilities({
-            betting_analysis: data.betting_probabilities
-          });
-        }
-      }
-    } catch (error) {
-      console.error("Error making betting decision:", error);
-      alert("Error making betting decision: " + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
   const resetSimulation = () => {
     setGameState(null);
     setIsGameActive(false);
@@ -511,30 +356,6 @@ function SimulationMode() {
       offer_double: false,
       accept_double: false
     });
-  };
-  
-  const updateComputerPlayer = (index, field, value) => {
-    const updated = [...computerPlayers];
-    updated[index] = { ...updated[index], [field]: value };
-    setComputerPlayers(updated);
-  };
-  
-  const selectSuggestedOpponent = (index, opponentIndex) => {
-    const opponent = suggestedOpponents[opponentIndex];
-    updateComputerPlayer(index, "name", opponent.name);
-    updateComputerPlayer(index, "handicap", opponent.handicap);
-    updateComputerPlayer(index, "personality", opponent.personality);
-  };
-
-
-  
-  // Check if human is captain
-  const isHumanCaptain = gameState?.captain_id === "human";
-  
-  // Get other players for partnership selection
-  const getPartnerOptions = () => {
-    if (!gameState) return [];
-    return gameState.players.filter(p => p.id !== "human" && p.id !== gameState.captain_id);
   };
   
   if (!isGameActive) {

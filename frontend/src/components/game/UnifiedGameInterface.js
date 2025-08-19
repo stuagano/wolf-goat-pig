@@ -32,11 +32,7 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
 
   // Interface state
   const [currentView, setCurrentView] = useState('game');
-  const [availableActions, setAvailableActions] = useState([]);
   const [timelineEvents, setTimelineEvents] = useState([]);
-  const [postHoleAnalysis, setPostHoleAnalysis] = useState(null);
-  const [playerCount, setPlayerCount] = useState(4);
-  const [gameId] = useState(`unified-wgp-${Date.now()}`);
 
   // Simulation-specific state (only used in simulation mode)
   const [humanPlayer, setHumanPlayer] = useState({
@@ -51,7 +47,7 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
   const [courses, setCourses] = useState({});
   const [personalities, setPersonalities] = useState([]);
   const [suggestedOpponents, setSuggestedOpponents] = useState([]);
-  const [feedback, setFeedback] = useState([]);
+  const [feedback] = useState([]); // Passed to SimulationPlay component
 
   useEffect(() => {
     if (mode === 'regular' || mode === 'enhanced') {
