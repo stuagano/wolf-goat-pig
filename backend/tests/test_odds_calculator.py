@@ -453,6 +453,407 @@ class TestPerformanceBenchmarks(unittest.TestCase):
         
         self.assertLess(calc_time, 100, f"Complex scenario took {calc_time:.1f}ms, should be under 100ms")
         self.assertGreater(len(result.betting_scenarios), 0, "Should generate betting scenarios")
+    
+    def test_repeated_calculations_performance(self):
+        """Test performance improvement with repeated calculations (caching)"""
+        players = self.test_players
+        hole = HoleState(hole_number=5, par=4, difficulty_rating=3.0)
+        
+        # Time first calculation
+        times = []
+        for i in range(10):
+            start_time = time.time()
+            result = self.calculator.calculate_real_time_odds(players, hole)
+            calc_time = (time.time() - start_time) * 1000
+            times.append(calc_time)
+        
+        # Later calculations should generally be faster due to caching
+        avg_first_half = sum(times[:5]) / 5
+        avg_second_half = sum(times[5:]) / 5
+        
+        # Allow some variance, but second half should trend faster
+        self.assertLessEqual(avg_second_half, avg_first_half * 1.2, 
+                           f"Second half avg ({avg_second_half:.1f}ms) should not be much slower than first half ({avg_first_half:.1f}ms)")
+    
+    def test_memory_usage_stability(self):
+        """Test that repeated calculations don't cause memory leaks"""
+        import gc
+        import psutil
+        import os
+        
+        process = psutil.Process(os.getpid())
+        initial_memory = process.memory_info().rss / 1024 / 1024  # MB
+        
+        # Run many calculations
+        for i in range(100):
+            players = [
+                PlayerState(id=f"p{j}", name=f"Player {j}", handicap=float(j*2), 
+                           distance_to_pin=100 + i*2) for j in range(4)
+            ]
+            hole = HoleState(hole_number=i % 18 + 1, par=4)
+            result = self.calculator.calculate_real_time_odds(players, hole)
+        
+        gc.collect()  # Force garbage collection
+        final_memory = process.memory_info().rss / 1024 / 1024  # MB
+        memory_growth = final_memory - initial_memory
+        
+        # Memory growth should be reasonable (under 50MB)
+        self.assertLess(memory_growth, 50, 
+                       f"Memory grew by {memory_growth:.1f}MB, should be under 50MB")
+    
+    def test_concurrent_calculation_safety(self):
+        """Test thread safety of calculations"""
+        import threading
+        import queue
+        
+        results_queue = queue.Queue()
+        errors_queue = queue.Queue()
+        
+        def calculate_worker(worker_id):
+            try:
+                players = [
+                    PlayerState(id=f"w{worker_id}_p{i}", name=f"Worker {worker_id} Player {i}", 
+                               handicap=float(worker_id + i), distance_to_pin=150 + worker_id*10)
+                    for i in range(3)
+                ]
+                hole = HoleState(hole_number=worker_id % 18 + 1, par=4)
+                
+                result = self.calculator.calculate_real_time_odds(players, hole)
+                results_queue.put((worker_id, result))
+            except Exception as e:
+                errors_queue.put((worker_id, e))
+        
+        # Start multiple threads
+        threads = []
+        for i in range(8):
+            thread = threading.Thread(target=calculate_worker, args=(i,))
+            threads.append(thread)
+            thread.start()
+        
+        # Wait for completion
+        for thread in threads:
+            thread.join()
+        
+        # Check for errors
+        while not errors_queue.empty():
+            worker_id, error = errors_queue.get()
+            self.fail(f"Worker {worker_id} failed with error: {error}")
+        
+        # Check results
+        results = {}
+        while not results_queue.empty():
+            worker_id, result = results_queue.get()
+            results[worker_id] = result
+        
+        self.assertEqual(len(results), 8, "All workers should complete successfully")
+        for worker_id, result in results.items():
+            self.assertIsNotNone(result, f"Worker {worker_id} should return valid result")
+
+
+class TestAdvancedEdgeCases(unittest.TestCase):
+    """Advanced edge case and error handling tests"""
+    
+    def setUp(self):
+        self.calculator = OddsCalculator()
+    
+    def test_extreme_handicap_values(self):
+        """Test handling of extreme handicap values"""
+        test_cases = [
+            (-5.0, "Negative handicap"),
+            (0.0, "Scratch player"),
+            (54.0, "Maximum handicap"),
+            (100.0, "Beyond maximum handicap")
+        ]
+        
+        for handicap, description in test_cases:
+            with self.subTest(handicap=handicap, description=description):
+                prob = self.calculator._calculate_shot_success_probability(
+                    handicap=handicap, distance=150, lie_type="fairway", hole_difficulty=3.0
+                )
+                self.assertIsInstance(prob, float, f"Should return float for {description}")
+                self.assertGreaterEqual(prob, 0.0, f"Probability should be non-negative for {description}")
+                self.assertLessEqual(prob, 1.0, f"Probability should not exceed 1.0 for {description}")
+    
+    def test_extreme_distances(self):
+        """Test handling of extreme distances"""
+        test_cases = [
+            (0.0, "On the pin"),
+            (1.0, "Tap-in distance"),
+            (500.0, "Very long shot"),
+            (1000.0, "Unrealistic distance")
+        ]
+        
+        for distance, description in test_cases:
+            with self.subTest(distance=distance, description=description):
+                prob = self.calculator._calculate_shot_success_probability(
+                    handicap=15, distance=distance, lie_type="fairway", hole_difficulty=3.0
+                )
+                self.assertIsInstance(prob, float, f"Should return float for {description}")
+                self.assertGreaterEqual(prob, 0.0, f"Probability should be non-negative for {description}")
+                self.assertLessEqual(prob, 1.0, f"Probability should not exceed 1.0 for {description}")
+    
+    def test_unusual_lie_types(self):
+        """Test handling of unusual lie types"""
+        unusual_lies = ["water", "trees", "cart_path", "bunker_lip", "deep_rough", "waste_area"]
+        
+        for lie_type in unusual_lies:
+            with self.subTest(lie_type=lie_type):
+                prob = self.calculator._calculate_shot_success_probability(
+                    handicap=12, distance=150, lie_type=lie_type, hole_difficulty=3.0
+                )
+                self.assertIsInstance(prob, float, f"Should handle {lie_type} lie")
+                self.assertGreater(prob, 0.0, f"Should maintain minimum probability for {lie_type}")
+                self.assertLess(prob, 1.0, f"Should not be certain success for {lie_type}")
+    
+    def test_invalid_team_configurations(self):
+        """Test handling of invalid team configurations"""
+        players = [
+            PlayerState(id="p1", name="Player 1", handicap=10, is_captain=True),
+            PlayerState(id="p2", name="Player 2", handicap=15)
+        ]
+        
+        # Test with invalid team string
+        hole = HoleState(hole_number=1, par=4, teams="invalid_team_config")
+        result = self.calculator.calculate_real_time_odds(players, hole)
+        self.assertIsNotNone(result, "Should handle invalid team configuration gracefully")
+    
+    def test_missing_captain_in_solo_play(self):
+        """Test handling of solo play without designated captain"""
+        players = [
+            PlayerState(id="p1", name="Player 1", handicap=10, is_captain=False),
+            PlayerState(id="p2", name="Player 2", handicap=15, is_captain=False)
+        ]
+        
+        hole = HoleState(hole_number=1, par=4, teams=TeamConfiguration.SOLO)
+        result = self.calculator.calculate_real_time_odds(players, hole)
+        self.assertIsNotNone(result, "Should handle missing captain gracefully")
+    
+    def test_multiple_captains(self):
+        """Test handling of multiple designated captains"""
+        players = [
+            PlayerState(id="p1", name="Player 1", handicap=10, is_captain=True),
+            PlayerState(id="p2", name="Player 2", handicap=15, is_captain=True)
+        ]
+        
+        hole = HoleState(hole_number=1, par=4, teams=TeamConfiguration.SOLO)
+        result = self.calculator.calculate_real_time_odds(players, hole)
+        self.assertIsNotNone(result, "Should handle multiple captains gracefully")
+    
+    def test_zero_or_negative_par(self):
+        """Test handling of invalid par values"""
+        players = [PlayerState(id="p1", name="Player 1", handicap=10)]
+        
+        # Test zero par
+        hole_zero_par = HoleState(hole_number=1, par=0)
+        result = self.calculator.calculate_real_time_odds(players, hole_zero_par)
+        self.assertIsNotNone(result, "Should handle zero par gracefully")
+        
+        # Test negative par
+        hole_neg_par = HoleState(hole_number=1, par=-1)
+        result = self.calculator.calculate_real_time_odds(players, hole_neg_par)
+        self.assertIsNotNone(result, "Should handle negative par gracefully")
+    
+    def test_extreme_difficulty_ratings(self):
+        """Test handling of extreme difficulty ratings"""
+        players = [PlayerState(id="p1", name="Player 1", handicap=10)]
+        
+        test_difficulties = [0.0, -1.0, 6.0, 100.0]
+        
+        for difficulty in test_difficulties:
+            with self.subTest(difficulty=difficulty):
+                hole = HoleState(hole_number=1, par=4, difficulty_rating=difficulty)
+                result = self.calculator.calculate_real_time_odds(players, hole)
+                self.assertIsNotNone(result, f"Should handle difficulty {difficulty} gracefully")
+    
+    def test_fractional_wagers(self):
+        """Test handling of fractional wager amounts"""
+        players = [PlayerState(id="p1", name="Player 1", handicap=10)]
+        
+        # Test fractional wager
+        hole = HoleState(hole_number=1, par=4, current_wager=2.5)
+        result = self.calculator.calculate_real_time_odds(players, hole)
+        self.assertIsNotNone(result, "Should handle fractional wagers")
+        
+        # Test zero wager
+        hole_zero = HoleState(hole_number=1, par=4, current_wager=0)
+        result = self.calculator.calculate_real_time_odds(players, hole_zero)
+        self.assertIsNotNone(result, "Should handle zero wager")
+
+
+class TestCachingMechanisms(unittest.TestCase):
+    """Test caching mechanisms and cache invalidation"""
+    
+    def setUp(self):
+        self.calculator = OddsCalculator()
+    
+    def test_shot_probability_caching(self):
+        """Test that shot probability calculations are properly cached"""
+        # First calculation
+        prob1 = self.calculator._calculate_shot_success_probability(
+            handicap=12, distance=150, lie_type="fairway", hole_difficulty=3.0
+        )
+        
+        # Second identical calculation (should hit cache)
+        prob2 = self.calculator._calculate_shot_success_probability(
+            handicap=12, distance=150, lie_type="fairway", hole_difficulty=3.0
+        )
+        
+        self.assertEqual(prob1, prob2, "Cached results should be identical")
+    
+    def test_cache_key_sensitivity(self):
+        """Test that cache is sensitive to parameter changes"""
+        base_prob = self.calculator._calculate_shot_success_probability(
+            handicap=12, distance=150, lie_type="fairway", hole_difficulty=3.0
+        )
+        
+        # Change handicap
+        handicap_prob = self.calculator._calculate_shot_success_probability(
+            handicap=13, distance=150, lie_type="fairway", hole_difficulty=3.0
+        )
+        self.assertNotEqual(base_prob, handicap_prob, "Different handicap should give different result")
+        
+        # Change distance
+        distance_prob = self.calculator._calculate_shot_success_probability(
+            handicap=12, distance=160, lie_type="fairway", hole_difficulty=3.0
+        )
+        self.assertNotEqual(base_prob, distance_prob, "Different distance should give different result")
+        
+        # Change lie type
+        lie_prob = self.calculator._calculate_shot_success_probability(
+            handicap=12, distance=150, lie_type="rough", hole_difficulty=3.0
+        )
+        self.assertNotEqual(base_prob, lie_prob, "Different lie should give different result")
+    
+    def test_cache_performance_improvement(self):
+        """Test that caching provides measurable performance improvement"""
+        import time
+        
+        # Parameters for calculation
+        params = (12, 150, "fairway", 3.0)
+        
+        # First calculation (cache miss)
+        start_time = time.time()
+        prob1 = self.calculator._calculate_shot_success_probability(*params)
+        first_time = time.time() - start_time
+        
+        # Multiple cached calculations
+        cached_times = []
+        for _ in range(10):
+            start_time = time.time()
+            prob = self.calculator._calculate_shot_success_probability(*params)
+            cached_times.append(time.time() - start_time)
+            self.assertEqual(prob, prob1, "Cached results should be consistent")
+        
+        avg_cached_time = sum(cached_times) / len(cached_times)
+        
+        # Cached calculations should be significantly faster
+        # (allowing for some variance in timing)
+        self.assertLessEqual(avg_cached_time, first_time * 0.8,
+                           f"Cached calculations ({avg_cached_time:.6f}s) should be faster than first ({first_time:.6f}s)")
+
+
+class TestAccuracyValidation(unittest.TestCase):
+    """Test mathematical accuracy and validation against known results"""
+    
+    def setUp(self):
+        self.calculator = OddsCalculator()
+    
+    def test_probability_bounds_enforcement(self):
+        """Test that all probability calculations stay within valid bounds"""
+        import random
+        
+        # Test many random combinations
+        for _ in range(100):
+            handicap = random.uniform(-5, 50)
+            distance = random.uniform(0, 500)
+            lie_type = random.choice(["fairway", "rough", "bunker", "green", "trees", "water"])
+            difficulty = random.uniform(1, 5)
+            
+            prob = self.calculator._calculate_shot_success_probability(
+                handicap, distance, lie_type, difficulty
+            )
+            
+            self.assertGreaterEqual(prob, 0.0, f"Probability {prob} should be >= 0 for "
+                                             f"hcp={handicap:.1f}, dist={distance:.1f}, lie={lie_type}")
+            self.assertLessEqual(prob, 1.0, f"Probability {prob} should be <= 1 for "
+                                           f"hcp={handicap:.1f}, dist={distance:.1f}, lie={lie_type}")
+    
+    def test_handicap_progression_consistency(self):
+        """Test that handicap progression follows expected patterns"""
+        handicaps = range(0, 31, 2)  # 0, 2, 4, ..., 30
+        probabilities = []
+        
+        for hcp in handicaps:
+            prob = self.calculator._calculate_shot_success_probability(
+                handicap=float(hcp), distance=150, lie_type="fairway", hole_difficulty=3.0
+            )
+            probabilities.append(prob)
+        
+        # Check for generally decreasing trend
+        decreasing_pairs = 0
+        total_pairs = len(probabilities) - 1
+        
+        for i in range(total_pairs):
+            if probabilities[i] >= probabilities[i + 1]:
+                decreasing_pairs += 1
+        
+        # At least 80% of pairs should follow the decreasing trend
+        self.assertGreaterEqual(decreasing_pairs / total_pairs, 0.8,
+                              "Probability should generally decrease with higher handicap")
+    
+    def test_distance_progression_consistency(self):
+        """Test that distance progression follows expected patterns"""
+        distances = [10, 25, 50, 75, 100, 150, 200, 250, 300]
+        probabilities = []
+        
+        for dist in distances:
+            prob = self.calculator._calculate_shot_success_probability(
+                handicap=12.0, distance=float(dist), lie_type="fairway", hole_difficulty=3.0
+            )
+            probabilities.append(prob)
+        
+        # Check for generally decreasing trend with distance
+        decreasing_pairs = 0
+        total_pairs = len(probabilities) - 1
+        
+        for i in range(total_pairs):
+            if probabilities[i] >= probabilities[i + 1]:
+                decreasing_pairs += 1
+        
+        # At least 70% of pairs should follow the decreasing trend
+        self.assertGreaterEqual(decreasing_pairs / total_pairs, 0.7,
+                              "Probability should generally decrease with longer distance")
+    
+    def test_expected_value_calculation_accuracy(self):
+        """Test expected value calculations for mathematical accuracy"""
+        # Known scenario: 60% win rate, double or nothing bet
+        ev = self.calculator._calculate_expected_value(
+            scenario="offer_double",
+            win_prob=0.6,
+            current_wager=2,
+            players=[]
+        )
+        
+        # Expected calculation: 0.6 * 4 - 0.4 * 2 = 2.4 - 0.8 = 1.6
+        expected_ev = 0.6 * 4 - 0.4 * 2
+        self.assertAlmostEqual(ev, expected_ev, places=2,
+                             msg=f"Expected value calculation: got {ev}, expected {expected_ev}")
+    
+    def test_probability_distribution_normalization(self):
+        """Test that probability distributions properly normalize to 1.0"""
+        player = PlayerState(id="test", name="Test", handicap=12, distance_to_pin=150)
+        hole = HoleState(hole_number=10, par=4, difficulty_rating=3.0)
+        
+        prob_dist = self.calculator._calculate_hole_completion_probability(player, hole)
+        
+        total_prob = sum(prob_dist.values())
+        self.assertAlmostEqual(total_prob, 1.0, places=2,
+                             msg=f"Probability distribution should sum to 1.0, got {total_prob}")
+        
+        # Check individual probabilities
+        for score, prob in prob_dist.items():
+            self.assertGreaterEqual(prob, 0.0, f"Probability for score {score} should be non-negative")
+            self.assertLessEqual(prob, 1.0, f"Probability for score {score} should not exceed 1.0")
 
 
 if __name__ == '__main__':
