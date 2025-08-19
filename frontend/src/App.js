@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
 import { UnifiedGameInterface } from "./components/game";
 import { SimulationMode, MonteCarloSimulation } from "./components/simulation";
 import ShotRangeAnalyzer from "./components/ShotRangeAnalyzer";
+import ColdStartHandler from "./components/ColdStartHandler";
 import { ThemeProvider, useTheme } from "./theme/Provider";
 import { GameProvider } from "./context";
 import { HomePage } from "./pages";
@@ -69,19 +70,32 @@ function Navigation() {
 function App() {
   const theme = useTheme();
   
-  const [loading, setLoading] = useState(true);
+  const [backendReady, setBackendReady] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
-  const [rules, setRules] = useState([]);
 
-  useEffect(() => {
-    fetch(`${API_URL}/rules`).then(res => res.json()).then(data => setRules(data));
-  }, []);
+  const handleBackendReady = () => {
+    setBackendReady(true);
+    // Load rules once backend is ready
+    fetch(`${API_URL}/rules`)
+      .then(res => res.json())
+      .then(data => {
+        // Handle rules data if needed
+      })
+      .catch(err => {
+        console.warn('Could not load rules:', err);
+      });
+  };
 
+  // If backend isn't ready, show cold start handler
+  if (!backendReady) {
+    return (
+      <ColdStartHandler onReady={handleBackendReady}>
+        {/* This content will show once backend is ready */}
+      </ColdStartHandler>
+    );
+  }
 
-  useEffect(() => {
-    setLoading(false);
-  }, []);
-
+  // Show splash screen after backend is ready
   if (showSplash) {
     return (
       <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100vh',background:theme.colors.background}}>
@@ -96,6 +110,7 @@ function App() {
     );
   }
 
+  // Main application
   return (
     <ThemeProvider>
       <div>

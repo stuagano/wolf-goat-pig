@@ -146,10 +146,12 @@ If deployment fails:
 ### Backend Health Check
 - URL: `https://wolf-goat-pig-api.onrender.com/health`
 - Expected: `{"status":"healthy",...}`
+- **Cold Start Handling**: Frontend automatically detects and handles Render's cold start delays
 
 ### Frontend Health Check  
 - URL: `https://wolf-goat-pig.vercel.app`
 - Expected: React app loads without errors
+- **Cold Start UX**: Shows humorous loading message during backend warm-up
 
 ## 🎯 Agent Success Criteria
 
