@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  ShotResultWidget,
-  BettingOpportunityWidget,
   GameStateWidget,
-  StrategicAnalysisWidget
 } from '../';
 import { useTheme } from '../../theme/Provider';
 import { useGame } from '../../context';
@@ -17,10 +14,6 @@ const WolfGoatPigGame = () => {
     setGameState, 
     loading, 
     setLoading, 
-    error, 
-    clearError,
-    fetchGameState,
-    makeGameAction 
   } = useGame();
   
   const [availableActions, setAvailableActions] = useState([]);

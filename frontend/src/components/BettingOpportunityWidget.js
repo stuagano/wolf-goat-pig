@@ -35,7 +35,6 @@ const BettingOpportunityWidget = ({ bettingOpportunity, onDecision }) => {
   if (!bettingOpportunity) return null;
 
   const {
-    opportunity_type,
     message,
     options,
     probability_analysis,

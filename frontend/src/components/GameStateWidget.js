@@ -15,8 +15,11 @@ const COLORS = {
   vinnie: '#795548'
 };
 
-const GameStateWidget = ({ gameState, holeState }) => {
-  if (!gameState || !holeState) return null;
+const GameStateWidget = ({ gameState, holeState, onAction }) => {
+  // Use holeState from props or fallback to gameState.hole_state
+  const effectiveHoleState = holeState || gameState?.hole_state;
+  
+  if (!gameState || !effectiveHoleState) return null;
 
   const getPhaseColor = (phase) => {
     switch (phase) {
@@ -79,17 +82,17 @@ const GameStateWidget = ({ gameState, holeState }) => {
               Hole {gameState.current_hole}
             </h2>
             <div style={{ color: COLORS.muted, fontSize: 14 }}>
-              {gameState.game_phase.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+              {gameState.game_phase?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Regular Play'}
             </div>
           </div>
         </div>
         
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: 24, fontWeight: 600, color: COLORS.text }}>
-            Par {holeState.hole_par}
+            Par {effectiveHoleState.hole_par || 4}
           </div>
           <div style={{ fontSize: 14, color: COLORS.muted }}>
-            Stroke Index {holeState.stroke_index}
+            Stroke Index {effectiveHoleState.stroke_index || 'N/A'}
           </div>
         </div>
       </div>
@@ -106,38 +109,38 @@ const GameStateWidget = ({ gameState, holeState }) => {
           background: '#f8f9fa',
           padding: 16,
           borderRadius: 12,
-          border: `2px solid ${holeState.teams.type === 'pending' ? COLORS.warning : COLORS.success}`
+          border: `2px solid ${effectiveHoleState.teams?.type === 'pending' ? COLORS.warning : COLORS.success}`
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-            <span style={{ fontSize: 20 }}>{getTeamTypeIcon(holeState.teams.type)}</span>
+            <span style={{ fontSize: 20 }}>{getTeamTypeIcon(effectiveHoleState.teams.type)}</span>
             <h4 style={{ margin: 0, color: COLORS.text }}>
               Team Formation
             </h4>
           </div>
           
-          {holeState.teams.type === 'partners' && (
+          {effectiveHoleState.teams.type === 'partners' && (
             <div>
               <div style={{ marginBottom: 8 }}>
-                <strong style={{ color: COLORS.primary }}>Team 1:</strong> {holeState.teams.team1.join(', ')}
+                <strong style={{ color: COLORS.primary }}>Team 1:</strong> {effectiveHoleState.teams.team1.join(', ')}
               </div>
               <div>
-                <strong style={{ color: COLORS.accent }}>Team 2:</strong> {holeState.teams.team2.join(', ')}
+                <strong style={{ color: COLORS.accent }}>Team 2:</strong> {effectiveHoleState.teams.team2.join(', ')}
               </div>
             </div>
           )}
           
-          {holeState.teams.type === 'solo' && (
+          {effectiveHoleState.teams.type === 'solo' && (
             <div>
               <div style={{ marginBottom: 8 }}>
-                <strong style={{ color: COLORS.primary }}>Solo:</strong> {holeState.teams.solo_player}
+                <strong style={{ color: COLORS.primary }}>Solo:</strong> {effectiveHoleState.teams.solo_player}
               </div>
               <div>
-                <strong style={{ color: COLORS.accent }}>Opponents:</strong> {holeState.teams.opponents.join(', ')}
+                <strong style={{ color: COLORS.accent }}>Opponents:</strong> {effectiveHoleState.teams.opponents.join(', ')}
               </div>
             </div>
           )}
           
-          {holeState.teams.type === 'pending' && (
+          {effectiveHoleState.teams.type === 'pending' && (
             <div style={{ color: COLORS.warning, fontStyle: 'italic' }}>
               Waiting for team formation...
             </div>
@@ -158,20 +161,20 @@ const GameStateWidget = ({ gameState, holeState }) => {
           </div>
           
           <div style={{ marginBottom: 8 }}>
-            <strong>Current Wager:</strong> {holeState.betting.current_wager} quarters
+            <strong>Current Wager:</strong> {effectiveHoleState.betting.current_wager} quarters
           </div>
           
           <div style={{ marginBottom: 8 }}>
-            <strong>Base Wager:</strong> {holeState.betting.base_wager} quarters
+            <strong>Base Wager:</strong> {effectiveHoleState.betting.base_wager} quarters
           </div>
           
-          {holeState.betting.doubled && (
+          {effectiveHoleState.betting.doubled && (
             <div style={{ color: COLORS.warning, fontWeight: 600 }}>
               ⚡ Doubled!
             </div>
           )}
           
-          {holeState.betting.redoubled && (
+          {effectiveHoleState.betting.redoubled && (
             <div style={{ color: COLORS.error, fontWeight: 600 }}>
               ⚡⚡ Redoubled!
             </div>
@@ -192,18 +195,18 @@ const GameStateWidget = ({ gameState, holeState }) => {
           </div>
           
           <div style={{ marginBottom: 8 }}>
-            <strong>Shot #{holeState.current_shot_number}</strong>
+            <strong>Shot #{effectiveHoleState.current_shot_number}</strong>
           </div>
           
           <div style={{ marginBottom: 8 }}>
-            <strong>Next to Hit:</strong> {holeState.next_player_to_hit || 'TBD'}
+            <strong>Next to Hit:</strong> {effectiveHoleState.next_player_to_hit || 'TBD'}
           </div>
           
           <div style={{ marginBottom: 8 }}>
-            <strong>Line of Scrimmage:</strong> {holeState.line_of_scrimmage || 'Not set'}
+            <strong>Line of Scrimmage:</strong> {effectiveHoleState.line_of_scrimmage || 'Not set'}
           </div>
           
-          {holeState.hole_complete && (
+          {effectiveHoleState.hole_complete && (
             <div style={{ color: COLORS.success, fontWeight: 600 }}>
               ✅ Hole Complete!
             </div>
@@ -212,7 +215,7 @@ const GameStateWidget = ({ gameState, holeState }) => {
       </div>
 
       {/* Stroke Advantages */}
-      {holeState.stroke_advantages && Object.keys(holeState.stroke_advantages).length > 0 && (
+      {effectiveHoleState.stroke_advantages && Object.keys(effectiveHoleState.stroke_advantages).length > 0 && (
         <div style={{ marginBottom: 20 }}>
           <h4 style={{ margin: '0 0 12px 0', color: COLORS.text }}>
             🎯 Handicap Stroke Advantages (Creecher Feature)
@@ -223,7 +226,7 @@ const GameStateWidget = ({ gameState, holeState }) => {
             gap: 12
           }}>
             {gameState.players.map((player) => {
-              const strokeAdv = holeState.stroke_advantages[player.id];
+              const strokeAdv = effectiveHoleState.stroke_advantages[player.id];
               if (!strokeAdv) return null;
               
               return (
@@ -258,7 +261,7 @@ const GameStateWidget = ({ gameState, holeState }) => {
                   </div>
                   
                   <div style={{ fontSize: 11, color: COLORS.muted, marginTop: 4 }}>
-                    Stroke Index {holeState.stroke_index}
+                    Stroke Index {effectiveHoleState.stroke_index}
                   </div>
                 </div>
               );
@@ -278,8 +281,8 @@ const GameStateWidget = ({ gameState, holeState }) => {
           gap: 12
         }}>
           {gameState.players.map((player) => {
-            const ballPosition = holeState.ball_positions[player.id];
-            const strokeAdv = holeState.stroke_advantages[player.id];
+            const ballPosition = effectiveHoleState.ball_positions[player.id];
+            const strokeAdv = effectiveHoleState.stroke_advantages[player.id];
             
             return (
               <div key={player.id} style={{
@@ -332,7 +335,7 @@ const GameStateWidget = ({ gameState, holeState }) => {
       </div>
 
       {/* Special Rules */}
-      {holeState.betting.special_rules && Object.values(holeState.betting.special_rules).some(rule => rule) && (
+      {effectiveHoleState.betting.special_rules && Object.values(effectiveHoleState.betting.special_rules).some(rule => rule) && (
         <div style={{
           background: '#fff3cd',
           border: `1px solid ${COLORS.warning}`,
@@ -344,10 +347,10 @@ const GameStateWidget = ({ gameState, holeState }) => {
             ⚡ Special Rules Active
           </h4>
           <div style={{ fontSize: 14 }}>
-            {holeState.betting.special_rules.float_invoked && '🦅 Float Invoked • '}
-            {holeState.betting.special_rules.option_invoked && '🎯 Option Invoked • '}
-            {holeState.betting.special_rules.duncan_invoked && '👑 Duncan Invoked • '}
-            {holeState.betting.special_rules.tunkarri_invoked && '🦘 Tunkarri Invoked'}
+            {effectiveHoleState.betting.special_rules.float_invoked && '🦅 Float Invoked • '}
+            {effectiveHoleState.betting.special_rules.option_invoked && '🎯 Option Invoked • '}
+            {effectiveHoleState.betting.special_rules.duncan_invoked && '👑 Duncan Invoked • '}
+            {effectiveHoleState.betting.special_rules.tunkarri_invoked && '🦘 Tunkarri Invoked'}
           </div>
         </div>
       )}

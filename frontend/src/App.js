@@ -4,8 +4,10 @@ import { UnifiedGameInterface } from "./components/game";
 import { SimulationMode, MonteCarloSimulation } from "./components/simulation";
 import ShotRangeAnalyzer from "./components/ShotRangeAnalyzer";
 import ColdStartHandler from "./components/ColdStartHandler";
+import TutorialSystem from "./components/tutorial/TutorialSystem";
 import { ThemeProvider, useTheme } from "./theme/Provider";
 import { GameProvider } from "./context";
+import { TutorialProvider } from "./context/TutorialContext";
 import { HomePage } from "./pages";
 
 const API_URL = process.env.REACT_APP_API_URL || "";
@@ -61,6 +63,9 @@ function Navigation() {
           <button style={navButtonStyle} onClick={() => navigate('/analytics')}>
             📊 Analytics
           </button>
+          <button style={navButtonStyle} onClick={() => navigate('/tutorial')}>
+            🎓 Tutorial
+          </button>
         </div>
       </div>
     </nav>
@@ -69,6 +74,7 @@ function Navigation() {
 
 function App() {
   const theme = useTheme();
+  const navigate = useNavigate();
   
   const [backendReady, setBackendReady] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
@@ -121,6 +127,7 @@ function App() {
           <Route path="/simulation" element={<SimulationMode />} />
           <Route path="/monte-carlo" element={<MonteCarloSimulation />} />
           <Route path="/analytics" element={<ShotRangeAnalyzer />} />
+          <Route path="/tutorial" element={<TutorialSystem onComplete={() => navigate('/game')} onExit={() => navigate('/')} />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </div>
@@ -132,9 +139,11 @@ function App() {
 const AppWithProviders = () => {
   return (
     <GameProvider>
-      <ThemeProvider>
-        <App />
-      </ThemeProvider>
+      <TutorialProvider>
+        <ThemeProvider>
+          <App />
+        </ThemeProvider>
+      </TutorialProvider>
     </GameProvider>
   );
 };

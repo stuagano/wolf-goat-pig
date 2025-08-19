@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 const COLORS = {
   primary: '#2c3e50',
@@ -18,7 +18,7 @@ const AnalyticsDashboard = ({ gameId, onBack }) => {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('performance');
 
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch(`/wgp/${gameId}/action`, {
@@ -48,11 +48,11 @@ const AnalyticsDashboard = ({ gameId, onBack }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [gameId]);
 
   useEffect(() => {
     fetchAnalytics();
-  }, [gameId]);
+  }, [fetchAnalytics]);
 
   const renderPerformanceTrends = () => {
     if (!analytics || !analytics.performance_trends) return null;

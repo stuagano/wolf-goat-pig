@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTheme } from '../theme/Provider';
 
 const ColdStartHandler = ({ children, onReady }) => {
@@ -9,7 +9,7 @@ const ColdStartHandler = ({ children, onReady }) => {
   
   const API_URL = process.env.REACT_APP_API_URL || "";
 
-  const checkBackendHealth = async (attempt = 0) => {
+  const checkBackendHealth = useCallback(async (attempt = 0) => {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
@@ -50,12 +50,12 @@ const ColdStartHandler = ({ children, onReady }) => {
       
       return false;
     }
-  };
+  }, [API_URL, onReady, startTime, backendStatus]);
 
   useEffect(() => {
     setStartTime(Date.now());
     checkBackendHealth();
-  }, []);
+  }, [checkBackendHealth]);
 
   const getStatusMessage = () => {
     switch (backendStatus) {

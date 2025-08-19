@@ -112,18 +112,6 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
     fetch(`${API_URL}/game/player_strokes`).then(res => res.json()).then(data => setPlayerStrokes(data));
   }, [setGameState, setLoading]);
 
-  const refreshState = () => {
-    setLoading(true);
-    fetch(`${API_URL}/game/state`)
-      .then(res => res.json())
-      .then(data => {
-        setGameState(data);
-        setLoading(false);
-        fetch(`${API_URL}/game/tips`).then(res => res.json()).then(data => setBettingTips(data.tips || []));
-        fetch(`${API_URL}/game/player_strokes`).then(res => res.json()).then(data => setPlayerStrokes(data));
-      });
-  };
-
   const doAction = async (action, payload = {}) => {
     setLoading(true);
     const res = await fetch(`${API_URL}/game/action`, {
@@ -138,20 +126,6 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
     setPartnerSelect("");
   };
 
-  const startGame = () => doAction("next_hole");
-  const restartGame = () => {
-    if (!window.confirm("Are you sure you want to restart the game? All progress will be lost.")) return;
-    setLoading(true);
-    fetch(`${API_URL}/game/start`, { method: "POST" })
-      .then(res => res.json())
-      .then(data => {
-        setGameState(data.game_state);
-        setLoading(false);
-        setScoreInputs({});
-        setPartnerSelect("");
-      });
-  };
-
   const createNewGame = () => {
     if (!window.confirm("Are you sure you want to start a new game? All progress will be lost.")) return;
     setLoading(true);
@@ -163,11 +137,6 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
         setScoreInputs({});
         setPartnerSelect("");
       });
-  };
-
-  const handleSetup = (state) => {
-    setGameState(state);
-    setLoading(false);
   };
 
   if (loading) {
@@ -193,7 +162,6 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
   const team1 = gameState.teams?.team1 || [];
   const team2 = gameState.teams?.team2 || [];
   const isCaptain = pid => pid === gameState.captain_id;
-  const teamColor = pid => team1.includes(pid) ? "#e0f7fa" : team2.includes(pid) ? "#ffe0b2" : "#fff";
   const teamBadge = pid => team1.includes(pid) ? <span style={{background:'#00bcd4',color:'#fff',borderRadius:4,padding:'2px 6px',marginLeft:4,fontSize:12}}>Team 1</span> : team2.includes(pid) ? <span style={{background:'#ff9800',color:'#fff',borderRadius:4,padding:'2px 6px',marginLeft:4,fontSize:12}}>Team 2</span> : null;
 
   let teamStatus = null;

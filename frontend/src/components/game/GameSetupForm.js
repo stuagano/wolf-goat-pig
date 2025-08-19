@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import CourseManager from "./CourseManager";
+import PlayerProfileManager from "../PlayerProfileManager";
+import usePlayerProfile from "../../hooks/usePlayerProfile";
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 const COLORS = {
@@ -47,16 +49,25 @@ const inputStyle = {
 };
 
 function GameSetupForm({ onSetup }) {
+  const {
+    selectedProfile,
+    profiles,
+    selectProfile,
+    hasProfiles
+  } = usePlayerProfile();
+
   const [players, setPlayers] = useState([
-    { id: 'p1', name: '', handicap: '', strength: '', is_human: true },
-    { id: 'p2', name: '', handicap: '', strength: '', is_human: true },
-    { id: 'p3', name: '', handicap: '', strength: '', is_human: true },
-    { id: 'p4', name: '', handicap: '', strength: '', is_human: true },
+    { id: 'p1', name: '', handicap: '', strength: '', is_human: true, profile_id: null },
+    { id: 'p2', name: '', handicap: '', strength: '', is_human: true, profile_id: null },
+    { id: 'p3', name: '', handicap: '', strength: '', is_human: true, profile_id: null },
+    { id: 'p4', name: '', handicap: '', strength: '', is_human: true, profile_id: null },
   ]);
   const [courses, setCourses] = useState([]);
   const [courseName, setCourseName] = useState('');
   const [error, setError] = useState('');
   const [showCourseManager, setShowCourseManager] = useState(false);
+  const [showProfileManager, setShowProfileManager] = useState(false);
+  const [setupMode, setSetupMode] = useState('quick'); // 'quick' or 'profile'
   // GHIN lookup state
   const [ghinSearch, setGhinSearch] = useState({}); // {p1: {first_name, last_name}, ...}
   const [ghinResults, setGhinResults] = useState({}); // {p1: [], ...}
@@ -70,8 +81,55 @@ function GameSetupForm({ onSetup }) {
     });
   }, []);
 
+  // Auto-populate first player with selected profile
+  useEffect(() => {
+    if (selectedProfile && setupMode === 'profile') {
+      setPlayers(prevPlayers => prevPlayers.map((p, i) => 
+        i === 0 ? {
+          ...p,
+          name: selectedProfile.name,
+          handicap: selectedProfile.handicap.toString(),
+          strength: getStrengthFromHandicap(selectedProfile.handicap),
+          profile_id: selectedProfile.id
+        } : p
+      ));
+    }
+  }, [selectedProfile, setupMode]);
+
+  const getStrengthFromHandicap = (handicap) => {
+    const h = parseFloat(handicap);
+    if (h <= 5) return 'Expert';
+    if (h <= 10) return 'Strong';
+    if (h <= 15) return 'Average';
+    return 'Beginner';
+  };
+
   const handleChange = (idx, field, value) => {
     setPlayers(players => players.map((p, i) => i === idx ? { ...p, [field]: value } : p));
+  };
+
+  const handleProfileSelect = (idx, profile) => {
+    if (profile) {
+      setPlayers(prevPlayers => prevPlayers.map((p, i) => 
+        i === idx ? {
+          ...p,
+          name: profile.name,
+          handicap: profile.handicap.toString(),
+          strength: getStrengthFromHandicap(profile.handicap),
+          profile_id: profile.id
+        } : p
+      ));
+    } else {
+      setPlayers(prevPlayers => prevPlayers.map((p, i) => 
+        i === idx ? {
+          ...p,
+          name: '',
+          handicap: '',
+          strength: '',
+          profile_id: null
+        } : p
+      ));
+    }
   };
 
   // GHIN lookup handlers
@@ -135,8 +193,112 @@ function GameSetupForm({ onSetup }) {
       {showCourseManager && <CourseManager onClose={() => setShowCourseManager(false)} onCoursesChanged={() => {
         fetch(`${API_URL}/courses`).then(res => res.json()).then(data => setCourses(Object.keys(data)));
       }} />}
-      <form onSubmit={handleSubmit} style={{ ...cardStyle, maxWidth: 420, margin: '40px auto', background: COLORS.bg }}>
+      {showProfileManager && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ backgroundColor: 'white', borderRadius: 12, maxWidth: '90vw', maxHeight: '90vh', overflow: 'auto', padding: 20 }}>
+            <PlayerProfileManager 
+              onProfileSelect={(profile) => {
+                selectProfile(profile);
+                setShowProfileManager(false);
+              }}
+              selectedProfile={selectedProfile}
+              showSelector={false}
+            />
+            <button 
+              onClick={() => setShowProfileManager(false)}
+              style={{ ...buttonStyle, background: COLORS.muted, marginTop: 16 }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+      <form onSubmit={handleSubmit} style={{ ...cardStyle, maxWidth: 480, margin: '40px auto', background: COLORS.bg }}>
         <h2 style={{ color: COLORS.primary, marginBottom: 12 }}>Setup Players & Course</h2>
+        
+        {/* Setup Mode Toggle */}
+        <div style={{ marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center' }}>
+          <label style={{ fontWeight: 600 }}>Setup Mode:</label>
+          <button
+            type="button"
+            onClick={() => setSetupMode('quick')}
+            style={{
+              ...buttonStyle,
+              padding: '8px 16px',
+              fontSize: 14,
+              background: setupMode === 'quick' ? COLORS.primary : COLORS.muted
+            }}
+          >
+            Quick Setup
+          </button>
+          <button
+            type="button"
+            onClick={() => setSetupMode('profile')}
+            style={{
+              ...buttonStyle,
+              padding: '8px 16px',
+              fontSize: 14,
+              background: setupMode === 'profile' ? COLORS.primary : COLORS.muted
+            }}
+          >
+            Use Profiles
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowProfileManager(true)}
+            style={{
+              ...buttonStyle,
+              padding: '8px 16px',
+              fontSize: 14,
+              background: COLORS.accent
+            }}
+          >
+            Manage Profiles
+          </button>
+        </div>
+
+        {/* Profile Selection for Profile Mode */}
+        {setupMode === 'profile' && (
+          <div style={{ marginBottom: 16, padding: 12, backgroundColor: '#f8f9fa', borderRadius: 8, border: '1px solid #e9ecef' }}>
+            <h4 style={{ margin: '0 0 8px 0', color: COLORS.primary }}>Your Profile</h4>
+            {selectedProfile ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <strong>{selectedProfile.name}</strong> (Handicap: {selectedProfile.handicap})
+                </div>
+                <button
+                  type="button"
+                  onClick={() => selectProfile(null)}
+                  style={{ ...buttonStyle, padding: '4px 8px', fontSize: 12, background: COLORS.warning }}
+                >
+                  Change
+                </button>
+              </div>
+            ) : (
+              <div>
+                <p style={{ margin: '0 0 8px 0', color: COLORS.muted }}>No profile selected</p>
+                {hasProfiles ? (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {profiles.slice(0, 3).map(profile => (
+                      <button
+                        key={profile.id}
+                        type="button"
+                        onClick={() => selectProfile(profile)}
+                        style={{ ...buttonStyle, padding: '6px 12px', fontSize: 12, background: COLORS.accent }}
+                      >
+                        {profile.name}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p style={{ margin: 0, color: COLORS.muted, fontSize: 14 }}>
+                    Create a profile to track your statistics across games.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         <div style={{ marginBottom: 12, display: 'flex', flexWrap: 'wrap', gap: 8, flexDirection: window.innerWidth < 600 ? 'column' : 'row' }}>
           <label style={{ fontWeight: 600, marginRight: 8 }}>Course:</label>
           <select style={{ ...inputStyle, width: 180 }} value={courseName} onChange={e => setCourseName(e.target.value)}>
@@ -146,13 +308,39 @@ function GameSetupForm({ onSetup }) {
         </div>
         {players.map((player, idx) => (
           <div key={player.id} style={{ marginBottom: 18, border: '1px solid #eee', borderRadius: 8, padding: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Profile Selection for Profile Mode */}
+            {setupMode === 'profile' && idx > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                  Player {idx + 1} Profile (Optional):
+                </label>
+                <select
+                  value={player.profile_id || ''}
+                  onChange={e => {
+                    const profileId = e.target.value;
+                    const selectedProfile = profiles.find(p => p.id === parseInt(profileId));
+                    handleProfileSelect(idx, selectedProfile);
+                  }}
+                  style={{ width: '100%', marginBottom: 8 }}
+                >
+                  <option value="">Manual Entry</option>
+                  {profiles.map(profile => (
+                    <option key={profile.id} value={profile.id}>
+                      {profile.name} (Handicap: {profile.handicap})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <input
                 type="text"
                 placeholder="Name"
                 value={player.name}
                 onChange={e => handleChange(idx, 'name', e.target.value)}
                 style={{ width: 120, marginRight: 8 }}
+                disabled={setupMode === 'profile' && idx === 0 && selectedProfile}
               />
               <input
                 type="number"
@@ -160,11 +348,13 @@ function GameSetupForm({ onSetup }) {
                 value={player.handicap}
                 onChange={e => handleChange(idx, 'handicap', e.target.value)}
                 style={{ width: 70, marginRight: 8 }}
+                disabled={setupMode === 'profile' && idx === 0 && selectedProfile}
               />
               <select
                 value={player.strength}
                 onChange={e => handleChange(idx, 'strength', e.target.value)}
                 style={{ width: 110, marginRight: 8 }}
+                disabled={setupMode === 'profile' && (idx === 0 && selectedProfile || player.profile_id)}
               >
                 <option value="">Strength</option>
                 <option value="Beginner">Beginner</option>
@@ -172,6 +362,13 @@ function GameSetupForm({ onSetup }) {
                 <option value="Strong">Strong</option>
                 <option value="Expert">Expert</option>
               </select>
+              
+              {/* Profile indicator */}
+              {player.profile_id && (
+                <span style={{ fontSize: 12, color: COLORS.success, fontWeight: 600 }}>
+                  📊 Profile
+                </span>
+              )}
               {/* GHIN Lookup UI */}
               <input type="text" placeholder="First Name (optional)" value={ghinSearch[player.id]?.first_name || ''} onChange={e => handleGhinSearchChange(player.id, 'first_name', e.target.value)} />
               <input type="text" placeholder="Last Name (required)" value={ghinSearch[player.id]?.last_name || ''} onChange={e => handleGhinSearchChange(player.id, 'last_name', e.target.value)} required />
