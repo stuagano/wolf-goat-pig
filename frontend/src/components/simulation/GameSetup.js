@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { useTheme } from '../../theme/Provider';
 import { Button, Card, Input, Select } from '../ui';
 
@@ -13,9 +14,9 @@ const GameSetup = ({
   setSelectedCourse,
   courses,
   setCourses,
-  personalities,
+  personalities = [],
   setPersonalities,
-  suggestedOpponents,
+  suggestedOpponents = [],
   setSuggestedOpponents,
   onStartGame
 }) => {
@@ -386,6 +387,22 @@ const GameSetup = ({
       </Card>
     </div>
   );
+};
+
+GameSetup.propTypes = {
+  humanPlayer: PropTypes.object.isRequired,
+  setHumanPlayer: PropTypes.func.isRequired,
+  computerPlayers: PropTypes.array.isRequired,
+  setComputerPlayers: PropTypes.func.isRequired,
+  selectedCourse: PropTypes.string,
+  setSelectedCourse: PropTypes.func.isRequired,
+  courses: PropTypes.object.isRequired,
+  setCourses: PropTypes.func.isRequired,
+  personalities: PropTypes.array,
+  setPersonalities: PropTypes.func.isRequired,
+  suggestedOpponents: PropTypes.array,
+  setSuggestedOpponents: PropTypes.func.isRequired,
+  onStartGame: PropTypes.func.isRequired,
 };
 
 export default GameSetup;

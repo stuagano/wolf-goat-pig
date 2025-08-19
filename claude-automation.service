@@ -1,0 +1,28 @@
+# macOS launchd plist template
+# Save as ~/Library/LaunchAgents/com.claude.issue-monitor.plist
+
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.claude.issue-monitor</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>/Users/stuartgano/Documents/wolf-goat-pig/claude-issue-monitor.py</string>
+        <string>--interval</string>
+        <string>60</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/stuartgano/Documents/wolf-goat-pig</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/claude-monitor.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/claude-monitor.error.log</string>
+</dict>
+</plist>

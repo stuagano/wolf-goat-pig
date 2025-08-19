@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, Body, HTTPException, Request, Path, Query, UploadFile, File
+from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
@@ -64,16 +65,18 @@ app = FastAPI(
 )
 
 # Trusted host middleware for security
-app.add_middleware(
-    TrustedHostMiddleware, 
-    allowed_hosts=["*"] if os.getenv("ENVIRONMENT") == "development" else [
-        "localhost",
-        "127.0.0.1",
-        "wolf-goat-pig-api.onrender.com",
-        "wolf-goat-pig.onrender.com",
-        "wolf-goat-pig-frontend.onrender.com"
-    ]
-)
+# Temporarily disable TrustedHostMiddleware during development/testing for easier debugging
+# if os.getenv("ENVIRONMENT") != "development":
+#     app.add_middleware(
+#         TrustedHostMiddleware, 
+#         allowed_hosts=[
+#             "localhost",
+#             "127.0.0.1",
+#             "wolf-goat-pig-api.onrender.com",
+#             "wolf-goat-pig.onrender.com",
+#             "wolf-goat-pig-frontend.onrender.com"
+#         ]
+#     )
 
 # CORS middleware
 app.add_middleware(
@@ -93,6 +96,9 @@ app.add_middleware(
 async def http_exception_handler(request: Request, exc: HTTPException):
     """Handle HTTP exceptions and preserve their status codes"""
     logger.error(f"HTTP exception: {exc.status_code} - {exc.detail}")
+    # Add logging for host header during exceptions
+    logger.error(f"Request Host header: {request.headers.get('host')}")
+    logger.error(f"Request Client host: {request.client.host}")
     return JSONResponse(
         status_code=exc.status_code,
         content={"error": "HTTP error", "detail": exc.detail}
@@ -110,6 +116,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 @app.on_event("startup")
 def startup():
     logger.info("Wolf Goat Pig API starting up...")
+    logger.info(f"ENVIRONMENT: {os.getenv('ENVIRONMENT')}")
 
 @app.get("/health")
 def health_check():
@@ -119,7 +126,7 @@ def health_check():
         db = database.SessionLocal()
         try:
             # Simple query to test DB connectivity
-            db.execute("SELECT 1")
+            db.execute(text("SELECT 1"))
             db_status = "connected"
         except Exception as e:
             logger.error(f"Database health check failed: {e}")

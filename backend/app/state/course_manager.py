@@ -98,8 +98,8 @@ class CourseManager:
         course[hole_number - 1] = hole_info
         self.load_course(self.selected_course)  # Refresh attributes
 
-    def get_courses(self) -> Dict[str, Any]:
-        return self.course_data
+    def get_courses(self) -> List[Dict[str, Any]]:
+        return list(self.course_data.values())
 
     def add_course(self, course_name: str, holes: List[Dict[str, Any]]):
         self.course_data[course_name] = holes

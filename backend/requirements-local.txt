@@ -1,10 +1,13 @@
-fastapi==0.110.0
-uvicorn[standard]==0.29.0
-# For SQLite support (if you use SQLAlchemy):
-SQLAlchemy==2.0.30
-# For CORS (already used in main.py)
-python-multipart==0.0.9
-# psycopg2-binary==2.9.9  # Commented out for local testing without PostgreSQL
-httpx==0.27.0
-python-dotenv==1.0.1
-pydantic==2.6.0
+# Local development requirements for Python 3.13+
+# Using flexible versions to avoid wheel build issues
+
+fastapi
+uvicorn[standard]
+SQLAlchemy
+python-multipart
+httpx
+python-dotenv
+pydantic
+
+# For local development, we use SQLite (no PostgreSQL needed)
+# psycopg2-binary is only needed for production PostgreSQL on Render
