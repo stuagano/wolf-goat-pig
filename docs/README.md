@@ -2,19 +2,9 @@
 
 A sophisticated golf betting simulation system with interactive gameplay, real-time decision making, and comprehensive timeline tracking.
 
-## 🏌️ Features
-
-- **Interactive Golf Simulation**: Realistic shot-by-shot gameplay with handicap-based scoring
-- **Wolf Goat Pig Rules**: Complete implementation of the classic golf betting game
-- **Unified Action API**: Centralized game logic with consistent REST API
-- **Timeline System**: Chronological event tracking for all game actions
-- **Real GHIN Integration**: Authentic golfer data and handicap lookup
-- **Monte Carlo Analysis**: Statistical simulation for strategy optimization
-- **Responsive Frontend**: Modern React.js interface with real-time updates
+For detailed documentation, see the [docs](./docs/README.md) directory.
 
 ## 🚀 Quick Start
-
-### Automated Installation (Recommended)
 
 1. **Clone the repository**
    ```bash
@@ -29,11 +19,7 @@ A sophisticated golf betting simulation system with interactive gameplay, real-t
 
 3. **Start the servers**
    ```bash
-   # Backend
-   cd backend && python -m uvicorn app.main:app --reload
-   
-   # Frontend (in new terminal)
-   cd frontend && npm start
+   ./dev.sh
    ```
 
 4. **Access the Application**
@@ -87,8 +73,7 @@ FRONTEND_URL=http://localhost:3000
 Run the comprehensive test suite:
 
 ```bash
-cd backend
-python -m pytest tests/test_unified_action_api.py -v
+./run_tests.sh
 ```
 
 ## 🚀 Deployment

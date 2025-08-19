@@ -14,7 +14,7 @@ from .domain.shot_result import ShotResult
 from .domain.player import Player
 from .domain.shot_range_analysis import analyze_shot_decision
 from pydantic import BaseModel, Field
-from typing import List, Optional, Any, Dict
+from typing import List, Optional, Any, Dict, Tuple
 import os
 import httpx
 import logging
@@ -164,12 +164,37 @@ def get_rules():
 # Course Management Endpoints
 @app.get("/courses")
 def get_courses():
-    """Get all available courses"""
+    """Get all available courses as dictionary with course names as keys"""
     try:
-        return game_state.get_courses()
+        courses = game_state.get_courses()
+        
+        # Ensure we always return at least one default course
+        if not courses:
+            logger.warning("No courses found, initializing default courses")
+            game_state.course_manager.course_data = game_state.course_manager.course_data or {}
+            courses = game_state.get_courses()
+        
+        logger.info(f"Retrieved {len(courses)} courses: {list(courses.keys())}")
+        return courses
     except Exception as e:
         logger.error(f"Error getting courses: {e}")
-        raise HTTPException(status_code=500, detail="Failed to get courses")
+        logger.error(traceback.format_exc())
+        
+        # Return default fallback course to prevent frontend failure
+        fallback_course = {
+            "Default Course": {
+                "name": "Default Course", 
+                "holes": [
+                    {"hole_number": i, "par": 4, "yards": 400, "stroke_index": i, "description": f"Hole {i}"}
+                    for i in range(1, 19)
+                ],
+                "total_par": 72,
+                "total_yards": 7200,
+                "hole_count": 18
+            }
+        }
+        logger.warning("Returning fallback course due to error")
+        return fallback_course
 
 @app.post("/courses", response_model=dict)
 def add_course(course: CourseCreate):
@@ -1438,5 +1463,743 @@ async def get_shot_range_analysis(request: ShotRangeAnalysisRequest):
     except Exception as e:
         logger.error(f"Error in shot range analysis: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to analyze shot range: {str(e)}")
+
+
+# Real-Time Betting Odds Endpoints
+class OddsCalculationRequest(BaseModel):
+    """Request model for odds calculation"""
+    players: List[Dict[str, Any]] = Field(..., description="Current player states")
+    hole_state: Dict[str, Any] = Field(..., description="Current hole state")
+    use_monte_carlo: bool = Field(default=False, description="Use Monte Carlo simulation for higher accuracy")
+    simulation_params: Optional[Dict[str, Any]] = Field(default=None, description="Monte Carlo simulation parameters")
+
+
+class BettingScenarioResponse(BaseModel):
+    """Response model for betting scenarios"""
+    scenario_type: str
+    win_probability: float
+    expected_value: float
+    risk_level: str
+    confidence_interval: Tuple[float, float]
+    recommendation: str
+    reasoning: str
+    payout_matrix: Dict[str, float]
+
+
+class OddsCalculationResponse(BaseModel):
+    """Response model for odds calculation"""
+    timestamp: float
+    calculation_time_ms: float
+    player_probabilities: Dict[str, Dict[str, Any]]
+    team_probabilities: Dict[str, float]
+    betting_scenarios: List[Dict[str, Any]]
+    optimal_strategy: str
+    risk_assessment: Dict[str, Any]
+    educational_insights: List[str]
+    confidence_level: float
+    monte_carlo_used: bool = False
+    simulation_details: Optional[Dict[str, Any]] = None
+
+
+@app.post("/wgp/calculate-odds", response_model=OddsCalculationResponse)
+async def calculate_real_time_odds(request: OddsCalculationRequest):
+    """
+    Calculate real-time betting odds and probabilities.
+    Provides comprehensive analysis for strategic decision making.
+    """
+    try:
+        from .services.odds_calculator import (
+            OddsCalculator, 
+            create_player_state_from_game_data,
+            create_hole_state_from_game_data
+        )
+        from .services.monte_carlo import run_monte_carlo_simulation, SimulationParams
+        
+        start_time = time.time()
+        
+        # Convert request data to internal objects
+        player_states = [create_player_state_from_game_data(p) for p in request.players]
+        hole_state = create_hole_state_from_game_data(request.hole_state)
+        
+        # Initialize odds calculator
+        calculator = OddsCalculator()
+        
+        # Determine if we should use Monte Carlo
+        use_mc = request.use_monte_carlo
+        if not use_mc:
+            # Auto-enable Monte Carlo for complex scenarios
+            complex_scenario = (
+                len(player_states) > 4 or
+                hole_state.teams.value != "pending" or
+                any(p.distance_to_pin > 200 for p in player_states)
+            )
+            use_mc = complex_scenario
+        
+        simulation_details = None
+        if use_mc:
+            # Run Monte Carlo simulation
+            mc_params = SimulationParams()
+            if request.simulation_params:
+                mc_params.num_simulations = request.simulation_params.get("num_simulations", 5000)
+                mc_params.max_simulation_time_ms = request.simulation_params.get("max_time_ms", 25.0)
+            
+            simulation_result = run_monte_carlo_simulation(player_states, hole_state, 
+                                                         mc_params.num_simulations, 
+                                                         mc_params.max_simulation_time_ms)
+            
+            simulation_details = {
+                "num_simulations_run": simulation_result.num_simulations_run,
+                "simulation_time_ms": simulation_result.simulation_time_ms,
+                "convergence_achieved": simulation_result.convergence_achieved,
+                "confidence_intervals": simulation_result.confidence_intervals
+            }
+            
+            # Enhance calculator with Monte Carlo results
+            # This would integrate MC results into the main calculation
+        
+        # Calculate comprehensive odds
+        odds_result = calculator.calculate_real_time_odds(
+            player_states, 
+            hole_state,
+            game_context={"monte_carlo_result": simulation_details if use_mc else None}
+        )
+        
+        # Convert betting scenarios to response format
+        betting_scenarios = []
+        for scenario in odds_result.betting_scenarios:
+            betting_scenarios.append({
+                "scenario_type": scenario.scenario_type,
+                "win_probability": scenario.win_probability,
+                "expected_value": scenario.expected_value,
+                "risk_level": scenario.risk_level,
+                "confidence_interval": scenario.confidence_interval,
+                "recommendation": scenario.recommendation,
+                "reasoning": scenario.reasoning,
+                "payout_matrix": scenario.payout_matrix
+            })
+        
+        total_time = (time.time() - start_time) * 1000
+        
+        return OddsCalculationResponse(
+            timestamp=odds_result.timestamp,
+            calculation_time_ms=total_time,
+            player_probabilities=odds_result.player_probabilities,
+            team_probabilities=odds_result.team_probabilities,
+            betting_scenarios=betting_scenarios,
+            optimal_strategy=odds_result.optimal_strategy,
+            risk_assessment=odds_result.risk_assessment,
+            educational_insights=odds_result.educational_insights,
+            confidence_level=odds_result.confidence_level,
+            monte_carlo_used=use_mc,
+            simulation_details=simulation_details
+        )
+        
+    except Exception as e:
+        logger.error(f"Error calculating odds: {e}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Failed to calculate odds: {str(e)}")
+
+
+@app.get("/wgp/betting-opportunities")
+async def get_current_betting_opportunities():
+    """
+    Get current betting opportunities based on game state.
+    Lightweight endpoint for real-time updates.
+    """
+    try:
+        # Get current game state
+        current_state = wgp_simulation.get_game_state()
+        
+        # Quick opportunity assessment
+        opportunities = []
+        
+        # Check if game is active
+        if not current_state.get("active", False):
+            return {"opportunities": [], "message": "No active game"}
+        
+        current_hole = current_state.get("current_hole", 1)
+        hole_state = wgp_simulation.hole_states.get(current_hole)
+        
+        if hole_state:
+            # Check for doubling opportunities
+            if not hole_state.betting.doubled and hole_state.teams.type != "pending":
+                opportunities.append({
+                    "type": "offer_double",
+                    "description": f"Double the wager from {hole_state.betting.current_wager} to {hole_state.betting.current_wager * 2} quarters",
+                    "current_wager": hole_state.betting.current_wager,
+                    "potential_wager": hole_state.betting.current_wager * 2,
+                    "risk_level": "medium",
+                    "timing": "optimal" if not hole_state.wagering_closed else "limited"
+                })
+            
+            # Check for partnership opportunities
+            if hole_state.teams.type == "pending":
+                captain_id = hole_state.teams.captain
+                captain_name = wgp_simulation._get_player_name(captain_id)
+                
+                available_partners = []
+                for player in wgp_simulation.players:
+                    if player.id != captain_id and hole_state.can_request_partnership(captain_id, player.id):
+                        available_partners.append({
+                            "id": player.id,
+                            "name": player.name,
+                            "handicap": player.handicap
+                        })
+                
+                if available_partners:
+                    opportunities.append({
+                        "type": "partnership_decision",
+                        "description": f"{captain_name} must choose a partner or go solo",
+                        "captain": captain_name,
+                        "available_partners": available_partners,
+                        "solo_multiplier": 2,
+                        "deadline_approaching": len(available_partners) < len(wgp_simulation.players) - 1
+                    })
+        
+        return {
+            "opportunities": opportunities,
+            "hole_number": current_hole,
+            "timestamp": datetime.now().isoformat(),
+            "game_active": current_state.get("active", False)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting betting opportunities: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get betting opportunities: {str(e)}")
+
+
+@app.post("/wgp/quick-odds")
+async def calculate_quick_odds(players_data: List[Dict[str, Any]] = Body(...)):
+    """
+    Quick odds calculation for immediate feedback.
+    Optimized for sub-50ms response time.
+    """
+    try:
+        from .services.odds_calculator import OddsCalculator, PlayerState, HoleState, TeamConfiguration
+        
+        start_time = time.time()
+        
+        # Simple validation
+        if len(players_data) < 2:
+            raise HTTPException(status_code=400, detail="At least 2 players required")
+        
+        # Create simplified player states
+        players = []
+        for i, p_data in enumerate(players_data):
+            player = PlayerState(
+                id=p_data.get("id", f"p{i}"),
+                name=p_data.get("name", f"Player {i+1}"),
+                handicap=float(p_data.get("handicap", 18)),
+                distance_to_pin=float(p_data.get("distance_to_pin", 150)),
+                lie_type=p_data.get("lie_type", "fairway")
+            )
+            players.append(player)
+        
+        # Create basic hole state
+        hole = HoleState(
+            hole_number=1,
+            par=4,
+            teams=TeamConfiguration.PENDING
+        )
+        
+        # Quick calculation
+        calculator = OddsCalculator()
+        
+        # Calculate win probabilities only
+        quick_probs = {}
+        for player in players:
+            win_prob = calculator._calculate_player_win_vs_field(player, players, hole)
+            quick_probs[player.id] = {
+                "name": player.name,
+                "win_probability": win_prob,
+                "handicap": player.handicap,
+                "distance": player.distance_to_pin
+            }
+        
+        calculation_time = (time.time() - start_time) * 1000
+        
+        return {
+            "probabilities": quick_probs,
+            "calculation_time_ms": calculation_time,
+            "method": "quick_analytical",
+            "timestamp": time.time()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in quick odds calculation: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to calculate quick odds: {str(e)}")
+
+
+@app.get("/wgp/odds-history/{game_id}")
+async def get_odds_history(game_id: str, hole_number: Optional[int] = None):
+    """
+    Get historical odds data for analysis and trends.
+    """
+    try:
+        # This would typically query a database for historical odds
+        # For now, return mock data structure
+        
+        history_data = {
+            "game_id": game_id,
+            "holes": {},
+            "trends": {
+                "volatility_by_hole": {},
+                "betting_patterns": {},
+                "accuracy_metrics": {}
+            }
+        }
+        
+        # If specific hole requested
+        if hole_number:
+            history_data["holes"][str(hole_number)] = {
+                "initial_odds": {},
+                "final_odds": {},
+                "betting_actions": [],
+                "outcome": {}
+            }
+        
+        return history_data
+        
+    except Exception as e:
+        logger.error(f"Error getting odds history: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get odds history: {str(e)}")
+
+
+# Player Profile Management Endpoints
+@app.post("/players", response_model=schemas.PlayerProfileResponse)
+def create_player_profile(profile: schemas.PlayerProfileCreate):
+    """Create a new player profile."""
+    try:
+        db = database.SessionLocal()
+        from .services.player_service import PlayerService
+        
+        player_service = PlayerService(db)
+        result = player_service.create_player_profile(profile)
+        
+        logger.info(f"Created player profile: {result.name}")
+        return result
+        
+    except ValueError as e:
+        logger.error(f"Validation error creating player profile: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error creating player profile: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create player profile: {str(e)}")
+    finally:
+        db.close()
+
+@app.get("/players", response_model=List[schemas.PlayerProfileResponse])
+def get_all_player_profiles(active_only: bool = Query(True, description="Return only active profiles")):
+    """Get all player profiles."""
+    try:
+        db = database.SessionLocal()
+        from .services.player_service import PlayerService
+        
+        player_service = PlayerService(db)
+        profiles = player_service.get_all_player_profiles(active_only=active_only)
+        
+        logger.info(f"Retrieved {len(profiles)} player profiles")
+        return profiles
+        
+    except Exception as e:
+        logger.error(f"Error getting player profiles: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get player profiles: {str(e)}")
+    finally:
+        db.close()
+
+@app.get("/players/{player_id}", response_model=schemas.PlayerProfileResponse)
+def get_player_profile(player_id: int):
+    """Get a specific player profile."""
+    try:
+        db = database.SessionLocal()
+        from .services.player_service import PlayerService
+        
+        player_service = PlayerService(db)
+        profile = player_service.get_player_profile(player_id)
+        
+        if not profile:
+            raise HTTPException(status_code=404, detail=f"Player {player_id} not found")
+        
+        return profile
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting player profile {player_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get player profile: {str(e)}")
+    finally:
+        db.close()
+
+@app.put("/players/{player_id}", response_model=schemas.PlayerProfileResponse)
+def update_player_profile(player_id: int, profile_update: schemas.PlayerProfileUpdate):
+    """Update a player profile."""
+    try:
+        db = database.SessionLocal()
+        from .services.player_service import PlayerService
+        
+        player_service = PlayerService(db)
+        updated_profile = player_service.update_player_profile(player_id, profile_update)
+        
+        if not updated_profile:
+            raise HTTPException(status_code=404, detail=f"Player {player_id} not found")
+        
+        logger.info(f"Updated player profile {player_id}")
+        return updated_profile
+        
+    except ValueError as e:
+        logger.error(f"Validation error updating player profile: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating player profile {player_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update player profile: {str(e)}")
+    finally:
+        db.close()
+
+@app.delete("/players/{player_id}")
+def delete_player_profile(player_id: int):
+    """Delete (deactivate) a player profile."""
+    try:
+        db = database.SessionLocal()
+        from .services.player_service import PlayerService
+        
+        player_service = PlayerService(db)
+        success = player_service.delete_player_profile(player_id)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail=f"Player {player_id} not found")
+        
+        logger.info(f"Deleted player profile {player_id}")
+        return {"message": f"Player {player_id} has been deleted"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting player profile {player_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete player profile: {str(e)}")
+    finally:
+        db.close()
+
+@app.get("/players/name/{player_name}", response_model=schemas.PlayerProfileResponse)
+def get_player_profile_by_name(player_name: str):
+    """Get a player profile by name."""
+    try:
+        db = database.SessionLocal()
+        from .services.player_service import PlayerService
+        
+        player_service = PlayerService(db)
+        profile = player_service.get_player_profile_by_name(player_name)
+        
+        if not profile:
+            raise HTTPException(status_code=404, detail=f"Player '{player_name}' not found")
+        
+        return profile
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting player profile by name {player_name}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get player profile: {str(e)}")
+    finally:
+        db.close()
+
+# Player Statistics Endpoints
+@app.get("/players/{player_id}/statistics", response_model=schemas.PlayerStatisticsResponse)
+def get_player_statistics(player_id: int):
+    """Get player statistics."""
+    try:
+        db = database.SessionLocal()
+        from .services.player_service import PlayerService
+        
+        player_service = PlayerService(db)
+        stats = player_service.get_player_statistics(player_id)
+        
+        if not stats:
+            raise HTTPException(status_code=404, detail=f"Statistics for player {player_id} not found")
+        
+        return stats
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting player statistics {player_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get player statistics: {str(e)}")
+    finally:
+        db.close()
+
+@app.get("/players/{player_id}/analytics", response_model=schemas.PlayerPerformanceAnalytics)
+def get_player_analytics(player_id: int):
+    """Get comprehensive player performance analytics."""
+    try:
+        db = database.SessionLocal()
+        from .services.player_service import PlayerService
+        
+        player_service = PlayerService(db)
+        analytics = player_service.get_player_performance_analytics(player_id)
+        
+        if not analytics:
+            raise HTTPException(status_code=404, detail=f"Analytics for player {player_id} not found")
+        
+        return analytics
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting player analytics {player_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get player analytics: {str(e)}")
+    finally:
+        db.close()
+
+@app.get("/players/{player_id}/profile-with-stats", response_model=schemas.PlayerProfileWithStats)
+def get_player_profile_with_stats(player_id: int):
+    """Get player profile combined with statistics and achievements."""
+    try:
+        db = database.SessionLocal()
+        from .services.player_service import PlayerService
+        
+        player_service = PlayerService(db)
+        
+        # Get profile
+        profile = player_service.get_player_profile(player_id)
+        if not profile:
+            raise HTTPException(status_code=404, detail=f"Player {player_id} not found")
+        
+        # Get statistics
+        stats = player_service.get_player_statistics(player_id)
+        if not stats:
+            # Create empty stats if none exist
+            stats = schemas.PlayerStatisticsResponse(
+                id=0, player_id=player_id, games_played=0, games_won=0,
+                total_earnings=0.0, holes_played=0, holes_won=0,
+                avg_earnings_per_hole=0.0, betting_success_rate=0.0,
+                successful_bets=0, total_bets=0, partnership_success_rate=0.0,
+                partnerships_formed=0, partnerships_won=0, solo_attempts=0,
+                solo_wins=0, favorite_game_mode="wolf_goat_pig", preferred_player_count=4,
+                best_hole_performance=[], worst_hole_performance=[],
+                performance_trends=[], last_updated=datetime.now().isoformat()
+            )
+        
+        # Get recent achievements (would need to implement this query)
+        recent_achievements = []  # Placeholder
+        
+        return schemas.PlayerProfileWithStats(
+            profile=profile,
+            statistics=stats,
+            recent_achievements=recent_achievements
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting player profile with stats {player_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get player profile with stats: {str(e)}")
+    finally:
+        db.close()
+
+# Leaderboard and Comparative Analytics
+@app.get("/leaderboard", response_model=List[schemas.LeaderboardEntry])
+def get_leaderboard(limit: int = Query(10, ge=1, le=100)):
+    """Get the player leaderboard."""
+    try:
+        db = database.SessionLocal()
+        from .services.player_service import PlayerService
+        
+        player_service = PlayerService(db)
+        leaderboard = player_service.get_leaderboard(limit=limit)
+        
+        return leaderboard
+        
+    except Exception as e:
+        logger.error(f"Error getting leaderboard: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get leaderboard: {str(e)}")
+    finally:
+        db.close()
+
+@app.get("/leaderboard/{metric}")
+def get_leaderboard_by_metric(
+    metric: str, 
+    limit: int = Query(10, ge=1, le=100)
+):
+    """Get leaderboard sorted by specific metric."""
+    try:
+        db = database.SessionLocal()
+        from .services.statistics_service import StatisticsService
+        
+        stats_service = StatisticsService(db)
+        leaderboard = stats_service.get_comparative_leaderboard(metric=metric, limit=limit)
+        
+        return {
+            "metric": metric,
+            "leaderboard": leaderboard,
+            "total_players": len(leaderboard)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting leaderboard by metric {metric}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get leaderboard: {str(e)}")
+    finally:
+        db.close()
+
+# Advanced Analytics Endpoints
+@app.get("/players/{player_id}/advanced-metrics")
+def get_player_advanced_metrics(player_id: int):
+    """Get advanced performance metrics for a player."""
+    try:
+        db = database.SessionLocal()
+        from .services.statistics_service import StatisticsService
+        
+        stats_service = StatisticsService(db)
+        metrics = stats_service.get_advanced_player_metrics(player_id)
+        
+        return {
+            "player_id": player_id,
+            "metrics": metrics,
+            "generated_at": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting advanced metrics for player {player_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get advanced metrics: {str(e)}")
+    finally:
+        db.close()
+
+@app.get("/players/{player_id}/trends")
+def get_player_trends(
+    player_id: int, 
+    days: int = Query(30, ge=7, le=365, description="Number of days to analyze")
+):
+    """Get performance trends for a player."""
+    try:
+        db = database.SessionLocal()
+        from .services.statistics_service import StatisticsService
+        
+        stats_service = StatisticsService(db)
+        trends = stats_service.get_performance_trends(player_id, days=days)
+        
+        return {
+            "player_id": player_id,
+            "period_days": days,
+            "trends": trends,
+            "generated_at": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting trends for player {player_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get player trends: {str(e)}")
+    finally:
+        db.close()
+
+@app.get("/players/{player_id}/insights")
+def get_player_insights(player_id: int):
+    """Get personalized insights and recommendations for a player."""
+    try:
+        db = database.SessionLocal()
+        from .services.statistics_service import StatisticsService
+        
+        stats_service = StatisticsService(db)
+        insights = stats_service.get_player_insights(player_id)
+        
+        return {
+            "player_id": player_id,
+            "insights": [insight.__dict__ for insight in insights],
+            "generated_at": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting insights for player {player_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get player insights: {str(e)}")
+    finally:
+        db.close()
+
+@app.get("/players/{player_id}/skill-rating")
+def get_player_skill_rating(player_id: int):
+    """Get skill rating for a player."""
+    try:
+        db = database.SessionLocal()
+        from .services.statistics_service import StatisticsService
+        
+        stats_service = StatisticsService(db)
+        rating = stats_service.calculate_skill_rating(player_id)
+        
+        return {
+            "player_id": player_id,
+            "skill_rating": rating,
+            "calculated_at": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting skill rating for player {player_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get skill rating: {str(e)}")
+    finally:
+        db.close()
+
+# Game Result Recording
+@app.post("/game-results")
+def record_game_result(game_result: schemas.GamePlayerResultCreate):
+    """Record a game result for a player."""
+    try:
+        db = database.SessionLocal()
+        from .services.player_service import PlayerService
+        
+        player_service = PlayerService(db)
+        success = player_service.record_game_result(game_result)
+        
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to record game result")
+        
+        # Check for achievements
+        achievements = player_service.check_and_award_achievements(
+            game_result.player_profile_id, game_result
+        )
+        
+        logger.info(f"Recorded game result for player {game_result.player_profile_id}")
+        
+        return {
+            "message": "Game result recorded successfully",
+            "achievements_earned": achievements
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error recording game result: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to record game result: {str(e)}")
+    finally:
+        db.close()
+
+# Analytics Overview
+@app.get("/analytics/overview")
+def get_analytics_overview():
+    """Get overall analytics overview."""
+    try:
+        db = database.SessionLocal()
+        from .services.statistics_service import StatisticsService
+        
+        stats_service = StatisticsService(db)
+        
+        # Get game mode analytics
+        game_mode_analytics = stats_service.get_game_mode_analytics()
+        
+        # Get basic statistics
+        total_players = db.query(models.PlayerProfile).filter(models.PlayerProfile.is_active == 1).count()
+        total_games = db.query(models.GameRecord).count()
+        active_players = db.query(models.PlayerProfile).filter(
+            and_(models.PlayerProfile.is_active == 1, models.PlayerProfile.last_played.isnot(None))
+        ).count()
+        
+        return {
+            "total_players": total_players,
+            "active_players": active_players,
+            "total_games": total_games,
+            "game_mode_analytics": game_mode_analytics,
+            "generated_at": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting analytics overview: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get analytics overview: {str(e)}")
+    finally:
+        db.close()
 
 

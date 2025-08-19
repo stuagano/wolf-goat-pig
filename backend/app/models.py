@@ -47,4 +47,92 @@ class SimulationResult(Base):
     player_count = Column(Integer)
     simulation_count = Column(Integer)
     results_data = Column(JSON)
-    created_at = Column(String) 
+    created_at = Column(String)
+
+# Player Profile Management
+class PlayerProfile(Base):
+    __tablename__ = "player_profiles"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True)
+    handicap = Column(Float, default=18.0)
+    avatar_url = Column(String, nullable=True)
+    created_date = Column(String)
+    last_played = Column(String, nullable=True)
+    preferences = Column(JSON, default=lambda: {
+        "ai_difficulty": "medium",
+        "preferred_game_modes": ["wolf_goat_pig"],
+        "preferred_player_count": 4,
+        "betting_style": "conservative",
+        "display_hints": True
+    })
+    is_active = Column(Integer, default=1)  # SQLite uses integers for booleans
+
+class PlayerStatistics(Base):
+    __tablename__ = "player_statistics"
+    id = Column(Integer, primary_key=True, index=True)
+    player_id = Column(Integer, index=True)  # References PlayerProfile.id
+    games_played = Column(Integer, default=0)
+    games_won = Column(Integer, default=0)
+    total_earnings = Column(Float, default=0.0)
+    holes_played = Column(Integer, default=0)
+    holes_won = Column(Integer, default=0)
+    avg_earnings_per_hole = Column(Float, default=0.0)
+    betting_success_rate = Column(Float, default=0.0)
+    successful_bets = Column(Integer, default=0)
+    total_bets = Column(Integer, default=0)
+    partnership_success_rate = Column(Float, default=0.0)
+    partnerships_formed = Column(Integer, default=0)
+    partnerships_won = Column(Integer, default=0)
+    solo_attempts = Column(Integer, default=0)
+    solo_wins = Column(Integer, default=0)
+    favorite_game_mode = Column(String, default="wolf_goat_pig")
+    preferred_player_count = Column(Integer, default=4)
+    best_hole_performance = Column(JSON, default=list)  # Track best performing holes
+    worst_hole_performance = Column(JSON, default=list)  # Track challenging holes
+    performance_trends = Column(JSON, default=list)  # Historical performance data
+    last_updated = Column(String)
+
+class GameRecord(Base):
+    __tablename__ = "game_records"
+    id = Column(Integer, primary_key=True, index=True)
+    game_id = Column(String, unique=True, index=True)
+    course_name = Column(String)
+    game_mode = Column(String, default="wolf_goat_pig")
+    player_count = Column(Integer)
+    total_holes_played = Column(Integer, default=18)
+    game_duration_minutes = Column(Integer, nullable=True)
+    created_at = Column(String)
+    completed_at = Column(String, nullable=True)
+    game_settings = Column(JSON, default=dict)  # Store game configuration
+    final_scores = Column(JSON, default=dict)  # Final leaderboard
+
+class GamePlayerResult(Base):
+    __tablename__ = "game_player_results"
+    id = Column(Integer, primary_key=True, index=True)
+    game_record_id = Column(Integer, index=True)  # References GameRecord.id
+    player_profile_id = Column(Integer, index=True)  # References PlayerProfile.id
+    player_name = Column(String)  # Denormalized for easier querying
+    final_position = Column(Integer)  # 1st, 2nd, 3rd, etc.
+    total_earnings = Column(Float, default=0.0)
+    holes_won = Column(Integer, default=0)
+    successful_bets = Column(Integer, default=0)
+    total_bets = Column(Integer, default=0)
+    partnerships_formed = Column(Integer, default=0)
+    partnerships_won = Column(Integer, default=0)
+    solo_attempts = Column(Integer, default=0)
+    solo_wins = Column(Integer, default=0)
+    hole_scores = Column(JSON, default=dict)  # Hole-by-hole scores
+    betting_history = Column(JSON, default=list)  # Detailed betting decisions
+    performance_metrics = Column(JSON, default=dict)  # Advanced metrics
+    created_at = Column(String)
+
+class PlayerAchievement(Base):
+    __tablename__ = "player_achievements"
+    id = Column(Integer, primary_key=True, index=True)
+    player_profile_id = Column(Integer, index=True)
+    achievement_type = Column(String)  # "first_win", "big_earner", "partnership_master", etc.
+    achievement_name = Column(String)
+    description = Column(String)
+    earned_date = Column(String)
+    game_record_id = Column(Integer, nullable=True)  # Game where achievement was earned
+    achievement_data = Column(JSON, default=dict)  # Additional achievement details 

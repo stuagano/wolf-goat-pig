@@ -1,5 +1,5 @@
 from pydantic import BaseModel, field_validator
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 class Rule(BaseModel):
@@ -144,4 +144,202 @@ class SimulationCourseData(BaseModel):
     course_name: str
     holes: List[HoleInfo]
     difficulty_factors: List[float]  # Per-hole difficulty multipliers
-    distance_factors: List[float]    # Per-hole distance impact factors 
+    distance_factors: List[float]    # Per-hole distance impact factors
+
+# Player Profile Schemas
+class PlayerProfileBase(BaseModel):
+    name: str
+    handicap: float = 18.0
+    avatar_url: Optional[str] = None
+    preferences: Optional[Dict[str, Any]] = None
+
+class PlayerProfileCreate(PlayerProfileBase):
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v):
+        if not v or len(v.strip()) < 2:
+            raise ValueError('Player name must be at least 2 characters')
+        if len(v.strip()) > 50:
+            raise ValueError('Player name cannot exceed 50 characters')
+        return v.strip()
+
+    @field_validator('handicap')
+    @classmethod
+    def validate_handicap(cls, v):
+        if v < 0:
+            raise ValueError('Handicap cannot be negative')
+        if v > 54:
+            raise ValueError('Handicap cannot exceed 54')
+        return v
+
+class PlayerProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    handicap: Optional[float] = None
+    avatar_url: Optional[str] = None
+    preferences: Optional[Dict[str, Any]] = None
+    last_played: Optional[str] = None
+
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v):
+        if v is not None:
+            if len(v.strip()) < 2:
+                raise ValueError('Player name must be at least 2 characters')
+            if len(v.strip()) > 50:
+                raise ValueError('Player name cannot exceed 50 characters')
+            return v.strip()
+        return v
+
+    @field_validator('handicap')
+    @classmethod
+    def validate_handicap(cls, v):
+        if v is not None:
+            if v < 0:
+                raise ValueError('Handicap cannot be negative')
+            if v > 54:
+                raise ValueError('Handicap cannot exceed 54')
+        return v
+
+class PlayerProfileResponse(PlayerProfileBase):
+    id: int
+    created_date: str
+    last_played: Optional[str] = None
+    is_active: bool = True
+
+    class Config:
+        from_attributes = True
+
+# Player Statistics Schemas
+class PlayerStatisticsResponse(BaseModel):
+    id: int
+    player_id: int
+    games_played: int
+    games_won: int
+    total_earnings: float
+    holes_played: int
+    holes_won: int
+    avg_earnings_per_hole: float
+    betting_success_rate: float
+    successful_bets: int
+    total_bets: int
+    partnership_success_rate: float
+    partnerships_formed: int
+    partnerships_won: int
+    solo_attempts: int
+    solo_wins: int
+    favorite_game_mode: str
+    preferred_player_count: int
+    best_hole_performance: List[Dict[str, Any]]
+    worst_hole_performance: List[Dict[str, Any]]
+    performance_trends: List[Dict[str, Any]]
+    last_updated: str
+
+    class Config:
+        from_attributes = True
+
+# Game Record Schemas
+class GameRecordCreate(BaseModel):
+    game_id: str
+    course_name: str
+    game_mode: str = "wolf_goat_pig"
+    player_count: int
+    game_settings: Optional[Dict[str, Any]] = None
+
+class GameRecordUpdate(BaseModel):
+    completed_at: Optional[str] = None
+    game_duration_minutes: Optional[int] = None
+    final_scores: Optional[Dict[str, Any]] = None
+
+class GameRecordResponse(BaseModel):
+    id: int
+    game_id: str
+    course_name: str
+    game_mode: str
+    player_count: int
+    total_holes_played: int
+    game_duration_minutes: Optional[int]
+    created_at: str
+    completed_at: Optional[str]
+    game_settings: Dict[str, Any]
+    final_scores: Dict[str, Any]
+
+    class Config:
+        from_attributes = True
+
+# Game Player Result Schemas
+class GamePlayerResultCreate(BaseModel):
+    game_record_id: int
+    player_profile_id: int
+    player_name: str
+    final_position: int
+    total_earnings: float = 0.0
+    holes_won: int = 0
+    successful_bets: int = 0
+    total_bets: int = 0
+    partnerships_formed: int = 0
+    partnerships_won: int = 0
+    solo_attempts: int = 0
+    solo_wins: int = 0
+    hole_scores: Optional[Dict[str, Any]] = None
+    betting_history: Optional[List[Dict[str, Any]]] = None
+    performance_metrics: Optional[Dict[str, Any]] = None
+
+class GamePlayerResultResponse(BaseModel):
+    id: int
+    game_record_id: int
+    player_profile_id: int
+    player_name: str
+    final_position: int
+    total_earnings: float
+    holes_won: int
+    successful_bets: int
+    total_bets: int
+    partnerships_formed: int
+    partnerships_won: int
+    solo_attempts: int
+    solo_wins: int
+    hole_scores: Dict[str, Any]
+    betting_history: List[Dict[str, Any]]
+    performance_metrics: Dict[str, Any]
+    created_at: str
+
+    class Config:
+        from_attributes = True
+
+# Player Achievement Schemas
+class PlayerAchievementResponse(BaseModel):
+    id: int
+    player_profile_id: int
+    achievement_type: str
+    achievement_name: str
+    description: str
+    earned_date: str
+    game_record_id: Optional[int]
+    achievement_data: Dict[str, Any]
+
+    class Config:
+        from_attributes = True
+
+# Composite Schemas
+class PlayerProfileWithStats(BaseModel):
+    profile: PlayerProfileResponse
+    statistics: PlayerStatisticsResponse
+    recent_achievements: List[PlayerAchievementResponse] = []
+
+class PlayerPerformanceAnalytics(BaseModel):
+    player_id: int
+    player_name: str
+    performance_summary: Dict[str, Any]
+    trend_analysis: Dict[str, Any]
+    strength_analysis: Dict[str, Any]
+    improvement_recommendations: List[str]
+    comparative_analysis: Dict[str, Any]
+
+class LeaderboardEntry(BaseModel):
+    rank: int
+    player_name: str
+    games_played: int
+    win_percentage: float
+    avg_earnings: float
+    total_earnings: float
+    partnership_success: float 

@@ -72,6 +72,41 @@ class CourseManager:
     hole_yards: List[int] = field(default_factory=list)
     course_data: Dict[str, Any] = field(default_factory=lambda: DEFAULT_COURSES.copy())
 
+    def __post_init__(self):
+        """Ensure at least one default course is always available"""
+        self.ensure_default_courses()
+    
+    def ensure_default_courses(self):
+        """Ensure at least one default course is available, adding if necessary"""
+        # Check if we have any valid courses
+        has_valid_courses = False
+        if self.course_data:
+            for course_name, holes in self.course_data.items():
+                if isinstance(holes, list) and len(holes) == 18:
+                    # Quick check for valid course structure
+                    if all(isinstance(hole, dict) and "hole_number" in hole for hole in holes[:3]):
+                        has_valid_courses = True
+                        break
+        
+        if not has_valid_courses:
+            # Replace with default courses or create fallback
+            if DEFAULT_COURSES:
+                self.course_data = DEFAULT_COURSES.copy()
+            else:
+                self.course_data = {
+                    "Fallback Course": [
+                        {"hole_number": i, "par": 4, "yards": 400, "stroke_index": i, 
+                         "description": f"Fallback hole {i}"}
+                        for i in range(1, 19)
+                    ]
+                }
+        
+        # Auto-select first course if none selected or selected course is invalid
+        if not self.selected_course or self.selected_course not in self.course_data:
+            if self.course_data:
+                first_course = list(self.course_data.keys())[0]
+                self.load_course(first_course)
+
     def load_course(self, course_name: str):
         course = self.course_data.get(course_name)
         if not course:
@@ -98,8 +133,55 @@ class CourseManager:
         course[hole_number - 1] = hole_info
         self.load_course(self.selected_course)  # Refresh attributes
 
-    def get_courses(self) -> List[Dict[str, Any]]:
-        return list(self.course_data.values())
+    def get_courses(self) -> Dict[str, Dict[str, Any]]:
+        """Return courses as a dictionary with course names as keys, matching frontend expectations"""
+        result = {}
+        for course_name, holes in self.course_data.items():
+            try:
+                # Validate that holes is a list of dictionaries
+                if not isinstance(holes, list):
+                    continue  # Skip invalid course data
+                
+                # Calculate course statistics for each course
+                total_par = 0
+                total_yards = 0
+                
+                for hole in holes:
+                    if isinstance(hole, dict) and "par" in hole and "yards" in hole:
+                        total_par += hole["par"]
+                        total_yards += hole["yards"]
+                
+                result[course_name] = {
+                    "name": course_name,
+                    "holes": holes,
+                    "total_par": total_par,
+                    "total_yards": total_yards,
+                    "hole_count": len(holes)
+                }
+            except (TypeError, KeyError, AttributeError):
+                # Skip malformed course data
+                continue
+        
+        # If no valid courses found, ensure we have fallback
+        if not result:
+            self.ensure_default_courses()
+            # Try again with the new course data, but only once to avoid recursion
+            for course_name, holes in self.course_data.items():
+                try:
+                    if isinstance(holes, list):
+                        total_par = sum(hole.get("par", 0) for hole in holes if isinstance(hole, dict))
+                        total_yards = sum(hole.get("yards", 0) for hole in holes if isinstance(hole, dict))
+                        result[course_name] = {
+                            "name": course_name,
+                            "holes": holes,
+                            "total_par": total_par,
+                            "total_yards": total_yards,
+                            "hole_count": len(holes)
+                        }
+                except (TypeError, KeyError, AttributeError):
+                    continue
+            
+        return result
 
     def add_course(self, course_name: str, holes: List[Dict[str, Any]]):
         self.course_data[course_name] = holes
@@ -206,4 +288,6 @@ class CourseManager:
         obj.hole_pars = data.get("hole_pars", [])
         obj.hole_yards = data.get("hole_yards", [])
         obj.course_data = data.get("course_data", DEFAULT_COURSES.copy())
+        # Ensure default courses are available after deserialization
+        obj.ensure_default_courses()
         return obj 

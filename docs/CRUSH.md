@@ -38,10 +38,11 @@
 
 ## Cursor/Copilot Rules & General Guidelines:
 
+## Project Structure Preferences
+- All documentation files (.md) should be located in the `docs/` directory.
+
 - **Interactive Flow**: Maintain the exact chronological simulation pattern (Hole Setup -> Tee Shots -> Captain Decision -> Partnership Response -> Hole Completion -> Betting -> Educational Summary).
 - **Decision Timing**: Never make decisions before seeing shot results. All decisions are contextual and informed.
-- **Contextual Decisions**: Human decisions must always be presented with all relevant context (e.g., tee shot results, handicap compatibility).
-- **Educational Value**: Changes should enhance the educational insights provided after each hole.
-- **GHIN Integration**: Ensure real golfer data integration is seamless and secure.
+- **Contextual Decisions**: Human decisions must always be- **GHIN Integration**: Ensure real golfer data integration is seamless and secure.
 - **Comments**: Add comments sparingly, focusing on _why_ complex logic is implemented.
 

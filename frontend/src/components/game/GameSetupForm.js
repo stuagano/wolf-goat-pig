@@ -75,10 +75,43 @@ function GameSetupForm({ onSetup }) {
   const [ghinError, setGhinError] = useState({});
 
   useEffect(() => {
-    fetch(`${API_URL}/courses`).then(res => res.json()).then(data => {
-      setCourses(Object.keys(data));
-      if (Object.keys(data).length > 0) setCourseName(Object.keys(data)[0]);
-    });
+    fetch(`${API_URL}/courses`)
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (!data || typeof data !== 'object') {
+          throw new Error('Invalid courses data format');
+        }
+        
+        const courseNames = Object.keys(data);
+        setCourses(courseNames);
+        
+        if (courseNames.length > 0) {
+          setCourseName(courseNames[0]);
+        } else {
+          throw new Error('No courses available');
+        }
+      })
+      .catch(error => {
+        console.error('Failed to load courses:', error);
+        
+        // Provide fallback courses so game can still start
+        const fallbackCourses = ["Default Course"];
+        setCourses(fallbackCourses);
+        setCourseName("Default Course");
+        
+        // Set error to show user-friendly message
+        setError('Unable to load courses from server. Using default course. The game can still be played.');
+        
+        // Clear error after 5 seconds to not permanently block the UI
+        setTimeout(() => {
+          setError('');
+        }, 5000);
+      });
   }, []);
 
   // Auto-populate first player with selected profile
@@ -191,7 +224,23 @@ function GameSetupForm({ onSetup }) {
   return (
     <>
       {showCourseManager && <CourseManager onClose={() => setShowCourseManager(false)} onCoursesChanged={() => {
-        fetch(`${API_URL}/courses`).then(res => res.json()).then(data => setCourses(Object.keys(data)));
+        fetch(`${API_URL}/courses`)
+          .then(res => {
+            if (!res.ok) {
+              throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            }
+            return res.json();
+          })
+          .then(data => {
+            if (data && typeof data === 'object') {
+              setCourses(Object.keys(data));
+            }
+          })
+          .catch(error => {
+            console.error('Failed to refresh courses:', error);
+            setError('Failed to refresh courses from server.');
+            setTimeout(() => setError(''), 3000);
+          });
       }} />}
       {showProfileManager && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

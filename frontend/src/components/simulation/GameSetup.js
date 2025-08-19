@@ -31,24 +31,104 @@ const GameSetup = ({
   const [ghinLookupError, setGhinLookupError] = useState("");
 
   useEffect(() => {
-    // Fetch courses
+    // Fetch courses with error handling
     fetch(`${API_URL}/courses`)
-      .then(res => res.json())
-      .then(data => setCourses(data))
-      .catch(console.error);
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (!data || typeof data !== 'object') {
+          throw new Error('Invalid courses data format');
+        }
+        setCourses(data);
+        
+        // Auto-select first course if none selected
+        if (!selectedCourse && Object.keys(data).length > 0) {
+          setSelectedCourse(Object.keys(data)[0]);
+        }
+      })
+      .catch(error => {
+        console.error('Failed to load courses:', error);
+        
+        // Provide fallback courses so game can still start
+        const fallbackCourses = {
+          "Default Course": {
+            name: "Default Course",
+            holes: Array.from({length: 18}, (_, i) => ({
+              hole_number: i + 1,
+              par: 4,
+              yards: 400,
+              stroke_index: i + 1,
+              description: `Hole ${i + 1}`
+            })),
+            total_par: 72,
+            total_yards: 7200,
+            hole_count: 18
+          }
+        };
+        
+        setCourses(fallbackCourses);
+        setSelectedCourse("Default Course");
+        
+        // Show user-friendly error message but don't block the game
+        alert('Unable to load courses from server. Using default course to continue the game.');
+      });
     
-    // Fetch personalities
+    // Fetch personalities with error handling
     fetch(`${API_URL}/personalities`)
-      .then(res => res.json())
-      .then(data => setPersonalities(data))
-      .catch(console.error);
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (Array.isArray(data)) {
+          setPersonalities(data);
+        } else {
+          throw new Error('Invalid personalities data format');
+        }
+      })
+      .catch(error => {
+        console.error('Failed to load personalities:', error);
+        // Provide fallback personalities
+        const fallbackPersonalities = [
+          { id: 'aggressive', name: 'Aggressive' },
+          { id: 'conservative', name: 'Conservative' },
+          { id: 'balanced', name: 'Balanced' }
+        ];
+        setPersonalities(fallbackPersonalities);
+      });
     
-    // Fetch suggested opponents
+    // Fetch suggested opponents with error handling
     fetch(`${API_URL}/suggested_opponents`)
-      .then(res => res.json())
-      .then(data => setSuggestedOpponents(data))
-      .catch(console.error);
-  }, [setCourses, setPersonalities, setSuggestedOpponents]);
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (Array.isArray(data)) {
+          setSuggestedOpponents(data);
+        } else {
+          throw new Error('Invalid suggested opponents data format');
+        }
+      })
+      .catch(error => {
+        console.error('Failed to load suggested opponents:', error);
+        // Provide fallback suggested opponents
+        const fallbackOpponents = [
+          { name: 'Bob', handicap: '12', personality: 'aggressive' },
+          { name: 'Alice', handicap: '8', personality: 'conservative' },
+          { name: 'Charlie', handicap: '16', personality: 'balanced' }
+        ];
+        setSuggestedOpponents(fallbackOpponents);
+      });
+  }, [setCourses, setPersonalities, setSuggestedOpponents, selectedCourse, setSelectedCourse]);
 
   // Initialize computer players if empty
   useEffect(() => {
