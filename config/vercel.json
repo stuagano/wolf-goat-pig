@@ -6,7 +6,7 @@
       "use": "@vercel/static-build",
       "config": {
         "distDir": "build",
-        "buildCommand": "cd frontend && npm ci && npm run build"
+        "buildCommand": "cd frontend && npm ci --only=production && npm run build"
       }
     }
   ],
