@@ -14,7 +14,7 @@ def test_simulation_logic():
     print("🎮 Testing simulation startup logic...")
     
     # Add backend to path for imports
-    backend_path = "/Users/stuartgano/Documents/wolf-goat-pig/backend"
+    backend_path = os.path.join(os.path.dirname(__file__), "backend")
     if backend_path not in sys.path:
         sys.path.insert(0, backend_path)
     
@@ -107,7 +107,7 @@ def test_frontend_integration():
     
     print("🎨 Testing frontend simulation integration...")
     
-    frontend_path = "/Users/stuartgano/Documents/wolf-goat-pig/frontend/src"
+    frontend_path = os.path.join(os.path.dirname(__file__), "frontend", "src")
     
     # Check for simulation components
     simulation_files = [
@@ -159,7 +159,7 @@ def test_api_endpoints():
     
     print("🌐 Testing API endpoint definitions...")
     
-    backend_path = "/Users/stuartgano/Documents/wolf-goat-pig/backend"
+    backend_path = os.path.join(os.path.dirname(__file__), "backend")
     main_path = os.path.join(backend_path, "app/main.py")
     
     if not os.path.exists(main_path):
