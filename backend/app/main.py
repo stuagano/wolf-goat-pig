@@ -4,8 +4,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from . import models, schemas, crud, database
-# Ensure tables are created before anything else
-database.init_db()
 
 from .game_state import game_state
 from .wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer
@@ -63,6 +61,17 @@ app = FastAPI(
     docs_url="/docs" if os.getenv("ENVIRONMENT") != "production" else None,
     redoc_url="/redoc" if os.getenv("ENVIRONMENT") != "production" else None
 )
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database on startup"""
+    try:
+        database.init_db()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+        # Continue startup even if database fails for development
+        pass
 
 # Trusted host middleware for security
 # Temporarily disable TrustedHostMiddleware during development/testing for easier debugging
