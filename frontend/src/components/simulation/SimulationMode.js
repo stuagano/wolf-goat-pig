@@ -144,11 +144,28 @@ function SimulationMode() {
         // Immediately trigger the first shot event
         await playNextShot();
       } else {
-        alert("Error starting simulation: " + (data.detail || "Unknown error"));
+        // Properly handle error objects and arrays
+        let errorMessage = "Unknown error";
+        if (data.detail) {
+          if (typeof data.detail === 'string') {
+            errorMessage = data.detail;
+          } else if (typeof data.detail === 'object') {
+            errorMessage = JSON.stringify(data.detail);
+          } else {
+            errorMessage = String(data.detail);
+          }
+        }
+        alert("Error starting simulation: " + errorMessage);
       }
     } catch (error) {
       console.error("Error starting simulation:", error);
-      alert("Error starting simulation");
+      let errorMessage = "Network or server error";
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      alert("Error starting simulation: " + errorMessage);
     } finally {
       setLoading(false);
     }

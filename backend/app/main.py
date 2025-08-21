@@ -2703,11 +2703,15 @@ def get_analytics_overview():
 # Request/Response models for simulation endpoints
 class SimulationSetupRequest(BaseModel):
     """Request model for simulation setup"""
-    players: List[Dict[str, Any]]
+    players: Optional[List[Dict[str, Any]]] = None
     course_id: Optional[int] = None
     computer_players: Optional[List[str]] = []
     personalities: Optional[List[str]] = []
     game_options: Optional[Dict[str, Any]] = {}
+    
+    # Frontend compatibility fields
+    human_player: Optional[Dict[str, Any]] = None
+    course_name: Optional[str] = None
 
 class SimulationPlayShotRequest(BaseModel):
     """Request model for playing next shot"""
@@ -2729,16 +2733,38 @@ def setup_simulation(request: SimulationSetupRequest):
     try:
         logger.info("Setting up new simulation...")
         
+        # Handle both new format (players array) and legacy format (human_player + computer_players)
+        all_players = []
+        
+        if request.players:
+            # New format: direct players array
+            all_players = request.players
+        elif request.human_player:
+            # Legacy format: combine human_player and computer_players
+            all_players = [request.human_player]
+            if request.computer_players:
+                for i, comp_player in enumerate(request.computer_players):
+                    if isinstance(comp_player, str):
+                        # If it's just a name string, create a player dict
+                        all_players.append({
+                            "id": f"comp_{i+1}",
+                            "name": comp_player,
+                            "handicap": 15.0  # Default handicap for computer players
+                        })
+                    else:
+                        # If it's already a dict, use it
+                        all_players.append(comp_player)
+        
         # Validate players
-        if not request.players or len(request.players) < 4:
+        if not all_players or len(all_players) < 4:
             raise HTTPException(status_code=400, detail="At least 4 players required")
         
-        if len(request.players) > 6:
+        if len(all_players) > 6:
             raise HTTPException(status_code=400, detail="Maximum 6 players allowed")
         
         # Create WGPPlayer objects
         wgp_players = []
-        for i, player_data in enumerate(request.players):
+        for i, player_data in enumerate(all_players):
             wgp_player = WGPPlayer(
                 id=player_data.get("id", f"player_{i+1}"),
                 name=player_data.get("name", f"Player {i+1}"),
@@ -2757,16 +2783,24 @@ def setup_simulation(request: SimulationSetupRequest):
             personalities = request.personalities or ["balanced"] * len(request.computer_players)
             wgp_simulation.set_computer_players(request.computer_players, personalities)
         
-        # Load course if specified
-        if request.course_id:
+        # Load course if specified (handle both course_id and course_name)
+        if request.course_id or request.course_name:
             try:
                 courses = game_state.get_courses()
-                selected_course = next((c for c in courses if c.id == request.course_id), None)
+                selected_course = None
+                
+                if request.course_id:
+                    selected_course = next((c for c in courses if c.id == request.course_id), None)
+                elif request.course_name:
+                    selected_course = next((c for c in courses if c.name == request.course_name), None)
+                
                 if selected_course:
                     # Set course for simulation
                     logger.info(f"Using course: {selected_course.name}")
+                else:
+                    logger.warning(f"Course not found: {request.course_id or request.course_name}")
             except Exception as course_error:
-                logger.warning(f"Could not load course {request.course_id}: {course_error}")
+                logger.warning(f"Could not load course {request.course_id or request.course_name}: {course_error}")
         
         # Initialize hole 1
         wgp_simulation._initialize_hole(1)
@@ -2778,6 +2812,7 @@ def setup_simulation(request: SimulationSetupRequest):
         logger.info("Simulation setup completed successfully")
         
         return {
+            "status": "ok",
             "success": True,
             "message": "Simulation initialized successfully",
             "game_state": game_state_data,
