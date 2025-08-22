@@ -3,6 +3,14 @@ import CourseImport from './CourseImport';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
+// Helper function to safely serialize error details
+const formatErrorDetail = (detail) => {
+  if (typeof detail === 'object' && detail !== null) {
+    return JSON.stringify(detail);
+  }
+  return detail;
+};
+
 const COLORS = {
   primary: "#2E7D32",
   secondary: "#4CAF50",
@@ -89,7 +97,7 @@ function CourseManager({ onClose, onCoursesChanged }) {
       onCoursesChanged && onCoursesChanged();
     } else {
       const data = await res.json();
-      setError(data.detail || "Add failed");
+      setError(formatErrorDetail(data.detail) || "Add failed");
     }
   };
 
@@ -106,7 +114,7 @@ function CourseManager({ onClose, onCoursesChanged }) {
         onCoursesChanged && onCoursesChanged();
       } else {
         const data = await response.json();
-        setError(data.detail || "Delete failed");
+        setError(formatErrorDetail(data.detail) || "Delete failed");
       }
     } catch (error) {
       setError("Failed to delete course");
@@ -138,7 +146,7 @@ function CourseManager({ onClose, onCoursesChanged }) {
         onCoursesChanged && onCoursesChanged();
       } else {
         const data = await response.json();
-        setError(data.detail || "Update failed");
+        setError(formatErrorDetail(data.detail) || "Update failed");
       }
     } catch (error) {
       setError("Failed to update course");

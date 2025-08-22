@@ -2,6 +2,14 @@ import React, { useState, useEffect } from 'react';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
+// Helper function to safely serialize error details
+const formatErrorDetail = (detail) => {
+  if (typeof detail === 'object' && detail !== null) {
+    return JSON.stringify(detail);
+  }
+  return detail;
+};
+
 const COLORS = {
   primary: "#2E7D32",
   secondary: "#4CAF50",
@@ -118,7 +126,7 @@ const CourseImport = ({ onClose, onCourseImported }) => {
         setPreviewData(data.course);
         setSuccess(data.message);
       } else {
-        setError(data.detail || "Failed to preview course");
+        setError(formatErrorDetail(data.detail) || "Failed to preview course");
       }
     } catch (error) {
       setError("Failed to preview course");
@@ -174,7 +182,7 @@ const CourseImport = ({ onClose, onCourseImported }) => {
           onCourseImported(data.course);
         }
       } else {
-        setError(data.detail || "Failed to import course");
+        setError(formatErrorDetail(data.detail) || "Failed to import course");
       }
     } catch (error) {
       setError("Failed to import course");
