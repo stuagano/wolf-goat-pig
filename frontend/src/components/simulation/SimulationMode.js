@@ -299,11 +299,12 @@ function SimulationMode() {
   };
   
   const playNextShot = async () => {
-    console.log("playNextShot called", { loading, interactionNeeded, API_URL });
-    if (loading || interactionNeeded) return;
+    if (loading || interactionNeeded) {
+      console.log("Cannot play shot:", { loading, interactionNeeded });
+      return;
+    }
     
     setLoading(true);
-    console.log("Calling API:", `${API_URL}/simulation/play-next-shot`);
     try {
       const response = await fetch(`${API_URL}/simulation/play-next-shot`, {
         method: "POST",
@@ -317,7 +318,6 @@ function SimulationMode() {
       }
       
       const data = await response.json();
-      console.log("API Response:", data);
       
       if (data.status === "ok") {
         setGameState(data.game_state);
@@ -413,8 +413,7 @@ function SimulationMode() {
         shotState={shotState}
         probabilities={shotProbabilities}
         onDecision={makeDecision}
-        autoPlayEnabled={true}
-        playSpeed="normal"
+        onPlayNextShot={playNextShot}
       />
     );
   }

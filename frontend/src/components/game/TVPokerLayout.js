@@ -10,24 +10,17 @@ const TVPokerLayout = ({
   shotState,
   probabilities,
   onDecision,
-  autoPlayEnabled = true,
-  playSpeed = 'normal'
+  onPlayNextShot
 }) => {
   const theme = useTheme();
-  const [autoPlay, setAutoPlay] = useState(autoPlayEnabled);
   const [selectedOption, setSelectedOption] = useState(null);
 
-  // Auto-play timer
-  useEffect(() => {
-    if (autoPlay && !gameState?.interactionNeeded && gameState?.hasNextShot) {
-      const delay = playSpeed === 'fast' ? 1000 : playSpeed === 'slow' ? 3000 : 2000;
-      const timer = setTimeout(() => {
-        // Trigger next shot
-        console.log('Auto-playing next shot...');
-      }, delay);
-      return () => clearTimeout(timer);
+  // Handle shot progression button click
+  const handlePlayShot = () => {
+    if (onPlayNextShot && gameState?.hasNextShot && !gameState?.interactionNeeded) {
+      onPlayNextShot();
     }
-  }, [autoPlay, gameState, playSpeed]);
+  };
 
   const styles = {
     container: {
@@ -232,22 +225,40 @@ const TVPokerLayout = ({
     <div style={styles.container}>
       {/* Top Status Bar */}
       <div style={styles.topBar}>
-        <div>Hole {gameState?.current_hole || 7} | Par 4 | 435 yards</div>
+        <div>Hole {gameState?.current_hole || 1} | Par {gameState?.hole_par || 4} | {gameState?.hole_distance || 435} yards</div>
         <div>Base Wager: ${gameState?.base_wager || 10} | {gameState?.multiplier || '1'}x Active</div>
         <div style={styles.autoPlayControl}>
-          <label>
-            <input 
-              type="checkbox" 
-              checked={autoPlay} 
-              onChange={(e) => setAutoPlay(e.target.checked)}
-            />
-            Auto-play
-          </label>
-          <select value={playSpeed} onChange={(e) => console.log(e.target.value)}>
-            <option value="slow">Slow</option>
-            <option value="normal">Normal</option>
-            <option value="fast">Fast</option>
-          </select>
+          {gameState?.hasNextShot && !gameState?.interactionNeeded && (
+            <button 
+              onClick={handlePlayShot}
+              style={{
+                background: '#4CAF50',
+                color: 'white',
+                border: 'none',
+                padding: '10px 20px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                fontSize: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              ⛳ Play Next Shot
+            </button>
+          )}
+          {gameState?.interactionNeeded && (
+            <div style={{ 
+              color: '#FFD700', 
+              fontWeight: 'bold',
+              padding: '10px',
+              background: 'rgba(255, 215, 0, 0.2)',
+              borderRadius: '6px'
+            }}>
+              ⚠️ Decision Required
+            </div>
+          )}
         </div>
       </div>
 
