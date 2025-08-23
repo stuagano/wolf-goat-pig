@@ -329,68 +329,114 @@ const TVPokerLayout = ({
             <div style={{ fontSize: '12px', color: '#2a2a2a' }}>Pin</div>
           </div>
           
-          {/* Current Game Info */}
-          <div style={{ 
-            position: 'absolute', 
-            top: '50%', 
-            left: '50%', 
-            transform: 'translate(-50%, -50%)',
-            background: 'rgba(0,0,0,0.7)',
-            color: 'white',
-            padding: '20px',
-            borderRadius: '8px',
-            textAlign: 'center'
-          }}>
-            <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>
-              Current Status
-            </div>
-            <div style={{ fontSize: '14px', marginBottom: '4px' }}>
-              Shot #{gameState?.hole_state?.current_shot_number || gameState?.current_shot || 1}
-            </div>
-            <div style={{ fontSize: '14px', marginBottom: '4px' }}>
-              {gameState?.hole_state?.next_player_to_hit ? 
-                `${gameState.hole_state.next_player_to_hit}'s turn` : 
-                gameState?.current_player ? `${gameState.current_player}'s turn` : 'Ready to play'}
-            </div>
-            {/* Show closest distance to pin */}
-            {(() => {
-              const ballPositions = gameState?.hole_state?.ball_positions || {};
-              let closestDistance = null;
-              Object.values(ballPositions).forEach(pos => {
-                if (pos?.distance_to_pin) {
-                  if (!closestDistance || pos.distance_to_pin < closestDistance) {
-                    closestDistance = pos.distance_to_pin;
-                  }
-                }
-              });
-              return closestDistance ? (
-                <div style={{ fontSize: '16px', fontWeight: 'bold' }}>
-                  Closest: {Math.round(closestDistance)} yards to pin
+          {/* Ball Positions on Course */}
+          {(() => {
+            const ballPositions = gameState?.hole_state?.ball_positions || {};
+            const maxDistance = 400; // Approximate max hole length for scaling
+            
+            return Object.entries(ballPositions).map(([playerId, position]) => {
+              if (!position || position.distance_to_pin === null) return null;
+              
+              // Find player info
+              const player = players.find(p => p.id === playerId);
+              if (!player) return null;
+              
+              // Calculate position on course (0% = pin, 100% = tee)
+              const distancePercent = Math.min(100, (position.distance_to_pin / maxDistance) * 100);
+              const leftPosition = 100 - distancePercent; // Flip so pin is right side
+              
+              // Color coding based on lie type
+              let ballColor = '#ffffff';
+              let borderColor = '#4CAF50';
+              if (position.lie_type === 'rough') {
+                ballColor = '#8BC34A';
+                borderColor = '#689F38';
+              } else if (position.lie_type === 'sand') {
+                ballColor = '#FFC107';
+                borderColor = '#FF8F00';
+              } else if (position.lie_type === 'fairway') {
+                ballColor = '#4CAF50';
+                borderColor = '#2E7D32';
+              }
+              
+              return (
+                <div
+                  key={playerId}
+                  style={{
+                    position: 'absolute',
+                    left: `${leftPosition}%`,
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    textAlign: 'center',
+                    zIndex: 10
+                  }}
+                >
+                  {/* Ball */}
+                  <div
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      borderRadius: '50%',
+                      background: ballColor,
+                      border: `3px solid ${borderColor}`,
+                      margin: '0 auto 4px',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                    }}
+                  />
+                  {/* Player name */}
+                  <div
+                    style={{
+                      fontSize: '10px',
+                      color: '#2a2a2a',
+                      fontWeight: 'bold',
+                      background: 'rgba(255,255,255,0.9)',
+                      padding: '2px 6px',
+                      borderRadius: '3px',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {player.name}
+                  </div>
+                  {/* Distance */}
+                  <div
+                    style={{
+                      fontSize: '9px',
+                      color: '#666',
+                      background: 'rgba(255,255,255,0.8)',
+                      padding: '1px 4px',
+                      borderRadius: '2px',
+                      marginTop: '2px'
+                    }}
+                  >
+                    {Math.round(position.distance_to_pin)}yd
+                  </div>
                 </div>
-              ) : null;
-            })()}
-          </div>
+              );
+            });
+          })()}
           
-          {/* Player positions (if available) */}
-          {players.map((player, index) => (
-            <div 
-              key={player.id}
-              style={{
-                position: 'absolute',
-                bottom: `${60 + (index * 30)}px`,
-                left: `${20 + (index * 15)}%`,
-                textAlign: 'center',
-                fontSize: '12px'
-              }}
-            >
-              <div style={{ fontSize: '18px' }}>
-                {player.id === 'human' ? '👤' : '💻'}
-              </div>
-              <div style={{ color: '#2a2a2a', fontWeight: 'bold' }}>
-                {player.name}
-              </div>
+          {/* Current Player Indicator */}
+          <div style={{
+            position: 'absolute',
+            bottom: '10px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'rgba(0,0,0,0.8)',
+            color: 'white',
+            padding: '8px 16px',
+            borderRadius: '6px',
+            textAlign: 'center',
+            fontSize: '14px'
+          }}>
+            <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
+              Shot #{gameState?.hole_state?.current_shot_number || 1}
             </div>
-          ))}
+            <div>
+              {gameState?.hole_state?.next_player_to_hit ? 
+                `${players.find(p => p.id === gameState.hole_state.next_player_to_hit)?.name || gameState.hole_state.next_player_to_hit}'s turn` : 
+                'Ready to play'}
+            </div>
+          </div>
         </div>
       </div>
 

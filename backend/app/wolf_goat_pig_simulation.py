@@ -2197,27 +2197,31 @@ class WolfGoatPigSimulation:
             hole_state.current_order_of_play = hole_state.hitting_order.copy()
     
     def _simulate_player_shot(self, player: WGPPlayer, shot_number: int) -> WGPShotResult:
-        """Simulate a single shot for a player"""
-        # Determine lie type based on shot number and previous results
+        """Simulate a realistic shot based on handicap and golf statistics"""
+        # Get current hole info
+        current_hole = self.hole_states.get(self.current_hole)
+        hole_par = current_hole.hole_par if current_hole else 4
+        
         if shot_number == 1:
+            # Tee shot - realistic distances based on handicap
             lie_type = "tee"
-            distance_to_pin = random.uniform(150, 450)  # Tee shot distance
+            distance_to_pin = self._simulate_tee_shot_distance(player.handicap, hole_par)
         else:
-            # Get previous shot
-            prev_shots = self.hole_progression.shots_taken[player.id]
+            # Subsequent shots
+            prev_shots = self.hole_progression.shots_taken.get(player.id, [])
             if prev_shots:
                 prev_distance = prev_shots[-1].distance_to_pin
                 lie_type = self._determine_lie_type(prev_shots[-1])
-                distance_to_pin = max(0, prev_distance - random.uniform(50, 200))
+                distance_to_pin = self._simulate_approach_shot(player.handicap, prev_distance, lie_type)
             else:
                 lie_type = "fairway"
-                distance_to_pin = random.uniform(50, 150)
+                distance_to_pin = random.uniform(80, 160)
         
-        # Simulate shot quality based on player handicap and lie
-        shot_quality = self._determine_shot_quality(player.handicap, lie_type)
+        # Simulate shot quality based on realistic expectations
+        shot_quality = self._determine_realistic_shot_quality(player.handicap, lie_type, distance_to_pin)
         
-        # Determine if shot was made (holed out)
-        made_shot = distance_to_pin < 5 and random.random() > 0.7
+        # Realistic holing out probabilities
+        made_shot = self._determine_holed_shot(distance_to_pin, shot_quality, shot_number)
         if made_shot:
             distance_to_pin = 0
         
@@ -2229,6 +2233,104 @@ class WolfGoatPigSimulation:
             shot_quality=shot_quality,
             made_shot=made_shot
         )
+    
+    def _simulate_tee_shot_distance(self, handicap: float, hole_par: int) -> float:
+        """Realistic tee shot distances based on handicap and hole par"""
+        if hole_par == 3:
+            # Par 3 - aiming for green
+            if handicap <= 5:
+                return random.uniform(5, 25)  # Good players get close
+            elif handicap <= 15:
+                return random.uniform(15, 45)  # Mid handicaps
+            else:
+                return random.uniform(25, 65)  # High handicaps
+        elif hole_par == 4:
+            # Par 4 - drive down fairway
+            if handicap <= 5:
+                return random.uniform(120, 180)  # Good position
+            elif handicap <= 15:
+                return random.uniform(140, 220)  # Reasonable distance
+            else:
+                return random.uniform(160, 280)  # Longer remaining
+        else:  # Par 5
+            # Par 5 - long drive
+            if handicap <= 5:
+                return random.uniform(180, 280)  # Good position for approach
+            elif handicap <= 15:
+                return random.uniform(220, 320)  # Still manageable
+            else:
+                return random.uniform(280, 380)  # Longer approach needed
+    
+    def _simulate_approach_shot(self, handicap: float, prev_distance: float, lie_type: str) -> float:
+        """Simulate approach shot advancement based on handicap"""
+        # Base advancement based on handicap
+        if handicap <= 5:
+            base_advance = random.uniform(prev_distance * 0.6, prev_distance * 0.9)
+        elif handicap <= 15:
+            base_advance = random.uniform(prev_distance * 0.4, prev_distance * 0.8)
+        else:
+            base_advance = random.uniform(prev_distance * 0.3, prev_distance * 0.7)
+        
+        # Adjust for lie difficulty
+        lie_penalty = 1.0
+        if lie_type == "rough":
+            lie_penalty = 0.8
+        elif lie_type == "sand":
+            lie_penalty = 0.6
+        
+        advancement = base_advance * lie_penalty
+        return max(0, prev_distance - advancement)
+    
+    def _determine_realistic_shot_quality(self, handicap: float, lie_type: str, distance_to_pin: float) -> str:
+        """Determine shot quality based on realistic golf expectations"""
+        # Base skill factor (lower handicap = better shots)
+        skill_factor = max(0.1, 1 - (handicap / 30))
+        
+        # Distance factor (closer shots easier to execute well)
+        distance_factor = 1.0
+        if distance_to_pin < 50:
+            distance_factor = 1.2  # Easier close shots
+        elif distance_to_pin > 200:
+            distance_factor = 0.8  # Harder long shots
+            
+        # Lie factor
+        lie_factor = 1.0
+        if lie_type == "rough":
+            lie_factor = 0.7
+        elif lie_type == "sand":
+            lie_factor = 0.5
+        elif lie_type == "fairway":
+            lie_factor = 1.1
+        
+        combined_factor = skill_factor * distance_factor * lie_factor
+        rand = random.random()
+        
+        if rand < combined_factor * 0.15:
+            return "excellent"
+        elif rand < combined_factor * 0.35:
+            return "good"
+        elif rand < combined_factor * 0.65:
+            return "average"
+        elif rand < combined_factor * 0.85:
+            return "poor"
+        else:
+            return "terrible"
+    
+    def _determine_holed_shot(self, distance_to_pin: float, shot_quality: str, shot_number: int) -> bool:
+        """Realistic probability of holing out based on distance and quality"""
+        if distance_to_pin < 3:
+            # Very close shots
+            return random.random() < 0.95
+        elif distance_to_pin < 8:
+            # Close putts/chips
+            quality_factor = {"excellent": 0.8, "good": 0.6, "average": 0.4, "poor": 0.2, "terrible": 0.1}
+            return random.random() < quality_factor.get(shot_quality, 0.3)
+        elif distance_to_pin < 20 and shot_quality == "excellent":
+            # Excellent short shots can hole out
+            return random.random() < 0.15
+        else:
+            # Longer shots rarely hole out
+            return False
     
     def _determine_lie_type(self, prev_shot: WGPShotResult) -> str:
         """Determine lie type based on previous shot quality"""
