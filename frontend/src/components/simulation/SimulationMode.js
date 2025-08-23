@@ -227,9 +227,9 @@ function SimulationMode() {
         
         // Add feedback messages
         if (data.feedback && Array.isArray(data.feedback)) {
-          setFeedback(prev => [...prev, ...data.feedback]);
+          data.feedback.forEach(msg => addFeedback(msg));
         } else if (data.decision_result?.message) {
-          setFeedback(prev => [...prev, `💰 ${data.decision_result.message}`]);
+          addFeedback(`💰 ${data.decision_result.message}`);
         }
         
         // Handle interaction needed
@@ -288,7 +288,7 @@ function SimulationMode() {
       }
       
       // Add error to feedback instead of alert
-      setFeedback(prev => [...prev, `❌ ${errorMessage}`]);
+      addFeedback(`❌ ${errorMessage}`);
       
       // Clear interaction needed to prevent stuck state
       setInteractionNeeded(null);
@@ -298,9 +298,11 @@ function SimulationMode() {
   };
   
   const playNextShot = async () => {
+    console.log("playNextShot called", { loading, interactionNeeded, API_URL });
     if (loading || interactionNeeded) return;
     
     setLoading(true);
+    console.log("Calling API:", `${API_URL}/simulation/play-next-shot`);
     try {
       const response = await fetch(`${API_URL}/simulation/play-next-shot`, {
         method: "POST",
@@ -314,18 +316,19 @@ function SimulationMode() {
       }
       
       const data = await response.json();
+      console.log("API Response:", data);
       
       if (data.status === "ok") {
         setGameState(data.game_state);
         
         // Add feedback from the shot simulation
         if (data.feedback && data.feedback.length > 0) {
-          setFeedback(prev => [...prev, ...data.feedback]);
+          data.feedback.forEach(msg => addFeedback(msg));
         }
         
         // Handle shot result
         if (data.shot_result) {
-          setFeedback(prev => [...prev, `🎯 Shot Result: ${JSON.stringify(data.shot_result)}`]);
+          addFeedback(`🎯 Shot Result: ${JSON.stringify(data.shot_result)}`);
         }
         
         // Handle interaction needed
