@@ -185,13 +185,8 @@ const TVPokerLayout = ({
     }
   };
 
-  // Sample data for demonstration
-  const players = gameState?.players || [
-    { id: 'human', name: 'Stuart', handicap: 18, points: 3, status: 'captain', isCurrent: true },
-    { id: 'comp1', name: 'Clive', handicap: 8, points: -2, status: 'partner' },
-    { id: 'comp2', name: 'Gary', handicap: 12, points: 1, status: 'opponent' },
-    { id: 'comp3', name: 'Bernard', handicap: 15, points: 0, status: 'opponent' }
-  ];
+  // Use real player data from game state
+  const players = gameState?.players || [];
 
   const winProbabilities = probabilities?.win || {
     'Stuart': 28,
@@ -214,12 +209,12 @@ const TVPokerLayout = ({
     'Solo': 3.5
   };
 
-  const feedItems = [
-    { icon: '🏌️', text: 'Stuart hits driver 245 yards to fairway', impact: '+3%' },
-    { icon: '📊', text: 'Win probability update: Stuart 28% → 31%' },
-    { icon: '🏌️', text: 'Clive hits 3-wood 220 yards to rough', impact: '-3%' },
-    { icon: '📊', text: 'Win probability update: Clive 35% → 32%' }
-  ];
+  // Use real feedback data from game state
+  const feedItems = (gameState?.feedback || []).slice(-4).map((item, index) => ({
+    icon: '📢',
+    text: typeof item === 'string' ? item : item.message || 'Game update',
+    impact: null
+  }));
 
   return (
     <div style={styles.container}>
@@ -294,26 +289,71 @@ const TVPokerLayout = ({
 
       {/* Course View */}
       <div style={styles.courseView}>
-        <h3 style={{ margin: '0 0 15px 0', color: '#2a2a2a' }}>Hole Layout</h3>
+        <h3 style={{ margin: '0 0 15px 0', color: '#2a2a2a' }}>
+          Hole {gameState?.current_hole || 1} Progress
+        </h3>
         <div style={{ position: 'relative', height: '400px', background: 'rgba(255,255,255,0.3)', borderRadius: '8px', padding: '20px' }}>
-          <div style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)' }}>
-            🚩 Tee
+          
+          {/* Tee */}
+          <div style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', textAlign: 'center' }}>
+            <div>🚩</div>
+            <div style={{ fontSize: '12px', color: '#2a2a2a' }}>Tee</div>
           </div>
-          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '24px' }}>
-            ⛳ 185 yards to pin
+          
+          {/* Pin */}
+          <div style={{ position: 'absolute', bottom: '20px', right: '20px', textAlign: 'center' }}>
+            <div style={{ fontSize: '24px' }}>⛳</div>
+            <div style={{ fontSize: '12px', color: '#2a2a2a' }}>Pin</div>
           </div>
-          <div style={{ position: 'absolute', bottom: '40px', left: '30%' }}>
-            🏌️ Stuart
+          
+          {/* Current Game Info */}
+          <div style={{ 
+            position: 'absolute', 
+            top: '50%', 
+            left: '50%', 
+            transform: 'translate(-50%, -50%)',
+            background: 'rgba(0,0,0,0.7)',
+            color: 'white',
+            padding: '20px',
+            borderRadius: '8px',
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>
+              Current Status
+            </div>
+            <div style={{ fontSize: '14px', marginBottom: '4px' }}>
+              Shot #{gameState?.current_shot || 1}
+            </div>
+            <div style={{ fontSize: '14px', marginBottom: '4px' }}>
+              {gameState?.current_player ? `${gameState.current_player}'s turn` : 'Ready to play'}
+            </div>
+            {gameState?.distance_to_pin && (
+              <div style={{ fontSize: '16px', fontWeight: 'bold' }}>
+                {Math.round(gameState.distance_to_pin)} yards to pin
+              </div>
+            )}
           </div>
-          <div style={{ position: 'absolute', bottom: '40px', left: '45%' }}>
-            🏌️ Clive
-          </div>
-          <div style={{ position: 'absolute', bottom: '40px', left: '60%' }}>
-            🏌️ Gary
-          </div>
-          <div style={{ position: 'absolute', bottom: '40px', left: '75%' }}>
-            🏌️ Bernard
-          </div>
+          
+          {/* Player positions (if available) */}
+          {players.map((player, index) => (
+            <div 
+              key={player.id}
+              style={{
+                position: 'absolute',
+                bottom: `${60 + (index * 30)}px`,
+                left: `${20 + (index * 15)}%`,
+                textAlign: 'center',
+                fontSize: '12px'
+              }}
+            >
+              <div style={{ fontSize: '18px' }}>
+                {player.id === 'human' ? '👤' : '💻'}
+              </div>
+              <div style={{ color: '#2a2a2a', fontWeight: 'bold' }}>
+                {player.name}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
