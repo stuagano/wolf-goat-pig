@@ -220,39 +220,23 @@ const TVPokerLayout = ({
     return evs;
   })();
 
-  // Process feedback into readable messages
+  // Use clean feedback messages from backend
   const feedItems = (gameState?.feedback || []).slice(-4).map((item, index) => {
-    if (typeof item === 'string') {
-      // Clean up shot result JSON strings
-      if (item.includes('Shot Result:')) {
-        try {
-          const jsonMatch = item.match(/\{.*\}/);
-          if (jsonMatch) {
-            const shotData = JSON.parse(jsonMatch[0]);
-            const playerName = shotData.shot_result?.player_id || 'Player';
-            const distance = Math.round(shotData.shot_result?.distance_to_pin || 0);
-            const quality = shotData.shot_result?.shot_quality || 'unknown';
-            return {
-              icon: '🏌️',
-              text: `${playerName} hits ${quality} shot - ${distance}yd to pin`,
-              impact: quality === 'excellent' ? '+' : quality === 'poor' ? '-' : null
-            };
-          }
-        } catch (e) {
-          // Fallback to original text if parsing fails
-        }
-      }
-      return {
-        icon: '📢',
-        text: item,
-        impact: null
-      };
-    }
-    return {
-      icon: '📢',
-      text: item?.message || 'Game update',
-      impact: null
-    };
+    const text = typeof item === 'string' ? item : item?.message || 'Game update';
+    
+    // Determine icon based on message content
+    let icon = '📢';
+    if (text.includes('🏌️')) icon = '🏌️';
+    if (text.includes('🎯')) icon = '🎯';
+    if (text.includes('😬')) icon = '😬';
+    if (text.includes('🎮')) icon = '🎮';
+    
+    // Determine impact for color coding
+    let impact = null;
+    if (text.includes('excellent') || text.includes('Great shot')) impact = '+';
+    if (text.includes('poor') || text.includes('Tough break')) impact = '-';
+    
+    return { icon, text, impact };
   });
 
   return (

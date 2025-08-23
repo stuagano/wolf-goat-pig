@@ -2852,12 +2852,34 @@ def play_next_shot(request: SimulationPlayShotRequest = None):
         hole_complete = updated_state.get("hole_complete", False)
         next_shot_available = not hole_complete and next_shot_player is not None
         
-        # Build feedback messages
+        # Build readable feedback messages from shot data
         feedback = []
         if shot_response:
-            feedback.append(f"🏌️ {shot_response.get('player_name', 'Player')} hit {shot_response.get('distance', 0)} yards")
-            if shot_response.get('result'):
-                feedback.append(f"📍 Ball is now {shot_response['result']}")
+            # Extract shot data
+            shot_data = shot_response.get('shot_result', {})
+            player_id = shot_data.get('player_id', 'player')
+            
+            # Get player display name
+            player_name = 'Player'
+            for player in wgp_simulation.players:
+                if player.id == player_id:
+                    player_name = player.name
+                    break
+            
+            # Extract shot details
+            distance_to_pin = shot_data.get('distance_to_pin', 0)
+            shot_quality = shot_data.get('shot_quality', 'unknown')
+            shot_number = shot_data.get('shot_number', 1)
+            lie_type = shot_data.get('lie_type', 'unknown')
+            
+            # Create readable feedback
+            feedback.append(f"🏌️ {player_name} hits {shot_quality} shot from {lie_type} - {round(distance_to_pin)}yd to pin")
+            
+            # Add shot assessment
+            if shot_quality == 'excellent':
+                feedback.append(f"🎯 Great shot! {player_name} is in excellent position")
+            elif shot_quality == 'poor':
+                feedback.append(f"😬 Tough break for {player_name}, recovery shot needed")
         
         return {
             "status": "ok",
