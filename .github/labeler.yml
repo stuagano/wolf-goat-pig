@@ -1,0 +1,38 @@
+# Configuration for automatic PR labeling
+
+backend:
+  - backend/**/*
+
+frontend:
+  - frontend/**/*
+
+documentation:
+  - '**/*.md'
+  - docs/**/*
+
+tests:
+  - '**/test_*.py'
+  - '**/*.test.js'
+  - '**/*.test.jsx'
+  - '**/*.test.ts'
+  - '**/*.test.tsx'
+  - '**/tests/**/*'
+
+dependencies:
+  - '**/requirements*.txt'
+  - '**/package.json'
+  - '**/package-lock.json'
+  - '**/yarn.lock'
+
+ci/cd:
+  - .github/workflows/*
+  - .github/actions/*
+  - '**/Dockerfile'
+  - '**/docker-compose*.yml'
+
+configuration:
+  - '**/*.env*'
+  - '**/*.config.js'
+  - '**/*.config.ts'
+  - '**/settings.py'
+  - '**/config.py'

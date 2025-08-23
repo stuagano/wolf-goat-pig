@@ -285,3 +285,27 @@ class TestAdvancedWGPRules:
         assert hole_state.teams.type == "partners"
         assert hole_state.betting.joes_special_value == 8
         assert self.simulation.game_phase.value == "hoepfinger"
+
+    def test_6_man_goat_restriction(self):
+        """Test that the goat cannot choose the same position more than twice in a row in a 6-man game"""
+        # Create a 6-player simulation
+        simulation_6 = WolfGoatPigSimulation(player_count=6)
+        players = [WGPPlayer(f"p{i}", f"Player{i}", 10.0) for i in range(1, 7)]
+        simulation_6.players = players
+
+        # Set the game to the Hoepfinger phase
+        simulation_6.current_hole = 13
+        simulation_6._initialize_hole(13)
+
+        # Get the goat and the current hitting order
+        goat = simulation_6._get_goat()
+        current_order = simulation_6.hole_states[13].hitting_order
+
+        # Set the goat's position history to have the same position twice
+        goat.goat_position_history = [1, 1]
+
+        # Call the _goat_chooses_position method 10 times to ensure the restriction is enforced
+        for _ in range(10):
+            new_order = simulation_6._goat_chooses_position(goat, current_order)
+            chosen_position = new_order.index(goat.id)
+            assert chosen_position != 1

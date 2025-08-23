@@ -140,9 +140,23 @@ function SimulationMode() {
       if (data.status === "ok") {
         setGameState(data.game_state);
         setIsGameActive(true);
-        setFeedback([data.message || "Simulation started!"]);
-        // Immediately trigger the first shot event
-        await playNextShot();
+        
+        // Set initial feedback
+        if (data.feedback && Array.isArray(data.feedback)) {
+          setFeedback(data.feedback);
+        } else {
+          setFeedback([data.message || "Simulation started!"]);
+        }
+        
+        // Set next shot availability from the response
+        if (data.next_shot_available !== undefined) {
+          setHasNextShot(data.next_shot_available);
+        } else {
+          setHasNextShot(true);  // Default to true after setup
+        }
+        
+        // Don't immediately play next shot - let the user initiate
+        // This prevents race conditions and gives user control
       } else {
         alert("Error starting simulation: " + (data.detail || "Unknown error"));
       }

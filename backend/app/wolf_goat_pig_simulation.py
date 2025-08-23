@@ -43,6 +43,8 @@ class WGPPlayer:
     points: int = 0  # Current points (quarters)
     float_used: bool = False  # Has used their float
     solo_count: int = 0  # Number of times gone solo (4-man requirement)
+    goat_position_history: List[int] = field(default_factory=list)  # Track Hoepfinger position choices
+
     
     def __post_init__(self):
         """Ensure all attributes are properly initialized"""
@@ -744,9 +746,21 @@ class WolfGoatPigSimulation:
         Note: In 6-man game, can't choose same spot more than twice in a row
         """
         # For simulation, Goat chooses randomly (in real game, this would be user input)
-        # TODO: Add logic to track previous choices for 6-man restriction
         available_positions = list(range(len(current_order)))
-        chosen_position = random.choice(available_positions)
+        
+        if self.player_count == 6 and len(goat.goat_position_history) >= 2:
+            # Check for 6-man restriction: can't choose same spot more than twice in a row
+            if goat.goat_position_history[-1] == goat.goat_position_history[-2]:
+                last_pos = goat.goat_position_history[-1]
+                if last_pos in available_positions:
+                    available_positions.remove(last_pos)
+
+        chosen_position = random.choice(available_positions if available_positions else list(range(len(current_order))))
+        
+        # Update goat's position history
+        goat.goat_position_history.append(chosen_position)
+        if len(goat.goat_position_history) > 2:
+            goat.goat_position_history.pop(0)
         
         # Rebuild order with Goat in chosen position
         new_order = [pid for pid in current_order if pid != goat.id]

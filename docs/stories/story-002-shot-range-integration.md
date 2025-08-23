@@ -20,6 +20,8 @@
 - [ ] Analysis results are displayed in real-time during gameplay
 - [ ] Integration works for all game modes (4, 5, and 6 players)
 - [ ] Shot recommendations update based on current game state
+- [x] 6-man goat restriction implemented
+
 
 ### AC-002: Visual Indicators
 - [ ] Shot range recommendations displayed with clear visual cues

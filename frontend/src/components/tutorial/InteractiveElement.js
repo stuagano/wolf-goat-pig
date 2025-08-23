@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useTutorial } from '../../context/TutorialContext';
 import { useTheme } from '../../theme/Provider';
 
@@ -568,8 +568,10 @@ export const TutorialSimulation = ({
   );
 };
 
-export default {
+const InteractiveElements = {
   TutorialQuiz,
   TutorialDragDrop,
   TutorialSimulation
 };
+
+export default InteractiveElements;

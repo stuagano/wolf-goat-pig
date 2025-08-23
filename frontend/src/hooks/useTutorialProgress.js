@@ -108,7 +108,7 @@ export const useTutorialProgress = () => {
     
     // Trigger achievement checks
     checkForAchievements(timeSpent);
-  }, [tutorial, getCurrentStepTime]);
+  }, [tutorial, getCurrentStepTime, checkForAchievements]); // Added checkForAchievements
 
   // Complete current module with validation
   const completeCurrentModule = useCallback(() => {
@@ -127,7 +127,7 @@ export const useTutorialProgress = () => {
     checkModuleAchievements();
     
     return true;
-  }, [tutorial]);
+  }, [tutorial, checkModuleAchievements]); // Added checkModuleAchievements
 
   // Achievement checking system
   const checkForAchievements = useCallback((stepTime) => {
@@ -166,7 +166,7 @@ export const useTutorialProgress = () => {
     });
     
     return achievements;
-  }, [tutorial]);
+  }, [tutorial.achievements, tutorial.overallProgress, tutorial.quizAnswers, tutorial]); // Added missing dependencies
 
   const checkModuleAchievements = useCallback(() => {
     const completedCount = tutorial.completedModules.size;
@@ -183,7 +183,7 @@ export const useTutorialProgress = () => {
     achievements.forEach(achievement => {
       tutorial.unlockAchievement(achievement);
     });
-  }, [tutorial]);
+  }, [tutorial.achievements, tutorial.completedModules, tutorial.modules]); // Added missing dependencies
 
   // Adaptive learning recommendations
   const getRecommendations = useCallback(() => {
@@ -237,14 +237,14 @@ export const useTutorialProgress = () => {
       sessionTime: getSessionTime(),
       completionRate: tutorial.overallProgress,
       averageModuleTime: Object.values(tutorial.timeSpent).reduce((sum, time) => sum + time, 0) / Math.max(1, Object.keys(tutorial.timeSpent).length),
-      quizAccuracy: Object.values(tutorial.quizAnswers).length > 0 
-        ? Object.values(tutorial.quizAnswers).filter(a => a.correct).length / Object.values(tutorial.quizAnswers).length 
+      quizAccuracy: Object.values(tutorial.quizAnswers).length > 0
+        ? Object.values(tutorial.quizAnswers).filter(a => a.correct).length / Object.values(tutorial.quizAnswers).length
         : 0,
       achievementCount: tutorial.achievements.size,
       difficultTopicCount: tutorial.difficultTopics.size,
       learningEfficiency: calculateLearningEfficiency()
     };
-  }, [tutorial, getSessionTime]);
+  }, [tutorial, getSessionTime, calculateLearningEfficiency]); // Added calculateLearningEfficiency
 
   const calculateLearningEfficiency = useCallback(() => {
     const completedModules = Array.from(tutorial.completedModules);
@@ -259,7 +259,7 @@ export const useTutorialProgress = () => {
     
     if (totalActualTime === 0) return 100;
     return Math.max(0, Math.min(100, (totalExpectedTime / totalActualTime) * 100));
-  }, [tutorial]);
+  }, [tutorial.completedModules, tutorial.modules, tutorial.timeSpent]); // Added missing dependencies
 
   // Resume from saved progress
   const resumeFromSaved = useCallback(() => {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react'; // Removed unused useState
 import { useTutorial } from '../../../context/TutorialContext';
 import { useTheme } from '../../../theme/Provider';
 import TutorialModule from '../TutorialModule';
@@ -7,7 +7,6 @@ import { TutorialQuiz, TutorialDragDrop } from '../InteractiveElement';
 const GolfBasicsModule = ({ onStepComplete, onModuleComplete, currentStep, goToStep }) => {
   const tutorial = useTutorial();
   const theme = useTheme();
-  const [showAdvanced, setShowAdvanced] = useState(!tutorial.learningPreferences.skipBasics);
 
   const steps = [
     {

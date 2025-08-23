@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useTutorial } from '../../../context/TutorialContext';
 import { useTheme } from '../../../theme/Provider';
 import TutorialModule from '../TutorialModule';
-import { TutorialQuiz, TutorialDragDrop, TutorialSimulation } from '../InteractiveElement';
+import { TutorialQuiz, TutorialDragDrop } from '../InteractiveElement';
 
 const TeamFormationModule = ({ onStepComplete, onModuleComplete, currentStep, goToStep }) => {
   const tutorial = useTutorial();
@@ -658,8 +658,6 @@ const TeamFormationModule = ({ onStepComplete, onModuleComplete, currentStep, go
   };
 
   const FormationSimulationStep = () => {
-    const [selectedFormation, setSelectedFormation] = useState(null);
-    
     const dragDropData = {
       items: [
         { id: 'amy', label: 'Amy (Confident)', correctCategory: 'wolf' },

@@ -254,7 +254,8 @@ const useOddsCalculation = ({
     performanceTarget,
     maxRetries,
     onOddsUpdate,
-    onError
+    onError,
+    updatePerformanceMetrics // Added missing dependency
   ]);
 
   // Quick odds calculation (simplified)

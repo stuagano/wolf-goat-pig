@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useTutorial } from '../../context/TutorialContext';
 import { useTutorialProgress } from '../../hooks/useTutorialProgress';
 import { useTheme } from '../../theme/Provider';
-import TutorialModule from './TutorialModule';
 import ProgressTracker from './ProgressTracker';
 import TutorialOverlay from './TutorialOverlay';
 
@@ -92,6 +91,8 @@ const TutorialSystem = ({ onComplete, onExit }) => {
         case 'h':
           if (e.ctrlKey) tutorial.toggleHints();
           break;
+        default:
+          break;
       }
     };
 
@@ -175,66 +176,6 @@ const TutorialSystem = ({ onComplete, onExit }) => {
     </div>
   );
 
-  // Learning preferences setup
-  const PreferencesSetup = () => (
-    <div style={styles.preferencesSetup}>
-      <h2>Customize Your Learning Experience</h2>
-      
-      <div style={styles.preferenceGroup}>
-        <h3>Learning Style</h3>
-        <label style={styles.checkboxLabel}>
-          <input 
-            type="checkbox" 
-            checked={tutorial.learningPreferences.visualLearner}
-            onChange={(e) => tutorial.updatePreferences({ visualLearner: e.target.checked })}
-          />
-          Visual learner (diagrams, charts, animations)
-        </label>
-        <label style={styles.checkboxLabel}>
-          <input 
-            type="checkbox" 
-            checked={tutorial.learningPreferences.auditoryLearner}
-            onChange={(e) => tutorial.updatePreferences({ auditoryLearner: e.target.checked })}
-          />
-          Auditory learner (audio explanations)
-        </label>
-        <label style={styles.checkboxLabel}>
-          <input 
-            type="checkbox" 
-            checked={tutorial.learningPreferences.kinestheticLearner}
-            onChange={(e) => tutorial.updatePreferences({ kinestheticLearner: e.target.checked })}
-          />
-          Hands-on learner (interactive exercises)
-        </label>
-      </div>
-      
-      <div style={styles.preferenceGroup}>
-        <h3>Experience Level</h3>
-        <label style={styles.checkboxLabel}>
-          <input 
-            type="checkbox" 
-            checked={tutorial.learningPreferences.skipBasics}
-            onChange={(e) => tutorial.updatePreferences({ skipBasics: e.target.checked })}
-          />
-          I'm familiar with golf terminology
-        </label>
-      </div>
-      
-      <div style={styles.preferenceGroup}>
-        <h3>Learning Pace</h3>
-        <select 
-          value={tutorial.learningPreferences.pace}
-          onChange={(e) => tutorial.updatePreferences({ pace: e.target.value })}
-          style={styles.select}
-        >
-          <option value="slow">Detailed explanations</option>
-          <option value="normal">Balanced approach</option>
-          <option value="fast">Quick overview</option>
-        </select>
-      </div>
-    </div>
-  );
-
   // Get current module component
   const getCurrentModuleComponent = () => {
     if (!tutorial.currentModule) return null;
@@ -307,14 +248,14 @@ const TutorialSystem = ({ onComplete, onExit }) => {
     
     moduleContainer: {
       flex: 1,
-      padding: isMobile ? theme.spacing[4] : theme.spacing[6],
+      padding: isMobile ? theme.spacing : theme.spacing,
       overflow: 'auto',
       maxWidth: 'none',
       WebkitOverflowScrolling: 'touch' // Smooth scrolling on iOS
     },
     
     header: {
-      padding: theme.spacing[4],
+      padding: theme.spacing,
       background: theme.colors.primary,
       color: '#ffffff',
       display: 'flex',
@@ -330,7 +271,7 @@ const TutorialSystem = ({ onComplete, onExit }) => {
     
     headerActions: {
       display: 'flex',
-      gap: theme.spacing[2]
+      gap: theme.spacing
     },
     
     headerButton: {
@@ -345,14 +286,14 @@ const TutorialSystem = ({ onComplete, onExit }) => {
     },
     
     navigation: {
-      padding: isMobile ? theme.spacing[3] : theme.spacing[4],
+      padding: isMobile ? theme.spacing : theme.spacing,
       borderTop: `1px solid ${theme.colors.border}`,
       background: theme.colors.gray50,
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
       flexWrap: isMobile ? 'wrap' : 'nowrap',
-      gap: isMobile ? theme.spacing[2] : 0
+      gap: isMobile ? theme.spacing : 0
     },
     
     navButton: {
@@ -383,35 +324,35 @@ const TutorialSystem = ({ onComplete, onExit }) => {
       alignItems: 'center',
       minHeight: '100vh',
       background: theme.colors.background,
-      padding: theme.spacing[4]
+      padding: theme.spacing
     },
     
     welcomeCard: {
       ...theme.cardStyle,
       maxWidth: 800,
-      padding: theme.spacing[8],
+      padding: theme.spacing,
       textAlign: 'center'
     },
     
     welcomeTitle: {
       fontSize: theme.typography['3xl'],
       color: theme.colors.primary,
-      marginBottom: theme.spacing[6],
+      marginBottom: theme.spacing,
       fontWeight: theme.typography.bold
     },
     
     welcomeDescription: {
       fontSize: theme.typography.lg,
       lineHeight: 1.6,
-      marginBottom: theme.spacing[8],
+      marginBottom: theme.spacing,
       color: theme.colors.textSecondary
     },
     
     featureGrid: {
       display: 'grid',
       gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-      gap: theme.spacing[6],
-      marginBottom: theme.spacing[8]
+      gap: theme.spacing,
+      marginBottom: theme.spacing
     },
     
     feature: {
@@ -420,20 +361,20 @@ const TutorialSystem = ({ onComplete, onExit }) => {
     
     featureIcon: {
       fontSize: '2.5rem',
-      marginBottom: theme.spacing[3]
+      marginBottom: theme.spacing
     },
     
     estimatedTime: {
       background: theme.colors.gray100,
-      padding: theme.spacing[4],
+      padding: theme.spacing,
       borderRadius: theme.borderRadius.base,
-      marginBottom: theme.spacing[6],
+      marginBottom: theme.spacing,
       fontSize: theme.typography.base
     },
     
     welcomeActions: {
       display: 'flex',
-      gap: theme.spacing[4],
+      gap: theme.spacing,
       justifyContent: 'center',
       flexWrap: 'wrap'
     },
@@ -461,16 +402,16 @@ const TutorialSystem = ({ onComplete, onExit }) => {
     
     // Preferences setup styles
     preferencesSetup: {
-      padding: theme.spacing[6]
+      padding: theme.spacing
     },
     
     preferenceGroup: {
-      marginBottom: theme.spacing[6]
+      marginBottom: theme.spacing
     },
     
     checkboxLabel: {
       display: 'block',
-      marginBottom: theme.spacing[2],
+      marginBottom: theme.spacing,
       cursor: 'pointer'
     },
     
@@ -488,7 +429,7 @@ const TutorialSystem = ({ onComplete, onExit }) => {
     },
     
     error: {
-      padding: theme.spacing[6],
+      padding: theme.spacing,
       color: theme.colors.error,
       textAlign: 'center',
       fontSize: theme.typography.lg
@@ -571,9 +512,9 @@ const TutorialSystem = ({ onComplete, onExit }) => {
           aria-label="Tutorial module navigation"
         >
           <button 
-            style={tutorial.currentModule === tutorial.modules[0]?.id ? styles.navButtonDisabled : styles.navButton}
+            style={tutorial.currentModule === tutorial.modules?.id ? styles.navButtonDisabled : styles.navButton}
             onClick={tutorial.previousModule}
-            disabled={tutorial.currentModule === tutorial.modules[0]?.id}
+            disabled={tutorial.currentModule === tutorial.modules?.id}
             aria-label="Go to previous module"
           >
             ← Previous Module

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTheme } from '../theme/Provider';
 import { useGame } from '../context';
-import { Button, Card, Select } from './ui';
+import { Button, Card } from './ui';
 import { apiPost, useApiCall } from '../utils/api';
 
 /**
@@ -16,7 +16,7 @@ const ShotAnalysisWidget = ({
   onShotRecommendation 
 }) => {
   const theme = useTheme();
-  const { loading, setError } = useGame();
+  const { setError } = useGame();
   const { makeApiCall, loading: apiLoading, error: apiError, isColdStart } = useApiCall();
   
   // Component state
@@ -118,12 +118,6 @@ const ShotAnalysisWidget = ({
     return theme.colors.error;
   };
 
-  // Get recommendation confidence color
-  const getConfidenceColor = (confidence) => {
-    if (confidence >= 80) return theme.colors.success;
-    if (confidence >= 60) return theme.colors.warning;
-    return theme.colors.error;
-  };
 
   if (!visible || !currentPlayer) {
     return null;

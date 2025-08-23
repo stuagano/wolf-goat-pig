@@ -403,7 +403,7 @@ function GameSetupForm({ onSetup }) {
                 value={player.strength}
                 onChange={e => handleChange(idx, 'strength', e.target.value)}
                 style={{ width: 110, marginRight: 8 }}
-                disabled={setupMode === 'profile' && (idx === 0 && selectedProfile || player.profile_id)}
+                disabled={setupMode === 'profile' && ((idx === 0 && selectedProfile) || player.profile_id)}
               >
                 <option value="">Strength</option>
                 <option value="Beginner">Beginner</option>

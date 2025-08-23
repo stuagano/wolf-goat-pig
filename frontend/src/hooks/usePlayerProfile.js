@@ -29,7 +29,7 @@ const usePlayerProfile = () => {
     // Load initial data on mount
     useEffect(() => {
         loadInitialData();
-    }, []);
+    }, [loadInitialData]);
 
     // Sync with server periodically
     useEffect(() => {
@@ -45,7 +45,7 @@ const usePlayerProfile = () => {
         }, 60000); // Check every minute
 
         return () => clearInterval(interval);
-    }, []);
+    }, [STORAGE_KEYS.LAST_SYNC, syncWithServer]);
 
     const loadInitialData = async () => {
         try {
@@ -154,7 +154,7 @@ const usePlayerProfile = () => {
             console.error('Error selecting profile:', err);
             setError('Failed to select profile');
         }
-    }, []);
+    }, [loadProfileStatistics, updateLastPlayed, STORAGE_KEYS.SELECTED_PROFILE]);
 
     const createProfile = useCallback(async (profileData) => {
         try {
@@ -191,7 +191,7 @@ const usePlayerProfile = () => {
         } finally {
             setLoading(false);
         }
-    }, [profiles, selectProfile]);
+    }, [profiles, selectProfile, STORAGE_KEYS.PROFILES_CACHE]);
 
     const updateProfile = useCallback(async (profileId, updateData) => {
         try {
@@ -233,7 +233,7 @@ const usePlayerProfile = () => {
         } finally {
             setLoading(false);
         }
-    }, [profiles, selectedProfile]);
+    }, [profiles, selectedProfile, STORAGE_KEYS.PROFILES_CACHE, STORAGE_KEYS.SELECTED_PROFILE]);
 
     const deleteProfile = useCallback(async (profileId) => {
         try {
@@ -272,7 +272,7 @@ const usePlayerProfile = () => {
         } finally {
             setLoading(false);
         }
-    }, [profiles, selectedProfile, profileStatistics]);
+    }, [profiles, selectedProfile, profileStatistics, STORAGE_KEYS.PROFILES_CACHE, STORAGE_KEYS.SELECTED_PROFILE, STORAGE_KEYS.STATISTICS_CACHE]);
 
     const loadProfileStatistics = useCallback(async (profileId) => {
         try {
@@ -307,7 +307,7 @@ const usePlayerProfile = () => {
             console.error('Error loading profile statistics:', err);
             return null;
         }
-    }, [profileStatistics]);
+    }, [profileStatistics, STORAGE_KEYS.STATISTICS_CACHE]);
 
     const updateLastPlayed = useCallback(async (profileId) => {
         try {
@@ -322,7 +322,7 @@ const usePlayerProfile = () => {
             console.error('Error updating last played:', err);
             // Don't throw - this is not critical
         }
-    }, []);
+    }, [STORAGE_KEYS.LAST_SYNC]);
 
     const recordGameResult = useCallback(async (gameResult) => {
         try {
@@ -352,7 +352,7 @@ const usePlayerProfile = () => {
             setError(err.message);
             throw err;
         }
-    }, [profileStatistics]);
+    }, [profileStatistics, STORAGE_KEYS.STATISTICS_CACHE]);
 
     const getProfileById = useCallback((profileId) => {
         return profiles.find(p => p.id === profileId);
@@ -400,7 +400,7 @@ const usePlayerProfile = () => {
             console.error('Error exporting profile data:', err);
             setError('Failed to export profile data');
         }
-    }, [getProfileById, loadProfileStatistics]);
+    }, [getProfileById, loadProfileStatistics, selectedProfile]);
 
     // Check if profile exists locally
     const hasProfiles = profiles.length > 0;

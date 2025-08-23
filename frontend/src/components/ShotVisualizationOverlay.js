@@ -26,9 +26,7 @@ const ShotVisualizationOverlay = ({
   const holeLength = 400; // Base length for visualization
   const holeWidth = 200;  // Base width for visualization
   
-  // Convert real distances to visualization coordinates
-  const scaleX = holeLength / (holeState.hole_distance || 400);
-  const scaleY = holeWidth / 60; // Assume 60 yard width
+  // Convert real distances to visualization coordinates (variables removed as they are not used)
   
   const playerX = (ballPosition.distance_to_pin / (holeState.hole_distance || 400)) * holeLength;
   const playerY = holeWidth / 2; // Center for simplicity

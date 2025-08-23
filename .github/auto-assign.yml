@@ -1,0 +1,13 @@
+# Configuration for auto-assigning reviewers and assignees to PRs
+
+addReviewers: true
+addAssignees: author
+
+reviewers:
+  - stuartgano
+
+skipKeywords:
+  - wip
+  - draft
+
+numberOfReviewers: 0

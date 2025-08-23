@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTutorial } from '../../context/TutorialContext';
 import { useTheme } from '../../theme/Provider';
 
@@ -74,10 +74,10 @@ const TutorialOverlay = () => {
     } else {
       setCurrentGuidance(null);
     }
-  }, [tutorial.currentModule]);
+  }, [tutorial.currentModule, guidanceData]); // Added guidanceData as dependency
 
   // Calculate tooltip position
-  const calculateTooltipPosition = (targetElement, preferredPosition = 'bottom') => {
+  const calculateTooltipPosition = useCallback((targetElement, preferredPosition = 'bottom') => {
     if (!targetElement || !tooltipRef.current) return { x: 0, y: 0 };
 
     const targetRect = targetElement.getBoundingClientRect();
@@ -107,6 +107,7 @@ const TutorialOverlay = () => {
       default:
         x = targetRect.left + (targetRect.width / 2) - (tooltipRect.width / 2);
         y = targetRect.bottom + 10;
+        break;
     }
 
     // Ensure tooltip stays within viewport
@@ -114,36 +115,36 @@ const TutorialOverlay = () => {
     y = Math.max(10, Math.min(y, viewportHeight - tooltipRect.height - 10));
 
     return { x, y };
-  };
+  }, []);
 
   // Highlight target element
-  const highlightTarget = (selector) => {
+  const highlightTarget = useCallback((selector) => {
     const element = document.querySelector(selector);
     if (element) {
       setHighlightElement(element);
       const position = calculateTooltipPosition(element);
       setTooltipPosition(position);
     }
-  };
+  }, [calculateTooltipPosition]); // Added calculateTooltipPosition as dependency
 
   // Handle step navigation within overlay
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
 
-  const nextStep = () => {
+  const nextStep = useCallback(() => {
     if (currentGuidance && currentStepIndex < currentGuidance.steps.length - 1) {
       const newIndex = currentStepIndex + 1;
       setCurrentStepIndex(newIndex);
       highlightTarget(currentGuidance.steps[newIndex].target);
     }
-  };
+  }, [currentGuidance, currentStepIndex, highlightTarget]);
 
-  const previousStep = () => {
+  const previousStep = useCallback(() => {
     if (currentStepIndex > 0) {
       const newIndex = currentStepIndex - 1;
       setCurrentStepIndex(newIndex);
       highlightTarget(currentGuidance.steps[newIndex].target);
     }
-  };
+  }, [currentGuidance, currentStepIndex, highlightTarget]);
 
   // Initialize first step when guidance changes
   useEffect(() => {
@@ -170,7 +171,7 @@ const TutorialOverlay = () => {
       window.removeEventListener('resize', updatePosition);
       window.removeEventListener('scroll', updatePosition);
     };
-  }, [highlightElement, currentGuidance, currentStepIndex]);
+  }, [highlightElement, currentGuidance, currentStepIndex, calculateTooltipPosition]);
 
   // Keyboard navigation for overlay
   useEffect(() => {
@@ -191,12 +192,14 @@ const TutorialOverlay = () => {
           e.preventDefault();
           tutorial.toggleOverlay();
           break;
+        default:
+          break;
       }
     };
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [tutorial, currentStepIndex, currentGuidance]);
+  }, [tutorial, nextStep, previousStep]);
 
   if (!tutorial.overlayVisible || !currentGuidance) {
     return null;

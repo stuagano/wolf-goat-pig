@@ -1,0 +1,210 @@
+name: Frontend CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+    
+    - name: Install dependencies
+      run: |
+        cd frontend
+        npm ci
+    
+    - name: Run linting
+      run: |
+        cd frontend
+        npm run lint || true
+    
+    - name: Run type checking
+      run: |
+        cd frontend
+        npm run typecheck || true
+      continue-on-error: true
+    
+    - name: Run tests with coverage
+      run: |
+        cd frontend
+        npm run test -- --coverage --watchAll=false
+      env:
+        CI: true
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: ./frontend/coverage/lcov.info
+        flags: frontend
+        name: frontend-coverage
+      if: matrix.node-version == '18.x'
+    
+    - name: Build application
+      run: |
+        cd frontend
+        npm run build
+      env:
+        CI: true
+        REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL || 'http://localhost:8000' }}
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: frontend-build-${{ matrix.node-version }}
+        path: frontend/build/
+      if: matrix.node-version == '18.x'
+
+  analyze:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18.x'
+    
+    - name: Install dependencies
+      run: |
+        cd frontend
+        npm ci
+    
+    - name: Run bundle size analysis
+      run: |
+        cd frontend
+        npm run build
+        npx webpack-bundle-analyzer build/static/js/*.js --mode json --report bundle-stats.json
+      continue-on-error: true
+    
+    - name: Upload bundle analysis
+      uses: actions/upload-artifact@v3
+      with:
+        name: bundle-analysis
+        path: frontend/bundle-stats.json
+      if: always()
+
+  lighthouse:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18.x'
+    
+    - name: Install dependencies
+      run: |
+        cd frontend
+        npm ci
+    
+    - name: Build application
+      run: |
+        cd frontend
+        npm run build
+    
+    - name: Run Lighthouse CI
+      uses: treosh/lighthouse-ci-action@v10
+      with:
+        configPath: './frontend/.lighthouserc.js'
+        uploadArtifacts: true
+        temporaryPublicStorage: true
+      continue-on-error: true
+
+  deploy-preview:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18.x'
+    
+    - name: Install dependencies
+      run: |
+        cd frontend
+        npm ci
+    
+    - name: Build application
+      run: |
+        cd frontend
+        npm run build
+      env:
+        REACT_APP_API_URL: ${{ secrets.PREVIEW_API_URL || 'https://api-preview.wolfgoatpig.com' }}
+    
+    - name: Deploy to Netlify Preview
+      uses: nwtgck/actions-netlify@v2
+      with:
+        publish-dir: './frontend/build'
+        production-deploy: false
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        deploy-message: "Deploy from GitHub Actions"
+        enable-pull-request-comment: true
+        enable-commit-comment: false
+        overwrites-pull-request-comment: true
+      env:
+        NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+      timeout-minutes: 1
+      if: env.NETLIFY_AUTH_TOKEN != ''
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: [test, analyze]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18.x'
+    
+    - name: Install dependencies
+      run: |
+        cd frontend
+        npm ci
+    
+    - name: Build application
+      run: |
+        cd frontend
+        npm run build
+      env:
+        REACT_APP_API_URL: ${{ secrets.PRODUCTION_API_URL || 'https://api.wolfgoatpig.com' }}
+        GENERATE_SOURCEMAP: false
+    
+    - name: Deploy to production
+      run: |
+        echo "Deploy to production hosting service"
+      if: false

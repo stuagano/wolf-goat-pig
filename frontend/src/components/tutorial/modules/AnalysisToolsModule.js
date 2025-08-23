@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { useTutorial } from '../../../context/TutorialContext';
+// import { useTutorial } from '../../../context/TutorialContext'; // Removed - not used
 import { useTheme } from '../../../theme/Provider';
 import TutorialModule from '../TutorialModule';
 import { TutorialQuiz } from '../InteractiveElement';
 
 const AnalysisToolsModule = ({ onStepComplete, onModuleComplete, currentStep, goToStep }) => {
-  const tutorial = useTutorial();
   const theme = useTheme();
 
   const steps = [

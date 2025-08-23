@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useTutorial } from '../../../context/TutorialContext';
 import { useTheme } from '../../../theme/Provider';
 import TutorialModule from '../TutorialModule';
@@ -141,8 +141,6 @@ const PracticeGameModule = ({ onStepComplete, onModuleComplete, currentStep, goT
   );
 
   const GuidedPlayStep = ({ gameState, setGameState }) => {
-    const [currentDecision, setCurrentDecision] = useState(null);
-    
     const holes = [
       {
         number: 1,

@@ -1,0 +1,189 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.version }}
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Get version
+      id: get_version
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          VERSION="${{ github.event.inputs.version }}"
+        else
+          VERSION=${GITHUB_REF#refs/tags/}
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+    
+    - name: Generate changelog
+      id: changelog
+      run: |
+        PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+        if [ -z "$PREVIOUS_TAG" ]; then
+          CHANGELOG=$(git log --pretty=format:"- %s" HEAD)
+        else
+          CHANGELOG=$(git log --pretty=format:"- %s" $PREVIOUS_TAG..HEAD)
+        fi
+        echo "changelog<<EOF" >> $GITHUB_OUTPUT
+        echo "$CHANGELOG" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+    
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.get_version.outputs.version }}
+        release_name: Release ${{ steps.get_version.outputs.version }}
+        body: |
+          ## Changes in this Release
+          
+          ${{ steps.changelog.outputs.changelog }}
+          
+          ## Docker Images
+          - Backend: `${{ secrets.DOCKER_USERNAME }}/wolf-goat-pig-backend:${{ steps.get_version.outputs.version }}`
+          - Frontend: `${{ secrets.DOCKER_USERNAME }}/wolf-goat-pig-frontend:${{ steps.get_version.outputs.version }}`
+        draft: false
+        prerelease: false
+
+  build-backend:
+    needs: create-release
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        cd backend
+        pip install -r requirements.txt
+        pip install build
+    
+    - name: Build package
+      run: |
+        cd backend
+        python -m build
+    
+    - name: Upload backend package
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ./backend/dist/wolf_goat_pig-${{ needs.create-release.outputs.version }}.tar.gz
+        asset_name: wolf_goat_pig_backend-${{ needs.create-release.outputs.version }}.tar.gz
+        asset_content_type: application/gzip
+      continue-on-error: true
+
+  build-frontend:
+    needs: create-release
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18.x'
+    
+    - name: Install dependencies
+      run: |
+        cd frontend
+        npm ci
+    
+    - name: Build application
+      run: |
+        cd frontend
+        npm run build
+      env:
+        REACT_APP_VERSION: ${{ needs.create-release.outputs.version }}
+        GENERATE_SOURCEMAP: false
+    
+    - name: Create archive
+      run: |
+        cd frontend/build
+        tar -czf ../../wolf_goat_pig_frontend-${{ needs.create-release.outputs.version }}.tar.gz *
+    
+    - name: Upload frontend package
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ./wolf_goat_pig_frontend-${{ needs.create-release.outputs.version }}.tar.gz
+        asset_name: wolf_goat_pig_frontend-${{ needs.create-release.outputs.version }}.tar.gz
+        asset_content_type: application/gzip
+
+  docker-release:
+    needs: create-release
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+    
+    - name: Build and push backend Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./backend
+        push: true
+        tags: |
+          ${{ secrets.DOCKER_USERNAME }}/wolf-goat-pig-backend:${{ needs.create-release.outputs.version }}
+          ${{ secrets.DOCKER_USERNAME }}/wolf-goat-pig-backend:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Build and push frontend Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./frontend
+        push: true
+        tags: |
+          ${{ secrets.DOCKER_USERNAME }}/wolf-goat-pig-frontend:${{ needs.create-release.outputs.version }}
+          ${{ secrets.DOCKER_USERNAME }}/wolf-goat-pig-frontend:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  deploy:
+    needs: [docker-release, build-backend, build-frontend]
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+    - name: Deploy to production
+      run: |
+        echo "Deploying version ${{ needs.create-release.outputs.version }} to production"
+        echo "This step would typically trigger deployment to your hosting platform"

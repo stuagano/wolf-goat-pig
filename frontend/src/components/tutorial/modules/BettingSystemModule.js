@@ -913,8 +913,7 @@ const BettingSystemModule = ({ onStepComplete, onModuleComplete, currentStep, go
   };
 
   const BettingSimulationStep = () => {
-    const [currentRound, setCurrentRound] = useState(0);
-    const [bankroll, setBankroll] = useState(0);
+    // Removed currentRound and bankroll as they are not used
     
     const scenarios = [
       {
@@ -996,9 +995,9 @@ const BettingSystemModule = ({ onStepComplete, onModuleComplete, currentStep, go
                   change = Math.random() > 0.4 ? 5 : -10; // Pig outcome
                 }
                 
-                setBankroll(prev => prev + change);
+                // setBankroll(prev => prev + change); // Removed as bankroll state is no longer used
                 
-                const feedback = change > 0 
+                const feedback = change > 0
                   ? `Good choice! You won $${Math.abs(change)}.`
                   : `Tough luck. You lost $${Math.abs(change)}.`;
                 

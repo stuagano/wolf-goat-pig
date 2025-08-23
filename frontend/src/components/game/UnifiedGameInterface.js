@@ -48,13 +48,9 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
 
   // Odds calculation hook
   const {
-    oddsData,
     loading: oddsLoading,
     error: oddsError,
-    lastUpdate: oddsLastUpdate,
-    calculationHistory,
     performanceMetrics,
-    calculateOdds,
     refreshOdds,
     clearError: clearOddsError,
     isCalculationStale,

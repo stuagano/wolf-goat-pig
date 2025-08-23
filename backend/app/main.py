@@ -2815,7 +2815,9 @@ def setup_simulation(request: Dict[str, Any]):
                     "points": p.points
                 } for p in wgp_simulation.players
             ],
-            "current_hole": wgp_simulation.current_hole
+            "current_hole": wgp_simulation.current_hole,
+            "next_shot_available": True,  # After setup, first shot is always available
+            "feedback": ["🎮 Game started! You're on the first tee."]
         }
         
     except Exception as e:
@@ -2846,13 +2848,26 @@ def play_next_shot(request: SimulationPlayShotRequest = None):
         next_shot_player = wgp_simulation._get_next_shot_player()
         next_player_name = wgp_simulation._get_player_name(next_shot_player) if next_shot_player else None
         
+        # Check if there's another shot available
+        hole_complete = updated_state.get("hole_complete", False)
+        next_shot_available = not hole_complete and next_shot_player is not None
+        
+        # Build feedback messages
+        feedback = []
+        if shot_response:
+            feedback.append(f"🏌️ {shot_response.get('player_name', 'Player')} hit {shot_response.get('distance', 0)} yards")
+            if shot_response.get('result'):
+                feedback.append(f"📍 Ball is now {shot_response['result']}")
+        
         return {
             "status": "ok",
             "success": True,
             "shot_result": shot_response,
             "game_state": updated_state,
             "next_player": next_player_name,
-            "hole_complete": updated_state.get("hole_complete", False)
+            "hole_complete": hole_complete,
+            "next_shot_available": next_shot_available,
+            "feedback": feedback
         }
         
     except Exception as e:
