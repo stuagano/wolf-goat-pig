@@ -188,12 +188,16 @@ const TVPokerLayout = ({
   // Use real player data from game state
   const players = gameState?.players || [];
 
-  const winProbabilities = probabilities?.win || {
-    'Stuart': 28,
-    'Clive': 35,
-    'Gary': 22,
-    'Bernard': 15
-  };
+  // Generate win probabilities based on real players
+  const winProbabilities = probabilities?.win || (() => {
+    const probs = {};
+    players.forEach((player, index) => {
+      // Simple probability distribution for demo
+      const baseProbabilities = [28, 35, 22, 15];
+      probs[player.name] = baseProbabilities[index] || 20;
+    });
+    return probs;
+  })();
 
   const shotProbabilities = probabilities?.shot || {
     'Great': 15,
@@ -202,19 +206,54 @@ const TVPokerLayout = ({
     'Poor': 10
   };
 
-  const partnershipEVs = probabilities?.partnerships || {
-    'Clive': 2.3,
-    'Gary': 1.1,
-    'Bernard': -0.5,
-    'Solo': 3.5
-  };
+  // Generate partnership EVs based on real players (excluding human player)
+  const partnershipEVs = probabilities?.partnerships || (() => {
+    const evs = {};
+    players.forEach((player, index) => {
+      if (player.id !== 'human') {
+        // Simple EV distribution for demo
+        const baseEVs = [2.3, 1.1, -0.5];
+        evs[player.name] = baseEVs[index - 1] || 0.5;
+      }
+    });
+    evs['Solo'] = 3.5;
+    return evs;
+  })();
 
-  // Use real feedback data from game state
-  const feedItems = (gameState?.feedback || []).slice(-4).map((item, index) => ({
-    icon: '📢',
-    text: typeof item === 'string' ? item : item.message || 'Game update',
-    impact: null
-  }));
+  // Process feedback into readable messages
+  const feedItems = (gameState?.feedback || []).slice(-4).map((item, index) => {
+    if (typeof item === 'string') {
+      // Clean up shot result JSON strings
+      if (item.includes('Shot Result:')) {
+        try {
+          const jsonMatch = item.match(/\{.*\}/);
+          if (jsonMatch) {
+            const shotData = JSON.parse(jsonMatch[0]);
+            const playerName = shotData.shot_result?.player_id || 'Player';
+            const distance = Math.round(shotData.shot_result?.distance_to_pin || 0);
+            const quality = shotData.shot_result?.shot_quality || 'unknown';
+            return {
+              icon: '🏌️',
+              text: `${playerName} hits ${quality} shot - ${distance}yd to pin`,
+              impact: quality === 'excellent' ? '+' : quality === 'poor' ? '-' : null
+            };
+          }
+        } catch (e) {
+          // Fallback to original text if parsing fails
+        }
+      }
+      return {
+        icon: '📢',
+        text: item,
+        impact: null
+      };
+    }
+    return {
+      icon: '📢',
+      text: item?.message || 'Game update',
+      impact: null
+    };
+  });
 
   return (
     <div style={styles.container}>
@@ -322,16 +361,30 @@ const TVPokerLayout = ({
               Current Status
             </div>
             <div style={{ fontSize: '14px', marginBottom: '4px' }}>
-              Shot #{gameState?.current_shot || 1}
+              Shot #{gameState?.hole_state?.current_shot_number || gameState?.current_shot || 1}
             </div>
             <div style={{ fontSize: '14px', marginBottom: '4px' }}>
-              {gameState?.current_player ? `${gameState.current_player}'s turn` : 'Ready to play'}
+              {gameState?.hole_state?.next_player_to_hit ? 
+                `${gameState.hole_state.next_player_to_hit}'s turn` : 
+                gameState?.current_player ? `${gameState.current_player}'s turn` : 'Ready to play'}
             </div>
-            {gameState?.distance_to_pin && (
-              <div style={{ fontSize: '16px', fontWeight: 'bold' }}>
-                {Math.round(gameState.distance_to_pin)} yards to pin
-              </div>
-            )}
+            {/* Show closest distance to pin */}
+            {(() => {
+              const ballPositions = gameState?.hole_state?.ball_positions || {};
+              let closestDistance = null;
+              Object.values(ballPositions).forEach(pos => {
+                if (pos?.distance_to_pin) {
+                  if (!closestDistance || pos.distance_to_pin < closestDistance) {
+                    closestDistance = pos.distance_to_pin;
+                  }
+                }
+              });
+              return closestDistance ? (
+                <div style={{ fontSize: '16px', fontWeight: 'bold' }}>
+                  Closest: {Math.round(closestDistance)} yards to pin
+                </div>
+              ) : null;
+            })()}
           </div>
           
           {/* Player positions (if available) */}
