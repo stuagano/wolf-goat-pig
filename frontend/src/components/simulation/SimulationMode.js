@@ -30,7 +30,6 @@ function SimulationMode() {
   } = useGame();
 
   // Helper functions for missing setters
-  const setIsGameActive = (active) => active ? startGame(gameState) : endGame();
   const setFeedback = (message) => {
     clearFeedback();
     if (message) addFeedback(message);
@@ -111,7 +110,7 @@ function SimulationMode() {
     try {
       // Reset all local state for new simulation
       setGameState(null);
-      setIsGameActive(false);
+      endGame();  // Use endGame directly instead of setIsGameActive
       setFeedback([]);
       setShotProbabilities(null);
       setShotState(null);
@@ -138,8 +137,11 @@ function SimulationMode() {
       
       const data = await response.json();
       if (data.status === "ok") {
+        // First set the game state
         setGameState(data.game_state);
-        setIsGameActive(true);
+        
+        // Then start the game with the new state
+        startGame(data.game_state);
         
         // Set initial feedback
         if (data.feedback && Array.isArray(data.feedback)) {
@@ -362,7 +364,7 @@ function SimulationMode() {
   
   const resetSimulation = () => {
     setGameState(null);
-    setIsGameActive(false);
+    endGame();  // Use endGame directly instead of setIsGameActive
     setFeedback([]);
     setHoleDecisions({
       action: null,
