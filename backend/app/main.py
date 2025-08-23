@@ -2946,16 +2946,43 @@ def get_available_personalities():
         logger.error(f"Failed to get personalities: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get personalities: {str(e)}")
 
-# Legacy endpoints for frontend compatibility
+# Legacy endpoints for frontend compatibility - return direct arrays
 @app.get("/personalities")
 def get_personalities_legacy():
-    """Legacy endpoint for personalities (redirects to simulation endpoint)"""
-    return get_available_personalities()
+    """Legacy endpoint for personalities - returns direct array for frontend compatibility"""
+    try:
+        personalities = [
+            {"id": "aggressive", "name": "Aggressive"},
+            {"id": "conservative", "name": "Conservative"},
+            {"id": "balanced", "name": "Balanced"},
+            {"id": "strategic", "name": "Strategic"},
+            {"id": "maverick", "name": "Maverick"}
+        ]
+        return personalities
+    except Exception as e:
+        logger.error(f"Failed to get personalities: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get personalities: {str(e)}")
 
 @app.get("/suggested_opponents") 
 def get_suggested_opponents_legacy():
-    """Legacy endpoint for suggested opponents (redirects to simulation endpoint)"""
-    return get_suggested_opponents()
+    """Legacy endpoint for suggested opponents - returns direct array for frontend compatibility"""
+    try:
+        # Return array of individual players, not grouped opponents
+        opponents = [
+            {"name": "Clive", "handicap": "8", "personality": "aggressive"},
+            {"name": "Gary", "handicap": "12", "personality": "conservative"}, 
+            {"name": "Bernard", "handicap": "15", "personality": "strategic"},
+            {"name": "Alex", "handicap": "5", "personality": "balanced"},
+            {"name": "Sam", "handicap": "18", "personality": "maverick"},
+            {"name": "Jordan", "handicap": "22", "personality": "conservative"},
+            {"name": "Ace", "handicap": "3", "personality": "aggressive"},
+            {"name": "Blade", "handicap": "6", "personality": "aggressive"},
+            {"name": "Chase", "handicap": "9", "personality": "strategic"}
+        ]
+        return opponents
+    except Exception as e:
+        logger.error(f"Failed to get suggested opponents: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get suggested opponents: {str(e)}")
 
 @app.get("/simulation/suggested-opponents")
 def get_suggested_opponents():
