@@ -245,7 +245,26 @@ const GamePlay = ({
         </Card>
       )}
 
-      {/* Shot-by-Shot Analysis */}
+      {/* Shot-by-Shot Controls */}
+      {hasNextShot && !interactionNeeded && (
+        <Card style={{ background: '#f0fff4', border: '2px solid #48bb78' }}>
+          <h3>⛳ Ready to Play</h3>
+          <p style={{ marginBottom: 16 }}>
+            Click the button below to play the next shot in the simulation.
+          </p>
+          <div style={{ textAlign: 'center' }}>
+            <Button
+              variant="primary"
+              size="large"
+              onClick={onNextShot}
+            >
+              🏌️ Play Next Shot
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {/* Shot Analysis (when available) */}
       {shotState && (
         <Card>
           <h3>📊 Shot Analysis</h3>
@@ -275,17 +294,6 @@ const GamePlay = ({
                   </div>
                 ))}
               </div>
-            </div>
-          )}
-          
-          {hasNextShot && (
-            <div style={{ textAlign: 'center' }}>
-              <Button
-                variant="primary"
-                onClick={onNextShot}
-              >
-                ⛳ Next Shot
-              </Button>
             </div>
           )}
         </Card>
