@@ -2847,6 +2847,7 @@ def play_next_shot(request: SimulationPlayShotRequest = None):
         next_player_name = wgp_simulation._get_player_name(next_shot_player) if next_shot_player else None
         
         return {
+            "status": "ok",
             "success": True,
             "shot_result": shot_response,
             "game_state": updated_state,
@@ -2936,6 +2937,7 @@ def get_available_personalities():
         ]
         
         return {
+            "status": "ok",
             "success": True,
             "personalities": personalities
         }
@@ -2943,6 +2945,17 @@ def get_available_personalities():
     except Exception as e:
         logger.error(f"Failed to get personalities: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get personalities: {str(e)}")
+
+# Legacy endpoints for frontend compatibility
+@app.get("/personalities")
+def get_personalities_legacy():
+    """Legacy endpoint for personalities (redirects to simulation endpoint)"""
+    return get_available_personalities()
+
+@app.get("/suggested_opponents") 
+def get_suggested_opponents_legacy():
+    """Legacy endpoint for suggested opponents (redirects to simulation endpoint)"""
+    return get_suggested_opponents()
 
 @app.get("/simulation/suggested-opponents")
 def get_suggested_opponents():
@@ -2982,6 +2995,7 @@ def get_suggested_opponents():
         ]
         
         return {
+            "status": "ok",
             "success": True,
             "opponents": opponents
         }
