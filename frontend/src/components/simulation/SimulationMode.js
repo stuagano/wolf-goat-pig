@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useGame } from "../../context";
 import { GameSetup, GamePlay } from "./";
+import TVPokerLayout from "../game/TVPokerLayout";
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -393,6 +394,27 @@ function SimulationMode() {
         suggestedOpponents={suggestedOpponents}
         setSuggestedOpponents={setSuggestedOpponents}
         onStartGame={startSimulation}
+      />
+    );
+  }
+
+  // Use TV Poker Layout if enabled (you can toggle this with a setting)
+  const useTVLayout = true; // TODO: Make this a user preference
+
+  if (useTVLayout) {
+    return (
+      <TVPokerLayout
+        gameState={{
+          ...gameState,
+          interactionNeeded,
+          hasNextShot,
+          feedback
+        }}
+        shotState={shotState}
+        probabilities={shotProbabilities}
+        onDecision={makeDecision}
+        autoPlayEnabled={true}
+        playSpeed="normal"
       />
     );
   }
