@@ -342,4 +342,26 @@ class LeaderboardEntry(BaseModel):
     win_percentage: float
     avg_earnings: float
     total_earnings: float
-    partnership_success: float 
+    partnership_success: float
+
+# Game Setup and Simulation Schemas
+class GameSetupRequest(BaseModel):
+    players: List[str]
+    course_name: str
+    game_settings: Optional[Dict[str, Any]] = None
+
+class OddsCalculationRequest(BaseModel):
+    players: List[Dict[str, Any]]
+    hole_info: Dict[str, Any]
+    current_state: Optional[Dict[str, Any]] = None
+
+class MonteCarloRequest(BaseModel):
+    players: List[Dict[str, Any]]
+    hole_info: Dict[str, Any]
+    simulation_params: Optional[Dict[str, Any]] = None
+
+class ShotAnalysisRequest(BaseModel):
+    player_id: str
+    distance_to_pin: float
+    lie_type: str
+    club_options: List[str] 

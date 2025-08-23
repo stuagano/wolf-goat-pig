@@ -2722,23 +2722,39 @@ class BettingDecisionRequest(BaseModel):
     decision: Dict[str, Any]
 
 @app.post("/simulation/setup")
-def setup_simulation(request: SimulationSetupRequest):
+def setup_simulation(request: Dict[str, Any]):
     """Initialize a new simulation with specified players and configuration"""
     global wgp_simulation
     
     try:
         logger.info("Setting up new simulation...")
         
+        # Handle both old and new request formats
+        if 'human_player' in request and 'computer_players' in request:
+            # Frontend format: { human_player, computer_players, course_name }
+            human_player = request['human_player']
+            computer_players = request['computer_players']
+            course_name = request.get('course_name')
+            
+            # Combine into players list
+            all_players = [human_player] + computer_players
+        elif 'players' in request:
+            # Backend format: { players, course_id, ... }
+            all_players = request['players']
+            course_name = request.get('course_name')
+        else:
+            raise HTTPException(status_code=400, detail="Missing player data")
+        
         # Validate players
-        if not request.players or len(request.players) < 4:
+        if not all_players or len(all_players) < 4:
             raise HTTPException(status_code=400, detail="At least 4 players required")
         
-        if len(request.players) > 6:
+        if len(all_players) > 6:
             raise HTTPException(status_code=400, detail="Maximum 6 players allowed")
         
         # Create WGPPlayer objects
         wgp_players = []
-        for i, player_data in enumerate(request.players):
+        for i, player_data in enumerate(all_players):
             wgp_player = WGPPlayer(
                 id=player_data.get("id", f"player_{i+1}"),
                 name=player_data.get("name", f"Player {i+1}"),
@@ -2753,20 +2769,30 @@ def setup_simulation(request: SimulationSetupRequest):
         )
         
         # Set computer players if specified
-        if request.computer_players:
-            personalities = request.personalities or ["balanced"] * len(request.computer_players)
-            wgp_simulation.set_computer_players(request.computer_players, personalities)
+        if 'computer_players' in request and request['computer_players']:
+            comp_players = request['computer_players']
+            personalities = request.get('personalities', ["balanced"] * len(comp_players))
+            wgp_simulation.set_computer_players(comp_players, personalities)
         
         # Load course if specified
-        if request.course_id:
+        course_id = request.get('course_id') or (course_name and 1)  # Use course_name for lookup
+        if course_id or course_name:
             try:
                 courses = game_state.get_courses()
-                selected_course = next((c for c in courses if c.id == request.course_id), None)
+                if course_id:
+                    selected_course = next((c for c in courses if c.id == course_id), None)
+                elif course_name:
+                    selected_course = next((c for c in courses if c.name == course_name), None)
+                else:
+                    selected_course = None
+                
                 if selected_course:
                     # Set course for simulation
                     logger.info(f"Using course: {selected_course.name}")
+                else:
+                    logger.warning(f"Course not found: {course_name or course_id}")
             except Exception as course_error:
-                logger.warning(f"Could not load course {request.course_id}: {course_error}")
+                logger.warning(f"Could not load course {course_name or course_id}: {course_error}")
         
         # Initialize hole 1
         wgp_simulation._initialize_hole(1)
@@ -2778,7 +2804,7 @@ def setup_simulation(request: SimulationSetupRequest):
         logger.info("Simulation setup completed successfully")
         
         return {
-            "success": True,
+            "status": "ok",
             "message": "Simulation initialized successfully",
             "game_state": game_state_data,
             "players": [

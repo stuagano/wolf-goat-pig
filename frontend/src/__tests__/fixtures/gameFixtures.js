@@ -728,6 +728,79 @@ export const testUtils = {
   }
 };
 
+// Test cases for fixtures
+describe('Game Fixtures Test Suite', () => {
+  test('mockPlayerProfiles structure is valid', () => {
+    expect(mockPlayerProfiles).toHaveLength(4);
+    mockPlayerProfiles.forEach(profile => {
+      expect(profile).toHaveProperty('id');
+      expect(profile).toHaveProperty('name');
+      expect(profile).toHaveProperty('handicap');
+      expect(profile).toHaveProperty('preferences');
+      expect(profile).toHaveProperty('statistics');
+    });
+  });
+
+  test('mockGameStates contains expected scenarios', () => {
+    const expectedScenarios = ['initial', 'mid_game', 'final_hole', 'completed'];
+    expectedScenarios.forEach(scenario => {
+      expect(mockGameStates).toHaveProperty(scenario);
+      expect(mockGameStates[scenario]).toHaveProperty('game_id');
+      expect(mockGameStates[scenario]).toHaveProperty('status');
+    });
+  });
+
+  test('testUtils functions work correctly', () => {
+    const customPlayer = testUtils.createPlayer({ name: 'Custom Player' });
+    expect(customPlayer.name).toBe('Custom Player');
+    expect(customPlayer).toHaveProperty('id');
+
+    const gameState = testUtils.createGameState('initial', { current_hole: 5 });
+    expect(gameState.current_hole).toBe(5);
+
+    const score = testUtils.generateRandomScore(4, 18);
+    expect(typeof score).toBe('number');
+    expect(score).toBeGreaterThanOrEqual(1);
+
+    const opportunity = testUtils.generateBettingOpportunity('hole_winner');
+    expect(opportunity.type).toBe('hole_winner');
+    expect(opportunity).toHaveProperty('potential_payout');
+  });
+
+  test('mockOddsResponses contain valid probability data', () => {
+    expect(mockOddsResponses.basic).toHaveProperty('player_probabilities');
+    expect(mockOddsResponses.basic).toHaveProperty('team_probabilities');
+    expect(mockOddsResponses.basic).toHaveProperty('optimal_strategy');
+    
+    // Check probabilities sum approximately to 1
+    const playerProbs = Object.values(mockOddsResponses.basic.player_probabilities);
+    const totalProb = playerProbs.reduce((sum, p) => sum + p.win_probability, 0);
+    expect(totalProb).toBeCloseTo(1, 1);
+  });
+
+  test('mockShotAnalysisResponses provide valid shot options', () => {
+    expect(mockShotAnalysisResponses.fairway_approach).toHaveProperty('recommended_shot');
+    expect(mockShotAnalysisResponses.fairway_approach).toHaveProperty('all_ranges');
+    expect(mockShotAnalysisResponses.fairway_approach.all_ranges).toBeInstanceOf(Array);
+    
+    mockShotAnalysisResponses.fairway_approach.all_ranges.forEach(range => {
+      expect(range).toHaveProperty('club');
+      expect(range).toHaveProperty('success_rate');
+      expect(range).toHaveProperty('risk_level');
+    });
+  });
+
+  test('time series data generation works', () => {
+    const data = testUtils.generateTimeSeriesData(7, 100, 0.1);
+    expect(data).toHaveLength(7);
+    data.forEach(point => {
+      expect(point).toHaveProperty('date');
+      expect(point).toHaveProperty('value');
+      expect(typeof point.value).toBe('number');
+    });
+  });
+});
+
 export default {
   mockPlayerProfiles,
   mockGameStates,

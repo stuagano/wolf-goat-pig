@@ -1,0 +1,64 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "frontend/build"
+      }
+    },
+    {
+      "src": "backend/app/main.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "backend/app/main.py"
+    },
+    {
+      "src": "/simulation/(.*)",
+      "dest": "backend/app/main.py"
+    },
+    {
+      "src": "/courses/(.*)",
+      "dest": "backend/app/main.py"
+    },
+    {
+      "src": "/health",
+      "dest": "backend/app/main.py"
+    },
+    {
+      "src": "/docs",
+      "dest": "backend/app/main.py"
+    },
+    {
+      "src": "/openapi.json",
+      "dest": "backend/app/main.py"
+    },
+    {
+      "src": "/static/(.*)",
+      "dest": "frontend/build/static/$1"
+    },
+    {
+      "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot))",
+      "dest": "frontend/build/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "frontend/build/index.html"
+    }
+  ],
+  "env": {
+    "PYTHONPATH": "backend",
+    "DATABASE_URL": "sqlite:///./wolf_goat_pig.db"
+  },
+  "functions": {
+    "backend/app/main.py": {
+      "runtime": "python3.9",
+      "maxDuration": 30
+    }
+  }
+}

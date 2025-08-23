@@ -41,7 +41,7 @@ try:
 except ImportError:
     HAS_PROFILING_TOOLS = False
 
-from app.services.monte_carlo import MonteCarloSimulator
+from app.services.monte_carlo import MonteCarloEngine
 from app.services.odds_calculator import OddsCalculator
 from app.services.player_service import PlayerService
 from app.domain.shot_range_analysis import ShotRangeAnalyzer, analyze_shot_decision
@@ -115,7 +115,7 @@ class TestMonteCarloPerformance:
     
     def setup_method(self):
         """Set up test fixtures."""
-        self.simulator = MonteCarloSimulator()
+        self.simulator = MonteCarloEngine()
         self.profiler = PerformanceProfiler()
         
         self.test_players = [
@@ -521,7 +521,7 @@ class TestShotAnalysisPerformance:
         assert all(result is not None for result in results)
 
 
-class TestDatabasePerformance(TestAPIIntegration):
+class TestDatabasePerformance:
     """Performance tests for database operations."""
     
     def test_player_profile_crud_performance(self):
@@ -660,7 +660,7 @@ class TestMemoryPerformance:
     @pytest.mark.skipif(not HAS_PROFILING_TOOLS, reason="Memory profiler not available")
     def test_monte_carlo_memory_profile(self):
         """Profile memory usage during Monte Carlo simulation."""
-        simulator = MonteCarloSimulator()
+        simulator = MonteCarloEngine()
         
         @memory_profiler.profile
         def memory_intensive_simulation():
@@ -692,7 +692,7 @@ class TestMemoryPerformance:
         
         # Perform memory-intensive operations
         def memory_operations():
-            simulator = MonteCarloSimulator()
+            simulator = MonteCarloEngine()
             calculator = OddsCalculator()
             
             for i in range(50):
@@ -812,7 +812,7 @@ class TestLoadAndStress:
             calculator.calculate_real_time_odds(players=players, hole=hole)
             
             # Monte Carlo simulation
-            simulator = MonteCarloSimulator()
+            simulator = MonteCarloEngine()
             simulator.simulate_hole_outcomes(
                 players=players,
                 hole=hole,
@@ -855,7 +855,7 @@ class TestLoadAndStress:
         def stress_operation():
             """Perform a computationally intensive operation."""
             # Large Monte Carlo simulation
-            simulator = MonteCarloSimulator()
+            simulator = MonteCarloEngine()
             players = [{"id": f"s{i}", "handicap": random.randint(5, 30)} for i in range(6)]
             hole = {"par": 5, "difficulty": 4.5}
             
@@ -970,7 +970,7 @@ class TestRegressionDetection:
     
     def test_monte_carlo_regression(self):
         """Test for Monte Carlo performance regression."""
-        simulator = MonteCarloSimulator()
+        simulator = MonteCarloEngine()
         players = [{"id": f"p{i}", "handicap": 12} for i in range(4)]
         hole = {"par": 4, "difficulty": 3.5}
         

@@ -35,7 +35,7 @@ import concurrent.futures
 # Import the FastAPI app and dependencies
 from app.main import app
 from app.database import get_db
-from app.models import Base, PlayerProfile, GameRecord, CourseData
+from app.models import Base, PlayerProfile, GameRecord, Course
 from app.schemas import (
     PlayerProfileCreate, GameSetupRequest, OddsCalculationRequest,
     MonteCarloRequest, ShotAnalysisRequest
