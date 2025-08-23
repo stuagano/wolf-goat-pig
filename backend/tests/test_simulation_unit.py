@@ -138,6 +138,60 @@ class TestWolfGoatPigSimulation:
         assert result is not None
         assert 'distance' in result or 'outcome' in result
         
+    def test_short_game_progression(self):
+        """Test short game logic for shots within 100 yards"""
+        sim = WolfGoatPigSimulation()
+        
+        # Test _simulate_short_game_shot for different distances
+        # Very short putts (under 3 yards)
+        short_putt_distance = sim._simulate_short_game_shot(handicap=10, distance=2, lie_type="green")
+        assert short_putt_distance <= 3, f"Short putt should stay close: {short_putt_distance}"
+        
+        # Putting range (3-15 yards)
+        putting_distance = sim._simulate_short_game_shot(handicap=10, distance=12, lie_type="green")
+        assert putting_distance <= 15, f"Putt should stay reasonable: {putting_distance}"
+        
+        # Chipping range (15-40 yards)
+        chip_distance = sim._simulate_short_game_shot(handicap=10, distance=30, lie_type="fairway")
+        assert chip_distance <= 30, f"Chip should advance toward hole: {chip_distance}"
+        
+        # Pitch shots (40-100 yards)  
+        pitch_distance = sim._simulate_short_game_shot(handicap=10, distance=80, lie_type="fairway")
+        assert pitch_distance <= 80, f"Pitch should advance toward hole: {pitch_distance}"
+        
+    def test_lie_type_determination_with_distance(self):
+        """Test that lie type considers distance to pin"""
+        from app.wolf_goat_pig_simulation import WGPShotResult
+        
+        sim = WolfGoatPigSimulation()
+        
+        # Create a mock shot result within putting range
+        close_shot = WGPShotResult(
+            player_id="test", 
+            shot_number=2,
+            lie_type="fairway",
+            distance_to_pin=15,  # Within 20 yards
+            shot_quality="good",
+            made_shot=False
+        )
+        
+        # Should return "green" for good shots within 20 yards
+        lie_type = sim._determine_lie_type(close_shot)
+        assert lie_type == "green", f"Good shots within 20 yards should be on green: {lie_type}"
+        
+        # Test with poor shot quality but close distance
+        poor_close_shot = WGPShotResult(
+            player_id="test",
+            shot_number=2, 
+            lie_type="fairway",
+            distance_to_pin=18,  # Within 20 yards
+            shot_quality="poor",
+            made_shot=False
+        )
+        
+        poor_lie_type = sim._determine_lie_type(poor_close_shot)
+        assert poor_lie_type in ["green", "rough"], f"Poor shots close should be green/rough: {poor_lie_type}"
+        
     def test_game_state_serialization(self):
         """Test that game state can be serialized"""
         sim = WolfGoatPigSimulation()

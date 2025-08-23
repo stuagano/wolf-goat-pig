@@ -321,8 +321,15 @@ class HoleState:
         self.current_shot_number += 1
         self.update_order_of_play()
         
-        # Check if hole is complete (all players have holed out or conceded)
-        active_players = [p for p in self.hitting_order if p not in self.balls_in_hole]
+        # Check if hole is complete (all players have holed out, conceded, or reached shot limit)
+        active_players = []
+        for player_id in self.hitting_order:
+            if player_id not in self.balls_in_hole:
+                ball_pos = self.ball_positions.get(player_id)
+                # Player is active if they haven't holed out and haven't reached shot limit (8 shots)
+                if ball_pos and ball_pos.shot_count < 8:
+                    active_players.append(player_id)
+        
         if not active_players:
             self.hole_complete = True
     
@@ -2093,6 +2100,11 @@ class WolfGoatPigSimulation:
         # Update hole state with the shot result
         hole_state.add_shot(player_id, shot_result)
         
+        # Also add to progression shots_taken for next shot calculation
+        if player_id not in self.hole_progression.shots_taken:
+            self.hole_progression.shots_taken[player_id] = []
+        self.hole_progression.shots_taken[player_id].append(shot_result)
+        
         # Add shot event to timeline
         player_name = self._get_player_name(player_id)
         shot_description = f"{player_name} hits a {shot_result.shot_quality} shot"
@@ -2118,6 +2130,9 @@ class WolfGoatPigSimulation:
                 "hole_number": self.current_hole
             }
         )
+        
+        # Update next player to hit
+        self._update_next_player_to_hit(hole_state, shot_result)
         
         # Analyze betting opportunities after this shot
         betting_opportunity = self._analyze_betting_opportunity(shot_result)
@@ -2202,23 +2217,23 @@ class WolfGoatPigSimulation:
         current_hole = self.hole_states.get(self.current_hole)
         hole_par = current_hole.hole_par if current_hole else 4
         
+        # First determine shot quality based on player skill and pressure
         if shot_number == 1:
-            # Tee shot - realistic distances based on handicap
             lie_type = "tee"
-            distance_to_pin = self._simulate_tee_shot_distance(player.handicap, hole_par)
+            shot_quality = self._determine_shot_quality_first(player.handicap, lie_type, shot_number)
+            distance_to_pin = self._simulate_tee_shot_with_quality(player.handicap, hole_par, shot_quality)
         else:
             # Subsequent shots
             prev_shots = self.hole_progression.shots_taken.get(player.id, [])
             if prev_shots:
                 prev_distance = prev_shots[-1].distance_to_pin
                 lie_type = self._determine_lie_type(prev_shots[-1])
-                distance_to_pin = self._simulate_approach_shot(player.handicap, prev_distance, lie_type)
+                shot_quality = self._determine_shot_quality_first(player.handicap, lie_type, shot_number)
+                distance_to_pin = self._simulate_approach_shot_with_quality(player.handicap, prev_distance, lie_type, shot_quality)
             else:
                 lie_type = "fairway"
-                distance_to_pin = random.uniform(80, 160)
-        
-        # Simulate shot quality based on realistic expectations
-        shot_quality = self._determine_realistic_shot_quality(player.handicap, lie_type, distance_to_pin)
+                shot_quality = self._determine_shot_quality_first(player.handicap, lie_type, shot_number)
+                distance_to_pin = random.uniform(60, 120) * self._get_quality_multiplier(shot_quality)
         
         # Realistic holing out probabilities
         made_shot = self._determine_holed_shot(distance_to_pin, shot_quality, shot_number)
@@ -2234,6 +2249,153 @@ class WolfGoatPigSimulation:
             made_shot=made_shot
         )
     
+    def _determine_shot_quality_first(self, handicap: float, lie_type: str, shot_number: int) -> str:
+        """Determine shot quality BEFORE distance calculation"""
+        # Base probability based on handicap
+        skill_factor = max(0.1, 1 - (handicap / 30))
+        
+        # Pressure increases with shot number (more shots = more pressure)
+        pressure_penalty = min(0.3, shot_number * 0.03)
+        adjusted_skill = skill_factor * (1 - pressure_penalty)
+        
+        # Lie difficulty
+        lie_difficulty = {"tee": 1.0, "fairway": 0.9, "rough": 0.7, "sand": 0.5, "green": 1.1}.get(lie_type, 0.9)
+        final_skill = adjusted_skill * lie_difficulty
+        
+        rand = random.random()
+        if rand < final_skill * 0.15:
+            return "excellent"
+        elif rand < final_skill * 0.40:
+            return "good"
+        elif rand < final_skill * 0.75:
+            return "average"
+        elif rand < final_skill * 0.90:
+            return "poor"
+        else:
+            return "terrible"
+    
+    def _get_quality_multiplier(self, shot_quality: str) -> float:
+        """Get distance multiplier based on shot quality (for tee shots only)"""
+        multipliers = {
+            "excellent": 0.6,  # Gets much closer
+            "good": 0.75,      # Gets closer 
+            "average": 0.9,    # Slight progress
+            "poor": 0.95,      # Slightly worse position
+            "terrible": 1.0    # Same general area (shank, duff, etc)
+        }
+        return multipliers.get(shot_quality, 1.0)
+    
+    def _simulate_tee_shot_with_quality(self, handicap: float, hole_par: int, shot_quality: str) -> float:
+        """Simulate tee shot with quality affecting result"""
+        base_distance = self._simulate_tee_shot_distance(handicap, hole_par)
+        quality_multiplier = self._get_quality_multiplier(shot_quality)
+        return max(10, base_distance * quality_multiplier)
+    
+    def _simulate_approach_shot_with_quality(self, handicap: float, prev_distance: float, lie_type: str, shot_quality: str) -> float:
+        """Simulate approach shot with realistic golf progression"""
+        if prev_distance <= 100:
+            return self._simulate_short_game_shot_with_quality(handicap, prev_distance, lie_type, shot_quality)
+        
+        # Calculate base advancement based on handicap and distance
+        base_advancement = self._calculate_base_advancement(handicap, prev_distance)
+        
+        # Apply quality effect - terrible shots always make SOME progress, just very little
+        if shot_quality == "excellent":
+            advancement = base_advancement * 1.4  # Much better than average
+        elif shot_quality == "good":
+            advancement = base_advancement * 1.2  # Better than average
+        elif shot_quality == "average":
+            advancement = base_advancement        # Average advancement
+        elif shot_quality == "poor":
+            advancement = base_advancement * 0.6  # Poor contact, less distance
+        else:  # terrible
+            # Terrible shots still advance, just barely - like a duff/chunk/shank that goes very short
+            if prev_distance > 150:
+                advancement = random.uniform(5, 20)   # Duffed shot, barely moves
+            else:
+                advancement = random.uniform(2, 15)   # Short terrible shot, minimal progress
+        
+        # Apply lie penalty
+        lie_penalty = {"fairway": 1.0, "rough": 0.8, "sand": 0.6}.get(lie_type, 1.0)
+        final_advancement = advancement * lie_penalty
+        
+        # Ensure we always get closer to hole (never go backward)
+        new_distance = max(0, prev_distance - final_advancement)
+        return new_distance
+    
+    def _simulate_short_game_shot_with_quality(self, handicap: float, distance: float, lie_type: str, shot_quality: str) -> float:
+        """Handle short game with realistic quality effects"""
+        
+        if distance <= 3:
+            # Very short putts
+            if shot_quality == "excellent":
+                return 0 if random.random() > 0.1 else random.uniform(0, 0.5)
+            elif shot_quality == "good":
+                return 0 if random.random() > 0.2 else random.uniform(0, 1)
+            elif shot_quality == "average":
+                return 0 if random.random() > 0.4 else random.uniform(0, 2)
+            elif shot_quality == "poor":
+                return random.uniform(0, 3)
+            else:  # terrible
+                return random.uniform(1, 4)  # Miss but don't go way past
+                
+        elif distance <= 15:
+            # Medium putts/chips
+            if shot_quality == "excellent":
+                return random.uniform(0, 2)  # Get very close or hole out
+            elif shot_quality == "good":
+                return random.uniform(0, 4)  # Usually good lag
+            elif shot_quality == "average":
+                return random.uniform(1, 6)  # Decent lag
+            elif shot_quality == "poor":
+                return random.uniform(3, 10) # Leave yourself work
+            else:  # terrible
+                return max(0, distance - random.uniform(1, 5)) # Bad lag, barely closer
+                
+        elif distance <= 50:
+            # Chipping range
+            if shot_quality == "excellent":
+                return random.uniform(0, 5)   # Might hole it or get very close
+            elif shot_quality == "good":
+                return random.uniform(2, 8)   # Good chip, makeable putt
+            elif shot_quality == "average":
+                return random.uniform(4, 12)  # Average chip
+            elif shot_quality == "poor":
+                return random.uniform(8, 20)  # Chunk it or thin it
+            else:  # terrible
+                return max(0, distance - random.uniform(2, 10)) # Bad chip, barely closer
+                
+        else:  # 50-100 yard range
+            # Pitch shots
+            if shot_quality == "excellent":
+                return random.uniform(2, 10)  # Stick it close
+            elif shot_quality == "good":
+                return random.uniform(5, 15)  # Good pitch
+            elif shot_quality == "average":
+                return random.uniform(8, 25)  # Average pitch
+            elif shot_quality == "poor":
+                return random.uniform(15, 35) # Poor contact
+            else:  # terrible
+                return max(0, distance - random.uniform(3, 12)) # Really bad pitch, minimal progress
+    
+    def _calculate_base_advancement(self, handicap: float, distance: float) -> float:
+        """Calculate base advancement based on handicap and distance"""
+        if handicap <= 5:
+            if distance > 200:
+                return random.uniform(80, 120)
+            else:
+                return random.uniform(40, 60)
+        elif handicap <= 15:
+            if distance > 200:
+                return random.uniform(60, 100)
+            else:
+                return random.uniform(30, 80)
+        else:
+            if distance > 200:
+                return random.uniform(40, 80)
+            else:
+                return random.uniform(20, 50)
+
     def _simulate_tee_shot_distance(self, handicap: float, hole_par: int) -> float:
         """Realistic tee shot distances based on handicap and hole par"""
         if hole_par == 3:
@@ -2262,14 +2424,32 @@ class WolfGoatPigSimulation:
                 return random.uniform(280, 380)  # Longer approach needed
     
     def _simulate_approach_shot(self, handicap: float, prev_distance: float, lie_type: str) -> float:
-        """Simulate approach shot advancement based on handicap"""
-        # Base advancement based on handicap
+        """Simulate approach shot advancement with proper short game logic"""
+        
+        # Short game (under 100 yards) - different logic
+        if prev_distance <= 100:
+            return self._simulate_short_game_shot(handicap, prev_distance, lie_type)
+        
+        # Full shots (over 100 yards)
+        # Calculate how far to advance toward the hole
         if handicap <= 5:
-            base_advance = random.uniform(prev_distance * 0.6, prev_distance * 0.9)
+            # Low handicap: good distance control, advance 120-200 yards
+            if prev_distance > 200:
+                advance_distance = random.uniform(80, 120)
+            else:
+                advance_distance = random.uniform(40, 60)
         elif handicap <= 15:
-            base_advance = random.uniform(prev_distance * 0.4, prev_distance * 0.8)
+            # Mid handicap: decent distance control, advance 100-140 yards  
+            if prev_distance > 200:
+                advance_distance = random.uniform(60, 100)
+            else:
+                advance_distance = random.uniform(30, 80)
         else:
-            base_advance = random.uniform(prev_distance * 0.3, prev_distance * 0.7)
+            # High handicap: less consistent, advance 40-80 yards
+            if prev_distance > 200:
+                advance_distance = random.uniform(40, 80)
+            else:
+                advance_distance = random.uniform(20, 50)
         
         # Adjust for lie difficulty
         lie_penalty = 1.0
@@ -2278,8 +2458,70 @@ class WolfGoatPigSimulation:
         elif lie_type == "sand":
             lie_penalty = 0.6
         
-        advancement = base_advance * lie_penalty
-        return max(0, prev_distance - advancement)
+        # Calculate new distance (subtract advancement from current distance)
+        new_distance = max(0, prev_distance - (advance_distance * lie_penalty))
+        return new_distance
+    
+    def _simulate_short_game_shot(self, handicap: float, distance: float, lie_type: str) -> float:
+        """Handle shots within 100 yards - chipping and putting"""
+        
+        if distance <= 3:
+            # Very short putts - should usually go in or get very close
+            if handicap <= 5:
+                return random.uniform(0, 1) if random.random() > 0.85 else 0
+            elif handicap <= 15:
+                return random.uniform(0, 2) if random.random() > 0.75 else 0
+            else:
+                return random.uniform(0, 3) if random.random() > 0.6 else 0
+                
+        elif distance <= 15:
+            # Putting range - should get close to hole
+            if handicap <= 5:
+                return random.uniform(0, 3)  # Usually within 3 feet
+            elif handicap <= 15:
+                return random.uniform(0, 5)  # Usually within 5 feet
+            else:
+                return random.uniform(0, 8)  # Within 8 feet
+                
+        elif distance <= 40:
+            # Chipping/short pitch range - trying to get close
+            skill_factor = max(0.1, 1 - (handicap / 25))
+            
+            if lie_type == "green":
+                # On green - putting
+                if handicap <= 5:
+                    return random.uniform(1, 6)
+                elif handicap <= 15:
+                    return random.uniform(2, 10)
+                else:
+                    return random.uniform(3, 15)
+            else:
+                # Chipping from off green
+                base_result = random.uniform(2, 12) / skill_factor
+                if lie_type == "sand":
+                    base_result *= 1.5  # Sand shots are harder
+                elif lie_type == "rough":
+                    base_result *= 1.2
+                return min(base_result, distance * 0.8)  # Can't go backwards much
+                
+        else:
+            # 40-100 yard range - pitch shots
+            skill_factor = max(0.2, 1 - (handicap / 30))
+            
+            if handicap <= 5:
+                target_range = random.uniform(3, 15)  # Get it close
+            elif handicap <= 15:
+                target_range = random.uniform(5, 25)  # Pretty close
+            else:
+                target_range = random.uniform(8, 35)  # Somewhere on green hopefully
+                
+            # Adjust for lie
+            if lie_type == "sand":
+                target_range *= 1.4
+            elif lie_type == "rough":
+                target_range *= 1.2
+                
+            return min(target_range, distance * 0.9)
     
     def _determine_realistic_shot_quality(self, handicap: float, lie_type: str, distance_to_pin: float) -> str:
         """Determine shot quality based on realistic golf expectations"""
@@ -2333,7 +2575,17 @@ class WolfGoatPigSimulation:
             return False
     
     def _determine_lie_type(self, prev_shot: WGPShotResult) -> str:
-        """Determine lie type based on previous shot quality"""
+        """Determine lie type based on previous shot quality and distance"""
+        # If very close to pin, should be on green
+        if prev_shot.distance_to_pin <= 20:
+            # Within 20 yards, should be on or around green
+            if prev_shot.shot_quality in ["excellent", "good"]:
+                return "green"
+            else:
+                # Even poor shots from close range likely end up on green or fringe
+                return random.choice(["green", "green", "rough"])
+        
+        # For longer distances, use shot quality
         if prev_shot.shot_quality == "excellent":
             return random.choice(["fairway", "green"])
         elif prev_shot.shot_quality == "good":
@@ -2605,6 +2857,39 @@ class WolfGoatPigSimulation:
         }
         return tendencies.get(personality, "Unknown")
     
+    def _update_next_player_to_hit(self, hole_state, shot_result: WGPShotResult):
+        """Update the next player to hit based on game state"""
+        if shot_result.made_shot or hole_state.hole_complete:
+            hole_state.next_player_to_hit = None
+            return
+        
+        # Check if all tee shots have been completed
+        all_tee_shots_complete = all(
+            player_id in hole_state.ball_positions 
+            for player_id in hole_state.hitting_order
+        )
+        
+        if not all_tee_shots_complete:
+            # Still in tee shot phase - follow hitting order
+            for player_id in hole_state.hitting_order:
+                if player_id not in hole_state.ball_positions:
+                    hole_state.next_player_to_hit = player_id
+                    return
+            hole_state.next_player_to_hit = None
+        else:
+            # All tee shots complete - find player farthest from pin who hasn't holed out and hasn't exceeded shot limit
+            farthest_distance = 0
+            next_player = None
+            
+            for player_id in hole_state.hitting_order:
+                ball = hole_state.ball_positions.get(player_id)
+                if ball and ball.distance_to_pin > 0 and ball.shot_count < 8:  # Player hasn't holed out and under shot limit
+                    if ball.distance_to_pin > farthest_distance:
+                        farthest_distance = ball.distance_to_pin
+                        next_player = player_id
+            
+            hole_state.next_player_to_hit = next_player
+
     def _get_next_shot_player(self) -> Optional[str]:
         """Get the next player to hit based on current ball positions"""
         hole_state = self.hole_states[self.current_hole]

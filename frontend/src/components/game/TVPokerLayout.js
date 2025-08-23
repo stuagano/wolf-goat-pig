@@ -22,11 +22,47 @@ const TVPokerLayout = ({
     }
   };
 
+  // Export hole feed data for review
+  const exportHoleFeed = () => {
+    const exportData = {
+      timestamp: new Date().toISOString(),
+      hole: gameState?.current_hole || 1,
+      par: gameState?.hole_par || 4,
+      distance: gameState?.hole_distance || 0,
+      players: players.map(p => ({
+        id: p.id,
+        name: p.name,
+        handicap: p.handicap,
+        points: p.points,
+        status: p.status
+      })),
+      ballPositions: gameState?.hole_state?.ball_positions || {},
+      currentShot: gameState?.hole_state?.current_shot_number || 1,
+      nextPlayer: gameState?.hole_state?.next_player_to_hit,
+      feedback: gameState?.feedback || [],
+      gameComplete: gameState?.hole_state?.hole_complete || false,
+      probabilities: probabilities,
+      shotState: shotState
+    };
+
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `hole-${gameState?.current_hole || 1}-feed-${Date.now()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const styles = {
     container: {
       display: 'grid',
       gridTemplateColumns: '250px 1fr 300px',
-      gridTemplateRows: '60px 1fr 150px',
+      gridTemplateRows: '60px 200px 300px 1fr',
       gap: '10px',
       height: '100vh',
       padding: '10px',
@@ -47,6 +83,7 @@ const TVPokerLayout = ({
       boxShadow: '0 2px 10px rgba(0,0,0,0.5)'
     },
     playerPanel: {
+      gridRow: '3 / 5',
       background: '#2a2a2a',
       borderRadius: '8px',
       padding: '15px',
@@ -54,13 +91,15 @@ const TVPokerLayout = ({
       boxShadow: '0 2px 10px rgba(0,0,0,0.5)'
     },
     courseView: {
+      gridRow: '3',
       background: 'linear-gradient(to bottom, #87CEEB, #98D98E)',
       borderRadius: '8px',
-      padding: '20px',
+      padding: '15px',
       position: 'relative',
       boxShadow: '0 2px 10px rgba(0,0,0,0.5)'
     },
     metricsPanel: {
+      gridRow: '3 / 5',
       background: '#2a2a2a',
       borderRadius: '8px',
       padding: '15px',
@@ -69,11 +108,12 @@ const TVPokerLayout = ({
     },
     actionFeed: {
       gridColumn: '1 / -1',
+      gridRow: '2',
       background: '#2a2a2a',
       borderRadius: '8px',
       padding: '15px',
       overflowY: 'auto',
-      maxHeight: '150px',
+      maxHeight: '200px',
       boxShadow: '0 2px 10px rgba(0,0,0,0.5)'
     },
     playerCard: {
@@ -260,7 +300,8 @@ const TVPokerLayout = ({
                 fontSize: '16px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px'
+                gap: '8px',
+                marginRight: '10px'
               }}
             >
               ⛳ Play Next Shot
@@ -272,11 +313,31 @@ const TVPokerLayout = ({
               fontWeight: 'bold',
               padding: '10px',
               background: 'rgba(255, 215, 0, 0.2)',
-              borderRadius: '6px'
+              borderRadius: '6px',
+              marginRight: '10px'
             }}>
               ⚠️ Decision Required
             </div>
           )}
+          <button 
+            onClick={exportHoleFeed}
+            style={{
+              background: '#2196F3',
+              color: 'white',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              fontSize: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+            title="Export hole data for analysis"
+          >
+            📊 Export Feed
+          </button>
         </div>
       </div>
 
@@ -312,10 +373,10 @@ const TVPokerLayout = ({
 
       {/* Course View */}
       <div style={styles.courseView}>
-        <h3 style={{ margin: '0 0 15px 0', color: '#2a2a2a' }}>
+        <h3 style={{ margin: '0 0 10px 0', color: '#2a2a2a', fontSize: '16px' }}>
           Hole {gameState?.current_hole || 1} Progress
         </h3>
-        <div style={{ position: 'relative', height: '400px', background: 'rgba(255,255,255,0.3)', borderRadius: '8px', padding: '20px' }}>
+        <div style={{ position: 'relative', height: '240px', background: 'rgba(255,255,255,0.3)', borderRadius: '8px', padding: '15px' }}>
           
           {/* Tee */}
           <div style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', textAlign: 'center' }}>

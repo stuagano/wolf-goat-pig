@@ -1150,32 +1150,45 @@ async def handle_play_shot(payload: Dict[str, Any] = None) -> ActionResponse:
             # Hole is complete - offer scoring options
             available_actions.append({"action_type": "ENTER_HOLE_SCORES", "prompt": "Enter hole scores"})
         elif hole_state.teams.type == "pending":
-            # Teams not formed yet - check partnership opportunities
+            # Teams not formed yet - check if we should offer partnership decisions
             captain_id = hole_state.teams.captain
             captain_name = wgp_simulation._get_player_name(captain_id)
             
-            # Get available partners based on timing rules
-            available_partners = []
-            for player in wgp_simulation.players:
-                if player.id != captain_id and hole_state.can_request_partnership(captain_id, player.id):
-                    available_partners.append({
-                        "id": player.id,
-                        "name": player.name,
-                        "handicap": player.handicap
-                    })
+            # Real Wolf-Goat-Pig timing: Partnership decision comes AFTER shots are hit
+            # Count how many tee shots have been completed
+            tee_shots_completed = sum(1 for player_id, ball in hole_state.ball_positions.items() 
+                                    if ball and ball.shot_count >= 1)
             
-            if available_partners:
-                # Add partnership actions for captain with available partners
-                for partner in available_partners:
-                    available_actions.append({
-                        "action_type": "REQUEST_PARTNERSHIP",
-                        "prompt": f"Request {partner['name']} as partner",
-                        "payload": {"target_player_name": partner['name']},
-                        "player_turn": captain_name,
-                        "context": f"Choose a partner for this hole. {partner['name']} has a {partner['handicap']} handicap."
-                    })
+            # Partnership decision point: After captain and at least one other player have hit
+            if tee_shots_completed >= 2:
+                # Get available partners based on timing rules  
+                available_partners = []
+                for player in wgp_simulation.players:
+                    if player.id != captain_id and hole_state.can_request_partnership(captain_id, player.id):
+                        # Only show players who have already hit their tee shot
+                        if player.id in hole_state.ball_positions and hole_state.ball_positions[player.id]:
+                            partner_ball = hole_state.ball_positions[player.id]
+                            available_partners.append({
+                                "id": player.id,
+                                "name": player.name,
+                                "handicap": player.handicap,
+                                "tee_shot_distance": partner_ball.distance_to_pin,
+                                "tee_shot_quality": getattr(partner_ball, 'last_shot_quality', 'unknown')
+                            })
                 
-                # Add solo option
+                if available_partners:
+                    # Add partnership actions for captain with context about their shots
+                    for partner in available_partners:
+                        tee_context = f"{partner['name']} hit to {partner['tee_shot_distance']:.0f} yards"
+                        available_actions.append({
+                            "action_type": "REQUEST_PARTNERSHIP",
+                            "prompt": f"Partner with {partner['name']}?",
+                            "payload": {"target_player_name": partner['name']},
+                            "player_turn": captain_name,
+                            "context": f"🏌️ {tee_context}. Form partnership with {partner['name']} (handicap {partner['handicap']})?"
+                        })
+                    
+                    # Add solo option with context
                 available_actions.append({
                     "action_type": "DECLARE_SOLO", 
                     "prompt": "Go solo (1v3)",
@@ -1183,13 +1196,23 @@ async def handle_play_shot(payload: Dict[str, Any] = None) -> ActionResponse:
                     "context": "Play alone against all three opponents. High risk, high reward!"
                 })
             else:
-                # Partnership deadline has passed - captain must go solo
-                available_actions.append({
-                    "action_type": "DECLARE_SOLO", 
-                    "prompt": "Go solo (deadline passed)",
-                    "player_turn": captain_name,
-                    "context": "Partnership deadline has passed. Must play solo."
-                })
+                # Need more tee shots or partnership deadline passed
+                if tee_shots_completed < 2:
+                    remaining_players = [p.name for p in wgp_simulation.players 
+                                       if p.id not in hole_state.ball_positions or not hole_state.ball_positions[p.id]]
+                    available_actions.append({
+                        "action_type": "TAKE_SHOT",
+                        "prompt": f"Continue tee shots",
+                        "context": f"Need more tee shots for partnership decisions. Waiting on: {', '.join(remaining_players) if remaining_players else 'all set'}"
+                    })
+                else:
+                    # Partnership deadline has passed - captain must go solo
+                    available_actions.append({
+                        "action_type": "DECLARE_SOLO", 
+                        "prompt": "Go solo (deadline passed)",
+                        "player_turn": captain_name,
+                        "context": "Partnership deadline has passed. Must play solo."
+                    })
         else:
             # Continue with shot progression
             next_shot_player = wgp_simulation._get_next_shot_player()
@@ -1213,29 +1236,65 @@ async def handle_play_shot(payload: Dict[str, Any] = None) -> ActionResponse:
                     "prompt": "Enter final scores for hole"
                 })
             
-            # Check for betting opportunities (line of scrimmage and approach shots)
-            if not hole_state.wagering_closed:
-                # Get approach shot betting opportunities
-                betting_opportunities = hole_state.get_approach_shot_betting_opportunities()
+            # Check for betting opportunities during hole play (doubles/flushes)
+            if not hole_state.wagering_closed and hole_state.teams.type in ["partners", "solo"]:
+                # Get the recent shot context for betting decisions
+                recent_shots = []
+                for player_id, ball in hole_state.ball_positions.items():
+                    if ball and ball.shot_count > 0:
+                        player_name = wgp_simulation._get_player_name(player_id)
+                        recent_shots.append(f"{player_name}: {ball.distance_to_pin:.0f}yd ({ball.shot_count} shots)")
+                
+                # Check if there's a compelling reason to double (great shot, bad position, etc.)
+                should_offer_betting = False
+                betting_context = []
+                
+                # Look for recent excellent or terrible shots that create betting opportunities
+                if shot_response and "shot_result" in shot_response:
+                    last_shot = shot_response["shot_result"]
+                    player_name = wgp_simulation._get_player_name(last_shot["player_id"])
+                    
+                    if last_shot["shot_quality"] == "excellent" and last_shot["distance_to_pin"] < 50:
+                        should_offer_betting = True
+                        betting_context.append(f"🎯 {player_name} hit an excellent shot to {last_shot['distance_to_pin']:.0f} yards!")
+                    elif last_shot["shot_quality"] == "terrible" and last_shot["shot_number"] <= 3:
+                        should_offer_betting = True  
+                        betting_context.append(f"😬 {player_name} struggling after terrible shot")
                 
                 # Only offer doubles if there are strategic opportunities and not already doubled
-                if betting_opportunities and not hole_state.betting.doubled:
+                if should_offer_betting and not hole_state.betting.doubled:
                     # Find players who can offer doubles (not past line of scrimmage)
                     for player in wgp_simulation.players:
                         if hole_state.can_offer_double(player.id):
-                            # Add context about why this is a good time to bet
-                            context_info = []
-                            for opp in betting_opportunities:
-                                if opp.get("strategic_value") == "high":
-                                    context_info.append(f"🔥 {opp['description']}")
-                                else:
-                                    context_info.append(f"⚡ {opp['description']}")
+                            # Create compelling betting context based on recent action
+                            current_positions = ", ".join(recent_shots[:3])  # Show top 3 positions
+                            full_context = " ".join(betting_context)
                             
-                            context = f"Double the wager from {hole_state.betting.current_wager} to {hole_state.betting.current_wager * 2} quarters. " + " ".join(context_info)
+                            context = (f"🎲 Double from {hole_state.betting.current_wager} to {hole_state.betting.current_wager * 2} quarters? "
+                                     f"{full_context} Current positions: {current_positions}")
                             
                             available_actions.append({
                                 "action_type": "OFFER_DOUBLE",
-                                "prompt": f"{player.name} offers to double the wager",
+                                "prompt": f"{player.name}: Offer double?",
+                                "payload": {"player_id": player.id},
+                                "player_turn": player.name,
+                                "context": context
+                            })
+                
+                # Also offer flush opportunities if wager has been doubled
+                elif hole_state.betting.doubled and not hole_state.betting.redoubled and should_offer_betting:
+                    # Flush = double it back
+                    for player in wgp_simulation.players:
+                        if hole_state.can_offer_double(player.id):
+                            current_positions = ", ".join(recent_shots[:3])
+                            full_context = " ".join(betting_context)
+                            
+                            context = (f"💥 Flush! Double back from {hole_state.betting.current_wager} to {hole_state.betting.current_wager * 2} quarters? "
+                                     f"{full_context} Positions: {current_positions}")
+                            
+                            available_actions.append({
+                                "action_type": "OFFER_FLUSH", 
+                                "prompt": f"{player.name}: Offer flush?",
                                 "payload": {"player_id": player.id},
                                 "player_turn": player.name,
                                 "context": context
