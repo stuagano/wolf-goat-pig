@@ -6,9 +6,11 @@ import ShotRangeAnalyzer from "./components/ShotRangeAnalyzer";
 import ColdStartHandler from "./components/ColdStartHandler";
 import TutorialSystem from "./components/tutorial/TutorialSystem";
 import { ThemeProvider, useTheme } from "./theme/Provider";
-import { GameProvider } from "./context";
+import { GameProvider, AuthProvider } from "./context";
 import { TutorialProvider } from "./context/TutorialContext";
 import { HomePage } from "./pages";
+import { LoginButton, LogoutButton, Profile, ProtectedRoute } from "./components/auth";
+import { useAuth0 } from '@auth0/auth0-react';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -16,6 +18,7 @@ const API_URL = process.env.REACT_APP_API_URL || "";
 function Navigation() {
   const navigate = useNavigate();
   const theme = useTheme();
+  const { isAuthenticated } = useAuth0();
   
   const navStyle = {
     background: theme.colors.primary,
@@ -50,7 +53,7 @@ function Navigation() {
     <nav style={navStyle}>
       <div style={navContainerStyle}>
         <h1 style={{ margin: 0 }}>🐺🐐🐷 Wolf Goat Pig</h1>
-        <div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
           <button style={navButtonStyle} onClick={() => navigate('/')}>
             🏠 Home
           </button>
@@ -66,6 +69,18 @@ function Navigation() {
           <button style={navButtonStyle} onClick={() => navigate('/tutorial')}>
             🎓 Tutorial
           </button>
+          
+          {/* Auth Section */}
+          <div style={{ marginLeft: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {isAuthenticated ? (
+              <>
+                <Profile />
+                <LogoutButton />
+              </>
+            ) : (
+              <LoginButton />
+            )}
+          </div>
         </div>
       </div>
     </nav>
@@ -123,10 +138,26 @@ function App() {
         <Navigation />
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/game" element={<UnifiedGameInterface />} />
-          <Route path="/simulation" element={<SimulationMode />} />
-          <Route path="/monte-carlo" element={<MonteCarloSimulation />} />
-          <Route path="/analytics" element={<ShotRangeAnalyzer />} />
+          <Route path="/game" element={
+            <ProtectedRoute>
+              <UnifiedGameInterface />
+            </ProtectedRoute>
+          } />
+          <Route path="/simulation" element={
+            <ProtectedRoute>
+              <SimulationMode />
+            </ProtectedRoute>
+          } />
+          <Route path="/monte-carlo" element={
+            <ProtectedRoute>
+              <MonteCarloSimulation />
+            </ProtectedRoute>
+          } />
+          <Route path="/analytics" element={
+            <ProtectedRoute>
+              <ShotRangeAnalyzer />
+            </ProtectedRoute>
+          } />
           <Route path="/tutorial" element={<TutorialSystem onComplete={() => navigate('/game')} onExit={() => navigate('/')} />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
@@ -138,13 +169,15 @@ function App() {
 // Main App wrapper with providers
 const AppWithProviders = () => {
   return (
-    <GameProvider>
-      <TutorialProvider>
-        <ThemeProvider>
-          <App />
-        </ThemeProvider>
-      </TutorialProvider>
-    </GameProvider>
+    <AuthProvider>
+      <GameProvider>
+        <TutorialProvider>
+          <ThemeProvider>
+            <App />
+          </ThemeProvider>
+        </TutorialProvider>
+      </GameProvider>
+    </AuthProvider>
   );
 };
 

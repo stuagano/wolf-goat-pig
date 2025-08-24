@@ -7,6 +7,9 @@ export { default as EnhancedWGPInterface } from './EnhancedWGPInterface';
 export { default as ShotRangeAnalyzer } from './ShotRangeAnalyzer';
 export { default as ColdStartHandler } from './ColdStartHandler';
 
+// Authentication Components
+export * from './auth';
+
 // Legacy widgets (deprecated - use GameDashboard instead)
 export { default as ShotResultWidget } from './ShotResultWidget';
 export { default as BettingOpportunityWidget } from './BettingOpportunityWidget';
