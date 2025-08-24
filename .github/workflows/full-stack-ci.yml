@@ -151,7 +151,7 @@ jobs:
       continue-on-error: true
     
     - name: Run CodeQL Analysis
-      uses: github/codeql-action/analyze@v2
+      uses: github/codeql-action/analyze@v3
       with:
         languages: javascript, python
       continue-on-error: true
