@@ -5,6 +5,14 @@ import TVPokerLayout from "../game/TVPokerLayout";
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
+// Helper function to safely serialize error details
+const formatErrorDetail = (detail) => {
+  if (typeof detail === 'object' && detail !== null) {
+    return JSON.stringify(detail);
+  }
+  return detail;
+};
+
 function SimulationMode() {
   // const theme = useTheme(); // Unused for now
   const { 
@@ -161,7 +169,7 @@ function SimulationMode() {
         // Don't immediately play next shot - let the user initiate
         // This prevents race conditions and gives user control
       } else {
-        alert("Error starting simulation: " + (data.detail || "Unknown error"));
+        alert("Error starting simulation: " + (formatErrorDetail(data.detail) || "Unknown error"));
       }
     } catch (error) {
       console.error("Error starting simulation:", error);

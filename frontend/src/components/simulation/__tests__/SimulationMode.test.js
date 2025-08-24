@@ -307,4 +307,45 @@ describe('SimulationMode API Integration', () => {
       expect(mockGameContext.setLoading).toHaveBeenCalledWith(false);
     });
   });
+
+  test('properly serializes error objects in startup failure', async () => {
+    const alertSpy = jest.spyOn(window, 'alert').mockImplementation();
+    
+    // Mock a response with an object detail that would cause "[object Object]"
+    fetch.mockResolvedValueOnce({
+      json: () => Promise.resolve({
+        status: 'error',
+        detail: { error_code: 'INVALID_SETUP', message: 'Missing required course data' }
+      }),
+    });
+
+    // Set up context with a valid player name so we get to the API call
+    const contextWithPlayer = {
+      ...mockGameContext,
+      gameState: { humanPlayer: { name: 'Test Player' } },
+    };
+
+    jest.doMock('../../../context', () => ({
+      useGame: () => contextWithPlayer,
+    }));
+
+    const SimulationModeWithPlayer = require('../SimulationMode').default;
+
+    render(
+      <GameProvider>
+        <SimulationModeWithPlayer />
+      </GameProvider>
+    );
+
+    fireEvent.click(screen.getByTestId('start-game-btn'));
+
+    await waitFor(() => {
+      // Should show properly serialized JSON, not "[object Object]"
+      expect(alertSpy).toHaveBeenCalledWith(
+        'Error starting simulation: {"error_code":"INVALID_SETUP","message":"Missing required course data"}'
+      );
+    });
+
+    alertSpy.mockRestore();
+  });
 });

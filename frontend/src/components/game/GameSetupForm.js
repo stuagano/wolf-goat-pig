@@ -4,6 +4,14 @@ import PlayerProfileManager from "../PlayerProfileManager";
 import usePlayerProfile from "../../hooks/usePlayerProfile";
 
 const API_URL = process.env.REACT_APP_API_URL || "";
+
+// Helper function to safely serialize error details
+const formatErrorDetail = (detail) => {
+  if (typeof detail === 'object' && detail !== null) {
+    return JSON.stringify(detail);
+  }
+  return detail;
+};
 const COLORS = {
   primary: "#1976d2",
   accent: "#00bcd4",
@@ -217,7 +225,7 @@ function GameSetupForm({ onSetup }) {
     if (data.status === 'ok') {
       onSetup(data.game_state);
     } else {
-      setError(data.detail || 'Setup failed');
+      setError(formatErrorDetail(data.detail) || 'Setup failed');
     }
   };
 
