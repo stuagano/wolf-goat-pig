@@ -135,4 +135,44 @@ class PlayerAchievement(Base):
     description = Column(String)
     earned_date = Column(String)
     game_record_id = Column(Integer, nullable=True)  # Game where achievement was earned
-    achievement_data = Column(JSON, default=dict)  # Additional achievement details 
+    achievement_data = Column(JSON, default=dict)  # Additional achievement details
+
+# Daily Sign-up System Models
+class DailySignup(Base):
+    __tablename__ = "daily_signups"
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(String, index=True)  # YYYY-MM-DD format
+    player_profile_id = Column(Integer, index=True)  # References PlayerProfile.id
+    player_name = Column(String)  # Denormalized for easy querying
+    signup_time = Column(String)  # ISO timestamp when they signed up
+    preferred_start_time = Column(String, nullable=True)  # e.g., "4:30 PM", "morning", etc.
+    notes = Column(String, nullable=True)  # Optional player notes
+    status = Column(String, default="signed_up")  # signed_up, cancelled, played
+    created_at = Column(String)
+    updated_at = Column(String)
+
+class PlayerAvailability(Base):
+    __tablename__ = "player_availability"
+    id = Column(Integer, primary_key=True, index=True)
+    player_profile_id = Column(Integer, index=True)  # References PlayerProfile.id
+    day_of_week = Column(Integer)  # 0=Monday, 1=Tuesday, ..., 6=Sunday
+    available_from_time = Column(String, nullable=True)  # e.g., "4:30 PM"
+    available_to_time = Column(String, nullable=True)  # e.g., "8:00 PM"
+    is_available = Column(Integer, default=1)  # 1=available, 0=not available
+    notes = Column(String, nullable=True)  # e.g., "Only after work"
+    created_at = Column(String)
+    updated_at = Column(String)
+
+class EmailPreferences(Base):
+    __tablename__ = "email_preferences"
+    id = Column(Integer, primary_key=True, index=True)
+    player_profile_id = Column(Integer, index=True)  # References PlayerProfile.id
+    daily_signups_enabled = Column(Integer, default=1)  # Receive daily signup emails
+    signup_confirmations_enabled = Column(Integer, default=1)  # When someone signs up
+    signup_reminders_enabled = Column(Integer, default=1)  # Reminders to sign up
+    game_invitations_enabled = Column(Integer, default=1)  # Direct game invitations
+    weekly_summary_enabled = Column(Integer, default=1)  # Weekly activity summary
+    email_frequency = Column(String, default="daily")  # daily, weekly, monthly, never
+    preferred_notification_time = Column(String, default="8:00 AM")  # When to send dailies
+    created_at = Column(String)
+    updated_at = Column(String) 

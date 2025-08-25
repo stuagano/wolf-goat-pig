@@ -364,4 +364,143 @@ class ShotAnalysisRequest(BaseModel):
     player_id: str
     distance_to_pin: float
     lie_type: str
-    club_options: List[str] 
+    club_options: List[str]
+
+# Daily Sign-up System Schemas
+class DailySignupCreate(BaseModel):
+    date: str  # YYYY-MM-DD format
+    player_profile_id: int
+    player_name: str
+    preferred_start_time: Optional[str] = None
+    notes: Optional[str] = None
+
+    @field_validator('date')
+    @classmethod
+    def validate_date(cls, v):
+        try:
+            datetime.strptime(v, '%Y-%m-%d')
+            return v
+        except ValueError:
+            raise ValueError('Date must be in YYYY-MM-DD format')
+
+class DailySignupUpdate(BaseModel):
+    preferred_start_time: Optional[str] = None
+    notes: Optional[str] = None
+    status: Optional[str] = None
+
+class DailySignupResponse(BaseModel):
+    id: int
+    date: str
+    player_profile_id: int
+    player_name: str
+    signup_time: str
+    preferred_start_time: Optional[str]
+    notes: Optional[str]
+    status: str
+    created_at: str
+    updated_at: str
+
+    class Config:
+        from_attributes = True
+
+class PlayerAvailabilityCreate(BaseModel):
+    player_profile_id: int
+    day_of_week: int  # 0-6
+    available_from_time: Optional[str] = None
+    available_to_time: Optional[str] = None
+    is_available: bool = True
+    notes: Optional[str] = None
+
+    @field_validator('day_of_week')
+    @classmethod
+    def validate_day_of_week(cls, v):
+        if not 0 <= v <= 6:
+            raise ValueError('Day of week must be between 0 (Monday) and 6 (Sunday)')
+        return v
+
+class PlayerAvailabilityUpdate(BaseModel):
+    available_from_time: Optional[str] = None
+    available_to_time: Optional[str] = None
+    is_available: Optional[bool] = None
+    notes: Optional[str] = None
+
+class PlayerAvailabilityResponse(BaseModel):
+    id: int
+    player_profile_id: int
+    day_of_week: int
+    available_from_time: Optional[str]
+    available_to_time: Optional[str]
+    is_available: bool
+    notes: Optional[str]
+    created_at: str
+    updated_at: str
+
+    class Config:
+        from_attributes = True
+
+class EmailPreferencesCreate(BaseModel):
+    player_profile_id: int
+    daily_signups_enabled: bool = True
+    signup_confirmations_enabled: bool = True
+    signup_reminders_enabled: bool = True
+    game_invitations_enabled: bool = True
+    weekly_summary_enabled: bool = True
+    email_frequency: str = "daily"  # daily, weekly, monthly, never
+    preferred_notification_time: str = "8:00 AM"
+
+    @field_validator('email_frequency')
+    @classmethod
+    def validate_email_frequency(cls, v):
+        allowed_frequencies = ['daily', 'weekly', 'monthly', 'never']
+        if v not in allowed_frequencies:
+            raise ValueError(f'Email frequency must be one of: {", ".join(allowed_frequencies)}')
+        return v
+
+class EmailPreferencesUpdate(BaseModel):
+    daily_signups_enabled: Optional[bool] = None
+    signup_confirmations_enabled: Optional[bool] = None
+    signup_reminders_enabled: Optional[bool] = None
+    game_invitations_enabled: Optional[bool] = None
+    weekly_summary_enabled: Optional[bool] = None
+    email_frequency: Optional[str] = None
+    preferred_notification_time: Optional[str] = None
+
+    @field_validator('email_frequency')
+    @classmethod
+    def validate_email_frequency(cls, v):
+        if v is not None:
+            allowed_frequencies = ['daily', 'weekly', 'monthly', 'never']
+            if v not in allowed_frequencies:
+                raise ValueError(f'Email frequency must be one of: {", ".join(allowed_frequencies)}')
+        return v
+
+class EmailPreferencesResponse(BaseModel):
+    id: int
+    player_profile_id: int
+    daily_signups_enabled: bool
+    signup_confirmations_enabled: bool
+    signup_reminders_enabled: bool
+    game_invitations_enabled: bool
+    weekly_summary_enabled: bool
+    email_frequency: str
+    preferred_notification_time: str
+    created_at: str
+    updated_at: str
+
+    class Config:
+        from_attributes = True
+
+# Composite schemas for frontend
+class DailySignupSummary(BaseModel):
+    date: str
+    signups: List[DailySignupResponse]
+    total_count: int
+
+class WeeklySignupView(BaseModel):
+    week_start: str  # YYYY-MM-DD for the Monday
+    daily_summaries: List[DailySignupSummary]
+    
+class PlayerWithAvailability(BaseModel):
+    profile: PlayerProfileResponse
+    availability: List[PlayerAvailabilityResponse]
+    email_preferences: Optional[EmailPreferencesResponse] = None 

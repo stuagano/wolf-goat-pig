@@ -3247,4 +3247,302 @@ def make_betting_decision(request: BettingDecisionRequest):
         logger.error(f"Betting decision failed: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to process betting decision: {str(e)}")
 
+# Daily Sign-up System Endpoints
+
+@app.get("/signups/weekly", response_model=schemas.WeeklySignupView)
+def get_weekly_signups(week_start: str = Query(description="YYYY-MM-DD format for Monday of the week")):
+    """Get sign-ups for a rolling 7-day period starting from specified Monday."""
+    try:
+        db = database.SessionLocal()
+        from datetime import datetime, timedelta
+        
+        # Parse the week start date
+        start_date = datetime.strptime(week_start, '%Y-%m-%d')
+        
+        # Get all 7 days
+        daily_summaries = []
+        for i in range(7):
+            current_date = start_date + timedelta(days=i)
+            date_str = current_date.strftime('%Y-%m-%d')
+            
+            signups = db.query(models.DailySignup).filter(
+                models.DailySignup.date == date_str,
+                models.DailySignup.status != "cancelled"
+            ).all()
+            
+            daily_summaries.append(schemas.DailySignupSummary(
+                date=date_str,
+                signups=[schemas.DailySignupResponse.from_orm(signup) for signup in signups],
+                total_count=len(signups)
+            ))
+        
+        return schemas.WeeklySignupView(
+            week_start=week_start,
+            daily_summaries=daily_summaries
+        )
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid date format: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error getting weekly signups: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get weekly signups: {str(e)}")
+    finally:
+        db.close()
+
+@app.post("/signups", response_model=schemas.DailySignupResponse)
+def create_signup(signup: schemas.DailySignupCreate):
+    """Create a daily sign-up for a player."""
+    try:
+        db = database.SessionLocal()
+        
+        # Check if player already signed up for this date
+        existing = db.query(models.DailySignup).filter(
+            models.DailySignup.date == signup.date,
+            models.DailySignup.player_profile_id == signup.player_profile_id,
+            models.DailySignup.status != "cancelled"
+        ).first()
+        
+        if existing:
+            raise HTTPException(status_code=400, detail="Player already signed up for this date")
+        
+        # Create new signup
+        db_signup = models.DailySignup(
+            date=signup.date,
+            player_profile_id=signup.player_profile_id,
+            player_name=signup.player_name,
+            signup_time=datetime.now().isoformat(),
+            preferred_start_time=signup.preferred_start_time,
+            notes=signup.notes,
+            status="signed_up",
+            created_at=datetime.now().isoformat(),
+            updated_at=datetime.now().isoformat()
+        )
+        
+        db.add(db_signup)
+        db.commit()
+        db.refresh(db_signup)
+        
+        logger.info(f"Created signup for player {signup.player_name} on {signup.date}")
+        return schemas.DailySignupResponse.from_orm(db_signup)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error creating signup: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create signup: {str(e)}")
+    finally:
+        db.close()
+
+@app.put("/signups/{signup_id}", response_model=schemas.DailySignupResponse)
+def update_signup(signup_id: int, signup_update: schemas.DailySignupUpdate):
+    """Update a daily sign-up."""
+    try:
+        db = database.SessionLocal()
+        
+        db_signup = db.query(models.DailySignup).filter(models.DailySignup.id == signup_id).first()
+        if not db_signup:
+            raise HTTPException(status_code=404, detail="Sign-up not found")
+        
+        # Update fields
+        if signup_update.preferred_start_time is not None:
+            db_signup.preferred_start_time = signup_update.preferred_start_time
+        if signup_update.notes is not None:
+            db_signup.notes = signup_update.notes
+        if signup_update.status is not None:
+            db_signup.status = signup_update.status
+            
+        db_signup.updated_at = datetime.now().isoformat()
+        
+        db.commit()
+        db.refresh(db_signup)
+        
+        logger.info(f"Updated signup {signup_id}")
+        return schemas.DailySignupResponse.from_orm(db_signup)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error updating signup {signup_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update signup: {str(e)}")
+    finally:
+        db.close()
+
+@app.delete("/signups/{signup_id}")
+def cancel_signup(signup_id: int):
+    """Cancel a daily sign-up."""
+    try:
+        db = database.SessionLocal()
+        
+        db_signup = db.query(models.DailySignup).filter(models.DailySignup.id == signup_id).first()
+        if not db_signup:
+            raise HTTPException(status_code=404, detail="Sign-up not found")
+        
+        db_signup.status = "cancelled"
+        db_signup.updated_at = datetime.now().isoformat()
+        
+        db.commit()
+        
+        logger.info(f"Cancelled signup {signup_id}")
+        return {"message": "Sign-up cancelled successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error cancelling signup {signup_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to cancel signup: {str(e)}")
+    finally:
+        db.close()
+
+# Player Availability Endpoints
+
+@app.get("/players/{player_id}/availability", response_model=List[schemas.PlayerAvailabilityResponse])
+def get_player_availability(player_id: int):
+    """Get a player's weekly availability."""
+    try:
+        db = database.SessionLocal()
+        
+        availability = db.query(models.PlayerAvailability).filter(
+            models.PlayerAvailability.player_profile_id == player_id
+        ).order_by(models.PlayerAvailability.day_of_week).all()
+        
+        return [schemas.PlayerAvailabilityResponse.from_orm(avail) for avail in availability]
+        
+    except Exception as e:
+        logger.error(f"Error getting availability for player {player_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get availability: {str(e)}")
+    finally:
+        db.close()
+
+@app.post("/players/{player_id}/availability", response_model=schemas.PlayerAvailabilityResponse)
+def set_player_availability(player_id: int, availability: schemas.PlayerAvailabilityCreate):
+    """Set or update a player's availability for a specific day."""
+    try:
+        db = database.SessionLocal()
+        
+        # Check if availability already exists for this day
+        existing = db.query(models.PlayerAvailability).filter(
+            models.PlayerAvailability.player_profile_id == player_id,
+            models.PlayerAvailability.day_of_week == availability.day_of_week
+        ).first()
+        
+        if existing:
+            # Update existing
+            existing.available_from_time = availability.available_from_time
+            existing.available_to_time = availability.available_to_time
+            existing.is_available = availability.is_available
+            existing.notes = availability.notes
+            existing.updated_at = datetime.now().isoformat()
+            
+            db.commit()
+            db.refresh(existing)
+            
+            logger.info(f"Updated availability for player {player_id}, day {availability.day_of_week}")
+            return schemas.PlayerAvailabilityResponse.from_orm(existing)
+        else:
+            # Create new
+            db_availability = models.PlayerAvailability(
+                player_profile_id=player_id,
+                day_of_week=availability.day_of_week,
+                available_from_time=availability.available_from_time,
+                available_to_time=availability.available_to_time,
+                is_available=availability.is_available,
+                notes=availability.notes,
+                created_at=datetime.now().isoformat(),
+                updated_at=datetime.now().isoformat()
+            )
+            
+            db.add(db_availability)
+            db.commit()
+            db.refresh(db_availability)
+            
+            logger.info(f"Created availability for player {player_id}, day {availability.day_of_week}")
+            return schemas.PlayerAvailabilityResponse.from_orm(db_availability)
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error setting availability for player {player_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to set availability: {str(e)}")
+    finally:
+        db.close()
+
+# Email Preferences Endpoints
+
+@app.get("/players/{player_id}/email-preferences", response_model=schemas.EmailPreferencesResponse)
+def get_email_preferences(player_id: int):
+    """Get a player's email preferences."""
+    try:
+        db = database.SessionLocal()
+        
+        preferences = db.query(models.EmailPreferences).filter(
+            models.EmailPreferences.player_profile_id == player_id
+        ).first()
+        
+        if not preferences:
+            # Create default preferences
+            preferences = models.EmailPreferences(
+                player_profile_id=player_id,
+                created_at=datetime.now().isoformat(),
+                updated_at=datetime.now().isoformat()
+            )
+            db.add(preferences)
+            db.commit()
+            db.refresh(preferences)
+            
+        return schemas.EmailPreferencesResponse.from_orm(preferences)
+        
+    except Exception as e:
+        logger.error(f"Error getting email preferences for player {player_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get email preferences: {str(e)}")
+    finally:
+        db.close()
+
+@app.put("/players/{player_id}/email-preferences", response_model=schemas.EmailPreferencesResponse)
+def update_email_preferences(player_id: int, preferences_update: schemas.EmailPreferencesUpdate):
+    """Update a player's email preferences."""
+    try:
+        db = database.SessionLocal()
+        
+        preferences = db.query(models.EmailPreferences).filter(
+            models.EmailPreferences.player_profile_id == player_id
+        ).first()
+        
+        if not preferences:
+            raise HTTPException(status_code=404, detail="Email preferences not found")
+        
+        # Update fields
+        if preferences_update.daily_signups_enabled is not None:
+            preferences.daily_signups_enabled = preferences_update.daily_signups_enabled
+        if preferences_update.signup_confirmations_enabled is not None:
+            preferences.signup_confirmations_enabled = preferences_update.signup_confirmations_enabled
+        if preferences_update.signup_reminders_enabled is not None:
+            preferences.signup_reminders_enabled = preferences_update.signup_reminders_enabled
+        if preferences_update.game_invitations_enabled is not None:
+            preferences.game_invitations_enabled = preferences_update.game_invitations_enabled
+        if preferences_update.weekly_summary_enabled is not None:
+            preferences.weekly_summary_enabled = preferences_update.weekly_summary_enabled
+        if preferences_update.email_frequency is not None:
+            preferences.email_frequency = preferences_update.email_frequency
+        if preferences_update.preferred_notification_time is not None:
+            preferences.preferred_notification_time = preferences_update.preferred_notification_time
+            
+        preferences.updated_at = datetime.now().isoformat()
+        
+        db.commit()
+        db.refresh(preferences)
+        
+        logger.info(f"Updated email preferences for player {player_id}")
+        return schemas.EmailPreferencesResponse.from_orm(preferences)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error updating email preferences for player {player_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update email preferences: {str(e)}")
+    finally:
+        db.close()
+
 
