@@ -9,6 +9,7 @@ import { ThemeProvider, useTheme } from "./theme/Provider";
 import { GameProvider, AuthProvider } from "./context";
 import { TutorialProvider } from "./context/TutorialContext";
 import { HomePage } from "./pages";
+import SignupPage from "./pages/SignupPage";
 import { LoginButton, LogoutButton, Profile, ProtectedRoute } from "./components/auth";
 import { useAuth0 } from '@auth0/auth0-react';
 
@@ -68,6 +69,9 @@ function Navigation() {
           </button>
           <button style={navButtonStyle} onClick={() => navigate('/tutorial')}>
             🎓 Tutorial
+          </button>
+          <button style={navButtonStyle} onClick={() => navigate('/signup')}>
+            📅 Sign-ups
           </button>
           
           {/* Auth Section */}
@@ -158,6 +162,7 @@ function App() {
               <ShotRangeAnalyzer />
             </ProtectedRoute>
           } />
+          <Route path="/signup" element={<SignupPage />} />
           <Route path="/tutorial" element={<TutorialSystem onComplete={() => navigate('/game')} onExit={() => navigate('/')} />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
