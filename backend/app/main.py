@@ -2755,6 +2755,155 @@ def get_analytics_overview():
     finally:
         db.close()
 
+# Sheet Integration Endpoints
+@app.post("/sheet-integration/analyze-structure")
+def analyze_sheet_structure(sheet_headers: List[str]):
+    """Analyze Google Sheet headers and create column mappings."""
+    try:
+        db = database.SessionLocal()
+        from .services.sheet_integration_service import SheetIntegrationService
+        
+        sheet_service = SheetIntegrationService(db)
+        mappings = sheet_service.create_column_mappings(sheet_headers)
+        
+        return {
+            "headers_analyzed": len(sheet_headers),
+            "mappings_created": len(mappings),
+            "column_mappings": [
+                {
+                    "sheet_column": mapping.sheet_column,
+                    "db_field": mapping.db_field,
+                    "data_type": mapping.data_type,
+                    "transformation": mapping.transformation
+                }
+                for mapping in mappings
+            ],
+            "analyzed_at": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error analyzing sheet structure: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to analyze sheet structure: {str(e)}")
+    finally:
+        db.close()
+
+@app.post("/sheet-integration/create-leaderboard")
+def create_leaderboard_from_sheet(sheet_data: List[Dict[str, Any]]):
+    """Create a leaderboard from Google Sheet data without persisting to database."""
+    try:
+        db = database.SessionLocal()
+        from .services.sheet_integration_service import SheetIntegrationService
+        
+        if not sheet_data:
+            raise HTTPException(status_code=400, detail="Sheet data is required")
+        
+        # Extract headers from first row
+        headers = list(sheet_data[0].keys())
+        
+        sheet_service = SheetIntegrationService(db)
+        mappings = sheet_service.create_column_mappings(headers)
+        leaderboard = sheet_service.create_leaderboard_from_sheet_data(sheet_data, mappings)
+        
+        return {
+            "leaderboard": leaderboard,
+            "total_players": len(leaderboard),
+            "columns_mapped": len(mappings),
+            "generated_at": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error creating leaderboard from sheet: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create leaderboard: {str(e)}")
+    finally:
+        db.close()
+
+@app.post("/sheet-integration/sync-data")
+def sync_sheet_data(sheet_data: List[Dict[str, Any]]):
+    """Sync Google Sheet data to database (creates/updates player profiles and statistics)."""
+    try:
+        db = database.SessionLocal()
+        from .services.sheet_integration_service import SheetIntegrationService
+        
+        if not sheet_data:
+            raise HTTPException(status_code=400, detail="Sheet data is required")
+        
+        # Extract headers from first row
+        headers = list(sheet_data[0].keys())
+        
+        sheet_service = SheetIntegrationService(db)
+        mappings = sheet_service.create_column_mappings(headers)
+        results = sheet_service.sync_sheet_data_to_database(sheet_data, mappings)
+        
+        return {
+            "sync_results": results,
+            "synced_at": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error syncing sheet data: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to sync sheet data: {str(e)}")
+    finally:
+        db.close()
+
+@app.get("/sheet-integration/export-current-data")
+def export_current_data_for_sheet(sheet_headers: List[str] = Query(...)):
+    """Export current database data in Google Sheet format for comparison."""
+    try:
+        db = database.SessionLocal()
+        from .services.sheet_integration_service import SheetIntegrationService
+        
+        sheet_service = SheetIntegrationService(db)
+        mappings = sheet_service.create_column_mappings(sheet_headers)
+        exported_data = sheet_service.export_current_data_to_sheet_format(mappings)
+        
+        return {
+            "exported_data": exported_data,
+            "total_players": len(exported_data),
+            "columns": sheet_headers,
+            "exported_at": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error exporting current data: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to export current data: {str(e)}")
+    finally:
+        db.close()
+
+@app.post("/sheet-integration/compare-data")
+def compare_sheet_with_database(sheet_data: List[Dict[str, Any]]):
+    """Compare Google Sheet data with current database data."""
+    try:
+        db = database.SessionLocal()
+        from .services.sheet_integration_service import SheetIntegrationService
+        
+        if not sheet_data:
+            raise HTTPException(status_code=400, detail="Sheet data is required")
+        
+        # Extract headers from first row
+        headers = list(sheet_data[0].keys())
+        
+        sheet_service = SheetIntegrationService(db)
+        mappings = sheet_service.create_column_mappings(headers)
+        
+        # Get current database data in sheet format
+        current_data = sheet_service.export_current_data_to_sheet_format(mappings)
+        
+        # Generate comparison report
+        comparison_report = sheet_service.generate_sheet_comparison_report(
+            current_data, sheet_data, mappings
+        )
+        
+        return {
+            "comparison_report": comparison_report,
+            "compared_at": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error comparing sheet data: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to compare data: {str(e)}")
+    finally:
+        db.close()
+
 # ============================================================================
 # SIMULATION API ENDPOINTS
 # ============================================================================
