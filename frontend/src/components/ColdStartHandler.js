@@ -1,61 +1,71 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTheme } from '../theme/Provider';
 
 const ColdStartHandler = ({ children, onReady }) => {
   const theme = useTheme();
   const [backendStatus, setBackendStatus] = useState('checking'); // checking, cold, warming, ready, error
   const [retryAttempt, setRetryAttempt] = useState(0);
-  const [startTime, setStartTime] = useState(Date.now());
+  // const [startTime, setStartTime] = useState(Date.now()); // Moved to useEffect
   
   const API_URL = process.env.REACT_APP_API_URL || "";
 
-  const checkBackendHealth = useCallback(async (attempt = 0) => {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-      
-      const response = await fetch(`${API_URL}/health`, {
-        signal: controller.signal,
-        cache: 'no-cache'
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (response.ok) {
-        setBackendStatus('ready');
-        if (onReady) onReady();
-        return true;
-      } else {
-        throw new Error(`HTTP ${response.status}`);
-      }
-    } catch (error) {
-      const elapsed = Date.now() - startTime;
-      
-      if (error.name === 'AbortError' || elapsed > 5000) {
-        // If it's taking longer than 5 seconds, assume cold start
-        setBackendStatus('cold');
-      }
-      
-      if (attempt < 30) { // Retry for up to 5 minutes
-        setRetryAttempt(attempt + 1);
-        setTimeout(() => {
-          if (backendStatus === 'cold') {
-            setBackendStatus('warming');
-          }
-          checkBackendHealth(attempt + 1);
-        }, 10000); // Check every 10 seconds
-      } else {
-        setBackendStatus('error');
-      }
-      
-      return false;
-    }
-  }, [API_URL, onReady, startTime, backendStatus]);
-
   useEffect(() => {
-    setStartTime(Date.now());
-    checkBackendHealth();
-  }, [checkBackendHealth]);
+    let isMounted = true;
+    const currentStartTime = Date.now();
+
+    const checkBackendHealth = async (attempt = 0) => {
+      if (!isMounted) return;
+      
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        
+        const response = await fetch(`${API_URL}/health`, {
+          signal: controller.signal,
+          cache: 'no-cache'
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (response.ok && isMounted) {
+          setBackendStatus('ready');
+          if (onReady) onReady();
+          return true;
+        } else {
+          throw new Error(`HTTP ${response.status}`);
+        }
+      } catch (error) {
+        if (!isMounted) return;
+        
+        const elapsed = Date.now() - currentStartTime;
+        
+        if (error.name === 'AbortError' || elapsed > 5000) {
+          // If it's taking longer than 5 seconds, assume cold start
+          setBackendStatus('cold');
+        }
+        
+        if (attempt < 30) { // Retry for up to 5 minutes
+          setRetryAttempt(attempt + 1);
+          setTimeout(() => {
+            if (isMounted) {
+              setBackendStatus('warming');
+              checkBackendHealth(attempt + 1);
+            }
+          }, 10000); // Check every 10 seconds
+        } else if (isMounted) {
+          setBackendStatus('error');
+        }
+        
+        return false;
+      }
+    };
+
+    checkBackendHealth(0);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [API_URL, onReady]);
 
   const getStatusMessage = () => {
     switch (backendStatus) {
@@ -203,8 +213,7 @@ const ColdStartHandler = ({ children, onReady }) => {
             onClick={() => {
               setBackendStatus('checking');
               setRetryAttempt(0);
-              setStartTime(Date.now());
-              checkBackendHealth();
+              window.location.reload(); // Simple reload to restart the check
             }}
           >
             🔄 Try Again

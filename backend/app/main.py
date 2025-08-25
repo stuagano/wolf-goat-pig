@@ -2869,6 +2869,168 @@ def export_current_data_for_sheet(sheet_headers: List[str] = Query(...)):
     finally:
         db.close()
 
+@app.post("/sheet-integration/sync-wgp-sheet")
+def sync_wgp_sheet_data(request: Dict[str, str]):
+    """Sync Wolf Goat Pig specific sheet data format."""
+    try:
+        db = database.SessionLocal()
+        from .services.player_service import PlayerService
+        from collections import defaultdict
+        import requests
+        
+        csv_url = request.get("csv_url")
+        if not csv_url:
+            raise HTTPException(status_code=400, detail="CSV URL is required")
+        
+        # Fetch the CSV data
+        response = requests.get(csv_url, timeout=30)
+        response.raise_for_status()
+        csv_text = response.text
+        
+        # Parse CSV
+        lines = csv_text.strip().split('\n')
+        if not lines:
+            raise HTTPException(status_code=400, detail="Empty sheet data")
+        
+        headers = [h.strip().strip('"') for h in lines[0].split(',')]
+        
+        # Process each row and aggregate by player
+        player_stats = defaultdict(lambda: {
+            "games_played": 0,
+            "total_score": 0,
+            "games_won": 0,
+            "locations": set()
+        })
+        
+        for line in lines[1:]:
+            if line.strip():
+                values = [v.strip().strip('"') for v in line.split(',')]
+                if len(values) >= 5:  # Date, Group, Member, Score, Location
+                    player_name = values[2]  # Member column
+                    if player_name and player_name != "Member":
+                        try:
+                            score = int(values[3]) if values[3] else 0  # Score column
+                            location = values[4] if len(values) > 4 else "Unknown"
+                            
+                            player_stats[player_name]["games_played"] += 1
+                            player_stats[player_name]["total_score"] += score
+                            if score > 0:  # Positive score might indicate a win in WGP
+                                player_stats[player_name]["games_won"] += 1
+                            player_stats[player_name]["locations"].add(location)
+                        except (ValueError, IndexError):
+                            continue
+        
+        # Create/update players in database
+        player_service = PlayerService(db)
+        sync_results = {
+            "players_processed": 0,
+            "players_created": 0,
+            "players_updated": 0,
+            "errors": []
+        }
+        
+        for player_name, stats in player_stats.items():
+            try:
+                # Check if player exists
+                existing_player = db.query(models.PlayerProfile).filter(
+                    models.PlayerProfile.name == player_name
+                ).first()
+                
+                if not existing_player:
+                    # Create new player
+                    player_data = schemas.PlayerProfileCreate(
+                        name=player_name,
+                        handicap=10.0,  # Default handicap
+                        email=f"{player_name.lower().replace(' ', '.')}@wgp.com"
+                    )
+                    new_player = player_service.create_player_profile(player_data)
+                    sync_results["players_created"] += 1
+                    player_id = new_player.id
+                else:
+                    player_id = existing_player.id
+                    sync_results["players_updated"] += 1
+                
+                # Update statistics
+                player_stats_record = db.query(models.PlayerStatistics).filter(
+                    models.PlayerStatistics.player_id == player_id
+                ).first()
+                
+                if player_stats_record:
+                    player_stats_record.games_played = stats["games_played"]
+                    player_stats_record.games_won = stats["games_won"]
+                    player_stats_record.win_percentage = (
+                        (stats["games_won"] / stats["games_played"] * 100) 
+                        if stats["games_played"] > 0 else 0
+                    )
+                    player_stats_record.total_earnings = float(stats["total_score"])
+                    db.commit()
+                
+                sync_results["players_processed"] += 1
+                
+            except Exception as e:
+                sync_results["errors"].append(f"Error processing {player_name}: {str(e)}")
+                continue
+        
+        return {
+            "sync_results": sync_results,
+            "player_count": len(player_stats),
+            "synced_at": datetime.now().isoformat()
+        }
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error fetching Google Sheet: {e}")
+        raise HTTPException(status_code=400, detail=f"Failed to fetch sheet: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error syncing WGP sheet data: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to sync data: {str(e)}")
+    finally:
+        db.close()
+
+@app.post("/sheet-integration/fetch-google-sheet")
+def fetch_google_sheet(request: Dict[str, str]):
+    """Fetch data from a Google Sheets CSV URL."""
+    try:
+        import requests
+        csv_url = request.get("csv_url")
+        if not csv_url:
+            raise HTTPException(status_code=400, detail="CSV URL is required")
+        
+        # Fetch the CSV data from Google Sheets
+        response = requests.get(csv_url, timeout=30)
+        response.raise_for_status()
+        
+        csv_text = response.text
+        
+        # Parse CSV data
+        lines = csv_text.strip().split('\n')
+        if not lines:
+            raise HTTPException(status_code=400, detail="Empty sheet data")
+        
+        headers = [h.strip().strip('"') for h in lines[0].split(',')]
+        data = []
+        
+        for line in lines[1:]:
+            if line.strip():
+                values = [v.strip().strip('"') for v in line.split(',')]
+                row = {}
+                for i, header in enumerate(headers):
+                    row[header] = values[i] if i < len(values) else ''
+                data.append(row)
+        
+        return {
+            "headers": headers,
+            "data": data,
+            "total_rows": len(data),
+            "fetched_at": datetime.now().isoformat()
+        }
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error fetching Google Sheet: {e}")
+        raise HTTPException(status_code=400, detail=f"Failed to fetch sheet: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error processing Google Sheet data: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to process sheet data: {str(e)}")
+
 @app.post("/sheet-integration/compare-data")
 def compare_sheet_with_database(sheet_data: List[Dict[str, Any]]):
     """Compare Google Sheet data with current database data."""

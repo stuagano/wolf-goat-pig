@@ -57,7 +57,7 @@ const SheetIntegrationDashboard = () => {
     const analyzeSheetStructure = async (headers) => {
         try {
             setLoading(true);
-            const response = await fetch('/api/sheet-integration/analyze-structure', {
+            const response = await fetch('/sheet-integration/analyze-structure', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -83,7 +83,7 @@ const SheetIntegrationDashboard = () => {
 
         try {
             setLoading(true);
-            const response = await fetch('/api/sheet-integration/create-leaderboard', {
+            const response = await fetch('/sheet-integration/create-leaderboard', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -110,7 +110,7 @@ const SheetIntegrationDashboard = () => {
 
         try {
             setLoading(true);
-            const response = await fetch('/api/sheet-integration/sync-data', {
+            const response = await fetch('/sheet-integration/sync-data', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -136,7 +136,7 @@ const SheetIntegrationDashboard = () => {
 
         try {
             setLoading(true);
-            const response = await fetch('/api/sheet-integration/compare-data', {
+            const response = await fetch('/sheet-integration/compare-data', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

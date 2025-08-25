@@ -1,17 +1,23 @@
 import React, { useState } from "react";
 import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
+import { useAuth0 } from "@auth0/auth0-react";
 import { UnifiedGameInterface } from "./components/game";
 import { SimulationMode, MonteCarloSimulation } from "./components/simulation";
+import FeedAnalyzer from "./components/simulation/FeedAnalyzer";
 import ShotRangeAnalyzer from "./components/ShotRangeAnalyzer";
 import ColdStartHandler from "./components/ColdStartHandler";
 import TutorialSystem from "./components/tutorial/TutorialSystem";
+import WGPAnalyticsDashboard from "./components/WGPAnalyticsDashboard";
+import SheetIntegrationDashboard from "./components/SheetIntegrationDashboard";
+import GoogleSheetsLiveSync from "./components/GoogleSheetsLiveSync";
 import { ThemeProvider, useTheme } from "./theme/Provider";
-import { GameProvider, AuthProvider } from "./context";
+import { GameProvider } from "./context";
+import { MockAuthProvider } from "./context/MockAuthContext";
+import { AuthProvider } from "./context/AuthContext";
 import { TutorialProvider } from "./context/TutorialContext";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { HomePage } from "./pages";
 import SignupPage from "./pages/SignupPage";
-import { LoginButton, LogoutButton, Profile, ProtectedRoute } from "./components/auth";
-import { useAuth0 } from '@auth0/auth0-react';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -19,7 +25,15 @@ const API_URL = process.env.REACT_APP_API_URL || "";
 function Navigation() {
   const navigate = useNavigate();
   const theme = useTheme();
-  const { isAuthenticated } = useAuth0();
+  
+  // Use mock auth if environment variable is set
+  const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === 'true';
+  
+  // Get auth state from Auth0 or mock
+  const { isAuthenticated: auth0IsAuthenticated, user: auth0User, loginWithRedirect, logout } = useAuth0();
+  
+  const isAuthenticated = useMockAuth ? true : auth0IsAuthenticated;
+  const user = useMockAuth ? { name: 'Test User' } : auth0User;
   
   const navStyle = {
     background: theme.colors.primary,
@@ -73,16 +87,42 @@ function Navigation() {
           <button style={navButtonStyle} onClick={() => navigate('/signup')}>
             📅 Sign-ups
           </button>
+          <button style={navButtonStyle} onClick={() => navigate('/feed-analyzer')}>
+            🔍 Feed Analyzer
+          </button>
+          <button style={navButtonStyle} onClick={() => navigate('/leaderboard')}>
+            🏆 Leaderboard
+          </button>
+          <button style={navButtonStyle} onClick={() => navigate('/sheets')}>
+            📊 Sheet Sync
+          </button>
+          <button style={navButtonStyle} onClick={() => navigate('/live-sync')}>
+            🔄 Live Sync
+          </button>
           
           {/* Auth Section */}
           <div style={{ marginLeft: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
             {isAuthenticated ? (
               <>
-                <Profile />
-                <LogoutButton />
+                <span style={{ color: '#fff' }}>{user?.name || 'User'}</span>
+                {!useMockAuth && (
+                  <button 
+                    style={{...navButtonStyle, fontSize: 14}} 
+                    onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
+                  >
+                    Logout
+                  </button>
+                )}
               </>
             ) : (
-              <LoginButton />
+              !useMockAuth && (
+                <button 
+                  style={{...navButtonStyle, fontSize: 14}} 
+                  onClick={() => loginWithRedirect()}
+                >
+                  Login
+                </button>
+              )
             )}
           </div>
         </div>
@@ -162,7 +202,31 @@ function App() {
               <ShotRangeAnalyzer />
             </ProtectedRoute>
           } />
-          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/signup" element={
+            <ProtectedRoute>
+              <SignupPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/feed-analyzer" element={
+            <ProtectedRoute>
+              <FeedAnalyzer />
+            </ProtectedRoute>
+          } />
+          <Route path="/leaderboard" element={
+            <ProtectedRoute>
+              <WGPAnalyticsDashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/sheets" element={
+            <ProtectedRoute>
+              <SheetIntegrationDashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/live-sync" element={
+            <ProtectedRoute>
+              <GoogleSheetsLiveSync />
+            </ProtectedRoute>
+          } />
           <Route path="/tutorial" element={<TutorialSystem onComplete={() => navigate('/game')} onExit={() => navigate('/')} />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
@@ -173,8 +237,12 @@ function App() {
 
 // Main App wrapper with providers
 const AppWithProviders = () => {
+  // Choose between mock auth and real Auth0 based on environment
+  const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === 'true';
+  const AuthProviderComponent = useMockAuth ? MockAuthProvider : AuthProvider;
+  
   return (
-    <AuthProvider>
+    <AuthProviderComponent>
       <GameProvider>
         <TutorialProvider>
           <ThemeProvider>
@@ -182,7 +250,7 @@ const AppWithProviders = () => {
           </ThemeProvider>
         </TutorialProvider>
       </GameProvider>
-    </AuthProvider>
+    </AuthProviderComponent>
   );
 };
 
