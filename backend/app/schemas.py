@@ -503,4 +503,40 @@ class WeeklySignupView(BaseModel):
 class PlayerWithAvailability(BaseModel):
     profile: PlayerProfileResponse
     availability: List[PlayerAvailabilityResponse]
-    email_preferences: Optional[EmailPreferencesResponse] = None 
+    email_preferences: Optional[EmailPreferencesResponse] = None
+
+# Daily Message schemas
+class DailyMessageCreate(BaseModel):
+    date: str  # YYYY-MM-DD format
+    message: str
+    player_profile_id: Optional[int] = None
+    player_name: Optional[str] = None
+
+class DailyMessageUpdate(BaseModel):
+    message: Optional[str] = None
+
+class DailyMessageResponse(BaseModel):
+    id: int
+    date: str
+    player_profile_id: int
+    player_name: str
+    message: str
+    message_time: str
+    is_active: int
+    created_at: str
+    updated_at: str
+    
+    class Config:
+        from_attributes = True
+
+# Extended daily summary to include messages
+class DailySignupWithMessages(BaseModel):
+    date: str
+    signups: List[DailySignupResponse]
+    total_count: int
+    messages: List[DailyMessageResponse]
+    message_count: int
+
+class WeeklySignupWithMessagesView(BaseModel):
+    week_start: str  # YYYY-MM-DD for the Monday
+    daily_summaries: List[DailySignupWithMessages] 
