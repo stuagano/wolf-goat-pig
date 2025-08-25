@@ -1,20 +1,41 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../theme/Provider';
+import { useAuth0 } from '@auth0/auth0-react';
+import { LoginButton } from '../components/auth';
 
 function HomePage() {
   const navigate = useNavigate();
   const theme = useTheme();
+  const { isAuthenticated, user } = useAuth0();
   
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", padding: 20 }}>
       <div style={theme.cardStyle}>
         <h2 style={{ color: theme.colors.primary, textAlign: "center", marginBottom: 30 }}>
-          Welcome to Wolf Goat Pig
+          Welcome to Wolf Goat Pig{isAuthenticated ? `, ${user?.name || 'Player'}!` : ''}
         </h2>
         <p style={{ fontSize: 18, textAlign: "center", marginBottom: 30, color: theme.colors.textSecondary }}>
           "We accept bad golf, but not bad betting"
         </p>
+        
+        {!isAuthenticated && (
+          <div style={{ 
+            textAlign: 'center', 
+            marginBottom: 30, 
+            padding: '20px', 
+            background: theme.colors.secondary,
+            borderRadius: '8px'
+          }}>
+            <h3 style={{ color: theme.colors.primary, marginBottom: '16px' }}>
+              🔐 Sign In to Play
+            </h3>
+            <p style={{ marginBottom: '16px', color: theme.colors.textSecondary }}>
+              Please sign in to access games, simulations, and analytics features.
+            </p>
+            <LoginButton style={{ fontSize: '16px', padding: '12px 24px' }} />
+          </div>
+        )}
         
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20, marginBottom: 30 }}>
           <div style={theme.cardStyle}>
