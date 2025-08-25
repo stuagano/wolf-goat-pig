@@ -175,4 +175,16 @@ class EmailPreferences(Base):
     email_frequency = Column(String, default="daily")  # daily, weekly, monthly, never
     preferred_notification_time = Column(String, default="8:00 AM")  # When to send dailies
     created_at = Column(String)
+    updated_at = Column(String)
+
+class DailyMessage(Base):
+    __tablename__ = "daily_messages"
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(String, index=True)  # YYYY-MM-DD format
+    player_profile_id = Column(Integer, index=True)  # References PlayerProfile.id
+    player_name = Column(String)  # Denormalized for easy querying
+    message = Column(String)  # The actual message content
+    message_time = Column(String)  # ISO timestamp when message was posted
+    is_active = Column(Integer, default=1)  # 1=active, 0=deleted/hidden
+    created_at = Column(String)
     updated_at = Column(String) 

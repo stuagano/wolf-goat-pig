@@ -79,14 +79,14 @@ const SignupPage = () => {
           fontSize: '28px',
           fontWeight: '700'
         }}>
-          🏌️ Golf Sign-up & Preferences
+          🏌️ Golf Sign-up & Daily Messages
         </h1>
         <p style={{ 
           color: '#6c757d', 
           fontSize: '16px',
           margin: 0
         }}>
-          Manage your daily golf sign-ups, availability, and email preferences
+          Manage your daily golf sign-ups, post messages, and set preferences
         </p>
         {user && (
           <div style={{
@@ -143,10 +143,11 @@ const SignupPage = () => {
           <div>
             <div style={{ marginBottom: '20px' }}>
               <h2 style={{ color: '#333', marginBottom: '10px' }}>
-                📅 Daily Golf Sign-ups
+                📅 Daily Golf Sign-ups & Message Board
               </h2>
               <p style={{ color: '#6c757d', fontSize: '14px' }}>
-                View and manage sign-ups for the next 7 days. Click on any day to sign up or cancel your spot.
+                View and manage sign-ups for the next 7 days, plus post messages on the daily message board. 
+                Click to sign up for golf or share what's happening!
               </p>
             </div>
             <SignupCalendar 
@@ -206,6 +207,10 @@ const SignupPage = () => {
           <div>
             <strong>Daily Sign-ups:</strong> View who's playing each day and add yourself to the list. 
             Perfect for organizing regular games.
+          </div>
+          <div>
+            <strong>Message Board:</strong> Post messages on any day to share special events, course conditions, 
+            or just chat with other players.
           </div>
           <div>
             <strong>Availability:</strong> Set your preferred times so others know when you're typically free to play.

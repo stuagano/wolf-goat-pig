@@ -3396,6 +3396,167 @@ def cancel_signup(signup_id: int):
     finally:
         db.close()
 
+# Daily Message Board Endpoints
+
+@app.get("/messages/daily", response_model=List[schemas.DailyMessageResponse])
+def get_daily_messages(date: str = Query(description="YYYY-MM-DD format")):
+    """Get all messages for a specific date."""
+    try:
+        db = database.SessionLocal()
+        
+        messages = db.query(models.DailyMessage).filter(
+            models.DailyMessage.date == date,
+            models.DailyMessage.is_active == 1
+        ).order_by(models.DailyMessage.message_time).all()
+        
+        return [schemas.DailyMessageResponse.from_orm(message) for message in messages]
+        
+    except Exception as e:
+        logger.error(f"Error getting messages for date {date}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get messages: {str(e)}")
+    finally:
+        db.close()
+
+@app.get("/signups/weekly-with-messages", response_model=schemas.WeeklySignupWithMessagesView)
+def get_weekly_signups_with_messages(week_start: str = Query(description="YYYY-MM-DD format for Monday of the week")):
+    """Get sign-ups and messages for a rolling 7-day period starting from specified Monday."""
+    try:
+        db = database.SessionLocal()
+        from datetime import datetime, timedelta
+        
+        # Parse the week start date
+        start_date = datetime.strptime(week_start, '%Y-%m-%d')
+        
+        # Get all 7 days
+        daily_summaries = []
+        for i in range(7):
+            current_date = start_date + timedelta(days=i)
+            date_str = current_date.strftime('%Y-%m-%d')
+            
+            # Get signups
+            signups = db.query(models.DailySignup).filter(
+                models.DailySignup.date == date_str,
+                models.DailySignup.status != "cancelled"
+            ).all()
+            
+            # Get messages
+            messages = db.query(models.DailyMessage).filter(
+                models.DailyMessage.date == date_str,
+                models.DailyMessage.is_active == 1
+            ).order_by(models.DailyMessage.message_time).all()
+            
+            daily_summaries.append(schemas.DailySignupWithMessages(
+                date=date_str,
+                signups=[schemas.DailySignupResponse.from_orm(signup) for signup in signups],
+                total_count=len(signups),
+                messages=[schemas.DailyMessageResponse.from_orm(message) for message in messages],
+                message_count=len(messages)
+            ))
+        
+        return schemas.WeeklySignupWithMessagesView(
+            week_start=week_start,
+            daily_summaries=daily_summaries
+        )
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid date format: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error getting weekly data with messages: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get weekly data: {str(e)}")
+    finally:
+        db.close()
+
+@app.post("/messages", response_model=schemas.DailyMessageResponse)
+def create_message(message: schemas.DailyMessageCreate):
+    """Create a new daily message."""
+    try:
+        db = database.SessionLocal()
+        from datetime import datetime
+        
+        # Create new message
+        db_message = models.DailyMessage(
+            date=message.date,
+            player_profile_id=message.player_profile_id or 1,  # Default player if not provided
+            player_name=message.player_name or "Anonymous",
+            message=message.message,
+            message_time=datetime.now().isoformat(),
+            is_active=1,
+            created_at=datetime.now().isoformat(),
+            updated_at=datetime.now().isoformat()
+        )
+        
+        db.add(db_message)
+        db.commit()
+        db.refresh(db_message)
+        
+        logger.info(f"Created message {db_message.id} for date {message.date}")
+        return schemas.DailyMessageResponse.from_orm(db_message)
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error creating message: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create message: {str(e)}")
+    finally:
+        db.close()
+
+@app.put("/messages/{message_id}", response_model=schemas.DailyMessageResponse)
+def update_message(message_id: int, message_update: schemas.DailyMessageUpdate):
+    """Update an existing message."""
+    try:
+        db = database.SessionLocal()
+        from datetime import datetime
+        
+        db_message = db.query(models.DailyMessage).filter(models.DailyMessage.id == message_id).first()
+        if not db_message:
+            raise HTTPException(status_code=404, detail="Message not found")
+        
+        if message_update.message is not None:
+            db_message.message = message_update.message
+            db_message.updated_at = datetime.now().isoformat()
+        
+        db.commit()
+        db.refresh(db_message)
+        
+        logger.info(f"Updated message {message_id}")
+        return schemas.DailyMessageResponse.from_orm(db_message)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error updating message {message_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update message: {str(e)}")
+    finally:
+        db.close()
+
+@app.delete("/messages/{message_id}")
+def delete_message(message_id: int):
+    """Delete (deactivate) a message."""
+    try:
+        db = database.SessionLocal()
+        from datetime import datetime
+        
+        db_message = db.query(models.DailyMessage).filter(models.DailyMessage.id == message_id).first()
+        if not db_message:
+            raise HTTPException(status_code=404, detail="Message not found")
+        
+        db_message.is_active = 0
+        db_message.updated_at = datetime.now().isoformat()
+        
+        db.commit()
+        
+        logger.info(f"Deleted message {message_id}")
+        return {"message": "Message deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error deleting message {message_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete message: {str(e)}")
+    finally:
+        db.close()
+
 # Player Availability Endpoints
 
 @app.get("/players/{player_id}/availability", response_model=List[schemas.PlayerAvailabilityResponse])

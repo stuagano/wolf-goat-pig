@@ -10,6 +10,7 @@ const SignupCalendar = ({ onSignupChange }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
+  const [messageInputs, setMessageInputs] = useState({}); // Store message text for each date
 
   // Get current Monday as default week start
   const getCurrentMonday = () => {
@@ -33,14 +34,14 @@ const SignupCalendar = ({ onSignupChange }) => {
   // Day names for header
   const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-  // Load weekly signup data
+  // Load weekly signup data with messages
   const loadWeeklyData = async (weekStart) => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/signups/weekly?week_start=${weekStart}`);
+      const response = await fetch(`${API_URL}/signups/weekly-with-messages?week_start=${weekStart}`);
       
       if (!response.ok) {
-        throw new Error(`Failed to load signups: ${response.status}`);
+        throw new Error(`Failed to load data: ${response.status}`);
       }
       
       const data = await response.json();
@@ -53,7 +54,9 @@ const SignupCalendar = ({ onSignupChange }) => {
       setWeekData({ daily_summaries: Array(7).fill(null).map((_, i) => ({
         date: '',
         signups: [],
-        total_count: 0
+        total_count: 0,
+        messages: [],
+        message_count: 0
       }))});
     } finally {
       setLoading(false);
@@ -157,6 +160,75 @@ const SignupCalendar = ({ onSignupChange }) => {
     );
   };
 
+  // Handle posting a new message
+  const handlePostMessage = async (date, message) => {
+    if (!isAuthenticated || !user) {
+      setError('Please log in to post messages');
+      return;
+    }
+
+    if (!message.trim()) {
+      setError('Message cannot be empty');
+      return;
+    }
+
+    try {
+      const playerName = user.name || user.email;
+      
+      const messageData = {
+        date: date,
+        message: message.trim(),
+        player_profile_id: 1, // This would come from authenticated user
+        player_name: playerName
+      };
+
+      const response = await fetch(`${API_URL}/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(messageData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to post message');
+      }
+
+      // Reload the week data to show the new message
+      loadWeeklyData(currentWeekStart);
+      
+    } catch (err) {
+      console.error('Message post error:', err);
+      setError(err.message);
+    }
+  };
+
+  // Handle deleting a message (only own messages)
+  const handleDeleteMessage = async (messageId) => {
+    if (!isAuthenticated || !user) {
+      setError('Please log in to delete messages');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/messages/${messageId}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete message');
+      }
+
+      // Reload the week data
+      loadWeeklyData(currentWeekStart);
+      
+    } catch (err) {
+      console.error('Delete message error:', err);
+      setError(err.message);
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ 
@@ -247,10 +319,11 @@ const SignupCalendar = ({ onSignupChange }) => {
           </div>
         ))}
 
-        {/* Day cards */}
+        {/* Day cards with message boards */}
         {weekData.daily_summaries.map((dailySummary, index) => {
           const userSignup = isUserSignedUp(dailySummary);
           const canSignUp = isAuthenticated && !userSignup;
+          const currentMessageText = messageInputs[dailySummary.date] || '';
           
           return (
             <div key={index} style={{
@@ -258,58 +331,189 @@ const SignupCalendar = ({ onSignupChange }) => {
               borderRadius: '8px',
               padding: '10px',
               backgroundColor: userSignup ? '#d4edda' : '#ffffff',
-              minHeight: '120px',
-              position: 'relative'
+              minHeight: '300px',
+              display: 'flex',
+              flexDirection: 'column'
             }}>
               {/* Date */}
               <div style={{ 
                 fontSize: '14px', 
                 fontWeight: 'bold', 
                 marginBottom: '8px',
-                color: '#495057'
+                color: '#495057',
+                textAlign: 'center',
+                borderBottom: '1px solid #dee2e6',
+                paddingBottom: '8px'
               }}>
                 {formatDateDisplay(dailySummary.date)}
               </div>
 
-              {/* Signup count */}
-              <div style={{ 
-                fontSize: '12px', 
-                color: '#6c757d', 
-                marginBottom: '8px' 
-              }}>
-                {dailySummary.total_count} signed up
+              {/* Signups Section */}
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ 
+                  fontSize: '12px', 
+                  color: '#6c757d', 
+                  marginBottom: '4px',
+                  fontWeight: 'bold'
+                }}>
+                  ⛳ Golf ({dailySummary.total_count})
+                </div>
+                <div style={{ fontSize: '10px', maxHeight: '60px', overflowY: 'auto' }}>
+                  {dailySummary.signups.slice(0, 2).map(signup => (
+                    <div key={signup.id} style={{ 
+                      color: '#495057',
+                      marginBottom: '1px'
+                    }}>
+                      • {signup.player_name.split(' ')[0]}
+                      {signup.preferred_start_time && (
+                        <span style={{ color: '#6c757d' }}>
+                          {' '}({signup.preferred_start_time})
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                  {dailySummary.signups.length > 2 && (
+                    <div style={{ color: '#6c757d', fontSize: '9px' }}>
+                      +{dailySummary.signups.length - 2} more
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Signups list (first few names) */}
-              <div style={{ fontSize: '11px', marginBottom: '10px' }}>
-                {dailySummary.signups.slice(0, 3).map(signup => (
-                  <div key={signup.id} style={{ 
-                    color: '#495057',
-                    marginBottom: '2px',
-                    truncate: true
-                  }}>
-                    • {signup.player_name.split(' ')[0]} {/* First name only */}
-                    {signup.preferred_start_time && (
-                      <span style={{ color: '#6c757d' }}>
-                        {' '}({signup.preferred_start_time})
-                      </span>
-                    )}
+              {/* Messages Section */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <div style={{ 
+                  fontSize: '12px', 
+                  color: '#6c757d', 
+                  marginBottom: '4px',
+                  fontWeight: 'bold'
+                }}>
+                  💬 Messages ({dailySummary.message_count})
+                </div>
+                
+                {/* Messages list */}
+                <div style={{ 
+                  flex: 1, 
+                  overflowY: 'auto', 
+                  maxHeight: '120px',
+                  marginBottom: '8px',
+                  fontSize: '10px'
+                }}>
+                  {dailySummary.messages && dailySummary.messages.length > 0 ? (
+                    dailySummary.messages.map(message => (
+                      <div key={message.id} style={{
+                        backgroundColor: '#f8f9fa',
+                        padding: '6px',
+                        marginBottom: '4px',
+                        borderRadius: '4px',
+                        border: '1px solid #e9ecef'
+                      }}>
+                        <div style={{ 
+                          fontWeight: 'bold',
+                          color: '#495057',
+                          marginBottom: '2px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}>
+                          <span>{message.player_name.split(' ')[0]}</span>
+                          {user && message.player_name === (user.name || user.email) && (
+                            <button
+                              onClick={() => handleDeleteMessage(message.id)}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: '#dc3545',
+                                cursor: 'pointer',
+                                fontSize: '10px',
+                                padding: '0'
+                              }}
+                              title="Delete message"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+                        <div style={{ color: '#6c757d' }}>
+                          {message.message}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ 
+                      color: '#6c757d', 
+                      fontStyle: 'italic',
+                      textAlign: 'center',
+                      padding: '10px'
+                    }}>
+                      No messages yet
+                    </div>
+                  )}
+                </div>
+
+                {/* Message input */}
+                {isAuthenticated ? (
+                  <div style={{ marginBottom: '8px' }}>
+                    <textarea
+                      value={currentMessageText}
+                      onChange={(e) => setMessageInputs(prev => ({
+                        ...prev,
+                        [dailySummary.date]: e.target.value
+                      }))}
+                      placeholder="Post a message..."
+                      style={{
+                        width: '100%',
+                        minHeight: '40px',
+                        padding: '4px',
+                        fontSize: '10px',
+                        border: '1px solid #dee2e6',
+                        borderRadius: '4px',
+                        resize: 'none'
+                      }}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          if (currentMessageText.trim()) {
+                            handlePostMessage(dailySummary.date, currentMessageText);
+                            setMessageInputs(prev => ({
+                              ...prev,
+                              [dailySummary.date]: ''
+                            }));
+                          }
+                        }
+                      }}
+                    />
+                    <button
+                      onClick={() => {
+                        if (currentMessageText.trim()) {
+                          handlePostMessage(dailySummary.date, currentMessageText);
+                          setMessageInputs(prev => ({
+                            ...prev,
+                            [dailySummary.date]: ''
+                          }));
+                        }
+                      }}
+                      style={{
+                        marginTop: '2px',
+                        width: '100%',
+                        padding: '4px',
+                        background: '#007bff',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontSize: '10px',
+                        cursor: 'pointer'
+                      }}
+                      disabled={!currentMessageText.trim()}
+                    >
+                      Post Message
+                    </button>
                   </div>
-                ))}
-                {dailySummary.signups.length > 3 && (
-                  <div style={{ color: '#6c757d', fontSize: '10px' }}>
-                    +{dailySummary.signups.length - 3} more
-                  </div>
-                )}
+                ) : null}
               </div>
 
-              {/* Action button */}
-              <div style={{ 
-                position: 'absolute', 
-                bottom: '8px', 
-                left: '8px', 
-                right: '8px' 
-              }}>
+              {/* Signup Action button */}
+              <div>
                 {userSignup ? (
                   <button
                     onClick={() => handleCancelSignup(userSignup.id)}
@@ -324,7 +528,7 @@ const SignupCalendar = ({ onSignupChange }) => {
                       cursor: 'pointer'
                     }}
                   >
-                    Cancel Signup
+                    Cancel Golf Signup
                   </button>
                 ) : canSignUp ? (
                   <button
@@ -340,7 +544,7 @@ const SignupCalendar = ({ onSignupChange }) => {
                       cursor: 'pointer'
                     }}
                   >
-                    Sign Up
+                    Sign Up for Golf
                   </button>
                 ) : !isAuthenticated ? (
                   <div style={{
@@ -349,7 +553,7 @@ const SignupCalendar = ({ onSignupChange }) => {
                     color: '#6c757d',
                     fontStyle: 'italic'
                   }}>
-                    Login to sign up
+                    Login to sign up or post messages
                   </div>
                 ) : null}
               </div>
