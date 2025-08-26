@@ -6,15 +6,14 @@ const API_URL = process.env.REACT_APP_API_URL || "";
 const DailySignupView = ({ selectedDate, onBack }) => {
   const { user, isAuthenticated } = useAuth0();
   const [signupData, setSignupData] = useState({
-    tee_times: [],
     players: [],
-    notes: ''
+    messages: [],
+    tee_times: []
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [availablePlayers, setAvailablePlayers] = useState([]);
-  const [teeTimes, setTeeTimes] = useState([]);
-  const [selectedPlayers, setSelectedPlayers] = useState({});
+  const [newMessage, setNewMessage] = useState('');
+  const [teeTimesText, setTeeTimesText] = useState('');
 
   // Format date for display
   const formatDateDisplay = (dateStr) => {
@@ -32,138 +31,118 @@ const DailySignupView = ({ selectedDate, onBack }) => {
   const loadDailyData = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/signups/daily/${selectedDate}`);
+      // Try to fetch from the weekly endpoint for this specific date
+      const response = await fetch(`${API_URL}/signups/weekly-with-messages?week_start=${selectedDate}`);
       
-      if (!response.ok) {
-        throw new Error(`Failed to load daily data: ${response.status}`);
+      if (response.ok) {
+        const weekData = await response.json();
+        // Find the specific day's data
+        const dayData = weekData.daily_summaries?.find(day => day.date === selectedDate);
+        
+        if (dayData) {
+          setSignupData({
+            players: dayData.signups || [],
+            messages: dayData.messages || [],
+            tee_times: []
+          });
+        } else {
+          setSignupData({ players: [], messages: [], tee_times: [] });
+        }
+      } else {
+        // Fallback to empty data
+        setSignupData({ players: [], messages: [], tee_times: [] });
       }
       
-      const data = await response.json();
-      setSignupData(data);
       setError(null);
     } catch (err) {
       console.error('Error loading daily data:', err);
-      setError(err.message);
-      // Set default data structure on error
-      setSignupData({
-        tee_times: [],
-        players: [],
-        notes: ''
-      });
+      setError('Unable to load signup data');
+      setSignupData({ players: [], messages: [], tee_times: [] });
     } finally {
       setLoading(false);
     }
-  };
-
-  // Load available players for selection
-  const loadAvailablePlayers = async () => {
-    try {
-      const response = await fetch(`${API_URL}/players`);
-      if (response.ok) {
-        const players = await response.json();
-        setAvailablePlayers(players);
-      }
-    } catch (err) {
-      console.error('Error loading players:', err);
-      // Use mock players if API fails
-      setAvailablePlayers([
-        { id: 1, name: 'Stuart Gano' },
-        { id: 2, name: 'John Smith' },
-        { id: 3, name: 'Mike Johnson' },
-        { id: 4, name: 'Dave Wilson' },
-        { id: 5, name: 'Tom Brown' },
-        { id: 6, name: 'Chris Davis' },
-        { id: 7, name: 'Paul Miller' },
-        { id: 8, name: 'Steve Clark' },
-        { id: 9, name: 'Mark Taylor' },
-        { id: 10, name: 'Jim Anderson' }
-      ]);
-    }
-  };
-
-  // Generate default tee times
-  const generateTeeTimes = () => {
-    const times = [];
-    const startHour = 7; // 7 AM
-    const endHour = 17;  // 5 PM
-    
-    for (let hour = startHour; hour <= endHour; hour++) {
-      for (let minute of [0, 15, 30, 45]) {
-        const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-        times.push(timeString);
-      }
-    }
-    return times;
   };
 
   // Initialize component
   useEffect(() => {
     if (selectedDate) {
       loadDailyData();
-      loadAvailablePlayers();
-      setTeeTimes(generateTeeTimes());
     }
   }, [selectedDate]);
 
-  // Handle player selection for a specific slot
-  const handlePlayerSelect = (slotIndex, playerId) => {
-    setSelectedPlayers(prev => ({
-      ...prev,
-      [slotIndex]: playerId
-    }));
-  };
-
-  // Handle tee time change
-  const handleTeeTimeChange = (newTeeTime) => {
-    setSignupData(prev => ({
-      ...prev,
-      tee_time: newTeeTime
-    }));
-  };
-
-  // Handle notes update
-  const handleNotesUpdate = (notes) => {
-    setSignupData(prev => ({
-      ...prev,
-      notes: notes
-    }));
-  };
-
-  // Save signup changes
-  const handleSave = async () => {
-    if (!isAuthenticated) {
-      setError('Please log in to save signup');
+  // Handle signing up current user
+  const handleSignup = async () => {
+    if (!isAuthenticated || !user) {
+      setError('Please log in to sign up');
       return;
     }
 
     try {
-      const saveData = {
+      const playerName = user.name || user.email;
+      
+      const signupData = {
         date: selectedDate,
-        players: Object.values(selectedPlayers).filter(Boolean),
-        tee_time: signupData.tee_time,
-        notes: signupData.notes
+        player_profile_id: 1,
+        player_name: playerName,
+        preferred_start_time: null,
+        notes: null
       };
 
-      const response = await fetch(`${API_URL}/signups/daily/${selectedDate}`, {
+      const response = await fetch(`${API_URL}/signups`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(saveData)
+        body: JSON.stringify(signupData)
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to save signup');
+      if (response.ok) {
+        // Reload the data
+        loadDailyData();
+        setError(null);
+      } else {
+        throw new Error('Failed to sign up');
       }
-
-      // Show success message or reload data
-      alert('Signup saved successfully!');
-      loadDailyData();
-      
     } catch (err) {
-      console.error('Save error:', err);
-      setError(err.message);
+      console.error('Signup error:', err);
+      setError('Failed to sign up. Please try again.');
+    }
+  };
+
+  // Handle posting a message
+  const handlePostMessage = async () => {
+    if (!isAuthenticated || !user || !newMessage.trim()) {
+      return;
+    }
+
+    try {
+      const playerName = user.name || user.email;
+      
+      const messageData = {
+        date: selectedDate,
+        message: newMessage.trim(),
+        player_profile_id: 1,
+        player_name: playerName
+      };
+
+      const response = await fetch(`${API_URL}/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(messageData)
+      });
+
+      if (response.ok) {
+        setNewMessage('');
+        loadDailyData();
+        setError(null);
+      } else {
+        throw new Error('Failed to post message');
+      }
+    } catch (err) {
+      console.error('Message error:', err);
+      setError('Failed to post message');
     }
   };
 
@@ -290,7 +269,14 @@ const DailySignupView = ({ selectedDate, onBack }) => {
             return (
               <button
                 key={dateStr}
-                onClick={() => window.location.hash = `#daily/${dateStr}`}
+                onClick={() => {
+                  // Update selected date - parent component should handle this
+                  if (onBack) {
+                    // For now, just show the date change visually
+                    window.location.hash = `#daily/${dateStr}`;
+                    window.location.reload();
+                  }
+                }}
                 style={{
                   padding: '8px 12px',
                   background: isSelected ? '#dc3545' : '#fff',
@@ -364,16 +350,16 @@ const DailySignupView = ({ selectedDate, onBack }) => {
         </div>
       </div>
 
-      {/* Main Content Grid */}
+      {/* Main Content Grid - Three Equal Columns */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: '1fr 2fr',
+        gridTemplateColumns: '1fr 1fr 1fr',
         gap: '20px',
         border: '2px solid #dee2e6',
         borderRadius: '8px',
         overflow: 'hidden'
       }}>
-        {/* Left Column - Tee Times */}
+        {/* Tee Times Column */}
         <div style={{
           background: '#fff',
           borderRight: '1px solid #dee2e6'
@@ -389,19 +375,18 @@ const DailySignupView = ({ selectedDate, onBack }) => {
             Tee Times
           </div>
           <div style={{
-            background: '#f8f9fa',
-            padding: '15px',
-            textAlign: 'center',
-            borderBottom: '1px solid #dee2e6'
+            padding: '15px'
           }}>
             <div style={{ marginBottom: '10px', fontSize: '14px', color: '#495057' }}>
               Add Tee Times
             </div>
             <textarea
               placeholder="Enter tee times, one per line (e.g. 8:00 AM)"
+              value={teeTimesText}
+              onChange={(e) => setTeeTimesText(e.target.value)}
               style={{
                 width: '100%',
-                height: '100px',
+                height: '200px',
                 padding: '8px',
                 border: '1px solid #dee2e6',
                 borderRadius: '4px',
@@ -412,131 +397,215 @@ const DailySignupView = ({ selectedDate, onBack }) => {
           </div>
         </div>
 
-        {/* Right Column - Players and Notes */}
-        <div style={{ background: '#fff' }}>
+        {/* Players Who Signed Up Column */}
+        <div style={{ 
+          background: '#fff',
+          borderRight: '1px solid #dee2e6'
+        }}>
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            height: '100%'
+            background: '#495057',
+            color: 'white',
+            padding: '12px',
+            textAlign: 'center',
+            fontWeight: 'bold',
+            fontSize: '16px'
           }}>
-            {/* Players Column */}
-            <div style={{ borderRight: '1px solid #dee2e6' }}>
-              <div style={{
-                background: '#495057',
-                color: 'white',
-                padding: '12px',
-                textAlign: 'center',
-                fontWeight: 'bold',
-                fontSize: '16px'
-              }}>
-                Players
-              </div>
-              <div style={{ padding: '15px' }}>
-                {Array.from({length: 14}, (_, i) => (
-                  <div key={i} style={{
+            Players Signed Up ({signupData.players.length})
+          </div>
+          <div style={{ padding: '15px' }}>
+            {signupData.players && signupData.players.length > 0 ? (
+              <div>
+                {signupData.players.map((player, index) => (
+                  <div key={index} style={{
                     display: 'flex',
                     alignItems: 'center',
+                    justifyContent: 'space-between',
                     marginBottom: '8px',
-                    fontSize: '14px'
+                    padding: '8px',
+                    background: '#f8f9fa',
+                    borderRadius: '4px',
+                    border: '1px solid #dee2e6'
                   }}>
-                    <div style={{
-                      width: '20px',
-                      textAlign: 'center',
-                      marginRight: '10px',
-                      fontWeight: 'bold'
-                    }}>
-                      {i + 1}
+                    <div style={{ fontSize: '14px', fontWeight: '500' }}>
+                      {index + 1}. {player.player_name}
                     </div>
-                    <select
-                      value={selectedPlayers[i] || ''}
-                      onChange={(e) => handlePlayerSelect(i, e.target.value)}
-                      style={{
-                        flex: 1,
-                        padding: '4px 8px',
-                        border: '1px solid #dee2e6',
-                        borderRadius: '4px',
-                        fontSize: '14px'
-                      }}
-                    >
-                      <option value="">Select Player...</option>
-                      {availablePlayers.map(player => (
-                        <option key={player.id} value={player.id}>
-                          {player.name}
-                        </option>
-                      ))}
-                    </select>
+                    {player.preferred_start_time && (
+                      <div style={{ 
+                        fontSize: '12px', 
+                        color: '#6c757d',
+                        background: '#e9ecef',
+                        padding: '2px 6px',
+                        borderRadius: '3px'
+                      }}>
+                        {player.preferred_start_time}
+                      </div>
+                    )}
                   </div>
                 ))}
+                
+                {/* Add yourself button */}
+                {isAuthenticated && !signupData.players.some(p => 
+                  p.player_name === (user?.name || user?.email)
+                ) && (
+                  <button
+                    onClick={handleSignup}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      background: '#28a745',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      marginTop: '10px'
+                    }}
+                  >
+                    + Add Yourself
+                  </button>
+                )}
               </div>
+            ) : (
+              <div style={{
+                textAlign: 'center',
+                color: '#6c757d',
+                fontSize: '14px',
+                fontStyle: 'italic',
+                padding: '20px'
+              }}>
+                No one signed up yet
+                {isAuthenticated && (
+                  <button
+                    onClick={handleSignup}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      padding: '8px 12px',
+                      background: '#28a745',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      marginTop: '15px'
+                    }}
+                  >
+                    Be the first to sign up!
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Message Board Column */}
+        <div>
+          <div style={{
+            background: '#28a745',
+            color: 'white',
+            padding: '12px',
+            textAlign: 'center',
+            fontWeight: 'bold',
+            fontSize: '16px'
+          }}>
+            Message Board ({signupData.messages.length})
+          </div>
+          <div style={{ 
+            padding: '15px',
+            height: '280px',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            {/* Messages Display */}
+            <div style={{
+              flex: 1,
+              overflowY: 'auto',
+              marginBottom: '15px',
+              maxHeight: '180px'
+            }}>
+              {signupData.messages && signupData.messages.length > 0 ? (
+                signupData.messages.map((message, index) => (
+                  <div key={message.id || index} style={{
+                    marginBottom: '10px',
+                    padding: '8px',
+                    background: '#f8f9fa',
+                    borderRadius: '4px',
+                    border: '1px solid #dee2e6'
+                  }}>
+                    <div style={{
+                      fontWeight: 'bold',
+                      fontSize: '12px',
+                      color: '#495057',
+                      marginBottom: '4px'
+                    }}>
+                      {message.player_name}
+                    </div>
+                    <div style={{ fontSize: '14px', color: '#333' }}>
+                      {message.message}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={{
+                  textAlign: 'center',
+                  color: '#6c757d',
+                  fontSize: '14px',
+                  fontStyle: 'italic',
+                  padding: '20px'
+                }}>
+                  No messages yet
+                </div>
+              )}
             </div>
 
-            {/* Notes Column */}
-            <div>
-              <div style={{
-                background: '#28a745',
-                color: 'white',
-                padding: '12px',
-                textAlign: 'center',
-                fontWeight: 'bold',
-                fontSize: '16px'
-              }}>
-                Note
-              </div>
-              <div style={{ 
-                padding: '15px',
-                height: 'calc(100% - 48px)'
-              }}>
-                <div style={{ 
-                  fontSize: '12px', 
-                  color: '#6c757d', 
-                  marginBottom: '8px' 
-                }}>
-                  (after adding note click anywhere to update)
-                </div>
+            {/* Message Input */}
+            {isAuthenticated ? (
+              <div>
                 <textarea
-                  value={signupData.notes || ''}
-                  onChange={(e) => handleNotesUpdate(e.target.value)}
-                  placeholder="Add your notes here..."
+                  placeholder="Post a message..."
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
                   style={{
                     width: '100%',
-                    height: 'calc(100% - 30px)',
+                    height: '60px',
                     padding: '8px',
                     border: '1px solid #dee2e6',
                     borderRadius: '4px',
                     resize: 'none',
                     fontSize: '14px',
-                    fontFamily: 'inherit'
+                    marginBottom: '8px'
                   }}
                 />
+                <button
+                  onClick={handlePostMessage}
+                  disabled={!newMessage.trim()}
+                  style={{
+                    width: '100%',
+                    padding: '6px 12px',
+                    background: newMessage.trim() ? '#007bff' : '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    cursor: newMessage.trim() ? 'pointer' : 'not-allowed'
+                  }}
+                >
+                  Post Message
+                </button>
               </div>
-            </div>
+            ) : (
+              <div style={{
+                textAlign: 'center',
+                fontSize: '12px',
+                color: '#6c757d',
+                fontStyle: 'italic'
+              }}>
+                Login to post messages
+              </div>
+            )}
           </div>
         </div>
       </div>
-
-      {/* Save Button */}
-      {isAuthenticated && (
-        <div style={{ 
-          textAlign: 'center',
-          marginTop: '20px'
-        }}>
-          <button
-            onClick={handleSave}
-            style={{
-              padding: '12px 30px',
-              background: '#007bff',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '16px',
-              fontWeight: 'bold',
-              cursor: 'pointer'
-            }}
-          >
-            Save Signup Information
-          </button>
-        </div>
-      )}
 
       {/* Not Authenticated Message */}
       {!isAuthenticated && (
