@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card } from './ui';
 
 const GoogleSheetsLiveSync = () => {
@@ -9,6 +9,55 @@ const GoogleSheetsLiveSync = () => {
   const [autoSync, setAutoSync] = useState(false);
   const [syncData, setSyncData] = useState([]);
   const [error, setError] = useState(null);
+
+  const performLiveSync = useCallback(async () => {
+    if (!sheetUrl) return;
+    
+    try {
+      setSyncStatus('connecting');
+      setError(null);
+      
+      const urlInfo = parseSheetUrl(sheetUrl);
+      if (!urlInfo) {
+        throw new Error('Invalid Google Sheets URL');
+      }
+      
+      const csvUrl = buildCsvUrl(urlInfo.sheetId, urlInfo.gid);
+      
+      setSyncStatus('syncing');
+      
+      // Use the specialized WGP sync endpoint directly
+      const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+      const response = await fetch(`${API_URL}/sheet-integration/sync-wgp-sheet`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ csv_url: csvUrl })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Sync failed: ${response.statusText}`);
+      }
+      
+      await response.json(); // Sync response, not used for display
+      
+      // For display, fetch the sheet data to show preview
+      const sheetResponse = await fetchSheetData(csvUrl);
+      setSyncData(sheetResponse.data || []);
+      
+      setLastSync(new Date());
+      setSyncStatus('success');
+      
+      // Show success briefly, then return to idle
+      setTimeout(() => setSyncStatus('idle'), 2000);
+      
+    } catch (err) {
+      setError(err.message);
+      setSyncStatus('error');
+      setTimeout(() => setSyncStatus('idle'), 3000);
+    }
+  }, [sheetUrl]);
 
   // Auto-sync effect
   useEffect(() => {
@@ -72,54 +121,6 @@ const GoogleSheetsLiveSync = () => {
 
   // Removed unused parseCsvData function
 
-  const performLiveSync = async () => {
-    if (!sheetUrl) return;
-    
-    try {
-      setSyncStatus('connecting');
-      setError(null);
-      
-      const urlInfo = parseSheetUrl(sheetUrl);
-      if (!urlInfo) {
-        throw new Error('Invalid Google Sheets URL');
-      }
-      
-      const csvUrl = buildCsvUrl(urlInfo.sheetId, urlInfo.gid);
-      
-      setSyncStatus('syncing');
-      
-      // Use the specialized WGP sync endpoint directly
-      const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
-      const response = await fetch(`${API_URL}/sheet-integration/sync-wgp-sheet`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ csv_url: csvUrl })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Sync failed: ${response.statusText}`);
-      }
-      
-      await response.json(); // Sync response, not used for display
-      
-      // For display, fetch the sheet data to show preview
-      const sheetResponse = await fetchSheetData(csvUrl);
-      setSyncData(sheetResponse.data || []);
-      
-      setLastSync(new Date());
-      setSyncStatus('success');
-      
-      // Show success briefly, then return to idle
-      setTimeout(() => setSyncStatus('idle'), 2000);
-      
-    } catch (err) {
-      setError(err.message);
-      setSyncStatus('error');
-      setTimeout(() => setSyncStatus('idle'), 3000);
-    }
-  };
 
   // Mock function removed - using actual API endpoints for live data
 
