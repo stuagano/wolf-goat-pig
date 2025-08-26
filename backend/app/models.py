@@ -55,6 +55,8 @@ class PlayerProfile(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
     handicap = Column(Float, default=18.0)
+    ghin_id = Column(String, nullable=True, unique=True, index=True)  # GHIN ID for handicap lookup
+    ghin_last_updated = Column(String, nullable=True)  # When GHIN data was last synced
     avatar_url = Column(String, nullable=True)
     created_date = Column(String)
     last_played = Column(String, nullable=True)
@@ -186,5 +188,37 @@ class DailyMessage(Base):
     message = Column(String)  # The actual message content
     message_time = Column(String)  # ISO timestamp when message was posted
     is_active = Column(Integer, default=1)  # 1=active, 0=deleted/hidden
+    created_at = Column(String)
+    updated_at = Column(String)
+
+# GHIN Integration Models
+class GHINScore(Base):
+    __tablename__ = "ghin_scores"
+    id = Column(Integer, primary_key=True, index=True)
+    player_profile_id = Column(Integer, index=True)  # References PlayerProfile.id
+    ghin_id = Column(String, index=True)  # GHIN ID
+    score_date = Column(String, index=True)  # Date the round was played (YYYY-MM-DD)
+    course_name = Column(String)  # Name of the golf course
+    tees = Column(String, nullable=True)  # Tee box played (e.g., "Blue", "Championship")
+    score = Column(Integer)  # Total score for the round
+    course_rating = Column(Float, nullable=True)  # Course rating for the tees played
+    slope_rating = Column(Integer, nullable=True)  # Slope rating for the tees played
+    differential = Column(Float, nullable=True)  # Score differential for handicap calculation
+    posted = Column(Integer, default=1)  # Whether this score counts for handicap (1=yes, 0=no)
+    handicap_index_at_time = Column(Float, nullable=True)  # Player's handicap when this score was posted
+    synced_at = Column(String)  # When this score was synced from GHIN
+    created_at = Column(String)
+    updated_at = Column(String)
+
+class GHINHandicapHistory(Base):
+    __tablename__ = "ghin_handicap_history"
+    id = Column(Integer, primary_key=True, index=True)
+    player_profile_id = Column(Integer, index=True)  # References PlayerProfile.id
+    ghin_id = Column(String, index=True)  # GHIN ID
+    effective_date = Column(String, index=True)  # Date this handicap became effective (YYYY-MM-DD)
+    handicap_index = Column(Float)  # The handicap index value
+    revision_reason = Column(String, nullable=True)  # Why the handicap changed
+    scores_used_count = Column(Integer, nullable=True)  # Number of scores used in calculation
+    synced_at = Column(String)  # When this record was synced from GHIN
     created_at = Column(String)
     updated_at = Column(String) 

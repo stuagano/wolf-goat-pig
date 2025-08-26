@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import ghinService, { initializeGHIN } from '../services/ghinService';
 
 const WGPAnalyticsDashboard = () => {
   const [leaderboardData, setLeaderboardData] = useState([]);
@@ -6,6 +7,9 @@ const WGPAnalyticsDashboard = () => {
   const [topWorstScores, setTopWorstScores] = useState([]);
   const [mostRoundsPlayed, setMostRoundsPlayed] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [ghinLoading, setGhinLoading] = useState(false);
+  const [ghinData, setGhinData] = useState({});
+  const [ghinEnabled, setGhinEnabled] = useState(false);
 
   const fetchAnalytics = useCallback(async () => {
     try {
@@ -13,9 +17,13 @@ const WGPAnalyticsDashboard = () => {
       
       const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
       
-      // Try to get current leaderboard data from the database
-      // This will contain data that was previously synced from Google Sheets
-      const leaderboardResponse = await fetch(`${API_URL}/leaderboard`, {
+      // Try to get GHIN-enhanced leaderboard data first, fallback to regular leaderboard
+      let leaderboardUrl = `${API_URL}/leaderboard`;
+      if (ghinEnabled) {
+        leaderboardUrl = `${API_URL}/leaderboard/ghin-enhanced`;
+      }
+      
+      const leaderboardResponse = await fetch(leaderboardUrl, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -56,22 +64,93 @@ const WGPAnalyticsDashboard = () => {
           partnership_success: player.partnership_success ? player.partnership_success / 100 : 0,
           betting_success: player.betting_success || 0,
           solo_attempts: player.solo_attempts || 0,
-          solo_wins: player.solo_wins || 0
+          solo_wins: player.solo_wins || 0,
+          // GHIN data (if available from enhanced endpoint)
+          handicap: player.handicap,
+          ghin_id: player.ghin_id,
+          ghin_data: player.ghin_data,
+          recent_form: player.recent_form
         }));
       
       // Process and format data
       processLeaderboardData(leaderboard);
+      
+      // Fetch GHIN data if available
+      if (ghinEnabled && leaderboard.length > 0) {
+        fetchGHINData(leaderboard);
+      }
       
     } catch (error) {
       console.error('Error fetching analytics:', error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [ghinEnabled]);
 
   useEffect(() => {
+    initializeServices();
     fetchAnalytics();
   }, [fetchAnalytics]);
+
+  // Initialize GHIN service
+  const initializeServices = useCallback(async () => {
+    try {
+      const ghinInitialized = await initializeGHIN();
+      setGhinEnabled(ghinInitialized);
+      if (ghinInitialized) {
+        console.log('GHIN service initialized successfully');
+      } else {
+        console.log('GHIN service not available - continuing without GHIN integration');
+      }
+    } catch (error) {
+      console.error('Failed to initialize GHIN service:', error);
+      setGhinEnabled(false);
+    }
+  }, []);
+
+  // Fetch GHIN data for players
+  const fetchGHINData = useCallback(async (players) => {
+    if (!ghinService.isInitialized()) {
+      return;
+    }
+
+    try {
+      setGhinLoading(true);
+      const ghinDataMap = {};
+
+      // Extract GHIN IDs from player names (this is a mock - in real app, you'd have GHIN IDs stored)
+      const playersWithMockGHINIds = players.map(player => ({
+        ...player,
+        ghinId: `GHIN${player.player_name.replace(/\s/g, '').toUpperCase()}` // Mock GHIN ID
+      }));
+
+      // Fetch GHIN data for each player (in batches for better performance)
+      const batchResults = await ghinService.getBatchGolferInfo(
+        playersWithMockGHINIds.map(p => p.ghinId)
+      );
+
+      // Process results
+      batchResults.success.forEach(ghinInfo => {
+        const player = playersWithMockGHINIds.find(p => p.ghinId === ghinInfo.ghinId);
+        if (player) {
+          ghinDataMap[player.player_name] = {
+            handicapIndex: ghinInfo.handicapIndex,
+            recentScores: ghinInfo.recentScores,
+            lastUpdated: ghinInfo.lastUpdated,
+            club: ghinInfo.club
+          };
+        }
+      });
+
+      setGhinData(ghinDataMap);
+      console.log(`Fetched GHIN data for ${Object.keys(ghinDataMap).length} players`);
+
+    } catch (error) {
+      console.error('Error fetching GHIN data:', error);
+    } finally {
+      setGhinLoading(false);
+    }
+  }, []);
 
   const processLeaderboardData = (data) => {
     // Main leaderboard - sorted by total quarters (earnings)
@@ -182,7 +261,17 @@ const WGPAnalyticsDashboard = () => {
         {/* Header */}
         <div className="bg-white rounded-lg shadow mb-4 p-4">
           <h1 className="text-2xl font-bold text-center">Wolf Goat Pig Leaderboard 2025-26 Season</h1>
-          <p className="text-center text-gray-600 mt-1">Live data from Google Sheets sync</p>
+          <div className="text-center mt-1">
+            <p className="text-gray-600">Live data from Google Sheets sync</p>
+            {ghinEnabled && (
+              <div className="mt-1 flex justify-center items-center space-x-2">
+                <span className="text-xs text-blue-600">🏌️ GHIN Integration Active</span>
+                {ghinLoading && (
+                  <span className="text-xs text-blue-500 animate-pulse">Syncing handicaps...</span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Main Grid Layout */}
@@ -198,13 +287,22 @@ const WGPAnalyticsDashboard = () => {
                     <th className="px-4 py-2 text-center text-xs font-medium text-gray-700">Quarters</th>
                     <th className="px-4 py-2 text-center text-xs font-medium text-gray-700">Average</th>
                     <th className="px-4 py-2 text-center text-xs font-medium text-gray-700">Rounds</th>
+                    <th className="px-4 py-2 text-center text-xs font-medium text-gray-700">Handicap</th>
                     <th className="px-4 py-2 text-center text-xs font-medium text-gray-700">QB</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {leaderboardData.map((player, index) => (
                     <tr key={player.player_name} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="px-4 py-2 text-sm font-medium text-gray-900">{player.player_name}</td>
+                      <td className="px-4 py-2 text-sm font-medium text-gray-900">
+                        {player.player_name}
+                        {ghinData[player.player_name] && ghinLoading && (
+                          <span className="ml-2 text-xs text-blue-500">🔄</span>
+                        )}
+                        {ghinData[player.player_name]?.lastUpdated && (
+                          <span className="ml-2 text-xs text-green-500" title="GHIN data available">⚡</span>
+                        )}
+                      </td>
                       <td className="px-4 py-2 text-sm text-center font-bold">
                         <span className={player.quarters >= 0 ? 'text-green-600' : 'text-red-600'}>
                           {player.quarters}
@@ -212,6 +310,24 @@ const WGPAnalyticsDashboard = () => {
                       </td>
                       <td className="px-4 py-2 text-sm text-center">{player.average}</td>
                       <td className="px-4 py-2 text-sm text-center">{player.rounds}</td>
+                      <td className="px-4 py-2 text-sm text-center">
+                        {player.handicap !== undefined && player.handicap !== null ? (
+                          <span className="font-medium text-blue-600">
+                            {parseFloat(player.handicap).toFixed(1)}
+                            {player.recent_form && (
+                              <div className="text-xs mt-1 text-gray-500">
+                                Form: {player.recent_form}
+                              </div>
+                            )}
+                          </span>
+                        ) : ghinData[player.player_name]?.handicapIndex !== undefined ? (
+                          <span className="font-medium text-blue-600">
+                            {parseFloat(ghinData[player.player_name].handicapIndex).toFixed(1)}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">N/A</span>
+                        )}
+                      </td>
                       <td className="px-4 py-2 text-sm text-center">{player.qb}</td>
                     </tr>
                   ))}

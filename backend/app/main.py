@@ -2626,6 +2626,64 @@ def get_leaderboard_by_metric(
     finally:
         db.close()
 
+@app.get("/leaderboard/ghin-enhanced")
+async def get_ghin_enhanced_leaderboard(
+    limit: int = Query(100, ge=1, le=100)
+):
+    """Get leaderboard enhanced with GHIN handicap data."""
+    try:
+        db = database.SessionLocal()
+        from .services.ghin_service import GHINService
+        
+        ghin_service = GHINService(db)
+        
+        # Check if GHIN service is available
+        await ghin_service.initialize()
+        if not ghin_service.is_available():
+            # Fall back to regular leaderboard if GHIN not available
+            from .services.player_service import PlayerService
+            player_service = PlayerService(db)
+            return player_service.get_leaderboard(limit=limit)
+        
+        # Get enhanced leaderboard with GHIN data
+        enhanced_leaderboard = ghin_service.get_leaderboard_with_ghin_data(limit=limit)
+        
+        return enhanced_leaderboard
+        
+    except Exception as e:
+        logger.error(f"Error getting GHIN enhanced leaderboard: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get GHIN enhanced leaderboard: {str(e)}")
+    finally:
+        db.close()
+
+@app.post("/ghin/sync-handicaps")
+async def sync_ghin_handicaps():
+    """Sync handicaps for all players with GHIN IDs."""
+    try:
+        db = database.SessionLocal()
+        from .services.ghin_service import GHINService
+        
+        ghin_service = GHINService(db)
+        
+        # Initialize and check if available
+        await ghin_service.initialize()
+        if not ghin_service.is_available():
+            raise HTTPException(status_code=503, detail="GHIN service not available. Check configuration.")
+        
+        # Sync all player handicaps
+        sync_results = await ghin_service.sync_all_players_handicaps()
+        
+        return {
+            "message": "GHIN handicap sync completed",
+            "results": sync_results
+        }
+        
+    except Exception as e:
+        logger.error(f"Error syncing GHIN handicaps: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to sync GHIN handicaps: {str(e)}")
+    finally:
+        db.close()
+
 # Advanced Analytics Endpoints
 @app.get("/players/{player_id}/advanced-metrics")
 def get_player_advanced_metrics(player_id: int):
