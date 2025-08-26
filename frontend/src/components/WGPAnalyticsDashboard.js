@@ -37,22 +37,27 @@ const WGPAnalyticsDashboard = () => {
         return;
       }
       
-      // Process leaderboard data from database
-      const leaderboard = leaderboardData.map(player => ({
-        player_name: player.player_name || player.name,
-        games_played: player.games_played || 0,
-        games_won: player.games_won || 0,
-        win_rate: player.win_percentage ? player.win_percentage / 100 : 0,
-        total_earnings: player.total_earnings || 0,
-        avg_earnings_per_game: player.avg_earnings || 0,
-        best_finish: player.best_finish || 99,
-        holes_won: player.holes_won || 0,
-        partnerships: player.partnerships_formed || 0,
-        partnership_success: player.partnership_success ? player.partnership_success / 100 : 0,
-        betting_success: player.betting_success || 0,
-        solo_attempts: player.solo_attempts || 0,
-        solo_wins: player.solo_wins || 0
-      }));
+      // Process leaderboard data from database (filter out Grand Total if it exists)
+      const leaderboard = leaderboardData
+        .filter(player => {
+          const name = (player.player_name || player.name || '').toLowerCase();
+          return name !== 'grand total' && name !== 'total' && name !== '';
+        })
+        .map(player => ({
+          player_name: player.player_name || player.name,
+          games_played: player.games_played || 0,
+          games_won: player.games_won || 0,
+          win_rate: player.win_percentage ? player.win_percentage / 100 : 0,
+          total_earnings: player.total_earnings || 0,
+          avg_earnings_per_game: player.avg_earnings || 0,
+          best_finish: player.best_finish || 99,
+          holes_won: player.holes_won || 0,
+          partnerships: player.partnerships_formed || 0,
+          partnership_success: player.partnership_success ? player.partnership_success / 100 : 0,
+          betting_success: player.betting_success || 0,
+          solo_attempts: player.solo_attempts || 0,
+          solo_wins: player.solo_wins || 0
+        }));
       
       // Process and format data
       processLeaderboardData(leaderboard);
@@ -113,7 +118,7 @@ const WGPAnalyticsDashboard = () => {
       .map(p => ({
         member: p.player_name,
         rounds: p.rounds,
-        banquet: p.rounds >= 5 // Eligible for banquet if 5+ rounds
+        banquet: p.rounds >= 20 // Eligible for banquet if 20+ rounds (corrected from 5)
       }));
     setMostRoundsPlayed(roundsPlayed);
   };
@@ -210,20 +215,7 @@ const WGPAnalyticsDashboard = () => {
                       <td className="px-4 py-2 text-sm text-center">{player.qb}</td>
                     </tr>
                   ))}
-                  {/* Grand Total Row */}
-                  <tr className="bg-gray-200 font-bold">
-                    <td className="px-4 py-2 text-sm">Grand Total</td>
-                    <td className="px-4 py-2 text-sm text-center">
-                      {leaderboardData.reduce((sum, p) => sum + p.quarters, 0)}
-                    </td>
-                    <td className="px-4 py-2 text-sm text-center">
-                      {Math.round(leaderboardData.reduce((sum, p) => sum + p.average, 0) / leaderboardData.length)}
-                    </td>
-                    <td className="px-4 py-2 text-sm text-center">
-                      {leaderboardData.reduce((sum, p) => sum + p.rounds, 0)}
-                    </td>
-                    <td className="px-4 py-2 text-sm text-center">-</td>
-                  </tr>
+                  {/* Removed Grand Total Row - not a real player */}
                 </tbody>
               </table>
             </div>
@@ -336,9 +328,6 @@ const WGPAnalyticsDashboard = () => {
                     <span>5 Players</span>
                     <span className="font-bold">Some</span>
                   </div>
-                  <div className="text-xs font-bold mt-2 pt-2 border-t">
-                    Grand Total
-                  </div>
                 </div>
               </div>
 
@@ -350,9 +339,6 @@ const WGPAnalyticsDashboard = () => {
                 <div className="space-y-1">
                   <div className="text-xs">Wing Point</div>
                   <div className="text-xs">Discovery Bay</div>
-                  <div className="text-xs font-bold mt-2 pt-2 border-t">
-                    Grand Total
-                  </div>
                 </div>
               </div>
             </div>
