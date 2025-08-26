@@ -18,6 +18,8 @@ import { TutorialProvider } from "./context/TutorialContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { HomePage } from "./pages";
 import SignupPage from "./pages/SignupPage";
+import AboutPage from "./pages/AboutPage";
+import RulesPage from "./pages/RulesPage";
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -224,6 +226,8 @@ function App() {
             </ProtectedRoute>
           } />
           <Route path="/tutorial" element={<TutorialSystem onComplete={() => navigate('/game')} onExit={() => navigate('/')} />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/rules" element={<RulesPage />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </div>
