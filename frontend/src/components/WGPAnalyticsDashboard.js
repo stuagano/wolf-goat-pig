@@ -34,7 +34,7 @@ const WGPAnalyticsDashboard = () => {
       
       // Convert CSV data to leaderboard format
       const leaderboard = (csvData.data || csvData).map(player => ({
-        name: player['Player Name'] || player.name,
+        player_name: player['Player Name'] || player.name,
         games_played: parseInt(player['Games Played'] || player.games_played || '0'),
         games_won: parseInt(player['Games Won'] || player.games_won || '0'),
         win_rate: parseFloat((player['Win Rate'] || player.win_rate || '0%').replace('%', '')) / 100,
