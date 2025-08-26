@@ -177,7 +177,7 @@ const WGPAnalyticsDashboard = () => {
         {/* Header */}
         <div className="bg-white rounded-lg shadow mb-4 p-4">
           <h1 className="text-2xl font-bold text-center">Wolf Goat Pig Leaderboard 2025-26 Season</h1>
-          <p className="text-center text-gray-600 mt-1">Scores through 24-Aug-25</p>
+          <p className="text-center text-gray-600 mt-1">Live data from Google Sheets sync</p>
         </div>
 
         {/* Main Grid Layout */}
