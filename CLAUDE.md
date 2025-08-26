@@ -1,4 +1,4 @@
-# Claude Code Guidelines for Wolf-Goat-Pig Project
+# Claude Code Guidelines for Wolf-Goat-Pig Project the best
 
 ## Project Overview
 Wolf-Goat-Pig is a golf betting game application with a Python FastAPI backend and React frontend. The game involves team-based golf competitions with various betting strategies and scoring systems.
