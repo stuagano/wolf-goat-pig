@@ -2974,7 +2974,8 @@ def sync_wgp_sheet_data(request: Dict[str, str]):
                         break
                 
                 # Skip if no player name, or if it's a header/summary row
-                if not player_name or player_name.lower() in ['member', 'player', 'name', '', 'total', 'average']:
+                if not player_name or player_name.lower() in ['member', 'player', 'name', '', 'total', 'average', 'grand total']:
+                    logger.info(f"Skipping non-player row: {player_name}")
                     continue
                 
                 # Stop if we hit summary sections (like "Most Rounds Played")
@@ -2994,13 +2995,15 @@ def sync_wgp_sheet_data(request: Dict[str, str]):
                     }
                 
                 # Map the sheet columns to our data model
-                # Quarters column (total earnings in quarters)
+                # Quarters column (total earnings in quarters - can be negative)
                 if 'quarters' in header_map and header_map['quarters'] < len(values):
                     try:
                         quarters_value = values[header_map['quarters']]
                         if quarters_value and quarters_value != '':
-                            player_stats[player_name]["quarters"] = int(quarters_value)
-                            player_stats[player_name]["total_earnings"] = float(quarters_value)
+                            # Handle negative values (e.g., "-155")
+                            quarters_int = int(quarters_value)
+                            player_stats[player_name]["quarters"] = quarters_int
+                            player_stats[player_name]["total_earnings"] = float(quarters_int)
                             logger.debug(f"Set {player_name} quarters to {quarters_value}")
                     except (ValueError, IndexError) as e:
                         logger.warning(f"Error parsing quarters for {player_name}: {e}")

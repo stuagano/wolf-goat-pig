@@ -358,11 +358,11 @@ class PlayerService:
     def get_leaderboard(self, limit: int = 10) -> List[LeaderboardEntry]:
         """Get the player leaderboard."""
         try:
-            # Query for active players with statistics
+            # Query for active players with statistics (removed games_played filter to show all players)
             query = self.db.query(PlayerProfile, PlayerStatistics).join(
                 PlayerStatistics, PlayerProfile.id == PlayerStatistics.player_id
             ).filter(
-                and_(PlayerProfile.is_active == 1, PlayerStatistics.games_played >= 5)
+                PlayerProfile.is_active == 1  # Only filter for active players, show everyone regardless of games played
             ).order_by(desc(PlayerStatistics.total_earnings))
             
             players_with_stats = query.limit(limit).all()
