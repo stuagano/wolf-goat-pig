@@ -15,7 +15,7 @@ backend/*.db
 
 # Node/React
 frontend/node_modules/
-frontend/build/
+# frontend/build/  # Allow build files for deployment
 frontend/.env
 frontend/.env.local
 frontend/.env.production
@@ -44,7 +44,7 @@ Thumbs.db
 .vercel
 .render
 dist/
-build/
+# build/  # Allow build files for deployment
 
 # Environment files
 .env
