@@ -212,11 +212,7 @@ function App() {
               <FeedAnalyzer />
             </ProtectedRoute>
           } />
-          <Route path="/leaderboard" element={
-            <ProtectedRoute>
-              <WGPAnalyticsDashboard />
-            </ProtectedRoute>
-          } />
+          <Route path="/leaderboard" element={<WGPAnalyticsDashboard />} />
           <Route path="/sheets" element={
             <ProtectedRoute>
               <SheetIntegrationDashboard />
