@@ -16,7 +16,8 @@ export const AuthProvider = ({ children }) => {
   // Support both React and Vite environment variable formats
   const domain = process.env.REACT_APP_AUTH0_DOMAIN || process.env.VITE_AUTH0_DOMAIN;
   const clientId = process.env.REACT_APP_AUTH0_CLIENT_ID || process.env.VITE_AUTH0_CLIENT_ID;
-  const audience = process.env.REACT_APP_AUTH0_AUDIENCE;
+  // Temporarily disable audience to fix login issues
+  // const audience = process.env.REACT_APP_AUTH0_AUDIENCE;
 
   if (!domain || !clientId) {
     throw new Error('Please define REACT_APP_AUTH0_DOMAIN and REACT_APP_AUTH0_CLIENT_ID environment variables');
@@ -32,7 +33,8 @@ export const AuthProvider = ({ children }) => {
       clientId={clientId}
       authorizationParams={{
         redirect_uri: window.location.origin,
-        ...(audience && { audience: audience }),
+        // Audience disabled to prevent login errors
+        // ...(audience && { audience: audience }),
         scope: "openid profile email"
       }}
       cacheLocation="localstorage"
