@@ -2912,32 +2912,68 @@ def sync_wgp_sheet_data(request: Dict[str, str]):
             raise HTTPException(status_code=400, detail="Empty sheet data")
         
         headers = [h.strip().strip('"') for h in lines[0].split(',')]
+        logger.info(f"Sheet headers: {headers}")
         
-        # Process each row and aggregate by player
-        player_stats = defaultdict(lambda: {
-            "games_played": 0,
-            "total_score": 0,
-            "games_won": 0,
-            "locations": set()
-        })
+        # Create header index mapping for flexible column handling
+        header_map = {header.lower(): idx for idx, header in enumerate(headers)}
+        
+        # Process each row based on detected columns
+        player_stats = {}
         
         for line in lines[1:]:
             if line.strip():
                 values = [v.strip().strip('"') for v in line.split(',')]
-                if len(values) >= 5:  # Date, Group, Member, Score, Location
-                    player_name = values[2]  # Member column
-                    if player_name and player_name != "Member":
-                        try:
-                            score = int(values[3]) if values[3] else 0  # Score column
-                            location = values[4] if len(values) > 4 else "Unknown"
-                            
-                            player_stats[player_name]["games_played"] += 1
-                            player_stats[player_name]["total_score"] += score
-                            if score > 0:  # Positive score might indicate a win in WGP
-                                player_stats[player_name]["games_won"] += 1
-                            player_stats[player_name]["locations"].add(location)
-                        except (ValueError, IndexError):
-                            continue
+                
+                # Extract player name (try different column names)
+                player_name = None
+                for name_key in ['member', 'player', 'name', 'golfer']:
+                    if name_key in header_map and header_map[name_key] < len(values):
+                        player_name = values[header_map[name_key]]
+                        break
+                
+                if not player_name or player_name.lower() in ['member', 'player', 'name']:
+                    continue
+                
+                # Initialize player stats if not exists
+                if player_name not in player_stats:
+                    player_stats[player_name] = {
+                        "quarters": 0,
+                        "average": 0,
+                        "rounds": 0,
+                        "qb": 0,
+                        "games_won": 0,
+                        "total_earnings": 0
+                    }
+                
+                # Map the sheet columns to our data model
+                # Quarters column (total earnings in quarters)
+                if 'quarters' in header_map and header_map['quarters'] < len(values):
+                    try:
+                        player_stats[player_name]["quarters"] = int(values[header_map['quarters']])
+                        player_stats[player_name]["total_earnings"] = float(values[header_map['quarters']])
+                    except (ValueError, IndexError):
+                        pass
+                
+                # Average column
+                if 'average' in header_map and header_map['average'] < len(values):
+                    try:
+                        player_stats[player_name]["average"] = float(values[header_map['average']])
+                    except (ValueError, IndexError):
+                        pass
+                
+                # Rounds column (games played)
+                if 'rounds' in header_map and header_map['rounds'] < len(values):
+                    try:
+                        player_stats[player_name]["rounds"] = int(values[header_map['rounds']])
+                    except (ValueError, IndexError):
+                        pass
+                
+                # QB column
+                if 'qb' in header_map and header_map['qb'] < len(values):
+                    try:
+                        player_stats[player_name]["qb"] = int(values[header_map['qb']])
+                    except (ValueError, IndexError):
+                        pass
         
         # Create/update players in database
         player_service = PlayerService(db)
@@ -2969,20 +3005,38 @@ def sync_wgp_sheet_data(request: Dict[str, str]):
                     player_id = existing_player.id
                     sync_results["players_updated"] += 1
                 
-                # Update statistics
+                # Update or create statistics record
                 player_stats_record = db.query(models.PlayerStatistics).filter(
                     models.PlayerStatistics.player_id == player_id
                 ).first()
                 
-                if player_stats_record:
-                    player_stats_record.games_played = stats["games_played"]
-                    player_stats_record.games_won = stats["games_won"]
-                    player_stats_record.win_percentage = (
-                        (stats["games_won"] / stats["games_played"] * 100) 
-                        if stats["games_played"] > 0 else 0
-                    )
-                    player_stats_record.total_earnings = float(stats["total_score"])
-                    db.commit()
+                if not player_stats_record:
+                    # Create new statistics record
+                    player_stats_record = models.PlayerStatistics(player_id=player_id)
+                    db.add(player_stats_record)
+                
+                # Update statistics with sheet data
+                player_stats_record.games_played = stats.get("rounds", 0)
+                player_stats_record.total_earnings = stats.get("total_earnings", 0)
+                
+                # Calculate win percentage based on average earnings per game
+                if stats.get("rounds", 0) > 0 and stats.get("average", 0) > 0:
+                    # If average is positive, estimate wins based on that
+                    # Assuming positive average means winning more often
+                    estimated_win_rate = min(100, max(0, (stats.get("average", 0) + 50) / 100 * 50))
+                    player_stats_record.win_percentage = estimated_win_rate
+                    player_stats_record.games_won = int(stats.get("rounds", 0) * estimated_win_rate / 100)
+                else:
+                    player_stats_record.win_percentage = 0
+                    player_stats_record.games_won = 0
+                
+                # Store additional metrics
+                player_stats_record.avg_earnings_per_game = stats.get("average", 0)
+                
+                # Update timestamp
+                player_stats_record.last_updated = datetime.now().isoformat()
+                
+                db.commit()
                 
                 sync_results["players_processed"] += 1
                 
@@ -2990,10 +3044,18 @@ def sync_wgp_sheet_data(request: Dict[str, str]):
                 sync_results["errors"].append(f"Error processing {player_name}: {str(e)}")
                 continue
         
+        # Log summary of synced data
+        logger.info(f"Synced {len(player_stats)} players from sheet")
+        logger.info(f"Sync results: {sync_results}")
+        
+        # Return detailed sync information including the data that was synced
         return {
             "sync_results": sync_results,
             "player_count": len(player_stats),
-            "synced_at": datetime.now().isoformat()
+            "synced_at": datetime.now().isoformat(),
+            "headers_found": headers,
+            "players_synced": list(player_stats.keys()),
+            "sample_data": {name: stats for name, stats in list(player_stats.items())[:3]}  # First 3 players as sample
         }
         
     except requests.exceptions.RequestException as e:
