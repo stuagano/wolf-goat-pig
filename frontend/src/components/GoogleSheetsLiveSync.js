@@ -136,28 +136,7 @@ const GoogleSheetsLiveSync = () => {
     }
   };
 
-  // Mock function to simulate live sheet data (replace with real API call)
-  const simulateLiveSheetData = async () => {
-    // This would be replaced with actual Google Sheets API call
-    return [
-      {
-        "Player Name": "John Doe",
-        "Games Played": "8",
-        "Games Won": "5",
-        "Win Rate": "62.5%",
-        "Total Earnings": "$180.00",
-        "Best Finish": "1"
-      },
-      {
-        "Player Name": "Jane Smith", 
-        "Games Played": "12",
-        "Games Won": "9",
-        "Win Rate": "75.0%",
-        "Total Earnings": "$290.50",
-        "Best Finish": "1"
-      }
-    ];
-  };
+  // Mock function removed - using actual API endpoints for live data
 
   const getStatusColor = () => {
     switch (syncStatus) {
