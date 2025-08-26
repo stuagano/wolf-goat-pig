@@ -13,8 +13,7 @@
     "env": {
       "REACT_APP_API_URL": "https://wolf-goat-pig.onrender.com",
       "REACT_APP_AUTH0_DOMAIN": "dev-jm88n088hpt7oe48.us.auth0.com",
-      "REACT_APP_AUTH0_CLIENT_ID": "qAZuRv5E9mPQ9uTGg7NWpkpfVj8bCeoB",
-      "REACT_APP_AUTH0_AUDIENCE": "https://api.wolf-goat-pig.com"
+      "REACT_APP_AUTH0_CLIENT_ID": "qAZuRv5E9mPQ9uTGg7NWpkpfVj8bCeoB"
     }
   },
   "rewrites": [
