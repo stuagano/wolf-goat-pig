@@ -87,14 +87,10 @@ async def startup_event():
 #         ]
 #     )
 
-# CORS middleware
+# CORS middleware - temporarily allowing all origins to fix deployment issues
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if os.getenv("ENVIRONMENT") == "development" else [
-        "https://wolf-goat-pig-frontend.onrender.com",
-        "https://wolf-goat-pig.vercel.app",
-        "http://localhost:3000"
-    ],
+    allow_origins=["*"],  # TODO: Restrict to specific origins once Vercel URL is confirmed
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
