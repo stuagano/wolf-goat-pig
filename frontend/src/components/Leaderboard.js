@@ -6,10 +6,11 @@ const Leaderboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedMetric, setSelectedMetric] = useState('overall');
+  const [showWorstScores, setShowWorstScores] = useState(false);
 
   useEffect(() => {
     fetchLeaderboard();
-  }, [selectedMetric]);
+  }, [selectedMetric, showWorstScores]);
 
   const fetchLeaderboard = async () => {
     try {
@@ -18,8 +19,12 @@ const Leaderboard = () => {
       
       const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
       
-      // Fetch leaderboard data from the database (previously synced from Google Sheets)
-      const leaderboardResponse = await fetch(`${API_URL}/leaderboard`, {
+      // Fetch ALL players by setting limit to 100 (max allowed)
+      const endpoint = showWorstScores ? 
+        `${API_URL}/leaderboard?limit=100&sort=asc` : 
+        `${API_URL}/leaderboard?limit=100`;
+      
+      const leaderboardResponse = await fetch(endpoint, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -50,10 +55,13 @@ const Leaderboard = () => {
   const metrics = [
     { value: 'overall', label: 'Overall Ranking' },
     { value: 'avg_score', label: 'Average Score' },
-    { value: 'total_games', label: 'Games Played' },
+    { value: 'total_games', label: 'Most Rounds Played' },
     { value: 'win_rate', label: 'Win Rate' },
-    { value: 'points_earned', label: 'Points Earned' }
+    { value: 'points_earned', label: 'Points Earned' },
+    { value: 'worst_scores', label: 'Bottom 5 Scores' }
   ];
+  
+  const BANQUET_QUALIFICATION_ROUNDS = 20;
 
   if (loading) {
     return (
@@ -145,59 +153,98 @@ const Leaderboard = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Games
                     </th>
+                    {selectedMetric === 'total_games' && (
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Banquet Status
+                      </th>
+                    )}
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Last Played
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {leaderboard.map((player, index) => (
-                    <tr key={player.id || index} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <span className={`inline-flex items-center justify-center h-8 w-8 rounded-full text-sm font-medium ${
-                            index === 0 ? 'bg-yellow-400 text-yellow-900' :
-                            index === 1 ? 'bg-gray-300 text-gray-900' :
-                            index === 2 ? 'bg-orange-400 text-orange-900' :
-                            'bg-gray-100 text-gray-600'
-                          }`}>
-                            {index + 1}
-                          </span>
-                          {index < 3 && (
-                            <span className="ml-2 text-lg">
-                              {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
+                  {/* For worst scores, show only bottom 5. For Most Rounds, sort by games played */}
+                  {(() => {
+                    let displayData = [...leaderboard];
+                    
+                    if (selectedMetric === 'worst_scores') {
+                      // Show bottom 5 performers (lowest scores)
+                      displayData = displayData
+                        .sort((a, b) => (a.total_earnings || 0) - (b.total_earnings || 0))
+                        .slice(0, 5);
+                    } else if (selectedMetric === 'total_games') {
+                      // Sort by games played for Most Rounds view
+                      displayData = displayData
+                        .sort((a, b) => (b.games_played || 0) - (a.games_played || 0));
+                    }
+                    
+                    return displayData.map((player, index) => (
+                      <tr key={player.id || index} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <span className={`inline-flex items-center justify-center h-8 w-8 rounded-full text-sm font-medium ${
+                              selectedMetric === 'worst_scores' ? 'bg-red-100 text-red-600' :
+                              index === 0 ? 'bg-yellow-400 text-yellow-900' :
+                              index === 1 ? 'bg-gray-300 text-gray-900' :
+                              index === 2 ? 'bg-orange-400 text-orange-900' :
+                              'bg-gray-100 text-gray-600'
+                            }`}>
+                              {index + 1}
                             </span>
-                          )}
-                        </div>
-                      </td>
+                            {!selectedMetric.includes('worst') && index < 3 && (
+                              <span className="ml-2 text-lg">
+                                {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
+                              </span>
+                            )}
+                            {selectedMetric === 'worst_scores' && (
+                              <span className="ml-2 text-lg">😢</span>
+                            )}
+                          </div>
+                        </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-medium">
-                            {(player.name || 'Unknown').charAt(0).toUpperCase()}
+                            {(player.player_name || player.name || 'Unknown').charAt(0).toUpperCase()}
                           </div>
                           <div className="ml-4">
                             <div className="text-sm font-medium text-gray-900">
-                              {player.name || 'Unknown Player'}
+                              {player.player_name || player.name || 'Unknown Player'}
                             </div>
                             <div className="text-sm text-gray-500">
-                              Handicap: {player.handicap || 'N/A'}
+                              Win Rate: {player.win_percentage ? `${player.win_percentage.toFixed(1)}%` : 'N/A'}
                             </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          {player.score || player.total_points || player.value || 'N/A'}
+                          {player.total_earnings ? `${player.total_earnings} quarters` : 
+                           player.score || player.total_points || player.value || 'N/A'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {player.games_played || player.total_games || 'N/A'}
                       </td>
+                      {selectedMetric === 'total_games' && (
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {(player.games_played || 0) >= BANQUET_QUALIFICATION_ROUNDS ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              ✅ Qualified
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                              {BANQUET_QUALIFICATION_ROUNDS - (player.games_played || 0)} more needed
+                            </span>
+                          )}
+                        </td>
+                      )}
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {player.last_played ? new Date(player.last_played).toLocaleDateString() : 'Never'}
                       </td>
                     </tr>
-                  ))}
+                  ));
+                })()}
                 </tbody>
               </table>
             </div>

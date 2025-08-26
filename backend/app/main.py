@@ -2571,7 +2571,10 @@ def get_player_profile_with_stats(player_id: int):
 
 # Leaderboard and Comparative Analytics
 @app.get("/leaderboard", response_model=List[schemas.LeaderboardEntry])
-def get_leaderboard(limit: int = Query(10, ge=1, le=100)):
+def get_leaderboard(
+    limit: int = Query(100, ge=1, le=100),  # Default to 100 to show all players
+    sort: str = Query("desc", regex="^(asc|desc)$")  # Add sort parameter
+):
     """Get the player leaderboard."""
     try:
         db = database.SessionLocal()
@@ -2579,6 +2582,16 @@ def get_leaderboard(limit: int = Query(10, ge=1, le=100)):
         
         player_service = PlayerService(db)
         leaderboard = player_service.get_leaderboard(limit=limit)
+        
+        # Sort by total_earnings based on sort parameter
+        if sort == "asc":
+            leaderboard.sort(key=lambda x: x.total_earnings or 0)
+        else:
+            leaderboard.sort(key=lambda x: x.total_earnings or 0, reverse=True)
+        
+        # Re-rank after sorting
+        for i, entry in enumerate(leaderboard, 1):
+            entry.rank = i
         
         return leaderboard
         
