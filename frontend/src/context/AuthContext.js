@@ -1,6 +1,7 @@
 import React, { createContext, useContext } from 'react';
 import { Auth0Provider } from '@auth0/auth0-react';
 
+// Auth0 integration for Wolf Goat Pig authentication
 const AuthContext = createContext();
 
 export const useAuth = () => {
