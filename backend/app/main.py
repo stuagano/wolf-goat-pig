@@ -120,33 +120,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Static file serving for React frontend
-import os
-from pathlib import Path
-
-# Get the path to the built React app
-STATIC_DIR = Path(__file__).parent.parent.parent / "frontend" / "build"
-
-# Mount static files if build directory exists
-if STATIC_DIR.exists():
-    app.mount("/static", StaticFiles(directory=str(STATIC_DIR / "static")), name="static")
-    
-    # Serve React app for all non-API routes
-    @app.get("/{full_path:path}")
-    async def serve_react_app(full_path: str):
-        """Serve React app for all non-API routes"""
-        # Don't serve React for API routes
-        if full_path.startswith(("api/", "docs", "redoc", "health", "leaderboard", "players", "courses", "rules", "game", "action", "simulation", "ghin")):
-            raise HTTPException(status_code=404, detail="Not Found")
-        
-        # Serve index.html for all other routes (React Router will handle routing)
-        index_file = STATIC_DIR / "index.html"
-        if index_file.exists():
-            return FileResponse(str(index_file))
-        else:
-            raise HTTPException(status_code=404, detail="Frontend not built")
-else:
-    logger.warning("Frontend build directory not found. Frontend will not be served.")
 
 # Global exception handler
 @app.exception_handler(HTTPException)
@@ -4253,5 +4226,28 @@ def update_email_preferences(player_id: int, preferences_update: schemas.EmailPr
         raise HTTPException(status_code=500, detail=f"Failed to update email preferences: {str(e)}")
     finally:
         db.close()
+
+# Static file serving for React frontend (must be at end after all API routes)
+from pathlib import Path
+
+# Get the path to the built React app
+STATIC_DIR = Path(__file__).parent.parent.parent / "frontend" / "build"
+
+# Mount static files if build directory exists
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR / "static")), name="static")
+    
+    # Serve React app for all non-API routes (MUST BE LAST ROUTE)
+    @app.get("/{full_path:path}")
+    async def serve_react_app(full_path: str):
+        """Serve React app for all non-API routes"""
+        # Serve index.html for all routes (React Router will handle routing)
+        index_file = STATIC_DIR / "index.html" 
+        if index_file.exists():
+            return FileResponse(str(index_file))
+        else:
+            raise HTTPException(status_code=404, detail="Frontend not built")
+else:
+    logger.warning("Frontend build directory not found. Frontend will not be served.")
 
 
