@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import SignupCalendar from '../components/signup/SignupCalendar';
+import DailySignupView from '../components/signup/DailySignupView';
 import PlayerAvailability from '../components/signup/PlayerAvailability';
 import EmailPreferences from '../components/signup/EmailPreferences';
 
@@ -8,6 +9,8 @@ const SignupPage = () => {
   const { user, isAuthenticated, loginWithRedirect } = useAuth0();
   const [activeTab, setActiveTab] = useState('calendar');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [viewMode, setViewMode] = useState('week'); // 'week' or 'daily'
 
   // Tab configuration
   const tabs = [
@@ -19,6 +22,16 @@ const SignupPage = () => {
   const handleSignupChange = () => {
     // Trigger refresh of any related components
     setRefreshTrigger(prev => prev + 1);
+  };
+
+  const handleDateSelect = (date) => {
+    setSelectedDate(date);
+    setViewMode('daily');
+  };
+
+  const handleBackToWeek = () => {
+    setViewMode('week');
+    setSelectedDate(null);
   };
 
   if (!isAuthenticated) {
@@ -141,19 +154,29 @@ const SignupPage = () => {
       <div style={{ minHeight: '500px' }}>
         {activeTab === 'calendar' && (
           <div>
-            <div style={{ marginBottom: '20px' }}>
-              <h2 style={{ color: '#333', marginBottom: '10px' }}>
-                📅 Daily Golf Sign-ups & Message Board
-              </h2>
-              <p style={{ color: '#6c757d', fontSize: '14px' }}>
-                View and manage sign-ups for the next 7 days, plus post messages on the daily message board. 
-                Click to sign up for golf or share what's happening!
-              </p>
-            </div>
-            <SignupCalendar 
-              key={refreshTrigger} 
-              onSignupChange={handleSignupChange} 
-            />
+            {viewMode === 'week' ? (
+              <div>
+                <div style={{ marginBottom: '20px' }}>
+                  <h2 style={{ color: '#333', marginBottom: '10px' }}>
+                    📅 Daily Golf Sign-ups & Message Board
+                  </h2>
+                  <p style={{ color: '#6c757d', fontSize: '14px' }}>
+                    View and manage sign-ups for the next 7 days, plus post messages on the daily message board. 
+                    Click on a day to see detailed signup options with tee times and player selection!
+                  </p>
+                </div>
+                <SignupCalendar 
+                  key={refreshTrigger} 
+                  onSignupChange={handleSignupChange} 
+                  onDateSelect={handleDateSelect}
+                />
+              </div>
+            ) : (
+              <DailySignupView 
+                selectedDate={selectedDate}
+                onBack={handleBackToWeek}
+              />
+            )}
           </div>
         )}
 

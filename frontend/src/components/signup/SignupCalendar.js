@@ -3,7 +3,7 @@ import { useAuth0 } from '@auth0/auth0-react';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
-const SignupCalendar = ({ onSignupChange }) => {
+const SignupCalendar = ({ onSignupChange, onDateSelect }) => {
   const { user, isAuthenticated } = useAuth0();
   const [weekData, setWeekData] = useState({ daily_summaries: [] });
   const [currentWeekStart, setCurrentWeekStart] = useState('');
@@ -335,16 +335,22 @@ const SignupCalendar = ({ onSignupChange }) => {
               display: 'flex',
               flexDirection: 'column'
             }}>
-              {/* Date */}
-              <div style={{ 
-                fontSize: '14px', 
-                fontWeight: 'bold', 
-                marginBottom: '8px',
-                color: '#495057',
-                textAlign: 'center',
-                borderBottom: '1px solid #dee2e6',
-                paddingBottom: '8px'
-              }}>
+              {/* Date - Clickable */}
+              <div 
+                onClick={() => onDateSelect && onDateSelect(dailySummary.date)}
+                style={{ 
+                  fontSize: '14px', 
+                  fontWeight: 'bold', 
+                  marginBottom: '8px',
+                  color: onDateSelect ? '#007bff' : '#495057',
+                  textAlign: 'center',
+                  borderBottom: '1px solid #dee2e6',
+                  paddingBottom: '8px',
+                  cursor: onDateSelect ? 'pointer' : 'default',
+                  textDecoration: onDateSelect ? 'underline' : 'none'
+                }}
+                title={onDateSelect ? 'Click to view detailed signup for this day' : ''}
+              >
                 {formatDateDisplay(dailySummary.date)}
               </div>
 
