@@ -2,7 +2,8 @@ from fastapi import FastAPI, Depends, Body, HTTPException, Request, Path, Query,
 from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from . import models, schemas, crud, database
 
 from .game_state import game_state
@@ -118,6 +119,34 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Static file serving for React frontend
+import os
+from pathlib import Path
+
+# Get the path to the built React app
+STATIC_DIR = Path(__file__).parent.parent.parent / "frontend" / "build"
+
+# Mount static files if build directory exists
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR / "static")), name="static")
+    
+    # Serve React app for all non-API routes
+    @app.get("/{full_path:path}")
+    async def serve_react_app(full_path: str):
+        """Serve React app for all non-API routes"""
+        # Don't serve React for API routes
+        if full_path.startswith(("api/", "docs", "redoc", "health", "leaderboard", "players", "courses", "rules", "game", "action", "simulation", "ghin")):
+            raise HTTPException(status_code=404, detail="Not Found")
+        
+        # Serve index.html for all other routes (React Router will handle routing)
+        index_file = STATIC_DIR / "index.html"
+        if index_file.exists():
+            return FileResponse(str(index_file))
+        else:
+            raise HTTPException(status_code=404, detail="Frontend not built")
+else:
+    logger.warning("Frontend build directory not found. Frontend will not be served.")
 
 # Global exception handler
 @app.exception_handler(HTTPException)
