@@ -271,6 +271,7 @@ class GHINService:
     def get_leaderboard_with_ghin_data(self, limit: int = 100) -> List[Dict[str, Any]]:
         """
         Get leaderboard data enhanced with GHIN information.
+        Uses stored handicap data even if GHIN API is unavailable.
         
         Args:
             limit: Maximum number of players to return
@@ -293,22 +294,24 @@ class GHINService:
                 # Calculate win percentage
                 win_percentage = (stats.games_won / max(1, stats.games_played)) * 100
                 
-                # Get GHIN data if available
+                # Always try to get stored GHIN data, regardless of API availability
                 ghin_data = None
                 if profile.ghin_id:
                     ghin_data = self.get_player_ghin_data(profile.id)
                 
-                # Calculate recent form from GHIN scores if available
+                # Calculate recent form from stored GHIN scores if available
                 recent_form = "N/A"
                 if ghin_data and ghin_data.get('recent_scores'):
                     recent_scores = ghin_data['recent_scores'][:5]  # Last 5 rounds
                     if len(recent_scores) >= 3:
+                        # Use stored handicap for comparison if available
+                        comparison_handicap = profile.handicap if profile.handicap else 18.0
                         avg_differential = sum(s.get('differential', 0) for s in recent_scores if s.get('differential')) / len(recent_scores)
-                        if avg_differential < profile.handicap - 2:
+                        if avg_differential < comparison_handicap - 2:
                             recent_form = "Excellent"
-                        elif avg_differential < profile.handicap:
+                        elif avg_differential < comparison_handicap:
                             recent_form = "Good"
-                        elif avg_differential > profile.handicap + 2:
+                        elif avg_differential > comparison_handicap + 2:
                             recent_form = "Poor"
                         else:
                             recent_form = "Average"
@@ -321,6 +324,7 @@ class GHINService:
                     "avg_earnings": round(stats.avg_earnings_per_hole, 2),
                     "total_earnings": round(stats.total_earnings, 2),
                     "partnership_success": round(stats.partnership_success_rate * 100, 1),
+                    # Always include stored handicap (last known value)
                     "handicap": profile.handicap,
                     "ghin_id": profile.ghin_id,
                     "ghin_last_updated": profile.ghin_last_updated,
@@ -334,7 +338,24 @@ class GHINService:
             
         except Exception as e:
             logger.error(f"Failed to get enhanced leaderboard: {e}")
-            return []
+            # Even on error, try to return basic leaderboard structure with stored handicaps
+            try:
+                from .player_service import PlayerService
+                player_service = PlayerService(self.db)
+                basic_leaderboard = player_service.get_leaderboard(limit=limit)
+                
+                # Add stored handicap data to basic leaderboard
+                for player in basic_leaderboard:
+                    profile = self.db.query(PlayerProfile).filter(PlayerProfile.name == player.player_name).first()
+                    if profile:
+                        player.handicap = profile.handicap
+                        player.ghin_id = profile.ghin_id
+                        player.ghin_last_updated = profile.ghin_last_updated
+                
+                return [vars(player) for player in basic_leaderboard]
+            except Exception as fallback_error:
+                logger.error(f"Failed to get fallback leaderboard: {fallback_error}")
+                return []
     
     # TODO: These methods would connect to the actual GHIN API
     # For now, they return mock data for testing

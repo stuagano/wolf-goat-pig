@@ -17,11 +17,8 @@ const WGPAnalyticsDashboard = () => {
       
       const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
       
-      // Try to get GHIN-enhanced leaderboard data first, fallback to regular leaderboard
-      let leaderboardUrl = `${API_URL}/leaderboard`;
-      if (ghinEnabled) {
-        leaderboardUrl = `${API_URL}/leaderboard/ghin-enhanced`;
-      }
+      // Always use GHIN-enhanced leaderboard (shows stored handicap data even if GHIN API is offline)
+      const leaderboardUrl = `${API_URL}/leaderboard/ghin-enhanced`;
       
       const leaderboardResponse = await fetch(leaderboardUrl, {
         method: 'GET',

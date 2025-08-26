@@ -2637,15 +2637,13 @@ async def get_ghin_enhanced_leaderboard(
         
         ghin_service = GHINService(db)
         
-        # Check if GHIN service is available
-        await ghin_service.initialize()
-        if not ghin_service.is_available():
-            # Fall back to regular leaderboard if GHIN not available
-            from .services.player_service import PlayerService
-            player_service = PlayerService(db)
-            return player_service.get_leaderboard(limit=limit)
+        # Try to initialize GHIN service for fresh data, but continue with stored data if unavailable
+        try:
+            await ghin_service.initialize()
+        except Exception as e:
+            logger.warning(f"GHIN service unavailable, using stored handicap data: {e}")
         
-        # Get enhanced leaderboard with GHIN data
+        # Always get enhanced leaderboard with stored GHIN data (even if service is offline)
         enhanced_leaderboard = ghin_service.get_leaderboard_with_ghin_data(limit=limit)
         
         return enhanced_leaderboard
