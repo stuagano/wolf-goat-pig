@@ -15,9 +15,39 @@ const WGPAnalyticsDashboard = () => {
     try {
       setLoading(true);
       
-      // Fetch leaderboard data
-      const leaderboardResponse = await fetch('/leaderboard');
-      const leaderboard = await leaderboardResponse.json();
+      // First, fetch the CSV data from Google Sheets integration
+      const csvResponse = await fetch('/sheet-integration/fetch-google-sheet', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          csv_url: 'http://localhost:3000/sample_golf_data.csv' // Using local CSV for demo
+        })
+      });
+      
+      if (!csvResponse.ok) {
+        throw new Error(`Failed to fetch sheet data: ${csvResponse.statusText}`);
+      }
+      
+      const csvData = await csvResponse.json();
+      
+      // Convert CSV data to leaderboard format
+      const leaderboard = (csvData.data || csvData).map(player => ({
+        name: player['Player Name'] || player.name,
+        games_played: parseInt(player['Games Played'] || player.games_played || '0'),
+        games_won: parseInt(player['Games Won'] || player.games_won || '0'),
+        win_rate: parseFloat((player['Win Rate'] || player.win_rate || '0%').replace('%', '')) / 100,
+        total_earnings: parseFloat((player['Total Earnings'] || player.total_earnings || '$0').replace('$', '').replace(',', '')),
+        avg_earnings_per_game: parseFloat((player['Avg Earnings Per Game'] || player.avg_earnings_per_game || '$0').replace('$', '').replace(',', '')),
+        best_finish: parseInt(player['Best Finish'] || player.best_finish || '99'),
+        holes_won: parseInt(player['Holes Won'] || player.holes_won || '0'),
+        partnerships: parseInt(player['Partnerships'] || player.partnerships || '0'),
+        partnership_success: parseFloat((player['Partnership Success'] || player.partnership_success || '0%').replace('%', '')) / 100,
+        betting_success: parseFloat((player['Betting Success'] || player.betting_success || '0%').replace('%', '')) / 100,
+        solo_attempts: parseInt(player['Solo Attempts'] || player.solo_attempts || '0'),
+        solo_wins: parseInt(player['Solo Wins'] || player.solo_wins || '0')
+      }));
       
       // Process and format data
       processLeaderboardData(leaderboard);

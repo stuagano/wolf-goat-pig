@@ -16,23 +16,44 @@ const Leaderboard = () => {
       setLoading(true);
       setError(null);
       
-      let endpoint = '/leaderboard';
-      if (selectedMetric !== 'overall') {
-        endpoint = `/leaderboard/${selectedMetric}`;
+      // First, fetch the CSV data
+      const csvResponse = await fetch('/sheet-integration/fetch-google-sheet', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          csv_url: 'http://localhost:3000/sample_golf_data.csv' // Using local CSV for demo
+        })
+      });
+      
+      if (!csvResponse.ok) {
+        throw new Error(`Failed to fetch sheet data: ${csvResponse.statusText}`);
       }
       
-      const response = await fetch(endpoint);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch leaderboard: ${response.statusText}`);
+      const csvData = await csvResponse.json();
+      
+      // Then create leaderboard from the CSV data
+      const leaderboardResponse = await fetch('/sheet-integration/create-leaderboard', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(csvData.data || csvData)
+      });
+      
+      if (!leaderboardResponse.ok) {
+        throw new Error(`Failed to create leaderboard: ${leaderboardResponse.statusText}`);
       }
       
-      const data = await response.json();
+      const data = await leaderboardResponse.json();
       
       // Handle different response formats
       if (selectedMetric === 'overall') {
-        setLeaderboard(data);
+        setLeaderboard(data.leaderboard || data);
       } else {
-        setLeaderboard(data.leaderboard || []);
+        // For now, use the same data for all metrics (can be enhanced later)
+        setLeaderboard(data.leaderboard || data);
       }
     } catch (err) {
       setError(err.message);
