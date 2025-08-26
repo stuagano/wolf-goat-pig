@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 const WGPAnalyticsDashboard = () => {
   const [leaderboardData, setLeaderboardData] = useState([]);
@@ -7,11 +7,7 @@ const WGPAnalyticsDashboard = () => {
   const [mostRoundsPlayed, setMostRoundsPlayed] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchAnalytics();
-  }, []);
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -66,7 +62,11 @@ const WGPAnalyticsDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, [fetchAnalytics]);
 
   const processLeaderboardData = (data) => {
     // Main leaderboard - sorted by total quarters (earnings)

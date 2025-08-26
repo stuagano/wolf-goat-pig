@@ -21,7 +21,7 @@ const GoogleSheetsLiveSync = () => {
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, [autoSync, sheetUrl, syncInterval]);
+  }, [autoSync, sheetUrl, syncInterval, performLiveSync]);
 
   const extractSheetId = (url) => {
     // Extract sheet ID from various Google Sheets URL formats
@@ -70,24 +70,7 @@ const GoogleSheetsLiveSync = () => {
     return response.json();
   };
 
-  const parseCsvData = (csvText) => {
-    const lines = csvText.split('\n');
-    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-    const data = [];
-    
-    for (let i = 1; i < lines.length; i++) {
-      if (lines[i].trim()) {
-        const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
-        const row = {};
-        headers.forEach((header, index) => {
-          row[header] = values[index] || '';
-        });
-        data.push(row);
-      }
-    }
-    
-    return { headers, data };
-  };
+  // Removed unused parseCsvData function
 
   const performLiveSync = async () => {
     if (!sheetUrl) return;
@@ -119,7 +102,7 @@ const GoogleSheetsLiveSync = () => {
         throw new Error(`Sync failed: ${response.statusText}`);
       }
       
-      const result = await response.json();
+      await response.json(); // Sync response, not used for display
       
       // For display, fetch the sheet data to show preview
       const sheetResponse = await fetchSheetData(csvUrl);
