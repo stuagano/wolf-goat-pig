@@ -287,7 +287,6 @@ const WGPAnalyticsDashboard = () => {
                     <th className="px-4 py-2 text-center text-xs font-medium text-gray-700">Quarters</th>
                     <th className="px-4 py-2 text-center text-xs font-medium text-gray-700">Average</th>
                     <th className="px-4 py-2 text-center text-xs font-medium text-gray-700">Rounds</th>
-                    <th className="px-4 py-2 text-center text-xs font-medium text-gray-700">Handicap</th>
                     <th className="px-4 py-2 text-center text-xs font-medium text-gray-700">QB</th>
                   </tr>
                 </thead>
@@ -296,11 +295,25 @@ const WGPAnalyticsDashboard = () => {
                     <tr key={player.player_name} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                       <td className="px-4 py-2 text-sm font-medium text-gray-900">
                         {player.player_name}
+                        {(player.handicap !== undefined && player.handicap !== null) ? (
+                          <span className="ml-2 text-blue-600 font-medium">
+                            ({parseFloat(player.handicap).toFixed(1)})
+                          </span>
+                        ) : ghinData[player.player_name]?.handicapIndex !== undefined ? (
+                          <span className="ml-2 text-blue-600 font-medium">
+                            ({parseFloat(ghinData[player.player_name].handicapIndex).toFixed(1)})
+                          </span>
+                        ) : null}
                         {ghinData[player.player_name] && ghinLoading && (
                           <span className="ml-2 text-xs text-blue-500">🔄</span>
                         )}
                         {ghinData[player.player_name]?.lastUpdated && (
                           <span className="ml-2 text-xs text-green-500" title="GHIN data available">⚡</span>
+                        )}
+                        {player.recent_form && player.recent_form !== "N/A" && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            Form: {player.recent_form}
+                          </div>
                         )}
                       </td>
                       <td className="px-4 py-2 text-sm text-center font-bold">
@@ -310,24 +323,6 @@ const WGPAnalyticsDashboard = () => {
                       </td>
                       <td className="px-4 py-2 text-sm text-center">{player.average}</td>
                       <td className="px-4 py-2 text-sm text-center">{player.rounds}</td>
-                      <td className="px-4 py-2 text-sm text-center">
-                        {player.handicap !== undefined && player.handicap !== null ? (
-                          <span className="font-medium text-blue-600">
-                            {parseFloat(player.handicap).toFixed(1)}
-                            {player.recent_form && (
-                              <div className="text-xs mt-1 text-gray-500">
-                                Form: {player.recent_form}
-                              </div>
-                            )}
-                          </span>
-                        ) : ghinData[player.player_name]?.handicapIndex !== undefined ? (
-                          <span className="font-medium text-blue-600">
-                            {parseFloat(ghinData[player.player_name].handicapIndex).toFixed(1)}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">N/A</span>
-                        )}
-                      </td>
                       <td className="px-4 py-2 text-sm text-center">{player.qb}</td>
                     </tr>
                   ))}
