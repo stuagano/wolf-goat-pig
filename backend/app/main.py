@@ -66,12 +66,30 @@ app = FastAPI(
 async def startup_event():
     """Initialize database on startup"""
     try:
+        # Ensure all models are imported before creating tables
+        from . import models
         database.init_db()
         logger.info("Database initialized successfully")
+        
+        # Verify game_state table exists
+        db = database.SessionLocal()
+        try:
+            db.execute(text("SELECT COUNT(*) FROM game_state"))
+            logger.info("game_state table verified")
+        except Exception as table_error:
+            logger.error(f"game_state table verification failed: {table_error}")
+            # Try to create tables again
+            database.Base.metadata.create_all(bind=database.engine)
+            logger.info("Tables recreated")
+        finally:
+            db.close()
+            
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
-        # Continue startup even if database fails for development
-        pass
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        # Don't continue if database fails in production
+        if os.getenv("ENVIRONMENT") == "production":
+            raise
 
 # Trusted host middleware for security
 # Temporarily disable TrustedHostMiddleware during development/testing for easier debugging
