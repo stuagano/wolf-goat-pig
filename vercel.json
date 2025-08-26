@@ -1,27 +1,13 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "frontend/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "build",
-        "buildCommand": "cd frontend && npm ci --only=production && npm run build"
-      }
-    }
-  ],
+  "buildCommand": "cd frontend && npm install && npm run build",
+  "outputDirectory": "frontend/build",
+  "installCommand": "cd frontend && npm install",
+  "framework": null,
   "rewrites": [
     {
-      "source": "/static/(.*)",
-      "destination": "/frontend/build/static/$1"
-    },
-    {
-      "source": "/(.*\\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot))",
-      "destination": "/frontend/build/$1"
-    },
-    {
       "source": "/(.*)",
-      "destination": "/frontend/build/index.html"
+      "destination": "/index.html"
     }
   ],
   "env": {
@@ -36,18 +22,6 @@
       ]
     },
     {
-      "source": "/(.*\\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot))",
-      "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=86400" }
-      ]
-    },
-    {
-      "source": "/service-worker.js",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
-      ]
-    },
-    {
       "source": "/(.*)",
       "headers": [
         { "key": "X-Content-Type-Options", "value": "nosniff" },
@@ -56,10 +30,5 @@
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
       ]
     }
-  ],
-  "functions": {
-    "frontend/build/**": {
-      "includeFiles": "frontend/build/**"
-    }
-  }
+  ]
 }
