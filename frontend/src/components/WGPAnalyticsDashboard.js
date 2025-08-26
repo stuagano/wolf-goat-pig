@@ -15,38 +15,47 @@ const WGPAnalyticsDashboard = () => {
     try {
       setLoading(true);
       
-      // First, fetch the CSV data from Google Sheets integration
-      const csvResponse = await fetch('/sheet-integration/fetch-google-sheet', {
-        method: 'POST',
+      const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+      
+      // Try to get current leaderboard data from the database
+      // This will contain data that was previously synced from Google Sheets
+      const leaderboardResponse = await fetch(`${API_URL}/leaderboard`, {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          csv_url: 'http://localhost:3000/sample_golf_data.csv' // Using local CSV for demo
-        })
+        }
       });
       
-      if (!csvResponse.ok) {
-        throw new Error(`Failed to fetch sheet data: ${csvResponse.statusText}`);
+      if (!leaderboardResponse.ok) {
+        throw new Error(`Failed to fetch leaderboard data: ${leaderboardResponse.statusText}`);
       }
       
-      const csvData = await csvResponse.json();
+      const leaderboardData = await leaderboardResponse.json();
       
-      // Convert CSV data to leaderboard format
-      const leaderboard = (csvData.data || csvData).map(player => ({
-        player_name: player['Player Name'] || player.name,
-        games_played: parseInt(player['Games Played'] || player.games_played || '0'),
-        games_won: parseInt(player['Games Won'] || player.games_won || '0'),
-        win_rate: parseFloat((player['Win Rate'] || player.win_rate || '0%').replace('%', '')) / 100,
-        total_earnings: parseFloat((player['Total Earnings'] || player.total_earnings || '$0').replace('$', '').replace(',', '')),
-        avg_earnings_per_game: parseFloat((player['Avg Earnings Per Game'] || player.avg_earnings_per_game || '$0').replace('$', '').replace(',', '')),
-        best_finish: parseInt(player['Best Finish'] || player.best_finish || '99'),
-        holes_won: parseInt(player['Holes Won'] || player.holes_won || '0'),
-        partnerships: parseInt(player['Partnerships'] || player.partnerships || '0'),
-        partnership_success: parseFloat((player['Partnership Success'] || player.partnership_success || '0%').replace('%', '')) / 100,
-        betting_success: parseFloat((player['Betting Success'] || player.betting_success || '0%').replace('%', '')) / 100,
-        solo_attempts: parseInt(player['Solo Attempts'] || player.solo_attempts || '0'),
-        solo_wins: parseInt(player['Solo Wins'] || player.solo_wins || '0')
+      // If no data available, show empty state
+      if (!leaderboardData || leaderboardData.length === 0) {
+        setLeaderboardData([]);
+        setTopBestScores([]);
+        setTopWorstScores([]);
+        setMostRoundsPlayed([]);
+        return;
+      }
+      
+      // Process leaderboard data from database
+      const leaderboard = leaderboardData.map(player => ({
+        player_name: player.player_name || player.name,
+        games_played: player.games_played || 0,
+        games_won: player.games_won || 0,
+        win_rate: player.win_percentage ? player.win_percentage / 100 : 0,
+        total_earnings: player.total_earnings || 0,
+        avg_earnings_per_game: player.avg_earnings || 0,
+        best_finish: player.best_finish || 99,
+        holes_won: player.holes_won || 0,
+        partnerships: player.partnerships_formed || 0,
+        partnership_success: player.partnership_success ? player.partnership_success / 100 : 0,
+        betting_success: player.betting_success || 0,
+        solo_attempts: player.solo_attempts || 0,
+        solo_wins: player.solo_wins || 0
       }));
       
       // Process and format data
@@ -123,6 +132,39 @@ const WGPAnalyticsDashboard = () => {
           <div className="bg-white rounded-lg shadow p-8 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
             <p className="text-gray-600">Loading leaderboard data...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show empty state if no data
+  if (leaderboardData.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="bg-white rounded-lg shadow p-8 text-center">
+            <div className="text-6xl mb-4">📊</div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">No Leaderboard Data Available</h2>
+            <p className="text-gray-600 mb-6">
+              To display live leaderboard data, you need to set up Google Sheets synchronization.
+            </p>
+            <div className="bg-blue-50 p-6 rounded-lg mb-6">
+              <h3 className="text-lg font-semibold text-blue-900 mb-3">🔗 Setup Instructions</h3>
+              <ol className="text-left space-y-2 text-sm text-blue-800">
+                <li><strong>1.</strong> Go to the <a href="/live-sync" className="underline">Live Sync page</a></li>
+                <li><strong>2.</strong> Enter your Google Sheets URL</li>
+                <li><strong>3.</strong> Make sure your sheet is publicly viewable</li>
+                <li><strong>4.</strong> Click "Sync Now" to import your data</li>
+                <li><strong>5.</strong> Return here to view your leaderboard</li>
+              </ol>
+            </div>
+            <button 
+              onClick={() => window.location.href = '/live-sync'}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+            >
+              Set Up Google Sheets Sync
+            </button>
           </div>
         </div>
       </div>

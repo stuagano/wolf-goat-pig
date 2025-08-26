@@ -53,7 +53,8 @@ const GoogleSheetsLiveSync = () => {
   };
 
   const fetchSheetData = async (csvUrl) => {
-    const response = await fetch('/sheet-integration/fetch-google-sheet', {
+    const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+    const response = await fetch(`${API_URL}/sheet-integration/fetch-google-sheet`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -105,7 +106,8 @@ const GoogleSheetsLiveSync = () => {
       setSyncStatus('syncing');
       
       // Use the specialized WGP sync endpoint directly
-      const response = await fetch('/sheet-integration/sync-wgp-sheet', {
+      const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+      const response = await fetch(`${API_URL}/sheet-integration/sync-wgp-sheet`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

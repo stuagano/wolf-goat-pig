@@ -16,34 +16,18 @@ const Leaderboard = () => {
       setLoading(true);
       setError(null);
       
-      // First, fetch the CSV data
-      const csvResponse = await fetch('/sheet-integration/fetch-google-sheet', {
-        method: 'POST',
+      const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+      
+      // Fetch leaderboard data from the database (previously synced from Google Sheets)
+      const leaderboardResponse = await fetch(`${API_URL}/leaderboard`, {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          csv_url: 'http://localhost:3000/sample_golf_data.csv' // Using local CSV for demo
-        })
-      });
-      
-      if (!csvResponse.ok) {
-        throw new Error(`Failed to fetch sheet data: ${csvResponse.statusText}`);
-      }
-      
-      const csvData = await csvResponse.json();
-      
-      // Then create leaderboard from the CSV data
-      const leaderboardResponse = await fetch('/sheet-integration/create-leaderboard', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(csvData.data || csvData)
+        }
       });
       
       if (!leaderboardResponse.ok) {
-        throw new Error(`Failed to create leaderboard: ${leaderboardResponse.statusText}`);
+        throw new Error(`Failed to fetch leaderboard data: ${leaderboardResponse.statusText}`);
       }
       
       const data = await leaderboardResponse.json();
