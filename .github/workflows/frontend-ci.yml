@@ -163,7 +163,7 @@ jobs:
         REACT_APP_API_URL: ${{ secrets.PREVIEW_API_URL || 'https://api-preview.wolfgoatpig.com' }}
     
     - name: Deploy to Netlify Preview
-      uses: nwtgck/actions-netlify@v2
+      uses: nwtgck/actions-netlify@v3
       with:
         publish-dir: './frontend/build'
         production-deploy: false
