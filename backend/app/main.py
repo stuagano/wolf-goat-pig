@@ -4233,6 +4233,23 @@ from pathlib import Path
 # Get the path to the built React app
 STATIC_DIR = Path(__file__).parent.parent.parent / "frontend" / "build"
 
+# Debug endpoint to check paths
+@app.get("/debug/paths")
+async def debug_paths():
+    """Debug endpoint to check file paths"""
+    current_file = Path(__file__).resolve()
+    static_dir = STATIC_DIR.resolve()
+    index_file = static_dir / "index.html"
+    
+    return {
+        "current_file": str(current_file),
+        "static_dir": str(static_dir),
+        "static_dir_exists": static_dir.exists(),
+        "index_file": str(index_file),
+        "index_file_exists": index_file.exists(),
+        "static_dir_contents": list(static_dir.iterdir()) if static_dir.exists() else []
+    }
+
 # Mount static files if build directory exists
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR / "static")), name="static")
