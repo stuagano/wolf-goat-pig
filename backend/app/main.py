@@ -4233,6 +4233,12 @@ from pathlib import Path
 # Get the path to the built React app
 STATIC_DIR = Path(__file__).parent.parent.parent / "frontend" / "build"
 
+# Simple test endpoint  
+@app.get("/test-deployment")
+async def test_deployment():
+    """Test that new deployments are working"""
+    return {"message": "Deployment is working", "timestamp": datetime.now().isoformat()}
+
 # Debug endpoint to check paths
 @app.get("/debug/paths")
 async def debug_paths():
