@@ -2911,18 +2911,47 @@ def sync_wgp_sheet_data(request: Dict[str, str]):
         if not lines:
             raise HTTPException(status_code=400, detail="Empty sheet data")
         
-        headers = [h.strip().strip('"') for h in lines[0].split(',')]
-        logger.info(f"Sheet headers: {headers}")
+        # Find the actual header row (looking for "Member" column)
+        header_line_index = -1
+        headers = []
+        
+        for i, line in enumerate(lines):
+            temp_headers = [h.strip().strip('"') for h in line.split(',')]
+            # Check if this line contains the actual column headers
+            if any('member' in h.lower() for h in temp_headers if h) and \
+               any('quarters' in h.lower() for h in temp_headers if h):
+                header_line_index = i
+                headers = temp_headers
+                logger.info(f"Found headers at row {i + 1}: {headers}")
+                break
+        
+        if header_line_index == -1:
+            # Fallback: assume headers are in the first non-empty row with multiple values
+            for i, line in enumerate(lines):
+                temp_headers = [h.strip().strip('"') for h in line.split(',')]
+                if len([h for h in temp_headers if h]) >= 3:  # At least 3 non-empty columns
+                    header_line_index = i
+                    headers = temp_headers
+                    logger.info(f"Using row {i + 1} as headers (fallback): {headers}")
+                    break
+        
+        if not headers:
+            raise HTTPException(status_code=400, detail="Could not find valid headers in sheet")
         
         # Create header index mapping for flexible column handling
-        header_map = {header.lower(): idx for idx, header in enumerate(headers)}
+        header_map = {header.lower(): idx for idx, header in enumerate(headers) if header}
         
         # Process each row based on detected columns
         player_stats = {}
         
-        for line in lines[1:]:
+        # Start processing from the row after headers
+        for line in lines[header_line_index + 1:]:
             if line.strip():
                 values = [v.strip().strip('"') for v in line.split(',')]
+                
+                # Skip empty rows or rows with too few values
+                if len(values) < 2 or not any(v for v in values[:5]):  # Check first 5 columns
+                    continue
                 
                 # Extract player name (try different column names)
                 player_name = None
@@ -2931,8 +2960,14 @@ def sync_wgp_sheet_data(request: Dict[str, str]):
                         player_name = values[header_map[name_key]]
                         break
                 
-                if not player_name or player_name.lower() in ['member', 'player', 'name']:
+                # Skip if no player name, or if it's a header/summary row
+                if not player_name or player_name.lower() in ['member', 'player', 'name', '', 'total', 'average']:
                     continue
+                
+                # Stop if we hit summary sections (like "Most Rounds Played")
+                if any(keyword in player_name.lower() for keyword in ['most rounds', 'top 5', 'best score', 'worst score', 'group size']):
+                    logger.info(f"Stopping at summary section: {player_name}")
+                    break
                 
                 # Initialize player stats if not exists
                 if player_name not in player_stats:
@@ -2949,31 +2984,51 @@ def sync_wgp_sheet_data(request: Dict[str, str]):
                 # Quarters column (total earnings in quarters)
                 if 'quarters' in header_map and header_map['quarters'] < len(values):
                     try:
-                        player_stats[player_name]["quarters"] = int(values[header_map['quarters']])
-                        player_stats[player_name]["total_earnings"] = float(values[header_map['quarters']])
-                    except (ValueError, IndexError):
+                        quarters_value = values[header_map['quarters']]
+                        if quarters_value and quarters_value != '':
+                            player_stats[player_name]["quarters"] = int(quarters_value)
+                            player_stats[player_name]["total_earnings"] = float(quarters_value)
+                            logger.debug(f"Set {player_name} quarters to {quarters_value}")
+                    except (ValueError, IndexError) as e:
+                        logger.warning(f"Error parsing quarters for {player_name}: {e}")
                         pass
                 
                 # Average column
                 if 'average' in header_map and header_map['average'] < len(values):
                     try:
-                        player_stats[player_name]["average"] = float(values[header_map['average']])
-                    except (ValueError, IndexError):
+                        avg_value = values[header_map['average']]
+                        if avg_value and avg_value != '':
+                            player_stats[player_name]["average"] = float(avg_value)
+                            logger.debug(f"Set {player_name} average to {avg_value}")
+                    except (ValueError, IndexError) as e:
+                        logger.warning(f"Error parsing average for {player_name}: {e}")
                         pass
                 
                 # Rounds column (games played)
                 if 'rounds' in header_map and header_map['rounds'] < len(values):
                     try:
-                        player_stats[player_name]["rounds"] = int(values[header_map['rounds']])
-                    except (ValueError, IndexError):
+                        rounds_value = values[header_map['rounds']]
+                        if rounds_value and rounds_value != '':
+                            player_stats[player_name]["rounds"] = int(rounds_value)
+                            logger.debug(f"Set {player_name} rounds to {rounds_value}")
+                    except (ValueError, IndexError) as e:
+                        logger.warning(f"Error parsing rounds for {player_name}: {e}")
                         pass
                 
                 # QB column
                 if 'qb' in header_map and header_map['qb'] < len(values):
                     try:
-                        player_stats[player_name]["qb"] = int(values[header_map['qb']])
-                    except (ValueError, IndexError):
+                        qb_value = values[header_map['qb']]
+                        if qb_value and qb_value != '':
+                            player_stats[player_name]["qb"] = int(qb_value)
+                            logger.debug(f"Set {player_name} QB to {qb_value}")
+                    except (ValueError, IndexError) as e:
+                        logger.warning(f"Error parsing QB for {player_name}: {e}")
                         pass
+                
+                # Log successful player data extraction
+                if player_stats[player_name]["quarters"] > 0 or player_stats[player_name]["rounds"] > 0:
+                    logger.info(f"Extracted data for {player_name}: {player_stats[player_name]}")
         
         # Create/update players in database
         player_service = PlayerService(db)
