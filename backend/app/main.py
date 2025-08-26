@@ -4254,11 +4254,10 @@ async def debug_paths():
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR / "static")), name="static")
     
-    # Serve React app for all non-API routes (MUST BE LAST ROUTE)
-    @app.get("/{full_path:path}")
-    async def serve_react_app(full_path: str):
-        """Serve React app for all non-API routes"""
-        # Serve index.html for all routes (React Router will handle routing)
+    # Simple root route for testing
+    @app.get("/")
+    async def serve_homepage():
+        """Serve React app homepage"""
         index_file = STATIC_DIR / "index.html" 
         if index_file.exists():
             return FileResponse(str(index_file))
