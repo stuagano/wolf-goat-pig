@@ -7,11 +7,12 @@ export const useSheetSync = () => {
 };
 
 export const SheetSyncProvider = ({ children }) => {
-  const [sheetUrl, setSheetUrl] = useState('');
+  // Hardcode the Wolf-Goat-Pig Google Sheets URL
+  const [sheetUrl, setSheetUrl] = useState('https://docs.google.com/spreadsheets/d/1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM/edit?pli=1&gid=0#gid=0');
   const [syncStatus, setSyncStatus] = useState('idle'); // idle, connecting, syncing, error, success
   const [lastSync, setLastSync] = useState(null);
   const [syncInterval, setSyncInterval] = useState(30); // seconds
-  const [autoSync, setAutoSync] = useState(false);
+  const [autoSync, setAutoSync] = useState(true); // Enable auto sync by default
   const [syncData, setSyncData] = useState([]);
   const [error, setError] = useState(null);
 
@@ -101,6 +102,14 @@ export const SheetSyncProvider = ({ children }) => {
     }
   }, [sheetUrl]);
 
+  // Initial sync on load
+  useEffect(() => {
+    if (sheetUrl) {
+      performLiveSync();
+    }
+  }, []); // Only run once on mount
+
+  // Auto sync interval
   useEffect(() => {
     let intervalId;
     if (autoSync && sheetUrl && syncInterval > 0) {
