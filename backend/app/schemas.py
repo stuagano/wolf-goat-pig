@@ -202,9 +202,13 @@ class PlayerProfileUpdate(BaseModel):
 
 class PlayerProfileResponse(PlayerProfileBase):
     id: int
-    created_date: str
+    created_at: str
+    updated_at: Optional[str] = None
     last_played: Optional[str] = None
     is_active: bool = True
+    is_ai: bool = False
+    playing_style: Optional[str] = None
+    description: Optional[str] = None
 
     class Config:
         from_attributes = True

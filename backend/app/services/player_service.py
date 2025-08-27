@@ -356,13 +356,14 @@ class PlayerService:
             raise
     
     def get_leaderboard(self, limit: int = 10) -> List[LeaderboardEntry]:
-        """Get the player leaderboard."""
+        """Get the player leaderboard (real players only, no AI)."""
         try:
-            # Query for active players with statistics (removed games_played filter to show all players)
+            # Query for active real players with statistics (exclude AI players)
             query = self.db.query(PlayerProfile, PlayerStatistics).join(
                 PlayerStatistics, PlayerProfile.id == PlayerStatistics.player_id
             ).filter(
-                PlayerProfile.is_active == 1  # Only filter for active players, show everyone regardless of games played
+                PlayerProfile.is_active == 1,  # Only active players
+                PlayerProfile.is_ai == 0  # Exclude AI players from leaderboard
             ).order_by(desc(PlayerStatistics.total_earnings))
             
             players_with_stats = query.limit(limit).all()

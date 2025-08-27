@@ -1,0 +1,63 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - generic [ref=e5]:
+      - heading "🐺🐐🐷 Wolf Goat Pig" [level=1] [ref=e6]
+      - generic [ref=e7]:
+        - button "🏠 Home" [ref=e8] [cursor=pointer]
+        - button "🎮 Game" [ref=e9] [cursor=pointer]
+        - button "🎲 Simulation" [ref=e10] [cursor=pointer]
+        - button "📊 Analytics" [ref=e11] [cursor=pointer]
+        - button "🎓 Tutorial" [ref=e12] [cursor=pointer]
+        - button "📅 Sign-ups" [ref=e13] [cursor=pointer]
+        - button "🔍 Feed Analyzer" [ref=e14] [cursor=pointer]
+        - button "🏆 Leaderboard" [ref=e15] [cursor=pointer]
+        - button "📊 Sheet Sync" [ref=e16] [cursor=pointer]
+        - button "🔄 Live Sync" [ref=e17] [cursor=pointer]
+        - button "Login" [ref=e19] [cursor=pointer]
+  - generic [ref=e20]:
+    - button [ref=e22] [cursor=pointer]
+    - generic [ref=e26]:
+      - generic [ref=e27]:
+        - heading "Welcome to Wolf Goat Pig" [level=1] [ref=e28]
+        - paragraph [ref=e29]: "\"We accept bad golf, but not bad betting\""
+        - paragraph [ref=e30]: 🏌️ Home of Wing Point Golf & Country Club • Est. 1903
+      - generic [ref=e31]:
+        - generic [ref=e32] [cursor=pointer]:
+          - generic [ref=e33] [cursor=pointer]: ⚔️
+          - heading "Regular Game" [level=2] [ref=e34] [cursor=pointer]
+          - paragraph [ref=e35] [cursor=pointer]: Play with real players and track your Wolf Goat Pig matches
+          - button "Start Game" [ref=e36] [cursor=pointer]
+        - generic [ref=e37] [cursor=pointer]:
+          - generic [ref=e38] [cursor=pointer]: 🎮
+          - heading "Simulation Mode" [level=2] [ref=e39] [cursor=pointer]
+          - paragraph [ref=e40] [cursor=pointer]: Practice against computer opponents to learn strategies
+          - button "Start Practice" [ref=e41] [cursor=pointer]
+        - generic [ref=e42] [cursor=pointer]:
+          - generic [ref=e43] [cursor=pointer]: 📝
+          - heading "Sign Up" [level=2] [ref=e44] [cursor=pointer]
+          - paragraph [ref=e45] [cursor=pointer]: Register for tournaments and track your stats
+          - button "Sign Up" [ref=e46] [cursor=pointer]
+        - generic [ref=e47] [cursor=pointer]:
+          - generic [ref=e48] [cursor=pointer]: 🏆
+          - heading "Leaderboard" [level=2] [ref=e49] [cursor=pointer]
+          - paragraph [ref=e50] [cursor=pointer]: View rankings and player statistics
+          - button "View Leaderboard" [ref=e51] [cursor=pointer]
+      - generic [ref=e52]:
+        - heading "🔐 Sign In for Full Access" [level=3] [ref=e53]
+        - paragraph [ref=e54]: Create an account or sign in to save your progress, track statistics, and compete in tournaments.
+        - button "🔐 Log In" [ref=e55] [cursor=pointer]
+      - generic [ref=e56]:
+        - heading "About Wolf Goat Pig 🐺🐐🐷" [level=3] [ref=e57]
+        - paragraph [ref=e58]: "Wolf Goat Pig is a sophisticated golf betting game where strategy meets skill. Players take turns as the \"Captain\" and must decide whether to:"
+        - generic [ref=e59]:
+          - generic [ref=e60]:
+            - strong [ref=e61]: 🤝 Request a Partner
+            - paragraph [ref=e62]: Team up for a traditional best-ball format
+          - generic [ref=e63]:
+            - strong [ref=e64]: 🎯 Go Solo
+            - paragraph [ref=e65]: Face all three players alone (doubles the wager!)
+        - paragraph [ref=e66]: With doubling opportunities, the Float, the Option, and complex scoring rules like the Karl Marx principle, Wolf Goat Pig rewards both golf skill and betting acumen.
+```

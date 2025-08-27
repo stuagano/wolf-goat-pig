@@ -383,7 +383,11 @@ class StatisticsService:
             ).join(
                 PlayerStatistics, PlayerProfile.id == PlayerStatistics.player_id
             ).filter(
-                and_(PlayerProfile.is_active == 1, PlayerStatistics.games_played >= 5)
+                and_(
+                    PlayerProfile.is_active == 1,
+                    PlayerProfile.is_ai == 0,  # Exclude AI players from leaderboard
+                    PlayerStatistics.games_played >= 5
+                )
             ).order_by(order_func(query_field)).limit(limit)
             
             results = query.all()

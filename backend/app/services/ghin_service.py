@@ -330,11 +330,12 @@ class GHINService:
             List of player records with GHIN data integrated
         """
         try:
-            # Get basic leaderboard data
+            # Get basic leaderboard data (exclude AI players)
             query = self.db.query(PlayerProfile, PlayerStatistics).join(
                 PlayerStatistics, PlayerProfile.id == PlayerStatistics.player_id
             ).filter(
-                PlayerProfile.is_active == 1
+                PlayerProfile.is_active == 1,
+                PlayerProfile.is_ai == 0  # Exclude AI players from leaderboard
             ).order_by(desc(PlayerStatistics.total_earnings))
             
             players_with_stats = query.limit(limit).all()
