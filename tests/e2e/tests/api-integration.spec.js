@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('API Integration Tests', () => {
-  const API_BASE = 'http://localhost:8000';
+  const API_BASE = 'https://wolf-goat-pig.vercel.app/api';
   
   test('should connect to backend API', async ({ request }) => {
     console.log('🔌 Testing API connectivity...');
