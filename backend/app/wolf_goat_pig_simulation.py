@@ -883,6 +883,10 @@ class WolfGoatPigSimulation:
         else:
             return self._decline_partnership(captain_id, partner_id, hole_state)
     
+    def go_solo(self, captain_id: str, use_duncan: bool = False) -> Dict[str, Any]:
+        """Alias for captain_go_solo for backward compatibility"""
+        return self.captain_go_solo(captain_id, use_duncan)
+    
     def captain_go_solo(self, captain_id: str, use_duncan: bool = False) -> Dict[str, Any]:
         """Captain decides to go solo (Pig)"""
         hole_state = self.hole_states[self.current_hole]

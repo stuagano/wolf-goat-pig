@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useGame } from "../../context";
-import { GameSetup, GamePlay } from "./";
+import { GameSetup, GamePlay, Timeline, PokerBettingPanel, EnhancedSimulationLayout } from "./";
 import TVPokerLayout from "../game/TVPokerLayout";
 
 const API_URL = process.env.REACT_APP_API_URL || "";
@@ -44,6 +44,12 @@ function SimulationMode() {
     if (message) addFeedback(message);
   };
   
+  // Timeline and Poker state
+  const [timelineEvents, setTimelineEvents] = useState([]);
+  const [pokerState, setPokerState] = useState({});
+  const [bettingOptions, setBettingOptions] = useState([]);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+
   // Setup state
   const [humanPlayer, setHumanPlayer] = useState({
     id: "human",
@@ -178,6 +184,102 @@ function SimulationMode() {
       setLoading(false);
     }
   };
+
+  // Fetch timeline events from backend
+  const fetchTimelineEvents = async () => {
+    if (!isGameActive) return;
+    
+    try {
+      setTimelineLoading(true);
+      const response = await fetch(`${API_URL}/simulation/timeline`);
+      if (response.ok) {
+        const data = await response.json();
+        setTimelineEvents(data.events || []);
+      }
+    } catch (error) {
+      console.error("Error fetching timeline:", error);
+    } finally {
+      setTimelineLoading(false);
+    }
+  };
+
+  // Fetch poker-style betting state
+  const fetchPokerState = async () => {
+    if (!isGameActive) return;
+    
+    try {
+      const response = await fetch(`${API_URL}/simulation/poker-state`);
+      if (response.ok) {
+        const data = await response.json();
+        setPokerState({
+          pot_size: data.pot_size,
+          base_bet: data.base_bet, 
+          current_bet: data.current_bet,
+          betting_phase: data.betting_phase,
+          doubled: data.doubled,
+          players_in: data.players_in,
+          wagering_closed: data.wagering_closed
+        });
+        setBettingOptions(data.betting_options || []);
+      }
+    } catch (error) {
+      console.error("Error fetching poker state:", error);
+    }
+  };
+
+  // Handle poker-style betting actions
+  const handleBettingAction = async (action, option) => {
+    try {
+      setLoading(true);
+      
+      const decision = {
+        decision_type: action,
+        player_id: 'human',
+        amount: option.amount || 0,
+        ...option
+      };
+      
+      const response = await fetch(`${API_URL}/simulation/betting-decision`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(decision)
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          // Update game state if provided
+          if (result.game_state) {
+            setGameState(result.game_state);
+          }
+          
+          // Refresh timeline and poker state
+          await Promise.all([fetchTimelineEvents(), fetchPokerState()]);
+        }
+      }
+    } catch (error) {
+      console.error("Error handling betting action:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Auto-refresh timeline and poker state when game is active
+  useEffect(() => {
+    if (isGameActive) {
+      // Initial fetch
+      fetchTimelineEvents();
+      fetchPokerState();
+      
+      // Set up polling for real-time updates
+      const interval = setInterval(() => {
+        fetchTimelineEvents();
+        fetchPokerState();
+      }, 3000); // Update every 3 seconds
+      
+      return () => clearInterval(interval);
+    }
+  }, [isGameActive, gameState?.current_hole, gameState?.hole_state?.current_shot_number]);
   
   // Removed unused testNewEndpoints function
 
@@ -352,6 +454,9 @@ function SimulationMode() {
         // Update next shot availability
         setHasNextShot(data.next_shot_available);
         
+        // Refresh timeline and poker state after shot
+        await Promise.all([fetchTimelineEvents(), fetchPokerState()]);
+        
       } else {
         throw new Error(data.message || 'Unknown error occurred');
       }
@@ -406,12 +511,12 @@ function SimulationMode() {
     );
   }
 
-  // Use TV Poker Layout if enabled (you can toggle this with a setting)
-  const useTVLayout = true; // TODO: Make this a user preference
+  // Use Enhanced Simulation Layout with Timeline and Poker Betting
+  const useEnhancedLayout = true; // TODO: Make this a user preference
 
-  if (useTVLayout) {
+  if (useEnhancedLayout) {
     return (
-      <TVPokerLayout
+      <EnhancedSimulationLayout
         gameState={{
           ...gameState,
           interactionNeeded,
@@ -422,6 +527,12 @@ function SimulationMode() {
         probabilities={shotProbabilities}
         onDecision={makeDecision}
         onPlayNextShot={playNextShot}
+        timelineEvents={timelineEvents}
+        timelineLoading={timelineLoading}
+        pokerState={pokerState}
+        bettingOptions={bettingOptions}
+        onBettingAction={handleBettingAction}
+        currentPlayer="human"
       />
     );
   }

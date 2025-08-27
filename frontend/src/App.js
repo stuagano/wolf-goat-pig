@@ -189,11 +189,7 @@ function App() {
               <UnifiedGameInterface />
             </ProtectedRoute>
           } />
-          <Route path="/simulation" element={
-            <ProtectedRoute>
-              <SimulationMode />
-            </ProtectedRoute>
-          } />
+          <Route path="/simulation" element={<SimulationMode />} />
           <Route path="/monte-carlo" element={
             <ProtectedRoute>
               <MonteCarloSimulation />

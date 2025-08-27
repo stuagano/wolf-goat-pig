@@ -1,0 +1,118 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - generic [ref=e5]:
+      - heading "🐺🐐🐷 Wolf Goat Pig" [level=1] [ref=e6]
+      - generic [ref=e7]:
+        - button "🏠 Home" [ref=e8] [cursor=pointer]
+        - button "🎮 Game" [ref=e9] [cursor=pointer]
+        - button "🎲 Simulation" [ref=e10] [cursor=pointer]
+        - button "📊 Analytics" [ref=e11] [cursor=pointer]
+        - button "🎓 Tutorial" [ref=e12] [cursor=pointer]
+        - button "📅 Sign-ups" [ref=e13] [cursor=pointer]
+        - button "🔍 Feed Analyzer" [ref=e14] [cursor=pointer]
+        - button "🏆 Leaderboard" [ref=e15] [cursor=pointer]
+        - button "📊 Sheet Sync" [ref=e16] [cursor=pointer]
+        - button "🔄 Live Sync" [ref=e17] [cursor=pointer]
+        - button "Login" [ref=e19] [cursor=pointer]
+  - generic [ref=e21]:
+    - heading "🎮 Wolf Goat Pig Simulation Mode" [level=2] [ref=e22]
+    - paragraph [ref=e23]: Practice Wolf Goat Pig against computer opponents! This mode helps you learn the betting strategies and get comfortable with the game mechanics. After each hole, you'll receive educational feedback about your decisions.
+    - generic [ref=e24]:
+      - heading "Your Details" [level=3] [ref=e25]
+      - generic [ref=e26]:
+        - generic [ref=e27]:
+          - generic [ref=e28]: "Your Name:"
+          - textbox [active] [ref=e29]: Test Player
+        - generic [ref=e30]:
+          - generic [ref=e31]: "Your Handicap:"
+          - spinbutton [ref=e32]: "18"
+      - button "Lookup GHIN Handicap" [ref=e33] [cursor=pointer]
+    - generic [ref=e34]:
+      - heading "Computer Opponents" [level=3] [ref=e35]
+      - generic [ref=e36]:
+        - heading "Computer Player 1" [level=4] [ref=e37]
+        - generic [ref=e38]:
+          - generic [ref=e39]:
+            - generic [ref=e40]: "Name:"
+            - textbox [ref=e41]: Classic Quartet
+          - generic [ref=e42]:
+            - generic [ref=e43]: "Handicap:"
+            - spinbutton [ref=e44]
+        - generic [ref=e45]:
+          - generic [ref=e46]: "Personality:"
+          - combobox [ref=e47] [cursor=pointer]:
+            - option "Select personality..." [selected]
+            - option "Aggressive"
+            - option "Conservative"
+            - option "Balanced"
+            - option "Strategic"
+            - option "Maverick"
+        - button "Lookup GHIN Handicap" [ref=e48] [cursor=pointer]
+        - generic [ref=e49]:
+          - generic [ref=e50]: "Quick select:"
+          - generic [ref=e51]:
+            - button "Classic Quartet" [ref=e52] [cursor=pointer]
+            - button "Mixed Bag" [ref=e53] [cursor=pointer]
+            - button "High Rollers" [ref=e54] [cursor=pointer]
+      - generic [ref=e55]:
+        - heading "Computer Player 2" [level=4] [ref=e56]
+        - generic [ref=e57]:
+          - generic [ref=e58]:
+            - generic [ref=e59]: "Name:"
+            - textbox [ref=e60]: Mixed Bag
+          - generic [ref=e61]:
+            - generic [ref=e62]: "Handicap:"
+            - spinbutton [ref=e63]
+        - generic [ref=e64]:
+          - generic [ref=e65]: "Personality:"
+          - combobox [ref=e66] [cursor=pointer]:
+            - option "Select personality..." [selected]
+            - option "Aggressive"
+            - option "Conservative"
+            - option "Balanced"
+            - option "Strategic"
+            - option "Maverick"
+        - button "Lookup GHIN Handicap" [ref=e67] [cursor=pointer]
+        - generic [ref=e68]:
+          - generic [ref=e69]: "Quick select:"
+          - generic [ref=e70]:
+            - button "Classic Quartet" [ref=e71] [cursor=pointer]
+            - button "Mixed Bag" [ref=e72] [cursor=pointer]
+            - button "High Rollers" [ref=e73] [cursor=pointer]
+      - generic [ref=e74]:
+        - heading "Computer Player 3" [level=4] [ref=e75]
+        - generic [ref=e76]:
+          - generic [ref=e77]:
+            - generic [ref=e78]: "Name:"
+            - textbox [ref=e79]: High Rollers
+          - generic [ref=e80]:
+            - generic [ref=e81]: "Handicap:"
+            - spinbutton [ref=e82]
+        - generic [ref=e83]:
+          - generic [ref=e84]: "Personality:"
+          - combobox [ref=e85] [cursor=pointer]:
+            - option "Select personality..." [selected]
+            - option "Aggressive"
+            - option "Conservative"
+            - option "Balanced"
+            - option "Strategic"
+            - option "Maverick"
+        - button "Lookup GHIN Handicap" [ref=e86] [cursor=pointer]
+        - generic [ref=e87]:
+          - generic [ref=e88]: "Quick select:"
+          - generic [ref=e89]:
+            - button "Classic Quartet" [ref=e90] [cursor=pointer]
+            - button "Mixed Bag" [ref=e91] [cursor=pointer]
+            - button "High Rollers" [ref=e92] [cursor=pointer]
+    - generic [ref=e94]:
+      - generic [ref=e95]: "Select Course:"
+      - combobox [ref=e96] [cursor=pointer]:
+        - option "Choose a course..." [selected]
+        - option "Wing Point"
+        - option "Championship Links"
+        - option "Executive Course"
+    - button "🚀 Start Simulation" [ref=e98] [cursor=pointer]
+```

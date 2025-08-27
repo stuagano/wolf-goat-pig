@@ -1,0 +1,135 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - generic [ref=e5]:
+      - heading "🐺🐐🐷 Wolf Goat Pig" [level=1] [ref=e6]
+      - generic [ref=e7]:
+        - button "🏠 Home" [ref=e8] [cursor=pointer]
+        - button "🎮 Game" [ref=e9] [cursor=pointer]
+        - button "🎲 Simulation" [ref=e10] [cursor=pointer]
+        - button "📊 Analytics" [ref=e11] [cursor=pointer]
+        - button "🎓 Tutorial" [ref=e12] [cursor=pointer]
+        - button "📅 Sign-ups" [ref=e13] [cursor=pointer]
+        - button "🔍 Feed Analyzer" [ref=e14] [cursor=pointer]
+        - button "🏆 Leaderboard" [ref=e15] [cursor=pointer]
+        - button "📊 Sheet Sync" [ref=e16] [cursor=pointer]
+        - button "🔄 Live Sync" [ref=e17] [cursor=pointer]
+        - button "Login" [ref=e19] [cursor=pointer]
+  - generic [ref=e20]:
+    - generic [ref=e21]:
+      - generic [ref=e22]: Hole 1 | Par 4 | 435 yards
+      - generic [ref=e23]: "Base Wager: $10 | 1x Active"
+      - generic [ref=e24]:
+        - button "⛳ Play Next Shot" [ref=e25] [cursor=pointer]
+        - button "📊 Export Feed" [ref=e26] [cursor=pointer]
+    - generic [ref=e27]:
+      - generic [ref=e28]:
+        - heading "Players" [level=3] [ref=e29]
+        - generic [ref=e30]:
+          - generic [ref=e31]: 👤 Test Player
+          - generic [ref=e32]: "Hdcp: 18"
+          - generic [ref=e33]: +0 pts
+        - generic [ref=e34]:
+          - generic [ref=e35]: 💻 Clive
+          - generic [ref=e36]: "Hdcp: 8"
+          - generic [ref=e37]: +0 pts
+        - generic [ref=e38]:
+          - generic [ref=e39]: 💻 Gary
+          - generic [ref=e40]: "Hdcp: 12"
+          - generic [ref=e41]: +0 pts
+        - generic [ref=e42]:
+          - generic [ref=e43]: 💻 Bernard
+          - generic [ref=e44]: "Hdcp: 15"
+          - generic [ref=e45]: +0 pts
+      - generic [ref=e47]:
+        - generic [ref=e49]:
+          - heading "📜 Timeline (Texas Hold'em Style)" [level=3] [ref=e50]
+          - generic [ref=e51]:
+            - button "all" [ref=e52] [cursor=pointer]
+            - button "bets" [ref=e53] [cursor=pointer]
+            - button "shots" [ref=e54] [cursor=pointer]
+            - button "partnerships" [ref=e55] [cursor=pointer]
+        - paragraph [ref=e58]: No events yet. Start playing to see the timeline!
+    - generic [ref=e59]:
+      - generic [ref=e60]:
+        - heading "Hole 1 Progress" [level=3] [ref=e61]
+        - generic [ref=e62]:
+          - generic [ref=e63]:
+            - generic [ref=e64]: 🚩
+            - generic [ref=e65]: Tee
+          - generic [ref=e66]:
+            - generic [ref=e67]: ⛳
+            - generic [ref=e68]: Pin
+          - generic [ref=e69]:
+            - generic [ref=e70]: "Shot #1"
+            - generic [ref=e71]: Bernard's turn
+      - generic [ref=e73]:
+        - generic [ref=e75]:
+          - generic [ref=e76]:
+            - heading "🎰 Texas Hold'em Style Betting" [level=3] [ref=e77]
+            - paragraph [ref=e78]: Wolf-Goat-Pig Poker Hybrid
+          - generic [ref=e79]:
+            - generic [ref=e80]: POT
+            - generic [ref=e81]: $4
+        - generic [ref=e83]:
+          - generic [ref=e84]: 🎯
+          - generic [ref=e85]:
+            - generic [ref=e86]: BETTING PHASE
+            - generic [ref=e87]: PRE-FLOP - Before Tee Shots
+        - generic [ref=e88]:
+          - generic [ref=e89]:
+            - generic [ref=e90]: Base Bet
+            - generic [ref=e91]: $1
+          - generic [ref=e92]:
+            - generic [ref=e93]: Current Bet
+            - generic [ref=e94]: $1
+          - generic [ref=e95]:
+            - generic [ref=e96]: Players In
+            - generic [ref=e97]: "4"
+    - generic [ref=e99]:
+      - heading "Live Analytics" [level=3] [ref=e100]
+      - generic [ref=e101]:
+        - heading "Win Probability" [level=4] [ref=e102]
+        - generic [ref=e103]:
+          - generic [ref=e104]: Test Player
+          - generic [ref=e106]: 28%
+        - generic [ref=e107]:
+          - generic [ref=e108]: Clive
+          - generic [ref=e110]: 35%
+        - generic [ref=e111]:
+          - generic [ref=e112]: Gary
+          - generic [ref=e114]: 22%
+        - generic [ref=e115]:
+          - generic [ref=e116]: Bernard
+          - generic [ref=e118]: 15%
+      - generic [ref=e119]:
+        - heading "Shot Success" [level=4] [ref=e120]
+        - generic [ref=e121]:
+          - generic [ref=e122]: Great
+          - generic [ref=e123]: 15%
+        - generic [ref=e124]:
+          - generic [ref=e125]: Good
+          - generic [ref=e126]: 45%
+        - generic [ref=e127]:
+          - generic [ref=e128]: OK
+          - generic [ref=e129]: 30%
+        - generic [ref=e130]:
+          - generic [ref=e131]: Poor
+          - generic [ref=e132]: 10%
+      - generic [ref=e133]:
+        - heading "Partnership EV" [level=4] [ref=e134]
+        - generic [ref=e135]:
+          - generic [ref=e136]: Clive
+          - generic [ref=e137]: "+2.3"
+        - generic [ref=e138]:
+          - generic [ref=e139]: Gary
+          - generic [ref=e140]: "+1.1"
+        - generic [ref=e141]:
+          - generic [ref=e142]: Bernard
+          - generic [ref=e143]: "-0.5"
+        - generic [ref=e144]:
+          - generic [ref=e145]: Solo
+          - generic [ref=e146]: "+3.5"
+```

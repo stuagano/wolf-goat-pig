@@ -9,6 +9,11 @@ from . import models, schemas, crud, database
 
 from .game_state import game_state
 from .wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer
+from .simulation_timeline_enhancements import (
+    enhance_simulation_with_timeline, 
+    format_poker_betting_state, 
+    create_betting_options
+)
 from .course_import import CourseImporter, import_course_by_name, import_course_from_json, save_course_to_database
 from .domain.shot_result import ShotResult
 from .domain.player import Player
@@ -3349,6 +3354,9 @@ def setup_simulation(request: Dict[str, Any]):
             players=wgp_players
         )
         
+        # Enhance with timeline tracking
+        wgp_simulation = enhance_simulation_with_timeline(wgp_simulation)
+        
         # Set computer players if specified
         if 'computer_players' in request and request['computer_players']:
             comp_players = request['computer_players']
@@ -3722,16 +3730,21 @@ def get_shot_probabilities():
         raise HTTPException(status_code=500, detail=f"Failed to get shot probabilities: {str(e)}")
 
 @app.post("/simulation/betting-decision")
-def make_betting_decision(request: BettingDecisionRequest):
-    """Process a betting decision in the simulation"""
+def make_betting_decision(request: Dict[str, Any]):
+    """Process a betting decision in the simulation with poker-style actions"""
     global wgp_simulation
     
     try:
         if not wgp_simulation:
             raise HTTPException(status_code=400, detail="Simulation not initialized")
         
-        decision = request.decision
-        decision_type = decision.get("type")
+        # Handle both old format and new format
+        if isinstance(request, dict) and 'decision' in request:
+            decision = request['decision']
+        else:
+            decision = request
+            
+        decision_type = decision.get("type") or decision.get("decision_type")
         player_id = decision.get("player_id")
         
         result = {"success": False, "message": "Unknown decision type"}
@@ -3768,6 +3781,97 @@ def make_betting_decision(request: BettingDecisionRequest):
     except Exception as e:
         logger.error(f"Betting decision failed: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to process betting decision: {str(e)}")
+
+@app.get("/simulation/timeline")
+def get_simulation_timeline(limit: int = 20):
+    """Get timeline events in reverse chronological order"""
+    global wgp_simulation
+    
+    try:
+        if not wgp_simulation:
+            raise HTTPException(status_code=400, detail="Simulation not initialized")
+        
+        # Get timeline events from the simulation
+        if hasattr(wgp_simulation, 'timeline_manager'):
+            events = wgp_simulation.timeline_manager.get_recent_events(limit)
+        else:
+            # Fallback to hole progression events
+            events = []
+            if wgp_simulation.hole_progression:
+                events = wgp_simulation.hole_progression.get_timeline_events()[:limit]
+        
+        return {
+            "success": True,
+            "events": events,
+            "total_events": len(events)
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get timeline: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get timeline: {str(e)}")
+
+@app.get("/simulation/poker-state")
+def get_poker_betting_state():
+    """Get current betting state in poker terms"""
+    global wgp_simulation
+    
+    try:
+        if not wgp_simulation:
+            raise HTTPException(status_code=400, detail="Simulation not initialized")
+        
+        # Get poker-style betting state using correct hole state structure
+        current_hole = wgp_simulation.current_hole
+        hole_state = wgp_simulation.hole_states.get(current_hole)
+        
+        if not hole_state:
+            raise HTTPException(status_code=400, detail="No active hole state")
+        
+        # Format poker betting state manually
+        betting = hole_state.betting
+        pot_size = betting.current_wager * len(wgp_simulation.players)
+        if betting.doubled:
+            pot_size *= 2
+        
+        # Determine betting phase
+        phase = "pre-flop"  # Before tee shots
+        shots_taken = sum(1 for shot in hole_state.shots_completed.values() if shot)
+        if shots_taken >= len(wgp_simulation.players):
+            phase = "flop"  # After tee shots
+        if hole_state.current_shot_number > len(wgp_simulation.players) * 2:
+            phase = "turn"  # Mid-hole
+        if any(hole_state.balls_in_hole):
+            phase = "river"  # Near completion
+        
+        poker_state = {
+            "pot_size": pot_size,
+            "base_bet": betting.base_wager,
+            "current_bet": betting.current_wager,
+            "betting_phase": phase,
+            "doubled": betting.doubled,
+            "players_in": len(wgp_simulation.players),
+            "wagering_closed": hole_state.wagering_closed
+        }
+        
+        # Get available betting options for current player
+        current_player_id = hole_state.next_player_to_hit or "human"
+        betting_options = []  # Simplified for now
+        
+        return {
+            "success": True,
+            "pot_size": poker_state["pot_size"],
+            "base_bet": poker_state["base_bet"],
+            "current_bet": poker_state["current_bet"],
+            "betting_phase": poker_state["betting_phase"],
+            "doubled": poker_state["doubled"],
+            "players_in": poker_state["players_in"],
+            "wagering_closed": poker_state["wagering_closed"],
+            "betting_options": betting_options,
+            "current_player": current_player_id
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get poker state: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get poker state: {str(e)}")
 
 # Daily Sign-up System Endpoints
 
