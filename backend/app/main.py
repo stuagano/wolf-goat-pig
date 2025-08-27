@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, Body, HTTPException, Request, Path, Query, UploadFile, File
+from sqlalchemy.orm import Session
 from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -27,15 +28,6 @@ from .services.player_service import PlayerService # Import PlayerService
 
 # Configure logging
 logger = logging.getLogger(__name__)
-
-@app.get("/players/all", response_model=List[schemas.PlayerProfileResponse])
-def get_all_players(
-    active_only: bool = Query(True, description="Only return active players"),
-    db: Session = Depends(database.get_db)
-):
-    """Get all player profiles."""
-    player_service = PlayerService(db)
-    return player_service.get_all_player_profiles(active_only=active_only)
 
 # Initialize Wolf Goat Pig Simulation (will be replaced when game starts)
 wgp_simulation = WolfGoatPigSimulation(player_count=4)
@@ -483,6 +475,15 @@ def get_rules():
         db.close()
 
 # Course Management Endpoints
+@app.get("/players/all", response_model=List[schemas.PlayerProfileResponse])
+def get_all_players(
+    active_only: bool = Query(True, description="Only return active players"),
+    db: Session = Depends(database.get_db)
+):
+    """Get all player profiles."""
+    player_service = PlayerService(db)
+    return player_service.get_all_player_profiles(active_only=active_only)
+
 @app.get("/courses")
 def get_courses():
     """Get all available courses with robust fallback handling"""

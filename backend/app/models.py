@@ -58,7 +58,8 @@ class PlayerProfile(Base):
     ghin_id = Column(String, nullable=True, unique=True, index=True)  # GHIN ID for handicap lookup
     ghin_last_updated = Column(String, nullable=True)  # When GHIN data was last synced
     avatar_url = Column(String, nullable=True)
-    created_date = Column(String)
+    created_at = Column(String)
+    updated_at = Column(String, nullable=True)
     last_played = Column(String, nullable=True)
     preferences = Column(JSON, default=lambda: {
         "ai_difficulty": "medium",
@@ -68,6 +69,12 @@ class PlayerProfile(Base):
         "display_hints": True
     })
     is_active = Column(Integer, default=1)  # SQLite uses integers for booleans
+    is_ai = Column(Integer, default=0)
+    playing_style = Column(String, nullable=True)
+    description = Column(String, nullable=True)
+    personality_traits = Column(JSON, nullable=True)
+    strengths = Column(JSON, nullable=True)
+    weaknesses = Column(JSON, nullable=True)
 
 class PlayerStatistics(Base):
     __tablename__ = "player_statistics"
