@@ -14,6 +14,7 @@ from sqlalchemy import and_, desc
 from datetime import datetime, timedelta
 import logging
 import os
+import httpx # Added httpx for API calls
 from ..models import PlayerProfile, PlayerStatistics, GHINScore, GHINHandicapHistory
 from ..schemas import PlayerProfileResponse
 
@@ -31,6 +32,8 @@ class GHINService:
         self.initialized = False
         self.ghin_username = os.getenv('GHIN_USERNAME')
         self.ghin_password = os.getenv('GHIN_PASSWORD')
+        self.jwt_token: Optional[str] = None # Store JWT token
+        self.GHIN_API_BASE_URL = "https://api2.ghin.com/api/v1"
     
     async def initialize(self):
         """Initialize GHIN service with authentication."""
@@ -39,11 +42,27 @@ class GHINService:
                 logger.warning("GHIN credentials not configured. GHIN integration disabled.")
                 return False
             
-            # TODO: Initialize actual GHIN client when official API is available
-            # For now, we'll simulate the connection
-            self.initialized = True
-            logger.info("GHIN service initialized successfully")
-            return True
+            GHIN_AUTH_URL = "https://api2.ghin.com/api/v1/golfer_login.json"
+            
+            async with httpx.AsyncClient() as client:
+                auth_response = await client.post(GHIN_AUTH_URL, json={
+                    "user": {"email_or_ghin": self.ghin_username, "password": self.ghin_password},
+                    "token": os.getenv('GHIN_API_STATIC_TOKEN'), # Static token if required
+                    "source": "GHINcom"
+                })
+                auth_response.raise_for_status() # Raise an exception for HTTP errors
+                
+                auth_data = auth_response.json()
+                self.jwt_token = auth_data["golfer_user"]["golfer_user_token"]
+                
+                if self.jwt_token:
+                    self.initialized = True
+                    logger.info("GHIN service initialized successfully and authenticated")
+                    return True
+                else:
+                    logger.error("GHIN authentication failed: No JWT token received.")
+                    self.initialized = False
+                    return False
             
         except Exception as e:
             logger.error(f"Failed to initialize GHIN service: {e}")
@@ -70,7 +89,11 @@ class GHINService:
                 logger.warning(f"Player {player_id} has no GHIN ID configured")
                 return None
             
-            # TODO: Replace with actual GHIN API call
+            if not self.is_available():
+                logger.error("GHIN service is not initialized or available.")
+                return None
+
+            # Use the actual GHIN API call
             handicap_data = await self._fetch_handicap_from_ghin(player.ghin_id)
             
             if handicap_data:
@@ -119,7 +142,11 @@ class GHINService:
                 logger.warning(f"Player {player_id} has no GHIN ID configured")
                 return []
             
-            # TODO: Replace with actual GHIN API call
+            if not self.is_available():
+                logger.error("GHIN service is not initialized or available.")
+                return []
+
+            # Use the actual GHIN API call
             scores_data = await self._fetch_scores_from_ghin(player.ghin_id, days_back)
             
             synced_scores = []
@@ -213,6 +240,29 @@ class GHINService:
         except Exception as e:
             logger.error(f"Failed to sync all player handicaps: {e}")
             return {"total_players": 0, "synced": 0, "errors": 1, "error": str(e)}
+    
+    async def search_golfers(self, last_name: str, first_name: Optional[str] = None, page: int = 1, per_page: int = 10) -> Dict[str, Any]:
+        """Search for golfers by name using the GHIN API."""
+        if not self.is_available():
+            raise ConnectionError("GHIN service is not initialized or available.")
+
+        headers = {"Authorization": f"Bearer {self.jwt_token}"}
+        url = f"{self.GHIN_API_BASE_URL}/golfer_search"
+        
+        params = {
+            "last_name": last_name,
+            "page": page,
+            "per_page": per_page,
+            "from_ghin": "true",
+            "per_page": 100
+        }
+        if first_name:
+            params["first_name"] = first_name
+            
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=headers, params=params)
+            response.raise_for_status()
+            return response.json()
     
     def get_player_ghin_data(self, player_id: int) -> Optional[Dict[str, Any]]:
         """
@@ -361,45 +411,25 @@ class GHINService:
     # For now, they return mock data for testing
     
     async def _fetch_handicap_from_ghin(self, ghin_id: str) -> Optional[Dict[str, Any]]:
-        """Mock method to fetch handicap from GHIN API."""
-        # TODO: Replace with actual GHIN API call
-        logger.info(f"Mock: Fetching handicap for GHIN ID {ghin_id}")
+        """Fetch handicap from GHIN API."""
+        logger.info(f"Fetching handicap for GHIN ID {ghin_id}")
         
-        # Return mock data for testing
-        return {
-            "handicap_index": 15.4,
-            "effective_date": datetime.now().date().isoformat(),
-            "revision_reason": "Posted Score",
-            "scores_used_count": 18
-        }
+        headers = {"Authorization": f"Bearer {self.jwt_token}"}
+        url = f"{self.GHIN_API_BASE_URL}/golfers/{ghin_id}/handicap_index"
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=headers)
+            response.raise_for_status()
+            return response.json()
     
     async def _fetch_scores_from_ghin(self, ghin_id: str, days_back: int) -> List[Dict[str, Any]]:
-        """Mock method to fetch scores from GHIN API."""
-        # TODO: Replace with actual GHIN API call
-        logger.info(f"Mock: Fetching scores for GHIN ID {ghin_id} ({days_back} days)")
+        """Fetch scores from GHIN API."""
+        logger.info(f"Fetching scores for GHIN ID {ghin_id} ({days_back} days)")
         
-        # Return mock data for testing
-        return [
-            {
-                "date": (datetime.now() - timedelta(days=7)).date().isoformat(),
-                "course": "Wing Point Golf & Country Club",
-                "tees": "Blue",
-                "score": 89,
-                "course_rating": 72.1,
-                "slope_rating": 135,
-                "differential": 15.8,
-                "posted": True,
-                "handicap_index_at_time": 15.2
-            },
-            {
-                "date": (datetime.now() - timedelta(days=14)).date().isoformat(),
-                "course": "Sahalee Country Club",
-                "tees": "Championship",
-                "score": 92,
-                "course_rating": 74.2,
-                "slope_rating": 142,
-                "differential": 14.9,
-                "posted": True,
-                "handicap_index_at_time": 15.2
-            }
-        ]
+        headers = {"Authorization": f"Bearer {self.jwt_token}"}
+        url = f"{self.GHIN_API_BASE_URL}/golfers/{ghin_id}/scores?days_back={days_back}"
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=headers)
+            response.raise_for_status()
+            return response.json()

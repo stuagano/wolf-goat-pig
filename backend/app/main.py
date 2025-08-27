@@ -23,8 +23,19 @@ import tempfile
 import random
 from datetime import datetime
 
+from .services.player_service import PlayerService # Import PlayerService
+
 # Configure logging
 logger = logging.getLogger(__name__)
+
+@app.get("/players/all", response_model=List[schemas.PlayerProfileResponse])
+def get_all_players(
+    active_only: bool = Query(True, description="Only return active players"),
+    db: Session = Depends(database.get_db)
+):
+    """Get all player profiles."""
+    player_service = PlayerService(db)
+    return player_service.get_all_player_profiles(active_only=active_only)
 
 # Initialize Wolf Goat Pig Simulation (will be replaced when game starts)
 wgp_simulation = WolfGoatPigSimulation(player_count=4)
@@ -670,11 +681,12 @@ async def preview_course_import(request: CourseImportRequest):
 
 # GHIN Integration Endpoints
 @app.get("/ghin/lookup")
-def ghin_lookup(
+async def ghin_lookup(
     last_name: str = Query(..., description="Golfer's last name"),
     first_name: str = Query(None, description="Golfer's first name (optional)"),
     page: int = Query(1),
-    per_page: int = Query(10)
+    per_page: int = Query(10),
+    db: Session = Depends(database.get_db)
 ):
     """Look up golfers by name using GHIN API"""
     try:
@@ -684,53 +696,41 @@ def ghin_lookup(
         static_token = os.getenv("GHIN_API_STATIC_TOKEN", "ghincom")
         
         if not email or not password:
-            return {"error": "GHIN credentials not configured"}
+            raise HTTPException(status_code=500, detail="GHIN credentials not configured in environment variables.")
         
-        # GHIN API endpoints
-        GHIN_AUTH_URL = "https://www.ghin.com/api/v1/authenticate"
-        GHIN_SEARCH_URL = "https://www.ghin.com/api/v1/golfer_search"
-        
-        # Authenticate with GHIN
-        auth_data = {
-            "user": {
-                "email_or_ghin": email,
-                "password": password
-            },
-            "token": static_token,
-            "source": "GHINcom"
-        }
-        
-        with httpx.Client() as client:
-            auth_response = client.post(GHIN_AUTH_URL, json=auth_data)
-            auth_response.raise_for_status()
-            
-            jwt = auth_response.json()["golfer_user"]["golfer_user_token"]
-            
-            # Search for golfers
-            search_params = {
-                "last_name": last_name,
-                "page": page,
-                "per_page": per_page
-            }
-            if first_name:
-                search_params["first_name"] = first_name
-            
-            search_response = client.get(
-                GHIN_SEARCH_URL,
-                headers={"Authorization": f"Bearer {jwt}"},
-                params=search_params
-            )
-            search_response.raise_for_status()
-            
-            return search_response.json()
+        ghin_service = GHINService(db)
+        if not await ghin_service.initialize():
+            raise HTTPException(status_code=500, detail="GHIN service not available. Check credentials and logs.")
+
+        search_results = await ghin_service.search_golfers(last_name, first_name, page, per_page)
+        return search_results
             
     except httpx.HTTPStatusError as e:
         logger.error(f"GHIN API error: {e.response.status_code} - {e.response.text}")
-        return {"error": f"GHIN API error: {e.response.status_code}"}
+        raise HTTPException(status_code=e.response.status_code, detail=f"GHIN API error: {e.response.status_code} - {e.response.text}")
     except Exception as e:
         logger.error(f"Error in GHIN lookup: {e}")
-        return {"error": f"Failed to lookup golfer: {str(e)}"}
+        raise HTTPException(status_code=500, detail=f"Failed to lookup golfer: {str(e)}")
+    
+@app.post("/ghin/sync-player-handicap/{player_id}", response_model=Dict[str, Any])
+async def sync_player_ghin_handicap(
+    player_id: int = Path(..., description="The ID of the player to sync"),
+    db: Session = Depends(database.get_db)
+):
+    """Sync a specific player's handicap from GHIN."""
+    logger.info(f"Attempting to sync GHIN handicap for player ID: {player_id}")
+    ghin_service = GHINService(db)
+    if not await ghin_service.initialize():
+        raise HTTPException(status_code=500, detail="GHIN service not available. Check credentials and logs.")
 
+    synced_data = await ghin_service.sync_player_handicap(player_id)
+    
+    if synced_data:
+        logger.info(f"Successfully synced handicap for player {player_id}")
+        return {"status": "success", "message": "Handicap synced successfully", "data": synced_data}
+    else:
+        logger.error(f"Failed to sync handicap for player {player_id}")
+        raise HTTPException(status_code=500, detail=f"Failed to sync handicap for player {player_id}. Check if player has a GHIN ID and logs for details.")
 @app.get("/ghin/diagnostic")
 def ghin_diagnostic():
     """Diagnostic endpoint for GHIN API configuration"""
