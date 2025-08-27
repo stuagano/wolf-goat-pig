@@ -1,56 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from './ui';
+import { useSheetSync } from '../context';
 
 const Leaderboard = () => {
+  const { syncData: liveLeaderboardData, syncStatus, error: syncError, performLiveSync } = useSheetSync();
   const [leaderboard, setLeaderboard] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [selectedMetric, setSelectedMetric] = useState('overall');
-  const [showWorstScores, setShowWorstScores] = useState(false);
 
   useEffect(() => {
-    fetchLeaderboard();
-  }, [selectedMetric, showWorstScores]);
+    let sortedData = [...liveLeaderboardData];
 
-  const fetchLeaderboard = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
-      
-      // Fetch ALL players by setting limit to 100 (max allowed)
-      const endpoint = showWorstScores ? 
-        `${API_URL}/leaderboard?limit=100&sort=asc` : 
-        `${API_URL}/leaderboard?limit=100`;
-      
-      const leaderboardResponse = await fetch(endpoint, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-      
-      if (!leaderboardResponse.ok) {
-        throw new Error(`Failed to fetch leaderboard data: ${leaderboardResponse.statusText}`);
-      }
-      
-      const data = await leaderboardResponse.json();
-      
-      // Handle different response formats
-      if (selectedMetric === 'overall') {
-        setLeaderboard(data.leaderboard || data);
-      } else {
-        // For now, use the same data for all metrics (can be enhanced later)
-        setLeaderboard(data.leaderboard || data);
-      }
-    } catch (err) {
-      setError(err.message);
-      setLeaderboard([]);
-    } finally {
-      setLoading(false);
+    if (selectedMetric === 'worst_scores') {
+      sortedData.sort((a, b) => (a.total_earnings || 0) - (b.total_earnings || 0));
+    } else if (selectedMetric === 'total_games') {
+      sortedData.sort((a, b) => (b.games_played || 0) - (a.games_played || 0));
+    } else {
+      sortedData.sort((a, b) => (b.total_earnings || 0) - (a.total_earnings || 0));
     }
-  };
+    setLeaderboard(sortedData);
+  }, [liveLeaderboardData, selectedMetric]);
+
+  const loading = syncStatus === 'connecting' || syncStatus === 'syncing';
+  const error = syncError;
+
 
   const metrics = [
     { value: 'overall', label: 'Overall Ranking' },
@@ -117,7 +89,7 @@ const Leaderboard = () => {
               <div className="text-red-600 mb-4">⚠️ Error loading leaderboard</div>
               <p className="text-gray-600 mb-4">{error}</p>
               <button
-                onClick={fetchLeaderboard}
+                onClick={() => performLiveSync()}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
                 Try Again
@@ -267,7 +239,7 @@ const Leaderboard = () => {
             <h3 className="text-lg font-semibold mb-4">🎮 Quick Actions</h3>
             <div className="space-y-3">
               <button 
-                onClick={fetchLeaderboard}
+                onClick={() => performLiveSync()}
                 className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
                 🔄 Refresh Data
