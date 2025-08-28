@@ -1,8 +1,9 @@
 import { test, expect, devices } from '@playwright/test';
 
-test.describe('Mobile Navigation', () => {
-  test.use({ ...devices['iPhone 12'] });
+// Use mobile device for all tests in this file
+test.use({ ...devices['iPhone 12'] });
 
+test.describe('Mobile Navigation', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('http://localhost:3001');
     // Skip splash screen if present
