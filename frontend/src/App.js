@@ -21,124 +21,12 @@ import SignupPage from "./pages/SignupPage";
 import AboutPage from "./pages/AboutPage";
 import RulesPage from "./pages/RulesPage";
 import EmailSettings from "./components/email/EmailSettings";
+import Navigation from "./components/Navigation";
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
 
-function Navigation() {
-  const navigate = useNavigate();
-  const theme = useTheme();
-  
-  // Use mock auth if environment variable is set
-  const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === 'true';
-  
-  // Get auth state from Auth0 or mock
-  const { isAuthenticated: auth0IsAuthenticated, user: auth0User, loginWithRedirect, logout } = useAuth0();
-  
-  const isAuthenticated = useMockAuth ? true : auth0IsAuthenticated;
-  const user = useMockAuth ? { name: 'Test User' } : auth0User;
-  
-  const navStyle = {
-    background: theme.colors.primary,
-    color: "#fff",
-    padding: "16px 0",
-    marginBottom: 20,
-    boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
-  };
-  
-  const navContainerStyle = {
-    maxWidth: 1200,
-    margin: "0 auto",
-    padding: "0 20px",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center"
-  };
-  
-  const navButtonStyle = {
-    background: "transparent",
-    color: "#fff",
-    border: "2px solid #fff",
-    borderRadius: 6,
-    padding: "8px 16px",
-    margin: "0 8px",
-    cursor: "pointer",
-    fontWeight: 600,
-    transition: "all 0.2s"
-  };
-  
-  return (
-    <nav style={navStyle}>
-      <div style={navContainerStyle}>
-        <h1 style={{ margin: 0 }}>🐺🐐🐷 Wolf Goat Pig</h1>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <button style={navButtonStyle} onClick={() => navigate('/')}>
-            🏠 Home
-          </button>
-          <button style={navButtonStyle} onClick={() => navigate('/game')}>
-            🎮 Game
-          </button>
-          <button style={navButtonStyle} onClick={() => navigate('/simulation')}>
-            🎲 Practice
-          </button>
-          <button style={navButtonStyle} onClick={() => navigate('/leaderboard')}>
-            🏆 Leaderboard
-          </button>
-          <button style={navButtonStyle} onClick={() => navigate('/tutorial')}>
-            🎓 Tutorial
-          </button>
-          <button style={navButtonStyle} onClick={() => navigate('/about')}>
-            ℹ️ About
-          </button>
-          <button style={navButtonStyle} onClick={() => navigate('/rules')}>
-            📋 Rules
-          </button>
-          <button style={navButtonStyle} onClick={() => navigate('/sheets')}>
-            📊 Sheets
-          </button>
-          <button style={navButtonStyle} onClick={() => navigate('/analytics')}>
-            📈 Analytics
-          </button>
-          <button style={navButtonStyle} onClick={() => navigate('/analyzer')}>
-            🔍 Analyzer
-          </button>
-          <button style={navButtonStyle} onClick={() => navigate('/signup')}>
-            📝 Signup
-          </button>
-          <button style={navButtonStyle} onClick={() => navigate('/live-sync')}>
-            🔄 Live Sync
-          </button>
-          
-          {/* Auth Section */}
-          <div style={{ marginLeft: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {isAuthenticated ? (
-              <>
-                <span style={{ color: '#fff' }}>{user?.name || 'User'}</span>
-                {!useMockAuth && (
-                  <button 
-                    style={{...navButtonStyle, fontSize: 14}} 
-                    onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
-                  >
-                    Logout
-                  </button>
-                )}
-              </>
-            ) : (
-              !useMockAuth && (
-                <button 
-                  style={{...navButtonStyle, fontSize: 14}} 
-                  onClick={() => loginWithRedirect()}
-                >
-                  Login
-                </button>
-              )
-            )}
-          </div>
-        </div>
-      </div>
-    </nav>
-  );
-}
+// Navigation component has been moved to its own file
 
 function App() {
   const theme = useTheme();
