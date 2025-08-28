@@ -30,12 +30,24 @@ function HomePage() {
         .wgp-box-grid {
           grid-template-columns: 1fr !important;
         }
+        .wgp-join-title {
+          font-size: 1.8rem !important;
+        }
+        .wgp-join-description {
+          font-size: 1.1rem !important;
+        }
       }
       @media (max-width: 480px) {
         .wgp-main-title {
           font-size: 2rem !important;
         }
         .wgp-subtitle {
+          font-size: 1rem !important;
+        }
+        .wgp-join-title {
+          font-size: 1.5rem !important;
+        }
+        .wgp-join-description {
           font-size: 1rem !important;
         }
       }
@@ -175,8 +187,8 @@ function HomePage() {
         {/* Header */}
         <div className="wgp-header-container" style={{ 
           textAlign: 'center', 
-          marginBottom: '60px',
-          background: 'rgba(0, 0, 0, 0.6)',
+          marginBottom: '40px',
+          background: 'rgba(0, 0, 0, 0.7)',
           padding: '40px 20px',
           borderRadius: '16px',
           backdropFilter: 'blur(10px)'
@@ -195,37 +207,102 @@ function HomePage() {
             fontSize: '1.5rem', 
             color: 'white',
             fontStyle: 'italic',
-            textShadow: '1px 1px 3px rgba(0, 0, 0, 0.8)'
+            textShadow: '1px 1px 3px rgba(0, 0, 0, 0.8)',
+            marginBottom: '20px'
           }}>
             "We accept bad golf, but not bad betting"
           </p>
           <p style={{
-            fontSize: '1.1rem',
-            color: 'rgba(255, 255, 255, 0.9)',
-            marginTop: '15px'
+            fontSize: '1.2rem',
+            color: 'rgba(255, 255, 255, 0.95)',
+            marginBottom: '30px',
+            fontWeight: '500'
           }}>
-            🏌️ Home of Wing Point Golf & Country Club • Est. 1903
+            🏌️ Wing Point Golf & Country Club • Est. 1903
           </p>
           
-          {isAuthenticated && (
-            <p style={{
-              marginTop: '20px',
-              fontSize: '1.2rem',
-              color: 'white'
+          {!isAuthenticated ? (
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.95)',
+              borderRadius: '16px',
+              padding: '40px',
+              marginTop: '30px',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)'
             }}>
-              Welcome back, {user?.name || 'Player'}! 👋
-            </p>
+              <h2 className="wgp-join-title" style={{
+                fontSize: '2.2rem',
+                fontWeight: 'bold',
+                color: '#1F2937',
+                marginBottom: '20px',
+                textShadow: 'none'
+              }}>
+                🔐 Join the Game
+              </h2>
+              <p className="wgp-join-description" style={{
+                color: '#4B5563',
+                fontSize: '1.3rem',
+                marginBottom: '30px',
+                lineHeight: '1.6'
+              }}>
+                Sign in to track your Wolf Goat Pig stats, compete in tournaments, and join the Wing Point leaderboard.
+              </p>
+              <LoginButton style={{ 
+                fontSize: '20px', 
+                padding: '16px 40px',
+                background: '#059669',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                fontWeight: '700',
+                boxShadow: '0 10px 15px -3px rgba(5, 150, 105, 0.4)',
+                transform: 'translateY(0)',
+                transition: 'all 0.3s ease'
+              }} />
+              <p style={{
+                color: '#6B7280',
+                fontSize: '1rem',
+                marginTop: '20px'
+              }}>
+                New to Wing Point? Your first login creates your account automatically.
+              </p>
+            </div>
+          ) : (
+            <div style={{
+              background: 'rgba(16, 185, 129, 0.9)',
+              borderRadius: '16px',
+              padding: '30px',
+              marginTop: '30px',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)'
+            }}>
+              <h2 style={{
+                fontSize: '1.8rem',
+                fontWeight: 'bold',
+                color: 'white',
+                marginBottom: '10px',
+                textShadow: '1px 1px 3px rgba(0, 0, 0, 0.3)'
+              }}>
+                Welcome back, {user?.name || 'Player'}! 👋
+              </h2>
+              <p style={{
+                color: 'rgba(255, 255, 255, 0.9)',
+                fontSize: '1.1rem'
+              }}>
+                Ready to play some Wolf Goat Pig?
+              </p>
+            </div>
           )}
         </div>
         
-        {/* Four Main Boxes */}
-        <div className="wgp-main-grid" style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          gap: '30px',
-          marginBottom: '60px'
-        }}>
-          {mainBoxes.map((box, index) => (
+        {/* Main Game Boxes - Show only when authenticated */}
+        {isAuthenticated && (
+          <div className="wgp-main-grid" style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '30px',
+            marginBottom: '60px'
+          }}>
+            {mainBoxes.map((box, index) => (
             <div
               key={index}
               style={{
@@ -292,47 +369,63 @@ function HomePage() {
               </button>
             </div>
           ))}
-        </div>
+          </div>
+        )}
+        
+        {/* Show game options only after authentication */}
+        {!isAuthenticated && (
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.95)',
+            borderRadius: '16px',
+            padding: '40px',
+            textAlign: 'center',
+            marginBottom: '40px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
+            backdropFilter: 'blur(10px)'
+          }}>
+            <h3 style={{
+              fontSize: '2rem',
+              fontWeight: 'bold',
+              color: '#1F2937',
+              marginBottom: '20px'
+            }}>
+              🏌️ Preview the Experience
+            </h3>
+            <p style={{
+              color: '#4B5563',
+              fontSize: '1.1rem',
+              marginBottom: '30px',
+              lineHeight: '1.6'
+            }}>
+              Wolf Goat Pig is Wing Point's signature golf betting game. Sign in above to unlock full access to games, stats tracking, and tournaments.
+            </p>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '20px',
+              marginTop: '30px'
+            }}>
+              <div style={{ textAlign: 'center', padding: '20px' }}>
+                <div style={{ fontSize: '2.5rem', marginBottom: '10px' }}>🎮</div>
+                <h4 style={{ color: '#1F2937', marginBottom: '8px' }}>Practice Mode</h4>
+                <p style={{ color: '#6B7280', fontSize: '0.9rem' }}>Learn against AI</p>
+              </div>
+              <div style={{ textAlign: 'center', padding: '20px' }}>
+                <div style={{ fontSize: '2.5rem', marginBottom: '10px' }}>🏆</div>
+                <h4 style={{ color: '#1F2937', marginBottom: '8px' }}>Live Leaderboard</h4>
+                <p style={{ color: '#6B7280', fontSize: '0.9rem' }}>Track your ranking</p>
+              </div>
+              <div style={{ textAlign: 'center', padding: '20px' }}>
+                <div style={{ fontSize: '2.5rem', marginBottom: '10px' }}>⚔️</div>
+                <h4 style={{ color: '#1F2937', marginBottom: '8px' }}>Real Games</h4>
+                <p style={{ color: '#6B7280', fontSize: '0.9rem' }}>Play with members</p>
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* Auth Status Check for Development */}
         <AuthHealthCheck />
-        
-        {/* Sign In Prompt for Non-Authenticated Users */}
-        {!isAuthenticated && (
-          <div style={{
-            background: 'white',
-            borderRadius: '16px',
-            padding: '30px',
-            textAlign: 'center',
-            marginBottom: '40px',
-            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
-          }}>
-            <h3 style={{
-              fontSize: '1.5rem',
-              fontWeight: 'bold',
-              color: '#1F2937',
-              marginBottom: '16px'
-            }}>
-              🔐 Sign In for Full Access
-            </h3>
-            <p style={{
-              color: '#6B7280',
-              marginBottom: '24px'
-            }}>
-              Create an account or sign in to save your progress, track statistics, and compete in tournaments.
-            </p>
-            <LoginButton style={{ 
-              fontSize: '18px', 
-              padding: '14px 32px',
-              background: '#4F46E5',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: '600'
-            }} />
-          </div>
-        )}
         
         {/* About Section */}
         <div style={{
