@@ -49,7 +49,7 @@ function HomePage() {
       icon: '⚔️',
       title: 'Regular Game',
       description: 'Play with real players and track your Wolf Goat Pig matches',
-      action: () => navigate('/setup'),
+      action: () => navigate('/game'),
       buttonText: 'Start Game',
       color: '#10B981' // green
     },
@@ -65,7 +65,7 @@ function HomePage() {
       icon: '📝',
       title: 'Sign Up',
       description: 'Register for tournaments and track your stats',
-      action: () => navigate('/sign-ups'),
+      action: () => navigate('/signup'),
       buttonText: 'Sign Up',
       color: '#8B5CF6' // purple
     },
@@ -82,14 +82,14 @@ function HomePage() {
   const menuItems = [
     { icon: 'ℹ️', label: 'About Wolf Goat Pig', path: '/about' },
     { icon: '📖', label: 'Game Rules', path: '/rules' },
-    { icon: '🎨', label: 'Widget Dashboard', path: '/dashboard' },
-    { icon: '🚀', label: 'Enhanced Interface', path: '/enhanced' },
-    { icon: '🔧', label: 'Unified API Demo', path: '/unified-demo' },
+    { icon: '🎮', label: 'Play Game', path: '/game' },
+    { icon: '🎲', label: 'Simulation Mode', path: '/simulation' },
     { icon: '📊', label: 'Analytics', path: '/analytics' },
     { icon: '🎓', label: 'Tutorial', path: '/tutorial' },
     { icon: '🔍', label: 'Feed Analyzer', path: '/feed-analyzer' },
     { icon: '📊', label: 'Sheet Sync', path: '/sheets' },
     { icon: '🔄', label: 'Live Sync', path: '/live-sync' },
+    { icon: '📝', label: 'Sign Up', path: '/signup' },
   ];
   
   return (
