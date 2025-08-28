@@ -20,14 +20,15 @@ export const AuthProvider = ({ children }) => {
   // const audience = process.env.REACT_APP_AUTH0_AUDIENCE;
 
   if (!domain || !clientId) {
-    console.warn('Auth0 environment variables not found. Please define REACT_APP_AUTH0_DOMAIN and REACT_APP_AUTH0_CLIENT_ID. Falling back to mock auth.');
-    // Return a fallback provider that won't crash the app
-    return (
-      <AuthContext.Provider value={{}}>
-        {children}
-      </AuthContext.Provider>
-    );
+    throw new Error('Please define REACT_APP_AUTH0_DOMAIN and REACT_APP_AUTH0_CLIENT_ID environment variables');
   }
+
+  // Log Auth0 configuration for debugging
+  console.log('🔧 Auth0 Configuration:', {
+    domain,
+    clientId: clientId.substring(0, 8) + '...',
+    redirectUri: window.location.origin
+  });
 
   const value = {
     // Additional auth context values can be added here
@@ -45,6 +46,7 @@ export const AuthProvider = ({ children }) => {
           scope: "openid profile email"
         }}
         cacheLocation="localstorage"
+        useRefreshTokens={true}
       >
         <AuthContext.Provider value={value}>
           {children}

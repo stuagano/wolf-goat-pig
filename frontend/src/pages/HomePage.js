@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../theme/Provider';
 import { useAuth0 } from '@auth0/auth0-react';
-import { LoginButton } from '../components/auth';
+import { LoginButton, AuthHealthCheck } from '../components/auth';
 
 function HomePage() {
   const navigate = useNavigate();
@@ -295,6 +295,9 @@ function HomePage() {
             </div>
           ))}
         </div>
+        
+        {/* Auth Status Check for Development */}
+        <AuthHealthCheck />
         
         {/* Sign In Prompt for Non-Authenticated Users */}
         {!isAuthenticated && (
