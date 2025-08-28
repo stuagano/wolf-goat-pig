@@ -18,6 +18,10 @@ const EmailPreferences = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [emailStatus, setEmailStatus] = useState(null);
+  const [testEmail, setTestEmail] = useState(user?.email || '');
+  const [testLoading, setTestLoading] = useState(false);
+  const [testResult, setTestResult] = useState(null);
 
   // Email frequency options
   const frequencyOptions = [
@@ -32,6 +36,20 @@ const EmailPreferences = () => {
     '6:00 AM', '7:00 AM', '8:00 AM', '9:00 AM', '10:00 AM',
     '12:00 PM', '1:00 PM', '5:00 PM', '6:00 PM', '7:00 PM'
   ];
+
+  // Check email service status
+  const checkEmailStatus = async () => {
+    try {
+      const response = await fetch(`${API_URL}/email/status`);
+      if (response.ok) {
+        const data = await response.json();
+        setEmailStatus(data);
+      }
+    } catch (err) {
+      console.error('Error checking email status:', err);
+      setEmailStatus({ configured: false });
+    }
+  };
 
   // Load current email preferences
   const loadPreferences = async () => {
@@ -56,7 +74,11 @@ const EmailPreferences = () => {
 
   useEffect(() => {
     loadPreferences();
-  }, []);
+    checkEmailStatus();
+    if (user?.email) {
+      setTestEmail(user.email);
+    }
+  }, [user]);
 
   // Update a preference
   const updatePreference = (key, value) => {
@@ -101,6 +123,49 @@ const EmailPreferences = () => {
     }
   };
 
+  // Send test email
+  const sendTestEmail = async () => {
+    if (!testEmail) {
+      setError('Please enter an email address for testing');
+      return;
+    }
+
+    if (!emailStatus?.configured) {
+      setError('Email service is not configured. Please check server configuration.');
+      return;
+    }
+
+    setTestLoading(true);
+    setTestResult(null);
+    setError(null);
+
+    try {
+      const response = await fetch(`${API_URL}/email/send-test`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to_email: testEmail,
+          player_name: user?.name || 'Test Player',
+          signup_date: new Date().toLocaleDateString()
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setTestResult({ success: true, message: data.message });
+      } else {
+        setTestResult({ success: false, message: data.detail });
+      }
+    } catch (err) {
+      setTestResult({ success: false, message: err.message });
+    } finally {
+      setTestLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ 
@@ -141,6 +206,86 @@ const EmailPreferences = () => {
           ✅ Email preferences saved successfully!
         </div>
       )}
+
+      {/* Email Service Status */}
+      <div style={{
+        border: `1px solid ${emailStatus?.configured ? '#28a745' : '#dc3545'}`,
+        borderRadius: '8px',
+        padding: '20px',
+        marginBottom: '20px',
+        background: emailStatus?.configured ? '#d4edda' : '#f8d7da'
+      }}>
+        <h3 style={{ 
+          color: emailStatus?.configured ? '#155724' : '#721c24', 
+          marginBottom: '15px',
+          fontSize: '18px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          {emailStatus?.configured ? '✅' : '⚠️'} Email Service Status
+        </h3>
+        
+        <div style={{ fontSize: '14px', color: emailStatus?.configured ? '#155724' : '#721c24', marginBottom: '15px' }}>
+          {emailStatus?.configured 
+            ? `Email service is configured and ready to send notifications via ${emailStatus.smtp_host}` 
+            : 'Email service is not configured. Please check server settings.'}
+        </div>
+
+        {emailStatus?.configured && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+            <div>
+              <label style={{ fontSize: '12px', color: '#6c757d', fontWeight: '600' }}>Test Email Address:</label>
+              <input
+                type="email"
+                value={testEmail}
+                onChange={(e) => setTestEmail(e.target.value)}
+                placeholder="Enter email to test"
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: '1px solid #ced4da',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  marginTop: '4px'
+                }}
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'end' }}>
+              <button
+                onClick={sendTestEmail}
+                disabled={testLoading || !testEmail}
+                style={{
+                  background: testLoading ? '#6c757d' : '#007bff',
+                  color: 'white',
+                  border: 'none',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  cursor: testLoading || !testEmail ? 'not-allowed' : 'pointer',
+                  opacity: testLoading || !testEmail ? 0.7 : 1
+                }}
+              >
+                {testLoading ? '⏳ Testing...' : '🧪 Test Email'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {testResult && (
+          <div style={{
+            padding: '12px',
+            borderRadius: '6px',
+            background: testResult.success ? '#d4edda' : '#f8d7da',
+            border: `1px solid ${testResult.success ? '#c3e6cb' : '#f5c6cb'}`,
+            color: testResult.success ? '#155724' : '#721c24',
+            fontSize: '14px',
+            marginTop: '10px'
+          }}>
+            {testResult.success ? '✅' : '❌'} {testResult.message}
+          </div>
+        )}
+      </div>
 
       {/* Email Notification Types */}
       <div style={{
