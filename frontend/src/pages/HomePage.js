@@ -55,27 +55,27 @@ function HomePage() {
     },
     {
       icon: '🎮',
-      title: 'Simulation Mode',
+      title: 'Practice Mode',
       description: 'Practice against computer opponents to learn strategies',
       action: () => navigate('/simulation'),
       buttonText: 'Start Practice',
       color: '#3B82F6' // blue
     },
     {
-      icon: '📝',
-      title: 'Sign Up',
-      description: 'Register for tournaments and track your stats',
-      action: () => navigate('/signup'),
-      buttonText: 'Sign Up',
-      color: '#8B5CF6' // purple
-    },
-    {
       icon: '🏆',
       title: 'Leaderboard',
-      description: 'View rankings and player statistics',
+      description: 'View rankings and player statistics from Google Sheets',
       action: () => navigate('/leaderboard'),
       buttonText: 'View Leaderboard',
       color: '#F59E0B' // amber
+    },
+    {
+      icon: '🎓',
+      title: 'Tutorial',
+      description: 'Learn the rules and strategies of Wolf Goat Pig',
+      action: () => navigate('/tutorial'),
+      buttonText: 'Start Tutorial',
+      color: '#8B5CF6' // purple
     }
   ];
   
@@ -83,13 +83,11 @@ function HomePage() {
     { icon: 'ℹ️', label: 'About Wolf Goat Pig', path: '/about' },
     { icon: '📖', label: 'Game Rules', path: '/rules' },
     { icon: '🎮', label: 'Play Game', path: '/game' },
-    { icon: '🎲', label: 'Simulation Mode', path: '/simulation' },
-    { icon: '📊', label: 'Analytics', path: '/analytics' },
+    { icon: '🎲', label: 'Practice Mode', path: '/simulation' },
+    { icon: '🏆', label: 'Leaderboard', path: '/leaderboard' },
     { icon: '🎓', label: 'Tutorial', path: '/tutorial' },
-    { icon: '🔍', label: 'Feed Analyzer', path: '/feed-analyzer' },
-    { icon: '📊', label: 'Sheet Sync', path: '/sheets' },
+    { icon: '📊', label: 'Analytics', path: '/analytics' },
     { icon: '🔄', label: 'Live Sync', path: '/live-sync' },
-    { icon: '📝', label: 'Sign Up', path: '/signup' },
   ];
   
   return (

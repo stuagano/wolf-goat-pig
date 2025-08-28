@@ -78,28 +78,13 @@ function Navigation() {
             🎮 Game
           </button>
           <button style={navButtonStyle} onClick={() => navigate('/simulation')}>
-            🎲 Simulation
-          </button>
-          <button style={navButtonStyle} onClick={() => navigate('/analytics')}>
-            📊 Analytics
-          </button>
-          <button style={navButtonStyle} onClick={() => navigate('/tutorial')}>
-            🎓 Tutorial
-          </button>
-          <button style={navButtonStyle} onClick={() => navigate('/signup')}>
-            📅 Sign-ups
-          </button>
-          <button style={navButtonStyle} onClick={() => navigate('/feed-analyzer')}>
-            🔍 Feed Analyzer
+            🎲 Practice
           </button>
           <button style={navButtonStyle} onClick={() => navigate('/leaderboard')}>
             🏆 Leaderboard
           </button>
-          <button style={navButtonStyle} onClick={() => navigate('/sheets')}>
-            📊 Sheet Sync
-          </button>
-          <button style={navButtonStyle} onClick={() => navigate('/live-sync')}>
-            🔄 Live Sync
+          <button style={navButtonStyle} onClick={() => navigate('/tutorial')}>
+            🎓 Tutorial
           </button>
           
           {/* Auth Section */}
