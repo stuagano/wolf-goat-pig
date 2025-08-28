@@ -54,6 +54,7 @@ class PlayerProfile(Base):
     __tablename__ = "player_profiles"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
+    email = Column(String, nullable=True, unique=True, index=True)  # Email for notifications
     handicap = Column(Float, default=18.0)
     ghin_id = Column(String, nullable=True, unique=True, index=True)  # GHIN ID for handicap lookup
     ghin_last_updated = Column(String, nullable=True)  # When GHIN data was last synced

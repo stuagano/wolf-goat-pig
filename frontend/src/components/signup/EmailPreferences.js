@@ -55,8 +55,12 @@ const EmailPreferences = () => {
   const loadPreferences = async () => {
     try {
       setLoading(true);
-      // For now using player ID 1, in real app this would come from auth
-      const response = await fetch(`${API_URL}/players/1/email-preferences`);
+      // Use authenticated user endpoint
+      const response = await fetch(`${API_URL}/players/me/email-preferences`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        }
+      });
       
       if (response.ok) {
         const data = await response.json();
@@ -95,10 +99,11 @@ const EmailPreferences = () => {
       setError(null);
       setSuccess(false);
 
-      const response = await fetch(`${API_URL}/players/1/email-preferences`, {
+      const response = await fetch(`${API_URL}/players/me/email-preferences`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
         },
         body: JSON.stringify(preferences)
       });

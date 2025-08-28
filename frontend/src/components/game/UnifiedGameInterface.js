@@ -13,6 +13,11 @@ import StrategicAnalysisWidget from '../StrategicAnalysisWidget';
 import AnalyticsDashboard from '../AnalyticsDashboard';
 import HoleVisualization from '../HoleVisualization';
 
+// Import enhanced components
+import EnhancedBettingWidget from '../EnhancedBettingWidget';
+import EnhancedScoringWidget from '../EnhancedScoringWidget';
+import InteractivePlayerCard from '../InteractivePlayerCard';
+
 // Import shot analysis components
 import ShotAnalysisWidget from '../ShotAnalysisWidget';
 import ShotVisualizationOverlay from '../ShotVisualizationOverlay';
@@ -431,11 +436,31 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
           }}>
             <div>
               <GameStateWidget gameState={gameState} holeState={gameState?.hole_state} onAction={sendAction} />
-              <ShotResultWidget gameState={gameState} />
+              {mode === 'enhanced' ? (
+                <EnhancedScoringWidget gameState={gameState} />
+              ) : (
+                <ShotResultWidget gameState={gameState} />
+              )}
             </div>
             <div>
-              <BettingOpportunityWidget gameState={gameState} onAction={sendAction} />
-              <StrategicAnalysisWidget gameState={gameState} />
+              {mode === 'enhanced' ? (
+                <>
+                  <EnhancedBettingWidget gameState={gameState} onAction={sendAction} />
+                  {gameState?.players && gameState.players.map(player => (
+                    <InteractivePlayerCard 
+                      key={player.id}
+                      player={player} 
+                      gameState={gameState}
+                      onAction={sendAction}
+                    />
+                  ))}
+                </>
+              ) : (
+                <>
+                  <BettingOpportunityWidget gameState={gameState} onAction={sendAction} />
+                  <StrategicAnalysisWidget gameState={gameState} />
+                </>
+              )}
             </div>
             {showOddsPanel && (
               <div>

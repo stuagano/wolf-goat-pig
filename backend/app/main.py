@@ -31,6 +31,8 @@ from datetime import datetime
 
 from .services.player_service import PlayerService # Import PlayerService
 from .services.email_service import EmailService, get_email_service
+from .services.email_scheduler import email_scheduler
+from .services.auth_service import get_current_user
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -157,6 +159,25 @@ async def startup():
     """Enhanced startup event handler with comprehensive bootstrapping."""
     logger.info("🐺 Wolf Goat Pig API starting up...")
     logger.info(f"ENVIRONMENT: {os.getenv('ENVIRONMENT')}")
+    
+    # Start the email scheduler
+    try:
+        email_scheduler.start()
+        logger.info("📧 Email scheduler started successfully")
+    except Exception as e:
+        logger.error(f"Failed to start email scheduler: {str(e)}")
+
+@app.on_event("shutdown")
+async def shutdown():
+    """Cleanup on shutdown"""
+    logger.info("🛑 Wolf Goat Pig API shutting down...")
+    
+    # Stop the email scheduler
+    try:
+        email_scheduler.stop()
+        logger.info("📧 Email scheduler stopped successfully")
+    except Exception as e:
+        logger.error(f"Failed to stop email scheduler: {str(e)}")
     
     try:
         # Import seeding functionality
@@ -4329,6 +4350,100 @@ def update_email_preferences(player_id: int, preferences_update: schemas.EmailPr
     except Exception as e:
         db.rollback()
         logger.error(f"Error updating email preferences for player {player_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update email preferences: {str(e)}")
+    finally:
+        db.close()
+
+# =============================================================================
+# AUTHENTICATED EMAIL PREFERENCE ENDPOINTS  
+# =============================================================================
+
+@app.get("/players/me/email-preferences", response_model=schemas.EmailPreferencesResponse)
+async def get_my_email_preferences(current_user: models.PlayerProfile = Depends(get_current_user)):
+    """Get current user's email preferences"""
+    db = database.SessionLocal()
+    try:
+        # Try to find existing preferences
+        prefs = db.query(models.EmailPreferences).filter(
+            models.EmailPreferences.player_profile_id == current_user.id
+        ).first()
+        
+        if not prefs:
+            # Create default preferences
+            prefs = models.EmailPreferences(
+                player_profile_id=current_user.id,
+                created_at=datetime.now().isoformat(),
+                updated_at=datetime.now().isoformat()
+            )
+            db.add(prefs)
+            db.commit()
+            db.refresh(prefs)
+        
+        return schemas.EmailPreferencesResponse(
+            id=prefs.id,
+            player_profile_id=prefs.player_profile_id,
+            daily_signups_enabled=bool(prefs.daily_signups_enabled),
+            signup_confirmations_enabled=bool(prefs.signup_confirmations_enabled),
+            signup_reminders_enabled=bool(prefs.signup_reminders_enabled),
+            game_invitations_enabled=bool(prefs.game_invitations_enabled),
+            weekly_summary_enabled=bool(prefs.weekly_summary_enabled),
+            email_frequency=prefs.email_frequency,
+            preferred_notification_time=prefs.preferred_notification_time
+        )
+    except Exception as e:
+        logger.error(f"Error getting email preferences for user {current_user.id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get email preferences: {str(e)}")
+    finally:
+        db.close()
+
+@app.put("/players/me/email-preferences", response_model=schemas.EmailPreferencesResponse)
+async def update_my_email_preferences(
+    preferences_update: schemas.EmailPreferencesUpdate,
+    current_user: models.PlayerProfile = Depends(get_current_user)
+):
+    """Update current user's email preferences"""
+    db = database.SessionLocal()
+    try:
+        # Find or create preferences
+        prefs = db.query(models.EmailPreferences).filter(
+            models.EmailPreferences.player_profile_id == current_user.id
+        ).first()
+        
+        if not prefs:
+            prefs = models.EmailPreferences(
+                player_profile_id=current_user.id,
+                created_at=datetime.now().isoformat()
+            )
+            db.add(prefs)
+        
+        # Update preferences
+        update_data = preferences_update.dict(exclude_unset=True)
+        for field, value in update_data.items():
+            if hasattr(prefs, field):
+                # Convert bool to int for SQLite
+                if isinstance(value, bool):
+                    value = 1 if value else 0
+                setattr(prefs, field, value)
+        
+        prefs.updated_at = datetime.now().isoformat()
+        db.commit()
+        db.refresh(prefs)
+        
+        logger.info(f"Updated email preferences for user {current_user.id}")
+        
+        return schemas.EmailPreferencesResponse(
+            id=prefs.id,
+            player_profile_id=prefs.player_profile_id,
+            daily_signups_enabled=bool(prefs.daily_signups_enabled),
+            signup_confirmations_enabled=bool(prefs.signup_confirmations_enabled),
+            signup_reminders_enabled=bool(prefs.signup_reminders_enabled),
+            game_invitations_enabled=bool(prefs.game_invitations_enabled),
+            weekly_summary_enabled=bool(prefs.weekly_summary_enabled),
+            email_frequency=prefs.email_frequency,
+            preferred_notification_time=prefs.preferred_notification_time
+        )
+    except Exception as e:
+        logger.error(f"Error updating email preferences for user {current_user.id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to update email preferences: {str(e)}")
     finally:
         db.close()

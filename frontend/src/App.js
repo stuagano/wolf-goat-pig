@@ -20,6 +20,7 @@ import { HomePage } from "./pages";
 import SignupPage from "./pages/SignupPage";
 import AboutPage from "./pages/AboutPage";
 import RulesPage from "./pages/RulesPage";
+import EmailSettings from "./components/email/EmailSettings";
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -86,6 +87,27 @@ function Navigation() {
           <button style={navButtonStyle} onClick={() => navigate('/tutorial')}>
             🎓 Tutorial
           </button>
+          <button style={navButtonStyle} onClick={() => navigate('/about')}>
+            ℹ️ About
+          </button>
+          <button style={navButtonStyle} onClick={() => navigate('/rules')}>
+            📋 Rules
+          </button>
+          <button style={navButtonStyle} onClick={() => navigate('/sheets')}>
+            📊 Sheets
+          </button>
+          <button style={navButtonStyle} onClick={() => navigate('/analytics')}>
+            📈 Analytics
+          </button>
+          <button style={navButtonStyle} onClick={() => navigate('/analyzer')}>
+            🔍 Analyzer
+          </button>
+          <button style={navButtonStyle} onClick={() => navigate('/signup')}>
+            📝 Signup
+          </button>
+          <button style={navButtonStyle} onClick={() => navigate('/live-sync')}>
+            🔄 Live Sync
+          </button>
           
           {/* Auth Section */}
           <div style={{ marginLeft: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -147,8 +169,8 @@ function App() {
     );
   }
 
-  // Show splash screen after backend is ready
-  if (showSplash) {
+  // Show splash screen only on homepage after backend is ready
+  if (showSplash && window.location.pathname === '/') {
     return (
       <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100vh',background:theme.colors.background}}>
         <div style={{...theme.cardStyle, textAlign:'center', maxWidth: 400, marginTop: -80}}>
@@ -181,6 +203,11 @@ function App() {
             </ProtectedRoute>
           } />
           <Route path="/analytics" element={
+            <ProtectedRoute>
+              <WGPAnalyticsDashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/analyzer" element={
             <ProtectedRoute>
               <ShotRangeAnalyzer />
             </ProtectedRoute>
