@@ -89,7 +89,56 @@ export const SheetSyncProvider = ({ children }) => {
       await response.json();
 
       const sheetResponse = await fetchSheetData(csvUrl);
-      setSyncData(sheetResponse.data || []);
+      
+      // Transform the Google Sheets data to match leaderboard format
+      const transformedData = (sheetResponse.data || []).map((row, index) => {
+        // Aggregate scores by player
+        const playerName = row.Member || row['Player'] || '';
+        const score = parseInt(row.Score) || 0;
+        
+        return {
+          id: `player-${index}`,
+          player_name: playerName,
+          name: playerName,
+          total_earnings: score,
+          score: score,
+          games_played: 1, // Each row represents a game
+          total_games: 1,
+          win_percentage: score > 0 ? 100 : 0,
+          last_played: row.Date || 'N/A'
+        };
+      }).filter(player => player.player_name); // Filter out empty rows
+      
+      // Aggregate by player name
+      const aggregatedData = {};
+      transformedData.forEach(player => {
+        if (player.player_name) {
+          if (!aggregatedData[player.player_name]) {
+            aggregatedData[player.player_name] = {
+              ...player,
+              total_earnings: 0,
+              games_played: 0,
+              wins: 0
+            };
+          }
+          aggregatedData[player.player_name].total_earnings += player.total_earnings;
+          aggregatedData[player.player_name].games_played += 1;
+          if (player.total_earnings > 0) {
+            aggregatedData[player.player_name].wins += 1;
+          }
+          aggregatedData[player.player_name].last_played = player.last_played;
+        }
+      });
+      
+      // Calculate win percentage
+      const finalData = Object.values(aggregatedData).map((player, index) => ({
+        ...player,
+        id: `player-${index}`,
+        total_games: player.games_played,
+        win_percentage: player.games_played > 0 ? (player.wins / player.games_played) * 100 : 0
+      }));
+      
+      setSyncData(finalData);
 
       setLastSync(new Date());
       setSyncStatus('success');
