@@ -63,7 +63,7 @@ function HomePage() {
       description: 'Play with real players and track your Wolf Goat Pig matches',
       action: () => navigate('/game'),
       buttonText: 'Start Game',
-      color: '#10B981' // green
+      color: '#047857' // deep forest green
     },
     {
       icon: '🎮',
@@ -71,7 +71,7 @@ function HomePage() {
       description: 'Practice against computer opponents to learn strategies',
       action: () => navigate('/simulation'),
       buttonText: 'Start Practice',
-      color: '#3B82F6' // blue
+      color: '#0369A1' // deep water blue
     },
     {
       icon: '🏆',
@@ -79,7 +79,7 @@ function HomePage() {
       description: 'View rankings and player statistics from Google Sheets',
       action: () => navigate('/leaderboard'),
       buttonText: 'View Leaderboard',
-      color: '#F59E0B' // amber
+      color: '#B45309' // warm sand/bronze
     },
     {
       icon: '🎓',
@@ -87,7 +87,7 @@ function HomePage() {
       description: 'Learn the rules and strategies of Wolf Goat Pig',
       action: () => navigate('/tutorial'),
       buttonText: 'Start Tutorial',
-      color: '#8B5CF6' // purple
+      color: '#065F46' // pine green
     }
   ];
   
@@ -105,7 +105,7 @@ function HomePage() {
   return (
     <div style={{ 
       minHeight: '100vh',
-      backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.5)), url('https://www.wingpointgolf.com/_filelib/ImageGallery/2020_Images/DJI_0093.jpeg')`,
+      backgroundImage: `linear-gradient(rgba(6, 78, 59, 0.3), rgba(4, 120, 87, 0.4)), url('https://www.wingpointgolf.com/_filelib/ImageGallery/2020_Images/DJI_0093.jpeg')`,
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       backgroundRepeat: 'no-repeat',
@@ -188,7 +188,7 @@ function HomePage() {
         <div className="wgp-header-container" style={{ 
           textAlign: 'center', 
           marginBottom: '40px',
-          background: 'rgba(0, 0, 0, 0.7)',
+          background: 'linear-gradient(135deg, rgba(6, 78, 59, 0.8), rgba(4, 120, 87, 0.7))',
           padding: '40px 20px',
           borderRadius: '16px',
           backdropFilter: 'blur(10px)'
@@ -249,13 +249,13 @@ function HomePage() {
               <LoginButton style={{ 
                 fontSize: '20px', 
                 padding: '16px 40px',
-                background: '#059669',
+                background: '#047857',
                 color: 'white',
                 border: 'none',
                 borderRadius: '12px',
                 cursor: 'pointer',
                 fontWeight: '700',
-                boxShadow: '0 10px 15px -3px rgba(5, 150, 105, 0.4)',
+                boxShadow: '0 10px 15px -3px rgba(4, 120, 87, 0.5)',
                 transform: 'translateY(0)',
                 transition: 'all 0.3s ease'
               }} />
@@ -269,11 +269,11 @@ function HomePage() {
             </div>
           ) : (
             <div style={{
-              background: 'rgba(16, 185, 129, 0.9)',
+              background: 'linear-gradient(135deg, rgba(4, 120, 87, 0.95), rgba(6, 95, 70, 0.9))',
               borderRadius: '16px',
               padding: '30px',
               marginTop: '30px',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)'
+              boxShadow: '0 20px 25px -5px rgba(4, 120, 87, 0.4)'
             }}>
               <h2 style={{
                 fontSize: '1.8rem',
@@ -460,10 +460,10 @@ function HomePage() {
             marginBottom: '20px'
           }}>
             <div style={{
-              background: '#F3F4F6',
+              background: 'rgba(240, 253, 250, 0.8)',
               padding: '20px',
               borderRadius: '12px',
-              borderLeft: '4px solid #10B981'
+              borderLeft: '4px solid #047857'
             }}>
               <strong style={{ color: '#065F46' }}>🤝 Request a Partner</strong>
               <p style={{ marginTop: '8px', color: '#6B7280' }}>
@@ -471,12 +471,12 @@ function HomePage() {
               </p>
             </div>
             <div style={{
-              background: '#F3F4F6',
+              background: 'rgba(254, 242, 242, 0.8)',
               padding: '20px',
               borderRadius: '12px',
-              borderLeft: '4px solid #EF4444'
+              borderLeft: '4px solid #B45309'
             }}>
-              <strong style={{ color: '#991B1B' }}>🎯 Go Solo</strong>
+              <strong style={{ color: '#92400E' }}>🎯 Go Solo</strong>
               <p style={{ marginTop: '8px', color: '#6B7280' }}>
                 Face all three players alone (doubles the wager!)
               </p>

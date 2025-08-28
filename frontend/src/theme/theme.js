@@ -4,15 +4,15 @@
 
 // Base color palette
 export const colors = {
-  // Primary brand colors
-  primary: '#1976d2',
-  primaryLight: '#42a5f5',
-  primaryDark: '#0d47a1',
+  // Primary brand colors (golf course greens)
+  primary: '#047857', // deep forest green
+  primaryLight: '#059669', // emerald green  
+  primaryDark: '#065F46', // pine green
   
-  // Secondary/accent colors
-  accent: '#00bcd4',
-  accentLight: '#4dd0e1',
-  accentDark: '#0097a7',
+  // Secondary/accent colors (water blues)
+  accent: '#0369A1', // deep water blue
+  accentLight: '#0EA5E9', // sky blue
+  accentDark: '#0C4A6E', // dark blue
   
   // Semantic colors
   success: '#388e3c',
@@ -39,11 +39,13 @@ export const colors = {
   gray800: '#424242',
   gray900: '#212121',
   
-  // Special WGP colors
+  // Special WGP colors (golf course inspired)
   hoepfinger: '#9c27b0',
-  vinnie: '#795548',
-  gold: '#f1c40f',
+  vinnie: '#795548', // earth brown
+  gold: '#B45309', // warm sand/bronze
   purple: '#9b59b6',
+  sandTrap: '#D2B48C', // sand color
+  fairway: '#22C55E', // bright fairway green
   
   // Background and surface colors
   background: '#f9fafe',
