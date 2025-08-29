@@ -21,6 +21,7 @@ import { HomePage } from "./pages";
 import SignupPage from "./pages/SignupPage";
 import AboutPage from "./pages/AboutPage";
 import RulesPage from "./pages/RulesPage";
+import AdminPage from "./pages/AdminPage";
 import EmailSettings from "./components/email/EmailSettings";
 import Navigation from "./components/Navigation";
 
@@ -125,6 +126,11 @@ function App() {
           <Route path="/tutorial" element={<TutorialSystem onComplete={() => navigate('/game')} onExit={() => navigate('/')} />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/rules" element={<RulesPage />} />
+          <Route path="/admin" element={
+            <ProtectedRoute>
+              <AdminPage />
+            </ProtectedRoute>
+          } />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </div>

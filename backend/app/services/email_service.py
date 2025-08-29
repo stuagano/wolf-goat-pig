@@ -83,6 +83,52 @@ class EmailService:
         text = re.sub(r'\s+', ' ', text).strip()
         return text
     
+    def send_test_email(self, to_email: str, admin_name: str = "Admin") -> bool:
+        """Send a test email to verify configuration"""
+        subject = "Wolf Goat Pig - Test Email"
+        
+        html_body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #2c5282;">🐺🐐🐷 Wolf Goat Pig Email Test</h2>
+            <p>Hello {admin_name},</p>
+            <p>This is a test email from your Wolf Goat Pig application to verify that email configuration is working correctly.</p>
+            <div style="background-color: #f7fafc; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="color: #2d3748; margin-top: 0;">Configuration Details:</h3>
+                <ul style="color: #4a5568;">
+                    <li>SMTP Host: {self.smtp_config['host']}</li>
+                    <li>SMTP Port: {self.smtp_config['port']}</li>
+                    <li>From Email: {self.from_email}</li>
+                    <li>From Name: {self.from_name}</li>
+                </ul>
+            </div>
+            <p style="color: #718096;">If you received this email, your email service is configured correctly!</p>
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+            <p style="color: #a0aec0; font-size: 12px;">This test was initiated by {admin_name}</p>
+        </body>
+        </html>
+        """
+        
+        text_body = f"""
+        Wolf Goat Pig Email Test
+        
+        Hello {admin_name},
+        
+        This is a test email from your Wolf Goat Pig application.
+        
+        Configuration Details:
+        - SMTP Host: {self.smtp_config['host']}
+        - SMTP Port: {self.smtp_config['port']}
+        - From Email: {self.from_email}
+        - From Name: {self.from_name}
+        
+        If you received this email, your email service is configured correctly!
+        
+        This test was initiated by {admin_name}
+        """
+        
+        return self._send_email(to_email, subject, html_body, text_body)
+    
     def _get_base_template(self) -> str:
         """Get the base HTML email template"""
         return """

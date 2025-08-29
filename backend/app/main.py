@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, Body, HTTPException, Request, Path, Query, UploadFile, File
+from fastapi import FastAPI, Depends, Body, HTTPException, Request, Path, Query, UploadFile, File, Header
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
@@ -3245,6 +3245,136 @@ def sync_wgp_sheet_data(request: Dict[str, str]):
         raise HTTPException(status_code=500, detail=f"Failed to sync data: {str(e)}")
     finally:
         db.close()
+
+# Admin endpoints for email configuration
+@app.get("/admin/email-config")
+def get_email_config(x_admin_email: str = Header(None)):
+    """Get current email configuration (admin only)"""
+    # Check admin access
+    admin_emails = ['stuagano@gmail.com', 'admin@wgp.com']
+    if not x_admin_email or x_admin_email not in admin_emails:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Return current config (without password)
+    return {
+        "config": {
+            "smtp_host": os.getenv("SMTP_HOST", "smtp.gmail.com"),
+            "smtp_port": os.getenv("SMTP_PORT", "587"),
+            "smtp_username": os.getenv("SMTP_USER", ""),
+            "from_email": os.getenv("FROM_EMAIL", ""),
+            "from_name": os.getenv("FROM_NAME", "Wolf Goat Pig Admin"),
+            # Don't return password
+            "smtp_password": "••••••••" if os.getenv("SMTP_PASSWORD") else ""
+        }
+    }
+
+@app.post("/admin/email-config")
+def update_email_config(config: Dict[str, Any], x_admin_email: str = Header(None)):
+    """Update email configuration (admin only)"""
+    # Check admin access
+    admin_emails = ['stuagano@gmail.com', 'admin@wgp.com']
+    if not x_admin_email or x_admin_email not in admin_emails:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        # Update environment variables (in memory for this session)
+        if config.get("smtp_host"):
+            os.environ["SMTP_HOST"] = config["smtp_host"]
+        if config.get("smtp_port"):
+            os.environ["SMTP_PORT"] = str(config["smtp_port"])
+        if config.get("smtp_username"):
+            os.environ["SMTP_USER"] = config["smtp_username"]
+        if config.get("smtp_password") and not config["smtp_password"].startswith("•"):
+            os.environ["SMTP_PASSWORD"] = config["smtp_password"]
+        if config.get("from_email"):
+            os.environ["FROM_EMAIL"] = config["from_email"]
+        if config.get("from_name"):
+            os.environ["FROM_NAME"] = config["from_name"]
+        
+        # Reinitialize email service with new config
+        global email_service_instance
+        email_service_instance = None  # Reset to force reinitialization
+        
+        return {"status": "success", "message": "Email configuration updated"}
+    except Exception as e:
+        logger.error(f"Error updating email config: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/admin/test-email")
+async def test_admin_email(request: Dict[str, Any], x_admin_email: str = Header(None)):
+    """Send a test email with provided configuration (admin only)"""
+    # Check admin access
+    admin_emails = ['stuagano@gmail.com', 'admin@wgp.com']
+    if not x_admin_email or x_admin_email not in admin_emails:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        test_email = request.get("test_email")
+        config = request.get("config", {})
+        
+        if not test_email:
+            raise HTTPException(status_code=400, detail="Test email address required")
+        
+        # Temporarily apply config if provided
+        if config:
+            # Save current values
+            old_config = {
+                "SMTP_HOST": os.getenv("SMTP_HOST"),
+                "SMTP_PORT": os.getenv("SMTP_PORT"),
+                "SMTP_USER": os.getenv("SMTP_USER"),
+                "SMTP_PASSWORD": os.getenv("SMTP_PASSWORD"),
+                "FROM_EMAIL": os.getenv("FROM_EMAIL"),
+                "FROM_NAME": os.getenv("FROM_NAME")
+            }
+            
+            # Apply test config
+            if config.get("smtp_host"):
+                os.environ["SMTP_HOST"] = config["smtp_host"]
+            if config.get("smtp_port"):
+                os.environ["SMTP_PORT"] = str(config["smtp_port"])
+            if config.get("smtp_username"):
+                os.environ["SMTP_USER"] = config["smtp_username"]
+            if config.get("smtp_password") and not config["smtp_password"].startswith("•"):
+                os.environ["SMTP_PASSWORD"] = config["smtp_password"]
+            if config.get("from_email"):
+                os.environ["FROM_EMAIL"] = config["from_email"]
+            if config.get("from_name"):
+                os.environ["FROM_NAME"] = config["from_name"]
+        
+        # Create new email service with test config
+        from .services.email_service import EmailService
+        test_service = EmailService()
+        
+        if not test_service.is_configured:
+            raise HTTPException(
+                status_code=400,
+                detail="Email service not configured. Please provide SMTP settings."
+            )
+        
+        # Send test email
+        success = test_service.send_test_email(
+            to_email=test_email,
+            admin_name=x_admin_email
+        )
+        
+        # Restore original config if we changed it
+        if config and 'old_config' in locals():
+            for key, value in old_config.items():
+                if value is not None:
+                    os.environ[key] = value
+                elif key in os.environ:
+                    del os.environ[key]
+        
+        if success:
+            return {"status": "success", "message": f"Test email sent to {test_email}"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to send test email")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error sending test email: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/sheet-integration/fetch-google-sheet")
 def fetch_google_sheet(request: Dict[str, str]):

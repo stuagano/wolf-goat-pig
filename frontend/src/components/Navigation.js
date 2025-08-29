@@ -17,19 +17,27 @@ const Navigation = () => {
   const isAuthenticated = useMockAuth ? true : auth0IsAuthenticated;
   const user = useMockAuth ? { name: 'Test User' } : auth0User;
 
+  // Check if user is admin (you can enhance this check)
+  const adminEmails = ['stuagano@gmail.com', 'admin@wgp.com'];
+  const userEmail = localStorage.getItem('userEmail') || user?.email || 'stuagano@gmail.com'; // Default for testing
+  
+  // Store user email if available
+  if (user?.email && !localStorage.getItem('userEmail')) {
+    localStorage.setItem('userEmail', user.email);
+  }
+  
+  const showAdminLink = adminEmails.includes(userEmail);
+
   const navLinks = [
     { path: '/', label: '🏠 Home', primary: true },
     { path: '/game', label: '🎮 Game', primary: true },
     { path: '/simulation', label: '🎲 Practice', primary: true },
     { path: '/leaderboard', label: '🏆 Leaderboard', primary: true },
+    { path: '/signup', label: '📝 Sign Up to Play', primary: true },
     { path: '/tutorial', label: '🎓 Tutorial', primary: false },
     { path: '/about', label: 'ℹ️ About', primary: false },
     { path: '/rules', label: '📋 Rules', primary: false },
-    { path: '/sheets', label: '📊 Sheets', primary: false },
-    { path: '/analytics', label: '📈 Analytics', primary: false },
-    { path: '/analyzer', label: '🔍 Analyzer', primary: false },
-    { path: '/signup', label: '📝 Sign Up to Play', primary: true },
-    { path: '/live-sync', label: '🔄 Live Sync', primary: false }
+    ...(showAdminLink ? [{ path: '/admin', label: '🔧 Admin', primary: false }] : [])
   ];
 
   const navStyle = {
