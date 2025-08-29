@@ -539,8 +539,9 @@ const AdminPage = () => {
 
             {/* SMTP Configuration */}
             {emailMethod === 'smtp' && (
-              <Card className="p-6">
-                <h2 className="text-xl font-semibold mb-6">SMTP Configuration</h2>
+              <>
+                <Card className="p-6">
+                  <h2 className="text-xl font-semibold mb-6">SMTP Configuration</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -669,6 +670,8 @@ const AdminPage = () => {
                 </div>
               )}
             </Card>
+              </>
+            )}
 
             {/* Setup Guide */}
             <Card className="p-6">
