@@ -102,11 +102,24 @@ app.add_middleware(
         "https://wolf-goat-pig.vercel.app",  # Production frontend
         "http://localhost:3000",             # Local development
         "http://localhost:3001",             # Alternative local port
-        "https://wolf-goat-pig-frontend.onrender.com"  # Alternative frontend URL
+        "https://wolf-goat-pig-frontend.onrender.com",  # Alternative frontend URL
+        "*"  # Allow all origins for debugging - remove in production
     ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"],
+    allow_headers=[
+        "Accept",
+        "Accept-Language", 
+        "Content-Language",
+        "Content-Type",
+        "Authorization",
+        "X-Admin-Email",
+        "X-Requested-With",
+        "Origin",
+        "Access-Control-Request-Method",
+        "Access-Control-Request-Headers"
+    ],
+    expose_headers=["*"]
 )
 
 
