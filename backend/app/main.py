@@ -3091,18 +3091,23 @@ def sync_wgp_sheet_data(request: Dict[str, str]):
                     }
                 
                 # Map the sheet columns to our data model
-                # Quarters column (total earnings in quarters - can be negative)
-                if 'quarters' in header_map and header_map['quarters'] < len(values):
+                # Score column (total earnings - can be negative)
+                score_value = None
+                for score_key in ['score', 'sum score', 'total score', 'quarters']:
+                    if score_key in header_map and header_map[score_key] < len(values):
+                        score_value = values[header_map[score_key]]
+                        break
+                
+                if score_value and score_value != '':
                     try:
-                        quarters_value = values[header_map['quarters']]
-                        if quarters_value and quarters_value != '':
-                            # Handle negative values (e.g., "-155")
-                            quarters_int = int(quarters_value)
-                            player_stats[player_name]["quarters"] = quarters_int
-                            player_stats[player_name]["total_earnings"] = float(quarters_int)
-                            logger.debug(f"Set {player_name} quarters to {quarters_value}")
+                        # Handle negative values (e.g., "-155")
+                        score_int = int(float(score_value))  # Handle decimal values too
+                        # Accumulate total earnings across multiple games
+                        player_stats[player_name]["quarters"] += score_int
+                        player_stats[player_name]["total_earnings"] += float(score_int)
+                        logger.debug(f"Added {score_value} to {player_name}, total now: {player_stats[player_name]['total_earnings']}")
                     except (ValueError, IndexError) as e:
-                        logger.warning(f"Error parsing quarters for {player_name}: {e}")
+                        logger.warning(f"Error parsing score for {player_name}: {e}")
                         pass
                 
                 # Average column
@@ -3116,15 +3121,16 @@ def sync_wgp_sheet_data(request: Dict[str, str]):
                         logger.warning(f"Error parsing average for {player_name}: {e}")
                         pass
                 
-                # Rounds column (games played)
-                if 'rounds' in header_map and header_map['rounds'] < len(values):
+                # Count rounds/games played (increment for each row)
+                player_stats[player_name]["rounds"] += 1
+                logger.debug(f"Incremented {player_name} rounds to {player_stats[player_name]['rounds']}")
+                
+                # Check if they won this game (positive score)
+                if score_value and score_value != '':
                     try:
-                        rounds_value = values[header_map['rounds']]
-                        if rounds_value and rounds_value != '':
-                            player_stats[player_name]["rounds"] = int(rounds_value)
-                            logger.debug(f"Set {player_name} rounds to {rounds_value}")
-                    except (ValueError, IndexError) as e:
-                        logger.warning(f"Error parsing rounds for {player_name}: {e}")
+                        if float(score_value) > 0:
+                            player_stats[player_name]["games_won"] += 1
+                    except (ValueError, TypeError):
                         pass
                 
                 # QB column
@@ -3139,8 +3145,14 @@ def sync_wgp_sheet_data(request: Dict[str, str]):
                         pass
                 
                 # Log successful player data extraction
-                if player_stats[player_name]["quarters"] > 0 or player_stats[player_name]["rounds"] > 0:
+                if player_stats[player_name]["quarters"] != 0 or player_stats[player_name]["rounds"] > 0:
                     logger.info(f"Extracted data for {player_name}: {player_stats[player_name]}")
+        
+        # Calculate averages for all players after processing all rows
+        for player_name, stats in player_stats.items():
+            if stats["rounds"] > 0:
+                stats["average"] = stats["total_earnings"] / stats["rounds"]
+                logger.debug(f"Calculated average for {player_name}: {stats['average']}")
         
         # Create/update players in database
         player_service = PlayerService(db)
