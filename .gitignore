@@ -169,7 +169,7 @@ ENV/
 .ipynb_checkpoints
 
 # pyenv
-.python-version
+# .python-version (needed for Render deployment)
 
 # pytest
 .tox/
