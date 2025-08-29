@@ -74,34 +74,7 @@ app = FastAPI(
     redoc_url="/redoc" if os.getenv("ENVIRONMENT") != "production" else None
 )
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize database on startup"""
-    try:
-        # Ensure all models are imported before creating tables
-        from . import models
-        database.init_db()
-        logger.info("Database initialized successfully")
-        
-        # Verify game_state table exists
-        db = database.SessionLocal()
-        try:
-            db.execute(text("SELECT COUNT(*) FROM game_state"))
-            logger.info("game_state table verified")
-        except Exception as table_error:
-            logger.error(f"game_state table verification failed: {table_error}")
-            # Try to create tables again
-            database.Base.metadata.create_all(bind=database.engine)
-            logger.info("Tables recreated")
-        finally:
-            db.close()
-            
-    except Exception as e:
-        logger.error(f"Failed to initialize database: {e}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        # Don't continue if database fails in production
-        if os.getenv("ENVIRONMENT") == "production":
-            raise
+# Database initialization moved to main startup handler
 
 # Trusted host middleware for security
 # Temporarily disable TrustedHostMiddleware during development/testing for easier debugging
@@ -160,24 +133,39 @@ async def startup():
     logger.info("🐺 Wolf Goat Pig API starting up...")
     logger.info(f"ENVIRONMENT: {os.getenv('ENVIRONMENT')}")
     
+    # Initialize database first
+    try:
+        # Ensure all models are imported before creating tables
+        from . import models
+        database.init_db()
+        logger.info("Database initialized successfully")
+        
+        # Verify game_state table exists
+        db = database.SessionLocal()
+        try:
+            db.execute(text("SELECT COUNT(*) FROM game_state"))
+            logger.info("game_state table verified")
+        except Exception as table_error:
+            logger.error(f"game_state table verification failed: {table_error}")
+            # Try to create tables again
+            database.Base.metadata.create_all(bind=database.engine)
+            logger.info("Tables recreated")
+        finally:
+            db.close()
+            
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        # Don't continue if database fails in production
+        if os.getenv("ENVIRONMENT") == "production":
+            raise
+    
     # Start the email scheduler
     try:
         email_scheduler.start()
         logger.info("📧 Email scheduler started successfully")
     except Exception as e:
         logger.error(f"Failed to start email scheduler: {str(e)}")
-
-@app.on_event("shutdown")
-async def shutdown():
-    """Cleanup on shutdown"""
-    logger.info("🛑 Wolf Goat Pig API shutting down...")
-    
-    # Stop the email scheduler
-    try:
-        email_scheduler.stop()
-        logger.info("📧 Email scheduler stopped successfully")
-    except Exception as e:
-        logger.error(f"Failed to stop email scheduler: {str(e)}")
     
     try:
         # Import seeding functionality
@@ -243,6 +231,18 @@ async def shutdown():
         logger.error(f"❌ Critical startup error: {e}")
         logger.error("⚠️ Application may not function properly")
         # Don't raise - allow app to start with limited functionality
+
+@app.on_event("shutdown")
+async def shutdown():
+    """Cleanup on shutdown"""
+    logger.info("🛑 Wolf Goat Pig API shutting down...")
+    
+    # Stop the email scheduler
+    try:
+        email_scheduler.stop()
+        logger.info("📧 Email scheduler stopped successfully")
+    except Exception as e:
+        logger.error(f"Failed to stop email scheduler: {str(e)}")
 
 async def run_seeding_process():
     """Run the data seeding process during startup."""
