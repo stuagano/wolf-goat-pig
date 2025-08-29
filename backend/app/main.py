@@ -31,6 +31,7 @@ from datetime import datetime
 
 from .services.player_service import PlayerService # Import PlayerService
 from .services.email_service import EmailService, get_email_service
+from .services.oauth2_email_service import OAuth2EmailService, get_oauth2_email_service
 # Email scheduler will be initialized on-demand to prevent startup blocking
 # from .services.email_scheduler import email_scheduler
 from .services.auth_service import get_current_user
@@ -3374,6 +3375,149 @@ async def test_admin_email(request: Dict[str, Any], x_admin_email: str = Header(
         raise
     except Exception as e:
         logger.error(f"Error sending test email: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# OAuth2 Email endpoints
+@app.get("/admin/oauth2-status")
+def get_oauth2_status(x_admin_email: str = Header(None)):
+    """Get OAuth2 configuration status (admin only)"""
+    # Check admin access
+    admin_emails = ['stuagano@gmail.com', 'admin@wgp.com']
+    if not x_admin_email or x_admin_email not in admin_emails:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        oauth2_service = get_oauth2_email_service()
+        status = oauth2_service.get_configuration_status()
+        return {"status": status}
+    except Exception as e:
+        logger.error(f"Error getting OAuth2 status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/admin/oauth2-authorize")
+def start_oauth2_authorization(request: Dict[str, Any], x_admin_email: str = Header(None)):
+    """Start OAuth2 authorization flow (admin only)"""
+    # Check admin access
+    admin_emails = ['stuagano@gmail.com', 'admin@wgp.com']
+    if not x_admin_email or x_admin_email not in admin_emails:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        oauth2_service = get_oauth2_email_service()
+        
+        # Set from_email and from_name if provided
+        if request.get("from_email"):
+            oauth2_service.from_email = request["from_email"]
+            os.environ["FROM_EMAIL"] = request["from_email"]
+        if request.get("from_name"):
+            oauth2_service.from_name = request["from_name"]
+            os.environ["FROM_NAME"] = request["from_name"]
+        
+        redirect_uri = request.get("redirect_uri", "http://localhost:8000/admin/oauth2-callback")
+        auth_url = oauth2_service.get_auth_url(redirect_uri)
+        
+        return {"auth_url": auth_url, "message": "Visit the auth_url to complete authorization"}
+        
+    except FileNotFoundError as e:
+        raise HTTPException(
+            status_code=400,
+            detail="Gmail credentials file not found. Please upload your Gmail API credentials file first."
+        )
+    except Exception as e:
+        logger.error(f"Error starting OAuth2 authorization: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/admin/oauth2-callback")
+def handle_oauth2_callback(code: str = Query(...), state: str = Query(None)):
+    """Handle OAuth2 callback from Google"""
+    try:
+        oauth2_service = get_oauth2_email_service()
+        success = oauth2_service.handle_oauth_callback(code)
+        
+        if success:
+            # Return success page
+            return {
+                "message": "OAuth2 authorization successful! You can now close this window and return to the admin page.",
+                "success": True
+            }
+        else:
+            raise HTTPException(status_code=400, detail="Failed to complete OAuth2 authorization")
+            
+    except Exception as e:
+        logger.error(f"Error handling OAuth2 callback: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/admin/oauth2-test-email")
+async def test_oauth2_email(request: Dict[str, Any], x_admin_email: str = Header(None)):
+    """Send test email using OAuth2 (admin only)"""
+    # Check admin access
+    admin_emails = ['stuagano@gmail.com', 'admin@wgp.com']
+    if not x_admin_email or x_admin_email not in admin_emails:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        test_email = request.get("test_email")
+        if not test_email:
+            raise HTTPException(status_code=400, detail="Test email address required")
+        
+        oauth2_service = get_oauth2_email_service()
+        
+        if not oauth2_service.is_configured:
+            raise HTTPException(
+                status_code=400,
+                detail="OAuth2 email service not configured. Please complete OAuth2 authorization first."
+            )
+        
+        success = oauth2_service.send_test_email(test_email, x_admin_email)
+        
+        if success:
+            return {"status": "success", "message": f"Test email sent to {test_email} using OAuth2"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to send test email")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error sending OAuth2 test email: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/admin/upload-credentials")
+async def upload_gmail_credentials(file: UploadFile = File(...), x_admin_email: str = Header(None)):
+    """Upload Gmail API credentials file (admin only)"""
+    # Check admin access
+    admin_emails = ['stuagano@gmail.com', 'admin@wgp.com']
+    if not x_admin_email or x_admin_email not in admin_emails:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        # Validate file type
+        if not file.filename.endswith('.json'):
+            raise HTTPException(status_code=400, detail="File must be a JSON file")
+        
+        # Read and validate JSON content
+        content = await file.read()
+        credentials_data = json.loads(content)
+        
+        # Validate it's a Google OAuth2 credentials file
+        if 'installed' not in credentials_data and 'web' not in credentials_data:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid credentials file format. Please ensure it's a Google OAuth2 credentials file."
+            )
+        
+        # Save credentials file
+        oauth2_service = get_oauth2_email_service()
+        with open(oauth2_service.credentials_path, 'w') as f:
+            json.dump(credentials_data, f)
+        
+        return {"status": "success", "message": "Gmail credentials file uploaded successfully"}
+        
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON file")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error uploading credentials: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/sheet-integration/fetch-google-sheet")

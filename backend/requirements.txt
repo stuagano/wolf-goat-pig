@@ -42,5 +42,11 @@ schedule>=1.2.0
 python-jose[cryptography]>=3.3.0
 jinja2>=3.1.0
 
+# Google API dependencies for OAuth2 email
+google-auth>=2.23.0
+google-auth-oauthlib>=1.1.0
+google-auth-httplib2>=0.1.1
+google-api-python-client>=2.100.0
+
 # Environment-specific dependencies
 gunicorn>=21.2.0  # For production WSGI server alternative
