@@ -19,6 +19,7 @@ export const SheetSyncProvider = ({ children }) => {
   const extractSheetId = (url) => {
     // Ensure url is a string
     if (!url || typeof url !== 'string') {
+      console.error('extractSheetId: URL is not a string:', url, typeof url);
       return null;
     }
     
@@ -28,8 +29,11 @@ export const SheetSyncProvider = ({ children }) => {
     ];
     for (const pattern of patterns) {
       const match = url.match(pattern);
-      if (match) return match[1];
+      if (match) {
+        return match[1];
+      }
     }
+    console.error('extractSheetId: No pattern matched for URL:', url);
     return null;
   };
 
@@ -68,15 +72,24 @@ export const SheetSyncProvider = ({ children }) => {
 
   const performLiveSync = useCallback(async (manualSheetUrl = null) => {
     const currentSheetUrl = manualSheetUrl || sheetUrl;
-    if (!currentSheetUrl) return;
+    
+    // Debug logging
+    console.log('performLiveSync called with:', { manualSheetUrl, sheetUrl, currentSheetUrl });
+    
+    if (!currentSheetUrl) {
+      console.error('No sheet URL available for sync');
+      return;
+    }
 
     try {
       setSyncStatus('connecting');
       setError(null);
 
       const urlInfo = parseSheetUrl(currentSheetUrl);
+      
       if (!urlInfo) {
-        throw new Error('Invalid Google Sheets URL');
+        console.error('Failed to parse Google Sheets URL:', currentSheetUrl);
+        throw new Error(`Invalid Google Sheets URL: ${currentSheetUrl}`);
       }
 
       const csvUrl = buildCsvUrl(urlInfo.sheetId, urlInfo.gid);
