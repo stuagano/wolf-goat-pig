@@ -212,7 +212,17 @@ const Leaderboard = () => {
                         </td>
                       )}
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {player.last_played ? new Date(player.last_played).toLocaleDateString() : 'Never'}
+                        {(() => {
+                          if (!player.last_played || player.last_played === 'N/A') return 'Never';
+                          try {
+                            const date = new Date(player.last_played);
+                            // Check if date is valid
+                            if (isNaN(date.getTime())) return 'N/A';
+                            return date.toLocaleDateString();
+                          } catch (e) {
+                            return 'N/A';
+                          }
+                        })()}
                       </td>
                     </tr>
                   ));

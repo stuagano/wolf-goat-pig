@@ -28,7 +28,7 @@ const Navigation = () => {
     { path: '/sheets', label: '📊 Sheets', primary: false },
     { path: '/analytics', label: '📈 Analytics', primary: false },
     { path: '/analyzer', label: '🔍 Analyzer', primary: false },
-    { path: '/signup', label: '📝 Signup', primary: false },
+    { path: '/signup', label: '📝 Sign Up to Play', primary: true },
     { path: '/live-sync', label: '🔄 Live Sync', primary: false }
   ];
 
