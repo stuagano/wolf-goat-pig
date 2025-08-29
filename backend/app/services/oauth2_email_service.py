@@ -90,9 +90,18 @@ class OAuth2EmailService:
             logger.error(f"Error initializing Gmail service: {e}")
             self.service = None
     
-    def get_auth_url(self, redirect_uri: str = 'http://localhost:8000/admin/oauth2-callback') -> str:
+    def get_auth_url(self, redirect_uri: str = None) -> str:
         """Generate OAuth2 authorization URL"""
         try:
+            # Auto-detect redirect URI based on environment
+            if redirect_uri is None:
+                import os
+                if os.getenv("ENVIRONMENT") == "production" or os.getenv("VERCEL"):
+                    # Use Vercel production URL
+                    redirect_uri = "https://wolf-goat-pig.vercel.app/admin/oauth2-callback"
+                else:
+                    redirect_uri = "http://localhost:8000/admin/oauth2-callback"
+            
             # Check if credentials file exists
             if not self.credentials_path.exists():
                 raise FileNotFoundError(

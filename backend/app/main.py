@@ -3413,7 +3413,12 @@ def start_oauth2_authorization(request: Dict[str, Any], x_admin_email: str = Hea
             oauth2_service.from_name = request["from_name"]
             os.environ["FROM_NAME"] = request["from_name"]
         
-        redirect_uri = request.get("redirect_uri", "http://localhost:8000/admin/oauth2-callback")
+        # Auto-detect redirect URI
+        if os.getenv("VERCEL") or os.getenv("ENVIRONMENT") == "production":
+            default_redirect = "https://wolf-goat-pig.vercel.app/admin/oauth2-callback"
+        else:
+            default_redirect = "http://localhost:8000/admin/oauth2-callback"
+        redirect_uri = request.get("redirect_uri", default_redirect)
         auth_url = oauth2_service.get_auth_url(redirect_uri)
         
         return {"auth_url": auth_url, "message": "Visit the auth_url to complete authorization"}
