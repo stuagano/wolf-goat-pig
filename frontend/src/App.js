@@ -10,6 +10,7 @@ import TutorialSystem from "./components/tutorial/TutorialSystem";
 import WGPAnalyticsDashboard from "./components/WGPAnalyticsDashboard";
 import SheetIntegrationDashboard from "./components/SheetIntegrationDashboard";
 import GoogleSheetsLiveSync from "./components/GoogleSheetsLiveSync";
+import Leaderboard from "./components/Leaderboard";
 import { ThemeProvider, useTheme } from "./theme/Provider";
 import { GameProvider, SheetSyncProvider } from "./context";
 import { MockAuthProvider } from "./context/MockAuthContext";
@@ -110,7 +111,7 @@ function App() {
               <FeedAnalyzer />
             </ProtectedRoute>
           } />
-          <Route path="/leaderboard" element={<WGPAnalyticsDashboard />} />
+          <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/sheets" element={
             <ProtectedRoute>
               <SheetIntegrationDashboard />
