@@ -1,8 +1,14 @@
 {
   "version": 2,
-  "buildCommand": "cd frontend && npm install && npm run build",
-  "outputDirectory": "frontend/build",
-  "framework": "create-react-app",
+  "builds": [
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "frontend/build"
+      }
+    }
+  ],
   "build": {
     "env": {
       "REACT_APP_API_URL": "https://wolf-goat-pig.onrender.com",
