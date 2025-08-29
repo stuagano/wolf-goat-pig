@@ -50,7 +50,7 @@ class PlayerService:
                 name=profile_data.name,
                 handicap=profile_data.handicap,
                 avatar_url=profile_data.avatar_url,
-                created_date=datetime.now().isoformat(),
+                created_at=datetime.now().isoformat(),
                 preferences=profile_data.preferences or {
                     "ai_difficulty": "medium",
                     "preferred_game_modes": ["wolf_goat_pig"],
