@@ -84,7 +84,7 @@ const Timeline = ({
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 'bold' }}>
-            📜 Timeline {showPokerStyle && '(Texas Hold\'em Style)'}
+            📜 Game Timeline {showPokerStyle && '(Wolf-Goat-Pig Style)'}
           </h3>
           
           {/* Filter buttons */}

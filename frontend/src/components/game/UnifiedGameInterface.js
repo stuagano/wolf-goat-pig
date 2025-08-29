@@ -22,6 +22,9 @@ import InteractivePlayerCard from '../InteractivePlayerCard';
 import ShotAnalysisWidget from '../ShotAnalysisWidget';
 import ShotVisualizationOverlay from '../ShotVisualizationOverlay';
 
+// Import game history component
+import GameHistory from '../GameHistory';
+
 // Import simulation components
 import { GameSetup as SimulationSetup, GamePlay as SimulationPlay } from '../simulation';
 
@@ -371,7 +374,8 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
                 options={[
                   { value: 'game', label: '🎮 Game View' },
                   { value: 'analytics', label: '📊 Analytics' },
-                  { value: 'timeline', label: '📋 Timeline' },
+                  { value: 'history', label: '📋 History' },
+                  { value: 'timeline', label: '🕒 Timeline' },
                   { value: 'visualization', label: '🗺️ Course View' },
                   { value: 'odds', label: '🎲 Odds Analysis' }
                 ]}
@@ -592,6 +596,13 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
 
         {currentView === 'analytics' && (
           <AnalyticsDashboard gameState={gameState} timelineEvents={timelineEvents} />
+        )}
+
+        {currentView === 'history' && (
+          <GameHistory 
+            gameData={gameState} 
+            timelineEvents={timelineEvents}
+          />
         )}
 
         {currentView === 'timeline' && (

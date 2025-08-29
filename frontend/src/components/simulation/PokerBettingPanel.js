@@ -47,10 +47,10 @@ const PokerBettingPanel = ({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <h3 style={{ margin: 0, fontSize: 20 }}>
-              🎰 Texas Hold'em Style Betting
+              🎯 Wolf-Goat-Pig Betting
             </h3>
             <p style={{ margin: '4px 0 0 0', fontSize: 12, opacity: 0.9 }}>
-              Wolf-Goat-Pig Poker Hybrid
+              Golf Strategy Betting System
             </p>
           </div>
           
