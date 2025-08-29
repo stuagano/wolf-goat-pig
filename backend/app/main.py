@@ -31,8 +31,12 @@ from datetime import datetime
 
 from .services.player_service import PlayerService # Import PlayerService
 from .services.email_service import EmailService, get_email_service
-from .services.email_scheduler import email_scheduler
+# Email scheduler will be initialized on-demand to prevent startup blocking
+# from .services.email_scheduler import email_scheduler
 from .services.auth_service import get_current_user
+
+# Global variable for email scheduler (initialized on demand)
+email_scheduler = None
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -160,12 +164,9 @@ async def startup():
         if os.getenv("ENVIRONMENT") == "production":
             raise
     
-    # Start the email scheduler
-    try:
-        email_scheduler.start()
-        logger.info("📧 Email scheduler started successfully")
-    except Exception as e:
-        logger.error(f"Failed to start email scheduler: {str(e)}")
+    # Email scheduler initialization moved to on-demand/UI configuration
+    # This prevents email issues from blocking app startup
+    logger.info("📧 Email scheduler will be initialized on-demand")
     
     try:
         # Import seeding functionality
@@ -237,10 +238,11 @@ async def shutdown():
     """Cleanup on shutdown"""
     logger.info("🛑 Wolf Goat Pig API shutting down...")
     
-    # Stop the email scheduler
+    # Stop email scheduler if it was started
     try:
-        email_scheduler.stop()
-        logger.info("📧 Email scheduler stopped successfully")
+        if email_scheduler is not None and hasattr(email_scheduler, 'stop'):
+            email_scheduler.stop()
+            logger.info("📧 Email scheduler stopped successfully")
     except Exception as e:
         logger.error(f"Failed to stop email scheduler: {str(e)}")
 
@@ -4616,9 +4618,50 @@ async def send_weekly_summary_email(email_data: dict):
             
     except HTTPException:
         raise
+
+@app.post("/email/initialize-scheduler")
+async def initialize_email_scheduler():
+    """Initialize the email scheduler on demand"""
+    global email_scheduler
+    
+    try:
+        # Check if already initialized
+        if email_scheduler is not None:
+            return {
+                "status": "already_initialized",
+                "message": "Email scheduler is already running"
+            }
+        
+        # Import and initialize the scheduler
+        from .services.email_scheduler import email_scheduler as scheduler_instance
+        email_scheduler = scheduler_instance
+        email_scheduler.start()
+        
+        logger.info("📧 Email scheduler initialized on demand")
+        
+        return {
+            "status": "success",
+            "message": "Email scheduler initialized successfully",
+            "scheduled_jobs": ["daily_reminders", "weekly_summaries"]
+        }
+        
     except Exception as e:
-        logger.error(f"Error sending weekly summary email: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
+        logger.error(f"Failed to initialize email scheduler: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Failed to initialize email scheduler: {str(e)}"
+        )
+
+@app.get("/email/scheduler-status")
+async def get_email_scheduler_status():
+    """Get the status of the email scheduler"""
+    global email_scheduler
+    
+    return {
+        "initialized": email_scheduler is not None,
+        "running": email_scheduler is not None and hasattr(email_scheduler, '_started') and email_scheduler._started,
+        "message": "Scheduler running" if email_scheduler else "Scheduler not initialized. Call /email/initialize-scheduler to start."
+    }
 
 # Static file serving for React frontend (must be at end after all API routes)
 from pathlib import Path
