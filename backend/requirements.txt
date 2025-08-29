@@ -5,7 +5,7 @@ python-multipart>=0.0.9
 
 # Database dependencies
 SQLAlchemy>=2.0.30
-psycopg2-binary>=2.9.9; python_version < "3.13"
+psycopg2-binary>=2.9.9
 alembic>=1.13.0
 
 # HTTP client and configuration

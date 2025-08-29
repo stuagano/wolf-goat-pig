@@ -47,7 +47,6 @@ class GHINService:
             async with httpx.AsyncClient() as client:
                 auth_response = await client.post(GHIN_AUTH_URL, json={
                     "user": {"email_or_ghin": self.ghin_username, "password": self.ghin_password},
-                    "token": os.getenv('GHIN_API_STATIC_TOKEN'), # Static token if required
                     "source": "GHINcom"
                 })
                 auth_response.raise_for_status() # Raise an exception for HTTP errors
