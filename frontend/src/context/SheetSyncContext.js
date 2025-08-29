@@ -17,6 +17,11 @@ export const SheetSyncProvider = ({ children }) => {
   const [error, setError] = useState(null);
 
   const extractSheetId = (url) => {
+    // Ensure url is a string
+    if (!url || typeof url !== 'string') {
+      return null;
+    }
+    
     const patterns = [
       /\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/,
       /^([a-zA-Z0-9-_]+)$/
@@ -33,6 +38,11 @@ export const SheetSyncProvider = ({ children }) => {
   };
 
   const parseSheetUrl = (url) => {
+    // Ensure url is a string
+    if (!url || typeof url !== 'string') {
+      return null;
+    }
+    
     const sheetId = extractSheetId(url);
     if (!sheetId) return null;
     const gidMatch = url.match(/gid=(\d+)/);
@@ -145,7 +155,8 @@ export const SheetSyncProvider = ({ children }) => {
       setTimeout(() => setSyncStatus('idle'), 2000);
 
     } catch (err) {
-      setError(err.message);
+      console.error('Google Sheets sync error:', err);
+      setError(err.message || 'Unknown sync error occurred');
       setSyncStatus('error');
       setTimeout(() => setSyncStatus('idle'), 3000);
     }
