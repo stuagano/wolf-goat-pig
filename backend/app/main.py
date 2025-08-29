@@ -3012,21 +3012,22 @@ def export_current_data_for_sheet(sheet_headers: List[str] = Query(...)):
         db.close()
 
 @app.post("/sheet-integration/sync-wgp-sheet")
-def sync_wgp_sheet_data(request: Dict[str, str]):
+async def sync_wgp_sheet_data(request: Dict[str, str]):
     """Sync Wolf Goat Pig specific sheet data format."""
     try:
         db = database.SessionLocal()
         from .services.player_service import PlayerService
         from collections import defaultdict
-        import requests
+        import httpx
         
         csv_url = request.get("csv_url")
         if not csv_url:
             raise HTTPException(status_code=400, detail="CSV URL is required")
         
         # Fetch the CSV data
-        response = requests.get(csv_url, timeout=30)
-        response.raise_for_status()
+        async with httpx.AsyncClient() as client:
+            response = await client.get(csv_url, timeout=30)
+            response.raise_for_status()
         csv_text = response.text
         
         # Parse CSV
@@ -3177,6 +3178,9 @@ def sync_wgp_sheet_data(request: Dict[str, str]):
             "errors": []
         }
         
+        # Track GHIN data for response payload
+        ghin_data_collection = {}
+        
         for player_name, stats in player_stats.items():
             try:
                 # Check if player exists
@@ -3229,6 +3233,37 @@ def sync_wgp_sheet_data(request: Dict[str, str]):
                 # Update timestamp
                 player_stats_record.last_updated = datetime.now().isoformat()
                 
+                # Try to fetch GHIN data if player has GHIN ID
+                ghin_data = None
+                if existing_player and existing_player.ghin_id:
+                    try:
+                        from .services.ghin_service import GHINService
+                        ghin_service = GHINService(db)
+                        
+                        # Check if GHIN service is available
+                        if await ghin_service.initialize():
+                            ghin_data = await ghin_service.sync_player_handicap(player_id)
+                            if ghin_data:
+                                # Update handicap from GHIN
+                                existing_player.handicap = ghin_data.get('handicap_index', existing_player.handicap)
+                                logger.info(f"Updated GHIN data for {player_name}: handicap={ghin_data.get('handicap_index')}")
+                        else:
+                            # Fall back to stored GHIN data
+                            ghin_data = ghin_service.get_player_ghin_data(player_id)
+                            if ghin_data:
+                                logger.info(f"Using stored GHIN data for {player_name}")
+                    except Exception as ghin_error:
+                        logger.warning(f"Failed to fetch GHIN data for {player_name}: {ghin_error}")
+                
+                # Store GHIN data for response payload
+                if ghin_data:
+                    ghin_data_collection[player_name] = {
+                        "ghin_id": ghin_data.get("ghin_id"),
+                        "current_handicap": ghin_data.get("current_handicap"),
+                        "recent_scores": ghin_data.get("recent_scores", [])[:5],  # Last 5 scores
+                        "last_updated": ghin_data.get("last_updated")
+                    }
+                
                 db.commit()
                 
                 sync_results["players_processed"] += 1
@@ -3248,10 +3283,12 @@ def sync_wgp_sheet_data(request: Dict[str, str]):
             "synced_at": datetime.now().isoformat(),
             "headers_found": headers,
             "players_synced": list(player_stats.keys()),
-            "sample_data": {name: stats for name, stats in list(player_stats.items())[:3]}  # First 3 players as sample
+            "sample_data": {name: stats for name, stats in list(player_stats.items())[:3]},  # First 3 players as sample
+            "ghin_data": ghin_data_collection,  # GHIN scores and handicap data
+            "ghin_players_count": len(ghin_data_collection)
         }
         
-    except requests.exceptions.RequestException as e:
+    except httpx.RequestError as e:
         logger.error(f"Error fetching Google Sheet: {e}")
         raise HTTPException(status_code=400, detail=f"Failed to fetch sheet: {str(e)}")
     except Exception as e:
@@ -3539,17 +3576,18 @@ async def upload_gmail_credentials(file: UploadFile = File(...), x_admin_email: 
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/sheet-integration/fetch-google-sheet")
-def fetch_google_sheet(request: Dict[str, str]):
+async def fetch_google_sheet(request: Dict[str, str]):
     """Fetch data from a Google Sheets CSV URL."""
     try:
-        import requests
+        import httpx
         csv_url = request.get("csv_url")
         if not csv_url:
             raise HTTPException(status_code=400, detail="CSV URL is required")
         
         # Fetch the CSV data from Google Sheets
-        response = requests.get(csv_url, timeout=30)
-        response.raise_for_status()
+        async with httpx.AsyncClient() as client:
+            response = await client.get(csv_url, timeout=30)
+            response.raise_for_status()
         
         csv_text = response.text
         
@@ -3576,7 +3614,7 @@ def fetch_google_sheet(request: Dict[str, str]):
             "fetched_at": datetime.now().isoformat()
         }
         
-    except requests.exceptions.RequestException as e:
+    except httpx.RequestError as e:
         logger.error(f"Error fetching Google Sheet: {e}")
         raise HTTPException(status_code=400, detail=f"Failed to fetch sheet: {str(e)}")
     except Exception as e:
