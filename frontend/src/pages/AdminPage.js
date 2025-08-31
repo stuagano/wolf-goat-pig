@@ -213,23 +213,38 @@ const AdminPage = () => {
 
       if (response.ok) {
         const data = await response.json();
+        
+        // Listen for OAuth success message from popup
+        const handleMessage = (event) => {
+          if (event.data && event.data.type === 'oauth2-success') {
+            window.removeEventListener('message', handleMessage);
+            setOauth2Loading(false);
+            fetchOAuth2Status();
+            setTestStatus('OAuth2 authorization completed successfully!');
+            setTimeout(() => setTestStatus(''), 3000);
+          }
+        };
+        window.addEventListener('message', handleMessage);
+        
         // Open OAuth2 URL in new window
         window.open(data.auth_url, 'oauth2', 'width=600,height=600');
         
-        // Poll for completion
+        // Poll for completion as backup
         const pollForCompletion = setInterval(() => {
           fetchOAuth2Status();
           if (oauth2Status?.configured) {
             clearInterval(pollForCompletion);
             setOauth2Loading(false);
+            window.removeEventListener('message', handleMessage);
           }
-        }, 2000);
+        }, 3000);
         
-        // Stop polling after 5 minutes
+        // Stop polling after 2 minutes
         setTimeout(() => {
           clearInterval(pollForCompletion);
           setOauth2Loading(false);
-        }, 300000);
+          window.removeEventListener('message', handleMessage);
+        }, 120000);
       } else {
         const error = await response.text();
         setTestStatus(`OAuth2 Error: ${error}`);

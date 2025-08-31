@@ -20,6 +20,8 @@ services:
         value: production
       - key: FRONTEND_URL
         value: https://wolf-goat-pig.vercel.app
+      - key: BACKEND_URL
+        value: https://wolf-goat-pig-api.onrender.com
       - key: GHIN_API_USER
         value: ""
       - key: GHIN_API_PASS

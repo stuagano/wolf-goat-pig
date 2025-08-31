@@ -96,11 +96,15 @@ class OAuth2EmailService:
             # Auto-detect redirect URI based on environment
             if redirect_uri is None:
                 import os
-                if os.getenv("ENVIRONMENT") == "production" or os.getenv("VERCEL"):
-                    # Use Vercel production URL
-                    redirect_uri = "https://wolf-goat-pig.vercel.app/admin/oauth2-callback"
+                # Determine backend URL based on environment
+                if os.getenv("RENDER"):
+                    # On Render, use the service URL
+                    backend_url = "https://wolf-goat-pig-api.onrender.com"
+                elif os.getenv("ENVIRONMENT") == "production":
+                    backend_url = os.getenv("BACKEND_URL", "https://wolf-goat-pig-api.onrender.com")
                 else:
-                    redirect_uri = "http://localhost:8000/admin/oauth2-callback"
+                    backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+                redirect_uri = f"{backend_url}/admin/oauth2-callback"
             
             # Check if credentials file exists
             if not self.credentials_path.exists():
@@ -130,9 +134,22 @@ class OAuth2EmailService:
             logger.error(f"Error generating auth URL: {e}")
             raise
     
-    def handle_oauth_callback(self, authorization_code: str, redirect_uri: str = 'http://localhost:8000/admin/oauth2-callback') -> bool:
+    def handle_oauth_callback(self, authorization_code: str, redirect_uri: str = None) -> bool:
         """Handle OAuth2 callback and save credentials"""
         try:
+            # Auto-detect redirect URI if not provided
+            if redirect_uri is None:
+                import os
+                # Determine backend URL based on environment
+                if os.getenv("RENDER"):
+                    # On Render, use the service URL
+                    backend_url = "https://wolf-goat-pig-api.onrender.com"
+                elif os.getenv("ENVIRONMENT") == "production":
+                    backend_url = os.getenv("BACKEND_URL", "https://wolf-goat-pig-api.onrender.com")
+                else:
+                    backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+                redirect_uri = f"{backend_url}/admin/oauth2-callback"
+            
             if not hasattr(self, '_pending_flow'):
                 # Recreate flow if not in memory
                 flow = Flow.from_client_secrets_file(

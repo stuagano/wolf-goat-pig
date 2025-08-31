@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from . import models, schemas, crud, database
 
@@ -3463,13 +3463,9 @@ def start_oauth2_authorization(request: Dict[str, Any], x_admin_email: str = Hea
             oauth2_service.from_name = request["from_name"]
             os.environ["FROM_NAME"] = request["from_name"]
         
-        # Auto-detect redirect URI
-        if os.getenv("VERCEL") or os.getenv("ENVIRONMENT") == "production":
-            default_redirect = "https://wolf-goat-pig.vercel.app/admin/oauth2-callback"
-        else:
-            default_redirect = "http://localhost:8000/admin/oauth2-callback"
-        redirect_uri = request.get("redirect_uri", default_redirect)
-        auth_url = oauth2_service.get_auth_url(redirect_uri)
+        # Let the service auto-detect the correct redirect URI
+        # The redirect URI should point to the backend API, not the frontend
+        auth_url = oauth2_service.get_auth_url()
         
         return {"auth_url": auth_url, "message": "Visit the auth_url to complete authorization"}
         
@@ -3490,17 +3486,175 @@ def handle_oauth2_callback(code: str = Query(...), state: str = Query(None)):
         success = oauth2_service.handle_oauth_callback(code)
         
         if success:
-            # Return success page
-            return {
-                "message": "OAuth2 authorization successful! You can now close this window and return to the admin page.",
-                "success": True
-            }
+            # Return HTML page that will close the window and notify the parent
+            html_content = """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>OAuth2 Authorization Complete</title>
+                <style>
+                    body {
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        height: 100vh;
+                        margin: 0;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    }
+                    .container {
+                        background: white;
+                        padding: 40px;
+                        border-radius: 10px;
+                        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                        text-align: center;
+                        max-width: 400px;
+                    }
+                    h1 {
+                        color: #4CAF50;
+                        margin-bottom: 20px;
+                    }
+                    p {
+                        color: #666;
+                        margin-bottom: 20px;
+                    }
+                    .spinner {
+                        border: 3px solid #f3f3f3;
+                        border-top: 3px solid #4CAF50;
+                        border-radius: 50%;
+                        width: 40px;
+                        height: 40px;
+                        animation: spin 1s linear infinite;
+                        margin: 20px auto;
+                    }
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>✅ Authorization Successful!</h1>
+                    <p>OAuth2 authorization has been completed successfully.</p>
+                    <div class="spinner"></div>
+                    <p>This window will close automatically...</p>
+                </div>
+                <script>
+                    // Notify parent window if it exists
+                    if (window.opener) {
+                        window.opener.postMessage({ type: 'oauth2-success' }, '*');
+                    }
+                    // Close window after 2 seconds
+                    setTimeout(() => {
+                        window.close();
+                    }, 2000);
+                </script>
+            </body>
+            </html>
+            """
+            return HTMLResponse(content=html_content, status_code=200)
         else:
-            raise HTTPException(status_code=400, detail="Failed to complete OAuth2 authorization")
+            # Return error HTML page
+            html_content = """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>OAuth2 Authorization Failed</title>
+                <style>
+                    body {
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        height: 100vh;
+                        margin: 0;
+                        background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+                    }
+                    .container {
+                        background: white;
+                        padding: 40px;
+                        border-radius: 10px;
+                        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                        text-align: center;
+                        max-width: 400px;
+                    }
+                    h1 {
+                        color: #f44336;
+                        margin-bottom: 20px;
+                    }
+                    p {
+                        color: #666;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>❌ Authorization Failed</h1>
+                    <p>Failed to complete OAuth2 authorization.</p>
+                    <p>Please close this window and try again.</p>
+                </div>
+            </body>
+            </html>
+            """
+            return HTMLResponse(content=html_content, status_code=400)
             
     except Exception as e:
         logger.error(f"Error handling OAuth2 callback: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # Return error HTML page
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>OAuth2 Error</title>
+            <style>
+                body {{
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100vh;
+                    margin: 0;
+                    background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+                }}
+                .container {{
+                    background: white;
+                    padding: 40px;
+                    border-radius: 10px;
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                    text-align: center;
+                    max-width: 400px;
+                }}
+                h1 {{
+                    color: #f44336;
+                    margin-bottom: 20px;
+                }}
+                p {{
+                    color: #666;
+                    margin-bottom: 10px;
+                }}
+                .error {{
+                    background: #ffebee;
+                    color: #c62828;
+                    padding: 10px;
+                    border-radius: 5px;
+                    margin-top: 20px;
+                    font-family: monospace;
+                    font-size: 12px;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>❌ OAuth2 Error</h1>
+                <p>An error occurred during OAuth2 authorization.</p>
+                <div class="error">{str(e)}</div>
+                <p>Please close this window and try again.</p>
+            </div>
+        </body>
+        </html>
+        """
+        return HTMLResponse(content=html_content, status_code=500)
 
 @app.post("/admin/oauth2-test-email")
 async def test_oauth2_email(request: Dict[str, Any], x_admin_email: str = Header(None)):
