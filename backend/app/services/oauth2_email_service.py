@@ -125,8 +125,8 @@ class OAuth2EmailService:
                 prompt='consent'
             )
             
-            # Store flow in memory for callback (in production, use proper session storage)
-            self._pending_flow = flow
+            # Note: Flow object can't be stored in memory for production environments
+            # Each request must recreate the flow with the same parameters
             
             return auth_url
             
@@ -150,27 +150,38 @@ class OAuth2EmailService:
                     backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
                 redirect_uri = f"{backend_url}/admin/oauth2-callback"
             
-            if not hasattr(self, '_pending_flow'):
-                # Recreate flow if not in memory
-                flow = Flow.from_client_secrets_file(
-                    str(self.credentials_path),
-                    scopes=SCOPES,
-                    redirect_uri=redirect_uri
-                )
-            else:
-                flow = self._pending_flow
+            # Always recreate flow with the same redirect_uri used in authorization
+            # This is necessary because the flow object doesn't persist between requests in production
+            flow = Flow.from_client_secrets_file(
+                str(self.credentials_path),
+                scopes=SCOPES,
+                redirect_uri=redirect_uri
+            )
             
             # Exchange authorization code for credentials
-            flow.fetch_token(code=authorization_code)
+            logger.info(f"Attempting to exchange authorization code for token with redirect_uri: {redirect_uri}")
+            
+            try:
+                flow.fetch_token(code=authorization_code)
+                logger.info("Successfully fetched token from Google")
+            except Exception as token_error:
+                logger.error(f"Failed to fetch token: {token_error}")
+                logger.error(f"Authorization code: {authorization_code[:10]}...")
+                logger.error(f"Redirect URI used: {redirect_uri}")
+                raise
             
             self.creds = flow.credentials
             self.save_credentials()
             self._initialize_service()
             
+            logger.info("OAuth2 callback completed successfully")
             return True
             
         except Exception as e:
             logger.error(f"Error handling OAuth callback: {e}")
+            logger.error(f"Full error details: {str(e)}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return False
     
     @property

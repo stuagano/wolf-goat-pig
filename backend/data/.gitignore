@@ -1,0 +1,4 @@
+# OAuth2 credentials
+gmail_credentials.json
+token.json
+*.json
