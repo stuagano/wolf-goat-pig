@@ -297,6 +297,9 @@ class OAuth2EmailService:
     
     def get_configuration_status(self) -> Dict[str, Any]:
         """Get current configuration status"""
+        # Reload credentials from disk to ensure we have the latest state
+        self.load_credentials()
+        
         return {
             "configured": self.is_configured,
             "has_credentials": self.creds is not None,
@@ -317,4 +320,8 @@ def get_oauth2_email_service() -> OAuth2EmailService:
     global _oauth2_email_service
     if _oauth2_email_service is None:
         _oauth2_email_service = OAuth2EmailService()
+    else:
+        # Reload credentials to ensure we have the latest state
+        # This is important for when credentials are updated via OAuth flow
+        _oauth2_email_service.load_credentials()
     return _oauth2_email_service
