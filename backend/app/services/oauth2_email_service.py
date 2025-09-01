@@ -99,9 +99,9 @@ class OAuth2EmailService:
                 # Determine backend URL based on environment
                 if os.getenv("RENDER"):
                     # On Render, use the service URL
-                    backend_url = "https://wolf-goat-pig-api.onrender.com"
+                    backend_url = "https://wolf-goat-pig.onrender.com"
                 elif os.getenv("ENVIRONMENT") == "production":
-                    backend_url = os.getenv("BACKEND_URL", "https://wolf-goat-pig-api.onrender.com")
+                    backend_url = os.getenv("BACKEND_URL", "https://wolf-goat-pig.onrender.com")
                 else:
                     backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
                 redirect_uri = f"{backend_url}/admin/oauth2-callback"
@@ -143,9 +143,9 @@ class OAuth2EmailService:
                 # Determine backend URL based on environment
                 if os.getenv("RENDER"):
                     # On Render, use the service URL
-                    backend_url = "https://wolf-goat-pig-api.onrender.com"
+                    backend_url = "https://wolf-goat-pig.onrender.com"
                 elif os.getenv("ENVIRONMENT") == "production":
-                    backend_url = os.getenv("BACKEND_URL", "https://wolf-goat-pig-api.onrender.com")
+                    backend_url = os.getenv("BACKEND_URL", "https://wolf-goat-pig.onrender.com")
                 else:
                     backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
                 redirect_uri = f"{backend_url}/admin/oauth2-callback"
