@@ -11,7 +11,7 @@ import BettingOddsPanel from '../BettingOddsPanel';
 import GameStateWidget from '../GameStateWidget';
 import StrategicAnalysisWidget from '../StrategicAnalysisWidget';
 import AnalyticsDashboard from '../AnalyticsDashboard';
-import HoleVisualization from '../HoleVisualization';
+import HoleStrategyDisplay from '../HoleStrategyDisplay';
 
 // Import enhanced components
 import EnhancedBettingWidget from '../EnhancedBettingWidget';
@@ -653,7 +653,7 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
 
         {currentView === 'visualization' && (
           <div>
-            <HoleVisualization 
+            <HoleStrategyDisplay 
               gameState={gameState} 
               holeState={gameState?.hole_state}
               players={gameState?.players}

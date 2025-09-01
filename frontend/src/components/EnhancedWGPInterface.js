@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import AnalyticsDashboard from './AnalyticsDashboard';
-import HoleVisualization from './HoleVisualization';
+import HoleStrategyDisplay from './HoleStrategyDisplay';
 
 const COLORS = {
   primary: '#2c3e50',
@@ -171,8 +171,8 @@ const EnhancedWGPInterface = () => {
         {/* Hole Progression Visual */}
         {renderHoleProgression()}
 
-        {/* Hole Visualization */}
-        <HoleVisualization 
+        {/* Hole Strategy Display */}
+        <HoleStrategyDisplay 
           holeState={holeState} 
           players={gameState.players || []} 
           gameState={gameState} 
