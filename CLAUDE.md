@@ -7,15 +7,18 @@ Wolf-Goat-Pig is a golf betting game application with a Python FastAPI backend a
 
 ### Frontend Component Import Paths (December 2024)
 **Issue**: Module not found error when deploying to Vercel
-- Error: `Can't resolve '../common/Card'` in EnhancedPracticeMode.js
-- **Solution**: Fixed import path from `../common/Card` to `../ui/Card`
-- **Important**: All UI components are located in `/frontend/src/components/ui/` not `/common/`
+- Initial Error: `Can't resolve '../common/Card'` in EnhancedPracticeMode.js
+- Second Error: `'Card' is not exported from '../ui/Card'`
+- **Solution**: Fixed import to use default export: `import Card from '../ui/Card'` (not named export)
+- **Important**: 
+  - All UI components are located in `/frontend/src/components/ui/` not `/common/`
+  - Card component uses DEFAULT export, not named export
 - **Files affected**: 
   - `/frontend/src/components/practice/EnhancedPracticeMode.js`
-- **Key Learning**: Always verify component import paths match actual file structure, especially for:
-  - Card component: `import { Card } from '../ui/Card'`
-  - Button component: `import { Button } from '../ui/Button'`
-  - Other UI components: Check `/frontend/src/components/ui/` directory
+- **Key Learning**: Always verify both component path AND export type:
+  - Card component (default export): `import Card from '../ui/Card'`
+  - Button component: Check if default or named export in `/frontend/src/components/ui/Button.js`
+  - Other UI components: Check export method in `/frontend/src/components/ui/` directory
 
 ## Code Standards
 
