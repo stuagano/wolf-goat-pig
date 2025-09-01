@@ -629,6 +629,29 @@ def get_fallback_courses():
         }
     }
 
+@app.get("/courses/{course_id}")
+def get_course_by_id(course_id: int):
+    """Get a specific course by ID (index in courses list)"""
+    try:
+        courses = game_state.get_courses()
+        if not courses:
+            raise HTTPException(status_code=404, detail="No courses available")
+        
+        # Convert courses dict to list and get by index
+        course_list = list(courses.values())
+        if course_id >= len(course_list) or course_id < 0:
+            raise HTTPException(status_code=404, detail="Course not found")
+        
+        # Return the course at the specified index
+        course = course_list[course_id]
+        return course
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting course by ID {course_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get course: {str(e)}")
+
 @app.post("/courses", response_model=dict)
 def add_course(course: CourseCreate):
     """Add a new course"""
@@ -849,15 +872,18 @@ def get_player_strokes():
 def legacy_game_action(action: Dict[str, Any]):
     """Legacy game action endpoint"""
     try:
-        action_type = action.get("action")
+        # Handle both "action" and "action_type" field names for compatibility
+        action_type = action.get("action") or action.get("action_type")
         if not action_type:
-            raise HTTPException(status_code=400, detail="Action type required")
+            raise HTTPException(status_code=400, detail="Action type required (use 'action' or 'action_type' field)")
         
         # Convert legacy actions to unified action API
         if action_type == "next_hole":
             return {"status": "success", "message": "Hole advanced"}
         elif action_type == "start_game":
             return {"status": "success", "message": "Game started"}
+        elif action_type == "INITIALIZE_GAME":
+            return {"status": "success", "message": "Game initialized"}
         else:
             return {"status": "success", "message": f"Action {action_type} completed"}
     except Exception as e:
@@ -2684,6 +2710,71 @@ def get_leaderboard_by_metric(
     finally:
         db.close()
 
+@app.get("/analytics/game-stats")
+def get_game_stats():
+    """Get game statistics analytics"""
+    try:
+        db = database.SessionLocal()
+        
+        # Get basic game statistics
+        total_games = db.query(models.GameRecord).count() if hasattr(models, 'GameRecord') else 0
+        total_simulations = db.query(models.SimulationResult).count()
+        
+        # Get course usage
+        courses = game_state.get_courses()
+        course_names = list(courses.keys()) if courses else []
+        
+        return {
+            "total_games": total_games,
+            "total_simulations": total_simulations,
+            "available_courses": len(course_names),
+            "course_names": course_names,
+            "game_modes": ["4-man", "5-man", "6-man"],
+            "betting_types": ["Wolf", "Goat", "Pig", "Aardvark"],
+            "last_updated": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting game stats: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get game stats: {str(e)}")
+    finally:
+        db.close()
+
+@app.get("/analytics/player-performance") 
+def get_player_performance():
+    """Get player performance analytics"""
+    try:
+        db = database.SessionLocal()
+        
+        # Get basic player statistics
+        total_players = db.query(models.PlayerProfile).filter(models.PlayerProfile.is_active == 1).count()
+        active_players = total_players  # For now, assume all active players are active
+        
+        # Get recent signups
+        recent_signups = db.query(models.DailySignup).filter(
+            models.DailySignup.status != "cancelled"
+        ).count()
+        
+        return {
+            "total_players": total_players,
+            "active_players": active_players,
+            "recent_signups": recent_signups,
+            "average_handicap": 15.5,  # Placeholder calculation
+            "performance_metrics": {
+                "games_played": 0,
+                "average_score": 0,
+                "best_round": 0,
+                "worst_round": 0
+            },
+            "last_updated": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting player performance: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get player performance: {str(e)}")
+    finally:
+        db.close()
+
 @app.get("/leaderboard/ghin-enhanced")
 async def get_ghin_enhanced_leaderboard(
     limit: int = Query(100, ge=1, le=100)
@@ -4444,6 +4535,41 @@ def get_weekly_signups(week_start: str = Query(description="YYYY-MM-DD format fo
     except Exception as e:
         logger.error(f"Error getting weekly signups: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get weekly signups: {str(e)}")
+    finally:
+        db.close()
+
+@app.get("/signups")
+def get_signups(limit: int = Query(50, description="Maximum number of signups to return")):
+    """Get recent signups with basic information"""
+    try:
+        db = database.SessionLocal()
+        
+        # Get recent signups
+        signups = db.query(models.DailySignup).filter(
+            models.DailySignup.status != "cancelled"
+        ).order_by(models.DailySignup.created_at.desc()).limit(limit).all()
+        
+        return {
+            "signups": [
+                {
+                    "id": signup.id,
+                    "date": signup.date,
+                    "player_name": signup.player_name,
+                    "player_profile_id": signup.player_profile_id,
+                    "status": signup.status,
+                    "signup_time": signup.signup_time,
+                    "preferred_start_time": signup.preferred_start_time,
+                    "notes": signup.notes,
+                    "created_at": signup.created_at if signup.created_at else None
+                }
+                for signup in signups
+            ],
+            "total": len(signups)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting signups: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get signups: {str(e)}")
     finally:
         db.close()
 

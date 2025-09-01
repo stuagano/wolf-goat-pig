@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card } from '../common/Card';
+import { Card } from '../ui/Card';
 import './EnhancedPracticeMode.css';
 
 // AI Opponent Personalities with Enhanced Behaviors

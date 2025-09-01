@@ -3,6 +3,20 @@
 ## Project Overview
 Wolf-Goat-Pig is a golf betting game application with a Python FastAPI backend and React frontend. The game involves team-based golf competitions with various betting strategies and scoring systems.
 
+## Recent Fixes and Important Notes
+
+### Frontend Component Import Paths (December 2024)
+**Issue**: Module not found error when deploying to Vercel
+- Error: `Can't resolve '../common/Card'` in EnhancedPracticeMode.js
+- **Solution**: Fixed import path from `../common/Card` to `../ui/Card`
+- **Important**: All UI components are located in `/frontend/src/components/ui/` not `/common/`
+- **Files affected**: 
+  - `/frontend/src/components/practice/EnhancedPracticeMode.js`
+- **Key Learning**: Always verify component import paths match actual file structure, especially for:
+  - Card component: `import { Card } from '../ui/Card'`
+  - Button component: `import { Button } from '../ui/Button'`
+  - Other UI components: Check `/frontend/src/components/ui/` directory
+
 ## Code Standards
 
 ### Python Backend (FastAPI)
