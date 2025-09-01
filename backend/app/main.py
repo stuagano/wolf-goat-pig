@@ -3024,8 +3024,8 @@ async def sync_wgp_sheet_data(request: Dict[str, str]):
         if not csv_url:
             raise HTTPException(status_code=400, detail="CSV URL is required")
         
-        # Fetch the CSV data
-        async with httpx.AsyncClient() as client:
+        # Fetch the CSV data (follow redirects for Google Sheets export URLs)
+        async with httpx.AsyncClient(follow_redirects=True) as client:
             response = await client.get(csv_url, timeout=30)
             response.raise_for_status()
         csv_text = response.text
@@ -3738,8 +3738,8 @@ async def fetch_google_sheet(request: Dict[str, str]):
         if not csv_url:
             raise HTTPException(status_code=400, detail="CSV URL is required")
         
-        # Fetch the CSV data from Google Sheets
-        async with httpx.AsyncClient() as client:
+        # Fetch the CSV data from Google Sheets (follow redirects)
+        async with httpx.AsyncClient(follow_redirects=True) as client:
             response = await client.get(csv_url, timeout=30)
             response.raise_for_status()
         
