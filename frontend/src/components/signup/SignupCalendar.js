@@ -9,7 +9,7 @@ const SignupCalendar = ({ onSignupChange, onDateSelect }) => {
   const [currentWeekStart, setCurrentWeekStart] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(null);
+  // const [selectedDate, setSelectedDate] = useState(null); // Removed - not currently used
   const [messageInputs, setMessageInputs] = useState({}); // Store message text for each date
 
   // Get current Monday as default week start

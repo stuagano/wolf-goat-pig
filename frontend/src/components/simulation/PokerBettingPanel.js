@@ -19,9 +19,9 @@ const PokerBettingPanel = ({
     betting_phase = 'pre-flop',
     doubled = false,
     players_in = 4,
-    action_on = null,
-    can_raise = true,
-    can_fold = true
+    action_on = null
+    // can_raise = true, // Removed - not currently used
+    // can_fold = true // Removed - not currently used
   } = pokerState;
   
   // Phase colors and descriptions

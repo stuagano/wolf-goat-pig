@@ -101,7 +101,7 @@ const FeedAnalyzer = () => {
       // Feedback sequence validation (contains shot data)
       if (data.feedback) {
         let shotCount = 0;
-        let lastShotNumber = 0;
+        // let lastShotNumber = 0; // Removed - not currently used
         const playerShotCounts = {};
         const shotQualities = [];
         

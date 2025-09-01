@@ -15,66 +15,66 @@ const TutorialOverlay = () => {
   const overlayRef = useRef(null);
   const tooltipRef = useRef(null);
 
-  // Guidance data for different contexts
-  const guidanceData = {
-    'golf-basics': {
-      steps: [
-        {
-          target: '.golf-basics-scoring',
-          title: 'Understanding Golf Scoring',
-          content: 'Golf scoring is based on strokes taken. Lower numbers are better!',
-          position: 'bottom'
-        },
-        {
-          target: '.golf-basics-handicap',
-          title: 'Handicap System',
-          content: 'Handicaps level the playing field between players of different skill levels.',
-          position: 'top'
-        }
-      ]
-    },
-    'team-formation': {
-      steps: [
-        {
-          target: '.team-formation-demo',
-          title: 'Team Selection Process',
-          content: 'Click and drag to see how teams are formed in Wolf Goat Pig.',
-          position: 'right'
-        },
-        {
-          target: '.partnership-rules',
-          title: 'Partnership Dynamics',
-          content: 'Partners work together to win holes and maximize winnings.',
-          position: 'left'
-        }
-      ]
-    },
-    'betting-system': {
-      steps: [
-        {
-          target: '.betting-calculator',
-          title: 'Betting Calculator',
-          content: 'Use this tool to understand how odds and payouts work.',
-          position: 'top'
-        },
-        {
-          target: '.risk-management',
-          title: 'Risk Management',
-          content: 'Learn to balance risk and reward in your betting strategy.',
-          position: 'bottom'
-        }
-      ]
-    }
-  };
-
   // Update guidance based on current module
   useEffect(() => {
+    // Guidance data for different contexts - moved inside useEffect to avoid dependency issues
+    const guidanceData = {
+      'golf-basics': {
+        steps: [
+          {
+            target: '.golf-basics-scoring',
+            title: 'Understanding Golf Scoring',
+            content: 'Golf scoring is based on strokes taken. Lower numbers are better!',
+            position: 'bottom'
+          },
+          {
+            target: '.golf-basics-handicap',
+            title: 'Handicap System',
+            content: 'Handicaps level the playing field between players of different skill levels.',
+            position: 'top'
+          }
+        ]
+      },
+      'team-formation': {
+        steps: [
+          {
+            target: '.team-formation-demo',
+            title: 'Team Selection Process',
+            content: 'Click and drag to see how teams are formed in Wolf Goat Pig.',
+            position: 'right'
+          },
+          {
+            target: '.partnership-rules',
+            title: 'Partnership Dynamics',
+            content: 'Partners work together to win holes and maximize winnings.',
+            position: 'left'
+          }
+        ]
+      },
+      'betting-system': {
+        steps: [
+          {
+            target: '.betting-calculator',
+            title: 'Betting Calculator',
+            content: 'Use this tool to understand how odds and payouts work.',
+            position: 'top'
+          },
+          {
+            target: '.risk-management',
+            title: 'Risk Management',
+            content: 'Learn to balance risk and reward in your betting strategy.',
+            position: 'bottom'
+          }
+        ]
+      }
+    };
+
     if (tutorial.currentModule && guidanceData[tutorial.currentModule]) {
       setCurrentGuidance(guidanceData[tutorial.currentModule]);
     } else {
       setCurrentGuidance(null);
     }
-  }, [tutorial.currentModule, guidanceData]); // Added guidanceData as dependency
+  }, [tutorial.currentModule]); // Guidance data now defined inside useEffect
 
   // Calculate tooltip position
   const calculateTooltipPosition = useCallback((targetElement, preferredPosition = 'bottom') => {
@@ -152,7 +152,8 @@ const TutorialOverlay = () => {
       setCurrentStepIndex(0);
       highlightTarget(currentGuidance.steps[0].target);
     }
-  }, [currentGuidance]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentGuidance]); // highlightTarget is stable
 
   // Update tooltip position on resize or scroll
   useEffect(() => {

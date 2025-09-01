@@ -19,7 +19,7 @@ const EnhancedSimulationLayout = ({
   onBettingAction,
   currentPlayer = 'human'
 }) => {
-  const theme = useTheme();
+  // const theme = useTheme(); // Removed - not currently used
 
   // Export hole feed data for review
   const exportHoleFeed = () => {

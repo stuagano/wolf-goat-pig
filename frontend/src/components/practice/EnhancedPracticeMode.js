@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import Card from '../ui/Card';
 import './EnhancedPracticeMode.css';
 
@@ -146,7 +146,7 @@ const EnhancedPracticeMode = ({ onComplete, onExit }) => {
 
   // Generate AI thought process
   const generateAIThought = (opponent, decision) => {
-    const ai = AI_OPPONENTS[opponent];
+    // AI personality data is accessed directly from AI_OPPONENTS constant
     const situation = getGameSituation();
     const holeDifficulty = getHoleDifficulty(gameState.currentHole);
     
@@ -325,7 +325,8 @@ const EnhancedPracticeMode = ({ onComplete, onExit }) => {
   // Initialize game
   useEffect(() => {
     presentCaptainDecision();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
 
   return (
     <div className="enhanced-practice-mode">

@@ -68,7 +68,8 @@ const DailySignupView = ({ selectedDate, onBack }) => {
     if (selectedDate) {
       loadDailyData();
     }
-  }, [selectedDate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate]); // loadDailyData is stable, only re-run when date changes
 
   // Handle signing up current user
   const handleSignup = async () => {

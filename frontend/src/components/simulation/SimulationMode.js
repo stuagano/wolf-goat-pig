@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useGame } from "../../context";
-import { GameSetup, GamePlay, Timeline, PokerBettingPanel, EnhancedSimulationLayout } from "./";
-import TVPokerLayout from "../game/TVPokerLayout";
+import { GameSetup, GamePlay, EnhancedSimulationLayout } from "./";
+// import { Timeline, PokerBettingPanel } from "./"; // Removed - not currently used
+// import TVPokerLayout from "../game/TVPokerLayout"; // Removed - not currently used
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -279,7 +280,8 @@ function SimulationMode() {
       
       return () => clearInterval(interval);
     }
-  }, [isGameActive, gameState?.current_hole, gameState?.hole_state?.current_shot_number]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isGameActive, gameState?.current_hole, gameState?.hole_state?.current_shot_number]); // fetchTimelineEvents and fetchPokerState are stable
   
   // Removed unused testNewEndpoints function
 

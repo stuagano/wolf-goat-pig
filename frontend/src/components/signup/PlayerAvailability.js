@@ -4,7 +4,7 @@ import { useAuth0 } from '@auth0/auth0-react';
 const API_URL = process.env.REACT_APP_API_URL || "";
 
 const PlayerAvailability = () => {
-  const { user } = useAuth0();
+  // const { user } = useAuth0(); // Removed - not currently used
   const [availability, setAvailability] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -80,7 +80,8 @@ const PlayerAvailability = () => {
 
   useEffect(() => {
     loadAvailability();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only load on mount
 
   // Update a specific day's availability
   const updateDayAvailability = (dayIndex, field, value) => {
