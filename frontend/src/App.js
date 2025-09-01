@@ -7,6 +7,7 @@ import FeedAnalyzer from "./components/simulation/FeedAnalyzer";
 import ShotRangeAnalyzer from "./components/ShotRangeAnalyzer";
 import ColdStartHandler from "./components/ColdStartHandler";
 import TutorialSystem from "./components/tutorial/TutorialSystem";
+import EnhancedPracticeMode from "./components/practice/EnhancedPracticeMode";
 import WGPAnalyticsDashboard from "./components/WGPAnalyticsDashboard";
 import SheetIntegrationDashboard from "./components/SheetIntegrationDashboard";
 import GoogleSheetsLiveSync from "./components/GoogleSheetsLiveSync";
@@ -124,6 +125,11 @@ function App() {
             </ProtectedRoute>
           } />
           <Route path="/tutorial" element={<TutorialSystem onComplete={() => navigate('/game')} onExit={() => navigate('/')} />} />
+          <Route path="/practice" element={
+            <ProtectedRoute>
+              <EnhancedPracticeMode onComplete={() => navigate('/')} onExit={() => navigate('/')} />
+            </ProtectedRoute>
+          } />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/rules" element={<RulesPage />} />
           <Route path="/admin" element={
