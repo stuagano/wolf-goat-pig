@@ -742,6 +742,8 @@ async def ghin_lookup(
 ):
     """Look up golfers by name using GHIN API"""
     try:
+        from .services.ghin_service import GHINService
+        
         # Get GHIN credentials from environment
         email = os.getenv("GHIN_API_USER")
         password = os.getenv("GHIN_API_PASS")
@@ -770,6 +772,8 @@ async def sync_player_ghin_handicap(
     db: Session = Depends(database.get_db)
 ):
     """Sync a specific player's handicap from GHIN."""
+    from .services.ghin_service import GHINService
+    
     logger.info(f"Attempting to sync GHIN handicap for player ID: {player_id}")
     ghin_service = GHINService(db)
     if not await ghin_service.initialize():
