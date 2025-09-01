@@ -97,13 +97,13 @@ class OAuth2EmailService:
             if redirect_uri is None:
                 import os
                 # Determine backend URL based on environment
-                if os.getenv("RENDER"):
-                    # On Render, use the service URL
-                    backend_url = "https://wolf-goat-pig.onrender.com"
-                elif os.getenv("ENVIRONMENT") == "production":
-                    backend_url = os.getenv("BACKEND_URL", "https://wolf-goat-pig.onrender.com")
-                else:
-                    backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+                # Use BACKEND_URL if set, otherwise determine based on environment
+                backend_url = os.getenv("BACKEND_URL")
+                if not backend_url:
+                    if os.getenv("ENVIRONMENT") == "production" or os.getenv("RENDER"):
+                        backend_url = "https://wolf-goat-pig.onrender.com"
+                    else:
+                        backend_url = "http://localhost:8000"
                 redirect_uri = f"{backend_url}/admin/oauth2-callback"
             
             # Check if credentials file exists
@@ -128,6 +128,9 @@ class OAuth2EmailService:
             # Note: Flow object can't be stored in memory for production environments
             # Each request must recreate the flow with the same parameters
             
+            logger.info(f"Generated OAuth URL with redirect_uri: {redirect_uri}")
+            logger.info(f"Full auth URL: {auth_url}")
+            
             return auth_url
             
         except Exception as e:
@@ -141,13 +144,13 @@ class OAuth2EmailService:
             if redirect_uri is None:
                 import os
                 # Determine backend URL based on environment
-                if os.getenv("RENDER"):
-                    # On Render, use the service URL
-                    backend_url = "https://wolf-goat-pig.onrender.com"
-                elif os.getenv("ENVIRONMENT") == "production":
-                    backend_url = os.getenv("BACKEND_URL", "https://wolf-goat-pig.onrender.com")
-                else:
-                    backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+                # Use BACKEND_URL if set, otherwise determine based on environment
+                backend_url = os.getenv("BACKEND_URL")
+                if not backend_url:
+                    if os.getenv("ENVIRONMENT") == "production" or os.getenv("RENDER"):
+                        backend_url = "https://wolf-goat-pig.onrender.com"
+                    else:
+                        backend_url = "http://localhost:8000"
                 redirect_uri = f"{backend_url}/admin/oauth2-callback"
             
             # Always recreate flow with the same redirect_uri used in authorization
