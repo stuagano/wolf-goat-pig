@@ -4405,6 +4405,144 @@ def make_betting_decision(request: Dict[str, Any]):
         logger.error(f"Betting decision failed: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to process betting decision: {str(e)}")
 
+@app.get("/simulation/turn-based-state")
+def get_turn_based_state():
+    """Get structured turn-based game state for Wolf Goat Pig"""
+    global wgp_simulation
+    
+    try:
+        if not wgp_simulation:
+            raise HTTPException(status_code=400, detail="Simulation not initialized")
+        
+        current_hole = wgp_simulation.current_hole
+        hole_state = wgp_simulation.hole_states.get(current_hole)
+        
+        if not hole_state:
+            return {"success": False, "message": "No active hole"}
+        
+        # Determine current game phase
+        phase = "setup"
+        if hole_state.teams.type == "pending":
+            phase = "captain_selection"
+        elif hole_state.teams.pending_request:
+            phase = "partnership_decision"
+        elif hole_state.teams.type in ["partners", "solo"]:
+            phase = "match_play"
+        
+        # Get captain information
+        captain_id = hole_state.teams.captain
+        captain_player = None
+        if captain_id:
+            captain_player = next((p for p in wgp_simulation.players if p.id == captain_id), None)
+        
+        # Get rotation order for this hole
+        rotation_order = getattr(hole_state, 'rotation_order', [p.id for p in wgp_simulation.players])
+        
+        # Get shots played
+        shots_played = []
+        for position in hole_state.ball_positions:
+            shots_played.append({
+                "player_id": position.player_id,
+                "shot_number": position.shot_count,
+                "distance_to_pin": position.distance_to_pin,
+                "lie_type": position.lie_type,
+                "holed": position.holed
+            })
+        
+        # Determine whose turn it is for decisions or shots
+        current_turn = None
+        furthest_player = None
+        
+        if phase == "match_play":
+            # Find furthest from hole for shot order
+            max_distance = -1
+            for pos in hole_state.ball_positions:
+                if not pos.holed and pos.distance_to_pin > max_distance:
+                    max_distance = pos.distance_to_pin
+                    furthest_player = next((p for p in wgp_simulation.players if p.id == pos.player_id), None)
+            current_turn = furthest_player.id if furthest_player else None
+        
+        # Get pending decision info
+        pending_decision = None
+        if hole_state.teams.pending_request:
+            pending_decision = {
+                "type": "partnership_request",
+                "from_player": hole_state.teams.pending_request.get("requestor"),
+                "to_player": hole_state.teams.pending_request.get("requested"),
+                "message": f"Partnership requested by {wgp_simulation._get_player_name(hole_state.teams.pending_request.get('requestor'))}"
+            }
+        
+        # Check for betting opportunities
+        betting_opportunities = []
+        if phase == "match_play" and not hole_state.betting.doubled:
+            # Check Line of Scrimmage rule
+            line_of_scrimmage_player = furthest_player.id if furthest_player else None
+            betting_opportunities.append({
+                "type": "double_offer",
+                "available": True,
+                "line_of_scrimmage": line_of_scrimmage_player,
+                "current_wager": hole_state.betting.current_wager,
+                "potential_wager": hole_state.betting.current_wager * 2
+            })
+        
+        # Get team formations
+        teams_display = []
+        if hole_state.teams.type == "partners":
+            team1_names = [wgp_simulation._get_player_name(pid) for pid in hole_state.teams.team1]
+            team2_names = [wgp_simulation._get_player_name(pid) for pid in hole_state.teams.team2]
+            teams_display.append({
+                "type": "partnership",
+                "description": f"{' & '.join(team1_names)} vs {' & '.join(team2_names)}"
+            })
+        elif hole_state.teams.type == "solo":
+            solo_name = wgp_simulation._get_player_name(hole_state.teams.solo_player)
+            opponent_names = [wgp_simulation._get_player_name(pid) for pid in hole_state.teams.opponents]
+            teams_display.append({
+                "type": "solo",
+                "description": f"{solo_name} (Solo) vs {', '.join(opponent_names)}"
+            })
+        
+        return {
+            "success": True,
+            "turn_based_state": {
+                "current_hole": current_hole,
+                "phase": phase,
+                "current_turn": current_turn,
+                "captain_id": captain_id,
+                "captain_name": captain_player.name if captain_player else None,
+                "rotation_order": rotation_order,
+                "teams": teams_display,
+                "betting": {
+                    "current_wager": hole_state.betting.current_wager,
+                    "base_wager": hole_state.betting.base_wager,
+                    "doubled": hole_state.betting.doubled,
+                    "in_hole": any(pos.holed for pos in hole_state.ball_positions)
+                },
+                "pending_decision": pending_decision,
+                "betting_opportunities": betting_opportunities,
+                "shots_played": shots_played,
+                "ball_positions": [
+                    {
+                        "player_id": pos.player_id,
+                        "player_name": wgp_simulation._get_player_name(pos.player_id),
+                        "distance_to_pin": pos.distance_to_pin,
+                        "lie_type": pos.lie_type,
+                        "shot_count": pos.shot_count,
+                        "holed": pos.holed
+                    } for pos in hole_state.ball_positions
+                ],
+                "furthest_from_hole": {
+                    "player_id": furthest_player.id if furthest_player else None,
+                    "player_name": furthest_player.name if furthest_player else None,
+                    "distance": max_distance if furthest_player else None
+                } if furthest_player else None
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get turn-based state: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get turn-based state: {str(e)}")
+
 @app.get("/simulation/timeline")
 def get_simulation_timeline(limit: int = 20):
     """Get timeline events in reverse chronological order"""

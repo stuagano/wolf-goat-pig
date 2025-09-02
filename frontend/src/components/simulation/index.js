@@ -5,3 +5,4 @@ export { default as MonteCarloSimulation } from './MonteCarloSimulation';
 export { default as Timeline } from './Timeline';
 export { default as PokerBettingPanel } from './PokerBettingPanel';
 export { default as EnhancedSimulationLayout } from './EnhancedSimulationLayout';
+export { default as TurnBasedInterface } from './TurnBasedInterface';

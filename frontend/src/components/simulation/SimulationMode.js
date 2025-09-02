@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useGame } from "../../context";
 import { GameSetup, GamePlay, EnhancedSimulationLayout } from "./";
+import TurnBasedInterface from "./TurnBasedInterface";
 // import { Timeline, PokerBettingPanel } from "./"; // Removed - not currently used
 // import TVPokerLayout from "../game/TVPokerLayout"; // Removed - not currently used
 
@@ -50,6 +51,10 @@ function SimulationMode() {
   const [pokerState, setPokerState] = useState({});
   const [bettingOptions, setBettingOptions] = useState([]);
   const [timelineLoading, setTimelineLoading] = useState(false);
+  
+  // Turn-based mode state
+  const [useTurnBasedMode, setUseTurnBasedMode] = useState(true);
+  const [turnBasedState, setTurnBasedState] = useState(null);
 
   // Setup state
   const [humanPlayer, setHumanPlayer] = useState({
@@ -86,6 +91,15 @@ function SimulationMode() {
   useEffect(() => {
     fetchInitialData();
   }, []);
+  
+  // Fetch turn-based state when game is active
+  useEffect(() => {
+    if (isGameActive && useTurnBasedMode) {
+      fetchTurnBasedState();
+      const interval = setInterval(fetchTurnBasedState, 2000); // Poll every 2 seconds
+      return () => clearInterval(interval);
+    }
+  }, [isGameActive, useTurnBasedMode]);
   
   const fetchInitialData = async () => {
     try {
@@ -481,6 +495,19 @@ function SimulationMode() {
     }
   };
   
+  const fetchTurnBasedState = async () => {
+    try {
+      const response = await fetch(`${API_URL}/simulation/turn-based-state`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setTurnBasedState(data.turn_based_state);
+      }
+    } catch (error) {
+      console.error('Error fetching turn-based state:', error);
+    }
+  };
+  
   const resetSimulation = () => {
     setGameState(null);
     endGame();  // Use endGame directly instead of setIsGameActive
@@ -513,6 +540,27 @@ function SimulationMode() {
     );
   }
 
+  // Choose interface based on mode preference
+  if (useTurnBasedMode && turnBasedState) {
+    return (
+      <TurnBasedInterface
+        gameState={{
+          ...gameState,
+          ...turnBasedState,
+          interactionNeeded,
+          hasNextShot,
+          feedback
+        }}
+        onMakeDecision={makeDecision}
+        interactionNeeded={interactionNeeded}
+        feedback={feedback}
+        shotState={shotState}
+        onNextShot={playNextShot}
+        hasNextShot={hasNextShot}
+      />
+    );
+  }
+  
   // Use Enhanced Simulation Layout with Timeline and Poker Betting
   const useEnhancedLayout = true; // TODO: Make this a user preference
 
