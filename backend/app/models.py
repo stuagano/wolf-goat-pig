@@ -229,4 +229,31 @@ class GHINHandicapHistory(Base):
     scores_used_count = Column(Integer, nullable=True)  # Number of scores used in calculation
     synced_at = Column(String)  # When this record was synced from GHIN
     created_at = Column(String)
-    updated_at = Column(String) 
+
+# Matchmaking Models
+class MatchSuggestion(Base):
+    __tablename__ = "match_suggestions"
+    id = Column(Integer, primary_key=True, index=True)
+    day_of_week = Column(Integer)  # 0=Monday, 6=Sunday
+    suggested_date = Column(String, nullable=True)  # Specific date if scheduled
+    overlap_start = Column(String)  # Start time of availability overlap
+    overlap_end = Column(String)  # End time of availability overlap
+    suggested_tee_time = Column(String)  # Recommended tee time
+    match_quality_score = Column(Float)  # Quality score of the match
+    status = Column(String, default="pending")  # pending, accepted, declined, expired
+    notification_sent = Column(Boolean, default=False)
+    notification_sent_at = Column(String, nullable=True)
+    created_at = Column(String)
+    expires_at = Column(String)  # When this suggestion expires
+    
+class MatchPlayer(Base):
+    __tablename__ = "match_players"
+    id = Column(Integer, primary_key=True, index=True)
+    match_suggestion_id = Column(Integer, index=True)  # References MatchSuggestion.id
+    player_profile_id = Column(Integer, index=True)  # References PlayerProfile.id
+    player_name = Column(String)
+    player_email = Column(String)
+    response = Column(String, nullable=True)  # accepted, declined, no_response
+    responded_at = Column(String, nullable=True)
+    created_at = Column(String)
+    updated_at = Column(String, nullable=True) 

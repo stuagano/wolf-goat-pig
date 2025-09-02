@@ -4,6 +4,7 @@ import SignupCalendar from '../components/signup/SignupCalendar';
 import DailySignupView from '../components/signup/DailySignupView';
 import PlayerAvailability from '../components/signup/PlayerAvailability';
 import AllPlayersAvailability from '../components/signup/AllPlayersAvailability';
+import MatchmakingSuggestions from '../components/signup/MatchmakingSuggestions';
 import EmailPreferences from '../components/signup/EmailPreferences';
 
 const SignupPage = () => {
@@ -18,6 +19,7 @@ const SignupPage = () => {
     { id: 'calendar', label: '📅 Daily Signups', icon: '📅' },
     { id: 'availability', label: '🕒 My Availability', icon: '🕒' },
     { id: 'all-availability', label: '👥 All Players', icon: '👥' },
+    { id: 'matchmaking', label: '⛳ Matchmaking', icon: '⛳' },
     { id: 'preferences', label: '📧 Email Settings', icon: '📧' }
   ];
 
@@ -199,6 +201,12 @@ const SignupPage = () => {
         {activeTab === 'all-availability' && (
           <div>
             <AllPlayersAvailability />
+          </div>
+        )}
+
+        {activeTab === 'matchmaking' && (
+          <div>
+            <MatchmakingSuggestions />
           </div>
         )}
 

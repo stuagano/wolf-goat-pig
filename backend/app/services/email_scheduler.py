@@ -43,6 +43,9 @@ class EmailScheduler:
         # Schedule weekly summaries on Sunday at 9 AM
         schedule.every().sunday.at("09:00").do(self._send_weekly_summaries)
         
+        # Schedule daily matchmaking at 10 AM
+        schedule.every().day.at("10:00").do(self._run_matchmaking)
+        
         logger.info("Email schedules set up successfully")
     
     def _get_db(self) -> Session:
@@ -208,6 +211,25 @@ class EmailScheduler:
         except Exception as e:
             logger.error(f"Error sending game invitation: {str(e)}")
             return False
+    
+    def _run_matchmaking(self):
+        """Run the matchmaking process and send notifications"""
+        logger.info("Running scheduled matchmaking...")
+        
+        try:
+            import requests
+            # Call the matchmaking endpoint (assumes backend is running)
+            response = requests.post("http://localhost:8000/matchmaking/create-and-notify")
+            
+            if response.status_code == 200:
+                result = response.json()
+                logger.info(f"Matchmaking completed: {result.get('matches_created', 0)} matches created, "
+                           f"{result.get('notifications_sent', 0)} notifications sent")
+            else:
+                logger.error(f"Matchmaking endpoint returned status {response.status_code}")
+                
+        except Exception as e:
+            logger.error(f"Error running scheduled matchmaking: {str(e)}")
 
 # Global email scheduler instance
 email_scheduler = EmailScheduler()
