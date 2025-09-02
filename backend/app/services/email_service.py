@@ -311,6 +311,53 @@ class EmailService:
             html_body=html_body
         )
     
+    def send_email(self, to_email: str, subject: str, body: str) -> bool:
+        """Send a generic email with custom subject and body"""
+        try:
+            # Create message
+            message = emails.Message(
+                subject=subject,
+                html=f"""
+                <html>
+                <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                    {body.replace(chr(10), '<br>')}
+                </body>
+                </html>
+                """,
+                mail_from=(self.sender_email, self.sender_name)
+            )
+            
+            # Send using appropriate method
+            if self.use_oauth2:
+                response = self.oauth2_service.send_email(
+                    to_email=to_email,
+                    subject=subject,
+                    body=body
+                )
+                return response
+            else:
+                response = message.send(
+                    to=to_email,
+                    smtp={
+                        "host": self.smtp_host,
+                        "port": self.smtp_port,
+                        "tls": self.smtp_tls,
+                        "user": self.smtp_user,
+                        "password": self.smtp_password
+                    }
+                )
+                
+                if response.status_code == 250:
+                    logger.info(f"Email sent successfully to {to_email}")
+                    return True
+                else:
+                    logger.error(f"Failed to send email: {response.status_code}")
+                    return False
+                    
+        except Exception as e:
+            logger.error(f"Error sending email: {str(e)}")
+            return False
+    
     def send_game_invitation(self, to_email: str, player_name: str, inviter_name: str, game_date: str) -> bool:
         """Send invitation to join a specific game"""
         
