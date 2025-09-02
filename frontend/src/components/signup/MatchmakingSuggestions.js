@@ -113,11 +113,22 @@ const MatchmakingSuggestions = () => {
     <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
       <div style={{ marginBottom: '30px' }}>
         <h2 style={{ color: '#333', marginBottom: '10px' }}>
-          ⛳ Golf Matchmaking Suggestions
+          🤖 Smart Golf Matchmaking
         </h2>
         <p style={{ color: '#6c757d', fontSize: '14px' }}>
-          AI-powered matching based on player availability overlap
+          Automatic 4-player group suggestions based on schedule compatibility
         </p>
+        <div style={{
+          marginTop: '15px',
+          padding: '12px',
+          background: '#fff3cd',
+          border: '1px solid #ffc107',
+          borderRadius: '6px',
+          fontSize: '13px',
+          color: '#856404'
+        }}>
+          🔔 <strong>How it works:</strong> The system automatically finds groups of 4 players with overlapping availability and sends email invitations daily at 10 AM.
+        </div>
       </div>
 
       {/* Filters */}
@@ -418,25 +429,36 @@ const MatchmakingSuggestions = () => {
       <div style={{
         marginTop: '40px',
         padding: '20px',
-        background: '#e7f3ff',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         borderRadius: '8px',
-        border: '1px solid #b3d9ff'
+        color: 'white'
       }}>
-        <h4 style={{ color: '#004085', marginBottom: '10px' }}>
-          How Matchmaking Works
+        <h4 style={{ color: 'white', marginBottom: '10px' }}>
+          🎯 Matchmaking Features
         </h4>
-        <ul style={{
-          fontSize: '14px',
-          color: '#004085',
-          margin: 0,
-          paddingLeft: '20px'
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+          gap: '15px',
+          fontSize: '13px'
         }}>
-          <li>The system analyzes all players' weekly availability</li>
-          <li>Groups of 4 players with overlapping schedules are identified</li>
-          <li>Matches are ranked by quality (overlap duration, time preferences)</li>
-          <li>Email notifications are sent to matched players with suggested tee times</li>
-          <li>Automatic matching runs daily at 10 AM to find new groups</li>
-        </ul>
+          <div>
+            <strong>🤝 Group Formation:</strong>
+            <div style={{ marginTop: '4px', opacity: 0.9 }}>Automatically creates perfect 4-player groups</div>
+          </div>
+          <div>
+            <strong>⏰ Time Optimization:</strong>
+            <div style={{ marginTop: '4px', opacity: 0.9 }}>Finds optimal tee times for all players</div>
+          </div>
+          <div>
+            <strong>📧 Email Invitations:</strong>
+            <div style={{ marginTop: '4px', opacity: 0.9 }}>Sends notifications to matched players</div>
+          </div>
+          <div>
+            <strong>🔄 Smart Rotation:</strong>
+            <div style={{ marginTop: '4px', opacity: 0.9 }}>Avoids re-matching same groups (3-day cooldown)</div>
+          </div>
+        </div>
       </div>
     </div>
   );

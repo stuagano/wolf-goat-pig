@@ -87,9 +87,9 @@ const AllPlayersAvailability = () => {
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
       <div style={{ marginBottom: '30px' }}>
-        <h2 style={{ color: '#333', marginBottom: '10px' }}>Players' Weekly Availability</h2>
+        <h2 style={{ color: '#333', marginBottom: '10px' }}>👥 Players' Availability Calendar</h2>
         <p style={{ color: '#6c757d', fontSize: '14px' }}>
-          See when other players are typically available to play
+          View individual player schedules and find who's available when you are
         </p>
       </div>
 
@@ -202,19 +202,20 @@ const AllPlayersAvailability = () => {
                       return (
                         <div key={player.player_id} style={{
                           padding: '8px',
-                          background: '#f8f9fa',
+                          background: '#f0f8ff',
                           borderRadius: '4px',
-                          fontSize: '14px'
+                          fontSize: '14px',
+                          borderLeft: '3px solid #4CAF50'
                         }}>
-                          <div style={{ fontWeight: '500', color: '#333' }}>
-                            {player.player_name}
+                          <div style={{ fontWeight: '500', color: '#1a5490' }}>
+                            👤 {player.player_name}
                           </div>
-                          <div style={{ fontSize: '12px', color: '#6c757d', marginTop: '2px' }}>
-                            {formatTimeRange(dayAvail.available_from_time, dayAvail.available_to_time)}
+                          <div style={{ fontSize: '12px', color: '#5a6c7d', marginTop: '2px' }}>
+                            ⏰ {formatTimeRange(dayAvail.available_from_time, dayAvail.available_to_time)}
                           </div>
                           {dayAvail.notes && (
-                            <div style={{ fontSize: '12px', color: '#868e96', marginTop: '2px', fontStyle: 'italic' }}>
-                              {dayAvail.notes}
+                            <div style={{ fontSize: '12px', color: '#7a8a9a', marginTop: '2px', fontStyle: 'italic' }}>
+                              💬 {dayAvail.notes}
                             </div>
                           )}
                         </div>
@@ -315,11 +316,11 @@ const AllPlayersAvailability = () => {
       <div style={{
         marginTop: '40px',
         padding: '20px',
-        background: '#f8f9fa',
+        background: '#e8f5e8',
         borderRadius: '8px',
-        border: '1px solid #dee2e6'
+        border: '1px solid #c3e6c3'
       }}>
-        <h4 style={{ color: '#495057', marginBottom: '16px' }}>Availability Summary</h4>
+        <h4 style={{ color: '#2e7d32', marginBottom: '16px' }}>📊 Weekly Availability Overview</h4>
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',

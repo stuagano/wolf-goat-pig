@@ -39,8 +39,13 @@ const PlayerAvailability = () => {
   const loadAvailability = async () => {
     try {
       setLoading(true);
-      // For now using player ID 1, in real app this would come from auth
-      const response = await fetch(`${API_URL}/players/1/availability`);
+      // Use authenticated endpoint
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${API_URL}/players/me/availability`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       
       if (response.ok) {
         const data = await response.json();
@@ -101,7 +106,7 @@ const PlayerAvailability = () => {
       setSaving(true);
       
       const payload = {
-        player_profile_id: 1, // Would come from authenticated user
+        player_profile_id: 0, // Will be overridden by backend with actual user ID
         day_of_week: dayData.day_of_week,
         is_available: dayData.is_available,
         available_from_time: dayData.available_from_time || null,
@@ -109,10 +114,12 @@ const PlayerAvailability = () => {
         notes: dayData.notes || null
       };
 
-      const response = await fetch(`${API_URL}/players/1/availability`, {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`${API_URL}/players/me/availability`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(payload)
       });

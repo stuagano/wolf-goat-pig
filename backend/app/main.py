@@ -4843,6 +4843,82 @@ def delete_message(message_id: int):
 
 # Player Availability Endpoints
 
+@app.get("/players/me/availability", response_model=List[schemas.PlayerAvailabilityResponse])
+async def get_my_availability(current_user: models.PlayerProfile = Depends(get_current_user)):
+    """Get current user's weekly availability."""
+    try:
+        db = database.SessionLocal()
+        
+        availability = db.query(models.PlayerAvailability).filter(
+            models.PlayerAvailability.player_profile_id == current_user.id
+        ).all()
+        
+        return [schemas.PlayerAvailabilityResponse.from_orm(a) for a in availability]
+        
+    except Exception as e:
+        logger.error(f"Error getting availability for user {current_user.id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get availability: {str(e)}")
+    finally:
+        db.close()
+
+@app.post("/players/me/availability", response_model=schemas.PlayerAvailabilityResponse)
+async def set_my_availability(
+    availability: schemas.PlayerAvailabilityCreate,
+    current_user: models.PlayerProfile = Depends(get_current_user)
+):
+    """Set or update current user's availability for a specific day."""
+    try:
+        db = database.SessionLocal()
+        
+        # Override the player_profile_id with the current user's ID
+        availability.player_profile_id = current_user.id
+        
+        # Check if availability already exists for this day
+        existing = db.query(models.PlayerAvailability).filter(
+            models.PlayerAvailability.player_profile_id == current_user.id,
+            models.PlayerAvailability.day_of_week == availability.day_of_week
+        ).first()
+        
+        if existing:
+            # Update existing
+            existing.available_from_time = availability.available_from_time
+            existing.available_to_time = availability.available_to_time
+            existing.is_available = availability.is_available
+            existing.notes = availability.notes
+            existing.updated_at = datetime.now().isoformat()
+            
+            db.commit()
+            db.refresh(existing)
+            
+            logger.info(f"Updated availability for user {current_user.id}, day {availability.day_of_week}")
+            return schemas.PlayerAvailabilityResponse.from_orm(existing)
+        else:
+            # Create new
+            db_availability = models.PlayerAvailability(
+                player_profile_id=current_user.id,
+                day_of_week=availability.day_of_week,
+                available_from_time=availability.available_from_time,
+                available_to_time=availability.available_to_time,
+                is_available=availability.is_available,
+                notes=availability.notes,
+                created_at=datetime.now().isoformat(),
+                updated_at=datetime.now().isoformat()
+            )
+            
+            db.add(db_availability)
+            db.commit()
+            db.refresh(db_availability)
+            
+            logger.info(f"Created availability for user {current_user.id}, day {availability.day_of_week}")
+            return schemas.PlayerAvailabilityResponse.from_orm(db_availability)
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error setting availability for user {current_user.id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to set availability: {str(e)}")
+    finally:
+        db.close()
+
 @app.get("/players/{player_id}/availability", response_model=List[schemas.PlayerAvailabilityResponse])
 def get_player_availability(player_id: int):
     """Get a player's weekly availability."""
