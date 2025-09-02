@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Routes, Route, useNavigate, Navigate, useLocation } from "react-router-dom";
 import { useAuth0 } from "@auth0/auth0-react";
 import { UnifiedGameInterface } from "./components/game";
 import { SimulationMode, MonteCarloSimulation } from "./components/simulation";
@@ -34,6 +34,7 @@ const API_URL = process.env.REACT_APP_API_URL || "";
 function App() {
   const theme = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   
   const [backendReady, setBackendReady] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
@@ -61,7 +62,7 @@ function App() {
   }
 
   // Show splash screen only on homepage after backend is ready
-  if (showSplash && window.location.pathname === '/') {
+  if (showSplash && location.pathname === '/') {
     return (
       <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100vh',background:theme.colors.background}}>
         <div style={{...theme.cardStyle, textAlign:'center', maxWidth: 400, marginTop: -80}}>

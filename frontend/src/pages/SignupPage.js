@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
+import { useSearchParams } from 'react-router-dom';
 import SignupCalendar from '../components/signup/SignupCalendar';
 import DailySignupView from '../components/signup/DailySignupView';
 import PlayerAvailability from '../components/signup/PlayerAvailability';
@@ -9,10 +10,28 @@ import EmailPreferences from '../components/signup/EmailPreferences';
 
 const SignupPage = () => {
   const { user, isAuthenticated, loginWithRedirect } = useAuth0();
-  const [activeTab, setActiveTab] = useState('calendar');
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Initialize state from URL params or defaults
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'calendar');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [selectedDate, setSelectedDate] = useState(null);
   const [viewMode, setViewMode] = useState('week'); // 'week' or 'daily'
+  
+  // Update URL when tab changes
+  useEffect(() => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('tab', activeTab);
+    setSearchParams(newParams, { replace: true });
+  }, [activeTab]);
+  
+  // Handle browser back/forward buttons
+  useEffect(() => {
+    const tabFromUrl = searchParams.get('tab');
+    if (tabFromUrl && tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [searchParams]);
 
   // Tab configuration
   const tabs = [

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useTheme } from '../theme/Provider';
 
 const Navigation = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const theme = useTheme();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
@@ -138,15 +139,23 @@ const Navigation = () => {
         
         {/* Desktop Navigation */}
         <div style={{ display: isMobile ? 'none' : 'flex', alignItems: 'center' }}>
-          {navLinks.filter(link => link.primary || !isMobile).map(({ path, label }) => (
-            <button 
-              key={path}
-              style={navButtonStyle} 
-              onClick={() => handleNavigate(path)}
-            >
-              {label}
-            </button>
-          ))}
+          {navLinks.filter(link => link.primary || !isMobile).map(({ path, label }) => {
+            const isActive = location.pathname === path || 
+                           (path === '/signup' && location.pathname.startsWith('/signup'));
+            return (
+              <button 
+                key={path}
+                style={{
+                  ...navButtonStyle,
+                  background: isActive ? 'rgba(255,255,255,0.2)' : navButtonStyle.background,
+                  fontWeight: isActive ? '600' : navButtonStyle.fontWeight
+                }} 
+                onClick={() => handleNavigate(path)}
+              >
+                {label}
+              </button>
+            );
+          })}
           
           {/* Auth Section */}
           <div style={{ marginLeft: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>

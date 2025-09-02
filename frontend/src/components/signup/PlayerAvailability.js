@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
 const PlayerAvailability = () => {
-  // const { user } = useAuth0(); // Removed - not currently used
+  const { user, getAccessTokenSilently, isAuthenticated } = useAuth0();
   const [availability, setAvailability] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -36,15 +36,30 @@ const PlayerAvailability = () => {
   };
 
   // Load player's availability
-  const loadAvailability = async () => {
+  const loadAvailability = useCallback(async () => {
+    if (!isAuthenticated) {
+      setLoading(false);
+      return;
+    }
+    
     try {
       setLoading(true);
-      // Use authenticated endpoint
-      const token = localStorage.getItem('auth_token');
+      // Get token from Auth0
+      let token;
+      try {
+        token = await getAccessTokenSilently();
+      } catch (e) {
+        // Fallback to localStorage if Auth0 token fails
+        token = localStorage.getItem('auth_token');
+      }
+      
+      const headers = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       const response = await fetch(`${API_URL}/players/me/availability`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers
       });
       
       if (response.ok) {
@@ -81,12 +96,11 @@ const PlayerAvailability = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAuthenticated, getAccessTokenSilently]);
 
   useEffect(() => {
     loadAvailability();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only load on mount
+  }, [loadAvailability]); // Reload when dependencies change
 
   // Update a specific day's availability
   const updateDayAvailability = (dayIndex, field, value) => {
@@ -114,13 +128,24 @@ const PlayerAvailability = () => {
         notes: dayData.notes || null
       };
 
-      const token = localStorage.getItem('auth_token');
+      // Get token from Auth0 or localStorage
+      let token;
+      try {
+        token = await getAccessTokenSilently();
+      } catch (e) {
+        token = localStorage.getItem('auth_token');
+      }
+      
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       const response = await fetch(`${API_URL}/players/me/availability`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers,
         body: JSON.stringify(payload)
       });
 
