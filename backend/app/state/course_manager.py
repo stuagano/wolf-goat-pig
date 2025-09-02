@@ -1,27 +1,37 @@
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+try:
+    from data.wing_point_course_data import WING_POINT_COURSE_DATA
+except ImportError:
+    WING_POINT_COURSE_DATA = None
+
+# Convert Wing Point data to the expected format
+def get_wing_point_holes():
+    if WING_POINT_COURSE_DATA:
+        return [
+            {
+                "hole_number": h["hole_number"],
+                "stroke_index": h["handicap_men"],
+                "par": h["par"],
+                "yards": h["yards"]["white"],  # Use white tees as default
+                "description": h["description"]
+            }
+            for h in WING_POINT_COURSE_DATA["holes"]
+        ]
+    else:
+        # Fallback to basic data if import fails
+        return [
+            {"hole_number": i, "stroke_index": i, "par": 4, "yards": 400, 
+             "description": f"Hole {i}"} for i in range(1, 19)
+        ]
+
+# Default courses dictionary
 DEFAULT_COURSES = {
-    "Wing Point": [
-        {"hole_number": 1, "stroke_index": 5, "par": 5, "yards": 476, "description": "Par 5 opening hole. Long, straight, reachable in two for long hitters."},
-        {"hole_number": 2, "stroke_index": 15, "par": 3, "yards": 175, "description": "Short par 3. Watch for wind and tricky green."},
-        {"hole_number": 3, "stroke_index": 1, "par": 4, "yards": 401, "description": "Difficult par 4. Long and demanding with a tough approach."},
-        {"hole_number": 4, "stroke_index": 17, "par": 3, "yards": 133, "description": "Shortest hole on the course. Precision required."},
-        {"hole_number": 5, "stroke_index": 7, "par": 5, "yards": 498, "description": "Par 5 with risk/reward second shot. Birdie opportunity."},
-        {"hole_number": 6, "stroke_index": 11, "par": 4, "yards": 351, "description": "Dogleg par 4. Position off the tee is key."},
-        {"hole_number": 7, "stroke_index": 9, "par": 4, "yards": 316, "description": "Short par 4. Play for position, not distance."},
-        {"hole_number": 8, "stroke_index": 13, "par": 4, "yards": 294, "description": "Drivable par 4 for long hitters. Risk/reward."},
-        {"hole_number": 9, "stroke_index": 3, "par": 4, "yards": 340, "description": "Tough finishing hole on the front. Demanding approach."},
-        {"hole_number": 10, "stroke_index": 16, "par": 3, "yards": 239, "description": "Long par 3. Club selection is crucial."},
-        {"hole_number": 11, "stroke_index": 2, "par": 4, "yards": 401, "description": "Strong par 4. Demands accuracy off the tee."},
-        {"hole_number": 12, "stroke_index": 14, "par": 3, "yards": 204, "description": "Mid-length par 3. Green is well protected."},
-        {"hole_number": 13, "stroke_index": 8, "par": 4, "yards": 310, "description": "Short par 4. Good birdie chance."},
-        {"hole_number": 14, "stroke_index": 10, "par": 4, "yards": 317, "description": "Dogleg par 4. Play to the corner for best angle."},
-        {"hole_number": 15, "stroke_index": 18, "par": 4, "yards": 396, "description": "Easiest hole on the course. Play aggressively."},
-        {"hole_number": 16, "stroke_index": 4, "par": 4, "yards": 358, "description": "Challenging par 4. Demanding approach shot."},
-        {"hole_number": 17, "stroke_index": 12, "par": 5, "yards": 490, "description": "Par 5. Reachable in two for long hitters."},
-        {"hole_number": 18, "stroke_index": 6, "par": 4, "yards": 394, "description": "Strong finishing hole. Demanding tee shot and approach."}
-    ],
+    "Wing Point Golf & Country Club": get_wing_point_holes(),
     "Championship Links": [
         {"hole_number": 1, "stroke_index": 7, "par": 4, "yards": 450, "description": "Opening hole with wide fairway but challenging approach to elevated green."},
         {"hole_number": 2, "stroke_index": 15, "par": 3, "yards": 185, "description": "Long par 3 with deep bunkers and wind factor."},

@@ -583,7 +583,7 @@ class WolfGoatPigSimulation:
     Complete Wolf Goat Pig simulation implementing all rules from rules.txt
     """
     
-    def __init__(self, player_count: int = 4, players: Optional[List[WGPPlayer]] = None):
+    def __init__(self, player_count: int = 4, players: Optional[List[WGPPlayer]] = None, course_manager=None):
         if player_count not in [4, 5, 6]:
             raise ValueError("Wolf Goat Pig supports 4, 5, or 6 players only")
             
@@ -594,6 +594,7 @@ class WolfGoatPigSimulation:
         self.hole_states: Dict[int, HoleState] = {}
         self.double_points_round = False  # Major championship days
         self.annual_banquet = False  # Annual banquet day
+        self.course_manager = course_manager  # Store course manager for hole info
         
         # Computer players for AI decision making
         self.computer_players: Dict[str, Any] = {}
@@ -678,8 +679,19 @@ class WolfGoatPigSimulation:
         # Create team formation
         teams = TeamFormation(type="pending", captain=hitting_order[0])
         
-        # Calculate stroke index for this hole (simplified - could be enhanced with course data)
-        stroke_index = min(hole_number, 18)  # Simple stroke index calculation
+        # Get hole info from course manager if available
+        hole_par = None
+        hole_yardage = None
+        stroke_index = min(hole_number, 18)  # Default
+        
+        if self.course_manager:
+            try:
+                hole_info = self.course_manager.get_hole_info(hole_number)
+                hole_par = hole_info.get("par")
+                hole_yardage = hole_info.get("yards")
+                stroke_index = hole_info.get("stroke_index", stroke_index)
+            except:
+                pass  # Fall back to defaults
         
         # Initialize hole state
         hole_state = HoleState(
@@ -697,8 +709,8 @@ class WolfGoatPigSimulation:
         hole_state.tee_shots_complete = 0
         hole_state.partnership_deadline_passed = False
         
-        # Set hole information (par, yardage, difficulty)
-        hole_state.set_hole_info()
+        # Set hole information (par, yardage, difficulty) - uses course data if available
+        hole_state.set_hole_info(par=hole_par, yardage=hole_yardage, stroke_index=stroke_index)
         
         # Calculate stroke advantages for all players on this hole
         hole_state.calculate_stroke_advantages(self.players)
@@ -1420,10 +1432,46 @@ class WolfGoatPigSimulation:
         """Get complete current game state"""
         hole_state = self.hole_states.get(self.current_hole)
         
+        # Get hole info from course manager if available
+        hole_info = {}
+        if self.course_manager:
+            try:
+                current_hole_info = self.course_manager.get_hole_info(self.current_hole)
+                hole_info = {
+                    "hole_par": current_hole_info.get("par", 4),
+                    "hole_distance": current_hole_info.get("yards", 400),
+                    "hole_yardage": current_hole_info.get("yards", 400),
+                    "hole_stroke_index": current_hole_info.get("stroke_index", 10),
+                    "hole_handicap": current_hole_info.get("stroke_index", 10),
+                    "hole_description": current_hole_info.get("description", "")
+                }
+            except:
+                # Use hole state values if available
+                if hole_state:
+                    hole_info = {
+                        "hole_par": hole_state.hole_par,
+                        "hole_distance": hole_state.hole_yardage,
+                        "hole_yardage": hole_state.hole_yardage,
+                        "hole_stroke_index": hole_state.stroke_index,
+                        "hole_handicap": hole_state.stroke_index,
+                        "hole_description": ""
+                    }
+        elif hole_state:
+            # Fallback to hole state values
+            hole_info = {
+                "hole_par": hole_state.hole_par,
+                "hole_distance": hole_state.hole_yardage,
+                "hole_yardage": hole_state.hole_yardage,
+                "hole_stroke_index": hole_state.stroke_index,
+                "hole_handicap": hole_state.stroke_index,
+                "hole_description": ""
+            }
+        
         return {
             "current_hole": self.current_hole,
             "game_phase": self.game_phase.value,
             "player_count": self.player_count,
+            **hole_info,  # Include hole info at top level
             "players": [
                 {
                     "id": p.id,

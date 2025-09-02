@@ -1070,15 +1070,20 @@ async def handle_initialize_game(payload: Dict[str, Any]) -> ActionResponse:
             if len(wgp_players) != len(players):
                 logger.warning(f"Only created {len(wgp_players)} WGP players from {len(players)} input players")
             
-            # Initialize the simulation with these players
+            # Initialize the simulation with these players and course manager
             try:
-                wgp_simulation.__init__(player_count=len(wgp_players), players=wgp_players)
-                logger.info("WGP simulation initialized successfully")
+                wgp_simulation.__init__(player_count=len(wgp_players), players=wgp_players, course_manager=game_state.course_manager)
+                logger.info("WGP simulation initialized successfully with course data")
             except Exception as sim_init_error:
                 logger.error(f"WGP simulation initialization failed: {sim_init_error}")
-                # Try with basic initialization
-                wgp_simulation.__init__(player_count=len(wgp_players))
-                logger.warning("Fell back to basic simulation initialization")
+                # Try without course manager
+                try:
+                    wgp_simulation.__init__(player_count=len(wgp_players), players=wgp_players)
+                    logger.warning("Initialized without course manager")
+                except:
+                    # Try with basic initialization
+                    wgp_simulation.__init__(player_count=len(wgp_players))
+                    logger.warning("Fell back to basic simulation initialization")
             
             # Set computer players (all except first) with error handling
             try:
