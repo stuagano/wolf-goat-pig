@@ -4861,6 +4861,48 @@ def get_player_availability(player_id: int):
     finally:
         db.close()
 
+@app.get("/players/availability/all", response_model=List[Dict])
+def get_all_players_availability():
+    """Get all players' weekly availability with their names."""
+    try:
+        db = database.SessionLocal()
+        
+        # Get all players with their availability
+        players_with_availability = db.query(models.PlayerProfile).all()
+        
+        result = []
+        for player in players_with_availability:
+            player_data = {
+                "player_id": player.id,
+                "player_name": player.name,
+                "email": player.email,
+                "availability": []
+            }
+            
+            # Get this player's availability
+            availability = db.query(models.PlayerAvailability).filter(
+                models.PlayerAvailability.player_profile_id == player.id
+            ).all()
+            
+            for avail in availability:
+                player_data["availability"].append({
+                    "day_of_week": avail.day_of_week,
+                    "is_available": avail.is_available,
+                    "available_from_time": avail.available_from_time,
+                    "available_to_time": avail.available_to_time,
+                    "notes": avail.notes
+                })
+            
+            result.append(player_data)
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error getting all players availability: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get availability: {str(e)}")
+    finally:
+        db.close()
+
 @app.post("/players/{player_id}/availability", response_model=schemas.PlayerAvailabilityResponse)
 def set_player_availability(player_id: int, availability: schemas.PlayerAvailabilityCreate):
     """Set or update a player's availability for a specific day."""

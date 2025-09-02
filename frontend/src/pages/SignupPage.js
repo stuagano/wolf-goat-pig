@@ -3,6 +3,7 @@ import { useAuth0 } from '@auth0/auth0-react';
 import SignupCalendar from '../components/signup/SignupCalendar';
 import DailySignupView from '../components/signup/DailySignupView';
 import PlayerAvailability from '../components/signup/PlayerAvailability';
+import AllPlayersAvailability from '../components/signup/AllPlayersAvailability';
 import EmailPreferences from '../components/signup/EmailPreferences';
 
 const SignupPage = () => {
@@ -16,6 +17,7 @@ const SignupPage = () => {
   const tabs = [
     { id: 'calendar', label: '📅 Daily Signups', icon: '📅' },
     { id: 'availability', label: '🕒 My Availability', icon: '🕒' },
+    { id: 'all-availability', label: '👥 All Players', icon: '👥' },
     { id: 'preferences', label: '📧 Email Settings', icon: '📧' }
   ];
 
@@ -191,6 +193,12 @@ const SignupPage = () => {
               </p>
             </div>
             <PlayerAvailability />
+          </div>
+        )}
+
+        {activeTab === 'all-availability' && (
+          <div>
+            <AllPlayersAvailability />
           </div>
         )}
 
