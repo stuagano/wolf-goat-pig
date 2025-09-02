@@ -1,0 +1,457 @@
+{
+  "game_metadata": {
+    "game_id": "wgp_test_round_001",
+    "date": "2025-09-02",
+    "course": "Wing Point Golf & Country Club",
+    "game_type": "4_man",
+    "players": [
+      {
+        "id": "human",
+        "name": "Test Player",
+        "handicap": 12,
+        "is_human": true,
+        "initial_position": 1
+      },
+      {
+        "id": "p1",
+        "name": "Bob Silver",
+        "handicap": 8,
+        "is_human": false,
+        "personality": "aggressive",
+        "initial_position": 2
+      },
+      {
+        "id": "p2", 
+        "name": "Scott Stover",
+        "handicap": 15,
+        "is_human": false,
+        "personality": "conservative",
+        "initial_position": 3
+      },
+      {
+        "id": "p3",
+        "name": "Mike Morgan",
+        "handicap": 10,
+        "is_human": false,
+        "personality": "strategic",
+        "initial_position": 4
+      }
+    ],
+    "base_wager": 1,
+    "total_holes": 18,
+    "game_phases": {
+      "regular": "1-12",
+      "vinnie_variation": "13-16", 
+      "hoepfinger": "17-18"
+    }
+  },
+  "hole_by_hole_results": {
+    "hole_1": {
+      "hole_number": 1,
+      "par": 4,
+      "captain": "human",
+      "rotation_order": ["human", "p1", "p2", "p3"],
+      "tee_shots": [
+        {"player": "human", "result": "fairway", "quality": "good"},
+        {"player": "p1", "result": "rough", "quality": "poor"},
+        {"player": "p2", "result": "fairway", "quality": "excellent"},
+        {"player": "p3", "result": "bunker", "quality": "terrible"}
+      ],
+      "partnership_decision": {
+        "captain_invited": "p2",
+        "invitation_timing": "after_p2_tee_shot",
+        "response": "accepted",
+        "final_teams": {
+          "team1": ["human", "p2"],
+          "team2": ["p1", "p3"]
+        }
+      },
+      "betting_action": [
+        {
+          "action": "partnership_formed",
+          "wager": 1,
+          "teams": "human+p2 vs p1+p3"
+        },
+        {
+          "action": "double_offered",
+          "offered_by": "team1",
+          "timing": "after_approach_shots",
+          "accepted": true,
+          "wager": 2
+        }
+      ],
+      "final_scores": {
+        "human": 4,
+        "p1": 5,
+        "p2": 3,
+        "p3": 6
+      },
+      "team_scores": {
+        "team1_best": 3,
+        "team2_best": 5
+      },
+      "winner": "team1",
+      "quarters_exchanged": {
+        "human": "+2",
+        "p1": "-2", 
+        "p2": "+2",
+        "p3": "-2"
+      },
+      "running_totals": {
+        "human": 2,
+        "p1": -2,
+        "p2": 2,
+        "p3": -2
+      }
+    },
+    "hole_2": {
+      "hole_number": 2,
+      "par": 3,
+      "captain": "p1",
+      "rotation_order": ["p1", "p2", "p3", "human"],
+      "tee_shots": [
+        {"player": "p1", "result": "green", "quality": "excellent"},
+        {"player": "p2", "result": "bunker", "quality": "poor"},
+        {"player": "p3", "result": "green", "quality": "good"},
+        {"player": "human", "result": "rough", "quality": "average"}
+      ],
+      "partnership_decision": {
+        "captain_action": "go_solo",
+        "reason": "confident_with_excellent_tee_shot",
+        "final_teams": {
+          "solo": ["p1"],
+          "opponents": ["p2", "p3", "human"]
+        }
+      },
+      "betting_action": [
+        {
+          "action": "captain_solo",
+          "wager": 2,
+          "format": "p1_solo_vs_others"
+        }
+      ],
+      "final_scores": {
+        "human": 4,
+        "p1": 2,
+        "p2": 4,
+        "p3": 3
+      },
+      "team_scores": {
+        "solo_score": 2,
+        "opponents_best": 3
+      },
+      "winner": "p1_solo",
+      "quarters_exchanged": {
+        "human": "-2",
+        "p1": "+6",
+        "p2": "-2",
+        "p3": "-2"
+      },
+      "running_totals": {
+        "human": 0,
+        "p1": 4,
+        "p2": 0,
+        "p3": -4
+      }
+    },
+    "hole_3": {
+      "hole_number": 3,
+      "par": 5,
+      "captain": "p2",
+      "rotation_order": ["p2", "p3", "human", "p1"],
+      "tee_shots": [
+        {"player": "p2", "result": "fairway", "quality": "good"},
+        {"player": "p3", "result": "rough", "quality": "average"},
+        {"player": "human", "result": "fairway", "quality": "excellent"},
+        {"player": "p1", "result": "out_of_bounds", "quality": "terrible"}
+      ],
+      "partnership_decision": {
+        "captain_invited": "human",
+        "invitation_timing": "after_human_tee_shot",
+        "response": "accepted",
+        "final_teams": {
+          "team1": ["p2", "human"],
+          "team2": ["p3", "p1"]
+        }
+      },
+      "betting_action": [
+        {
+          "action": "partnership_formed",
+          "wager": 1,
+          "teams": "p2+human vs p3+p1"
+        },
+        {
+          "action": "double_offered",
+          "offered_by": "team1",
+          "timing": "after_p1_ob_shot",
+          "accepted": false,
+          "result": "team1_wins_immediately",
+          "wager": 1
+        }
+      ],
+      "final_scores": {
+        "human": 4,
+        "p1": 7,
+        "p2": 5,
+        "p3": 6
+      },
+      "team_scores": {
+        "team1_best": 4,
+        "team2_best": 6
+      },
+      "winner": "team1",
+      "quarters_exchanged": {
+        "human": "+1",
+        "p1": "-1",
+        "p2": "+1", 
+        "p3": "-1"
+      },
+      "running_totals": {
+        "human": 1,
+        "p1": 3,
+        "p2": 1,
+        "p3": -5
+      }
+    },
+    "hole_13": {
+      "hole_number": 13,
+      "par": 4,
+      "phase": "vinnie_variation",
+      "captain": "human",
+      "rotation_order": ["human", "p1", "p2", "p3"],
+      "base_wager": 2,
+      "note": "Vinnie's Variation - doubled base wager",
+      "tee_shots": [
+        {"player": "human", "result": "rough", "quality": "poor"},
+        {"player": "p1", "result": "fairway", "quality": "excellent"},
+        {"player": "p2", "result": "fairway", "quality": "good"},
+        {"player": "p3", "result": "water_hazard", "quality": "terrible"}
+      ],
+      "partnership_decision": {
+        "captain_invited": "p1",
+        "invitation_timing": "after_p1_tee_shot", 
+        "response": "accepted",
+        "final_teams": {
+          "team1": ["human", "p1"],
+          "team2": ["p2", "p3"]
+        }
+      },
+      "betting_action": [
+        {
+          "action": "partnership_formed",
+          "wager": 2,
+          "teams": "human+p1 vs p2+p3"
+        }
+      ],
+      "final_scores": {
+        "human": 5,
+        "p1": 4,
+        "p2": 4,
+        "p3": 7
+      },
+      "team_scores": {
+        "team1_best": 4,
+        "team2_best": 4
+      },
+      "winner": "tie",
+      "carry_over": true,
+      "quarters_exchanged": {
+        "human": 0,
+        "p1": 0,
+        "p2": 0,
+        "p3": 0
+      },
+      "running_totals": {
+        "human": 1,
+        "p1": 3,
+        "p2": 1,
+        "p3": -5
+      }
+    },
+    "hole_17": {
+      "hole_number": 17,
+      "par": 3,
+      "phase": "hoepfinger",
+      "goat": "p3",
+      "goat_chooses_position": 1,
+      "captain": "p3",
+      "rotation_order": ["p3", "human", "p1", "p2"],
+      "joes_special": {
+        "invoked_by": "p3",
+        "chosen_value": 4,
+        "note": "Goat chose 4 quarters as starting value"
+      },
+      "base_wager": 4,
+      "carry_over_from_hole_13": true,
+      "total_wager": 8,
+      "tee_shots": [
+        {"player": "p3", "result": "green", "quality": "excellent"},
+        {"player": "human", "result": "bunker", "quality": "poor"},
+        {"player": "p1", "result": "green", "quality": "good"},
+        {"player": "p2", "result": "rough", "quality": "average"}
+      ],
+      "partnership_decision": {
+        "captain_invited": "p1",
+        "invitation_timing": "after_p1_tee_shot",
+        "response": "accepted",
+        "final_teams": {
+          "team1": ["p3", "p1"],
+          "team2": ["human", "p2"]
+        }
+      },
+      "betting_action": [
+        {
+          "action": "partnership_formed", 
+          "wager": 8,
+          "teams": "p3+p1 vs human+p2"
+        }
+      ],
+      "final_scores": {
+        "human": 4,
+        "p1": 3,
+        "p2": 4,
+        "p3": 2
+      },
+      "team_scores": {
+        "team1_best": 2,
+        "team2_best": 4
+      },
+      "winner": "team1",
+      "quarters_exchanged": {
+        "human": "-8",
+        "p1": "+8",
+        "p2": "-8",
+        "p3": "+8"
+      },
+      "running_totals": {
+        "human": -7,
+        "p1": 11,
+        "p2": -7,
+        "p3": 3
+      }
+    },
+    "hole_18": {
+      "hole_number": 18,
+      "par": 5,
+      "phase": "hoepfinger",
+      "goat": "human",
+      "goat_chooses_position": 4,
+      "captain": "p3",
+      "rotation_order": ["p3", "p1", "p2", "human"],
+      "joes_special": {
+        "invoked_by": "human",
+        "chosen_value": 2,
+        "note": "New goat chose 2 quarters"
+      },
+      "base_wager": 2,
+      "big_dick_opportunity": {
+        "leader": "p1",
+        "leader_points": 11,
+        "declared": false,
+        "note": "p1 chose not to risk entire winnings"
+      },
+      "tee_shots": [
+        {"player": "p3", "result": "fairway", "quality": "good"},
+        {"player": "p1", "result": "fairway", "quality": "excellent"},
+        {"player": "p2", "result": "rough", "quality": "average"},
+        {"player": "human", "result": "fairway", "quality": "good"}
+      ],
+      "partnership_decision": {
+        "captain_invited": "p1",
+        "invitation_timing": "after_p1_tee_shot",
+        "response": "accepted",
+        "final_teams": {
+          "team1": ["p3", "p1"],
+          "team2": ["p2", "human"]
+        }
+      },
+      "betting_action": [
+        {
+          "action": "partnership_formed",
+          "wager": 2,
+          "teams": "p3+p1 vs p2+human"
+        },
+        {
+          "action": "double_offered",
+          "offered_by": "team2",
+          "timing": "green_side",
+          "accepted": true,
+          "wager": 4
+        }
+      ],
+      "final_scores": {
+        "human": 4,
+        "p1": 5,
+        "p2": 5,
+        "p3": 5
+      },
+      "team_scores": {
+        "team1_best": 5,
+        "team2_best": 4
+      },
+      "winner": "team2",
+      "quarters_exchanged": {
+        "human": "+4",
+        "p1": "-4",
+        "p2": "+4",
+        "p3": "-4"
+      },
+      "final_totals": {
+        "human": -3,
+        "p1": 7,
+        "p2": -3,
+        "p3": -1
+      }
+    }
+  },
+  "game_summary": {
+    "winner": "p1",
+    "final_standings": [
+      {"player": "p1", "points": 7, "name": "Bob Silver"},
+      {"player": "p3", "points": -1, "name": "Mike Morgan"}, 
+      {"player": "human", "points": -3, "name": "Test Player"},
+      {"player": "p2", "points": -3, "name": "Scott Stover"}
+    ],
+    "key_statistics": {
+      "total_partnerships_formed": 15,
+      "total_solo_attempts": 3,
+      "successful_doubles": 8,
+      "declined_doubles": 2,
+      "carry_overs": 1,
+      "joes_special_invoked": 2,
+      "big_dick_opportunities": 1,
+      "big_dick_declared": 0,
+      "total_quarters_in_play": 156,
+      "largest_single_hole": 8,
+      "vinnie_variation_holes": 4,
+      "hoepfinger_holes": 2
+    },
+    "notable_moments": [
+      "Hole 2: p1 successful solo against three players",
+      "Hole 3: Double declined, immediate win",
+      "Hole 13: Vinnie's Variation begins, carry-over created",
+      "Hole 17: Joe's Special for 4 quarters, massive 8-quarter hole",
+      "Hole 18: Human comeback attempt with successful double"
+    ],
+    "authentic_wgp_elements": [
+      "Proper captain rotation every hole",
+      "Partnership timing rules enforced",
+      "Line of Scrimmage betting restrictions",
+      "Vinnie's Variation double base wager",
+      "Hoepfinger with Goat position selection",
+      "Joe's Special wager control",
+      "Big Dick opportunity on 18th",
+      "Karl Marx rule for uneven distributions",
+      "Carry-over for tied holes"
+    ]
+  },
+  "validation_checkpoints": {
+    "total_quarters_balanced": true,
+    "captain_rotation_correct": true,
+    "partnership_timing_valid": true,
+    "betting_rules_followed": true,
+    "game_phases_proper": true,
+    "scoring_accurate": true,
+    "rule_compliance": "100%"
+  }
+}

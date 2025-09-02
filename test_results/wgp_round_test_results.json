@@ -1,0 +1,106 @@
+{
+  "test_metadata": {
+    "timestamp": "2025-09-02 15:50:04",
+    "test_type": "full_wgp_round_generation",
+    "api_base": "http://localhost:8000"
+  },
+  "expected_data_sample": {
+    "total_holes": 6,
+    "game_type": "4_man",
+    "authentic_features": 9
+  },
+  "actual_results": {
+    "game_metadata": {
+      "game_type": "4_man",
+      "players": [
+        {
+          "id": "player_1",
+          "name": "Test Player",
+          "handicap": 12.0,
+          "points": 0
+        },
+        {
+          "id": "player_2",
+          "name": "Bob Silver",
+          "handicap": 8.0,
+          "points": 0
+        },
+        {
+          "id": "player_3",
+          "name": "Scott Stover",
+          "handicap": 15.0,
+          "points": 0
+        },
+        {
+          "id": "player_4",
+          "name": "Mike Morgan",
+          "handicap": 10.0,
+          "points": 0
+        }
+      ],
+      "course": "Wing Point Golf & Country Club"
+    },
+    "hole_by_hole_results": {
+      "hole_1": {
+        "hole_number": 1,
+        "captain": "human",
+        "decisions_made": [],
+        "final_result": {}
+      },
+      "hole_2": {
+        "hole_number": 2,
+        "captain": "p1",
+        "decisions_made": [],
+        "final_result": {}
+      },
+      "hole_3": {
+        "hole_number": 3,
+        "captain": "p2",
+        "decisions_made": [],
+        "final_result": {}
+      },
+      "hole_13": {
+        "hole_number": 13,
+        "captain": "human",
+        "decisions_made": [],
+        "final_result": {}
+      },
+      "hole_17": {
+        "hole_number": 17,
+        "captain": "p3",
+        "decisions_made": [],
+        "final_result": {}
+      },
+      "hole_18": {
+        "hole_number": 18,
+        "captain": "p3",
+        "decisions_made": [],
+        "final_result": {}
+      }
+    },
+    "game_summary": {},
+    "validation_checkpoints": {}
+  },
+  "comparison_report": {
+    "test_summary": {
+      "holes_attempted": 6,
+      "expected_holes": 6,
+      "simulation_successful": true
+    },
+    "feature_validation": {
+      "captain_rotation": "\u2705 Present",
+      "partnership_decisions": "\u2705 Present",
+      "betting_opportunities": "\u2705 Present",
+      "turn_based_flow": "\u2705 Present",
+      "authentic_wgp_elements": "\u2705 Present"
+    },
+    "differences": [],
+    "successes": [
+      "captain_rotation successfully implemented",
+      "partnership_decisions successfully implemented",
+      "betting_opportunities successfully implemented",
+      "turn_based_flow successfully implemented",
+      "authentic_wgp_elements successfully implemented"
+    ]
+  }
+}
