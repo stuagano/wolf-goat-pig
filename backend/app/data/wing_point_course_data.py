@@ -257,7 +257,7 @@ WING_POINT_COURSE_DATA = {
         },
         {
             "hole_number": 17,
-            "par": 4,
+            "par": 5,
             "handicap_men": 12,
             "handicap_women": 4,
             "yards": {
@@ -266,12 +266,12 @@ WING_POINT_COURSE_DATA = {
                 "red": 447,
                 "gold": 447
             },
-            "name": "The Long Four",
-            "description": "Plays like a par 5 for many - start of Hoepfinger"
+            "name": "The Penultimate",
+            "description": "Par 5 start of Hoepfinger phase"
         },
         {
             "hole_number": 18,
-            "par": 5,
+            "par": 4,
             "handicap_men": 6,
             "handicap_women": 14,
             "yards": {
@@ -281,10 +281,10 @@ WING_POINT_COURSE_DATA = {
                 "gold": 306
             },
             "name": "The Finale",
-            "description": "Short par 5 to finish - Big Dick opportunity"
+            "description": "Strong finishing par 4 - Big Dick opportunity"
         }
     ],
-    "total_par": 72,  # 36 front, 36 back
+    "total_par": 71,  # 36 front, 35 back
     "course_rules": {
         "out_of_bounds": "Marked by white stakes on holes 10 and 15",
         "lateral_hazards": "Red stakes throughout",

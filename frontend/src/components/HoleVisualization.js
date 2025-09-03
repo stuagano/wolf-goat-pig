@@ -59,11 +59,11 @@ const HoleVisualization = ({ holeState, players, gameState }) => {
   const getHoleBackground = (hole, par) => {
     // Special holes from Wing Point
     if (hole === 17) {
-      // Hole 17 - Long par 4 "The Long Four"
-      return 'linear-gradient(to right, #006400 0%, #90EE90 15%, #90EE90 70%, #228B22 85%, #006400 100%)';
+      // Hole 17 - Par 5 at 455 yards
+      return 'linear-gradient(to right, #006400 0%, #90EE90 15%, #90EE90 85%, #006400 100%)';
     } else if (hole === 18) {
-      // Hole 18 - Short par 5 "The Finale"
-      return 'linear-gradient(to right, #006400 0%, #90EE90 25%, #90EE90 75%, #006400 100%)';
+      // Hole 18 - Par 4 finishing hole at 372 yards
+      return 'linear-gradient(to right, #006400 0%, #90EE90 20%, #90EE90 80%, #006400 100%)';
     } else if ([2, 4, 10, 12].includes(hole)) {
       // Par 3s
       return 'linear-gradient(to right, #006400 0%, #90EE90 30%, #006400 100%)';
@@ -149,9 +149,9 @@ const HoleVisualization = ({ holeState, players, gameState }) => {
     } else if (hole === 3) {
       strategy = 'Toughest hole (Handicap 1) - Play conservatively, avoid big numbers.';
     } else if (hole === 17) {
-      strategy = 'Start of Hoepfinger phase - Long par 4 playing like a par 5.';
+      strategy = 'Start of Hoepfinger phase - Par 5, reachable in two for long hitters.';
     } else if (hole === 18) {
-      strategy = 'The Finale - Short par 5, Big Dick opportunity for aggressive play!';
+      strategy = 'The Finale - Strong par 4 finish, Big Dick opportunity for aggressive play!';
     } else if ([5, 7, 13, 18].includes(hole)) {
       strategy = 'Risk/Reward hole - Consider aggressive play for betting opportunities.';
     } else if (handicap <= 4) {
