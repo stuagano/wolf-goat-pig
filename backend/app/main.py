@@ -9,6 +9,7 @@ from . import models, schemas, crud, database
 
 from .game_state import game_state
 from .wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer
+from .post_hole_analytics import PostHoleAnalyzer
 from .simulation_timeline_enhancements import (
     enhance_simulation_with_timeline, 
     format_poker_betting_state, 
@@ -44,6 +45,8 @@ logger = logging.getLogger(__name__)
 
 # Initialize Wolf Goat Pig Simulation (will be replaced when game starts)
 wgp_simulation = WolfGoatPigSimulation(player_count=4)
+# Initialize Post-Hole Analyzer
+post_hole_analyzer = PostHoleAnalyzer()
 
 # Response model classes for Action API
 class ActionRequest(BaseModel):
@@ -4409,6 +4412,115 @@ def make_betting_decision(request: Dict[str, Any]):
     except Exception as e:
         logger.error(f"Betting decision failed: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to process betting decision: {str(e)}")
+
+@app.get("/simulation/post-hole-analytics/{hole_number}")
+def get_post_hole_analytics(hole_number: int):
+    """Get comprehensive post-hole analytics for learning and improvement"""
+    global wgp_simulation, post_hole_analyzer
+    
+    try:
+        if not wgp_simulation:
+            raise HTTPException(status_code=400, detail="Simulation not initialized")
+        
+        # Get hole state
+        hole_state = wgp_simulation.hole_states.get(hole_number)
+        if not hole_state:
+            raise HTTPException(status_code=404, detail=f"Hole {hole_number} not found")
+        
+        # Check if hole is complete
+        if not hole_state.hole_complete:
+            raise HTTPException(status_code=400, detail=f"Hole {hole_number} is not complete yet")
+        
+        # Get game state and timeline events
+        game_state = wgp_simulation.get_game_state()
+        timeline_events = []
+        if hasattr(wgp_simulation, 'hole_progression') and wgp_simulation.hole_progression:
+            timeline_events = wgp_simulation.hole_progression.timeline_events
+        
+        # Generate analytics
+        analytics = post_hole_analyzer.analyze_hole(hole_state, game_state, timeline_events)
+        
+        # Convert to dict for JSON response
+        analytics_dict = {
+            "hole_number": analytics.hole_number,
+            "hole_par": analytics.hole_par,
+            "hole_yardage": analytics.hole_yardage,
+            "winner": analytics.winner,
+            "quarters_exchanged": analytics.quarters_exchanged,
+            "final_scores": analytics.final_scores,
+            "decision_points": [
+                {
+                    "decision_type": dp.decision_type,
+                    "player_id": dp.player_id,
+                    "timestamp": dp.timestamp,
+                    "options_available": dp.options_available,
+                    "decision_made": dp.decision_made,
+                    "outcome": dp.outcome,
+                    "quarters_impact": dp.quarters_impact,
+                    "quality": dp.quality.value,
+                    "explanation": dp.explanation
+                }
+                for dp in analytics.decision_points
+            ],
+            "partnership_analysis": {
+                "partnership_formed": analytics.partnership_analysis.partnership_formed,
+                "captain_id": analytics.partnership_analysis.captain_id,
+                "partner_id": analytics.partnership_analysis.partner_id,
+                "timing": analytics.partnership_analysis.timing,
+                "success": analytics.partnership_analysis.success,
+                "chemistry_rating": analytics.partnership_analysis.chemistry_rating,
+                "alternative_partners": analytics.partnership_analysis.alternative_partners,
+                "optimal_choice": analytics.partnership_analysis.optimal_choice,
+                "explanation": analytics.partnership_analysis.explanation
+            } if analytics.partnership_analysis else None,
+            "betting_analysis": {
+                "doubles_offered": analytics.betting_analysis.doubles_offered,
+                "doubles_accepted": analytics.betting_analysis.doubles_accepted,
+                "doubles_declined": analytics.betting_analysis.doubles_declined,
+                "duncan_used": analytics.betting_analysis.duncan_used,
+                "timing_quality": analytics.betting_analysis.timing_quality,
+                "aggressive_rating": analytics.betting_analysis.aggressive_rating,
+                "missed_opportunities": analytics.betting_analysis.missed_opportunities,
+                "costly_mistakes": analytics.betting_analysis.costly_mistakes,
+                "net_quarter_impact": analytics.betting_analysis.net_quarter_impact
+            },
+            "shot_analysis": {
+                "total_shots": analytics.shot_analysis.total_shots,
+                "shot_quality_distribution": analytics.shot_analysis.shot_quality_distribution,
+                "clutch_shots": analytics.shot_analysis.clutch_shots,
+                "worst_shot": analytics.shot_analysis.worst_shot,
+                "best_shot": analytics.shot_analysis.best_shot,
+                "pressure_performance": analytics.shot_analysis.pressure_performance
+            },
+            "key_moments": [
+                {
+                    "description": km.description,
+                    "impact": km.impact,
+                    "quarters_swing": km.quarters_swing,
+                    "player_involved": km.player_involved,
+                    "timestamp": km.timestamp
+                }
+                for km in analytics.key_moments
+            ],
+            "biggest_mistake": analytics.biggest_mistake,
+            "best_decision": analytics.best_decision,
+            "learning_points": analytics.learning_points,
+            "overall_performance": analytics.overall_performance,
+            "decision_making_score": analytics.decision_making_score,
+            "risk_management_score": analytics.risk_management_score,
+            "ai_comparison": analytics.ai_comparison,
+            "historical_comparison": analytics.historical_comparison,
+            "tips_for_improvement": analytics.tips_for_improvement,
+            "similar_scenarios_to_practice": analytics.similar_scenarios_to_practice
+        }
+        
+        return analytics_dict
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating post-hole analytics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/simulation/turn-based-state")
 def get_turn_based_state():
