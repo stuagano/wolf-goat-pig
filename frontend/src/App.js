@@ -18,6 +18,7 @@ import { MockAuthProvider } from "./context/MockAuthContext";
 import { AuthProvider } from "./context/AuthContext";
 import { TutorialProvider } from "./context/TutorialContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
+import LoginButton from "./components/auth/LoginButton";
 import { HomePage } from "./pages";
 import SignupPage from "./pages/SignupPage";
 import AboutPage from "./pages/AboutPage";
@@ -35,9 +36,13 @@ function App() {
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
+  const { isAuthenticated, isLoading } = useAuth0();
   
   const [backendReady, setBackendReady] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
+  
+  // Check if we're using mock auth
+  const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === 'true';
 
   const handleBackendReady = () => {
     setBackendReady(true);
@@ -51,6 +56,95 @@ function App() {
         console.warn('Could not load rules:', err);
       });
   };
+
+  // Show loading screen while checking authentication
+  if (isLoading && !useMockAuth) {
+    return (
+      <ThemeProvider>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100vh',
+          background: theme.colors.background
+        }}>
+          <div style={{
+            ...theme.cardStyle,
+            textAlign: 'center',
+            padding: '40px'
+          }}>
+            <div style={{ 
+              fontSize: '24px',
+              marginBottom: '16px',
+              color: theme.colors.primary 
+            }}>
+              🔄 Loading...
+            </div>
+            <p style={{ color: theme.colors.textSecondary }}>
+              Checking authentication status
+            </p>
+          </div>
+        </div>
+      </ThemeProvider>
+    );
+  }
+
+  // Show login screen if not authenticated (unless using mock auth)
+  if (!isAuthenticated && !useMockAuth) {
+    return (
+      <ThemeProvider>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100vh',
+          background: theme.colors.background,
+          padding: '20px'
+        }}>
+          <div style={{
+            ...theme.cardStyle,
+            textAlign: 'center',
+            padding: '40px',
+            maxWidth: '500px'
+          }}>
+            <div style={{ 
+              fontSize: '48px',
+              marginBottom: '16px' 
+            }}>
+              🐷🐺🐐
+            </div>
+            <h1 style={{ 
+              color: theme.colors.primary,
+              marginBottom: '8px',
+              fontSize: '2.5rem'
+            }}>
+              Wolf Goat Pig
+            </h1>
+            <p style={{ 
+              color: theme.colors.textSecondary,
+              marginBottom: '24px',
+              fontSize: '1.2rem'
+            }}>
+              The Ultimate Golf Betting Game
+            </p>
+            <p style={{ 
+              color: theme.colors.textSecondary,
+              marginBottom: '32px'
+            }}>
+              Please log in to start playing Wolf Goat Pig with your friends.
+            </p>
+            <LoginButton style={{
+              fontSize: '18px',
+              padding: '16px 32px',
+              minWidth: '200px'
+            }} />
+          </div>
+        </div>
+      </ThemeProvider>
+    );
+  }
 
   // If backend isn't ready, show cold start handler
   if (!backendReady) {
