@@ -407,20 +407,65 @@ class GHINService:
                 logger.error(f"Failed to get fallback leaderboard: {fallback_error}")
                 return []
     
-    # TODO: These methods would connect to the actual GHIN API
-    # For now, they return mock data for testing
+    # GHIN API Integration - Now supports real API calls
     
     async def _fetch_handicap_from_ghin(self, ghin_id: str) -> Optional[Dict[str, Any]]:
         """Fetch handicap from GHIN API."""
         logger.info(f"Fetching handicap for GHIN ID {ghin_id}")
         
-        headers = {"Authorization": f"Bearer {self.jwt_token}"}
-        url = f"{self.GHIN_API_BASE_URL}/golfers/{ghin_id}/handicap_index"
+        try:
+            # Use environment-based GHIN integration
+            if not os.getenv("ENABLE_GHIN_INTEGRATION", "false").lower() == "true":
+                logger.info("GHIN integration disabled, using mock data")
+                return await self._get_mock_handicap_data(ghin_id)
+            
+            if not self.jwt_token:
+                logger.error("GHIN JWT token not available")
+                return await self._get_mock_handicap_data(ghin_id)
+            
+            headers = {"Authorization": f"Bearer {self.jwt_token}"}
+            url = f"{self.GHIN_API_BASE_URL}/golfers/{ghin_id}/handicap_index"
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers=headers)
-            response.raise_for_status()
-            return response.json()
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url, headers=headers, timeout=10.0)
+                response.raise_for_status()
+                data = response.json()
+                
+                logger.info(f"Successfully fetched GHIN data for {ghin_id}")
+                return {
+                    "ghin_id": ghin_id,
+                    "handicap": data.get("handicap_index", 18.0),
+                    "name": data.get("name", "Unknown"),
+                    "last_updated": data.get("last_revised_date"),
+                    "status": "active"
+                }
+                
+        except Exception as e:
+            logger.warning(f"GHIN API call failed for {ghin_id}: {e}")
+            return await self._get_mock_handicap_data(ghin_id)
+    
+    async def _get_mock_handicap_data(self, ghin_id: str) -> Dict[str, Any]:
+        """Return mock handicap data for development/fallback"""
+        # Generate consistent mock data based on GHIN ID
+        mock_handicaps = {
+            "1234567": {"handicap": 12.5, "name": "Sam Wilson"},
+            "2345678": {"handicap": 8.2, "name": "Gary Peterson"}, 
+            "3456789": {"handicap": 15.8, "name": "Bernard Thompson"},
+            "4567890": {"handicap": 22.1, "name": "Mike Johnson"},
+        }
+        
+        mock_data = mock_handicaps.get(ghin_id, {
+            "handicap": 18.0,
+            "name": f"Player {ghin_id[-3:]}"
+        })
+        
+        return {
+            "ghin_id": ghin_id,
+            "handicap": mock_data["handicap"],
+            "name": mock_data["name"],
+            "last_updated": "2024-01-01",
+            "status": "mock_data"
+        }
     
     async def _fetch_scores_from_ghin(self, ghin_id: str, days_back: int) -> List[Dict[str, Any]]:
         """Fetch scores from GHIN API."""

@@ -22,12 +22,20 @@ services:
         value: https://wolf-goat-pig.vercel.app
       - key: BACKEND_URL
         value: https://wolf-goat-pig.onrender.com
+      - key: ENABLE_GHIN_INTEGRATION
+        value: "false"  # Set to "true" only if you want to use real GHIN data
       - key: GHIN_API_USER
-        value: ""
+        value: ""  # Optional: Set only if ENABLE_GHIN_INTEGRATION=true
       - key: GHIN_API_PASS
-        value: ""
+        value: ""  # Optional: Set only if ENABLE_GHIN_INTEGRATION=true
       - key: GHIN_API_STATIC_TOKEN
-        value: ""
+        value: ""  # Optional: Set only if ENABLE_GHIN_INTEGRATION=true
+      - key: AUTH0_DOMAIN
+        value: "dev-jm88n088hpt7oe48.us.auth0.com"
+      - key: AUTH0_API_AUDIENCE
+        value: "https://wolf-goat-pig.onrender.com"
+      - key: AUTH0_CLIENT_ID
+        value: "qAZuRv5E9mPQ9uTGg7NWpkpfVj8bCeoB"
     healthCheckPath: /health
     autoDeploy: true
 
