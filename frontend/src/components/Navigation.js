@@ -31,11 +31,10 @@ const Navigation = () => {
 
   const navLinks = [
     { path: '/', label: '🏠 Home', primary: true },
-    { path: '/game', label: '🎮 Game', primary: true },
-    { path: '/practice', label: '🎯 Practice Mode', primary: true },
-    { path: '/simulation', label: '🎲 Simulation', primary: true },
+    { path: '/game', label: '⚔️ Regular Game', primary: true },
+    { path: '/simulation', label: '🎮 Practice Mode', primary: true },
+    { path: '/signup', label: '📝 Sign Up Players', primary: true },
     { path: '/leaderboard', label: '🏆 Leaderboard', primary: true },
-    { path: '/signup', label: '📝 Sign Up to Play', primary: true },
     { path: '/tutorial', label: '🎓 Tutorial', primary: false },
     { path: '/about', label: 'ℹ️ About', primary: false },
     { path: '/rules', label: '📋 Rules', primary: false },

@@ -28,6 +28,9 @@ import GameHistory from '../GameHistory';
 // Import simulation components
 import { GameSetup as SimulationSetup, GamePlay as SimulationPlay } from '../simulation';
 
+// Import game setup components
+import GameSetupForm from './GameSetupForm';
+
 const UnifiedGameInterface = ({ mode = 'regular' }) => {
   const theme = useTheme();
   const { 
@@ -273,6 +276,31 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
               Please wait while we prepare your game
             </div>
           </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // For regular mode, show game setup if no game is active
+  if (mode === 'regular' && !isGameActive && !gameState) {
+    return (
+      <div style={{ maxWidth: 800, margin: '0 auto', padding: theme.spacing[4] }}>
+        <Card>
+          <div style={{ textAlign: 'center', marginBottom: theme.spacing[6] }}>
+            <h1 style={{ color: theme.colors.primary, marginBottom: theme.spacing[2] }}>
+              🎯 Start New Wolf Goat Pig Game
+            </h1>
+            <p style={{ color: theme.colors.textSecondary, fontSize: theme.typography.lg }}>
+              Set up players, course, and game settings
+            </p>
+          </div>
+          
+          <GameSetupForm 
+            onSetup={(newGameState) => {
+              setGameState(newGameState);
+              startGame(newGameState);
+            }}
+          />
         </Card>
       </div>
     );

@@ -74,12 +74,12 @@ function HomePage() {
       color: '#0369A1' // deep water blue
     },
     {
-      icon: '🏆',
-      title: 'Leaderboard',
-      description: 'View rankings and player statistics from Google Sheets',
-      action: () => navigate('/leaderboard'),
-      buttonText: 'View Leaderboard',
-      color: '#B45309' // warm sand/bronze
+      icon: '📝',
+      title: 'Sign Up Players',
+      description: 'Organize games and manage player availability',
+      action: () => navigate('/signup'),
+      buttonText: 'Sign Up',
+      color: '#7C2D12' // warm brown
     },
     {
       icon: '🎓',
@@ -94,8 +94,9 @@ function HomePage() {
   const menuItems = [
     { icon: 'ℹ️', label: 'About Wolf Goat Pig', path: '/about' },
     { icon: '📖', label: 'Game Rules', path: '/rules' },
-    { icon: '🎮', label: 'Play Game', path: '/game' },
-    { icon: '🎲', label: 'Practice Mode', path: '/simulation' },
+    { icon: '⚔️', label: 'Regular Game', path: '/game' },
+    { icon: '🎮', label: 'Practice Mode', path: '/simulation' },
+    { icon: '📝', label: 'Sign Up Players', path: '/signup' },
     { icon: '🏆', label: 'Leaderboard', path: '/leaderboard' },
     { icon: '🎓', label: 'Tutorial', path: '/tutorial' },
     { icon: '📊', label: 'Analytics', path: '/analytics' },
