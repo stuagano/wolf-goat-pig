@@ -42,31 +42,34 @@ class AuthService:
         token = credentials.credentials
         
         try:
-            # In production, you would fetch the JWKS from Auth0
-            # For now, we'll return a mock user
-            # Uncomment below for real Auth0 integration:
-            """
-            jwks_url = f"https://{AUTH0_DOMAIN}/.well-known/jwks.json"
-            jwks_client = jwt.PyJWKClient(jwks_url)
-            signing_key = jwks_client.get_signing_key_from_jwt(token)
-            
-            payload = jwt.decode(
-                token,
-                signing_key.key,
-                algorithms=AUTH0_ALGORITHMS,
-                audience=AUTH0_API_AUDIENCE,
-                issuer=f"https://{AUTH0_DOMAIN}/"
-            )
-            return payload
-            """
-            
-            # Mock user for development
-            return {
-                "sub": "auth0|123456789",
-                "email": "test@example.com",
-                "name": "Test User",
-                "picture": "https://example.com/avatar.jpg"
-            }
+            # Use environment variable to determine auth mode
+            if os.getenv("ENVIRONMENT") == "production":
+                # Production Auth0 integration
+                if AUTH0_DOMAIN == "your-domain.auth0.com" or AUTH0_API_AUDIENCE == "your-api-audience":
+                    logger.error("Auth0 configuration not set for production")
+                    raise HTTPException(status_code=500, detail="Authentication service not configured")
+                
+                jwks_url = f"https://{AUTH0_DOMAIN}/.well-known/jwks.json"
+                jwks_client = jwt.PyJWKClient(jwks_url)
+                signing_key = jwks_client.get_signing_key_from_jwt(token)
+                
+                payload = jwt.decode(
+                    token,
+                    signing_key.key,
+                    algorithms=AUTH0_ALGORITHMS,
+                    audience=AUTH0_API_AUDIENCE,
+                    issuer=f"https://{AUTH0_DOMAIN}/"
+                )
+                return payload
+            else:
+                # Development mode - allow mock authentication
+                logger.warning("Using mock authentication - development mode only")
+                return {
+                    "sub": "auth0|123456789",
+                    "email": "test@example.com",
+                    "name": "Test User",
+                    "picture": "https://example.com/avatar.jpg"
+                }
             
         except JWTError as e:
             logger.error(f"JWT verification failed: {str(e)}")

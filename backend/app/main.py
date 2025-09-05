@@ -99,15 +99,24 @@ app = FastAPI(
 #     )
 
 # CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "https://wolf-goat-pig.vercel.app",  # Production frontend
+# Configure origins based on environment
+allowed_origins = [
+    "https://wolf-goat-pig.vercel.app",  # Production frontend
+    "https://wolf-goat-pig-frontend.onrender.com",  # Alternative frontend URL
+]
+
+# Add localhost for development only
+if os.getenv("ENVIRONMENT") != "production":
+    allowed_origins.extend([
         "http://localhost:3000",             # Local development
         "http://localhost:3001",             # Alternative local port
-        "https://wolf-goat-pig-frontend.onrender.com",  # Alternative frontend URL
-        "*"  # Allow all origins for debugging - remove in production
-    ],
+        "http://127.0.0.1:3000",            # Alternative localhost
+        "http://127.0.0.1:3001",            # Alternative localhost
+    ])
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"],
     allow_headers=[
@@ -242,6 +251,20 @@ async def startup():
             logger.info("✅ Simulation initialization verified")
         except Exception as e:
             logger.warning(f"⚠️ Simulation test failed (non-critical): {e}")
+        
+        # Initialize email scheduler if email notifications enabled
+        if os.getenv("ENABLE_EMAIL_NOTIFICATIONS", "true").lower() == "true":
+            try:
+                logger.info("📧 Initializing email scheduler...")
+                result = await initialize_email_scheduler()
+                if result["status"] == "success":
+                    logger.info("✅ Email scheduler initialized")
+                else:
+                    logger.warning(f"⚠️ Email scheduler: {result['message']}")
+            except Exception as e:
+                logger.error(f"❌ Email scheduler initialization failed: {e}")
+        else:
+            logger.info("📧 Email notifications disabled")
         
         logger.info("🚀 Wolf Goat Pig API startup completed successfully!")
         
