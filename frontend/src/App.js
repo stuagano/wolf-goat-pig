@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Routes, Route, useNavigate, Navigate, useLocation } from "react-router-dom";
 import { useAuth0 } from "@auth0/auth0-react";
 import { UnifiedGameInterface } from "./components/game";
@@ -7,7 +7,6 @@ import FeedAnalyzer from "./components/simulation/FeedAnalyzer";
 import ShotRangeAnalyzer from "./components/ShotRangeAnalyzer";
 import ColdStartHandler from "./components/ColdStartHandler";
 import TutorialSystem from "./components/tutorial/TutorialSystem";
-import EnhancedPracticeMode from "./components/practice/EnhancedPracticeMode";
 import WGPAnalyticsDashboard from "./components/WGPAnalyticsDashboard";
 import SheetIntegrationDashboard from "./components/SheetIntegrationDashboard";
 import GoogleSheetsLiveSync from "./components/GoogleSheetsLiveSync";
@@ -24,7 +23,6 @@ import SignupPage from "./pages/SignupPage";
 import AboutPage from "./pages/AboutPage";
 import RulesPage from "./pages/RulesPage";
 import AdminPage from "./pages/AdminPage";
-import EmailSettings from "./components/email/EmailSettings";
 import Navigation from "./components/Navigation";
 
 const API_URL = process.env.REACT_APP_API_URL || "";
@@ -158,15 +156,48 @@ function App() {
   // Show splash screen only on homepage after backend is ready
   if (showSplash && location.pathname === '/') {
     return (
-      <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100vh',background:theme.colors.background}}>
-        <div style={{...theme.cardStyle, textAlign:'center', maxWidth: 400, marginTop: -80}}>
-          <h1 style={{color:theme.colors.primary, fontSize:32, marginBottom:16}}>Wolf Goat Pig</h1>
-          <p style={{fontSize:18, color:theme.colors.textPrimary, marginBottom:24}}>Golf Game Tracker</p>
-          <button style={{...theme.buttonStyle, fontSize:22, width:220, margin:'0 auto'}} onClick={() => setShowSplash(false)}>
-            Start New Game
-          </button>
+      <ThemeProvider>
+        <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100vh',background:theme.colors.background}}>
+          <div style={{...theme.cardStyle, textAlign:'center', maxWidth: 400, marginTop: -80}}>
+            <div style={{ fontSize: '48px', marginBottom: '16px' }}>🐷🐺🐐</div>
+            <h1 style={{color:theme.colors.primary, fontSize:32, marginBottom:16}}>Wolf Goat Pig</h1>
+            <p style={{fontSize:18, color:theme.colors.textPrimary, marginBottom:24}}>Golf Game Tracker</p>
+            {!isAuthenticated && !useMockAuth ? (
+              <div style={{ marginBottom: '16px' }}>
+                <p style={{ fontSize: 14, color: theme.colors.textSecondary, marginBottom: 16 }}>
+                  Please log in to start playing
+                </p>
+                <LoginButton style={{
+                  fontSize: '18px',
+                  padding: '12px 32px',
+                  minWidth: '180px'
+                }} />
+              </div>
+            ) : (
+              <button 
+                style={{...theme.buttonStyle, fontSize:22, width:220, margin:'0 auto'}} 
+                onClick={() => setShowSplash(false)}
+              >
+                Enter Game
+              </button>
+            )}
+            <button 
+              style={{
+                ...theme.buttonStyle, 
+                fontSize: 16, 
+                width: 220, 
+                margin: '8px auto 0', 
+                background: 'transparent',
+                color: theme.colors.textSecondary,
+                border: `1px solid ${theme.colors.textSecondary}`
+              }} 
+              onClick={() => setShowSplash(false)}
+            >
+              Browse Without Login
+            </button>
+          </div>
         </div>
-      </div>
+      </ThemeProvider>
     );
   }
 
@@ -220,11 +251,6 @@ function App() {
             </ProtectedRoute>
           } />
           <Route path="/tutorial" element={<TutorialSystem onComplete={() => navigate('/game')} onExit={() => navigate('/')} />} />
-          <Route path="/practice" element={
-            <ProtectedRoute>
-              <EnhancedPracticeMode onComplete={() => navigate('/')} onExit={() => navigate('/')} />
-            </ProtectedRoute>
-          } />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/rules" element={<RulesPage />} />
           <Route path="/admin" element={
