@@ -221,8 +221,7 @@ const useOddsCalculation = ({
         return newHistory;
       });
 
-      // Update performance metrics
-      updatePerformanceMetrics();
+      // Update performance metrics will be done by separate effect
 
       // Trigger callback
       if (onOddsUpdate) {
@@ -254,8 +253,7 @@ const useOddsCalculation = ({
     performanceTarget,
     maxRetries,
     onOddsUpdate,
-    onError,
-    updatePerformanceMetrics // Added missing dependency
+    onError
   ]);
 
   // Quick odds calculation (simplified)
@@ -300,6 +298,12 @@ const useOddsCalculation = ({
         : 0
     });
   }, []);
+
+  // Effect to periodically update performance metrics
+  useEffect(() => {
+    const interval = setInterval(updatePerformanceMetrics, 10000); // Update every 10 seconds
+    return () => clearInterval(interval);
+  }, [updatePerformanceMetrics]);
 
   // Auto-update effect
   useEffect(() => {

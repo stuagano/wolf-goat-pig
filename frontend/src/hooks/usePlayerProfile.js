@@ -26,28 +26,7 @@ const usePlayerProfile = () => {
         LAST_SYNC: 'wgp_last_sync'
     };
 
-    // Load initial data on mount
-    useEffect(() => {
-        loadInitialData();
-    }, [loadInitialData]);
-
-    // Sync with server periodically
-    useEffect(() => {
-        const interval = setInterval(() => {
-            const lastSync = localStorage.getItem(STORAGE_KEYS.LAST_SYNC);
-            const now = Date.now();
-            const fiveMinutes = 5 * 60 * 1000;
-
-            // Sync if more than 5 minutes since last sync
-            if (!lastSync || (now - parseInt(lastSync)) > fiveMinutes) {
-                syncWithServer();
-            }
-        }, 60000); // Check every minute
-
-        return () => clearInterval(interval);
-    }, [STORAGE_KEYS.LAST_SYNC, syncWithServer]);
-
-    const loadInitialData = async () => {
+    const loadInitialData = useCallback(async () => {
         try {
             setLoading(true);
             
@@ -62,7 +41,12 @@ const usePlayerProfile = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, []); // Add dependencies array for useCallback
+
+    // Load initial data on mount
+    useEffect(() => {
+        loadInitialData();
+    }, [loadInitialData]);
 
     const loadFromLocalStorage = () => {
         try {

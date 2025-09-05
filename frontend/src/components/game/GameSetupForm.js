@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import CourseManager from "./CourseManager";
 import PlayerProfileManager from "../PlayerProfileManager";
-import usePlayerProfile from "../../hooks/usePlayerProfile";
+// import usePlayerProfile from "../../hooks/usePlayerProfile"; // Temporarily disabled
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -57,12 +57,11 @@ const inputStyle = {
 };
 
 function GameSetupForm({ onSetup }) {
-  const {
-    selectedProfile,
-    profiles,
-    selectProfile,
-    hasProfiles
-  } = usePlayerProfile();
+  // Temporarily simplified profile handling
+  const selectedProfile = null;
+  const profiles = [];
+  const hasProfiles = false;
+  const selectProfile = () => {};
 
   const [players, setPlayers] = useState([
     { id: 'p1', name: '', handicap: '', strength: '', is_human: true, profile_id: null },
