@@ -220,6 +220,30 @@ const TurnBasedInterface = ({
             <p style={{ color: theme.colors.textSecondary, marginBottom: 16 }}>
               No partnership invitations available yet. Waiting for players to complete tee shots...
             </p>
+            {hasNextShot && (
+              <Button
+                onClick={onNextShot}
+                style={{ padding: '12px 24px', fontSize: 16 }}
+              >
+                ⚡ Play Tee Shots
+              </Button>
+            )}
+          </div>
+        )}
+
+        {availablePartners.length === 0 && !captainInfo.isHuman && (
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ color: theme.colors.textSecondary, marginBottom: 16 }}>
+              Waiting for players to complete tee shots before {captainInfo.captain?.name} makes a decision...
+            </p>
+            {hasNextShot && (
+              <Button
+                onClick={onNextShot}
+                style={{ padding: '12px 24px', fontSize: 16 }}
+              >
+                ⚡ Play Next Shot
+              </Button>
+            )}
           </div>
         )}
       </Card>

@@ -4557,9 +4557,9 @@ def get_turn_based_state():
         
         # Get shots played
         shots_played = []
-        for position in hole_state.ball_positions:
+        for player_id, position in hole_state.ball_positions.items():
             shots_played.append({
-                "player_id": position.player_id,
+                "player_id": player_id,
                 "shot_number": position.shot_count,
                 "distance_to_pin": position.distance_to_pin,
                 "lie_type": position.lie_type,
@@ -4573,10 +4573,10 @@ def get_turn_based_state():
         if phase == "match_play":
             # Find furthest from hole for shot order
             max_distance = -1
-            for pos in hole_state.ball_positions:
+            for player_id, pos in hole_state.ball_positions.items():
                 if not pos.holed and pos.distance_to_pin > max_distance:
                     max_distance = pos.distance_to_pin
-                    furthest_player = next((p for p in wgp_simulation.players if p.id == pos.player_id), None)
+                    furthest_player = next((p for p in wgp_simulation.players if p.id == player_id), None)
             current_turn = furthest_player.id if furthest_player else None
         
         # Get pending decision info
@@ -4633,20 +4633,20 @@ def get_turn_based_state():
                     "current_wager": hole_state.betting.current_wager,
                     "base_wager": hole_state.betting.base_wager,
                     "doubled": hole_state.betting.doubled,
-                    "in_hole": any(pos.holed for pos in hole_state.ball_positions)
+                    "in_hole": any(pos.holed for pos in hole_state.ball_positions.values())
                 },
                 "pending_decision": pending_decision,
                 "betting_opportunities": betting_opportunities,
                 "shots_played": shots_played,
                 "ball_positions": [
                     {
-                        "player_id": pos.player_id,
-                        "player_name": wgp_simulation._get_player_name(pos.player_id),
+                        "player_id": player_id,
+                        "player_name": wgp_simulation._get_player_name(player_id),
                         "distance_to_pin": pos.distance_to_pin,
                         "lie_type": pos.lie_type,
                         "shot_count": pos.shot_count,
                         "holed": pos.holed
-                    } for pos in hole_state.ball_positions
+                    } for player_id, pos in hole_state.ball_positions.items()
                 ],
                 "furthest_from_hole": {
                     "player_id": furthest_player.id if furthest_player else None,

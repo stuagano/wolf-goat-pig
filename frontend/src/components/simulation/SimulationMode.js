@@ -546,7 +546,7 @@ function SimulationMode() {
       <TurnBasedInterface
         gameState={{
           ...gameState,
-          ...turnBasedState,
+          ...(turnBasedState.turn_based_state || turnBasedState),
           interactionNeeded,
           hasNextShot,
           feedback
