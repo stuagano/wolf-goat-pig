@@ -33,6 +33,7 @@ from datetime import datetime
 from .services.player_service import PlayerService # Import PlayerService
 from .services.email_service import EmailService, get_email_service
 from .services.oauth2_email_service import OAuth2EmailService, get_oauth2_email_service
+from .services.team_formation_service import TeamFormationService
 # Email scheduler will be initialized on-demand to prevent startup blocking
 # from .services.email_scheduler import email_scheduler
 from .services.auth_service import get_current_user
@@ -5306,6 +5307,251 @@ def set_player_availability(player_id: int, availability: schemas.PlayerAvailabi
         db.rollback()
         logger.error(f"Error setting availability for player {player_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to set availability: {str(e)}")
+    finally:
+        db.close()
+
+# Team Formation Endpoints
+@app.post("/signups/{date}/team-formation/random")
+def generate_random_teams_for_date(
+    date: str = Path(description="Date in YYYY-MM-DD format"),
+    seed: Optional[int] = Query(None, description="Random seed for reproducible results"),
+    max_teams: Optional[int] = Query(None, description="Maximum number of teams to create")
+):
+    """Generate random 4-player teams from players signed up for a specific date."""
+    try:
+        db = database.SessionLocal()
+        
+        # Get all signups for the specified date
+        signups = db.query(models.DailySignup).filter(
+            models.DailySignup.date == date,
+            models.DailySignup.status != "cancelled"
+        ).all()
+        
+        if len(signups) < 4:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Not enough players signed up for {date}. Need at least 4 players, found {len(signups)}"
+            )
+        
+        # Convert signups to player dictionaries
+        players = []
+        for signup in signups:
+            player_data = {
+                "id": signup.id,
+                "player_profile_id": signup.player_profile_id,
+                "player_name": signup.player_name,
+                "preferred_start_time": signup.preferred_start_time,
+                "notes": signup.notes,
+                "signup_time": signup.signup_time
+            }
+            players.append(player_data)
+        
+        # Generate random teams
+        teams = TeamFormationService.generate_random_teams(
+            players=players,
+            seed=seed,
+            max_teams=max_teams
+        )
+        
+        # Create summary
+        summary = TeamFormationService.create_team_summary(teams)
+        summary["date"] = date
+        summary["total_signups"] = len(signups)
+        
+        # Validate results
+        validation = TeamFormationService.validate_team_formation(teams)
+        
+        logger.info(f"Generated {len(teams)} random teams for date {date}")
+        
+        return {
+            "summary": summary,
+            "teams": teams,
+            "validation": validation,
+            "remaining_players": len(signups) % 4
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating random teams for date {date}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate teams: {str(e)}")
+    finally:
+        db.close()
+
+@app.post("/signups/{date}/team-formation/balanced")
+def generate_balanced_teams_for_date(
+    date: str = Path(description="Date in YYYY-MM-DD format"),
+    seed: Optional[int] = Query(None, description="Random seed for reproducible results")
+):
+    """Generate skill-balanced 4-player teams from players signed up for a specific date."""
+    try:
+        db = database.SessionLocal()
+        
+        # Get all signups for the specified date
+        signups = db.query(models.DailySignup).filter(
+            models.DailySignup.date == date,
+            models.DailySignup.status != "cancelled"
+        ).all()
+        
+        if len(signups) < 4:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Not enough players signed up for {date}. Need at least 4 players, found {len(signups)}"
+            )
+        
+        # Get player profiles with handicap information
+        players = []
+        for signup in signups:
+            # Get player profile for handicap
+            player_profile = db.query(models.PlayerProfile).filter(
+                models.PlayerProfile.id == signup.player_profile_id
+            ).first()
+            
+            player_data = {
+                "id": signup.id,
+                "player_profile_id": signup.player_profile_id,
+                "player_name": signup.player_name,
+                "preferred_start_time": signup.preferred_start_time,
+                "notes": signup.notes,
+                "signup_time": signup.signup_time,
+                "handicap": player_profile.handicap if player_profile else 18.0
+            }
+            players.append(player_data)
+        
+        # Generate balanced teams
+        teams = TeamFormationService.generate_balanced_teams(
+            players=players,
+            skill_key="handicap",
+            seed=seed
+        )
+        
+        # Create summary
+        summary = TeamFormationService.create_team_summary(teams)
+        summary["date"] = date
+        summary["total_signups"] = len(signups)
+        
+        # Validate results
+        validation = TeamFormationService.validate_team_formation(teams)
+        
+        logger.info(f"Generated {len(teams)} balanced teams for date {date}")
+        
+        return {
+            "summary": summary,
+            "teams": teams,
+            "validation": validation,
+            "remaining_players": len(signups) % 4
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating balanced teams for date {date}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate balanced teams: {str(e)}")
+    finally:
+        db.close()
+
+@app.post("/signups/{date}/team-formation/rotations")
+def generate_team_rotations_for_date(
+    date: str = Path(description="Date in YYYY-MM-DD format"),
+    num_rotations: int = Query(3, description="Number of different team rotations to create"),
+    seed: Optional[int] = Query(None, description="Random seed for reproducible results")
+):
+    """Generate multiple team rotation options for variety throughout the day."""
+    try:
+        db = database.SessionLocal()
+        
+        # Get all signups for the specified date
+        signups = db.query(models.DailySignup).filter(
+            models.DailySignup.date == date,
+            models.DailySignup.status != "cancelled"
+        ).all()
+        
+        if len(signups) < 4:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Not enough players signed up for {date}. Need at least 4 players, found {len(signups)}"
+            )
+        
+        # Convert signups to player dictionaries
+        players = []
+        for signup in signups:
+            player_data = {
+                "id": signup.id,
+                "player_profile_id": signup.player_profile_id,
+                "player_name": signup.player_name,
+                "preferred_start_time": signup.preferred_start_time,
+                "notes": signup.notes,
+                "signup_time": signup.signup_time
+            }
+            players.append(player_data)
+        
+        # Generate team rotations
+        rotations = TeamFormationService.create_team_pairings_with_rotations(
+            players=players,
+            num_rotations=num_rotations,
+            seed=seed
+        )
+        
+        logger.info(f"Generated {len(rotations)} team rotations for date {date}")
+        
+        return {
+            "date": date,
+            "total_signups": len(signups),
+            "num_rotations": len(rotations),
+            "rotations": rotations
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating team rotations for date {date}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate rotations: {str(e)}")
+    finally:
+        db.close()
+
+@app.get("/signups/{date}/players")
+def get_players_for_date(date: str = Path(description="Date in YYYY-MM-DD format")):
+    """Get all players signed up for a specific date."""
+    try:
+        db = database.SessionLocal()
+        
+        # Get all signups for the specified date
+        signups = db.query(models.DailySignup).filter(
+            models.DailySignup.date == date,
+            models.DailySignup.status != "cancelled"
+        ).all()
+        
+        players = []
+        for signup in signups:
+            # Get player profile for additional info
+            player_profile = db.query(models.PlayerProfile).filter(
+                models.PlayerProfile.id == signup.player_profile_id
+            ).first()
+            
+            player_data = {
+                "signup_id": signup.id,
+                "player_profile_id": signup.player_profile_id,
+                "player_name": signup.player_name,
+                "preferred_start_time": signup.preferred_start_time,
+                "notes": signup.notes,
+                "signup_time": signup.signup_time,
+                "handicap": player_profile.handicap if player_profile else None,
+                "email": player_profile.email if player_profile else None
+            }
+            players.append(player_data)
+        
+        return {
+            "date": date,
+            "total_players": len(players),
+            "players": players,
+            "can_form_teams": len(players) >= 4,
+            "max_complete_teams": len(players) // 4,
+            "remaining_players": len(players) % 4
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting players for date {date}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get players: {str(e)}")
     finally:
         db.close()
 
