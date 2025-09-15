@@ -14,6 +14,9 @@ const DailySignupView = ({ selectedDate, onBack }) => {
   const [error, setError] = useState(null);
   const [newMessage, setNewMessage] = useState('');
   const [teeTimesText, setTeeTimesText] = useState('');
+  const [teams, setTeams] = useState([]);
+  const [teamFormationLoading, setTeamFormationLoading] = useState(false);
+  const [showTeamFormation, setShowTeamFormation] = useState(false);
 
   // Format date for display
   const formatDateDisplay = (dateStr) => {
@@ -144,6 +147,72 @@ const DailySignupView = ({ selectedDate, onBack }) => {
     } catch (err) {
       console.error('Message error:', err);
       setError('Failed to post message');
+    }
+  };
+
+  // Handle generating random teams
+  const handleGenerateRandomTeams = async () => {
+    if (signupData.players.length < 4) {
+      setError('Need at least 4 players to generate teams');
+      return;
+    }
+
+    try {
+      setTeamFormationLoading(true);
+      const response = await fetch(`${API_URL}/signups/${selectedDate}/team-formation/random`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setTeams(result.teams);
+        setShowTeamFormation(true);
+        setError(null);
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to generate teams');
+      }
+    } catch (err) {
+      console.error('Team formation error:', err);
+      setError(`Failed to generate teams: ${err.message}`);
+    } finally {
+      setTeamFormationLoading(false);
+    }
+  };
+
+  // Handle generating balanced teams
+  const handleGenerateBalancedTeams = async () => {
+    if (signupData.players.length < 4) {
+      setError('Need at least 4 players to generate teams');
+      return;
+    }
+
+    try {
+      setTeamFormationLoading(true);
+      const response = await fetch(`${API_URL}/signups/${selectedDate}/team-formation/balanced`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setTeams(result.teams);
+        setShowTeamFormation(true);
+        setError(null);
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to generate balanced teams');
+      }
+    } catch (err) {
+      console.error('Balanced team formation error:', err);
+      setError(`Failed to generate balanced teams: ${err.message}`);
+    } finally {
+      setTeamFormationLoading(false);
     }
   };
 
@@ -607,6 +676,195 @@ const DailySignupView = ({ selectedDate, onBack }) => {
           </div>
         </div>
       </div>
+
+      {/* Team Formation Section */}
+      {signupData.players.length >= 4 && (
+        <div style={{
+          background: '#fff',
+          borderRadius: '8px',
+          marginTop: '20px',
+          border: '2px solid #dee2e6',
+          overflow: 'hidden'
+        }}>
+          <div style={{
+            background: '#007bff',
+            color: 'white',
+            padding: '15px',
+            textAlign: 'center',
+            fontWeight: 'bold',
+            fontSize: '18px'
+          }}>
+            ⚡ Team Formation Available ({signupData.players.length} players)
+          </div>
+          
+          <div style={{ padding: '20px' }}>
+            <div style={{
+              marginBottom: '15px',
+              textAlign: 'center',
+              color: '#495057'
+            }}>
+              With {signupData.players.length} players signed up, you can form {Math.floor(signupData.players.length / 4)} complete team(s) of 4 players each.
+              {signupData.players.length % 4 > 0 && (
+                <span style={{ color: '#856404' }}>
+                  {' '}({signupData.players.length % 4} player{signupData.players.length % 4 > 1 ? 's' : ''} will be alternates)
+                </span>
+              )}
+            </div>
+            
+            <div style={{
+              display: 'flex',
+              gap: '15px',
+              justifyContent: 'center',
+              marginBottom: '20px',
+              flexWrap: 'wrap'
+            }}>
+              <button
+                onClick={handleGenerateRandomTeams}
+                disabled={teamFormationLoading}
+                style={{
+                  padding: '10px 20px',
+                  background: teamFormationLoading ? '#6c757d' : '#28a745',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  cursor: teamFormationLoading ? 'not-allowed' : 'pointer',
+                  minWidth: '150px'
+                }}
+              >
+                {teamFormationLoading ? 'Generating...' : '🎲 Random Teams'}
+              </button>
+              
+              <button
+                onClick={handleGenerateBalancedTeams}
+                disabled={teamFormationLoading}
+                style={{
+                  padding: '10px 20px',
+                  background: teamFormationLoading ? '#6c757d' : '#ffc107',
+                  color: teamFormationLoading ? 'white' : '#000',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  cursor: teamFormationLoading ? 'not-allowed' : 'pointer',
+                  minWidth: '150px'
+                }}
+              >
+                {teamFormationLoading ? 'Generating...' : '⚖️ Balanced Teams'}
+              </button>
+              
+              {showTeamFormation && teams.length > 0 && (
+                <button
+                  onClick={() => setShowTeamFormation(false)}
+                  style={{
+                    padding: '10px 20px',
+                    background: '#dc3545',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    minWidth: '150px'
+                  }}
+                >
+                  ❌ Hide Teams
+                </button>
+              )}
+            </div>
+            
+            {showTeamFormation && teams.length > 0 && (
+              <div style={{
+                background: '#f8f9fa',
+                borderRadius: '6px',
+                padding: '15px',
+                border: '1px solid #dee2e6'
+              }}>
+                <h4 style={{
+                  margin: '0 0 15px 0',
+                  color: '#495057',
+                  textAlign: 'center'
+                }}>
+                  Generated Teams ({teams.length} team{teams.length > 1 ? 's' : ''})
+                </h4>
+                
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+                  gap: '15px'
+                }}>
+                  {teams.map((team, teamIndex) => (
+                    <div key={team.team_id || teamIndex} style={{
+                      background: '#fff',
+                      borderRadius: '6px',
+                      padding: '15px',
+                      border: '2px solid #007bff',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    }}>
+                      <div style={{
+                        background: '#007bff',
+                        color: 'white',
+                        padding: '8px',
+                        borderRadius: '4px',
+                        textAlign: 'center',
+                        fontWeight: 'bold',
+                        marginBottom: '10px'
+                      }}>
+                        Team {team.team_id || teamIndex + 1}
+                        {team.average_handicap && (
+                          <span style={{ fontSize: '12px', opacity: 0.9 }}>
+                            {' '}(Avg. Handicap: {team.average_handicap})
+                          </span>
+                        )}
+                      </div>
+                      
+                      {team.players.map((player, playerIndex) => (
+                        <div key={playerIndex} style={{
+                          padding: '6px 10px',
+                          background: '#f8f9fa',
+                          marginBottom: '5px',
+                          borderRadius: '4px',
+                          fontSize: '14px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}>
+                          <span>{player.player_name}</span>
+                          {player.handicap && (
+                            <span style={{
+                              fontSize: '12px',
+                              color: '#6c757d',
+                              background: '#e9ecef',
+                              padding: '2px 6px',
+                              borderRadius: '3px'
+                            }}>
+                              HCP: {player.handicap}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+                
+                <div style={{
+                  marginTop: '15px',
+                  padding: '10px',
+                  background: '#d1ecf1',
+                  borderRadius: '4px',
+                  textAlign: 'center',
+                  fontSize: '14px',
+                  color: '#0c5460'
+                }}>
+                  💡 <strong>Tip:</strong> Teams are automatically balanced based on skill level when using "Balanced Teams". 
+                  Use "Random Teams" for completely random pairings.
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Not Authenticated Message */}
       {!isAuthenticated && (
