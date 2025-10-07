@@ -112,18 +112,78 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
     fetch(`${API_URL}/game/player_strokes`).then(res => res.json()).then(data => setPlayerStrokes(data));
   }, [setGameState, setLoading]);
 
+  const fetchAndSetGameState = async () => {
+    try {
+      const res = await fetch(`${API_URL}/game/state`);
+      if (!res.ok) return false;
+      const stateData = await res.json();
+      if (isBlankGameState(stateData)) {
+        setGameState(null);
+      } else {
+        setGameState(stateData);
+      }
+      return true;
+    } catch (error) {
+      console.error('Failed to refresh game state:', error);
+      return false;
+    }
+  };
+
+  const applyGameStateFromResponse = async (data) => {
+    if (!data) return false;
+
+    const possibleState = data.game_state || data.gameState || data.state;
+    if (possibleState) {
+      if (isBlankGameState(possibleState)) {
+        setGameState(null);
+      } else {
+        setGameState(possibleState);
+      }
+      return true;
+    }
+
+    if (data.status || data.message || data.available_actions || data.log_message) {
+      return await fetchAndSetGameState();
+    }
+
+    return false;
+  };
+
   const doAction = async (action, payload = {}) => {
     setLoading(true);
-    const res = await fetch(`${API_URL}/game/action`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, payload }),
-    });
-    const data = await res.json();
-    setGameState(data.game_state);
-    setLoading(false);
-    setScoreInputs({});
-    setPartnerSelect("");
+    try {
+      const res = await fetch(`${API_URL}/game/action`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, payload }),
+      });
+
+      let data = null;
+      try {
+        data = await res.json();
+      } catch (jsonError) {
+        console.warn('Failed to parse action response', jsonError);
+      }
+
+      if (!res.ok) {
+        console.error(`Action ${action} failed`, data);
+      }
+
+      const handled = await applyGameStateFromResponse(data);
+      if (!handled) {
+        await fetchAndSetGameState();
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Failed to perform action:', error);
+      await fetchAndSetGameState();
+      return null;
+    } finally {
+      setLoading(false);
+      setScoreInputs({});
+      setPartnerSelect("");
+    }
   };
 
   const createNewGame = () => {
@@ -255,8 +315,8 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
     <div style={{background:'#fff3cd',color:'#856404',border:'2px solid #ffe082',padding:20,borderRadius:8,marginBottom:20,boxShadow:'0 2px 8px #ffe082'}}>
       <div style={{fontWeight:700,fontSize:18,marginBottom:10}}>Double Offered!</div>
       <div style={{marginBottom:12}}>A double has been offered. Do you accept or decline?</div>
-      <button style={{background:'#388e3c',color:'#fff',fontWeight:600,padding:'8px 18px',marginRight:10,border:'none',borderRadius:4,fontSize:16}} onClick={() => doAction("accept_double", { team_id: "team2" })}>Accept Double</button>
-      <button style={{background:'#d32f2f',color:'#fff',fontWeight:600,padding:'8px 18px',border:'none',borderRadius:4,fontSize:16}} onClick={() => doAction("decline_double", { team_id: "team2" })}>Decline Double</button>
+      <button style={{background:'#388e3c',color:'#fff',fontWeight:600,padding:'8px 18px',marginRight:10,border:'none',borderRadius:4,fontSize:16}} onClick={() => doAction("accept_double", { team_id: "team2", accepted: true })}>Accept Double</button>
+      <button style={{background:'#d32f2f',color:'#fff',fontWeight:600,padding:'8px 18px',border:'none',borderRadius:4,fontSize:16}} onClick={() => doAction("decline_double", { team_id: "team2", accepted: false })}>Decline Double</button>
     </div>
   );
 
@@ -381,8 +441,8 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
         {gameState.teams?.type === "pending" && requestedPartnerId && !doublePending && (
           <div style={{ ...theme.cardStyle, opacity: doublePending ? 0.5 : 1, pointerEvents: doublePending ? 'none' : 'auto' }}>
             <div style={{marginBottom:8}}><strong>{PLAYER_NAMES[requestedPartnerId]}'s Response:</strong></div>
-            <button style={{...theme.buttonStyle, width:'100%',marginBottom:6}} onClick={() => doAction("accept_partner", { partner_id: requestedPartnerId })}>Accept</button>
-            <button style={{...theme.buttonStyle, width:'100%'}} onClick={() => doAction("decline_partner", { partner_id: requestedPartnerId })}>Decline</button>
+            <button style={{...theme.buttonStyle, width:'100%',marginBottom:6}} onClick={() => doAction("accept_partner", { partner_id: requestedPartnerId, accepted: true })}>Accept</button>
+            <button style={{...theme.buttonStyle, width:'100%'}} onClick={() => doAction("decline_partner", { partner_id: requestedPartnerId, accepted: false })}>Decline</button>
           </div>
         )}
         {(["partners", "solo"].includes(gameState.teams?.type)) && !doublePending && (
@@ -405,7 +465,7 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
           <div style={{ ...theme.cardStyle, opacity: doublePending ? 0.5 : 1, pointerEvents: doublePending ? 'none' : 'auto' }}>
             <div style={{marginBottom:8}}><strong>Betting Actions:</strong></div>
             {!gameState.doubled_status && (
-              <button style={{...theme.buttonStyle, width:'100%',marginBottom:6}} onClick={() => doAction("offer_double", { offering_team_id: "team1", target_team_id: "team2" })}>
+              <button style={{...theme.buttonStyle, width:'100%',marginBottom:6}} onClick={() => doAction("offer_double", { offering_team_id: "team1", target_team_id: "team2", player_id: gameState.captain_id })}>
                 Offer Double
               </button>
             )}

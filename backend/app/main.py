@@ -895,24 +895,115 @@ def get_player_strokes():
         logger.error(f"Error getting player strokes: {e}")
         raise HTTPException(status_code=500, detail="Failed to get player strokes")
 
+def _get_current_captain_id() -> Optional[str]:
+    """Best-effort lookup for the active captain id across legacy and unified state."""
+    try:
+        simulation_state = wgp_simulation.get_game_state()
+        if isinstance(simulation_state, dict):
+            captain = simulation_state.get("captain_id") or simulation_state.get("captain")
+            if captain:
+                return captain
+    except Exception:
+        # If the simulation hasn't been initialized yet, fall back to legacy state
+        pass
+
+    try:
+        legacy_state = game_state.get_state()
+        if isinstance(legacy_state, dict):
+            return legacy_state.get("captain_id")
+    except Exception:
+        pass
+
+    return None
+
+
+LEGACY_TO_UNIFIED_ACTIONS = {
+    "next_hole": ("ADVANCE_HOLE", lambda payload: {}),
+    "request_partner": ("REQUEST_PARTNERSHIP", lambda payload: payload or {}),
+    "accept_partner": ("RESPOND_PARTNERSHIP", lambda payload: {"accepted": True}),
+    "decline_partner": ("RESPOND_PARTNERSHIP", lambda payload: {"accepted": False}),
+    "go_solo": ("DECLARE_SOLO", lambda payload: {}),
+    "offer_double": (
+        "OFFER_DOUBLE",
+        lambda payload: {
+            "player_id": payload.get("player_id")
+            or payload.get("captain_id")
+            or payload.get("offering_player_id")
+            or payload.get("offering_team_id")
+            or _get_current_captain_id(),
+        },
+    ),
+    "accept_double": ("ACCEPT_DOUBLE", lambda payload: {"accepted": True}),
+    "decline_double": ("ACCEPT_DOUBLE", lambda payload: {"accepted": False}),
+    "concede_putt": ("CONCEDE_PUTT", lambda payload: payload or {}),
+    "INITIALIZE_GAME": ("INITIALIZE_GAME", lambda payload: payload or {}),
+}
+
+UNIFIED_ACTION_TYPES = {
+    "INITIALIZE_GAME",
+    "PLAY_SHOT",
+    "REQUEST_PARTNERSHIP",
+    "RESPOND_PARTNERSHIP",
+    "DECLARE_SOLO",
+    "OFFER_DOUBLE",
+    "ACCEPT_DOUBLE",
+    "CONCEDE_PUTT",
+    "ADVANCE_HOLE",
+    "OFFER_BIG_DICK",
+    "ACCEPT_BIG_DICK",
+    "AARDVARK_JOIN_REQUEST",
+    "AARDVARK_TOSS",
+    "AARDVARK_GO_SOLO",
+    "PING_PONG_AARDVARK",
+    "INVOKE_JOES_SPECIAL",
+    "GET_POST_HOLE_ANALYSIS",
+    "ENTER_HOLE_SCORES",
+    "GET_ADVANCED_ANALYTICS",
+}
+
+
 @app.post("/game/action")
-def legacy_game_action(action: Dict[str, Any]):
-    """Legacy game action endpoint"""
+async def legacy_game_action(action: Dict[str, Any]):
+    """Legacy game action endpoint that delegates to unified handlers when available."""
     try:
         # Handle both "action" and "action_type" field names for compatibility
         action_type = action.get("action") or action.get("action_type")
         if not action_type:
             raise HTTPException(status_code=400, detail="Action type required (use 'action' or 'action_type' field)")
-        
-        # Convert legacy actions to unified action API
-        if action_type == "next_hole":
-            return {"status": "success", "message": "Hole advanced"}
-        elif action_type == "start_game":
-            return {"status": "success", "message": "Game started"}
-        elif action_type == "INITIALIZE_GAME":
-            return {"status": "success", "message": "Game initialized"}
+
+        payload = action.get("payload") or action.get("data") or {}
+
+        # Determine if this action should be routed through the unified handler stack
+        normalized_action_type = None
+        payload_transform = None
+
+        if action_type in LEGACY_TO_UNIFIED_ACTIONS:
+            normalized_action_type, payload_transform = LEGACY_TO_UNIFIED_ACTIONS[action_type]
         else:
-            return {"status": "success", "message": f"Action {action_type} completed"}
+            upper_action = action_type.upper()
+            if upper_action in UNIFIED_ACTION_TYPES:
+                normalized_action_type = upper_action
+                payload_transform = lambda incoming_payload: incoming_payload or {}
+
+        if normalized_action_type:
+            normalized_payload = payload_transform(payload) if payload_transform else (payload or {})
+
+            # Route through the unified action endpoint to ensure consistent behaviour
+            action_request = ActionRequest(action_type=normalized_action_type, payload=normalized_payload)
+            response = await unified_action("legacy", action_request)
+            return response
+
+        # Fallback to legacy game_state dispatch for actions not yet migrated
+        result = game_state.dispatch_action(action_type, payload)
+        updated_state = game_state.get_state()
+
+        return {
+            "status": "success",
+            "message": result,
+            "game_state": updated_state,
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error in legacy game action: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to execute action: {str(e)}")
