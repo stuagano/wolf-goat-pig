@@ -367,17 +367,23 @@ function SimulationMode() {
           setHasNextShot(data.next_shot_available);
         }
         
-        // Show probabilities if available
-        if (data.probabilities) {
-          setShotProbabilities(data.probabilities);
-        }
-        
-        // Show betting probabilities if available
-        if (data.betting_probabilities) {
-          setShotProbabilities(prev => ({
-            ...prev,
-            betting_analysis: data.betting_probabilities
-          }));
+        const baseProbabilities =
+          data.probabilities && typeof data.probabilities === "object" && !Array.isArray(data.probabilities)
+            ? data.probabilities
+            : null;
+
+        const bettingAnalysis =
+          data.betting_probabilities && typeof data.betting_probabilities === "object"
+            ? data.betting_probabilities
+            : null;
+
+        if (baseProbabilities || bettingAnalysis) {
+          const combinedProbabilities = {
+            ...(baseProbabilities || {}),
+            ...(bettingAnalysis ? { betting_analysis: bettingAnalysis } : {}),
+          };
+
+          setShotProbabilities(combinedProbabilities);
         }
         
         // Auto-continue if no interaction needed and shots available

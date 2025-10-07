@@ -347,7 +347,33 @@ export const GameProvider = ({ children }) => {
     setPendingDecision: (decision) => dispatch({ type: GameActions.SET_PENDING_DECISION, payload: decision }),
     
     // Shot analysis
-    setShotProbabilities: (probabilities) => dispatch({ type: GameActions.SET_SHOT_PROBABILITIES, payload: probabilities }),
+    setShotProbabilities: (probabilities) => {
+      const previousProbabilities =
+        state.shotProbabilities && typeof state.shotProbabilities === 'object'
+          ? { ...state.shotProbabilities }
+          : null;
+
+      const resolvedProbabilities =
+        typeof probabilities === 'function'
+          ? probabilities(previousProbabilities)
+          : probabilities;
+
+      if (
+        resolvedProbabilities !== null &&
+        (typeof resolvedProbabilities !== 'object' || Array.isArray(resolvedProbabilities))
+      ) {
+        console.warn('setShotProbabilities expected a plain object or null. Received:', resolvedProbabilities);
+        dispatch({ type: GameActions.SET_SHOT_PROBABILITIES, payload: null });
+        return;
+      }
+
+      const normalizedProbabilities =
+        resolvedProbabilities && typeof resolvedProbabilities === 'object'
+          ? { ...resolvedProbabilities }
+          : null;
+
+      dispatch({ type: GameActions.SET_SHOT_PROBABILITIES, payload: normalizedProbabilities });
+    },
     setHasNextShot: (hasNext) => dispatch({ type: GameActions.SET_HAS_NEXT_SHOT, payload: hasNext }),
     
     // API actions
