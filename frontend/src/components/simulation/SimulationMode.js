@@ -40,12 +40,6 @@ function SimulationMode() {
     setHasNextShot,
   } = useGame();
 
-  // Helper functions for missing setters
-  const setFeedback = (message) => {
-    clearFeedback();
-    if (message) addFeedback(message);
-  };
-  
   // Timeline and Poker state
   const [timelineEvents, setTimelineEvents] = useState([]);
   const [pokerState, setPokerState] = useState({});
@@ -141,7 +135,7 @@ function SimulationMode() {
       // Reset all local state for new simulation
       setGameState(null);
       endGame();  // Use endGame directly instead of setIsGameActive
-      setFeedback([]);
+      clearFeedback();
       setShotProbabilities(null);
       setShotState(null);
       setHasNextShot(true);
@@ -174,10 +168,11 @@ function SimulationMode() {
         startGame(data.game_state);
         
         // Set initial feedback
+        clearFeedback();
         if (data.feedback && Array.isArray(data.feedback)) {
-          setFeedback(data.feedback);
+          data.feedback.forEach((msg) => addFeedback(msg));
         } else {
-          setFeedback([data.message || "Simulation started!"]);
+          addFeedback(data.message || "Simulation started!");
         }
         
         // Set next shot availability from the response
@@ -489,7 +484,7 @@ function SimulationMode() {
         errorMessage += error.message;
       }
       
-      setFeedback(prev => [...prev, `❌ ${errorMessage}`]);
+      addFeedback(`❌ ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -511,7 +506,7 @@ function SimulationMode() {
   const resetSimulation = () => {
     setGameState(null);
     endGame();  // Use endGame directly instead of setIsGameActive
-    setFeedback([]);
+    clearFeedback();
     setHoleDecisions({
       action: null,
       requested_partner: null,
