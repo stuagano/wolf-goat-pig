@@ -2,7 +2,17 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import List
+
+import sys
+
+# Ensure the backend package is importable when running tests in isolation. We
+# avoid hardcoding repo-relative paths throughout the suite by centralising the
+# path resolution here.
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.append(str(PROJECT_ROOT))
 
 import pytest
 
@@ -108,6 +118,17 @@ def test_add_shot_marks_hole_complete_when_all_players_finish() -> None:
         WGPShotResult(
             player_id="p2",
             shot_number=1,
+            lie_type="fairway",
+            distance_to_pin=40,
+            shot_quality="average",
+        ),
+    )
+
+    hole_state.add_shot(
+        "p2",
+        WGPShotResult(
+            player_id="p2",
+            shot_number=2,
             lie_type="green",
             distance_to_pin=0,
             shot_quality="excellent",

@@ -1,22 +1,72 @@
-"""
-Configuration for BDD tests with Playwright
+"""Configuration for Playwright-backed BDD tests.
+
+The functional test harness leans on Playwright for browser automation. Many
+contributors work in constrained CI or container environments where the
+Playwright binaries are unavailable, so we attempt to import it lazily and skip
+browser-dependent fixtures when the dependency cannot be resolved. This keeps
+pure backend/unit suites runnable without forcing a heavyweight browser setup.
 """
 
 import asyncio
-import pytest
-import pytest_asyncio
-from playwright.async_api import async_playwright, Browser, BrowserContext, Page
-import subprocess
-import time
-import requests
 import os
 import signal
+import subprocess
+import time
+from typing import Any, TYPE_CHECKING
 
-# Test configuration
-BACKEND_PORT = 8000
-FRONTEND_PORT = 3000
-BASE_URL = f"http://localhost:{FRONTEND_PORT}"
-API_URL = f"http://localhost:{BACKEND_PORT}"
+import pytest
+import pytest_asyncio
+
+try:  # ``requests`` is only required for live service orchestration.
+    import requests
+    REQUESTS_AVAILABLE = True
+except ModuleNotFoundError:  # pragma: no cover - triggered in minimal test envs
+    REQUESTS_AVAILABLE = False
+    requests = None  # type: ignore[assignment]
+
+try:  # Allow running backend/unit tests without Playwright installed.
+    from playwright.async_api import async_playwright, Browser, BrowserContext, Page
+    PLAYWRIGHT_AVAILABLE = True
+except ModuleNotFoundError:  # pragma: no cover - exercised implicitly in CI without Playwright
+    PLAYWRIGHT_AVAILABLE = False
+    async_playwright = None  # type: ignore[assignment]
+    if TYPE_CHECKING:  # pragma: no cover - type-checking only
+        from playwright.async_api import Browser, BrowserContext, Page  # type: ignore[misc]
+    else:
+        Browser = BrowserContext = Page = Any  # type: ignore[assignment]
+
+
+def _require_playwright() -> None:
+    """Skip browser fixtures when Playwright is unavailable.
+
+    Pytest imports ``tests/conftest`` eagerly which used to explode before any
+    tests ran if Playwright was missing. By centralising the guard here we keep
+    the code DRY and make the failure mode an explicit skip instead of a hard
+    ImportError. Functional suites will surface the missing dependency clearly,
+    while backend-only suites can proceed uninterrupted.
+    """
+
+    if not PLAYWRIGHT_AVAILABLE:
+        pytest.skip(
+            "Playwright is not installed; skipping browser-driven functional tests.",
+            allow_module_level=True,
+        )
+
+
+def _require_requests() -> None:
+    """Ensure HTTP polling helpers fail fast when requests is missing."""
+
+    if not REQUESTS_AVAILABLE:
+        pytest.skip(
+            "The 'requests' package is missing; skipping server-orchestrated tests.",
+            allow_module_level=True,
+        )
+
+# Test configuration (override via env vars to stay flexible across hosts)
+BACKEND_PORT = int(os.getenv("E2E_BACKEND_PORT", "8000"))
+FRONTEND_PORT = int(os.getenv("E2E_FRONTEND_PORT", "3000"))
+BASE_URL = os.getenv("E2E_BASE_URL", f"http://localhost:{FRONTEND_PORT}")
+API_URL = os.getenv("E2E_API_URL", f"http://localhost:{BACKEND_PORT}")
 
 class TestServers:
     """Manages backend and frontend servers for testing"""
@@ -27,6 +77,7 @@ class TestServers:
         
     def start_backend(self):
         """Start the FastAPI backend server"""
+        _require_requests()
         print("🚀 Starting backend server...")
         cmd = [
             "python", "-m", "uvicorn", 
@@ -48,6 +99,7 @@ class TestServers:
         
     def start_frontend(self):
         """Start the React frontend server"""
+        _require_requests()
         print("🚀 Starting frontend server...")
         
         # Change to frontend directory and start
@@ -70,6 +122,7 @@ class TestServers:
         
     def _wait_for_service(self, url, service_name, timeout=30):
         """Wait for a service to become available"""
+        _require_requests()
         print(f"⏳ Waiting for {service_name} to be ready at {url}...")
         start_time = time.time()
         
@@ -123,15 +176,38 @@ def pytest_configure(config):
     """Configure pytest - start servers before any tests"""
     global test_servers
     test_servers = TestServers()
-    
-    # Only start servers if we're running BDD tests
-    if config.getoption("--tb") or "monte_carlo" in str(config.args):
-        try:
-            test_servers.start_backend()
-            test_servers.start_frontend()
-        except Exception as e:
-            print(f"❌ Failed to start test servers: {e}")
-            raise
+
+    # Opt-in to live server bootstrapping when functional suites are targeted.
+    env_flag = os.getenv("RUN_WGP_E2E_SERVERS")
+    if env_flag is not None:
+        should_boot = env_flag.lower() in {"1", "true", "yes", "on"}
+    else:
+        should_boot = any("tests/functional" in str(arg) for arg in config.args)
+
+    if not should_boot:
+        return
+
+    if not (PLAYWRIGHT_AVAILABLE and REQUESTS_AVAILABLE):
+        missing_bits = [
+            name
+            for name, available in (
+                ("Playwright", PLAYWRIGHT_AVAILABLE),
+                ("requests", REQUESTS_AVAILABLE),
+            )
+            if not available
+        ]
+        print(
+            "⚠️  Skipping server startup because the following dependencies are missing: "
+            + ", ".join(missing_bits)
+        )
+        return
+
+    try:
+        test_servers.start_backend()
+        test_servers.start_frontend()
+    except Exception as e:
+        print(f"❌ Failed to start test servers: {e}")
+        raise
 
 def pytest_unconfigure(config):
     """Clean up after all tests"""
@@ -149,6 +225,7 @@ def event_loop():
 @pytest_asyncio.fixture(scope="session")
 async def browser():
     """Create a browser instance for the test session"""
+    _require_playwright()
     async with async_playwright() as p:
         browser = await p.chromium.launch(
             headless=True,  # Set to False for debugging
@@ -176,7 +253,7 @@ async def browser_context(browser: Browser):
     yield context
     await context.close()
 
-@pytest_asyncio.fixture(scope="function") 
+@pytest_asyncio.fixture(scope="function")
 async def page(browser_context: BrowserContext):
     """Create a fresh page for each test"""
     page = await browser_context.new_page()
