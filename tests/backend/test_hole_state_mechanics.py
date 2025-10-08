@@ -43,6 +43,29 @@ def _make_hole_state(hitting_order: List[str] | None = None) -> HoleState:
     return HoleState(hole_number=1, hitting_order=order, teams=teams, betting=BettingState())
 
 
+def _shot_result(
+    player_id: str,
+    shot_number: int,
+    distance_to_pin: float,
+    lie_type: str,
+    *,
+    shot_quality: str = "average",
+    made_shot: bool = False,
+    penalty_strokes: int = 0,
+) -> WGPShotResult:
+    """Factory for consistent shot results inside tests."""
+
+    return WGPShotResult(
+        player_id=player_id,
+        shot_number=shot_number,
+        lie_type=lie_type,
+        distance_to_pin=distance_to_pin,
+        shot_quality=shot_quality,
+        made_shot=made_shot,
+        penalty_strokes=penalty_strokes,
+    )
+
+
 @pytest.fixture
 def hole_state() -> HoleState:
     return _make_hole_state()
@@ -86,57 +109,157 @@ def test_update_order_of_play_tracks_line_of_scrimmage(hole_state: HoleState) ->
 def test_add_shot_marks_hole_complete_when_all_players_finish() -> None:
     hole_state = _make_hole_state(hitting_order=["p1", "p2"])
 
-    hole_state.add_shot(
-        "p1",
-        WGPShotResult(
-            player_id="p1",
-            shot_number=1,
-            lie_type="fairway",
-            distance_to_pin=140,
-            shot_quality="good",
-        ),
-    )
+    hole_state.add_shot("p1", _shot_result("p1", 1, 140, "fairway", shot_quality="good"))
     assert hole_state.ball_positions["p1"].shot_count == 1
     assert not hole_state.hole_complete
 
     hole_state.add_shot(
         "p1",
-        WGPShotResult(
-            player_id="p1",
-            shot_number=2,
-            lie_type="green",
-            distance_to_pin=0,
+        _shot_result(
+            "p1",
+            2,
+            0,
+            "green",
             shot_quality="excellent",
             made_shot=True,
         ),
     )
     assert hole_state.ball_positions["p1"].holed is True
     assert hole_state.wagering_closed is True
+    assert hole_state.hole_complete is False
+
+    hole_state.add_shot("p2", _shot_result("p2", 1, 40, "fairway"))
+    assert hole_state.hole_complete is False
 
     hole_state.add_shot(
         "p2",
-        WGPShotResult(
-            player_id="p2",
-            shot_number=1,
-            lie_type="fairway",
-            distance_to_pin=40,
-            shot_quality="average",
-        ),
-    )
-
-    hole_state.add_shot(
-        "p2",
-        WGPShotResult(
-            player_id="p2",
-            shot_number=2,
-            lie_type="green",
-            distance_to_pin=0,
+        _shot_result(
+            "p2",
+            2,
+            0,
+            "green",
             shot_quality="excellent",
             made_shot=True,
         ),
     )
 
     assert hole_state.ball_positions["p2"].holed is True
+    assert hole_state.hole_complete is True
+
+
+def test_add_shot_keeps_hole_open_until_all_players_have_results() -> None:
+    hole_state = _make_hole_state(hitting_order=["p1", "p2", "p3"])
+
+    hole_state.add_shot("p1", _shot_result("p1", 1, 150, "fairway"))
+    hole_state.add_shot(
+        "p1",
+        _shot_result(
+            "p1",
+            2,
+            0,
+            "green",
+            shot_quality="excellent",
+            made_shot=True,
+        ),
+    )
+
+    assert hole_state.hole_complete is False
+
+    hole_state.add_shot("p2", _shot_result("p2", 1, 60, "rough"))
+    assert hole_state.hole_complete is False
+
+    # Player p3 has not hit yet, so the hole must remain open even after p2 holes out.
+    hole_state.add_shot(
+        "p2",
+        _shot_result(
+            "p2",
+            2,
+            0,
+            "green",
+            shot_quality="excellent",
+            made_shot=True,
+        ),
+    )
+
+    assert hole_state.hole_complete is False
+
+    hole_state.add_shot(
+        "p3",
+        _shot_result(
+            "p3",
+            1,
+            0,
+            "green",
+            shot_quality="good",
+            made_shot=True,
+        ),
+    )
+
+    assert hole_state.hole_complete is True
+
+
+def test_recalculate_hole_completion_handles_conceded_putts() -> None:
+    hole_state = _make_hole_state(hitting_order=["p1", "p2"])
+
+    hole_state.add_shot("p1", _shot_result("p1", 1, 140, "fairway"))
+    hole_state.add_shot(
+        "p1",
+        _shot_result(
+            "p1",
+            2,
+            0,
+            "green",
+            shot_quality="excellent",
+            made_shot=True,
+        ),
+    )
+    assert hole_state.hole_complete is False
+
+    hole_state.ball_positions["p2"] = BallPosition(
+        player_id="p2",
+        distance_to_pin=5,
+        lie_type="green",
+        shot_count=2,
+        conceded=True,
+    )
+
+    hole_state._recalculate_hole_completion()
+
+    assert hole_state.hole_complete is True
+
+
+def test_add_shot_marks_hole_complete_when_remaining_player_hits_shot_limit() -> None:
+    hole_state = _make_hole_state(hitting_order=["p1", "p2"])
+
+    hole_state.add_shot("p1", _shot_result("p1", 1, 150, "fairway"))
+    hole_state.add_shot(
+        "p1",
+        _shot_result(
+            "p1",
+            2,
+            0,
+            "green",
+            shot_quality="excellent",
+            made_shot=True,
+        ),
+    )
+    assert hole_state.hole_complete is False
+
+    for shot_number in range(1, 9):
+        hole_state.add_shot(
+            "p2",
+            _shot_result(
+                "p2",
+                shot_number,
+                distance_to_pin=max(0, 160 - shot_number * 20),
+                lie_type="rough" if shot_number < 4 else "green",
+                shot_quality="poor",
+            ),
+        )
+
+        if shot_number < 8:
+            assert hole_state.hole_complete is False
+
     assert hole_state.hole_complete is True
 
 

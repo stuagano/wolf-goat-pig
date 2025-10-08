@@ -298,13 +298,19 @@ class HoleState:
         """Add a shot result and update hole state"""
         if player_id not in self.ball_positions:
             # First shot of the hole (tee shot)
-            self.ball_positions[player_id] = BallPosition(
+            ball = BallPosition(
                 player_id=player_id,
                 distance_to_pin=shot_result.distance_to_pin,
                 lie_type=shot_result.lie_type,
                 shot_count=1,
                 penalty_strokes=shot_result.penalty_strokes
             )
+            if shot_result.made_shot:
+                ball.holed = True
+                self.balls_in_hole.append(player_id)
+                self.wagering_closed = True
+
+            self.ball_positions[player_id] = ball
         else:
             # Update existing ball position
             ball = self.ball_positions[player_id]
@@ -320,18 +326,32 @@ class HoleState:
         
         self.current_shot_number += 1
         self.update_order_of_play()
-        
-        # Check if hole is complete (all players have holed out, conceded, or reached shot limit)
-        active_players = []
+        self._recalculate_hole_completion()
+
+    def _recalculate_hole_completion(self) -> None:
+        """Update `hole_complete` based on current player ball states."""
+
+        active_players: List[str] = []
+
         for player_id in self.hitting_order:
-            if player_id not in self.balls_in_hole:
-                ball_pos = self.ball_positions.get(player_id)
-                # Player is active if they haven't holed out and haven't reached shot limit (8 shots)
-                if ball_pos and ball_pos.shot_count < 8:
-                    active_players.append(player_id)
-        
-        if not active_players:
-            self.hole_complete = True
+            if player_id in self.balls_in_hole:
+                continue
+
+            ball_pos = self.ball_positions.get(player_id)
+
+            # Players without a recorded shot are still active and keep the hole open.
+            if ball_pos is None:
+                active_players.append(player_id)
+                continue
+
+            if ball_pos.conceded:
+                continue
+
+            # Player is active if they haven't holed out and haven't reached shot limit (8 shots)
+            if not ball_pos.holed and ball_pos.shot_count < 8:
+                active_players.append(player_id)
+
+        self.hole_complete = not active_players
     
     def get_player_ball_position(self, player_id: str) -> Optional[BallPosition]:
         """Get current ball position for a player"""
