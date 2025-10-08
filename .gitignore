@@ -1,4 +1,5 @@
 # Python
+__pycache__/
 backend/venv/
 backend/__pycache__/
 backend/*.pyc
@@ -14,6 +15,7 @@ backend/.pytest_cache/
 backend/*.db
 
 # Node/React
+node_modules/
 frontend/node_modules/
 # frontend/build/  # Allow build files for deployment
 frontend/.env

@@ -19,20 +19,20 @@ Welcome to the project! Please follow these conventions whenever you modify file
 
 ## Testing Expectations
 Before requesting review, validate your work locally:
-1. For full regression coverage run `./run_simulation_tests.sh`. This orchestrates backend pytest suites, frontend unit coverage, and simulation functional checks.
+1. For full regression coverage run `./scripts/diagnostics/run_simulation_tests.sh`. This orchestrates backend pytest suites, frontend unit coverage, and simulation functional checks.
 2. For backend-only iterations, at minimum run:
    - `python start_simulation.py` to confirm dependencies, environment variables, and import checks still succeed (stop the server with `Ctrl+C` once logs show the startup banner).
    - `cd backend && pytest` (targeted modules are fine, e.g., `pytest tests/test_simulation_unit.py`).
 3. For frontend changes limited to `frontend/src`, run `cd frontend && npm test -- --watchAll=false` and, when visuals are affected, `npm run build` to ensure the bundle compiles cleanly.
 4. Document any skipped checks (with justification) in your PR summary.
 
-Additional tooling documentation is available in `LOCAL_DEV_GUIDE.md`, `PROJECT_STRUCTURE.md`, and `SIMULATION_FIXES.md`. Reference these when in doubt.
+Additional tooling documentation is available in `docs/guides/local-development.md`, `docs/guides/project-structure.md`, and `docs/guides/simulation-fixes.md`. Reference these when in doubt.
 
 ## Area-Specific Notes
 - **Backend (`backend/app`)**
   - Follow FastAPI best practices: define routers under `backend/app/api`, schemas in `backend/app/schemas`, and business logic under `backend/app/services`.
   - Ensure database migrations or schema updates are mirrored in `backend/app/database` helpers and accompanied by fixture updates.
-  - When touching simulation flows, cross-check expectations in `SIMULATION_TEST.py` and `tests/functional/test_simulation_functional.py`.
+  - When touching simulation flows, cross-check expectations in `scripts/diagnostics/simulation_startup_check.py` and `tests/functional/test_simulation_functional.py`.
 - **Frontend (`frontend/src`)**
   - Keep shared UI primitives under `frontend/src/components` and avoid deep relative imports; prefer alias paths defined in `tsconfig.json`.
   - Update Storybook or MDX docs (under `frontend/src/docs`) when user-facing behavior changes.
@@ -41,7 +41,7 @@ Additional tooling documentation is available in `LOCAL_DEV_GUIDE.md`, `PROJECT_
 ## Pull Request Summary Requirements
 Every PR description must include:
 1. **Summary** – bullet list of meaningful changes, referencing impacted domains (backend/frontend/tests).
-2. **Validation** – commands or scripts executed (e.g., `./run_simulation_tests.sh`, `cd backend && pytest`). Note any failures and rationale.
+2. **Validation** – commands or scripts executed (e.g., `./scripts/diagnostics/run_simulation_tests.sh`, `cd backend && pytest`). Note any failures and rationale.
 3. **Screenshots** – include when frontend visuals change. Use local tooling or CI artifacts to capture them.
 
 Thank you for contributing! Keeping these guidelines consistent helps us ship reliable features quickly.
