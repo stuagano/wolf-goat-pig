@@ -34,6 +34,7 @@ from .services.player_service import PlayerService # Import PlayerService
 from .services.email_service import EmailService, get_email_service
 from .services.oauth2_email_service import OAuth2EmailService, get_oauth2_email_service
 from .services.team_formation_service import TeamFormationService
+from .services.sunday_game_service import generate_sunday_pairings
 from .services.legacy_signup_service import get_legacy_signup_service
 # Email scheduler will be initialized on-demand to prevent startup blocking
 # from .services.email_scheduler import email_scheduler
@@ -5430,7 +5431,56 @@ def set_player_availability(player_id: int, availability: schemas.PlayerAvailabi
     finally:
         db.close()
 
-# Team Formation Endpoints
+# Team Formation Helpers & Endpoints
+
+
+def _get_active_signups_for_date(db: Session, date: str) -> List[models.DailySignup]:
+    """Fetch non-cancelled signups for the requested date."""
+    return db.query(models.DailySignup).filter(
+        models.DailySignup.date == date,
+        models.DailySignup.status != "cancelled"
+    ).all()
+
+
+def _build_player_payload(
+    signups: List[models.DailySignup],
+    *,
+    include_handicap: bool = False,
+    db: Optional[Session] = None
+) -> List[Dict[str, Any]]:
+    """Convert signup records into the player dictionaries used by formation services."""
+    if include_handicap and db is None:
+        raise ValueError("Database session is required when include_handicap=True")
+
+    players: List[Dict[str, Any]] = []
+    handicap_lookup: Dict[int, float] = {}
+
+    if include_handicap:
+        profile_ids = [s.player_profile_id for s in signups if s.player_profile_id is not None]
+        if profile_ids:
+            profiles = db.query(models.PlayerProfile).filter(
+                models.PlayerProfile.id.in_(profile_ids)
+            ).all()
+            handicap_lookup = {profile.id: profile.handicap for profile in profiles}
+
+    for signup in signups:
+        player_data: Dict[str, Any] = {
+            "id": signup.id,
+            "player_profile_id": signup.player_profile_id,
+            "player_name": signup.player_name,
+            "preferred_start_time": signup.preferred_start_time,
+            "notes": signup.notes,
+            "signup_time": signup.signup_time
+        }
+
+        if include_handicap:
+            player_data["handicap"] = handicap_lookup.get(signup.player_profile_id, 18.0)
+
+        players.append(player_data)
+
+    return players
+
+
 @app.post("/signups/{date}/team-formation/random")
 def generate_random_teams_for_date(
     date: str = Path(description="Date in YYYY-MM-DD format"),
@@ -5440,12 +5490,9 @@ def generate_random_teams_for_date(
     """Generate random 4-player teams from players signed up for a specific date."""
     try:
         db = database.SessionLocal()
-        
+
         # Get all signups for the specified date
-        signups = db.query(models.DailySignup).filter(
-            models.DailySignup.date == date,
-            models.DailySignup.status != "cancelled"
-        ).all()
+        signups = _get_active_signups_for_date(db, date)
         
         if len(signups) < 4:
             raise HTTPException(
@@ -5454,17 +5501,7 @@ def generate_random_teams_for_date(
             )
         
         # Convert signups to player dictionaries
-        players = []
-        for signup in signups:
-            player_data = {
-                "id": signup.id,
-                "player_profile_id": signup.player_profile_id,
-                "player_name": signup.player_name,
-                "preferred_start_time": signup.preferred_start_time,
-                "notes": signup.notes,
-                "signup_time": signup.signup_time
-            }
-            players.append(player_data)
+        players = _build_player_payload(signups)
         
         # Generate random teams
         teams = TeamFormationService.generate_random_teams(
@@ -5506,12 +5543,9 @@ def generate_balanced_teams_for_date(
     """Generate skill-balanced 4-player teams from players signed up for a specific date."""
     try:
         db = database.SessionLocal()
-        
+
         # Get all signups for the specified date
-        signups = db.query(models.DailySignup).filter(
-            models.DailySignup.date == date,
-            models.DailySignup.status != "cancelled"
-        ).all()
+        signups = _get_active_signups_for_date(db, date)
         
         if len(signups) < 4:
             raise HTTPException(
@@ -5520,23 +5554,7 @@ def generate_balanced_teams_for_date(
             )
         
         # Get player profiles with handicap information
-        players = []
-        for signup in signups:
-            # Get player profile for handicap
-            player_profile = db.query(models.PlayerProfile).filter(
-                models.PlayerProfile.id == signup.player_profile_id
-            ).first()
-            
-            player_data = {
-                "id": signup.id,
-                "player_profile_id": signup.player_profile_id,
-                "player_name": signup.player_name,
-                "preferred_start_time": signup.preferred_start_time,
-                "notes": signup.notes,
-                "signup_time": signup.signup_time,
-                "handicap": player_profile.handicap if player_profile else 18.0
-            }
-            players.append(player_data)
+        players = _build_player_payload(signups, include_handicap=True, db=db)
         
         # Generate balanced teams
         teams = TeamFormationService.generate_balanced_teams(
@@ -5579,12 +5597,9 @@ def generate_team_rotations_for_date(
     """Generate multiple team rotation options for variety throughout the day."""
     try:
         db = database.SessionLocal()
-        
+
         # Get all signups for the specified date
-        signups = db.query(models.DailySignup).filter(
-            models.DailySignup.date == date,
-            models.DailySignup.status != "cancelled"
-        ).all()
+        signups = _get_active_signups_for_date(db, date)
         
         if len(signups) < 4:
             raise HTTPException(
@@ -5593,17 +5608,7 @@ def generate_team_rotations_for_date(
             )
         
         # Convert signups to player dictionaries
-        players = []
-        for signup in signups:
-            player_data = {
-                "id": signup.id,
-                "player_profile_id": signup.player_profile_id,
-                "player_name": signup.player_name,
-                "preferred_start_time": signup.preferred_start_time,
-                "notes": signup.notes,
-                "signup_time": signup.signup_time
-            }
-            players.append(player_data)
+        players = _build_player_payload(signups)
         
         # Generate team rotations
         rotations = TeamFormationService.create_team_pairings_with_rotations(
@@ -5626,6 +5631,52 @@ def generate_team_rotations_for_date(
     except Exception as e:
         logger.error(f"Error generating team rotations for date {date}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to generate rotations: {str(e)}")
+    finally:
+        db.close()
+
+
+@app.post("/signups/{date}/sunday-game/pairings")
+def generate_sunday_game_pairings(
+    date: str = Path(description="Date in YYYY-MM-DD format"),
+    num_rotations: int = Query(3, description="Number of Sunday pairing options to generate"),
+    seed: Optional[int] = Query(None, description="Override random seed for reproducible results")
+):
+    """Generate randomized Sunday game pairings with optional deterministic seeding."""
+    try:
+        db = database.SessionLocal()
+
+        signups = _get_active_signups_for_date(db, date)
+
+        if len(signups) < 4:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Not enough players signed up for {date}. Need at least 4 players, found {len(signups)}"
+            )
+
+        players = _build_player_payload(signups)
+
+        pairing_result = generate_sunday_pairings(
+            players,
+            num_rotations=num_rotations,
+            seed=seed
+        )
+
+        return {
+            "date": date,
+            "total_signups": len(signups),
+            "player_count": pairing_result["player_count"],
+            "pairing_sets_available": pairing_result["total_rotations"],
+            "selected_rotation": pairing_result["selected_rotation"],
+            "rotations": pairing_result["rotations"],
+            "random_seed": pairing_result["random_seed"],
+            "remaining_players": pairing_result["remaining_players"]
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating Sunday game pairings for {date}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate Sunday pairings: {str(e)}")
     finally:
         db.close()
 

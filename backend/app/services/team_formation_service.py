@@ -4,7 +4,7 @@ Handles scenarios where more than 4 players are signed up for a given day.
 """
 
 from typing import List, Dict, Optional, Tuple
-import random
+from random import Random, SystemRandom
 import logging
 from datetime import datetime
 from itertools import combinations
@@ -16,9 +16,10 @@ class TeamFormationService:
     
     @staticmethod
     def generate_random_teams(
-        players: List[Dict], 
+        players: List[Dict],
         seed: Optional[int] = None,
-        max_teams: Optional[int] = None
+        max_teams: Optional[int] = None,
+        rng: Optional[Random] = None
     ) -> List[Dict]:
         """
         Generate random 4-player teams from a list of signed-up players.
@@ -35,13 +36,18 @@ class TeamFormationService:
             logger.warning(f"Not enough players for team formation: {len(players)} < 4")
             return []
         
-        # Set random seed if provided for reproducible results
-        if seed is not None:
-            random.seed(seed)
-        
+        # Build a local random number generator so we don't mutate global state
+        if rng is not None:
+            local_rng = rng
+        elif seed is not None:
+            local_rng = Random(seed)
+        else:
+            system_seed = SystemRandom().randrange(0, 2**32)
+            local_rng = Random(system_seed)
+
         # Create a copy to avoid modifying original list
         available_players = players.copy()
-        random.shuffle(available_players)
+        local_rng.shuffle(available_players)
         
         teams = []
         team_number = 1
@@ -92,14 +98,20 @@ class TeamFormationService:
         
         rotations = []
         
+        if seed is not None:
+            rotation_seed_generator = Random(seed)
+        else:
+            system_seed = SystemRandom().randrange(0, 2**32)
+            rotation_seed_generator = Random(system_seed)
+
         for rotation in range(num_rotations):
-            # Use different seed for each rotation to ensure variety
-            rotation_seed = (seed + rotation) if seed is not None else None
-            
+            rotation_seed = rotation_seed_generator.randrange(0, 2**32)
+            rotation_rng = Random(rotation_seed)
+
             teams = TeamFormationService.generate_random_teams(
-                players, 
-                seed=rotation_seed,
-                max_teams=None
+                players,
+                max_teams=None,
+                rng=rotation_rng
             )
             
             if teams:
@@ -133,14 +145,16 @@ class TeamFormationService:
         if len(players) < 4:
             return []
         
-        # Set random seed if provided
+        # Use deterministic randomness when we need to shuffle similarly skilled players
         if seed is not None:
-            random.seed(seed)
-        
+            balancing_rng = Random(seed)
+        else:
+            balancing_rng = Random(SystemRandom().randrange(0, 2**32))
+
         # Sort players by skill level (lower handicap = better player)
         players_with_skill = []
         players_without_skill = []
-        
+
         for player in players:
             if skill_key in player and player[skill_key] is not None:
                 players_with_skill.append(player)
@@ -149,7 +163,10 @@ class TeamFormationService:
                 player_copy = player.copy()
                 player_copy[skill_key] = 18.0  # Default handicap
                 players_without_skill.append(player_copy)
-        
+
+        if players_without_skill:
+            balancing_rng.shuffle(players_without_skill)
+
         # Combine lists and sort by skill
         all_players = players_with_skill + players_without_skill
         all_players.sort(key=lambda p: p.get(skill_key, 18.0))
