@@ -34,6 +34,7 @@ from .services.player_service import PlayerService # Import PlayerService
 from .services.email_service import EmailService, get_email_service
 from .services.oauth2_email_service import OAuth2EmailService, get_oauth2_email_service
 from .services.team_formation_service import TeamFormationService
+from .services.legacy_signup_service import get_legacy_signup_service
 # Email scheduler will be initialized on-demand to prevent startup blocking
 # from .services.email_scheduler import email_scheduler
 from .services.auth_service import get_current_user
@@ -4975,8 +4976,18 @@ def create_signup(signup: schemas.DailySignupCreate):
         db.add(db_signup)
         db.commit()
         db.refresh(db_signup)
-        
+
         logger.info(f"Created signup for player {signup.player_name} on {signup.date}")
+
+        # Mirror the signup to the legacy CGI sheet when configured.
+        try:
+            legacy_service = get_legacy_signup_service()
+            legacy_service.sync_signup_created(db_signup)
+        except Exception:
+            logger.exception(
+                "Legacy signup sync failed for create id=%s", db_signup.id
+            )
+
         return schemas.DailySignupResponse.from_orm(db_signup)
         
     except HTTPException:
@@ -5010,8 +5021,17 @@ def update_signup(signup_id: int, signup_update: schemas.DailySignupUpdate):
         
         db.commit()
         db.refresh(db_signup)
-        
+
         logger.info(f"Updated signup {signup_id}")
+
+        try:
+            legacy_service = get_legacy_signup_service()
+            legacy_service.sync_signup_updated(db_signup)
+        except Exception:
+            logger.exception(
+                "Legacy signup sync failed for update id=%s", db_signup.id
+            )
+
         return schemas.DailySignupResponse.from_orm(db_signup)
         
     except HTTPException:
@@ -5037,8 +5057,17 @@ def cancel_signup(signup_id: int):
         db_signup.updated_at = datetime.now().isoformat()
         
         db.commit()
-        
+
         logger.info(f"Cancelled signup {signup_id}")
+
+        try:
+            legacy_service = get_legacy_signup_service()
+            legacy_service.sync_signup_cancelled(db_signup)
+        except Exception:
+            logger.exception(
+                "Legacy signup sync failed for cancel id=%s", db_signup.id
+            )
+
         return {"message": "Sign-up cancelled successfully"}
         
     except HTTPException:
