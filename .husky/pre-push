@@ -1,0 +1,76 @@
+#!/bin/sh
+
+# Pre-push hook for deployment readiness checks
+# Ensures code is deployment-ready before pushing to remote
+
+echo "🔍 Running pre-push deployment checks..."
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Track if all checks pass
+CHECKS_PASSED=true
+
+# Check 1: Backend tests
+echo "Running backend tests..."
+if cd backend && python -m pytest tests/ -q --tb=short; then
+    echo -e "${GREEN}✓ Backend tests passed${NC}"
+else
+    echo -e "${RED}✗ Backend tests failed${NC}"
+    CHECKS_PASSED=false
+fi
+cd ..
+
+# Check 2: Frontend build
+echo "Checking frontend build..."
+if cd frontend && npm run build > /dev/null 2>&1; then
+    echo -e "${GREEN}✓ Frontend build successful${NC}"
+    # Clean up build artifacts
+    rm -rf build
+else
+    echo -e "${RED}✗ Frontend build failed${NC}"
+    CHECKS_PASSED=false
+fi
+cd ..
+
+# Check 3: Check for console.log statements (production code shouldn't have them)
+echo "Checking for console.log statements..."
+CONSOLE_LOGS=$(grep -r "console.log" --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx" frontend/src/ backend/app/ 2>/dev/null | grep -v "// console.log" | wc -l)
+if [ "$CONSOLE_LOGS" -gt 0 ]; then
+    echo -e "${YELLOW}⚠ Found $CONSOLE_LOGS console.log statements - consider removing for production${NC}"
+fi
+
+# Check 4: Environment files
+echo "Checking environment configuration..."
+if [ ! -f ".env.example" ]; then
+    echo -e "${YELLOW}⚠ Missing .env.example file${NC}"
+fi
+
+# Check 5: Docker files present
+echo "Checking deployment files..."
+if [ -f "docker-compose.prod.yml" ] && [ -f "backend/Dockerfile.prod" ] && [ -f "frontend/Dockerfile.prod" ]; then
+    echo -e "${GREEN}✓ Deployment files present${NC}"
+else
+    echo -e "${YELLOW}⚠ Some deployment files missing${NC}"
+fi
+
+# Check 6: No sensitive data
+echo "Checking for sensitive data..."
+SENSITIVE_PATTERNS=("password=" "api_key=" "secret=" "token=" "AWS_" "STRIPE_")
+for pattern in "${SENSITIVE_PATTERNS[@]}"; do
+    if git diff --cached --name-only | xargs grep -l "$pattern" 2>/dev/null; then
+        echo -e "${RED}✗ Found potential sensitive data with pattern: $pattern${NC}"
+        CHECKS_PASSED=false
+    fi
+done
+
+if [ "$CHECKS_PASSED" = true ]; then
+    echo -e "${GREEN}✅ All pre-push checks passed!${NC}"
+else
+    echo -e "${RED}❌ Some checks failed. Fix issues before pushing.${NC}"
+    echo "To bypass checks (not recommended): git push --no-verify"
+    exit 1
+fi

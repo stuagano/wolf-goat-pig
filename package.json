@@ -1,5 +1,35 @@
 {
+  "name": "wolf-goat-pig",
+  "version": "1.0.0",
+  "description": "Golf wagering simulation with FastAPI backend and React frontend",
   "dependencies": {
     "@anthropic-ai/claude-code": "^1.0.61"
-  }
+  },
+  "scripts": {
+    "prepare": "husky",
+    "test:all": "./scripts/diagnostics/run_simulation_tests.sh",
+    "test:backend": "cd backend && pytest",
+    "test:frontend": "cd frontend && npm test -- --watchAll=false",
+    "build:frontend": "cd frontend && npm run build",
+    "deploy:check": ".husky/deployment-checklist",
+    "deploy:test": "./scripts/test-prod-all.sh",
+    "deploy:verify": "python scripts/verify-deployments.py",
+    "docker:prod": "docker-compose -f docker-compose.prod.yml up --build",
+    "docker:prod:down": "docker-compose -f docker-compose.prod.yml down",
+    "start:dev": "./dev.sh",
+    "start:simulation": "python start_simulation.py"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/wolf-goat-pig.git"
+  },
+  "keywords": [
+    "golf",
+    "simulation",
+    "fastapi",
+    "react",
+    "wagering"
+  ],
+  "author": "",
+  "license": "MIT"
 }

@@ -67,6 +67,8 @@ The frontend expects `REACT_APP_API_URL` to be defined. When running everything 
 
 ## Testing & diagnostics
 
+### Unit and Integration Tests
+
 | Command | Purpose |
 | ------- | ------- |
 | `cd backend && pytest` | Backend unit and integration suites. Configure Pyenv or virtualenv to expose Python 3.12.0 when running inside the repository. |
@@ -74,6 +76,18 @@ The frontend expects `REACT_APP_API_URL` to be defined. When running everything 
 | `./scripts/diagnostics/run_simulation_tests.sh` | Orchestrates backend pytest, frontend tests, and simulation smoke checks. |
 | `./scripts/diagnostics/test-local.sh` | Legacy shell health check for quick API verification. |
 | `python scripts/diagnostics/simulation_startup_check.py` | Validates that core simulation modules import correctly without external services. |
+
+### Deployment Testing
+
+| Command | Purpose |
+| ------- | ------- |
+| `./scripts/test-prod-all.sh` | Interactive menu for comprehensive deployment testing |
+| `./scripts/test-prod-backend.sh` | Test backend in Render-like production environment |
+| `./scripts/test-prod-frontend.sh` | Test frontend production build (Vercel-like) |
+| `python scripts/verify-deployments.py` | Verify deployment health and integration |
+| `docker-compose -f docker-compose.prod.yml up` | Full production stack simulation with PostgreSQL |
+
+See [`docs/guides/local-deployment-testing.md`](./docs/guides/local-deployment-testing.md) for detailed deployment testing instructions.
 
 ## Documentation map
 

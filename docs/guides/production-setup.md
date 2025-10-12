@@ -65,6 +65,13 @@ REACT_APP_AUTH0_AUDIENCE=https://<your-api-domain>
 
 ## 🚀 Deployment Checklist
 
+### Pre-Deployment Testing
+- [ ] Run deployment checklist: `.husky/deployment-checklist`
+- [ ] Test backend production build: `./scripts/test-prod-backend.sh`
+- [ ] Test frontend production build: `./scripts/test-prod-frontend.sh`
+- [ ] Run full deployment test suite: `./scripts/test-prod-all.sh`
+- [ ] Verify with Docker: `docker-compose -f docker-compose.prod.yml up`
+
 ### Backend Deployment
 - [ ] Set `ENVIRONMENT=production`
 - [ ] Configure PostgreSQL database URL
@@ -80,7 +87,8 @@ REACT_APP_AUTH0_AUDIENCE=https://<your-api-domain>
 - [ ] Deploy to Vercel/Netlify
 - [ ] Update CORS origins in backend with deployed frontend URL
 
-### Security Verification
+### Post-Deployment Verification
+- [ ] Run deployment verification: `python scripts/verify-deployments.py --production`
 - [ ] Verify CORS only allows your domains
 - [ ] Test Auth0 JWT verification works
 - [ ] Ensure no localhost references in production
@@ -168,12 +176,38 @@ If authentication still fails, capture the exact error message in Render’s log
 
 ## 🔍 Validation Steps
 
-After deployment, verify these work:
+### Local Testing Before Deployment
+Use the comprehensive testing tools to ensure everything works locally first:
+
+```bash
+# Quick deployment check
+npm run deploy:check
+
+# Full interactive testing
+npm run deploy:test
+
+# Verify deployment health
+npm run deploy:verify
+
+# Test with Docker production stack
+npm run docker:prod
+```
+
+### After Deployment
+Verify these work in production:
 - [ ] Login/logout functionality
 - [ ] Start a simulation game
 - [ ] Complete a hole of play
 - [ ] Betting and partnership decisions
 - [ ] Email notifications (if enabled)
+- [ ] Run production verification: `python scripts/verify-deployments.py --backend https://your-app.onrender.com --frontend https://your-app.vercel.app`
 
 The application should now be at **90-95% functionality** for production use!
+
+## 📚 Additional Documentation
+
+For detailed deployment testing instructions, see:
+- [`docs/guides/local-deployment-testing.md`](./local-deployment-testing.md) - Complete guide for testing deployments locally
+- [`AGENTS.md`](../../AGENTS.md) - Deployment testing section with quick commands
+- [`README.md`](../../README.md) - Deployment testing commands in main documentation
 

@@ -26,7 +26,21 @@ Before requesting review, validate your work locally:
 3. For frontend changes limited to `frontend/src`, run `cd frontend && npm test -- --watchAll=false` and, when visuals are affected, `npm run build` to ensure the bundle compiles cleanly.
 4. Document any skipped checks (with justification) in your PR summary.
 
-Additional tooling documentation is available in `docs/guides/local-development.md`, `docs/guides/project-structure.md`, and `docs/guides/simulation-fixes.md`. Reference these when in doubt.
+## Deployment Testing
+Before deploying to production (Render/Vercel):
+1. **Run deployment checklist**: `.husky/deployment-checklist` - comprehensive pre-deployment validation
+2. **Test production builds locally**:
+   - Backend (Render-like): `./scripts/test-prod-backend.sh`
+   - Frontend (Vercel-like): `./scripts/test-prod-frontend.sh`
+   - Full stack: `./scripts/test-prod-all.sh` (interactive menu)
+3. **Verify deployment health**: `python scripts/verify-deployments.py`
+4. **Docker production simulation**: `docker-compose -f docker-compose.prod.yml up`
+
+Git hooks are configured to run automatic checks:
+- **Pre-push**: Runs tests and build verification before pushing to remote
+- **Pre-commit**: Basic syntax and security checks (if configured)
+
+Additional tooling documentation is available in `docs/guides/local-development.md`, `docs/guides/local-deployment-testing.md`, `docs/guides/project-structure.md`, and `docs/guides/simulation-fixes.md`. Reference these when in doubt.
 
 ## Area-Specific Notes
 - **Backend (`backend/app`)**

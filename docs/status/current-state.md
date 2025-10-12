@@ -1,6 +1,6 @@
 # Current Project Status
 
-_Last updated: 2025-10-08_
+_Last updated: 2025-10-12_
 
 This document captures the real-world status of the Wolf Goat Pig stack so contributors can quickly understand what works, what is flaky, and the next cleanup priorities.
 
@@ -36,6 +36,22 @@ This document captures the real-world status of the Wolf Goat Pig stack so contr
 | `cd backend && pytest` | ⚠️ Fails because Pyenv is pinned to Python 3.12.0 but that version is not installed in the default dev container. Install with `pyenv install 3.12.0` or update `.python-version`. |
 | `./scripts/diagnostics/run_simulation_tests.sh` | ❓ Not executed after restructuring—update once backend pytest runs. |
 | Legacy shell/python diagnostics | ✅ Scripts moved under `scripts/diagnostics/` and now operate relative to the repository root. |
+| `./scripts/test-prod-all.sh` | ✅ NEW: Interactive deployment testing menu for production simulation |
+| `./scripts/test-prod-backend.sh` | ✅ NEW: Tests backend with gunicorn (Render-like environment) |
+| `./scripts/test-prod-frontend.sh` | ✅ NEW: Tests frontend production build (Vercel-like) |
+| `python scripts/verify-deployments.py` | ✅ NEW: Comprehensive deployment health verification |
+| `docker-compose -f docker-compose.prod.yml up` | ✅ NEW: Full production stack with PostgreSQL |
+
+## Deployment Infrastructure
+
+| Component | Status | Notes |
+| --------- | ------ | ----- |
+| Husky Git Hooks | ✅ NEW | Pre-push and deployment checklist hooks installed |
+| `.husky/pre-push` | ✅ NEW | Automatic tests before pushing to remote |
+| `.husky/deployment-checklist` | ✅ NEW | Comprehensive pre-deployment validation |
+| Docker Production Files | ✅ NEW | `docker-compose.prod.yml`, `backend/Dockerfile.prod`, `frontend/Dockerfile.prod` |
+| NPM Scripts | ✅ NEW | Added deployment scripts: `deploy:check`, `deploy:test`, `deploy:verify`, `docker:prod` |
+| Documentation | ✅ NEW | Complete guide at `docs/guides/local-deployment-testing.md` |
 
 ## Follow-up work
 
@@ -43,3 +59,5 @@ This document captures the real-world status of the Wolf Goat Pig stack so contr
 2. Decide whether to keep Pyenv pinned to 3.12.0 or adjust to 3.11.x to match currently installed runtimes.
 3. Run the full diagnostic suite (`./scripts/diagnostics/run_simulation_tests.sh`) once the Python version mismatch is resolved.
 4. Capture frontend verification results here after the next maintainer run.
+5. Configure actual Render and Vercel deployment URLs in verification scripts.
+6. Test the Husky hooks with actual git operations.

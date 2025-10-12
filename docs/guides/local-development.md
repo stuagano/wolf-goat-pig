@@ -4,7 +4,7 @@
 
 ```bash
 # Start both servers
-./dev-local.sh
+./dev.sh  # or use npm run start:dev
 
 # In another terminal, test the setup
 ./scripts/diagnostics/test-local.sh
@@ -20,7 +20,9 @@
 ### 1. Start Local Servers
 ```bash
 cd path/to/wolf-goat-pig
-./dev-local.sh
+./dev.sh  # Starts both backend and frontend
+# OR use npm scripts:
+npm run start:dev
 ```
 
 ### 2. Test Your Setup
@@ -99,10 +101,43 @@ npm start
 
 ## Before Deploying
 
-1. Test locally thoroughly
-2. Run `npm run build` to check for build errors
-3. Commit and push to GitHub
-4. Deployment happens automatically on Render/Vercel
+### Automated Checks
+Git hooks will run automatically when you push:
+- **Pre-push hook**: Runs tests and build verification
+- **Pre-commit hook**: Basic syntax checks (if configured)
+
+### Manual Testing
+1. **Run deployment checklist**:
+   ```bash
+   .husky/deployment-checklist
+   # or
+   npm run deploy:check
+   ```
+
+2. **Test production builds locally**:
+   ```bash
+   # Test backend (Render-like)
+   ./scripts/test-prod-backend.sh
+
+   # Test frontend (Vercel-like)
+   ./scripts/test-prod-frontend.sh
+
+   # Test both interactively
+   ./scripts/test-prod-all.sh
+   ```
+
+3. **Verify deployment health**:
+   ```bash
+   python scripts/verify-deployments.py
+   ```
+
+4. **Full production simulation with Docker**:
+   ```bash
+   docker-compose -f docker-compose.prod.yml up
+   ```
+
+5. Commit and push to GitHub
+6. Deployment happens automatically on Render/Vercel
 
 ## Current Status
 
@@ -118,9 +153,10 @@ npm start
 
 ## Quick Commands
 
+### Development
 ```bash
 # Start development
-./dev-local.sh
+./dev.sh  # or npm run start:dev
 
 # Test endpoints
 ./scripts/diagnostics/test-local.sh
@@ -132,6 +168,33 @@ pkill -f uvicorn && pkill -f "npm start"
 ps aux | grep -E "uvicorn|npm"
 ```
 
+### Testing & Deployment
+```bash
+# Run all tests
+npm run test:all
+
+# Test backend only
+npm run test:backend
+
+# Test frontend only
+npm run test:frontend
+
+# Build frontend
+npm run build:frontend
+
+# Check deployment readiness
+npm run deploy:check
+
+# Test production builds
+npm run deploy:test
+
+# Verify deployment
+npm run deploy:verify
+
+# Docker production stack
+npm run docker:prod
+```
+
 ## Tips for Fast Iteration
 
 1. **Use two terminals**: One for servers, one for testing
@@ -140,6 +203,13 @@ ps aux | grep -E "uvicorn|npm"
 4. **Hot reload**: Both frontend and backend auto-reload on save
 5. **Test incrementally**: Fix one error at a time
 
+## Related Documentation
+
+- [`local-deployment-testing.md`](./local-deployment-testing.md) - Comprehensive deployment testing guide
+- [`production-setup.md`](./production-setup.md) - Production deployment guide
+- [`../../AGENTS.md`](../../AGENTS.md) - Contributor guidelines with testing requirements
+- [`../../README.md`](../../README.md) - Main documentation with all commands
+
 ---
 
-Remember: Always test locally before pushing to production!
+Remember: Always test locally before pushing to production! The automated hooks and testing tools will help ensure your code is deployment-ready.

@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database (simulates production DB)
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: wgp_user
+      POSTGRES_PASSWORD: wgp_pass_secure_123
+      POSTGRES_DB: wolf_goat_pig
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wgp_user -d wolf_goat_pig"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API (simulates Render deployment)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    environment:
+      DATABASE_URL: postgresql://wgp_user:wgp_pass_secure_123@postgres:5432/wolf_goat_pig
+      ENVIRONMENT: production
+      FRONTEND_URL: http://localhost:3000
+      # Add your production environment variables here
+      GHIN_API_USER: ${GHIN_API_USER:-}
+      GHIN_API_PASS: ${GHIN_API_PASS:-}
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: gunicorn app.main:app --workers 2 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend (simulates Vercel deployment)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        REACT_APP_API_URL: http://localhost:8000
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx reverse proxy (optional - simulates production routing)
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./config/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+      - frontend
+    profiles:
+      - with-nginx
+
+volumes:
+  postgres_data:
