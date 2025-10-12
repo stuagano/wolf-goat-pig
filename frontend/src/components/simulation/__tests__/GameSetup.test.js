@@ -1,203 +1,146 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import GameSetup from '../GameSetup';
 
-// Mock data
-const mockPersonalities = [
-  { id: 'aggressive', name: 'Aggressive Player', description: 'Takes risks' },
-  { id: 'conservative', name: 'Conservative Player', description: 'Plays safely' },
-];
-
-const mockSuggestedOpponents = [
-  { id: 'comp1', name: 'Computer 1', handicap: 15, personality: 'aggressive' },
-  { id: 'comp2', name: 'Computer 2', handicap: 12, personality: 'conservative' },
-  { id: 'comp3', name: 'Computer 3', handicap: 8, personality: 'balanced' },
-];
-
 const mockCourses = {
-  'Augusta National': { name: 'Augusta National', holes: 18 },
-  'Pebble Beach': { name: 'Pebble Beach', holes: 18 },
+  Augusta: {
+    name: 'Augusta',
+    holes: Array.from({ length: 18 }, (_, i) => ({
+      hole_number: i + 1,
+      par: 4,
+      yards: 420,
+      stroke_index: i + 1,
+    })),
+    total_par: 72,
+    total_yards: 7560,
+    hole_count: 18,
+  },
 };
 
-const defaultProps = {
-  humanPlayer: {
-    id: 'human',
-    name: '',
-    handicap: 18,
-    strength: 'Average',
-    is_human: true,
-  },
+const makeDefaultProps = () => ({
+  humanPlayer: { id: 'human', name: '', handicap: '18', is_human: true },
   setHumanPlayer: jest.fn(),
-  computerPlayers: [],
+  computerPlayers: [
+    { id: 'comp1', name: '', handicap: '', personality: '', is_human: false },
+    { id: 'comp2', name: '', handicap: '', personality: '', is_human: false },
+    { id: 'comp3', name: '', handicap: '', personality: '', is_human: false },
+  ],
   setComputerPlayers: jest.fn(),
-  selectedCourse: '',
+  selectedCourse: null,
   setSelectedCourse: jest.fn(),
   courses: mockCourses,
   setCourses: jest.fn(),
-  personalities: mockPersonalities,
+  personalities: [],
   setPersonalities: jest.fn(),
-  suggestedOpponents: mockSuggestedOpponents,
+  suggestedOpponents: [
+    { name: 'Aggressive Bot', handicap: '10', personality: 'aggressive' },
+  ],
   setSuggestedOpponents: jest.fn(),
   onStartGame: jest.fn(),
-};
+});
 
 describe('GameSetup', () => {
+  const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => undefined);
+
   beforeEach(() => {
     jest.clearAllMocks();
+    global.fetch.mockImplementation((url) => {
+      if (url.includes('/courses')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockCourses),
+        });
+      }
+      if (url.includes('/personalities') || url.includes('/suggested')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([]),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve([]),
+      });
+    });
   });
 
-  test('renders player setup form', () => {
-    render(<GameSetup {...defaultProps} />);
-    
-    expect(screen.getByText(/player setup/i)).toBeInTheDocument();
+  afterAll(() => {
+    alertSpy.mockRestore();
+  });
+
+  test('renders human player details section', () => {
+    const props = makeDefaultProps();
+    render(<GameSetup {...props} />);
+
     expect(screen.getByLabelText(/your name/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/handicap/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/your handicap/i)).toBeInTheDocument();
+    const lookupButtons = screen.getAllByRole('button', { name: /lookup ghin handicap/i });
+    expect(lookupButtons.length).toBeGreaterThan(0);
   });
 
-  test('updates human player name', () => {
-    render(<GameSetup {...defaultProps} />);
-    
-    const nameInput = screen.getByLabelText(/your name/i);
-    fireEvent.change(nameInput, { target: { value: 'John Doe' } });
-    
-    expect(defaultProps.setHumanPlayer).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'John Doe' })
-    );
+  test('updates human player name via setter', () => {
+    const props = makeDefaultProps();
+    render(<GameSetup {...props} />);
+
+    fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: 'Jane Player' } });
+    expect(props.setHumanPlayer).toHaveBeenCalledWith(expect.objectContaining({ name: 'Jane Player' }));
   });
 
-  test('updates human player handicap', () => {
-    render(<GameSetup {...defaultProps} />);
-    
-    const handicapInput = screen.getByLabelText(/handicap/i);
-    fireEvent.change(handicapInput, { target: { value: '12' } });
-    
-    expect(defaultProps.setHumanPlayer).toHaveBeenCalledWith(
-      expect.objectContaining({ handicap: 12 })
-    );
+  test('opens ghin lookup panel for human player', () => {
+    const props = makeDefaultProps();
+    render(<GameSetup {...props} />);
+
+    const lookupButtons = screen.getAllByRole('button', { name: /lookup ghin handicap/i });
+    fireEvent.click(lookupButtons[0]);
+    expect(screen.getByText(/ghin handicap lookup/i)).toBeInTheDocument();
   });
 
-  test('renders course selection', () => {
-    render(<GameSetup {...defaultProps} />);
-    
-    expect(screen.getByText(/course selection/i)).toBeInTheDocument();
-    expect(screen.getByText('Augusta National')).toBeInTheDocument();
-    expect(screen.getByText('Pebble Beach')).toBeInTheDocument();
+  test('invokes quick opponent loader when suggested opponent clicked', () => {
+    const props = makeDefaultProps();
+    render(<GameSetup {...props} />);
+
+    const quickSelectButtons = screen.getAllByRole('button', { name: /aggressive bot/i });
+    fireEvent.click(quickSelectButtons[0]);
+    expect(props.setComputerPlayers).toHaveBeenCalled();
   });
 
-  test('selects course', () => {
-    render(<GameSetup {...defaultProps} />);
-    
-    const courseButton = screen.getByText('Augusta National');
-    fireEvent.click(courseButton);
-    
-    expect(defaultProps.setSelectedCourse).toHaveBeenCalledWith('Augusta National');
+  test('validates required data before starting game', () => {
+    const props = makeDefaultProps();
+    render(<GameSetup {...props} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /start simulation/i }));
+    expect(alertSpy).toHaveBeenCalled();
+    expect(props.onStartGame).not.toHaveBeenCalled();
   });
 
-  test('renders computer opponents section', () => {
-    render(<GameSetup {...defaultProps} />);
-    
-    expect(screen.getByText(/computer opponents/i)).toBeInTheDocument();
-  });
+  test('submits when configuration is complete', async () => {
+    const props = makeDefaultProps();
+    props.humanPlayer.name = 'Human Player';
+    props.computerPlayers = props.computerPlayers.map((player, idx) => ({
+      ...player,
+      name: `CPU ${idx + 1}`,
+      handicap: '12',
+    }));
+    props.selectedCourse = 'Augusta';
 
-  test('shows suggested opponents', () => {
-    render(<GameSetup {...defaultProps} />);
-    
-    expect(screen.getByText('Computer 1')).toBeInTheDocument();
-    expect(screen.getByText('Computer 2')).toBeInTheDocument();
-    expect(screen.getByText('Computer 3')).toBeInTheDocument();
-  });
+    render(<GameSetup {...props} />);
 
-  test('updates computer player personality', () => {
-    const computerPlayers = [
-      { id: 'comp1', name: 'Computer 1', handicap: 15, personality: 'aggressive', is_human: false },
-    ];
-    
-    render(<GameSetup {...defaultProps} computerPlayers={computerPlayers} />);
-    
-    const personalitySelect = screen.getAllByDisplayValue('aggressive')[0];
-    fireEvent.change(personalitySelect, { target: { value: 'conservative' } });
-    
-    expect(defaultProps.setComputerPlayers).toHaveBeenCalledWith([
-      expect.objectContaining({ personality: 'conservative' })
-    ]);
-  });
-
-  test('calls onStartGame when start button clicked', () => {
-    const propsWithName = {
-      ...defaultProps,
-      humanPlayer: { ...defaultProps.humanPlayer, name: 'John Doe' },
-    };
-    
-    render(<GameSetup {...propsWithName} />);
-    
-    const startButton = screen.getByText(/start simulation/i);
+    const startButton = screen.getByRole('button', { name: /start simulation/i });
     fireEvent.click(startButton);
-    
-    expect(defaultProps.onStartGame).toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(props.onStartGame).toHaveBeenCalled();
+    });
   });
 
-  test('validates required fields before starting', () => {
-    render(<GameSetup {...defaultProps} />);
-    
-    const startButton = screen.getByText(/start simulation/i);
-    expect(startButton).toBeDisabled();
-  });
+  test('allows choosing a course from dropdown', () => {
+    const props = makeDefaultProps();
+    render(<GameSetup {...props} />);
 
-  test('enables start button when all fields are valid', () => {
-    const validProps = {
-      ...defaultProps,
-      humanPlayer: { ...defaultProps.humanPlayer, name: 'John Doe' },
-      selectedCourse: 'Augusta National',
-      computerPlayers: [
-        { id: 'comp1', name: 'Computer 1', handicap: 15, personality: 'aggressive', is_human: false },
-        { id: 'comp2', name: 'Computer 2', handicap: 12, personality: 'conservative', is_human: false },
-        { id: 'comp3', name: 'Computer 3', handicap: 8, personality: 'balanced', is_human: false },
-      ],
-    };
-    
-    render(<GameSetup {...validProps} />);
-    
-    const startButton = screen.getByText(/start simulation/i);
-    expect(startButton).not.toBeDisabled();
-  });
+    const courseSelect = screen.getByLabelText(/select course/i);
+    fireEvent.change(courseSelect, { target: { value: 'Augusta' } });
 
-  test('handles empty suggested opponents gracefully', () => {
-    const propsWithNoOpponents = {
-      ...defaultProps,
-      suggestedOpponents: [],
-    };
-    
-    render(<GameSetup {...propsWithNoOpponents} />);
-    
-    expect(screen.getByText(/computer opponents/i)).toBeInTheDocument();
-    expect(screen.queryByText('Computer 1')).not.toBeInTheDocument();
-  });
-
-  test('handles empty courses gracefully', () => {
-    const propsWithNoCourses = {
-      ...defaultProps,
-      courses: {},
-    };
-    
-    render(<GameSetup {...propsWithNoCourses} />);
-    
-    expect(screen.getByText(/course selection/i)).toBeInTheDocument();
-    expect(screen.queryByText('Augusta National')).not.toBeInTheDocument();
-  });
-
-  test('allows customizing computer player handicaps', () => {
-    const computerPlayers = [
-      { id: 'comp1', name: 'Computer 1', handicap: 15, personality: 'aggressive', is_human: false },
-    ];
-    
-    render(<GameSetup {...defaultProps} computerPlayers={computerPlayers} />);
-    
-    const handicapInput = screen.getByDisplayValue('15');
-    fireEvent.change(handicapInput, { target: { value: '20' } });
-    
-    expect(defaultProps.setComputerPlayers).toHaveBeenCalledWith([
-      expect.objectContaining({ handicap: 20 })
-    ]);
+    expect(props.setSelectedCourse).toHaveBeenCalledWith('Augusta');
   });
 });

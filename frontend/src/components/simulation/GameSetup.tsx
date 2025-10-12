@@ -498,7 +498,7 @@ const GameSetup: React.FC<GameSetupProps> = ({
         <Card>
           <Select
             label="Select Course:"
-            value={selectedCourse}
+            value={selectedCourse || ''}
             onChange={(e) => setSelectedCourse(e.target.value)}
             options={Object.keys(courses).map(courseId => ({ 
               value: courseId, 

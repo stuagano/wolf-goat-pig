@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { useTheme } from '../../theme/Provider';
 
 const Select = ({ 
@@ -11,9 +11,12 @@ const Select = ({
   options = [],
   style = {},
   selectStyle = {},
+  id,
   ...props 
 }) => {
   const theme = useTheme();
+  const generatedId = useId();
+  const selectId = id || generatedId;
   
   const containerStyle = {
     marginBottom: theme.spacing[4],
@@ -72,7 +75,7 @@ const Select = ({
   return (
     <div style={containerStyle}>
       {label && (
-        <label style={labelStyle}>
+        <label style={labelStyle} htmlFor={selectId}>
           {label}
         </label>
       )}
@@ -81,6 +84,7 @@ const Select = ({
         onChange={onChange}
         disabled={disabled}
         style={baseSelectStyle}
+        id={selectId}
         {...props}
       >
         {placeholder && (

@@ -10,6 +10,16 @@ process.env.REACT_APP_USE_MOCK_AUTH = 'true';
 // Mock window.alert
 global.alert = jest.fn();
 
+// Mock window.confirm
+global.confirm = jest.fn(() => true);
+
+const defaultFetchImplementation = () =>
+  Promise.resolve({
+    ok: true,
+    json: () => Promise.resolve({}),
+    status: 200,
+  });
+
 // Mock window.localStorage
 const localStorageMock = {
   getItem: jest.fn(),
@@ -27,18 +37,12 @@ Object.defineProperty(window, 'innerWidth', {
 });
 
 // Mock fetch globally
-global.fetch = jest.fn(() =>
-  Promise.resolve({
-    ok: true,
-    json: () => Promise.resolve({}),
-    status: 200,
-  })
-);
+global.fetch = jest.fn(defaultFetchImplementation);
 
 beforeEach(() => {
   // Clear all mocks before each test
   jest.clearAllMocks();
-  fetch.mockClear();
+  global.fetch.mockImplementation(defaultFetchImplementation);
   localStorageMock.getItem.mockClear();
   localStorageMock.setItem.mockClear();
 });

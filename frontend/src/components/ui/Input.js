@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { useTheme } from '../../theme/Provider';
 
 const Input = ({ 
@@ -11,9 +11,12 @@ const Input = ({
   onChange,
   style = {},
   inputStyle = {},
+  id,
   ...props 
 }) => {
   const theme = useTheme();
+  const generatedId = useId();
+  const inputId = id || generatedId;
   
   const containerStyle = {
     marginBottom: theme.spacing[4],
@@ -60,7 +63,7 @@ const Input = ({
   return (
     <div style={containerStyle}>
       {label && (
-        <label style={labelStyle}>
+        <label style={labelStyle} htmlFor={inputId}>
           {label}
         </label>
       )}
@@ -71,6 +74,7 @@ const Input = ({
         onChange={onChange}
         disabled={disabled}
         style={baseInputStyle}
+        id={inputId}
         {...props}
       />
       {error && (

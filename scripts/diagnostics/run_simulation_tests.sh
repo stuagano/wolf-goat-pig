@@ -1,8 +1,6 @@
 #!/bin/bash
-"""
-Comprehensive test runner for simulation mode
-Runs unit tests, functional tests, and end-to-end tests
-"""
+# Comprehensive test runner for simulation mode
+# Runs unit tests, functional tests, and end-to-end tests
 
 set -e
 
@@ -20,7 +18,7 @@ TEST_DIR="tests"
 REPORTS_DIR="reports"
 
 echo -e "${BLUE}🧪 Wolf Goat Pig Simulation Test Suite${NC}"
-echo "=" * 50
+printf '%s\n' '=================================================='
 
 # Create reports directory
 mkdir -p $REPORTS_DIR
@@ -28,7 +26,7 @@ mkdir -p $REPORTS_DIR
 # Function to print section headers
 print_section() {
     echo -e "\n${BLUE}📋 $1${NC}"
-    echo "-" * 30
+    printf '%s\n' '------------------------------'
 }
 
 # Function to check if command exists
@@ -74,7 +72,7 @@ if command_exists pytest; then
     echo -e "${GREEN}✅ pytest available${NC}"
 else
     echo -e "${YELLOW}⚠️ pytest not found - installing...${NC}"
-    pip3 install pytest pytest-asyncio pytest-html
+    PIP_BREAK_SYSTEM_PACKAGES=1 python3 -m pip install pytest pytest-asyncio pytest-html
 fi
 
 print_section "Backend Unit Tests"
@@ -83,7 +81,9 @@ cd $BACKEND_DIR
 
 echo "Installing backend dependencies..."
 if [ -f "requirements.txt" ]; then
-    pip3 install -r requirements.txt >/dev/null 2>&1 || echo -e "${YELLOW}⚠️ Some dependencies may not have installed${NC}"
+    if ! PIP_BREAK_SYSTEM_PACKAGES=1 python3 -m pip install -r requirements.txt >/dev/null; then
+        echo -e "${YELLOW}⚠️ Some dependencies may not have installed${NC}"
+    fi
 fi
 
 echo "Running backend unit tests..."

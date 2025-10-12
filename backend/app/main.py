@@ -4055,6 +4055,149 @@ class BettingDecisionRequest(BaseModel):
     """Request model for betting decisions"""
     decision: Dict[str, Any]
 
+
+def _get_current_hole_state():
+    """Safely fetch the current hole state from the active simulation."""
+    if not wgp_simulation:
+        return None
+    return wgp_simulation.hole_states.get(wgp_simulation.current_hole)
+
+
+def _get_default_player_id(preferred_role: str = "captain") -> Optional[str]:
+    """
+    Provide a sensible default player identifier for legacy API calls that
+    don't explicitly include a player context.
+    """
+    hole_state = _get_current_hole_state()
+    if hole_state and getattr(hole_state, "teams", None):
+        if preferred_role == "captain" and getattr(hole_state.teams, "captain", None):
+            return hole_state.teams.captain
+        if preferred_role == "solo" and getattr(hole_state.teams, "solo_player", None):
+            return hole_state.teams.solo_player
+
+    if wgp_simulation and getattr(wgp_simulation, "players", None):
+        for player in wgp_simulation.players:
+            if player.id == "human":
+                return player.id
+        return wgp_simulation.players[0].id if wgp_simulation.players else None
+    return None
+
+
+def _get_opposing_team_id(reference_player_id: Optional[str] = None) -> str:
+    """
+    Determine the opposing team identifier for double responses.
+    Falls back to generic label when team structure is not yet established.
+    """
+    hole_state = _get_current_hole_state()
+    if not hole_state or not getattr(hole_state, "teams", None):
+        return "opponents"
+
+    if hole_state.teams.type == "partners":
+        team1 = set(hole_state.teams.team1 or [])
+        team2 = set(hole_state.teams.team2 or [])
+
+        if reference_player_id and reference_player_id in team1:
+            return "team2"
+        if reference_player_id and reference_player_id in team2:
+            return "team1"
+        return "team2" if team1 else "opponents"
+
+    return "opponents"
+
+
+def _get_pending_partnership_request() -> Dict[str, Any]:
+    """Return any pending partnership request details from the current hole."""
+    hole_state = _get_current_hole_state()
+    if hole_state and getattr(hole_state, "teams", None):
+        return hole_state.teams.pending_request or {}
+    return {}
+
+
+def _normalize_probabilities(probabilities: Dict[str, float]) -> Dict[str, float]:
+    """Normalize probability buckets so they sum to ~1.0 and clamp negatives."""
+    safe_probs = {k: max(0.0, float(v)) for k, v in probabilities.items()}
+    total = sum(safe_probs.values())
+    if total <= 0:
+        bucket_count = len(safe_probs)
+        if bucket_count == 0:
+            return {}
+        equal_share = 1.0 / bucket_count
+        return {k: equal_share for k in safe_probs}
+    return {k: v / total for k, v in safe_probs.items()}
+
+
+def _compute_shot_probabilities(
+    player_stats: Optional[Dict[str, Any]] = None,
+    hole_info: Optional[Dict[str, Any]] = None,
+    lie_type: Optional[str] = None
+) -> Dict[str, float]:
+    """Generate a balanced shot probability distribution based on context."""
+    player_stats = player_stats or {}
+    hole_info = hole_info or {}
+    lie_type = (lie_type or hole_info.get("lie_type") or "").lower()
+
+    base_distribution = {
+        "excellent": 0.18,
+        "good": 0.32,
+        "average": 0.30,
+        "poor": 0.15,
+        "disaster": 0.05,
+    }
+
+    handicap = float(player_stats.get("handicap", 18) or 18)
+    skill_delta = max(min((18 - handicap) / 40.0, 0.2), -0.2)
+    base_distribution["excellent"] += skill_delta
+    base_distribution["good"] += skill_delta * 0.5
+    base_distribution["poor"] -= abs(skill_delta) * 0.4
+    base_distribution["disaster"] = max(0.02, base_distribution["disaster"] - skill_delta * 0.3)
+
+    difficulty = str(hole_info.get("difficulty", "medium")).lower()
+    if difficulty in {"hard", "very hard", "difficult"}:
+        base_distribution["excellent"] *= 0.75
+        base_distribution["good"] *= 0.85
+        base_distribution["poor"] *= 1.2
+        base_distribution["disaster"] *= 1.3
+    elif difficulty in {"easy", "very easy"}:
+        base_distribution["excellent"] *= 1.15
+        base_distribution["good"] *= 1.05
+        base_distribution["poor"] *= 0.85
+        base_distribution["disaster"] *= 0.75
+
+    distance = hole_info.get("distance") or hole_info.get("distance_to_pin")
+    if isinstance(distance, (int, float)):
+        if distance < 100:
+            base_distribution["excellent"] *= 1.1
+            base_distribution["good"] *= 1.05
+            base_distribution["poor"] *= 0.9
+        elif distance > 200:
+            base_distribution["excellent"] *= 0.85
+            base_distribution["good"] *= 0.9
+            base_distribution["poor"] *= 1.1
+            base_distribution["disaster"] *= 1.15
+
+    if lie_type in {"tee"}:
+        base_distribution["excellent"] *= 1.2
+        base_distribution["good"] *= 1.1
+        base_distribution["poor"] *= 0.8
+        base_distribution["disaster"] *= 0.6
+    elif lie_type in {"rough", "deep_rough"}:
+        base_distribution["excellent"] *= 0.7
+        base_distribution["good"] *= 0.8
+        base_distribution["poor"] *= 1.2
+        base_distribution["disaster"] *= 1.3
+    elif lie_type in {"bunker"}:
+        base_distribution["excellent"] *= 0.6
+        base_distribution["good"] *= 0.75
+        base_distribution["poor"] *= 1.25
+        base_distribution["disaster"] *= 1.4
+    elif lie_type in {"green"}:
+        base_distribution["excellent"] *= 1.4
+        base_distribution["good"] *= 1.15
+        base_distribution["poor"] *= 0.6
+        base_distribution["disaster"] *= 0.4
+
+    return _normalize_probabilities(base_distribution)
+
 @app.post("/simulation/setup")
 def setup_simulation(request: Dict[str, Any]):
     """Initialize a new simulation with specified players and configuration"""
@@ -4112,24 +4255,39 @@ def setup_simulation(request: Dict[str, Any]):
             wgp_simulation.set_computer_players(comp_players, personalities)
         
         # Load course if specified
-        course_id = request.get('course_id') or (course_name and 1)  # Use course_name for lookup
-        if course_id or course_name:
+        course_id = request.get('course_id')
+        course_lookup_candidates = []
+        if course_name:
+            course_lookup_candidates.append(str(course_name))
+        if course_id is not None:
+            course_lookup_candidates.append(str(course_id))
+
+        if course_lookup_candidates:
+            selected_course_name = None
             try:
                 courses = game_state.get_courses()
-                if course_id:
-                    selected_course = next((c for c in courses if c.id == course_id), None)
-                elif course_name:
-                    selected_course = next((c for c in courses if c.name == course_name), None)
+                if isinstance(courses, dict):
+                    for candidate in course_lookup_candidates:
+                        if candidate in courses:
+                            selected_course_name = candidate
+                            break
+                        # Allow matching by case-insensitive name
+                        for existing_name in courses.keys():
+                            if existing_name.lower() == candidate.lower():
+                                selected_course_name = existing_name
+                                break
+                        if selected_course_name:
+                            break
+                if selected_course_name:
+                    logger.info(f"Using course: {selected_course_name}")
+                    try:
+                        game_state.course_manager.load_course(selected_course_name)
+                    except Exception as load_error:
+                        logger.warning(f"Failed to load course '{selected_course_name}': {load_error}")
                 else:
-                    selected_course = None
-                
-                if selected_course:
-                    # Set course for simulation
-                    logger.info(f"Using course: {selected_course.name}")
-                else:
-                    logger.warning(f"Course not found: {course_name or course_id}")
+                    logger.warning(f"Course not found: {course_lookup_candidates[0]}")
             except Exception as course_error:
-                logger.warning(f"Could not load course {course_name or course_id}: {course_error}")
+                logger.warning(f"Could not load course {course_lookup_candidates[0]}: {course_error}")
         
         # Initialize hole 1
         wgp_simulation._initialize_hole(1)
@@ -4234,46 +4392,138 @@ def play_next_shot(request: SimulationPlayShotRequest = None):
         raise HTTPException(status_code=500, detail=f"Failed to play next shot: {str(e)}")
 
 @app.post("/simulation/play-hole")
-def simulate_hole(request: SimulationPlayHoleRequest):
-    """Complete simulation of an entire hole with given decisions"""
+def simulate_hole(request: Dict[str, Any] = Body(default_factory=dict)):
+    """Process in-hole decisions or simulate an entire hole when no action supplied"""
     global wgp_simulation
     
     try:
         if not wgp_simulation:
             raise HTTPException(status_code=400, detail="Simulation not initialized. Call /simulation/setup first.")
         
-        # Process the decision for hole simulation
-        decision = request.decision
+        payload = request or {}
+        if isinstance(payload.get("decision"), dict):
+            payload = {**payload, **payload["decision"]}
         
-        # For now, simulate all shots for the hole
-        hole_results = []
-        max_shots = 20  # Safety limit
-        shot_count = 0
+        action = payload.get("action")
+        if not action:
+            if payload.get("accept_partnership") is True:
+                action = "accept_partnership"
+            elif payload.get("accept_partnership") is False:
+                action = "decline_partnership"
+            elif payload.get("accept_double") is True:
+                action = "accept_double"
+            elif payload.get("decline_double") is True:
+                action = "decline_double"
+            elif payload.get("offer_double"):
+                action = "offer_double"
         
-        while shot_count < max_shots:
-            next_player = wgp_simulation._get_next_shot_player()
-            if not next_player:
-                break
-                
-            # Simulate shot
-            shot_response = wgp_simulation.simulate_shot(next_player)
-            hole_results.append(shot_response)
-            shot_count += 1
+        interaction_needed = None
+        result: Dict[str, Any] = {}
+        
+        if action:
+            hole_state = _get_current_hole_state()
+            captain_id = payload.get("captain_id") or payload.get("player_id") or _get_default_player_id()
             
-            # Check if hole is complete
-            game_state_data = wgp_simulation.get_game_state()
-            if game_state_data.get("hole_complete", False):
-                break
+            if action == "request_partner":
+                partner_id = payload.get("partner_id") or payload.get("requested_partner")
+                if not partner_id:
+                    raise HTTPException(status_code=400, detail="Partner ID required for partnership request")
+                if not captain_id:
+                    raise HTTPException(status_code=400, detail="Captain ID required for partnership request")
+                
+                result = wgp_simulation.request_partner(captain_id, partner_id)
+                interaction_needed = {
+                    "type": "partnership_response",
+                    "requested_partner": partner_id,
+                    "captain_id": captain_id
+                }
+            
+            elif action in ("accept_partnership", "decline_partnership"):
+                pending_request = _get_pending_partnership_request()
+                partner_id = payload.get("partner_id") or pending_request.get("requested")
+                if not partner_id:
+                    raise HTTPException(status_code=400, detail="No pending partnership request to resolve")
+                accept = action == "accept_partnership"
+                result = wgp_simulation.respond_to_partnership(partner_id, accept)
+            
+            elif action in ("go_solo", "captain_go_solo"):
+                if not captain_id:
+                    raise HTTPException(status_code=400, detail="Captain ID required for solo decision")
+                result = wgp_simulation.captain_go_solo(captain_id)
+            
+            elif action == "offer_double":
+                if not captain_id:
+                    raise HTTPException(status_code=400, detail="Player ID required to offer double")
+                result = wgp_simulation.offer_double(captain_id)
+                interaction_needed = {
+                    "type": "double_response",
+                    "offering_player": captain_id
+                }
+            
+            elif action in ("accept_double", "decline_double"):
+                offer_history = []
+                if hole_state and getattr(hole_state, "betting", None):
+                    offer_history = hole_state.betting.doubles_history or []
+                offering_player = None
+                if offer_history:
+                    offering_player = offer_history[-1].get("offering_player")
+                offering_player = offering_player or payload.get("offering_player")
+                
+                responding_team = payload.get("team_id") or _get_opposing_team_id(offering_player or captain_id)
+                accept = action == "accept_double"
+                result = wgp_simulation.respond_to_double(responding_team, accept)
+            
+            else:
+                result = {"status": "unsupported_action", "message": f"Action '{action}' not recognized"}
+        
+        else:
+            hole_results = []
+            max_shots = 20  # Safety limit
+            shot_count = 0
+            
+            while shot_count < max_shots:
+                next_player = wgp_simulation._get_next_shot_player()
+                if not next_player:
+                    break
+                    
+                shot_response = wgp_simulation.simulate_shot(next_player)
+                hole_results.append(shot_response)
+                shot_count += 1
+                
+                game_state_data = wgp_simulation.get_game_state()
+                if game_state_data.get("hole_complete", False):
+                    break
+            
+            updated_state = wgp_simulation.get_game_state()
+            return {
+                "success": True,
+                "hole_results": hole_results,
+                "game_state": updated_state,
+                "shots_played": shot_count
+            }
         
         updated_state = wgp_simulation.get_game_state()
+        if interaction_needed is None:
+            pending_request = _get_pending_partnership_request()
+            if pending_request:
+                interaction_needed = {
+                    "type": "partnership_response",
+                    "requested_partner": pending_request.get("requested"),
+                    "captain_id": pending_request.get("captain")
+                }
         
         return {
             "success": True,
-            "hole_results": hole_results,
+            "result": result,
             "game_state": updated_state,
-            "shots_played": shot_count
+            "interaction_needed": interaction_needed,
+            "hole_complete": updated_state.get("hole_complete", False)
         }
         
+    except HTTPException:
+        raise
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         logger.error(f"Hole simulation failed: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to simulate hole: {str(e)}")
@@ -4420,49 +4670,25 @@ def get_shot_probabilities():
             return {"success": True, "probabilities": {}}
         
         # Get current hole state
-        hole_state = wgp_simulation.hole_states.get(wgp_simulation.current_hole)
+        hole_state = _get_current_hole_state()
         if not hole_state:
             return {"success": True, "probabilities": {}}
         
         # Get player's current ball position
         ball_position = hole_state.get_player_ball_position(next_player)
         
-        # Calculate probabilities based on lie type and distance
-        probabilities = {
-            "excellent": 0.15,
-            "good": 0.35, 
-            "average": 0.30,
-            "poor": 0.15,
-            "disaster": 0.05
+        player_obj = next((p for p in wgp_simulation.players if p.id == next_player), None)
+        hole_info = {
+            "difficulty": getattr(hole_state, "hole_difficulty", "medium"),
+            "par": getattr(hole_state, "hole_par", 4),
+            "distance": getattr(ball_position, "distance_to_pin", None)
         }
-        
-        # Adjust based on lie type
-        if ball_position:
-            if ball_position.lie_type == "tee":
-                probabilities.update({
-                    "excellent": 0.25,
-                    "good": 0.40,
-                    "average": 0.25,
-                    "poor": 0.08,
-                    "disaster": 0.02
-                })
-            elif ball_position.lie_type == "rough":
-                probabilities.update({
-                    "excellent": 0.08,
-                    "good": 0.22,
-                    "average": 0.35,
-                    "poor": 0.25,
-                    "disaster": 0.10
-                })
-            elif ball_position.lie_type == "bunker":
-                probabilities.update({
-                    "excellent": 0.05,
-                    "good": 0.15,
-                    "average": 0.30,
-                    "poor": 0.35,
-                    "disaster": 0.15
-                })
-        
+        probabilities = _compute_shot_probabilities(
+            player_stats={"handicap": getattr(player_obj, "handicap", 18)} if player_obj else None,
+            hole_info=hole_info,
+            lie_type=getattr(ball_position, "lie_type", None)
+        )
+
         return {
             "success": True,
             "probabilities": probabilities,
@@ -4477,6 +4703,39 @@ def get_shot_probabilities():
         logger.error(f"Failed to get shot probabilities: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get shot probabilities: {str(e)}")
 
+
+@app.post("/simulation/shot-probabilities")
+def calculate_shot_probabilities(payload: Dict[str, Any]):
+    """Calculate shot probabilities for arbitrary scenarios (used by tests/tools)"""
+    try:
+        player_stats = payload.get("player_stats") or {}
+        hole_info = payload.get("hole_info") or {}
+        lie_type = payload.get("lie_type")
+        
+        probabilities = _compute_shot_probabilities(player_stats, hole_info, lie_type)
+        insights = []
+        if player_stats.get("handicap") is not None:
+            handicap = float(player_stats["handicap"])
+            if handicap <= 10:
+                insights.append("Low handicap boosts excellent shot odds.")
+            elif handicap >= 20:
+                insights.append("Higher handicap reduces premium shot outcomes.")
+        
+        difficulty = str(hole_info.get("difficulty", "")).lower()
+        if difficulty in {"hard", "very hard", "difficult"}:
+            insights.append("Difficult hole increases chance of poor or disaster outcomes.")
+        elif difficulty in {"easy", "very easy"}:
+            insights.append("Easier hole improves strong shot percentages.")
+        
+        return {
+            "success": True,
+            "probabilities": probabilities,
+            "insights": insights
+        }
+    except Exception as exc:
+        logger.error(f"Shot probability calculation failed: {exc}")
+        raise HTTPException(status_code=500, detail=f"Failed to calculate shot probabilities: {str(exc)}")
+
 @app.post("/simulation/betting-decision")
 def make_betting_decision(request: Dict[str, Any]):
     """Process a betting decision in the simulation with poker-style actions"""
@@ -4487,34 +4746,76 @@ def make_betting_decision(request: Dict[str, Any]):
             raise HTTPException(status_code=400, detail="Simulation not initialized")
         
         # Handle both old format and new format
-        if isinstance(request, dict) and 'decision' in request:
-            decision = request['decision']
-        else:
-            decision = request
-            
+        decision = request['decision'] if isinstance(request, dict) and 'decision' in request else request
+        
+        action = decision.get("action")
         decision_type = decision.get("type") or decision.get("decision_type")
-        player_id = decision.get("player_id")
+        if action and not decision_type:
+            legacy_action_map = {
+                "request_partner": "partnership_request",
+                "accept_partnership": "partnership_response",
+                "decline_partnership": "partnership_response",
+                "offer_double": "double_offer",
+                "accept_double": "double_response",
+                "decline_double": "double_response",
+                "go_solo": "go_solo",
+            }
+            decision_type = legacy_action_map.get(action, action)
+        
+        player_id = decision.get("player_id") or decision.get("captain_id") or _get_default_player_id()
         
         result = {"success": False, "message": "Unknown decision type"}
+        interaction_needed = None
         
         # Process different types of betting decisions
         if decision_type == "partnership_request":
             partner_id = decision.get("partner_id")
+            if not partner_id:
+                partner_id = decision.get("requested_partner")
             if partner_id:
+                if not player_id:
+                    raise HTTPException(status_code=400, detail="Captain player_id required for partnership request")
                 result = wgp_simulation.request_partner(player_id, partner_id)
+                interaction_needed = {
+                    "type": "partnership_response",
+                    "requested_partner": partner_id,
+                    "captain_id": player_id
+                }
                 
         elif decision_type == "partnership_response":
-            accept = decision.get("accept", False)
-            result = wgp_simulation.respond_to_partnership(player_id, accept)
+            partner_id = decision.get("partner_id") or decision.get("requested_partner")
+            if not partner_id:
+                pending = _get_pending_partnership_request()
+                partner_id = pending.get("requested")
+            if not partner_id:
+                raise HTTPException(status_code=400, detail="No pending partnership request to resolve")
+            accept = decision.get("accept", decision.get("accept_partnership", action == "accept_partnership"))
+            result = wgp_simulation.respond_to_partnership(partner_id, bool(accept))
             
         elif decision_type == "double_offer":
+            if not player_id:
+                raise HTTPException(status_code=400, detail="player_id required to offer a double")
             result = wgp_simulation.offer_double(player_id)
+            interaction_needed = {
+                "type": "double_response",
+                "offering_player": player_id
+            }
             
         elif decision_type == "double_response":
-            accept = decision.get("accept", False)
-            result = wgp_simulation.respond_to_double("responding_team", accept)
+            accept = decision.get("accept", decision.get("accept_double", action == "accept_double"))
+            hole_state = _get_current_hole_state()
+            offer_history = []
+            if hole_state and getattr(hole_state, "betting", None):
+                offer_history = hole_state.betting.doubles_history or []
+            offering_player = decision.get("offering_player")
+            if not offering_player and offer_history:
+                offering_player = offer_history[-1].get("offering_player")
+            responding_team = decision.get("team_id") or _get_opposing_team_id(offering_player or player_id)
+            result = wgp_simulation.respond_to_double(responding_team, bool(accept))
             
         elif decision_type == "go_solo":
+            if not player_id:
+                raise HTTPException(status_code=400, detail="player_id required for go_solo decision")
             result = wgp_simulation.captain_go_solo(player_id)
             
         # Get updated game state
@@ -4523,9 +4824,13 @@ def make_betting_decision(request: Dict[str, Any]):
         return {
             "success": True,
             "decision_result": result,
-            "game_state": updated_state
+            "game_state": updated_state,
+            "interaction_needed": interaction_needed
         }
-        
+    except HTTPException:
+        raise
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         logger.error(f"Betting decision failed: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to process betting decision: {str(e)}")
@@ -6349,5 +6654,3 @@ if STATIC_DIR.exists():
             raise HTTPException(status_code=404, detail="Frontend not built")
 else:
     logger.warning("Frontend build directory not found. Frontend will not be served.")
-
-
