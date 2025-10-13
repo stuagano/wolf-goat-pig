@@ -1,11 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { useGame } from "../../context";
+import { simulationConfig } from "../../config/environment";
+import { getSimulationMock } from "./__fixtures__";
 import { GameSetup, GamePlay, EnhancedSimulationLayout } from "./";
 import TurnBasedInterface from "./TurnBasedInterface";
 // import { Timeline, PokerBettingPanel } from "./"; // Removed - not currently used
 // import TVPokerLayout from "../game/TVPokerLayout"; // Removed - not currently used
 
-const API_URL = process.env.REACT_APP_API_URL || "";
+const {
+  apiUrl: SIMULATION_API_URL,
+  useMocks: USE_SIMULATION_MOCKS,
+  mockPreset: SIMULATION_MOCK_PRESET,
+} = simulationConfig;
 
 // Helper function to safely serialize error details
 const formatErrorDetail = (detail) => {
@@ -45,6 +51,7 @@ function SimulationMode() {
   const [pokerState, setPokerState] = useState({});
   const [bettingOptions, setBettingOptions] = useState([]);
   const [timelineLoading, setTimelineLoading] = useState(false);
+  const [mockStep, setMockStep] = useState(0);
   
   // Turn-based mode state
   const [useTurnBasedMode, setUseTurnBasedMode] = useState(true);
@@ -82,13 +89,211 @@ function SimulationMode() {
 
   // GHIN lookup functions removed - functionality not currently exposed in UI
 
+  const isMockSessionEnabled = USE_SIMULATION_MOCKS;
+
+  const resolveMockPreset = () => getSimulationMock(SIMULATION_MOCK_PRESET);
+
+  const pushMockTimelineEvent = (partialEvent) => {
+    setTimelineEvents((previous) => [
+      {
+        id: partialEvent.id || `mock-event-${Date.now()}`,
+        timestamp: partialEvent.timestamp || new Date().toISOString(),
+        ...partialEvent,
+      },
+      ...previous,
+    ]);
+  };
+
+  const hydrateMockSetup = () => {
+    if (!isMockSessionEnabled) {
+      return;
+    }
+
+    const preset = resolveMockPreset();
+    if (!preset) {
+      return;
+    }
+
+    const { setup, gameState: presetGameState } = preset;
+
+    if (setup) {
+      setPersonalities(setup.personalities || []);
+      setSuggestedOpponents(setup.opponents || []);
+      setCourses(setup.courses || {});
+
+      if (Array.isArray(setup.opponents) && setup.opponents.length > 0) {
+        setComputerPlayers(
+          setup.opponents.slice(0, 3).map((opponent, index) => ({
+            id: opponent.id || `mock-opponent-${index + 1}`,
+            name: opponent.name,
+            handicap: opponent.handicap,
+            personality: opponent.personality,
+            is_human: false,
+          }))
+        );
+      }
+    }
+
+    if (presetGameState?.players) {
+      const humanPlayerFromPreset = presetGameState.players.find(
+        (player) => player?.is_human || player?.id === "human"
+      );
+
+      if (humanPlayerFromPreset) {
+        setHumanPlayer((prev) => ({
+          ...prev,
+          ...humanPlayerFromPreset,
+        }));
+      }
+    }
+  };
+
+  const runMockSimulation = () => {
+    const preset = resolveMockPreset();
+    if (!preset) {
+      return;
+    }
+
+    setGameState(preset.gameState);
+    startGame(preset.gameState);
+    setShotState(preset.shotState || null);
+    setShotProbabilities(preset.shotProbabilities || null);
+    setHasNextShot(
+      preset.hasNextShot !== undefined ? Boolean(preset.hasNextShot) : true
+    );
+    setInteractionNeeded(preset.interactionNeeded || null);
+
+    clearFeedback();
+    (preset.feedback || []).forEach((entry) => addFeedback(entry));
+
+    setTimelineEvents(preset.timelineEvents || []);
+    setPokerState(preset.pokerState || {});
+    setBettingOptions(preset.bettingOptions || []);
+    setMockStep(0);
+  };
+
+  const handleMockDecision = (decision) => {
+    if (!isMockSessionEnabled) {
+      return;
+    }
+
+    if (decision.offer_double !== undefined) {
+      handleBettingAction(
+        decision.offer_double ? 'offer_double' : 'decline_double',
+        {
+          label: decision.offer_double ? 'Offer Double' : 'Decline Double',
+        }
+      );
+      setInteractionNeeded(null);
+      setPendingDecision({});
+      return;
+    }
+
+    if (decision.accept_double !== undefined) {
+      handleBettingAction(
+        decision.accept_double ? 'accept_double' : 'decline_double',
+        {
+          label: decision.accept_double ? 'Accept Double' : 'Decline Double',
+        }
+      );
+      setInteractionNeeded(null);
+      setPendingDecision({});
+      return;
+    }
+
+    if (decision.accept_partnership !== undefined) {
+      const accepted = Boolean(decision.accept_partnership);
+      pushMockTimelineEvent({
+        type: accepted ? 'partnership' : 'solo',
+        description: accepted
+          ? 'Mock: Partnership accepted. Robots brace for teamwork.'
+          : 'Mock: Partnership declined. Captain must go solo.',
+      });
+      addFeedback(
+        accepted
+          ? '✅ Mock confirmation: partnership locked in.'
+          : '⚠️ Mock decline: prepare for solo play.'
+      );
+
+      if (!accepted) {
+        handleBettingAction('offer_double', { label: 'Forced Solo Double' });
+      }
+
+      setInteractionNeeded(null);
+      setPendingDecision({});
+      return;
+    }
+
+    if (decision.action === 'request_partner') {
+      const partnerId = decision.requested_partner;
+      const partnerName =
+        gameState?.players?.find((player) => player.id === partnerId)?.name || partnerId || 'selected partner';
+
+      pushMockTimelineEvent({
+        type: 'partnership',
+        description: `Mock: You selected ${partnerName} as your partner.`,
+      });
+
+      addFeedback(`🤝 Mock partner secured: ${partnerName}`);
+
+      const pressurePreset = getSimulationMock('pressureDouble');
+      setInteractionNeeded(pressurePreset.interactionNeeded || null);
+      setShotState(pressurePreset.shotState || shotState);
+      setShotProbabilities(pressurePreset.shotProbabilities || shotProbabilities);
+      setBettingOptions(pressurePreset.bettingOptions || bettingOptions);
+      setPokerState((previous) => ({
+        ...previous,
+        ...pressurePreset.pokerState,
+      }));
+      setMockStep((previous) => previous + 1);
+      setPendingDecision({});
+      return;
+    }
+
+    if (decision.action === 'go_solo') {
+      pushMockTimelineEvent({
+        type: 'solo',
+        description: 'Mock: Captain elects to go solo and press the wager.',
+      });
+      addFeedback('🚀 Mock solo play engaged. The wager has been doubled.');
+      handleBettingAction('offer_double', { label: 'Mock Solo Double' });
+      setInteractionNeeded(null);
+      setPendingDecision({});
+      return;
+    }
+
+    if (decision.action === 'keep_watching') {
+      pushMockTimelineEvent({
+        type: 'captain',
+        description: 'Mock: Captain keeps observing robot tee shots.',
+      });
+      addFeedback('👀 Mock mode: continuing to observe tee shots.');
+      setInteractionNeeded(null);
+      setPendingDecision({});
+      return;
+    }
+
+    pushMockTimelineEvent({
+      type: 'info',
+      description: `Mock decision recorded: ${JSON.stringify(decision)}`,
+    });
+    addFeedback('ℹ️ Mock decision logged. No backend action triggered.');
+    setInteractionNeeded(null);
+    setPendingDecision({});
+  };
+
   useEffect(() => {
+    if (isMockSessionEnabled) {
+      hydrateMockSetup();
+      return;
+    }
+
     fetchInitialData();
   }, []);
   
   // Fetch turn-based state when game is active
   useEffect(() => {
-    if (isGameActive && useTurnBasedMode) {
+    if (isGameActive && useTurnBasedMode && !isMockSessionEnabled) {
       fetchTurnBasedState();
       const interval = setInterval(fetchTurnBasedState, 2000); // Poll every 2 seconds
       return () => clearInterval(interval);
@@ -96,11 +301,15 @@ function SimulationMode() {
   }, [isGameActive, useTurnBasedMode]);
   
   const fetchInitialData = async () => {
+    if (isMockSessionEnabled) {
+      return;
+    }
+
     try {
       const [personalitiesRes, opponentsRes, coursesRes] = await Promise.all([
-        fetch(`${API_URL}/simulation/available-personalities`),
-        fetch(`${API_URL}/simulation/suggested-opponents`),
-        fetch(`${API_URL}/courses`)
+        fetch(`${SIMULATION_API_URL}/simulation/available-personalities`),
+        fetch(`${SIMULATION_API_URL}/simulation/suggested-opponents`),
+        fetch(`${SIMULATION_API_URL}/courses`)
       ]);
       
       const personalitiesData = await personalitiesRes.json();
@@ -125,11 +334,11 @@ function SimulationMode() {
   };
   
   const startSimulation = async () => {
-    if (!humanPlayer.name.trim()) {
+    if (!isMockSessionEnabled && !humanPlayer.name.trim()) {
       alert("Please enter your name");
       return;
     }
-    
+
     setLoading(true);
     try {
       // Reset all local state for new simulation
@@ -148,8 +357,16 @@ function SimulationMode() {
         accept_double: false
       });
       // GHIN lookup state reset removed - functionality not currently used
-      
-      const response = await fetch(`${API_URL}/simulation/setup`, {
+
+      setMockStep(0);
+
+      if (isMockSessionEnabled) {
+        runMockSimulation();
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch(`${SIMULATION_API_URL}/simulation/setup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -191,17 +408,19 @@ function SimulationMode() {
       console.error("Error starting simulation:", error);
       alert("Error starting simulation");
     } finally {
-      setLoading(false);
+      if (!isMockSessionEnabled) {
+        setLoading(false);
+      }
     }
   };
 
   // Fetch timeline events from backend
   const fetchTimelineEvents = async () => {
-    if (!isGameActive) return;
+    if (!isGameActive || isMockSessionEnabled) return;
     
     try {
       setTimelineLoading(true);
-      const response = await fetch(`${API_URL}/simulation/timeline`);
+      const response = await fetch(`${SIMULATION_API_URL}/simulation/timeline`);
       if (response.ok) {
         const data = await response.json();
         setTimelineEvents(data.events || []);
@@ -215,10 +434,10 @@ function SimulationMode() {
 
   // Fetch poker-style betting state
   const fetchPokerState = async () => {
-    if (!isGameActive) return;
+    if (!isGameActive || isMockSessionEnabled) return;
     
     try {
-      const response = await fetch(`${API_URL}/simulation/poker-state`);
+      const response = await fetch(`${SIMULATION_API_URL}/simulation/poker-state`);
       if (response.ok) {
         const data = await response.json();
         setPokerState({
@@ -239,22 +458,60 @@ function SimulationMode() {
 
   // Handle poker-style betting actions
   const handleBettingAction = async (action, option) => {
+    if (isMockSessionEnabled) {
+      const label = option?.label || action;
+      const currentWager = gameState?.betting?.current_wager ?? gameState?.base_wager ?? 1;
+      const updatedWager = action === 'offer_double' ? currentWager * 2 : currentWager;
+
+      setGameState((previous) => {
+        if (!previous) {
+          return previous;
+        }
+
+        return {
+          ...previous,
+          betting: {
+            ...(previous.betting || {}),
+            current_wager: updatedWager,
+          },
+        };
+      });
+
+      setPokerState((previous) => ({
+        ...previous,
+        current_wager:
+          action === 'offer_double'
+            ? (previous?.current_wager ?? currentWager) * 2
+            : previous?.current_wager ?? updatedWager,
+        pending_actions: [],
+        last_mock_action: action,
+      }));
+
+      pushMockTimelineEvent({
+        type: action?.includes('double') ? 'double' : 'bet',
+        description: `Mock: ${label}`,
+      });
+
+      addFeedback(`🃏 Mock betting action captured: ${label}`);
+      return;
+    }
+
     try {
       setLoading(true);
-      
+
       const decision = {
         decision_type: action,
         player_id: 'human',
         amount: option.amount || 0,
         ...option
       };
-      
-      const response = await fetch(`${API_URL}/simulation/betting-decision`, {
+
+      const response = await fetch(`${SIMULATION_API_URL}/simulation/betting-decision`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(decision)
       });
-      
+
       if (response.ok) {
         const result = await response.json();
         if (result.success) {
@@ -262,7 +519,7 @@ function SimulationMode() {
           if (result.game_state) {
             setGameState(result.game_state);
           }
-          
+
           // Refresh timeline and poker state
           await Promise.all([fetchTimelineEvents(), fetchPokerState()]);
         }
@@ -276,17 +533,17 @@ function SimulationMode() {
 
   // Auto-refresh timeline and poker state when game is active
   useEffect(() => {
-    if (isGameActive) {
+    if (isGameActive && !isMockSessionEnabled) {
       // Initial fetch
       fetchTimelineEvents();
       fetchPokerState();
-      
+
       // Set up polling for real-time updates
       const interval = setInterval(() => {
         fetchTimelineEvents();
         fetchPokerState();
       }, 3000); // Update every 3 seconds
-      
+
       return () => clearInterval(interval);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -296,6 +553,11 @@ function SimulationMode() {
 
   // Add the missing makeDecision function and improve interactive flow
   const makeDecision = async (decision) => {
+    if (isMockSessionEnabled) {
+      handleMockDecision(decision);
+      return;
+    }
+
     setLoading(true);
     try {
       // Determine which endpoint to use based on decision type
@@ -330,7 +592,7 @@ function SimulationMode() {
         };
       }
 
-      const response = await fetch(`${API_URL}${endpoint}`, {
+      const response = await fetch(`${SIMULATION_API_URL}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -430,10 +692,59 @@ function SimulationMode() {
       console.log("Cannot play shot:", { loading, interactionNeeded });
       return;
     }
-    
+
+    if (isMockSessionEnabled) {
+      const presetName = mockStep % 2 === 0 ? 'pressureDouble' : SIMULATION_MOCK_PRESET;
+      const nextPreset = getSimulationMock(presetName);
+
+      pushMockTimelineEvent({
+        type: 'shot',
+        description:
+          nextPreset.shotState?.recommended_shot ||
+          `Mock shot progression ${mockStep + 1}.`,
+      });
+
+      addFeedback(`🎯 Mock shot advanced (step ${mockStep + 1}).`);
+
+      setGameState((previous) => {
+        if (!previous) {
+          return nextPreset.gameState || previous;
+        }
+
+        const nextHoleState = {
+          ...(previous.hole_state || {}),
+          ...((nextPreset.gameState && nextPreset.gameState.hole_state) || {}),
+          current_shot_number:
+            (previous.hole_state?.current_shot_number || 0) + 1,
+        };
+
+        return {
+          ...previous,
+          ...(nextPreset.gameState || {}),
+          hole_state: nextHoleState,
+        };
+      });
+
+      setShotState(nextPreset.shotState || null);
+      setShotProbabilities(nextPreset.shotProbabilities || null);
+      setInteractionNeeded(nextPreset.interactionNeeded || null);
+      setBettingOptions(nextPreset.bettingOptions || bettingOptions);
+      setPokerState((previous) => ({
+        ...previous,
+        ...nextPreset.pokerState,
+      }));
+      setHasNextShot(
+        nextPreset.hasNextShot !== undefined
+          ? Boolean(nextPreset.hasNextShot)
+          : false
+      );
+      setMockStep((previous) => previous + 1);
+      return;
+    }
+
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/simulation/play-next-shot`, {
+      const response = await fetch(`${SIMULATION_API_URL}/simulation/play-next-shot`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(pendingDecision)
@@ -497,8 +808,12 @@ function SimulationMode() {
   };
   
   const fetchTurnBasedState = async () => {
+    if (isMockSessionEnabled) {
+      return;
+    }
+
     try {
-      const response = await fetch(`${API_URL}/simulation/turn-based-state`);
+      const response = await fetch(`${SIMULATION_API_URL}/simulation/turn-based-state`);
       const data = await response.json();
       
       if (data.success) {
@@ -519,6 +834,7 @@ function SimulationMode() {
       offer_double: false,
       accept_double: false
     });
+    setMockStep(0);
   };
   
   if (!isGameActive) {
@@ -568,12 +884,7 @@ function SimulationMode() {
   if (useEnhancedLayout) {
     return (
       <EnhancedSimulationLayout
-        gameState={{
-          ...gameState,
-          interactionNeeded,
-          hasNextShot,
-          feedback
-        }}
+        gameState={gameState}
         shotState={shotState}
         probabilities={shotProbabilities}
         onDecision={makeDecision}
@@ -584,6 +895,9 @@ function SimulationMode() {
         bettingOptions={bettingOptions}
         onBettingAction={handleBettingAction}
         currentPlayer="human"
+        interactionNeeded={interactionNeeded}
+        hasNextShot={hasNextShot}
+        feedback={feedback}
       />
     );
   }

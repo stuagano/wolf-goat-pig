@@ -6,3 +6,5 @@ export { default as Timeline } from './Timeline';
 export { default as PokerBettingPanel } from './PokerBettingPanel';
 export { default as EnhancedSimulationLayout } from './EnhancedSimulationLayout';
 export { default as TurnBasedInterface } from './TurnBasedInterface';
+export { default as SimulationDecisionPanel } from './SimulationDecisionPanel';
+export { default as HoleVisualization } from './HoleVisualization';
