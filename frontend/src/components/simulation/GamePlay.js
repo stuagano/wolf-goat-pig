@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTheme } from '../../theme/Provider';
 import { Button, Card } from '../ui';
+import SimulationDecisionPanel from './SimulationDecisionPanel';
 
 const GamePlay = ({
   gameState,
@@ -23,11 +24,6 @@ const GamePlay = ({
 
   const makeDecision = (decision) => {
     onMakeDecision(decision);
-  };
-
-  const getAvailablePartners = () => {
-    if (!gameState) return [];
-    return gameState.players.filter(p => p.id !== "human" && p.id !== gameState.captain_id);
   };
 
   return (
@@ -87,182 +83,13 @@ const GamePlay = ({
         </div>
       </Card>
 
-      {/* Interactive Decision Making */}
-      {interactionNeeded && (
-        <Card 
-          variant="warning"
-          style={{
-            ...theme.cardStyle,
-            border: `4px solid ${theme.colors.primary}`,
-            backgroundColor: '#f0f8ff'
-          }}
-        >
-          <h3 style={{ color: theme.colors.primary, marginBottom: 16 }}>🤔 Your Decision</h3>
-          
-          {interactionNeeded.type === 'captain_decision' && (
-            <div>
-              <p style={{ marginBottom: 16, fontSize: 16 }}>
-                <strong>You are the Captain for this hole!</strong> Choose your strategy:
-              </p>
-              
-              <div style={{ 
-                background: theme.colors.primary,
-                color: 'white',
-                padding: 12,
-                borderRadius: 8,
-                marginBottom: 16,
-                textAlign: 'center'
-              }}>
-                <div style={{ fontSize: 18, fontWeight: 'bold' }}>
-                  Hole {gameState.current_hole} - Par {gameState.hole_par}
-                </div>
-                <div style={{ fontSize: 14, marginTop: 4 }}>
-                  Base Wager: ${gameState.base_wager}
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div>
-                  <h4>Request a Partner:</h4>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-                    {getAvailablePartners().map(partner => (
-                      <Button
-                        key={partner.id}
-                        variant="primary"
-                        onClick={() => makeDecision({
-                          type: 'request_partner',
-                          partner_id: partner.id
-                        })}
-                      >
-                        Partner with {partner.name}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-                
-                <div style={{ textAlign: 'center', margin: '16px 0' }}>
-                  <strong>— OR —</strong>
-                </div>
-                
-                <div style={{ textAlign: 'center' }}>
-                  <Button
-                    variant="warning"
-                    size="large"
-                    onClick={() => makeDecision({
-                      type: 'go_solo'
-                    })}
-                  >
-                    🚀 Go Solo (Double the wager!)
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {interactionNeeded.type === 'partnership_response' && (
-            <div>
-              <p style={{ marginBottom: 16, fontSize: 16 }}>
-                <strong>{interactionNeeded.captain_name}</strong> has requested you as their partner!
-              </p>
-              
-              <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-                <Button
-                  variant="success"
-                  onClick={() => makeDecision({
-                    type: 'accept_partnership'
-                  })}
-                >
-                  ✅ Accept Partnership
-                </Button>
-                
-                <Button
-                  variant="error"
-                  onClick={() => makeDecision({
-                    type: 'decline_partnership'
-                  })}
-                >
-                  ❌ Decline Partnership
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {interactionNeeded.type === 'double_offer' && (
-            <div>
-              <p style={{ marginBottom: 16, fontSize: 16 }}>
-                A <strong>Double</strong> has been offered! This will double the current wager.
-              </p>
-              
-              <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-                <Button
-                  variant="success"
-                  onClick={() => makeDecision({
-                    type: 'accept_double'
-                  })}
-                >
-                  ✅ Accept Double
-                </Button>
-                
-                <Button
-                  variant="error"
-                  onClick={() => makeDecision({
-                    type: 'decline_double'
-                  })}
-                >
-                  ❌ Decline Double
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {interactionNeeded.type === 'double_response' && (
-            <div>
-              <p style={{ marginBottom: 16, fontSize: 16 }}>
-                Your team is considering offering a <strong>Double</strong>. Do you want to proceed?
-              </p>
-              
-              <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-                <Button
-                  variant="primary"
-                  onClick={() => makeDecision({
-                    type: 'offer_double'
-                  })}
-                >
-                  💰 Offer Double
-                </Button>
-                
-                <Button
-                  variant="secondary"
-                  onClick={() => makeDecision({
-                    type: 'no_double'
-                  })}
-                >
-                  Continue Without Double
-                </Button>
-              </div>
-            </div>
-          )}
-        </Card>
-      )}
-
-      {/* Shot-by-Shot Controls */}
-      {hasNextShot && !interactionNeeded && (
-        <Card style={{ background: '#f0fff4', border: '2px solid #48bb78' }}>
-          <h3>⛳ Ready to Play</h3>
-          <p style={{ marginBottom: 16 }}>
-            Click the button below to play the next shot in the simulation.
-          </p>
-          <div style={{ textAlign: 'center' }}>
-            <Button
-              variant="primary"
-              size="large"
-              onClick={onNextShot}
-            >
-              🏌️ Play Next Shot
-            </Button>
-          </div>
-        </Card>
-      )}
+      <SimulationDecisionPanel
+        gameState={gameState}
+        interactionNeeded={interactionNeeded}
+        onDecision={makeDecision}
+        onNextShot={onNextShot}
+        hasNextShot={hasNextShot}
+      />
 
       {/* Shot Analysis (when available) */}
       {shotState && (

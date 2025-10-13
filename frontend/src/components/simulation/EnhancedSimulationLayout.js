@@ -1,6 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useTheme } from '../../theme/Provider';
-import { Timeline, PokerBettingPanel } from './';
+import { Timeline, PokerBettingPanel, HoleVisualization } from './';
+import SimulationDecisionPanel from './SimulationDecisionPanel';
+import createEnhancedSimulationLayoutStyles from './styles/enhancedSimulationLayout';
+
+const DEFAULT_TIMELINE_MAX_HEIGHT = 400;
 
 /**
  * Enhanced Simulation Layout with Timeline and Poker Betting
@@ -17,9 +21,27 @@ const EnhancedSimulationLayout = ({
   pokerState = {},
   bettingOptions = [],
   onBettingAction,
-  currentPlayer = 'human'
+  currentPlayer = 'human',
+  interactionNeeded,
+  hasNextShot,
+  feedback = [],
 }) => {
-  // const theme = useTheme(); // Removed - not currently used
+  const theme = useTheme();
+  const styles = useMemo(
+    () => createEnhancedSimulationLayoutStyles(theme),
+    [theme]
+  );
+  const pendingInteraction = interactionNeeded ?? gameState?.interactionNeeded ?? null;
+  const shotAvailable = hasNextShot ?? gameState?.hasNextShot ?? false;
+  const feedbackItems = useMemo(() => {
+    if (Array.isArray(feedback) && feedback.length > 0) {
+      return feedback;
+    }
+    if (Array.isArray(gameState?.feedback)) {
+      return gameState.feedback;
+    }
+    return [];
+  }, [feedback, gameState]);
 
   // Export hole feed data for review
   const exportHoleFeed = () => {
@@ -61,112 +83,55 @@ const EnhancedSimulationLayout = ({
 
   // Handle shot progression button click
   const handlePlayShot = () => {
-    if (onPlayNextShot && gameState?.hasNextShot && !gameState?.interactionNeeded) {
+    if (onPlayNextShot && shotAvailable && !pendingInteraction) {
       onPlayNextShot();
-    }
-  };
-
-  const styles = {
-    container: {
-      display: 'grid',
-      gridTemplateColumns: '2fr 3fr 2fr',
-      gridTemplateRows: 'auto 1fr auto',
-      gap: '20px',
-      padding: '20px',
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #1a4d2e 0%, #0d2818 100%)',
-      color: '#fff',
-      fontFamily: 'Arial, sans-serif'
-    },
-    topBar: {
-      gridColumn: '1 / -1',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      background: 'rgba(0,0,0,0.5)',
-      padding: '15px 25px',
-      borderRadius: '10px',
-      fontSize: '16px',
-      fontWeight: 'bold'
-    },
-    leftPanel: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '20px'
-    },
-    centerPanel: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '20px'
-    },
-    rightPanel: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '20px'
-    },
-    playerPanel: {
-      background: 'rgba(0,0,0,0.4)',
-      padding: '20px',
-      borderRadius: '10px',
-      border: '2px solid rgba(255,255,255,0.1)'
-    },
-    playerCard: {
-      background: 'rgba(255,255,255,0.1)',
-      padding: '15px',
-      borderRadius: '8px',
-      marginBottom: '10px',
-      border: '1px solid rgba(255,255,255,0.2)'
-    },
-    playerCardActive: {
-      border: '2px solid #FFD700',
-      background: 'rgba(255, 215, 0, 0.2)'
-    },
-    courseView: {
-      background: 'rgba(76, 175, 80, 0.3)',
-      padding: '20px',
-      borderRadius: '10px',
-      border: '2px solid rgba(76, 175, 80, 0.5)',
-      minHeight: '300px'
-    },
-    metricsPanel: {
-      background: 'rgba(0,0,0,0.4)',
-      padding: '20px',
-      borderRadius: '10px',
-      border: '2px solid rgba(255,255,255,0.1)'
-    },
-    metricSection: {
-      marginBottom: '20px'
-    },
-    probabilityBar: {
-      background: 'rgba(255,255,255,0.2)',
-      borderRadius: '4px',
-      height: '20px',
-      marginBottom: '8px',
-      overflow: 'hidden'
-    },
-    probabilityFill: {
-      background: 'linear-gradient(90deg, #4CAF50, #2196F3)',
-      height: '100%',
-      borderRadius: '4px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: '12px',
-      fontWeight: 'bold',
-      color: 'white'
-    },
-    autoPlayControl: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '10px',
-      background: '#3a3a3a',
-      padding: '8px 15px',
-      borderRadius: '6px'
     }
   };
 
   // Use real player data from game state
   const players = gameState?.players || [];
+
+  const shotMetaEntries = useMemo(() => {
+    if (!shotState || typeof shotState !== 'object') {
+      return [];
+    }
+
+    const entries = [];
+    const pushEntry = (label, rawValue, formatter) => {
+      if (rawValue === undefined || rawValue === null || rawValue === '') {
+        return;
+      }
+      const value = formatter ? formatter(rawValue) : rawValue;
+      entries.push({ label, value });
+    };
+
+    pushEntry('Suggested Club', shotState.club || shotState.recommended_club);
+    pushEntry(
+      'Distance to Pin',
+      shotState.distance_to_pin ?? shotState.remaining_distance ?? shotState.target_distance,
+      (value) => (typeof value === 'number' ? `${Math.round(value)} yds` : value)
+    );
+    pushEntry('Lie', shotState.lie || shotState.lie_type || shotState.ball_lie);
+    pushEntry(
+      'Wind',
+      shotState.wind || shotState.wind_speed || shotState.wind_direction,
+      (value) => {
+        if (typeof value === 'number') {
+          return `${Math.round(value)} mph`;
+        }
+        return value;
+      }
+    );
+    pushEntry('Shot Type', shotState.shot_type || shotState.strategy);
+    pushEntry('Target', shotState.target || shotState.aim_point);
+    pushEntry(
+      'Confidence',
+      shotState.confidence,
+      (value) => (typeof value === 'number' ? `${Math.round(value * 100)}%` : value)
+    );
+
+    return entries;
+  }, [shotState]);
 
   // Generate win probabilities based on real players
   const winProbabilities = probabilities?.win || (() => {
@@ -202,55 +167,37 @@ const EnhancedSimulationLayout = ({
     <div style={styles.container}>
       {/* Top Status Bar */}
       <div style={styles.topBar}>
-        <div>
-          Hole {gameState?.current_hole || 1} | Par {gameState?.hole_par || 4} | {gameState?.hole_distance || 435} yards
+        <div style={styles.topBarStat}>
+          <span style={styles.topBarLabel}>Current Hole</span>
+          <span style={styles.topBarValue}>
+            Hole {gameState?.current_hole || 1} · Par {gameState?.hole_par || 4} · {gameState?.hole_distance || 435} yards
+          </span>
         </div>
-        <div>
-          Base Wager: ${gameState?.base_wager || 10} | {gameState?.multiplier || '1'}x Active
+        <div style={styles.topBarStat}>
+          <span style={styles.topBarLabel}>Wager Status</span>
+          <span style={styles.topBarValue}>
+            Base Wager: ${gameState?.base_wager || 10} · {gameState?.multiplier || '1'}x Active
+          </span>
         </div>
         <div style={styles.autoPlayControl}>
-          {gameState?.hasNextShot && !gameState?.interactionNeeded && (
-            <button 
+          {shotAvailable && !pendingInteraction && (
+            <button
+              type="button"
               onClick={handlePlayShot}
-              style={{
-                background: '#4CAF50',
-                color: 'white',
-                border: 'none',
-                padding: '10px 20px',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                fontSize: '16px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}
+              style={styles.playNextShotButton}
             >
               ⛳ Play Next Shot
             </button>
           )}
-          {gameState?.interactionNeeded && (
-            <div style={{ 
-              color: '#FFD700', 
-              fontWeight: 'bold',
-              padding: '10px',
-              background: 'rgba(255, 215, 0, 0.2)',
-              borderRadius: '6px'
-            }}>
+          {pendingInteraction && (
+            <div style={styles.pendingBadge}>
               ⚠️ Decision Required
             </div>
           )}
-          <button 
+          <button
+            type="button"
             onClick={exportHoleFeed}
-            style={{
-              background: '#2196F3',
-              color: 'white',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontWeight: 'bold'
-            }}
+            style={styles.exportButton}
           >
             📊 Export Feed
           </button>
@@ -261,25 +208,24 @@ const EnhancedSimulationLayout = ({
       <div style={styles.leftPanel}>
         {/* Player Panel */}
         <div style={styles.playerPanel}>
-          <h3 style={{ margin: '0 0 15px 0' }}>Players</h3>
+          <h3 style={styles.panelTitle}>Players</h3>
           {players.map(player => (
-            <div 
+            <div
               key={player.id}
               style={{
                 ...styles.playerCard,
                 ...(player.isCurrent ? styles.playerCardActive : {})
               }}
             >
-              <div style={{ fontSize: '18px', marginBottom: '5px' }}>
+              <div style={styles.playerName}>
                 {player.id === 'human' ? '👤' : '💻'} {player.name}
               </div>
-              <div style={{ fontSize: '14px', color: '#aaa' }}>
+              <div style={styles.playerMeta}>
                 Hdcp: {player.handicap}
               </div>
-              <div style={{ 
-                fontSize: '16px', 
-                fontWeight: 'bold', 
-                color: player.points >= 0 ? '#4CAF50' : '#f44336' 
+              <div style={{
+                ...styles.playerPoints,
+                color: player.points >= 0 ? theme.colors.successLight : theme.colors.errorLight
               }}>
                 {player.points >= 0 ? '+' : ''}{player.points} pts
               </div>
@@ -288,11 +234,11 @@ const EnhancedSimulationLayout = ({
         </div>
 
         {/* Timeline Component */}
-        <div style={{ flex: 1 }}>
-          <Timeline 
+        <div style={styles.flexGrow}>
+          <Timeline
             events={timelineEvents}
             loading={timelineLoading}
-            maxHeight={400}
+            maxHeight={DEFAULT_TIMELINE_MAX_HEIGHT}
             autoScroll={true}
             showPokerStyle={true}
           />
@@ -301,161 +247,69 @@ const EnhancedSimulationLayout = ({
 
       {/* Center Panel - Course View */}
       <div style={styles.centerPanel}>
-        <div style={styles.courseView}>
-          <h3 style={{ margin: '0 0 10px 0', color: '#2a2a2a', fontSize: '16px' }}>
-            Hole {gameState?.current_hole || 1} Progress
-          </h3>
-          <div style={{ 
-            position: 'relative', 
-            height: '240px', 
-            background: 'rgba(255,255,255,0.3)', 
-            borderRadius: '8px', 
-            padding: '15px' 
-          }}>
-            
-            {/* Tee */}
-            <div style={{ 
-              position: 'absolute', 
-              top: '20px', 
-              left: '50%', 
-              transform: 'translateX(-50%)', 
-              textAlign: 'center' 
-            }}>
-              <div>🚩</div>
-              <div style={{ fontSize: '12px', color: '#2a2a2a' }}>Tee</div>
-            </div>
-            
-            {/* Pin */}
-            <div style={{ 
-              position: 'absolute', 
-              bottom: '20px', 
-              right: '20px', 
-              textAlign: 'center' 
-            }}>
-              <div style={{ fontSize: '24px' }}>⛳</div>
-              <div style={{ fontSize: '12px', color: '#2a2a2a' }}>Pin</div>
-            </div>
-            
-            {/* Ball Positions */}
-            {(() => {
-              const ballPositions = gameState?.hole_state?.ball_positions || {};
-              const maxDistance = 400;
-              
-              return Object.entries(ballPositions).map(([playerId, position]) => {
-                if (!position || position.distance_to_pin === null) return null;
-                
-                const player = players.find(p => p.id === playerId);
-                if (!player) return null;
-                
-                const distancePercent = Math.min(100, (position.distance_to_pin / maxDistance) * 100);
-                const leftPosition = 100 - distancePercent;
-                
-                let ballColor = '#ffffff';
-                let borderColor = '#4CAF50';
-                if (position.lie_type === 'rough') {
-                  ballColor = '#8BC34A';
-                  borderColor = '#689F38';
-                } else if (position.lie_type === 'sand') {
-                  ballColor = '#FFC107';
-                  borderColor = '#FF8F00';
-                } else if (position.lie_type === 'fairway') {
-                  ballColor = '#4CAF50';
-                  borderColor = '#2E7D32';
-                }
-                
-                return (
-                  <div
-                    key={playerId}
-                    style={{
-                      position: 'absolute',
-                      left: `${leftPosition}%`,
-                      top: '50%',
-                      transform: 'translate(-50%, -50%)',
-                      textAlign: 'center',
-                      zIndex: 10
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '16px',
-                        height: '16px',
-                        borderRadius: '50%',
-                        background: ballColor,
-                        border: `3px solid ${borderColor}`,
-                        margin: '0 auto 4px',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
-                      }}
-                    />
-                    <div style={{
-                      fontSize: '10px',
-                      background: 'rgba(0,0,0,0.8)',
-                      color: 'white',
-                      padding: '2px 6px',
-                      borderRadius: '3px',
-                      whiteSpace: 'nowrap'
-                    }}>
-                      {player.name}
-                    </div>
-                    <div style={{
-                      fontSize: '9px',
-                      color: '#2a2a2a',
-                      marginTop: '2px'
-                    }}>
-                      {Math.round(position.distance_to_pin)}yd
-                    </div>
-                  </div>
-                );
-              });
-            })()}
-
-            {/* Shot Info */}
-            <div style={{
-              position: 'absolute',
-              bottom: '10px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              background: 'rgba(0,0,0,0.8)',
-              color: 'white',
-              padding: '8px 16px',
-              borderRadius: '6px',
-              textAlign: 'center',
-              fontSize: '14px'
-            }}>
-              <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
-                Shot #{gameState?.hole_state?.current_shot_number || 1}
-              </div>
-              <div>
-                {gameState?.hole_state?.next_player_to_hit ? 
-                  `${players.find(p => p.id === gameState.hole_state.next_player_to_hit)?.name || gameState.hole_state.next_player_to_hit}'s turn` : 
-                  'Ready to play'}
-              </div>
-            </div>
-          </div>
-        </div>
+        <HoleVisualization
+          holeNumber={gameState?.current_hole}
+          holeDistance={gameState?.hole_distance}
+          par={gameState?.hole_par}
+          players={players}
+          ballPositions={gameState?.hole_state?.ball_positions}
+          nextPlayerId={gameState?.hole_state?.next_player_to_hit}
+          currentShotNumber={gameState?.hole_state?.current_shot_number}
+        />
 
         {/* Poker Betting Panel */}
-        <div style={{ flex: 1 }}>
+        <div style={styles.flexGrow}>
           <PokerBettingPanel
             pokerState={pokerState}
             bettingOptions={bettingOptions}
             onBettingAction={onBettingAction}
             currentPlayer={currentPlayer}
-            disabled={!gameState?.interactionNeeded && bettingOptions.length === 0}
+            disabled={!pendingInteraction && bettingOptions.length === 0}
           />
         </div>
+
+        {shotState && (
+          <div style={styles.shotDetails}>
+            <h3 style={styles.shotPlannerTitle}>🎯 Shot Planner</h3>
+            {shotState.description && (
+              <p style={styles.shotDescription}>
+                {shotState.description}
+              </p>
+            )}
+
+            {shotMetaEntries.length > 0 && (
+              <div style={styles.shotMetaGrid}>
+                {shotMetaEntries.map(({ label, value }) => (
+                  <div key={label} style={styles.shotMetaItem}>
+                    <div style={styles.shotMetaLabel}>{label}</div>
+                    <div style={styles.shotMetaValue}>{value}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <SimulationDecisionPanel
+          gameState={gameState}
+          interactionNeeded={pendingInteraction}
+          onDecision={onDecision}
+          onNextShot={onPlayNextShot}
+          hasNextShot={shotAvailable}
+        />
       </div>
 
       {/* Right Panel - Analytics */}
       <div style={styles.rightPanel}>
         <div style={styles.metricsPanel}>
-          <h3 style={{ margin: '0 0 15px 0' }}>Live Analytics</h3>
-          
+          <h3 style={styles.panelTitle}>Live Analytics</h3>
+
           {/* Win Probabilities */}
           <div style={styles.metricSection}>
-            <h4 style={{ margin: '0 0 10px 0', fontSize: '14px' }}>Win Probability</h4>
+            <h4 style={styles.metricSectionTitle}>Win Probability</h4>
             {Object.entries(winProbabilities).map(([player, prob]) => (
               <div key={player}>
-                <div style={{ fontSize: '12px', marginBottom: '4px' }}>{player}</div>
+                <div style={styles.metricLabel}>{player}</div>
                 <div style={styles.probabilityBar}>
                   <div style={{ ...styles.probabilityFill, width: `${prob}%` }}>
                     {prob}%
@@ -467,40 +321,50 @@ const EnhancedSimulationLayout = ({
 
           {/* Shot Success */}
           <div style={styles.metricSection}>
-            <h4 style={{ margin: '0 0 10px 0', fontSize: '14px' }}>Shot Success</h4>
+            <h4 style={styles.metricSectionTitle}>Shot Success</h4>
             {Object.entries(shotProbabilities).map(([outcome, prob]) => (
-              <div key={outcome} style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                marginBottom: '5px' 
-              }}>
-                <span style={{ fontSize: '12px' }}>{outcome}</span>
-                <span style={{ fontSize: '12px', fontWeight: 'bold' }}>{prob}%</span>
+              <div key={outcome} style={styles.metricRow}>
+                <span>{outcome}</span>
+                <span>{prob}%</span>
               </div>
             ))}
           </div>
 
           {/* Partnership EVs */}
           <div style={styles.metricSection}>
-            <h4 style={{ margin: '0 0 10px 0', fontSize: '14px' }}>Partnership EV</h4>
+            <h4 style={styles.metricSectionTitle}>Partnership EV</h4>
             {Object.entries(partnershipEVs).map(([partner, ev]) => (
-              <div key={partner} style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                marginBottom: '5px' 
-              }}>
-                <span style={{ fontSize: '12px' }}>{partner}</span>
-                <span style={{ 
-                  fontSize: '12px', 
-                  fontWeight: 'bold',
-                  color: ev >= 0 ? '#4CAF50' : '#f44336'
-                }}>
+              <div key={partner} style={styles.metricRow}>
+                <span>{partner}</span>
+                <span style={ev >= 0 ? styles.metricValuePositive : styles.metricValueNegative}>
                   {ev >= 0 ? '+' : ''}{ev}
                 </span>
               </div>
             ))}
           </div>
         </div>
+
+        {feedbackItems.length > 0 && (
+          <div style={styles.feedbackPanel}>
+            <h3 style={styles.panelTitle}>📚 Educational Feedback</h3>
+            {feedbackItems.map((entry, index) => {
+              const isObject = entry && typeof entry === 'object';
+              const title = isObject
+                ? entry.title || entry.heading || `Update ${index + 1}`
+                : `Update ${index + 1}`;
+              const message = isObject
+                ? entry.message || entry.body || entry.text || ''
+                : entry;
+
+              return (
+                <div key={index} style={styles.feedbackItem}>
+                  <div style={styles.feedbackTitle}>{title}</div>
+                  <div style={styles.feedbackBody}>{String(message)}</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

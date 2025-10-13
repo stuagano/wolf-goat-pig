@@ -70,13 +70,13 @@ describe('GamePlay', () => {
     });
 
     expect(screen.getByText(/your decision/i)).toBeInTheDocument();
-    const partnerButtons = screen.getAllByRole('button', { name: /partner with/i });
+    const partnerButtons = screen.getAllByRole('button', { name: /team with/i });
     expect(partnerButtons.length).toBeGreaterThan(0);
 
     const goSoloButton = screen.getByRole('button', { name: /go solo/i });
     fireEvent.click(goSoloButton);
 
-    expect(defaultProps.onMakeDecision).toHaveBeenCalledWith({ type: 'go_solo' });
+    expect(defaultProps.onMakeDecision).toHaveBeenCalledWith(expect.objectContaining({ action: 'go_solo' }));
   });
 
   test('handles partnership acceptance interaction', () => {
@@ -90,7 +90,7 @@ describe('GamePlay', () => {
     const acceptButton = screen.getByRole('button', { name: /accept partnership/i });
     fireEvent.click(acceptButton);
 
-    expect(defaultProps.onMakeDecision).toHaveBeenCalledWith({ type: 'accept_partnership' });
+    expect(defaultProps.onMakeDecision).toHaveBeenCalledWith(expect.objectContaining({ accept_partnership: true }));
   });
 
   test('handles double offer interaction', () => {
@@ -104,7 +104,7 @@ describe('GamePlay', () => {
     const acceptButton = screen.getByRole('button', { name: /accept double/i });
     fireEvent.click(acceptButton);
 
-    expect(defaultProps.onMakeDecision).toHaveBeenCalledWith({ type: 'accept_double' });
+    expect(defaultProps.onMakeDecision).toHaveBeenCalledWith(expect.objectContaining({ accept_double: true }));
   });
 
   test('displays shot analysis and probability grid when provided', () => {
