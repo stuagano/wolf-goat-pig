@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act } from 'react';
 import '@testing-library/jest-dom';
 
 const mockGameContext = {
@@ -62,6 +63,12 @@ import SimulationMode from '../SimulationMode';
 
 global.fetch = jest.fn();
 
+const flushSimulationModeEffects = async () => {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+};
+
 describe('SimulationMode probabilities merging', () => {
   beforeEach(() => {
     fetch.mockReset();
@@ -104,6 +111,7 @@ describe('SimulationMode probabilities merging', () => {
     });
 
     render(<SimulationMode />);
+    await flushSimulationModeEffects();
 
     fireEvent.click(await screen.findByTestId('make-decision-btn'));
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act } from 'react';
 import '@testing-library/jest-dom';
 import SimulationMode from '../SimulationMode';
 import { GameProvider } from '../../../context/GameProvider';
@@ -87,6 +88,12 @@ const renderWithProviders = () =>
     </GameProvider>
   );
 
+const flushSimulationModeEffects = async () => {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+};
+
 describe('SimulationMode', () => {
   beforeEach(() => {
     mockAutoFillPlayerName.value = true;
@@ -101,17 +108,19 @@ describe('SimulationMode', () => {
     });
   });
 
-  test('renders setup view when no active game', () => {
+  test('renders setup view when no active game', async () => {
     renderWithProviders();
+    await flushSimulationModeEffects();
     expect(screen.getByTestId('game-setup')).toBeInTheDocument();
     expect(screen.queryByTestId('game-play')).not.toBeInTheDocument();
   });
 
-  test('validates missing player name before starting', () => {
+  test('validates missing player name before starting', async () => {
     mockAutoFillPlayerName.value = false;
     const alertSpy = jest.spyOn(window, 'alert').mockImplementation();
 
     renderWithProviders();
+    await flushSimulationModeEffects();
     fireEvent.click(screen.getByTestId('start-game-btn'));
 
     expect(alertSpy).toHaveBeenCalledWith('Please enter your name');
