@@ -1,19 +1,18 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
 const PlayerAvailability = () => {
-  const { user, getAccessTokenSilently, isAuthenticated } = useAuth0();
+  const { getAccessTokenSilently, isAuthenticated } = useAuth0();
   const [availability, setAvailability] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  const dayNames = [
-    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 
-    'Friday', 'Saturday', 'Sunday'
-  ];
+  const dayNames = useMemo(() => (
+    ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+  ), []);
 
   // Time options for dropdowns
   const timeOptions = [
@@ -25,7 +24,7 @@ const PlayerAvailability = () => {
   ];
 
   // Initialize empty availability structure
-  const initializeAvailability = () => {
+  const initializeAvailability = useCallback(() => {
     return dayNames.map((_, index) => ({
       day_of_week: index,
       is_available: false,
@@ -33,7 +32,7 @@ const PlayerAvailability = () => {
       available_to_time: '',
       notes: ''
     }));
-  };
+  }, [dayNames]);
 
   // Load player's availability
   const loadAvailability = useCallback(async () => {
@@ -96,7 +95,7 @@ const PlayerAvailability = () => {
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, getAccessTokenSilently]);
+  }, [getAccessTokenSilently, initializeAvailability, isAuthenticated]);
 
   useEffect(() => {
     loadAvailability();

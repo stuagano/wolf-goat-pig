@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTheme } from '../theme/Provider';
 import { useAuth0 } from '@auth0/auth0-react';
 import { LoginButton, AuthHealthCheck } from '../components/auth';
 
 function HomePage() {
   const navigate = useNavigate();
-  const theme = useTheme();
   const { isAuthenticated, user } = useAuth0();
   const [menuOpen, setMenuOpen] = useState(false);
   

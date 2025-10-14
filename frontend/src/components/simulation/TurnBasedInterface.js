@@ -12,25 +12,17 @@ const TurnBasedInterface = ({
   hasNextShot
 }) => {
   const theme = useTheme();
-  const [currentDecisionType, setCurrentDecisionType] = useState(null);
   const [showPartnershipPrompt, setShowPartnershipPrompt] = useState(false);
-  const [showDoublePrompt, setShowDoublePrompt] = useState(false);
   
   // Determine whose turn it is and what decision is needed
   useEffect(() => {
     if (interactionNeeded && gameState?.pending_decision) {
       const decision = gameState.pending_decision;
-      setCurrentDecisionType(decision.type);
-      
       if (decision.type === 'partnership_request') {
         setShowPartnershipPrompt(true);
-      } else if (decision.type === 'double_offer') {
-        setShowDoublePrompt(true);
       }
     } else {
-      setCurrentDecisionType(null);
       setShowPartnershipPrompt(false);
-      setShowDoublePrompt(false);
     }
   }, [interactionNeeded, gameState]);
 

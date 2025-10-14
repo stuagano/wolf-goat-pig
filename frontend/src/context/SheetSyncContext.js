@@ -16,7 +16,7 @@ export const SheetSyncProvider = ({ children }) => {
   const [syncData, setSyncData] = useState([]);
   const [error, setError] = useState(null);
 
-  const extractSheetId = (url) => {
+  const extractSheetId = useCallback((url) => {
     // Ensure url is a string
     if (!url || typeof url !== 'string') {
       console.error('extractSheetId: URL is not a string:', url, typeof url);
@@ -35,13 +35,13 @@ export const SheetSyncProvider = ({ children }) => {
     }
     console.error('extractSheetId: No pattern matched for URL:', url);
     return null;
-  };
+  }, []);
 
   const buildCsvUrl = (sheetId, gid = '0') => {
     return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
   };
 
-  const parseSheetUrl = (url) => {
+  const parseSheetUrl = useCallback((url) => {
     // Ensure url is a string
     if (!url || typeof url !== 'string') {
       return null;
@@ -52,7 +52,7 @@ export const SheetSyncProvider = ({ children }) => {
     const gidMatch = url.match(/gid=(\d+)/);
     const gid = gidMatch ? gidMatch[1] : '0';
     return { sheetId, gid };
-  };
+  }, [extractSheetId]);
 
   const fetchSheetData = async (csvUrl) => {
     const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
@@ -173,14 +173,14 @@ export const SheetSyncProvider = ({ children }) => {
       setSyncStatus('error');
       setTimeout(() => setSyncStatus('idle'), 3000);
     }
-  }, [sheetUrl]);
+  }, [parseSheetUrl, sheetUrl]);
 
   // Initial sync on load
   useEffect(() => {
     if (sheetUrl) {
       performLiveSync();
     }
-  }, []); // Only run once on mount
+  }, [performLiveSync, sheetUrl]);
 
   // Auto sync interval
   useEffect(() => {

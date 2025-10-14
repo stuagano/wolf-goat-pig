@@ -86,14 +86,6 @@ const Navigation = () => {
     }
   };
 
-  const desktopNavStyle = {
-    display: 'flex',
-    alignItems: 'center',
-    '@media (max-width: 768px)': {
-      display: 'none'
-    }
-  };
-
   const mobileMenuStyle = {
     position: 'absolute',
     top: '100%',

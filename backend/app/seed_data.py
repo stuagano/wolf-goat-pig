@@ -235,8 +235,8 @@ def seed_ai_personalities(db: Session) -> int:
                 name=personality["name"],
                 handicap=personality["handicap"],
                 playing_style=personality["playing_style"],
-                is_ai=True,
-                is_active=True,
+                is_ai=1,
+                is_active=1,
                 description=personality["description"],
                 personality_traits=personality["personality_traits"],
                 strengths=personality["strengths"],
@@ -321,7 +321,11 @@ def create_default_human_player(db: Session) -> Optional[PlayerProfile]:
     """Create a default human player profile if none exists."""
     try:
         # Check if any human players exist
-        human_players = db.query(PlayerProfile).filter_by(is_ai=False).count()
+        human_players = (
+            db.query(PlayerProfile)
+            .filter(PlayerProfile.is_ai == 0)
+            .count()
+        )
         
         if human_players > 0:
             logger.info("Human players already exist, skipping default creation...")
@@ -332,8 +336,8 @@ def create_default_human_player(db: Session) -> Optional[PlayerProfile]:
             name="Player",
             handicap=18.0,
             playing_style="balanced",
-            is_ai=False,
-            is_active=True,
+            is_ai=0,
+            is_active=1,
             description="Default human player profile",
             created_at=datetime.now(),
             updated_at=datetime.now()
@@ -372,7 +376,11 @@ def verify_seeded_data(db: Session) -> dict:
         }
         
         # Check AI personalities
-        ai_player_count = db.query(PlayerProfile).filter_by(is_ai=True).count()
+        ai_player_count = (
+            db.query(PlayerProfile)
+            .filter(PlayerProfile.is_ai == 1)
+            .count()
+        )
         verification_results["ai_personalities"] = {
             "count": ai_player_count,
             "status": "success" if ai_player_count >= 4 else "warning",
@@ -380,7 +388,11 @@ def verify_seeded_data(db: Session) -> dict:
         }
         
         # Check human players
-        human_player_count = db.query(PlayerProfile).filter_by(is_ai=False).count()
+        human_player_count = (
+            db.query(PlayerProfile)
+            .filter(PlayerProfile.is_ai == 0)
+            .count()
+        )
         verification_results["human_players"] = {
             "count": human_player_count,
             "status": "success" if human_player_count >= 1 else "info",

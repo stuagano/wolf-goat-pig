@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTheme } from '../theme/Provider';
 
 const InteractivePlayerCard = ({ 
@@ -15,13 +15,7 @@ const InteractivePlayerCard = ({
   const [loading, setLoading] = useState(false);
 
   // Fetch player statistics when expanded
-  useEffect(() => {
-    if (isExpanded && showFullStats && !stats) {
-      fetchPlayerStats();
-    }
-  }, [isExpanded, showFullStats]);
-
-  const fetchPlayerStats = async () => {
+  const fetchPlayerStats = useCallback(async () => {
     setLoading(true);
     try {
       const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
@@ -35,7 +29,13 @@ const InteractivePlayerCard = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [player.id]);
+
+  useEffect(() => {
+    if (isExpanded && showFullStats && !stats) {
+      fetchPlayerStats();
+    }
+  }, [fetchPlayerStats, isExpanded, showFullStats, stats]);
 
   const handleCardClick = () => {
     if (onClick) {
@@ -47,7 +47,6 @@ const InteractivePlayerCard = ({
 
   const getPlayerStatus = () => {
     const ballPosition = holeState?.ball_positions?.[player.id];
-    const strokeAdv = holeState?.stroke_advantages?.[player.id];
     
     if (!ballPosition) return 'waiting';
     if (ballPosition.final_score) return 'finished';

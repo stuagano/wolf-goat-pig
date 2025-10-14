@@ -99,7 +99,6 @@ function AboutPage() {
               Our Philosophy
             </h2>
             <p style={{
-              color: '#4B5563',
               lineHeight: '1.8',
               marginBottom: '15px',
               fontSize: '1.2rem',

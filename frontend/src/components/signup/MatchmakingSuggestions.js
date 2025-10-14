@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -16,7 +16,7 @@ const MatchmakingSuggestions = () => {
   ];
 
   // Load match suggestions
-  const loadMatches = async () => {
+  const loadMatches = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -44,11 +44,11 @@ const MatchmakingSuggestions = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [minOverlapHours, selectedDays]);
 
   useEffect(() => {
     loadMatches();
-  }, [minOverlapHours, selectedDays]);
+  }, [loadMatches]);
 
   // Send notifications for all matches
   const sendAllNotifications = async () => {

@@ -104,10 +104,36 @@ echo -e "\n${GREEN}4. Starting local production server...${NC}"
 echo "Installing serve if needed..."
 npm install -g serve 2>/dev/null || true
 
+SERVE_LOG=$(mktemp /tmp/wgp_serve.XXXXXX.log)
+cleanup() {
+    if [ -n "${SERVE_PID:-}" ]; then
+        kill "${SERVE_PID}" 2>/dev/null || true
+        wait "${SERVE_PID}" 2>/dev/null || true
+    fi
+    rm -f "$SERVE_LOG" 2>/dev/null || true
+}
+trap cleanup EXIT
+
 echo -e "\n${GREEN}Server starting at http://localhost:3000${NC}"
 echo -e "${YELLOW}This simulates Vercel's static hosting${NC}"
-echo "Press Ctrl+C to stop"
-echo ""
 
-# Serve the production build
-npx serve -s build -l 3000
+npx serve -s build -l 3000 >"$SERVE_LOG" 2>&1 &
+SERVE_PID=$!
+
+# Wait for server to be reachable
+HEALTHY=false
+for attempt in {1..15}; do
+    if curl -sf http://127.0.0.1:3000 >/dev/null; then
+        HEALTHY=true
+        break
+    fi
+    sleep 1
+done
+
+if [ "$HEALTHY" = false ]; then
+    echo -e "${RED}Failed to verify local production server. Recent logs:${NC}"
+    tail -n 20 "$SERVE_LOG" || true
+    exit 1
+fi
+
+echo -e "${GREEN}✓ Local static server responded successfully${NC}"

@@ -178,10 +178,8 @@ const useOddsCalculation = ({
             throw err;
           }
           
-          // Exponential backoff
-          await new Promise(resolve => 
-            setTimeout(resolve, Math.pow(2, retryCount) * 100)
-          );
+          const backoffDelay = Math.pow(2, retryCount) * 100;
+          await new Promise(resolve => setTimeout(resolve, backoffDelay));
         }
       }
 

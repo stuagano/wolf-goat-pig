@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useGame } from "../../context";
 import { simulationConfig } from "../../config/environment";
 import { getSimulationMock } from "./__fixtures__";
@@ -54,7 +54,7 @@ function SimulationMode() {
   const [mockStep, setMockStep] = useState(0);
   
   // Turn-based mode state
-  const [useTurnBasedMode, setUseTurnBasedMode] = useState(true);
+  const useTurnBasedMode = true;
   const [turnBasedState, setTurnBasedState] = useState(null);
 
   // Setup state
@@ -91,7 +91,10 @@ function SimulationMode() {
 
   const isMockSessionEnabled = USE_SIMULATION_MOCKS;
 
-  const resolveMockPreset = () => getSimulationMock(SIMULATION_MOCK_PRESET);
+  const resolveMockPreset = useCallback(
+    () => getSimulationMock(SIMULATION_MOCK_PRESET),
+    []
+  );
 
   const pushMockTimelineEvent = (partialEvent) => {
     setTimelineEvents((previous) => [
@@ -104,7 +107,7 @@ function SimulationMode() {
     ]);
   };
 
-  const hydrateMockSetup = () => {
+  const hydrateMockSetup = useCallback(() => {
     if (!isMockSessionEnabled) {
       return;
     }
@@ -146,7 +149,7 @@ function SimulationMode() {
         }));
       }
     }
-  };
+  }, [isMockSessionEnabled, resolveMockPreset, setPersonalities, setSuggestedOpponents, setCourses, setComputerPlayers, setHumanPlayer]);
 
   const runMockSimulation = () => {
     const preset = resolveMockPreset();
@@ -282,25 +285,7 @@ function SimulationMode() {
     setPendingDecision({});
   };
 
-  useEffect(() => {
-    if (isMockSessionEnabled) {
-      hydrateMockSetup();
-      return;
-    }
-
-    fetchInitialData();
-  }, []);
-  
-  // Fetch turn-based state when game is active
-  useEffect(() => {
-    if (isGameActive && useTurnBasedMode && !isMockSessionEnabled) {
-      fetchTurnBasedState();
-      const interval = setInterval(fetchTurnBasedState, 2000); // Poll every 2 seconds
-      return () => clearInterval(interval);
-    }
-  }, [isGameActive, useTurnBasedMode]);
-  
-  const fetchInitialData = async () => {
+  const fetchInitialData = useCallback(async () => {
     if (isMockSessionEnabled) {
       return;
     }
@@ -311,16 +296,15 @@ function SimulationMode() {
         fetch(`${SIMULATION_API_URL}/simulation/suggested-opponents`),
         fetch(`${SIMULATION_API_URL}/courses`)
       ]);
-      
+
       const personalitiesData = await personalitiesRes.json();
       const opponentsData = await opponentsRes.json();
       const coursesData = await coursesRes.json();
-      
+
       setPersonalities(personalitiesData.personalities || []);
       setSuggestedOpponents(opponentsData.opponents || []);
       setCourses(coursesData || {});
-      
-      // Set default computer players
+
       if (opponentsData.opponents && opponentsData.opponents.length >= 3) {
         setComputerPlayers([
           { id: "comp1", ...opponentsData.opponents[0], is_human: false },
@@ -331,8 +315,43 @@ function SimulationMode() {
     } catch (error) {
       console.error("Error fetching initial data:", error);
     }
-  };
+  }, [isMockSessionEnabled, setComputerPlayers, setCourses, setPersonalities, setSuggestedOpponents]);
+
+  const fetchTurnBasedState = useCallback(async () => {
+    if (isMockSessionEnabled) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${SIMULATION_API_URL}/simulation/turn-based-state`);
+      const data = await response.json();
+
+      if (data.success) {
+        setTurnBasedState(data.turn_based_state);
+      }
+    } catch (error) {
+      console.error('Error fetching turn-based state:', error);
+    }
+  }, [isMockSessionEnabled, setTurnBasedState]);
+
+  useEffect(() => {
+    if (isMockSessionEnabled) {
+      hydrateMockSetup();
+      return;
+    }
+
+    fetchInitialData();
+  }, [fetchInitialData, hydrateMockSetup, isMockSessionEnabled]);
   
+  // Fetch turn-based state when game is active
+  useEffect(() => {
+    if (isGameActive && useTurnBasedMode && !isMockSessionEnabled) {
+      fetchTurnBasedState();
+      const interval = setInterval(fetchTurnBasedState, 2000);
+      return () => clearInterval(interval);
+    }
+    return undefined;
+  }, [fetchTurnBasedState, isGameActive, isMockSessionEnabled, useTurnBasedMode]);
   const startSimulation = async () => {
     if (!isMockSessionEnabled && !humanPlayer.name.trim()) {
       alert("Please enter your name");
@@ -804,23 +823,6 @@ function SimulationMode() {
       addFeedback(`❌ ${errorMessage}`);
     } finally {
       setLoading(false);
-    }
-  };
-  
-  const fetchTurnBasedState = async () => {
-    if (isMockSessionEnabled) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`${SIMULATION_API_URL}/simulation/turn-based-state`);
-      const data = await response.json();
-      
-      if (data.success) {
-        setTurnBasedState(data.turn_based_state);
-      }
-    } catch (error) {
-      console.error('Error fetching turn-based state:', error);
     }
   };
   

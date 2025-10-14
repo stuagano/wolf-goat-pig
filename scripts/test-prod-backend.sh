@@ -43,6 +43,17 @@ export ENVIRONMENT=production
 export DATABASE_URL=${DATABASE_URL:-postgresql://user:pass@localhost/wgp_prod}
 export PORT=${PORT:-8000}
 
+# Ensure the selected port is free before starting gunicorn
+if command -v lsof >/dev/null 2>&1; then
+    if lsof -i TCP:${PORT} -sTCP:LISTEN -t >/dev/null 2>&1; then
+        echo -e "${RED}Error: Port ${PORT} is already in use.${NC}"
+        echo "Hint: stop the other process or rerun with PORT=<free-port> ./scripts/test-prod-backend.sh"
+        exit 1
+    fi
+else
+    echo -e "${YELLOW}Warning: 'lsof' not available; skipping port availability check.${NC}"
+fi
+
 echo -e "\n${GREEN}1. Setting up production virtual environment...${NC}"
 cd backend
 python3 -m venv .venv-prod
@@ -80,20 +91,22 @@ GUNICORN_PID=$!
 
 # Wait for server to boot (max ~30s)
 HEALTH_OK=false
+sleep 2
 for attempt in {1..30}; do
-    status=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${PORT}/healthz" || echo "000")
+    status=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${PORT}/health" || echo "000")
     if [ "$status" = "200" ]; then
         HEALTH_OK=true
         echo "✅ Health check passed"
         break
     fi
+    echo "Waiting for /health... attempt ${attempt} status ${status}"
     sleep 1
 done
 
 if [ "$HEALTH_OK" = false ]; then
     status=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${PORT}/docs" || echo "000")
     if [ "$status" = "200" ]; then
-        echo "⚠️ /healthz unavailable, but /docs responded. Treating as success for local verification."
+        echo "⚠️ /health unavailable, but /docs responded. Treating as success for local verification."
         HEALTH_OK=true
     fi
 fi

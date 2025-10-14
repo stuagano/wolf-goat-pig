@@ -61,7 +61,7 @@ const SimulationDecisionPanel: React.FC<SimulationDecisionPanelProps> = ({
   const effectiveInteraction = interactionNeeded ?? (gameState as any)?.interactionNeeded ?? null;
   const shotAvailable = hasNextShot ?? (gameState as any)?.hasNextShot ?? false;
 
-  const players: Player[] = gameState?.players ?? [];
+  const players: Player[] = useMemo(() => gameState?.players ?? [], [gameState?.players]);
 
   const humanPlayerId = useMemo(() => {
     if (!players || players.length === 0) {

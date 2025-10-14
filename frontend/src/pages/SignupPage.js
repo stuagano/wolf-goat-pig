@@ -20,10 +20,14 @@ const SignupPage = () => {
   
   // Update URL when tab changes
   useEffect(() => {
+    const currentTab = searchParams.get('tab');
+    if (currentTab === activeTab) {
+      return;
+    }
     const newParams = new URLSearchParams(searchParams);
     newParams.set('tab', activeTab);
     setSearchParams(newParams, { replace: true });
-  }, [activeTab]);
+  }, [activeTab, searchParams, setSearchParams]);
   
   // Handle browser back/forward buttons
   useEffect(() => {
@@ -31,7 +35,7 @@ const SignupPage = () => {
     if (tabFromUrl && tabFromUrl !== activeTab) {
       setActiveTab(tabFromUrl);
     }
-  }, [searchParams]);
+  }, [activeTab, searchParams]);
 
   // Tab configuration
   const tabs = [

@@ -11,6 +11,96 @@ const WGPAnalyticsDashboard = () => {
   const [ghinData, setGhinData] = useState({});
   const [ghinEnabled, setGhinEnabled] = useState(false);
 
+  const calculateQB = useCallback((player, rank) => {
+    const totalPlayers = 28;
+    return totalPlayers * 10 + (totalPlayers - rank) * 10;
+  }, []);
+
+  const processLeaderboardData = useCallback((data) => {
+    const sortedByQuarters = [...data].sort((a, b) => b.total_earnings - a.total_earnings);
+
+    const leaderboard = sortedByQuarters.map((player, index) => ({
+      ...player,
+      quarters: Math.round(player.total_earnings),
+      average: player.games_played > 0 ? Math.round(player.total_earnings / player.games_played) : 0,
+      rounds: player.games_played,
+      qb: calculateQB(player, index)
+    }));
+
+    setLeaderboardData(leaderboard);
+
+    const bestScores = [...leaderboard]
+      .filter(p => p.quarters > 0)
+      .sort((a, b) => b.quarters - a.quarters)
+      .slice(0, 5)
+      .map(p => ({
+        member: p.player_name,
+        topScore: p.quarters,
+        date: '27-Jul'
+      }));
+    setTopBestScores(bestScores);
+
+    const worstScores = [...leaderboard]
+      .filter(p => p.quarters < 0)
+      .sort((a, b) => a.quarters - b.quarters)
+      .slice(0, 5)
+      .map(p => ({
+        member: p.player_name,
+        score: p.quarters,
+        date: '23-Aug'
+      }));
+    setTopWorstScores(worstScores);
+
+    const roundsPlayed = [...leaderboard]
+      .sort((a, b) => b.rounds - a.rounds)
+      .map(p => ({
+        member: p.player_name,
+        rounds: p.rounds,
+        banquet: p.rounds >= 20
+      }));
+    setMostRoundsPlayed(roundsPlayed);
+  }, [calculateQB]);
+
+  const fetchGHINData = useCallback(async (players) => {
+    if (!ghinService.isInitialized()) {
+      return;
+    }
+
+    try {
+      setGhinLoading(true);
+      const ghinDataMap = {};
+
+      const playersWithMockGHINIds = players.map(player => ({
+        ...player,
+        ghinId: `GHIN${player.player_name.replace(/\s/g, '').toUpperCase()}`
+      }));
+
+      const batchResults = await ghinService.getBatchGolferInfo(
+        playersWithMockGHINIds.map(p => p.ghinId)
+      );
+
+      batchResults.success.forEach(ghinInfo => {
+        const player = playersWithMockGHINIds.find(p => p.ghinId === ghinInfo.ghinId);
+        if (player) {
+          ghinDataMap[player.player_name] = {
+            handicapIndex: ghinInfo.handicapIndex,
+            recentScores: ghinInfo.recentScores,
+            lastUpdated: ghinInfo.lastUpdated,
+            club: ghinInfo.club
+          };
+        }
+      });
+
+      setGhinData(ghinDataMap);
+      console.log(`Fetched GHIN data for ${Object.keys(ghinDataMap).length} players`);
+
+    } catch (error) {
+      console.error('Error fetching GHIN data:', error);
+    } finally {
+      setGhinLoading(false);
+    }
+  }, []);
+
   const fetchAnalytics = useCallback(async () => {
     try {
       setLoading(true);
@@ -82,14 +172,8 @@ const WGPAnalyticsDashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [ghinEnabled]);
+  }, [fetchGHINData, ghinEnabled, processLeaderboardData]);
 
-  useEffect(() => {
-    initializeServices();
-    fetchAnalytics();
-  }, [fetchAnalytics]);
-
-  // Initialize GHIN service
   const initializeServices = useCallback(async () => {
     try {
       const ghinInitialized = await initializeGHIN();
@@ -105,107 +189,10 @@ const WGPAnalyticsDashboard = () => {
     }
   }, []);
 
-  // Fetch GHIN data for players
-  const fetchGHINData = useCallback(async (players) => {
-    if (!ghinService.isInitialized()) {
-      return;
-    }
-
-    try {
-      setGhinLoading(true);
-      const ghinDataMap = {};
-
-      // Extract GHIN IDs from player names (this is a mock - in real app, you'd have GHIN IDs stored)
-      const playersWithMockGHINIds = players.map(player => ({
-        ...player,
-        ghinId: `GHIN${player.player_name.replace(/\s/g, '').toUpperCase()}` // Mock GHIN ID
-      }));
-
-      // Fetch GHIN data for each player (in batches for better performance)
-      const batchResults = await ghinService.getBatchGolferInfo(
-        playersWithMockGHINIds.map(p => p.ghinId)
-      );
-
-      // Process results
-      batchResults.success.forEach(ghinInfo => {
-        const player = playersWithMockGHINIds.find(p => p.ghinId === ghinInfo.ghinId);
-        if (player) {
-          ghinDataMap[player.player_name] = {
-            handicapIndex: ghinInfo.handicapIndex,
-            recentScores: ghinInfo.recentScores,
-            lastUpdated: ghinInfo.lastUpdated,
-            club: ghinInfo.club
-          };
-        }
-      });
-
-      setGhinData(ghinDataMap);
-      console.log(`Fetched GHIN data for ${Object.keys(ghinDataMap).length} players`);
-
-    } catch (error) {
-      console.error('Error fetching GHIN data:', error);
-    } finally {
-      setGhinLoading(false);
-    }
-  }, []);
-
-  const processLeaderboardData = (data) => {
-    // Main leaderboard - sorted by total quarters (earnings)
-    const sortedByQuarters = [...data].sort((a, b) => b.total_earnings - a.total_earnings);
-    
-    // Add QB (quarterback) column - calculate based on performance
-    const leaderboard = sortedByQuarters.map((player, index) => ({
-      ...player,
-      quarters: Math.round(player.total_earnings), // Convert earnings to quarters
-      average: player.games_played > 0 ? Math.round(player.total_earnings / player.games_played) : 0,
-      rounds: player.games_played,
-      qb: calculateQB(player, index) // QB calculation based on ranking
-    }));
-    
-    setLeaderboardData(leaderboard);
-    
-    // Top 5 Best Scores (highest individual quarters)
-    const bestScores = [...leaderboard]
-      .filter(p => p.quarters > 0)
-      .sort((a, b) => b.quarters - a.quarters)
-      .slice(0, 5)
-      .map(p => ({
-        member: p.player_name,
-        topScore: p.quarters,
-        date: '27-Jul' // Would need actual dates from game records
-      }));
-    setTopBestScores(bestScores);
-    
-    // Top 5 Worst Scores (most negative quarters)
-    const worstScores = [...leaderboard]
-      .filter(p => p.quarters < 0)
-      .sort((a, b) => a.quarters - b.quarters)
-      .slice(0, 5)
-      .map(p => ({
-        member: p.player_name,
-        score: p.quarters,
-        date: '23-Aug' // Would need actual dates
-      }));
-    setTopWorstScores(worstScores);
-    
-    // Most Rounds Played
-    const roundsPlayed = [...leaderboard]
-      .sort((a, b) => b.rounds - a.rounds)
-      .map(p => ({
-        member: p.player_name,
-        rounds: p.rounds,
-        banquet: p.rounds >= 20 // Eligible for banquet if 20+ rounds (corrected from 5)
-      }));
-    setMostRoundsPlayed(roundsPlayed);
-  };
-
-  const calculateQB = (player, rank) => {
-    // QB calculation: lower rank = higher QB value
-    // This is a placeholder - you can adjust the logic
-    const totalPlayers = 28;
-    return totalPlayers * 10 + (totalPlayers - rank) * 10;
-  };
-
+  useEffect(() => {
+    initializeServices();
+    fetchAnalytics();
+  }, [fetchAnalytics, initializeServices]);
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 p-8">

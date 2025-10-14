@@ -171,7 +171,7 @@ export const useApiCall = () => {
   return { makeApiCall, loading, error, isColdStart };
 };
 
-export default {
+const apiUtilities = {
   get: apiGet,
   post: apiPost,
   put: apiPut,
@@ -180,3 +180,5 @@ export default {
   checkHealth: checkBackendHealth,
   useApiCall
 };
+
+export default apiUtilities;

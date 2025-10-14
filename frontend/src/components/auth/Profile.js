@@ -1,11 +1,8 @@
 import React from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
-import { useTheme } from '../../theme/Provider';
 
 const Profile = ({ style = {} }) => {
   const { user, isAuthenticated, isLoading } = useAuth0();
-  const theme = useTheme();
-
   if (isLoading) {
     return (
       <div style={{ color: 'white', padding: '8px 16px', ...style }}>

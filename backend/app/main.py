@@ -419,8 +419,13 @@ def health_check():
             db = database.SessionLocal()
             try:
                 from . import models
-                ai_player_count = db.query(models.PlayerProfile).filter_by(is_ai=True, is_active=True).count()
-                
+                ai_player_count = (
+                    db.query(models.PlayerProfile)
+                    .filter(models.PlayerProfile.is_ai == 1)
+                    .filter(models.PlayerProfile.is_active == 1)
+                    .count()
+                )
+
                 if ai_player_count >= 4:  # Need at least 4 for a game
                     health_status["components"]["ai_players"] = {
                         "status": "healthy",
@@ -441,7 +446,7 @@ def health_check():
                         overall_healthy = False
             finally:
                 db.close()
-                
+
         except Exception as e:
             logger.error(f"AI players availability check failed: {e}")
             health_status["components"]["ai_players"] = {

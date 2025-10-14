@@ -17,6 +17,8 @@ export const simulationConfig = {
   mockPreset: process.env.REACT_APP_SIMULATION_MOCK_PRESET || 'default',
 };
 
-export default {
+const environmentConfig = {
   simulation: simulationConfig,
 };
+
+export default environmentConfig;
