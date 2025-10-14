@@ -32,12 +32,6 @@ set -a
 source .env.production
 set +a
 
-# Allow local workflows to opt out when running in constrained environments
-if [ "${SKIP_RENDER_BACKEND_CHECK:-false}" = "true" ]; then
-    echo "Skipping backend production verification (SKIP_RENDER_BACKEND_CHECK=true)."
-    exit 0
-fi
-
 # Set production mode
 export ENVIRONMENT=production
 export DATABASE_URL=${DATABASE_URL:-postgresql://user:pass@localhost/wgp_prod}

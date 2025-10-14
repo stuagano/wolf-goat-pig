@@ -40,12 +40,6 @@ if [ -f ".env.production" ]; then
     set +a
 fi
 
-# Allow local workflows to opt out when running in constrained environments
-if [ "${SKIP_RENDER_FRONTEND_CHECK:-false}" = "true" ]; then
-    echo "Skipping frontend production verification (SKIP_RENDER_FRONTEND_CHECK=true)."
-    exit 0
-fi
-
 # Load production environment variables for the frontend build
 set -a
 source frontend/.env.production
