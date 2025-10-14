@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useCallback } from 'react';
 
 // Tutorial Context
-const TutorialContext = createContext();
+export const TutorialContext = createContext();
 
 // Tutorial modules configuration
 export const TUTORIAL_MODULES = [

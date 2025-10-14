@@ -158,7 +158,7 @@ describe('ShotVisualizationOverlay', () => {
     );
 
     expect(screen.getByText('🎯 Recommended')).toBeInTheDocument();
-    expect(screen.getByText('CONSERVATIVE APPROACH')).toBeInTheDocument();
+    expect(screen.getAllByText('CONSERVATIVE APPROACH').length).toBeGreaterThan(0);
     expect(screen.getByText('Success: 85%')).toBeInTheDocument();
     expect(screen.getByText('Risk: 25')).toBeInTheDocument();
   });

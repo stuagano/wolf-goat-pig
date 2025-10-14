@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, __setNavigateMock, __resetRouterMocks } from 'react-router-dom';
 import SetupPage from '../SetupPage';
 import { ThemeProvider } from '../../theme/Provider';
 import { GameProvider } from '../../context/GameProvider';
@@ -14,10 +14,6 @@ import { GameProvider } from '../../context/GameProvider';
 global.fetch = jest.fn();
 
 const mockNavigate = jest.fn();
-jest.mock('react-router-dom', () => ({
-  ...jest.requireActual('react-router-dom'),
-  useNavigate: () => mockNavigate,
-}));
 
 const TestWrapper = ({ children }) => (
   <BrowserRouter>
@@ -33,6 +29,8 @@ describe('SetupPage', () => {
   beforeEach(() => {
     fetch.mockClear();
     mockNavigate.mockClear();
+    __resetRouterMocks();
+    __setNavigateMock(mockNavigate);
     
     // Mock successful course fetch
     fetch.mockResolvedValue({

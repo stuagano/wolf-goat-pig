@@ -19,7 +19,7 @@ import { act } from 'react-dom/test-utils';
 import '@testing-library/jest-dom';
 
 // Mock dependencies
-jest.mock('../../theme/Provider', () => ({
+jest.mock('../../../theme/Provider', () => ({
   useTheme: () => ({
     colors: {
       primary: '#007bff',

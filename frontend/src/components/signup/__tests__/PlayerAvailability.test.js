@@ -2,14 +2,11 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import PlayerAvailability from '../PlayerAvailability';
+import { useAuth0 as mockUseAuth0 } from '@auth0/auth0-react';
 
 // Mock Auth0
 jest.mock('@auth0/auth0-react', () => ({
-  useAuth0: () => ({
-    user: { id: 'user123', name: 'Test User' },
-    getAccessTokenSilently: jest.fn().mockResolvedValue('mock-token'),
-    isAuthenticated: true
-  })
+  useAuth0: jest.fn()
 }));
 
 // Mock fetch
@@ -34,9 +31,20 @@ const mockAvailabilityData = [
   }
 ];
 
+const defaultAvailabilityResponse = () => Promise.resolve({
+  ok: true,
+  json: async () => []
+});
+
 describe('PlayerAvailability', () => {
   beforeEach(() => {
-    fetch.mockClear();
+    fetch.mockReset();
+    fetch.mockImplementation(defaultAvailabilityResponse);
+    mockUseAuth0.mockReturnValue({
+      user: { id: 'user123', name: 'Test User' },
+      getAccessTokenSilently: jest.fn().mockResolvedValue('mock-token'),
+      isAuthenticated: true
+    });
   });
 
   test('renders loading state initially', () => {
@@ -48,10 +56,10 @@ describe('PlayerAvailability', () => {
   });
 
   test('renders availability form after loading', async () => {
-    fetch.mockResolvedValueOnce({
+    fetch.mockImplementationOnce(() => Promise.resolve({
       ok: true,
       json: async () => mockAvailabilityData
-    });
+    }));
 
     render(<PlayerAvailability />);
 
@@ -60,7 +68,7 @@ describe('PlayerAvailability', () => {
     });
 
     expect(screen.getByText('Tuesday')).toBeInTheDocument();
-    expect(screen.getByText('Available to play')).toBeInTheDocument();
+    expect(screen.getAllByLabelText(/Available to play/i).length).toBeGreaterThan(0);
   });
 
   test('shows correct initial state from API data', async () => {
@@ -76,11 +84,11 @@ describe('PlayerAvailability', () => {
     });
 
     // Monday should be checked (available)
-    const mondayCheckbox = screen.getAllByText('Available to play')[0].previousSibling;
+    const mondayCheckbox = screen.getAllByLabelText(/Available to play/i)[0];
     expect(mondayCheckbox).toBeChecked();
 
     // Tuesday should not be checked
-    const tuesdayCheckbox = screen.getAllByText('Available to play')[1].previousSibling;
+    const tuesdayCheckbox = screen.getAllByLabelText(/Available to play/i)[1];
     expect(tuesdayCheckbox).not.toBeChecked();
   });
 
@@ -96,17 +104,17 @@ describe('PlayerAvailability', () => {
       expect(screen.getByText('Monday')).toBeInTheDocument();
     });
 
-    const tuesdayCheckbox = screen.getAllByText('Available to play')[1].previousSibling;
+    const tuesdayCheckbox = screen.getAllByLabelText(/Available to play/i)[1];
     fireEvent.click(tuesdayCheckbox);
 
     expect(tuesdayCheckbox).toBeChecked();
   });
 
   test('shows time selectors when available is checked', async () => {
-    fetch.mockResolvedValueOnce({
+    fetch.mockImplementationOnce(() => Promise.resolve({
       ok: true,
       json: async () => mockAvailabilityData
-    });
+    }));
 
     render(<PlayerAvailability />);
 
@@ -121,14 +129,14 @@ describe('PlayerAvailability', () => {
 
   test('saves availability when save button is clicked', async () => {
     fetch
-      .mockResolvedValueOnce({
+      .mockImplementationOnce(() => Promise.resolve({
         ok: true,
         json: async () => mockAvailabilityData
-      })
-      .mockResolvedValueOnce({
+      }))
+      .mockImplementationOnce(() => Promise.resolve({
         ok: true,
         json: async () => ({ ...mockAvailabilityData[0], notes: 'Updated note' })
-      });
+      }));
 
     render(<PlayerAvailability />);
 
@@ -161,10 +169,10 @@ describe('PlayerAvailability', () => {
 
   test('handles save errors', async () => {
     fetch
-      .mockResolvedValueOnce({
+      .mockImplementationOnce(() => Promise.resolve({
         ok: true,
         json: async () => mockAvailabilityData
-      })
+      }))
       .mockRejectedValueOnce(new Error('Save failed'));
 
     render(<PlayerAvailability />);
@@ -182,10 +190,10 @@ describe('PlayerAvailability', () => {
   });
 
   test('quick actions work correctly', async () => {
-    fetch.mockResolvedValueOnce({
+    fetch.mockImplementationOnce(() => Promise.resolve({
       ok: true,
       json: async () => []
-    });
+    }));
 
     render(<PlayerAvailability />);
 
@@ -198,7 +206,7 @@ describe('PlayerAvailability', () => {
     fireEvent.click(weekdaysButton);
 
     // Check that Monday-Friday checkboxes are now checked
-    const checkboxes = screen.getAllByRole('checkbox');
+    const checkboxes = screen.getAllByLabelText(/Available to play/i);
     expect(checkboxes[0]).toBeChecked(); // Monday
     expect(checkboxes[1]).toBeChecked(); // Tuesday
     expect(checkboxes[2]).toBeChecked(); // Wednesday
@@ -210,13 +218,11 @@ describe('PlayerAvailability', () => {
 
   test('handles unauthenticated user', async () => {
     // Mock unauthenticated state
-    jest.doMock('@auth0/auth0-react', () => ({
-      useAuth0: () => ({
-        user: null,
-        getAccessTokenSilently: jest.fn(),
-        isAuthenticated: false
-      })
-    }));
+    mockUseAuth0.mockReturnValue({
+      user: null,
+      getAccessTokenSilently: jest.fn(),
+      isAuthenticated: false
+    });
 
     render(<PlayerAvailability />);
 

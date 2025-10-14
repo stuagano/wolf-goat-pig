@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, __setNavigateMock, __resetRouterMocks } from 'react-router-dom';
 import GamePage from '../GamePage';
 import { ThemeProvider } from '../../theme/Provider';
 import { GameProvider } from '../../context/GameProvider';
@@ -16,10 +16,6 @@ global.fetch = jest.fn();
 
 // Mock the navigation hook
 const mockNavigate = jest.fn();
-jest.mock('react-router-dom', () => ({
-  ...jest.requireActual('react-router-dom'),
-  useNavigate: () => mockNavigate,
-}));
 
 // Mock Auth0
 jest.mock('@auth0/auth0-react', () => ({
@@ -47,6 +43,8 @@ describe('GamePage', () => {
   beforeEach(() => {
     fetch.mockClear();
     mockNavigate.mockClear();
+    __resetRouterMocks();
+    __setNavigateMock(mockNavigate);
   });
 
   test('renders game page layout', () => {

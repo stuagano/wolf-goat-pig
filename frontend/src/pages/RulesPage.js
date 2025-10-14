@@ -278,13 +278,50 @@ function RulesPage() {
                 <li>Most egalitarian format</li>
               </ul>
             </div>
-          </div>
         </div>
+      </div>
 
-        {/* Special Rules */}
-        <div style={{
-          background: 'white',
-          borderRadius: '16px',
+      <div style={{
+        background: '#F5F5F5',
+        padding: '30px',
+        borderRadius: '12px',
+        boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
+        marginBottom: '30px'
+      }}>
+        <h3 style={{
+          fontSize: '1.5rem',
+          fontWeight: 'bold',
+          color: '#1F2937',
+          marginBottom: '15px'
+        }}>
+          🎯 Scoring & Points
+        </h3>
+        <p style={{
+          color: '#4B5563',
+          lineHeight: '1.8',
+          marginBottom: '15px'
+        }}>
+          Every hole awards <strong>points</strong> (quarters) to the winners. Captains who go
+          solo double both the potential win and the penalty. You win quarters by beating the
+          opposing team&apos;s score, lose quarters when you fall behind, and ties push the wager to
+          the next hole where the pot grows.
+        </p>
+        <ul style={{
+          color: '#4B5563',
+          lineHeight: '1.8',
+          paddingLeft: '20px'
+        }}>
+          <li><strong>Team Win:</strong> partners split quarters evenly</li>
+          <li><strong>Solo Win:</strong> Captain earns double, but a loss costs double</li>
+          <li><strong>Carry Overs:</strong> tied holes stack quarters for dramatic swings</li>
+          <li><strong>Presses:</strong> optional side bets can quickly flip the score</li>
+        </ul>
+      </div>
+
+      {/* Special Rules */}
+      <div style={{
+        background: 'white',
+        borderRadius: '16px',
           padding: '40px',
           marginBottom: '30px',
           boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'

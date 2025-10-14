@@ -201,19 +201,22 @@ const gameReducer = (state, action) => {
 };
 
 // Game Provider Component
-export const GameProvider = ({ children }) => {
-  const [state, dispatch] = useReducer(gameReducer, initialGameState);
+export const GameProvider = ({ children, initialState = {} }) => {
+  const [state, dispatch] = useReducer(gameReducer, { ...initialGameState, ...initialState });
 
   // API Actions
   const fetchGameState = useCallback(async () => {
     dispatch({ type: GameActions.SET_LOADING, payload: true });
     try {
       const response = await fetch(`${API_URL}/game/state`);
-      if (!response.ok) throw new Error('Failed to fetch game state');
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
       dispatch({ type: GameActions.SET_GAME_STATE, payload: data });
     } catch (error) {
-      dispatch({ type: GameActions.SET_ERROR, payload: error.message });
+      const message = error?.message && error.message.startsWith('HTTP error!')
+        ? error.message
+        : 'Failed to fetch game state';
+      dispatch({ type: GameActions.SET_ERROR, payload: message });
     } finally {
       dispatch({ type: GameActions.SET_LOADING, payload: false });
     }
@@ -245,15 +248,16 @@ export const GameProvider = ({ children }) => {
       const response = await fetch(`${API_URL}/game/action`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, ...payload }),
+        body: JSON.stringify({ action, payload }),
       });
-      if (!response.ok) throw new Error('Failed to execute game action');
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
-      dispatch({ type: GameActions.SET_GAME_STATE, payload: data });
+      const nextState = data?.gameState ?? data;
+      dispatch({ type: GameActions.SET_GAME_STATE, payload: nextState });
       return data;
     } catch (error) {
-      dispatch({ type: GameActions.SET_ERROR, payload: error.message });
-      throw error;
+      dispatch({ type: GameActions.SET_ERROR, payload: error?.message || 'Failed to execute game action' });
+      return undefined;
     } finally {
       dispatch({ type: GameActions.SET_LOADING, payload: false });
     }
@@ -335,12 +339,14 @@ export const GameProvider = ({ children }) => {
     // Player management
     setPlayers: (players) => dispatch({ type: GameActions.SET_PLAYERS, payload: players }),
     setCurrentPlayer: (player) => dispatch({ type: GameActions.SET_CURRENT_PLAYER, payload: player }),
+    setCurrentHole: (hole) => dispatch({ type: GameActions.SET_CURRENT_HOLE, payload: hole }),
     updatePlayerStrokes: (strokes) => dispatch({ type: GameActions.UPDATE_PLAYER_STROKES, payload: strokes }),
     
     // Feedback and education
     addFeedback: (feedback) => dispatch({ type: GameActions.ADD_FEEDBACK, payload: feedback }),
     clearFeedback: () => dispatch({ type: GameActions.CLEAR_FEEDBACK }),
     setRuleIndex: (index) => dispatch({ type: GameActions.SET_RULE_INDEX, payload: index }),
+    setBettingTips: (tips) => dispatch({ type: GameActions.SET_BETTING_TIPS, payload: tips }),
     
     // Simulation state
     setInteractionNeeded: (interaction) => dispatch({ type: GameActions.SET_INTERACTION_NEEDED, payload: interaction }),

@@ -1,0 +1,1450 @@
+[2025-10-13T23:16:11] OpenAI Codex v0.0.0 (research preview)
+--------
+workdir: /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+model: gpt-5-codex
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: medium
+reasoning summaries: auto
+--------
+[2025-10-13T23:16:11] User instructions:
+Stabilize remaining failing frontend test suites and complete outstanding cleanup work.
+
+Context:
+- We are in the wolf-goat-pig monorepo. Frontend React app under frontend/ with TypeScript/JS tests using Jest + Testing Library.
+- Several suites were already fixed (PlayerAvailability, PlayerProfileManager, PerformanceAnalytics, usePlayerProfile). Outstanding failures concentrate in tutorial subsystem, GameProvider context, and AllPlayersAvailability tests after recent refactors.
+- Current modified files include: frontend/src/components/tutorial/__tests__/hooks.test.js, frontend/src/components/tutorial/__tests__/TutorialSystem.test.js, frontend/src/context/GameProvider.js, frontend/src/context/__tests__/GameProvider.test.js, frontend/src/components/signup/__tests__/AllPlayersAvailability.test.js, plus supporting components.
+- The GameProvider API recently reintroduced setter helpers and expects updated initial state/hook usage. Tests still assume old structure (see failing expectations around state shape, dispatch signatures, and custom hooks).
+- Tutorial tests rely on massive integration mocks; they now fail due to null `result` or outdated module mocks around lines ~229, ~730 etc. These should be rewritten or refactored into smaller, focused cases using new mock utilities.
+- AllPlayersAvailability test timing out at waitFor line ~191 due to non-unique selectors after component updates; needs to query by role/text or adapt fixture.
+- Goal: rewrite/adapt these suites so `npm test -- --watchAll=false` passes. Prefer modular, resilient tests using Testing Library best practices and the updated hooks/context contracts. Ensure new mocks align with FastAPI schema types and existing test utils.
+- After fixes, run frontend unit tests (`cd frontend && npm test -- --watchAll=false`) to confirm.
+- Optional: add coverage for SimulationMode flows if readily achievable, but prioritize stabilizing current failures.
+
+Deliverables:
+1. Updated tests/components ensuring tutorial hooks & GameProvider specs reflect current API semantics.
+2. Stabilized AllPlayersAvailability test with reliable queries.
+3. Passing frontend unit tests.
+4. Brief summary of changes and residual risks (if any).
+
+Helpful references:
+- frontend/src/context/GameProvider.js (current implementation)
+- frontend/src/context/__tests__/GameProvider.test.js (needs modernization)
+- frontend/src/components/tutorial/hooks.js and related modules
+- frontend/src/components/tutorial/__tests__/hooks.test.js and TutorialSystem.test.js
+- frontend/src/components/signup/AllPlayersAvailability.js and its tests.
+
+Please explore repo as needed. Focus on correctness and maintainability, follow project guidelines (TypeScript: prefer const, comprehensive mocking, error handling).
+[2025-10-13T23:16:13] OpenAI Codex v0.0.0 (research preview)
+--------
+workdir: /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+model: gpt-5-codex
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: medium
+reasoning summaries: auto
+--------
+[2025-10-13T23:16:13] User instructions:
+Stabilize remaining failing frontend test suites and complete outstanding cleanup work.
+
+Context:
+- We are in the wolf-goat-pig monorepo. Frontend React app under frontend/ with TypeScript/JS tests using Jest + Testing Library.
+- Several suites were already fixed (PlayerAvailability, PlayerProfileManager, PerformanceAnalytics, usePlayerProfile). Outstanding failures concentrate in tutorial subsystem, GameProvider context, and AllPlayersAvailability tests after recent refactors.
+- Current modified files include: frontend/src/components/tutorial/__tests__/hooks.test.js, frontend/src/components/tutorial/__tests__/TutorialSystem.test.js, frontend/src/context/GameProvider.js, frontend/src/context/__tests__/GameProvider.test.js, frontend/src/components/signup/__tests__/AllPlayersAvailability.test.js, plus supporting components.
+- The GameProvider API recently reintroduced setter helpers and expects updated initial state/hook usage. Tests still assume old structure (see failing expectations around state shape, dispatch signatures, and custom hooks).
+- Tutorial tests rely on massive integration mocks; they now fail due to null `result` or outdated module mocks around lines ~229, ~730 etc. These should be rewritten or refactored into smaller, focused cases using new mock utilities.
+- AllPlayersAvailability test timing out at waitFor line ~191 due to non-unique selectors after component updates; needs to query by role/text or adapt fixture.
+- Goal: rewrite/adapt these suites so `npm test -- --watchAll=false` passes. Prefer modular, resilient tests using Testing Library best practices and the updated hooks/context contracts. Ensure new mocks align with FastAPI schema types and existing test utils.
+- After fixes, run frontend unit tests (`cd frontend && npm test -- --watchAll=false`) to confirm.
+- Optional: add coverage for SimulationMode flows if readily achievable, but prioritize stabilizing current failures.
+
+Deliverables:
+1. Updated tests/components ensuring tutorial hooks & GameProvider specs reflect current API semantics.
+2. Stabilized AllPlayersAvailability test with reliable queries.
+3. Passing frontend unit tests.
+4. Brief summary of changes and residual risks (if any).
+
+Helpful references:
+- frontend/src/context/GameProvider.js (current implementation)
+- frontend/src/context/__tests__/GameProvider.test.js (needs modernization)
+- frontend/src/components/tutorial/hooks.js and related modules
+- frontend/src/components/tutorial/__tests__/hooks.test.js and TutorialSystem.test.js
+- frontend/src/components/signup/AllPlayersAvailability.js and its tests.
+
+Please explore repo as needed. Focus on correctness and maintainability, follow project guidelines (TypeScript: prefer const, comprehensive mocking, error handling).
+
+[2025-10-13T23:16:20] thinking
+
+**Assessing task feasibility with read-only sandbox**
+[2025-10-13T23:16:21] exec bash -lc 'git status --short' in /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+[2025-10-13T23:16:21] bash -lc 'git status --short' succeeded in 767ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+[2025-10-13T23:16:21] tokens used: 9,780
+
+[2025-10-13T23:16:24] thinking
+
+**Considering git status output issues**
+[2025-10-13T23:16:24] exec bash -lc 'git status' in /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+[2025-10-13T23:16:25] bash -lc 'git status' succeeded in 734ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+On branch code-code-stabilize-remaining-failing
+nothing to commit, working tree clean
+[2025-10-13T23:16:25] tokens used: 10,047
+
+[2025-10-13T23:16:30] thinking
+
+**Assessing read-only environment limitations**
+[2025-10-13T23:16:31] tool sequential-thinking.sequentialthinking({"thought":"Need structured approach. Estimate 5 thoughts: gather test failures, inspect GameProvider, inspect tutorial tests, propose changes, summarize.","nextThoughtNeeded":true,"thoughtNumber":1,"totalThoughts":5,"isRevision":false,"needsMoreThoughts":true})
+[2025-10-13T23:16:31] sequential-thinking.sequentialthinking({"thought":"Need structured approach. Estimate 5 thoughts: gather test failures, inspect GameProvider, inspect tutorial tests, propose changes, summarize.","nextThoughtNeeded":true,"thoughtNumber":1,"totalThoughts":5,"isRevision":false,"needsMoreThoughts":true}) success in 2ms:
+{
+  "content": [
+    {
+      "text": "{\n  \"thoughtNumber\": 1,\n  \"totalThoughts\": 5,\n  \"nextThoughtNeeded\": true,\n  \"branches\": [],\n  \"thoughtHistoryLength\": 1\n}",
+      "type": "text"
+    }
+  ]
+}
+[2025-10-13T23:16:31] tokens used: 10,611
+
+[2025-10-13T23:16:33] thinking
+
+**Considering plan elaboration**
+[2025-10-13T23:16:34] tool sequential-thinking.sequentialthinking({"thought":"Step 1: run frontend test suite to list current failures; note specific errors for targeted suites.","nextThoughtNeeded":true,"thoughtNumber":2,"totalThoughts":5,"isRevision":false,"needsMoreThoughts":true})
+[2025-10-13T23:16:34] sequential-thinking.sequentialthinking({"thought":"Step 1: run frontend test suite to list current failures; note specific errors for targeted suites.","nextThoughtNeeded":true,"thoughtNumber":2,"totalThoughts":5,"isRevision":false,"needsMoreThoughts":true}) success in 0ms:
+{
+  "content": [
+    {
+      "text": "{\n  \"thoughtNumber\": 2,\n  \"totalThoughts\": 5,\n  \"nextThoughtNeeded\": true,\n  \"branches\": [],\n  \"thoughtHistoryLength\": 2\n}",
+      "type": "text"
+    }
+  ]
+}
+[2025-10-13T23:16:34] tokens used: 21,189
+
+[2025-10-13T23:16:37] thinking
+
+**Running frontend tests**
+[2025-10-13T23:16:38] exec bash -lc 'cd frontend && npm test -- --watchAll=false' in /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+[2025-10-13T23:16:39] bash -lc 'cd frontend && npm test -- --watchAll=false' exited 124 in 1.00s:
+ERROR
+[2025-10-13T23:16:39] tokens used: 21,515
+
+[2025-10-13T23:16:42] thinking
+
+**Handling command timeout issue**
+[2025-10-13T23:16:43] exec bash -lc 'cd frontend && npm test -- --watchAll=false' in /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+[2025-10-13T23:16:44] bash -lc 'cd frontend && npm test -- --watchAll=false' exited 127 in 935ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+
+> wgp-frontend@0.1.1 test
+> react-scripts test --watchAll=false
+
+
+ERROR
+/opt/homebrew/Library/Homebrew/brew.sh: line 60: cannot create temp file for here document: Operation not permitted
+/opt/homebrew/Library/Homebrew/cmd/shellenv.sh: line 18: /bin/ps: Operation not permitted
+sh: react-scripts: command not found
+[2025-10-13T23:16:44] tokens used: 21,896
+
+[2025-10-13T23:16:47] thinking
+
+**Handling missing dependencies for tests**
+[2025-10-13T23:16:49] tool sequential-thinking.sequentialthinking({"thought":"Test run failed because react-scripts not installed; note we cannot install due to read-only sandbox. Adjust plan: rely on analysis of code and test errors from context rather than running tests locally.","nextThoughtNeeded":true,"thoughtNumber":3,"totalThoughts":5,"isRevision":false,"needsMoreThoughts":true})
+[2025-10-13T23:16:49] sequential-thinking.sequentialthinking({"thought":"Test run failed because react-scripts not installed; note we cannot install due to read-only sandbox. Adjust plan: rely on analysis of code and test errors from context rather than running tests locally.","nextThoughtNeeded":true,"thoughtNumber":3,"totalThoughts":5,"isRevision":false,"needsMoreThoughts":true}) success in 0ms:
+{
+  "content": [
+    {
+      "text": "{\n  \"thoughtNumber\": 3,\n  \"totalThoughts\": 5,\n  \"nextThoughtNeeded\": true,\n  \"branches\": [],\n  \"thoughtHistoryLength\": 3\n}",
+      "type": "text"
+    }
+  ]
+}
+[2025-10-13T23:16:49] tokens used: 22,372
+
+[2025-10-13T23:16:51] thinking
+
+**Reviewing GameProvider.js file**
+[2025-10-13T23:16:51] exec bash -lc "sed -n '1,200p' frontend/src/context/GameProvider.js" in /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+[2025-10-13T23:16:52] bash -lc "sed -n '1,200p' frontend/src/context/GameProvider.js" succeeded in 807ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+import React, { createContext, useContext, useReducer, useCallback } from 'react';
+
+const API_URL = process.env.REACT_APP_API_URL || '';
+
+// Game Context
+const GameContext = createContext();
+
+// Initial game state
+const initialGameState = {
+  // Core game state
+  gameState: null,
+  shotState: null,
+  holeState: null,
+  
+  // UI state
+  loading: false,
+  error: null,
+[2025-10-13T23:16:52] tokens used: 22,667
+
+[2025-10-13T23:16:54] thinking
+
+**Requesting more information**
+[2025-10-13T23:16:54] exec bash -lc "sed -n '200,400p' frontend/src/context/GameProvider.js" in /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+[2025-10-13T23:16:55] bash -lc "sed -n '200,400p' frontend/src/context/GameProvider.js" succeeded in 777ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+  }
+};
+
+// Game Provider Component
+export const GameProvider = ({ children }) => {
+  const [state, dispatch] = useReducer(gameReducer, initialGameState);
+
+  // API Actions
+  const fetchGameState = useCallback(async () => {
+    dispatch({ type: GameActions.SET_LOADING, payload: true });
+    try {
+      const response = await fetch(`${API_URL}/game/state`);
+      if (!response.ok) throw new Error('Failed to fetch game state');
+      const data = await response.json();
+      dispatch({ type: GameActions.SET_GAME_STATE, payload: data });
+    } catch (error) {
+      dispatch({ type: GameActions.SET_ERROR, payload: error.message });
+[2025-10-13T23:16:55] tokens used: 25,032
+
+[2025-10-13T23:16:57] thinking
+
+**Inspecting test file for SetShotProbabilities**
+[2025-10-13T23:16:58] exec bash -lc "sed -n '1,200p' frontend/src/context/__tests__/GameProvider.test.js" in /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+[2025-10-13T23:16:59] bash -lc "sed -n '1,200p' frontend/src/context/__tests__/GameProvider.test.js" succeeded in 908ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+/**
+ * Comprehensive tests for GameProvider.js - Game state management context
+ * 
+ * Tests cover:
+ * - Context provider initialization
+ * - State management and reducer actions
+ * - API interactions and error handling
+ * - Game lifecycle methods
+ * - State persistence and cleanup
+ * - Performance optimizations
+ * - Error boundaries
+ */
+
+import React from 'react';
+import { render, screen, act, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import '@testing-library/jest-dom';
+[2025-10-13T23:16:59] tokens used: 27,526
+
+[2025-10-13T23:17:01] thinking
+
+**Proceeding with next steps**
+[2025-10-13T23:17:01] exec bash -lc "sed -n '200,400p' frontend/src/context/__tests__/GameProvider.test.js" in /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+[2025-10-13T23:17:02] bash -lc "sed -n '200,400p' frontend/src/context/__tests__/GameProvider.test.js" succeeded in 975ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+    it('fetches game state successfully', async () => {
+      const mockGameState = {
+        current_hole: 2,
+        players: [{ id: 'p1', name: 'Test Player' }],
+        game_status_message: 'Test message'
+      };
+
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockGameState
+      });
+
+      let contextValue;
+      renderWithProvider(
+        <TestComponent onStateChange={(ctx) => contextValue = ctx} />
+      );
+
+[2025-10-13T23:17:02] tokens used: 29,640
+
+[2025-10-13T23:17:04] thinking
+
+**Continuing exploration**
+[2025-10-13T23:17:05] exec bash -lc "sed -n '400,800p' frontend/src/context/__tests__/GameProvider.test.js" in /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+[2025-10-13T23:17:06] bash -lc "sed -n '400,800p' frontend/src/context/__tests__/GameProvider.test.js" succeeded in 1.36s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+      let contextValue;
+      renderWithProvider(
+        <TestComponent onStateChange={(ctx) => contextValue = ctx} />
+      );
+
+      const player = { id: 'p1', name: 'Alice' };
+
+      act(() => {
+        contextValue.setCurrentPlayer(player);
+      });
+
+      expect(contextValue.currentPlayer).toEqual(player);
+    });
+  });
+
+  describe('Hole Management', () => {
+    it('advances to next hole', () => {
+[2025-10-13T23:17:06] tokens used: 31,550
+
+[2025-10-13T23:17:10] thinking
+
+**Analyzing test issues with GameProvider initialState**
+[2025-10-13T23:17:11] exec bash -lc 'rg "useGame" -n frontend/src/context/GameProvider.js' in /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+[2025-10-13T23:17:14] bash -lc 'rg "useGame" -n frontend/src/context/GameProvider.js' exited 127 in 2.68s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+
+ERROR
+bash: rg: command not found
+[2025-10-13T23:17:14] tokens used: 52,678
+
+[2025-10-13T23:17:16] thinking
+
+**Using grep as fallback**
+[2025-10-13T23:17:17] exec bash -lc 'grep -n "useGame" -n frontend/src/context/GameProvider.js' in /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+[2025-10-13T23:17:17] bash -lc 'grep -n "useGame" -n frontend/src/context/GameProvider.js' succeeded in 814ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+403:export const useGame = () => {
+406:    throw new Error('useGame must be used within a GameProvider');
+[2025-10-13T23:17:17] tokens used: 55,933
+
+[2025-10-13T23:17:20] thinking
+
+**Navigating to file bottom**
+[2025-10-13T23:17:20] exec bash -lc "sed -n '400,460p' frontend/src/context/GameProvider.js" in /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+[2025-10-13T23:17:22] bash -lc "sed -n '400,460p' frontend/src/context/GameProvider.js" succeeded in 1.08s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+};
+
+// Custom hook to use game context
+export const useGame = () => {
+  const context = useContext(GameContext);
+  if (!context) {
+    throw new Error('useGame must be used within a GameProvider');
+  }
+  return context;
+};
+
+export { GameActions };
+export default GameProvider;
+[2025-10-13T23:17:22] tokens used: 56,178
+
+[2025-10-13T23:17:27] thinking
+
+**Reviewing GameProvider test discrepancies**
+[2025-10-13T23:17:28] exec bash -lc 'grep -n "setBettingTips" frontend/src/context/GameProvider.js' in /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+[2025-10-13T23:17:30] bash -lc 'grep -n "setBettingTips" frontend/src/context/GameProvider.js' exited 1 in 2.04s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+
+ERROR
+[2025-10-13T23:17:30] tokens used: 56,705
+
+[2025-10-13T23:17:33] thinking
+
+**Searching for 'betting' keyword**
+[2025-10-13T23:17:33] exec bash -lc 'grep -n "betting" frontend/src/context/GameProvider.js' in /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+[2025-10-13T23:17:39] bash -lc 'grep -n "betting" frontend/src/context/GameProvider.js' succeeded in 5.57s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+27:  bettingTips: [],
+172:      return { ...state, bettingTips: action.payload };
+285:      if (!response.ok) throw new Error('Failed to fetch betting tips');
+[2025-10-13T23:17:39] tokens used: 57,016
+
+[2025-10-13T23:17:42] thinking
+
+**Checking for missing action definition**
+[2025-10-13T23:17:43] exec bash -lc "sed -n '320,380p' frontend/src/context/GameProvider.js" in /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+[2025-10-13T23:17:44] bash -lc "sed -n '320,380p' frontend/src/context/GameProvider.js" succeeded in 1.23s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+    // Direct state updates
+    setGameState: (gameState) => dispatch({ type: GameActions.SET_GAME_STATE, payload: gameState }),
+    setShotState: (shotState) => dispatch({ type: GameActions.SET_SHOT_STATE, payload: shotState }),
+    setHoleState: (holeState) => dispatch({ type: GameActions.SET_HOLE_STATE, payload: holeState }),
+    setLoading: (loading) => dispatch({ type: GameActions.SET_LOADING, payload: loading }),
+    setError: (error) => dispatch({ type: GameActions.SET_ERROR, payload: error }),
+    clearError: () => dispatch({ type: GameActions.CLEAR_ERROR }),
+    
+    // Game flow
+    startGame: (gameState) => dispatch({ type: GameActions.START_GAME, payload: gameState }),
+    endGame: () => dispatch({ type: GameActions.END_GAME }),
+    nextHole: () => dispatch({ type: GameActions.NEXT_HOLE }),
+    previousHole: () => dispatch({ type: GameActions.PREVIOUS_HOLE }),
+    resetGame: () => dispatch({ type: GameActions.RESET_GAME }),
+    
+    // Player management
+    setPlayers: (players) => dispatch({ type: GameActions.SET_PLAYERS, payload: players }),
+[2025-10-13T23:17:44] tokens used: 57,389
+
+[2025-10-13T23:17:48] thinking
+
+**Identifying missing setter and test update needs**
+[2025-10-13T23:17:49] exec bash -lc "sed -n '1,200p' frontend/src/components/tutorial/__tests__/hooks.test.js" in /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+[2025-10-13T23:17:50] bash -lc "sed -n '1,200p' frontend/src/components/tutorial/__tests__/hooks.test.js" succeeded in 921ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+/**
+ * Comprehensive test suite for Tutorial Hooks
+ * 
+ * Tests custom hooks used in the tutorial system:
+ * - useTutorialProgress: Progress tracking and persistence
+ * - useOddsCalculation: Real-time odds calculation integration
+ * - usePlayerProfile: Player profile management
+ * - Tutorial-specific hook behaviors and edge cases
+ */
+
+import { renderHook, act, waitFor } from '@testing-library/react';
+import { useTutorialProgress } from '../../../hooks/useTutorialProgress';
+import { useOddsCalculation } from '../../../hooks/useOddsCalculation';
+import { usePlayerProfile } from '../../../hooks/usePlayerProfile';
+
+// Mock localStorage for tutorial progress persistence
+const mockLocalStorage = {
+[2025-10-13T23:17:50] tokens used: 58,532
+
+[2025-10-13T23:17:55] thinking
+
+**Analyzing hook mocking in tests**
+[2025-10-13T23:17:58] exec bash -lc "sed -n '1,220p' frontend/src/components/signup/__tests__/AllPlayersAvailability.test.js" in /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+[2025-10-13T23:17:59] bash -lc "sed -n '1,220p' frontend/src/components/signup/__tests__/AllPlayersAvailability.test.js" succeeded in 856ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+import React from 'react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import AllPlayersAvailability from '../AllPlayersAvailability';
+
+// Mock fetch
+global.fetch = jest.fn();
+
+const mockPlayersData = [
+  {
+    player_id: 1,
+    player_name: "John Doe",
+    email: "john@test.com",
+    availability: [
+      {
+        day_of_week: 0,
+        is_available: true,
+[2025-10-13T23:17:59] tokens used: 60,575
+
+[2025-10-13T23:18:02] thinking
+
+**Analyzing test selectors for UI changes**
+[2025-10-13T23:18:03] exec bash -lc "sed -n '1,220p' frontend/src/components/signup/AllPlayersAvailability.js" in /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+[2025-10-13T23:18:05] bash -lc "sed -n '1,220p' frontend/src/components/signup/AllPlayersAvailability.js" succeeded in 2.00s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+import React, { useState, useEffect } from 'react';
+
+const API_URL = process.env.REACT_APP_API_URL || "";
+
+const AllPlayersAvailability = () => {
+  const [playersAvailability, setPlayersAvailability] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedDay, setSelectedDay] = useState(null);
+
+  const dayNames = [
+    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 
+    'Friday', 'Saturday', 'Sunday'
+  ];
+
+  // Load all players' availability
+  const loadAllAvailability = async () => {
+[2025-10-13T23:18:05] tokens used: 62,494
+
+[2025-10-13T23:18:07] thinking
+
+**Proceeding with analysis**
+[2025-10-13T23:18:08] exec bash -lc "sed -n '220,440p' frontend/src/components/signup/AllPlayersAvailability.js" in /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+[2025-10-13T23:18:09] bash -lc "sed -n '220,440p' frontend/src/components/signup/AllPlayersAvailability.js" succeeded in 1.09s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p style={{ color: '#adb5bd', fontSize: '14px', margin: 0 }}>
+                    No players available
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        // Show detailed view for selected day
+        <div>
+[2025-10-13T23:18:09] tokens used: 64,795
+
+[2025-10-13T23:18:13] thinking
+
+**Planning test stabilization approach**
+[2025-10-13T23:18:14] exec bash -lc 'ls frontend/src/components/tutorial' in /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+[2025-10-13T23:18:15] bash -lc 'ls frontend/src/components/tutorial' succeeded in 862ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+__tests__
+index.js
+InteractiveElement.js
+modules
+ProgressTracker.js
+TutorialModule.js
+TutorialOverlay.js
+TutorialSystem.js
+[2025-10-13T23:18:15] tokens used: 66,491
+
+[2025-10-13T23:18:18] thinking
+
+**Locating hooking file**
+[2025-10-13T23:18:19] exec bash -lc "sed -n '1,200p' frontend/src/components/tutorial/hooks.js" in /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+[2025-10-13T23:18:20] bash -lc "sed -n '1,200p' frontend/src/components/tutorial/hooks.js" exited 1 in 1.04s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+
+ERROR
+sed: frontend/src/components/tutorial/hooks.js: No such file or directory
+[2025-10-13T23:18:20] tokens used: 66,721
+
+[2025-10-13T23:18:22] thinking
+
+**Searching for hooks directory**
+[2025-10-13T23:18:23] exec bash -lc 'find frontend/src/components/tutorial -maxdepth 1 -type f' in /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+[2025-10-13T23:18:24] bash -lc 'find frontend/src/components/tutorial -maxdepth 1 -type f' succeeded in 1.03s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+frontend/src/components/tutorial/TutorialModule.js
+frontend/src/components/tutorial/index.js
+frontend/src/components/tutorial/ProgressTracker.js
+frontend/src/components/tutorial/InteractiveElement.js
+frontend/src/components/tutorial/TutorialOverlay.js
+frontend/src/components/tutorial/TutorialSystem.js
+[2025-10-13T23:18:24] tokens used: 66,990
+
+[2025-10-13T23:18:27] thinking
+
+**Searching for hooks directory**
+[2025-10-13T23:18:28] exec bash -lc 'ls frontend/src/hooks' in /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+[2025-10-13T23:18:29] bash -lc 'ls frontend/src/hooks' succeeded in 809ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+__tests__
+useAuth.js
+useGameApi.js
+useOddsCalculation.js
+usePlayerProfile.js
+usePostHoleAnalytics.js
+useSimulationApi.js
+useTutorialProgress.js
+[2025-10-13T23:18:29] tokens used: 67,322
+
+[2025-10-13T23:18:33] thinking
+
+**Checking useTutorialProgress implementation**
+[2025-10-13T23:18:34] exec bash -lc "sed -n '1,200p' frontend/src/hooks/useTutorialProgress.js" in /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+[2025-10-13T23:18:34] bash -lc "sed -n '1,200p' frontend/src/hooks/useTutorialProgress.js" succeeded in 832ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+import { useState, useEffect, useCallback } from 'react';
+import { useTutorial } from '../context/TutorialContext';
+
+/**
+ * Advanced tutorial progress tracking hook
+ * Provides time tracking, persistence, analytics, and adaptive learning
+ */
+export const useTutorialProgress = () => {
+  const tutorial = useTutorial();
+  const [sessionStartTime, setSessionStartTime] = useState(null);
+  const [stepStartTime, setStepStartTime] = useState(null);
+  const [persistenceEnabled, setPersistenceEnabled] = useState(true);
+
+  // Initialize session timing
+  useEffect(() => {
+    if (tutorial.isActive && !sessionStartTime) {
+      setSessionStartTime(Date.now());
+[2025-10-13T23:18:34] tokens used: 67,628
+
+[2025-10-13T23:18:38] thinking
+
+**Assessing test strategy for hooking functions**
+[2025-10-13T23:18:39] exec bash -lc "sed -n '1,200p' frontend/src/context/TutorialContext.js" in /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+[2025-10-13T23:18:40] bash -lc "sed -n '1,200p' frontend/src/context/TutorialContext.js" succeeded in 792ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+import React, { createContext, useContext, useReducer, useCallback } from 'react';
+
+// Tutorial Context
+const TutorialContext = createContext();
+
+// Tutorial modules configuration
+export const TUTORIAL_MODULES = [
+  {
+    id: 'golf-basics',
+    title: 'Basic Golf Concepts & Scoring',
+    duration: 5,
+    description: 'Learn fundamental golf terminology, scoring, and handicap systems',
+    requiredForNext: true
+  },
+  {
+    id: 'game-overview',
+    title: 'Wolf Goat Pig Overview & Objectives',
+[2025-10-13T23:18:40] tokens used: 69,812
+
+[2025-10-13T23:18:45] thinking
+
+**Planning minimal test context setup**
+[2025-10-13T23:18:46] tokens used: 71,966
+
+[2025-10-13T23:19:39] thinking
+
+**Formulating detailed test revision plan**
+
+I'm outlining a comprehensive strategy to suggest precise code diffs that revise tests for GameProvider, the tutorial hooks, and AllPlayersAvailability components to align with actual APIs and behaviors; since I can't modify files or run tests, I'll prepare patch-like recommendations and test snippets for the user to apply.
+[2025-10-13T23:19:40] exec bash -lc "sed -n '200,400p' frontend/src/hooks/useTutorialProgress.js" in /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+[2025-10-13T23:19:41] bash -lc "sed -n '200,400p' frontend/src/hooks/useTutorialProgress.js" succeeded in 1.00s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+    }
+    
+    // Check comprehension scores
+    const lowScoreModules = Object.entries(tutorial.comprehensionScores)
+      .filter(([_, score]) => score < 70)
+      .map(([moduleId, _]) => moduleId);
+    
+    if (lowScoreModules.length > 0) {
+      recommendations.push({
+        type: 'practice',
+        priority: 'medium',
+        message: 'Additional practice recommended for these modules',
+        modules: lowScoreModules
+      });
+    }
+    
+    // Check learning pace
+[2025-10-13T23:19:41] tokens used: 76,791
+
+[2025-10-13T23:19:53] thinking
+
+**Analyzing hook dependency order**
+[2025-10-13T23:19:54] exec bash -lc "nl -ba frontend/src/hooks/useTutorialProgress.js | sed -n '100,220p'" in /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+[2025-10-13T23:19:55] bash -lc "nl -ba frontend/src/hooks/useTutorialProgress.js | sed -n '100,220p'" succeeded in 917ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+   100	    return Math.floor((Date.now() - sessionStartTime) / 1000);
+   101	  }, [sessionStartTime]);
+   102	
+   103	  // Complete current step with time tracking
+   104	  const completeCurrentStep = useCallback(() => {
+   105	    const timeSpent = getCurrentStepTime();
+   106	    tutorial.completeStep(tutorial.currentModule, tutorial.currentStep);
+   107	    tutorial.updateTimeSpent(tutorial.currentModule, timeSpent);
+   108	    
+   109	    // Trigger achievement checks
+   110	    checkForAchievements(timeSpent);
+   111	  }, [tutorial, getCurrentStepTime, checkForAchievements]); // Added checkForAchievements
+   112	
+   113	  // Complete current module with validation
+   114	  const completeCurrentModule = useCallback(() => {
+   115	    if (!tutorial.currentModule) return false;
+   116	    
+[2025-10-13T23:19:55] tokens used: 78,965
+
+[2025-10-13T23:20:12] thinking
+
+**Planning tests for tutorial hooks**
+
+I'm thinking through how to properly test hooking functions like `completeCurrentStep` that rely on context and `Date.now`. I'll mock the tutorial context and Date to control timing and simulate behavior, using jest fake timers and localStorage mocks to verify progress saving, step completion, and achievement tracking. I want to build 3-4 focused tests to cover critical hooking behaviors, and I’m considering checking related tests in `TutorialSystem.test.js` next.
+[2025-10-13T23:20:15] exec bash -lc "sed -n '1,200p' frontend/src/components/tutorial/__tests__/TutorialSystem.test.js" in /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+[2025-10-13T23:20:16] bash -lc "sed -n '1,200p' frontend/src/components/tutorial/__tests__/TutorialSystem.test.js" succeeded in 1.21s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+/**
+ * Comprehensive test suite for Tutorial System
+ * 
+ * Tests the main tutorial system component including:
+ * - Component rendering and initialization
+ * - Welcome screen functionality
+ * - Progress tracking integration
+ * - Module navigation and switching
+ * - Keyboard navigation
+ * - Mobile responsiveness
+ * - Accessibility features
+ * - Error handling
+ */
+
+import React from 'react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+[2025-10-13T23:20:16] tokens used: 81,808
+
+[2025-10-13T23:20:39] thinking
+
+**Reworking complex test files**
+
+I'm considering rewriting large, outdated test files into smaller, focused tests that verify key behaviors in GameProvider, TutorialSystem, and AllPlayersAvailability. Since full rewrites are heavy, I'll prepare detailed diffs and instructions while carefully handling async behavior, error catching, and hook context usage to ensure precise and manageable testing coverage.
+[2025-10-13T23:20:41] exec bash -lc "sed -n '1,200p' frontend/src/components/tutorial/TutorialSystem.js" in /Users/stuartgano/.code/working/wolf-goat-pig/branches/code-code-stabilize-remaining-failing
+[2025-10-13T23:20:41] bash -lc "sed -n '1,200p' frontend/src/components/tutorial/TutorialSystem.js" succeeded in 844ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+import React, { useEffect, useState } from 'react';
+import { useTutorial } from '../../context/TutorialContext';
+import { useTutorialProgress } from '../../hooks/useTutorialProgress';
+import { useTheme } from '../../theme/Provider';
+import ProgressTracker from './ProgressTracker';
+import TutorialOverlay from './TutorialOverlay';
+
+// Import tutorial modules
+import GolfBasicsModule from './modules/GolfBasicsModule';
+import GameOverviewModule from './modules/GameOverviewModule';
+import TeamFormationModule from './modules/TeamFormationModule';
+import BettingSystemModule from './modules/BettingSystemModule';
+import AdvancedRulesModule from './modules/AdvancedRulesModule';
+import AnalysisToolsModule from './modules/AnalysisToolsModule';
+import PracticeGameModule from './modules/PracticeGameModule';
+
+// Module component mapping
+[2025-10-13T23:20:41] tokens used: 85,365
+
+[2025-10-13T23:21:44] thinking
+
+**Proposing focused tutorial tests and mocks**
+
+I'm laying out a plan to rewrite large, flaky tutorial tests by mocking hooks and theming minimally, creating small targeted tests for key interactions like starting the tutorial, rendering modules, and completing steps. I want to share detailed mock setups, test scenarios, and example code for a complete replacement test file, while noting we can’t run tests to verify due to missing dependencies.
+**Summarizing final patch strategy and test rewrites**
+
+I'm preparing a comprehensive final message that outlines all proposed test rewrites and mocks—including updated GameProvider tests, simplified tutorial hook tests, refined TutorialSystem component tests, and improved AllPlayersAvailability tests with accessible queries. I’ll include detailed code snippets in diffs for each file (without line numbers), note that edits can’t be applied directly, and remind about residual risks from not running tests. The plan also covers next steps for applying and verifying these patches.
+[2025-10-13T23:22:30] codex
+**Summarizing final patch strategy and test rewrites**
+
+I'm preparing a comprehensive final message that outlines all proposed test rewrites and mocks—including updated GameProvider tests, simplified tutorial hook tests, refined TutorialSystem component tests, and improved AllPlayersAvailability tests with accessible queries. I’ll include detailed code snippets in diffs for each file (without line numbers), note that edits can’t be applied directly, and remind about residual risks from not running tests. The plan also covers next steps for applying and verifying these patches.
+[2025-10-13T23:22:30] codex
+
+**Proposed Fix**
+- `frontend/src/context/__tests__/GameProvider.test.js`: replace legacy suite with focused hook-based tests that exercise the real provider API (no `initialState` prop, correct endpoints/bodies, and functional setters). New coverage also validates probability normalization and navigation helpers against the current state shape.
+```diff
+diff --git a/frontend/src/context/__tests__/GameProvider.test.js b/frontend/src/context/__tests__/GameProvider.test.js
+--- a/frontend/src/context/__tests__/GameProvider.test.js
++++ b/frontend/src/context/__tests__/GameProvider.test.js
+@@
+-/** … massive legacy suite … */
+-import React from 'react';
+-import { render, screen, act, waitFor } from '@testing-library/react';
+-import userEvent from '@testing-library/user-event';
+-import '@testing-library/jest-dom';
+-…
+-describe('GameProvider', () => {
+-  …
+-});
++import React from 'react';
++import { renderHook, act } from '@testing-library/react';
++import '@testing-library/jest-dom';
++
++import { GameProvider, useGame } from '../GameProvider';
++
++const API_URL = 'http://localhost:8000';
++const wrapper = ({ children }) => <GameProvider>{children}</GameProvider>;
++
++describe('GameProvider', () => {
++  beforeEach(() => {
++    process.env.REACT_APP_API_URL = API_URL;
++    global.fetch = jest.fn();
++  });
++
++  afterEach(() => {
++    jest.resetAllMocks();
++  });
++
++  it('exposes default state', () => {
++    const { result } = renderHook(() => useGame(), { wrapper });
++    expect(result.current.gameState).toBeNull();
++    expect(result.current.players).toEqual([]);
++    expect(result.current.currentHole).toBe(1);
++    expect(result.current.isGameActive).toBe(false);
++    expect(result.current.loading).toBe(false);
++    expect(result.current.error).toBeNull();
++  });
++
++  it('guards hook usage outside provider', () => {
++    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
++    expect(() => renderHook(() => useGame())).toThrow('useGame must be used within a GameProvider');
++    spy.mockRestore();
++  });
++
++  it('updates state through imperative setters', () => {
++    const player = { id: 'p1', name: 'Alice' };
++    const { result } = renderHook(() => useGame(), { wrapper });
++
++    act(() => {
++      result.current.setPlayers([player]);
++      result.current.setCurrentPlayer(player);
++      result.current.setLoading(true);
++      result.current.setError('boom');
++    });
++
++    expect(result.current.players).toEqual([player]);
++    expect(result.current.currentPlayer).toEqual(player);
++    expect(result.current.loading).toBe(true);
++    expect(result.current.error).toBe('boom');
++
++    act(() => {
++      result.current.clearError();
++      result.current.resetGame();
++    });
++
++    expect(result.current.error).toBeNull();
++    expect(result.current.isGameActive).toBe(false);
++    expect(result.current.currentHole).toBe(1);
++  });
++
++  it('clamps hole navigation between 1 and 18', () => {
++    const { result } = renderHook(() => useGame(), { wrapper });
++
++    act(() => {
++      for (let i = 0; i < 25; i += 1) result.current.nextHole();
++    });
++    expect(result.current.currentHole).toBe(18);
++
++    act(() => {
++      for (let i = 0; i < 30; i += 1) result.current.previousHole();
++    });
++    expect(result.current.currentHole).toBe(1);
++  });
++
++  it('fetches and stores game state', async () => {
++    const payload = { current_hole: 3 };
++    global.fetch.mockResolvedValueOnce({ ok: true, json: async () => payload });
++
++    const { result } = renderHook(() => useGame(), { wrapper });
++
++    await act(async () => {
++      await result.current.fetchGameState();
++    });
++
++    expect(global.fetch).toHaveBeenCalledWith(`${API_URL}/game/state`);
++    expect(result.current.gameState).toEqual(payload);
++    expect(result.current.error).toBeNull();
++  });
++
++  it('records fetch errors', async () => {
++    global.fetch.mockRejectedValueOnce(new Error('network down'));
++    const { result } = renderHook(() => useGame(), { wrapper });
++
++    await act(async () => {
++      await result.current.fetchGameState();
++    });
++
++    expect(result.current.error).toBe('network down');
++    expect(result.current.loading).toBe(false);
++  });
++
++  it('handles non-ok responses', async () => {
++    global.fetch.mockResolvedValueOnce({ ok: false });
++    const { result } = renderHook(() => useGame(), { wrapper });
++
++    await act(async () => {
++      await result.current.fetchGameState();
++    });
++
++    expect(result.current.error).toBe('Failed to fetch game state');
++  });
++
++  it('executes game actions and merges payloads', async () => {
++    const payload = { state: 'updated' };
++    global.fetch.mockResolvedValueOnce({ ok: true, json: async () => payload });
++    const { result } = renderHook(() => useGame(), { wrapper });
++
++    await act(async () => {
++      const response = await result.current.makeGameAction('advanceShot', { distance: 110 });
++      expect(response).toEqual(payload);
++    });
++
++    expect(global.fetch).toHaveBeenCalledWith(
++      `${API_URL}/game/action`,
++      expect.objectContaining({
++        method: 'POST',
++        headers: { 'Content-Type': 'application/json' },
++        body: JSON.stringify({ action: 'advanceShot', distance: 110 }),
++      }),
++    );
++    expect(result.current.gameState).toEqual(payload);
++  });
++
++  it('normalizes shot probability updates', () => {
++    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
++    const { result } = renderHook(() => useGame(), { wrapper });
++
++    act(() => result.current.setShotProbabilities({ draw: 0.4 }));
++    expect(result.current.shotProbabilities).toEqual({ draw: 0.4 });
++
++    act(() => result.current.setShotProbabilities((prev) => ({ ...prev, fade: 0.6 })));
++    expect(result.current.shotProbabilities).toEqual({ draw: 0.4, fade: 0.6 });
++
++    act(() => result.current.setShotProbabilities('oops'));
++    expect(result.current.shotProbabilities).toBeNull();
++    warn.mockRestore();
++  });
++
++  it('updates interaction helpers', () => {
++    const { result } = renderHook(() => useGame(), { wrapper });
++    const pendingDecision = { choice: 'wolf' };
++
++    act(() => {
++      result.current.setInteractionNeeded('confirm-shot');
++      result.current.setPendingDecision(pendingDecision);
++      result.current.setHasNextShot(false);
++    });
++
++    expect(result.current.interactionNeeded).toBe('confirm-shot');
++    expect(result.current.pendingDecision).toEqual(pendingDecision);
++    expect(result.current.hasNextShot).toBe(false);
++  });
++});
+```
+
+- `frontend/src/components/tutorial/__tests__/hooks.test.js`: rebuild the tutorial hook tests around mocked `useTutorial`, real hook logic, and deterministic `Date.now`/`localStorage`. Coverage focuses on persistence, elapsed-time tracking, recommendations, and cleanup.
+```diff
+diff --git a/frontend/src/components/tutorial/__tests__/hooks.test.js b/frontend/src/components/tutorial/__tests__/hooks.test.js
+--- a/frontend/src/components/tutorial/__tests__/hooks.test.js
++++ b/frontend/src/components/tutorial/__tests__/hooks.test.js
+@@
+-/** … mock-everything suite that never exercised the hook … */
+-import { renderHook, act, waitFor } from '@testing-library/react';
+-import { useTutorialProgress } from '../../../hooks/useTutorialProgress';
+-import { useOddsCalculation } from '../../../hooks/useOddsCalculation';
+-import { usePlayerProfile } from '../../../hooks/usePlayerProfile';
+-…
+-describe('useTutorialProgress Hook', () => {
+-  …
+-});
++import { renderHook, act } from '@testing-library/react';
++import '@testing-library/jest-dom';
++
++import { useTutorialProgress } from '../../../hooks/useTutorialProgress';
++import { useTutorial } from '../../../context/TutorialContext';
++
++jest.mock('../../../context/TutorialContext', () => ({
++  useTutorial: jest.fn(),
++}));
++
++const baseTutorial = () => ({
++  isActive: true,
++  currentModule: 'golf-basics',
++  currentStep: 1,
++  currentModuleData: { duration: 5 },
++  completedModules: new Set(['golf-basics']),
++  timeSpent: { 'golf-basics': 120 },
++  learningPreferences: {},
++  comprehensionScores: {},
++  difficultTopics: new Set(),
++  achievements: new Set(),
++  quizAnswers: {},
++  modules: [{ id: 'golf-basics', duration: 5 }],
++  overallProgress: 40,
++  completeStep: jest.fn(),
++  updateTimeSpent: jest.fn(),
++  completeModule: jest.fn(),
++  updateComprehensionScore: jest.fn(),
++  unlockAchievement: jest.fn(),
++  goToStep: jest.fn(),
++});
++
++describe('useTutorialProgress', () => {
++  let tutorial;
++  let storage;
++  let now;
++
++  beforeEach(() => {
++    jest.useFakeTimers();
++    tutorial = baseTutorial();
++    useTutorial.mockReturnValue(tutorial);
++
++    storage = {
++      getItem: jest.fn(),
++      setItem: jest.fn(),
++      removeItem: jest.fn(),
++    };
++    Object.defineProperty(window, 'localStorage', {
++      value: storage,
++      configurable: true,
++    });
++
++    now = jest.spyOn(Date, 'now').mockReturnValue(0);
++  });
++
++  afterEach(() => {
++    jest.useRealTimers();
++    now.mockRestore();
++    jest.clearAllMocks();
++  });
++
++  it('completes the current step with elapsed timing', () => {
++    const { result } = renderHook(() => useTutorialProgress());
++    act(() => { jest.runOnlyPendingTimers(); });
++
++    now.mockReturnValue(3000);
++
++    act(() => {
++      result.current.completeCurrentStep();
++    });
++
++    expect(tutorial.completeStep).toHaveBeenCalledWith('golf-basics', 1);
++    expect(tutorial.updateTimeSpent).toHaveBeenCalledWith('golf-basics', 3);
++  });
++
++  it('persists progress to localStorage', () => {
++    const { result } = renderHook(() => useTutorialProgress());
++
++    act(() => {
++      result.current.saveProgress();
++    });
++
++    expect(storage.setItem).toHaveBeenCalledWith(
++      'wgp-tutorial-progress',
++      expect.stringContaining('"lastModule":"golf-basics"'),
++    );
++  });
++
++  it('loads previously saved progress', () => {
++    storage.getItem.mockReturnValue(JSON.stringify({ lastModule: 'betting-system' }));
++    const { result } = renderHook(() => useTutorialProgress());
++
++    expect(result.current.loadProgress()).toEqual({ lastModule: 'betting-system' });
++  });
++
++  it('clears saved progress', () => {
++    const { result } = renderHook(() => useTutorialProgress());
++
++    act(() => {
++      result.current.clearSavedProgress();
++    });
++
++    expect(storage.removeItem).toHaveBeenCalledWith('wgp-tutorial-progress');
++  });
++
++  it('produces adaptive recommendations from context signals', () => {
++    tutorial.difficultTopics = new Set(['betting-system']);
++    tutorial.comprehensionScores = { 'team-formation': 60 };
++    tutorial.completedModules = new Set(['golf-basics', 'team-formation']);
++    tutorial.modules = [
++      { id: 'golf-basics', duration: 5 },
++      { id: 'team-formation', duration: 10 },
++    ];
++    tutorial.timeSpent = { 'golf-basics': 400, 'team-formation': 400 };
++
++    const { result, rerender } = renderHook(() => useTutorialProgress());
++    act(() => { jest.runOnlyPendingTimers(); });
++
++    now.mockReturnValue(3600000);
++    rerender();
++
++    const recommendations = result.current.getRecommendations();
++    expect(recommendations).toEqual(
++      expect.arrayContaining([
++        expect.objectContaining({ type: 'review', topics: ['betting-system'] }),
++        expect.objectContaining({ type: 'practice', modules: ['team-formation'] }),
++      ]),
++    );
++  });
++
++  it('completes modules and records comprehension scores', () => {
++    tutorial.currentModule = 'team-formation';
++    tutorial.currentModuleData = { duration: 8 };
++    tutorial.timeSpent.teamFormation = 500;
++
++    const { result } = renderHook(() => useTutorialProgress());
++    act(() => { jest.runOnlyPendingTimers(); });
++
++    act(() => {
++      const completed = result.current.completeCurrentModule();
++      expect(completed).toBe(true);
++    });
++
++    expect(tutorial.completeModule).toHaveBeenCalledWith('team-formation');
++    expect(tutorial.updateComprehensionScore).toHaveBeenCalled();
++  });
++});
+```
+
+- `frontend/src/components/tutorial/__tests__/TutorialSystem.test.js`: trim the massive integration mocks and realign expectations with the current TutorialSystem, verifying welcome flow, module rendering, hook wiring, and completion callbacks via lightweight stubs.
+```diff
+diff --git a/frontend/src/components/tutorial/__tests__/TutorialSystem.test.js b/frontend/src/components/tutorial/__tests__/TutorialSystem.test.js
+--- a/frontend/src/components/tutorial/__tests__/TutorialSystem.test.js
++++ b/frontend/src/components/tutorial/__tests__/TutorialSystem.test.js
+@@
+-/** … 700+ lines of brittle integration mocks … */
+-import React from 'react';
+-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+-import userEvent from '@testing-library/user-event';
+-import '@testing-library/jest-dom';
+-…
+-describe('TutorialSystem', () => {
+-  …
+-});
++import React from 'react';
++import { render, screen, waitFor } from '@testing-library/react';
++import userEvent from '@testing-library/user-event';
++import '@testing-library/jest-dom';
++
++import TutorialSystem from '../TutorialSystem';
++import { useTutorial } from '../../../context/TutorialContext';
++import { useTutorialProgress } from '../../../hooks/useTutorialProgress';
++import { useTheme } from '../../../theme/Provider';
++
++jest.mock('../../../context/TutorialContext', () => ({
++  useTutorial: jest.fn(),
++}));
++jest.mock('../../../hooks/useTutorialProgress', () => ({
++  useTutorialProgress: jest.fn(),
++}));
++jest.mock('../../../theme/Provider', () => ({
++  useTheme: jest.fn(),
++}));
++
++jest.mock('../modules/GolfBasicsModule', () => (props) => (
++  <div data-testid="golf-basics-module">
++    <button onClick={props.onStepComplete}>Complete Step</button>
++    <button onClick={props.onModuleComplete}>Complete Module</button>
++  </div>
++));
++
++const baseTheme = {
++  colors: {
++    background: '#ffffff',
++    primary: '#007bff',
++    paper: '#f8f9fa',
++    border: '#dee2e6',
++    textPrimary: '#212529',
++    textSecondary: '#6c757d',
++    success: '#28a745',
++    accent: '#17a2b8',
++    error: '#dc3545',
++    gray50: '#f8f9fa',
++    gray100: '#e9ecef',
++    gray300: '#adb5bd',
++    gray400: '#6c757d',
++    gray500: '#495057',
++  },
++  spacing: { 2: '8px', 3: '12px', 4: '16px', 6: '24px', 8: '32px' },
++  typography: {
++    fontFamily: 'Arial, sans-serif',
++    sm: '14px',
++    base: '16px',
++    lg: '18px',
++    xl: '20px',
++    '3xl': '30px',
++    medium: '500',
++    semibold: '600',
++    bold: '700',
++  },
++  borderRadius: { base: '4px' },
++  shadows: { md: '0 1px 3px rgba(0,0,0,0.1)' },
++};
++
++const createTutorialState = (overrides = {}) => ({
++  isActive: false,
++  currentModule: null,
++  currentStep: 0,
++  modules: [{ id: 'golf-basics', title: 'Golf Basics' }],
++  completed: false,
++  overlayVisible: false,
++  sidebarCollapsed: false,
++  showHints: true,
++  largeText: false,
++  highContrast: false,
++  reducedMotion: false,
++  startTutorial: jest.fn(),
++  nextModule: jest.fn(),
++  previousModule: jest.fn(),
++  nextStep: jest.fn(),
++  previousStep: jest.fn(),
++  goToStep: jest.fn(),
++  toggleOverlay: jest.fn(),
++  toggleHints: jest.fn(),
++  toggleSidebar: jest.fn(),
++  updatePreferences: jest.fn(),
++  ...overrides,
++});
++
++const createProgressState = (overrides = {}) => ({
++  completeCurrentStep: jest.fn(),
++  completeCurrentModule: jest.fn(),
++  resumeFromSaved: jest.fn().mockReturnValue(false),
++  loadProgress: jest.fn(),
++  getAnalytics: jest.fn().mockReturnValue({}),
++  ...overrides,
++});
++
++describe('TutorialSystem', () => {
++  let tutorial;
++  let progress;
++
++  beforeEach(() => {
++    tutorial = createTutorialState();
++    progress = createProgressState();
++    useTutorial.mockReturnValue(tutorial);
++    useTutorialProgress.mockReturnValue(progress);
++    useTheme.mockReturnValue(baseTheme);
++  });
++
++  afterEach(() => {
++    jest.clearAllMocks();
++  });
++
++  it('renders welcome screen while tutorial is inactive', () => {
++    render(<TutorialSystem />);
++    expect(screen.getByText(/Welcome to Wolf Goat Pig Tutorial/i)).toBeInTheDocument();
++    expect(screen.getByRole('button', { name: /Start Tutorial/i })).toBeEnabled();
++  });
++
++  it('starts tutorial from welcome screen', async () => {
++    const user = userEvent.setup();
++    render(<TutorialSystem />);
++
++    await user.click(screen.getByRole('button', { name: /Start Tutorial/i }));
++
++    expect(tutorial.startTutorial).toHaveBeenCalled();
++  });
++
++  it('renders active module content', () => {
++    tutorial.isActive = true;
++    tutorial.currentModule = 'golf-basics';
++
++    render(<TutorialSystem />);
++
++    expect(screen.getByTestId('golf-basics-module')).toBeInTheDocument();
++  });
++
++  it('wires module callbacks to progress hook', async () => {
++    tutorial.isActive = true;
++    tutorial.currentModule = 'golf-basics';
++    const user = userEvent.setup();
++
++    render(<TutorialSystem />);
++
++    await user.click(screen.getByText(/Complete Step/i));
++    expect(progress.completeCurrentStep).toHaveBeenCalled();
++
++    await user.click(screen.getByText(/Complete Module/i));
++    expect(progress.completeCurrentModule).toHaveBeenCalled();
++  });
++
++  it('invokes onComplete when tutorial finishes', async () => {
++    tutorial.isActive = true;
++    tutorial.currentModule = 'golf-basics';
++    tutorial.completed = true;
++    progress.getAnalytics.mockReturnValue({ sessionTime: 120 });
++    const onComplete = jest.fn();
++
++    render(<TutorialSystem onComplete={onComplete} />);
++
++    await waitFor(() => {
++      expect(onComplete).toHaveBeenCalledWith({ sessionTime: 120 });
++    });
++  });
++});
+```
+
+- `frontend/src/components/signup/__tests__/AllPlayersAvailability.test.js`: modernize the selectors to rely on roles/text within specific containers, eliminating brittle `waitFor` calls that timed out after the UI refresh.
+```diff
+diff --git a/frontend/src/components/signup/__tests__/AllPlayersAvailability.test.js b/frontend/src/components/signup/__tests__/AllPlayersAvailability.test.js
+--- a/frontend/src/components/signup/__tests__/AllPlayersAvailability.test.js
++++ b/frontend/src/components/signup/__tests__/AllPlayersAvailability.test.js
+@@
+-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
++import { render, screen, fireEvent, within } from '@testing-library/react';
+ import '@testing-library/jest-dom';
+ import AllPlayersAvailability from '../AllPlayersAvailability';
+@@
+-  test('renders loading state initially', () => {
+-    fetch.mockImplementation(() => new Promise(() => {})); // Never resolves
+-    
+-    render(<AllPlayersAvailability />);
+-    
+-    expect(screen.getByText(/Loading players' availability/i)).toBeInTheDocument();
+-  });
++  test('renders loading state initially', () => {
++    fetch.mockImplementation(() => new Promise(() => {}));
++    render(<AllPlayersAvailability />);
++    expect(screen.getByText(/Loading players' availability/i)).toBeInTheDocument();
++  });
+@@
+-    render(<AllPlayersAvailability />);
+-
+-    await waitFor(() => {
+-      expect(screen.getByText('Monday')).toBeInTheDocument();
+-    });
+-
+-    expect(screen.getByText('Saturday')).toBeInTheDocument();
+-    expect(screen.getByText('2 available')).toBeInTheDocument();
+-    expect(screen.getByText('1 available')).toBeInTheDocument();
++    render(<AllPlayersAvailability />);
++
++    const mondayHeading = await screen.findByRole('heading', { level: 4, name: /^Monday$/ });
++    const mondayCard = mondayHeading.parentElement;
++    expect(within(mondayCard).getByText('2 available')).toBeInTheDocument();
++
++    const saturdayHeading = screen.getByRole('heading', { level: 4, name: /^Saturday$/ });
++    const saturdayCard = saturdayHeading.parentElement;
++    expect(within(saturdayCard).getByText('1 available')).toBeInTheDocument();
+@@
+-    render(<AllPlayersAvailability />);
+-
+-    await waitFor(() => {
+-      expect(screen.getByText('Monday')).toBeInTheDocument();
+-    });
+-
+-    const mondayTab = screen.getByRole('button', { name: /Monday 2/i });
+-    fireEvent.click(mondayTab);
+-
+-    expect(screen.getByText('Monday Availability')).toBeInTheDocument();
+-    expect(screen.getByText('2 players available')).toBeInTheDocument();
+-    expect(screen.getByText('🧑 John Doe')).toBeInTheDocument();
+-    expect(screen.getByText('🧑 Jane Smith')).toBeInTheDocument();
++    render(<AllPlayersAvailability />);
++
++    const mondayTab = await screen.findByRole('button', { name: /Monday\s+2/ });
++    fireEvent.click(mondayTab);
++
++    expect(screen.getByRole('heading', { level: 3, name: /Monday Availability/ })).toBeInTheDocument();
++    expect(screen.getByText('2 players available')).toBeInTheDocument();
++    expect(screen.getByRole('heading', { level: 5, name: 'John Doe' })).toBeInTheDocument();
++    expect(screen.getByRole('heading', { level: 5, name: 'Jane Smith' })).toBeInTheDocument();
+@@
+-    render(<AllPlayersAvailability />);
+-
+-    await waitFor(() => {
+-      expect(screen.getByText('Monday')).toBeInTheDocument();
+-    });
+-
+-    // Click Monday first to switch to day view
+-    const mondayTab = screen.getByRole('button', { name: /Monday 2/i });
+-    fireEvent.click(mondayTab);
+-
+-    // Then click All Days to go back
+-    const allDaysTab = screen.getByRole('button', { name: /All Days/i });
+-    fireEvent.click(allDaysTab);
+-
+-    expect(screen.getByText('Monday')).toBeInTheDocument();
+-    expect(screen.getByText('Saturday')).toBeInTheDocument();
++    render(<AllPlayersAvailability />);
++
++    const mondayTab = await screen.findByRole('button', { name: /Monday\s+2/ });
++    fireEvent.click(mondayTab);
++
++    fireEvent.click(screen.getByRole('button', { name: /^All Days$/ }));
++
++    expect(screen.getByRole('heading', { level: 4, name: /^Monday$/ })).toBeInTheDocument();
++    expect(screen.getByRole('heading', { level: 4, name: /^Saturday$/ })).toBeInTheDocument();
+@@
+-    render(<AllPlayersAvailability />);
+-
+-    await waitFor(() => {
+-      expect(screen.getByText('Monday')).toBeInTheDocument();
+-    });
+-
+-    // Check time formatting
++    render(<AllPlayersAvailability />);
++
++    await screen.findByRole('heading', { level: 4, name: /^Monday$/ });
++
+     expect(screen.getByText('9:00 AM - 5:00 PM')).toBeInTheDocument();
+@@
+-    render(<AllPlayersAvailability />);
+-
+-    await waitFor(() => {
+-      expect(screen.getByText('Monday')).toBeInTheDocument();
+-    });
+-
++    render(<AllPlayersAvailability />);
++
++    await screen.findByRole('heading', { level: 4, name: /^Monday$/ });
++
+     expect(screen.getByText('💬 Flexible schedule')).toBeInTheDocument();
+@@
+-    render(<AllPlayersAvailability />);
+-
+-    await waitFor(() => {
+-      expect(screen.getByText('0')).toBeInTheDocument(); // Total players
+-    });
+-
+-    // All days should show "No players available"
+-    const noPlayersTexts = screen.getAllByText('No players available');
+-    expect(noPlayersTexts.length).toBeGreaterThan(0);
++    render(<AllPlayersAvailability />);
++
++    const totalPlayersLabel = await screen.findByText('Total Players');
++    expect(totalPlayersLabel.previousElementSibling).toHaveTextContent('0');
++    expect(screen.getAllByText('No players available').length).toBeGreaterThan(0);
+@@
+-    render(<AllPlayersAvailability />);
+-
+-    await waitFor(() => {
+-      expect(screen.getByText('2')).toBeInTheDocument(); // Total players
+-    });
+-
+-    expect(screen.getByText('Total Players')).toBeInTheDocument();
+-    expect(screen.getByText('Most Available (Single Day)')).toBeInTheDocument();
+-    expect(screen.getByText('Most Popular Day')).toBeInTheDocument();
++    render(<AllPlayersAvailability />);
++
++    const totalPlayersLabel = await screen.findByText('Total Players');
++    expect(totalPlayersLabel.previousElementSibling).toHaveTextContent('2');
++    expect(screen.getByText('Most Available (Single Day)')).toBeInTheDocument();
++    expect(screen.getByText('Most Popular Day')).toBeInTheDocument();
+```
+
+**Residual Risks**
+- Could not run `npm test -- --watchAll=false`; `react-scripts` is unavailable in this read-only sandbox, and installing dependencies is blocked. Suggested suites need verification after application.
+- Tutorial hook tests rely on heavy mocking; if the real hook imports change further (e.g., new context fields), stubs will require updating.
+
+**Next Steps**
+1. Apply the patches above (or copy the new file contents) and reinstall node modules if necessary.
+2. Run `cd frontend && npm test -- --watchAll=false` to confirm all suites—including the flaky ones—now pass.
+
+*(Environment is read-only with approval policy “never”, so I could not apply the changes directly.)*
+[2025-10-13T23:23:30] tokens used: 103,022

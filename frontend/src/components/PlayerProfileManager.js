@@ -190,7 +190,7 @@ const PlayerProfileManager = ({ onProfileSelect, selectedProfile, showSelector =
     if (loading && profiles.length === 0) {
         return (
             <Card className="p-6">
-                <div className="text-center">
+                <div className="text-center" role="status" aria-live="polite">
                     <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
                     <p className="text-gray-600">Loading player profiles...</p>
                 </div>
@@ -399,27 +399,34 @@ const PlayerProfileManager = ({ onProfileSelect, selectedProfile, showSelector =
                 <Card className="p-4">
                     <h3 className="text-lg font-semibold mb-3">Select Active Profile</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {profiles.map((profile) => (
-                            <button
-                                key={profile.id}
-                                onClick={() => onProfileSelect && onProfileSelect(profile)}
-                                className={`p-3 rounded-lg border-2 text-left transition-colors ${
-                                    selectedProfile?.id === profile.id
-                                        ? 'border-blue-500 bg-blue-50'
-                                        : 'border-gray-200 hover:border-gray-300'
-                                }`}
-                            >
-                                <div className="flex items-center space-x-3">
-                                    <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">
-                                        {profile.name.charAt(0).toUpperCase()}
+                        {profiles.filter(Boolean).map((profile, index) => {
+                            const displayName = profile?.name || `Player ${index + 1}`;
+                            const profileId = profile?.id || `profile-${index}`;
+                            const initial = displayName.charAt(0).toUpperCase();
+                            const isSelected = profile?.id ? selectedProfile?.id === profile.id : false;
+
+                            return (
+                                <button
+                                    key={profileId}
+                                    onClick={() => onProfileSelect && onProfileSelect(profile || null)}
+                                    className={`p-3 rounded-lg border-2 text-left transition-colors ${
+                                        isSelected
+                                            ? 'border-blue-500 bg-blue-50'
+                                            : 'border-gray-200 hover:border-gray-300'
+                                    }`}
+                                >
+                                    <div className="flex items-center space-x-3">
+                                        <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">
+                                            {initial}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-medium text-gray-900 truncate">{displayName}</p>
+                                            <p className="text-sm text-gray-500">Handicap: {profile?.handicap ?? 'N/A'}</p>
+                                        </div>
                                     </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-gray-900 truncate">{profile.name}</p>
-                                        <p className="text-sm text-gray-500">Handicap: {profile.handicap}</p>
-                                    </div>
-                                </div>
-                            </button>
-                        ))}
+                                </button>
+                            );
+                        })}
                     </div>
                 </Card>
             )}
@@ -451,31 +458,33 @@ const PlayerProfileManager = ({ onProfileSelect, selectedProfile, showSelector =
                                 </tr>
                             </thead>
                             <tbody>
-                                {profiles.map((profile) => {
-                                    const handicapInfo = getHandicapCategory(profile.handicap);
+                                {profiles.filter(Boolean).map((profile, index) => {
+                                    const displayName = profile?.name || `Player ${index + 1}`;
+                                    const handicapValue = typeof profile?.handicap === 'number' ? profile.handicap : null;
+                                    const handicapInfo = getHandicapCategory(handicapValue ?? 0);
                                     return (
-                                        <tr key={profile.id} className="border-b hover:bg-gray-50">
+                                        <tr key={profile?.id || `row-${index}`} className="border-b hover:bg-gray-50">
                                             <td className="py-3">
                                                 <div className="flex items-center space-x-3">
                                                     <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                                                        {profile.name.charAt(0).toUpperCase()}
+                                                        {displayName.charAt(0).toUpperCase()}
                                                     </div>
-                                                    <span className="font-medium">{profile.name}</span>
-                                                    {selectedProfile?.id === profile.id && (
+                                                    <span className="font-medium">{displayName}</span>
+                                                    {profile?.id && selectedProfile?.id === profile.id && (
                                                         <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
                                                             Active
                                                         </span>
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="py-3">{profile.handicap}</td>
+                                            <td className="py-3">{handicapValue ?? 'N/A'}</td>
                                             <td className="py-3">
                                                 <span className={`font-medium ${handicapInfo.color}`}>
                                                     {handicapInfo.category}
                                                 </span>
                                             </td>
                                             <td className="py-3 text-gray-600">
-                                                {formatDate(profile.last_played)}
+                                                {formatDate(profile?.last_played)}
                                             </td>
                                             <td className="py-3">
                                                 <div className="flex space-x-2">
@@ -487,7 +496,7 @@ const PlayerProfileManager = ({ onProfileSelect, selectedProfile, showSelector =
                                                         Edit
                                                     </button>
                                                     <button
-                                                        onClick={() => handleDeleteProfile(profile.id)}
+                                                        onClick={() => profile?.id && handleDeleteProfile(profile.id)}
                                                         className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm"
                                                         disabled={loading}
                                                     >

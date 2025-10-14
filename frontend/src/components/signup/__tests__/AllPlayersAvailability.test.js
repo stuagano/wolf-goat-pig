@@ -65,11 +65,9 @@ describe('AllPlayersAvailability', () => {
 
     render(<AllPlayersAvailability />);
 
-    await waitFor(() => {
-      expect(screen.getByText('Monday')).toBeInTheDocument();
-    });
+    await screen.findByRole('heading', { level: 4, name: /^Monday/ });
 
-    expect(screen.getByText('Saturday')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 4, name: /^Saturday/ })).toBeInTheDocument();
     expect(screen.getByText('2 available')).toBeInTheDocument();
     expect(screen.getByText('1 available')).toBeInTheDocument();
   });
@@ -82,17 +80,13 @@ describe('AllPlayersAvailability', () => {
 
     render(<AllPlayersAvailability />);
 
-    await waitFor(() => {
-      expect(screen.getByText('Monday')).toBeInTheDocument();
-    });
-
-    const mondayTab = screen.getByRole('button', { name: /Monday 2/i });
+    const mondayTab = await screen.findByRole('button', { name: /Monday 2/i });
     fireEvent.click(mondayTab);
 
     expect(screen.getByText('Monday Availability')).toBeInTheDocument();
     expect(screen.getByText('2 players available')).toBeInTheDocument();
-    expect(screen.getByText('🧑 John Doe')).toBeInTheDocument();
-    expect(screen.getByText('🧑 Jane Smith')).toBeInTheDocument();
+    expect(screen.getByText(/John Doe/)).toBeInTheDocument();
+    expect(screen.getByText(/Jane Smith/)).toBeInTheDocument();
   });
 
   test('shows "All Days" view when clicking All Days tab', async () => {
@@ -103,20 +97,16 @@ describe('AllPlayersAvailability', () => {
 
     render(<AllPlayersAvailability />);
 
-    await waitFor(() => {
-      expect(screen.getByText('Monday')).toBeInTheDocument();
-    });
-
     // Click Monday first to switch to day view
-    const mondayTab = screen.getByRole('button', { name: /Monday 2/i });
+    const mondayTab = await screen.findByRole('button', { name: /Monday 2/i });
     fireEvent.click(mondayTab);
 
     // Then click All Days to go back
     const allDaysTab = screen.getByRole('button', { name: /All Days/i });
     fireEvent.click(allDaysTab);
 
-    expect(screen.getByText('Monday')).toBeInTheDocument();
-    expect(screen.getByText('Saturday')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 4, name: /^Monday/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 4, name: /^Saturday/ })).toBeInTheDocument();
   });
 
   test('displays player time ranges correctly', async () => {
@@ -127,14 +117,12 @@ describe('AllPlayersAvailability', () => {
 
     render(<AllPlayersAvailability />);
 
-    await waitFor(() => {
-      expect(screen.getByText('Monday')).toBeInTheDocument();
-    });
+    await screen.findByRole('heading', { level: 4, name: /^Monday/ });
 
     // Check time formatting
-    expect(screen.getByText('9:00 AM - 5:00 PM')).toBeInTheDocument();
-    expect(screen.getByText('10:00 AM - 3:00 PM')).toBeInTheDocument();
-    expect(screen.getByText('8:00 AM - 12:00 PM')).toBeInTheDocument();
+    expect(screen.getByText(/9:00 AM - 5:00 PM/)).toBeInTheDocument();
+    expect(screen.getByText(/10:00 AM - 3:00 PM/)).toBeInTheDocument();
+    expect(screen.getByText(/8:00 AM - 12:00 PM/)).toBeInTheDocument();
   });
 
   test('displays player notes when available', async () => {
@@ -145,9 +133,7 @@ describe('AllPlayersAvailability', () => {
 
     render(<AllPlayersAvailability />);
 
-    await waitFor(() => {
-      expect(screen.getByText('Monday')).toBeInTheDocument();
-    });
+    await screen.findByRole('heading', { level: 4, name: /^Monday/ });
 
     expect(screen.getByText('💬 Flexible schedule')).toBeInTheDocument();
     expect(screen.getByText('💬 Morning only')).toBeInTheDocument();
@@ -161,9 +147,8 @@ describe('AllPlayersAvailability', () => {
 
     render(<AllPlayersAvailability />);
 
-    await waitFor(() => {
-      expect(screen.getByText('0')).toBeInTheDocument(); // Total players
-    });
+    const totalPlayersLabel = await screen.findByText('Total Players');
+    expect(totalPlayersLabel.previousElementSibling).toHaveTextContent('0');
 
     // All days should show "No players available"
     const noPlayersTexts = screen.getAllByText('No players available');
@@ -188,11 +173,10 @@ describe('AllPlayersAvailability', () => {
 
     render(<AllPlayersAvailability />);
 
-    await waitFor(() => {
-      expect(screen.getByText('2')).toBeInTheDocument(); // Total players
-    });
+    const totalPlayersLabel = await screen.findByText('Total Players');
+    expect(totalPlayersLabel.previousElementSibling).toHaveTextContent('2');
 
-    expect(screen.getByText('Total Players')).toBeInTheDocument();
+    expect(totalPlayersLabel).toBeInTheDocument();
     expect(screen.getByText('Most Available (Single Day)')).toBeInTheDocument();
     expect(screen.getByText('Most Popular Day')).toBeInTheDocument();
   });

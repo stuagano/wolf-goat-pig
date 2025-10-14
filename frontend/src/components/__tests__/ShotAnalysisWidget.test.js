@@ -6,15 +6,21 @@ import { GameProvider } from '../../context';
 import ShotAnalysisWidget from '../ShotAnalysisWidget';
 
 // Mock the API module
-jest.mock('../../utils/api', () => ({
-  apiPost: jest.fn(),
-  useApiCall: () => ({
+jest.mock('../../utils/api', () => {
+  const mockUseApiCall = jest.fn(() => ({
     makeApiCall: jest.fn(),
     loading: false,
     error: null,
     isColdStart: false
-  })
-}));
+  }));
+
+  return {
+    apiPost: jest.fn(),
+    useApiCall: mockUseApiCall,
+  };
+});
+
+const { useApiCall } = require('../../utils/api');
 
 // Mock window.innerWidth for mobile testing
 Object.defineProperty(window, 'innerWidth', {
@@ -61,6 +67,12 @@ const TestWrapper = ({ children }) => (
 describe('ShotAnalysisWidget', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    useApiCall.mockReturnValue({
+      makeApiCall: jest.fn(),
+      loading: false,
+      error: null,
+      isColdStart: false
+    });
   });
 
   test('renders without crashing', () => {

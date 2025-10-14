@@ -71,6 +71,440 @@ const TutorialSystem = ({ onComplete, onExit }) => {
     }
   }, [tutorial.completed, progress, onComplete]);
 
+  const styles = {
+    container: {
+      display: 'flex',
+      height: '100vh',
+      fontFamily: theme.typography.fontFamily,
+      background: theme.colors.background,
+      color: theme.colors.textPrimary,
+      fontSize: tutorial.largeText ? '1.1em' : '1em',
+      filter: tutorial.highContrast ? 'contrast(150%)' : 'none',
+      flexDirection: isMobile ? 'column' : 'row',
+      position: 'relative'
+    },
+
+    sidebar: {
+      width: isMobile
+        ? '100%'
+        : tutorial.sidebarCollapsed
+          ? 60
+          : sidebarWidth,
+      minWidth: isMobile ? '100%' : tutorial.sidebarCollapsed ? 60 : 250,
+      maxWidth: isMobile ? '100%' : 400,
+      height: isMobile ? (showMobileSidebar ? '50vh' : '60px') : '100vh',
+      background: theme.colors.paper,
+      borderRight: isMobile ? 'none' : `1px solid ${theme.colors.border}`,
+      borderBottom: isMobile ? `1px solid ${theme.colors.border}` : 'none',
+      display: 'flex',
+      flexDirection: 'column',
+      boxShadow: theme.shadows.base,
+      transition: tutorial.reducedMotion ? 'none' : 'all 0.3s ease',
+      resize: isMobile ? 'none' : 'horizontal',
+      overflow: 'hidden',
+      position: isMobile ? 'relative' : 'static',
+      zIndex: isMobile ? 100 : 'auto'
+    },
+
+    mainContent: {
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      height: isMobile ? 'calc(100vh - 60px)' : '100vh'
+    },
+
+    moduleContainer: {
+      flex: 1,
+      padding: isMobile ? theme.spacing : theme.spacing,
+      overflow: 'auto',
+      maxWidth: 'none',
+      WebkitOverflowScrolling: 'touch'
+    },
+
+    header: {
+      padding: theme.spacing,
+      background: theme.colors.primary,
+      color: '#ffffff',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: theme.spacing,
+      boxShadow: theme.shadows.base
+    },
+
+    headerActions: {
+      display: 'flex',
+      gap: theme.spacing,
+      alignItems: 'center'
+    },
+
+    actionButton: {
+      padding: '8px 16px',
+      borderRadius: 4,
+      cursor: 'pointer',
+      background: '#ffffff',
+      color: theme.colors.primary,
+      border: 'none',
+      fontSize: '0.95em',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      transition: tutorial.reducedMotion ? 'none' : 'transform 0.2s ease',
+      outline: 'none'
+    },
+
+    toggleSidebar: {
+      padding: '8px 12px',
+      background: 'rgba(0,0,0,0.1)',
+      borderRadius: 4,
+      color: '#ffffff',
+      border: 'none',
+      cursor: 'pointer'
+    },
+
+    overlayButton: {
+      padding: '8px 12px',
+      background: tutorial.overlayVisible ? '#ffc107' : '#ffffff',
+      color: tutorial.overlayVisible ? '#000' : theme.colors.primary,
+      borderRadius: 4,
+      border: 'none',
+      cursor: 'pointer'
+    },
+
+    moduleList: {
+      flex: 1,
+      overflowY: 'auto',
+      padding: theme.spacing,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: theme.spacing,
+      WebkitOverflowScrolling: 'touch'
+    },
+
+    moduleCard: (moduleId) => ({
+      borderRadius: 8,
+      padding: '12px 16px',
+      background: tutorial.currentModule === moduleId
+        ? theme.colors.primaryLight
+        : theme.colors.paper,
+      color: tutorial.currentModule === moduleId
+        ? theme.colors.primaryContrast
+        : theme.colors.textPrimary,
+      cursor: 'pointer',
+      border: `1px solid ${tutorial.currentModule === moduleId ? theme.colors.primary : theme.colors.border}`,
+      transition: tutorial.reducedMotion ? 'none' : 'all 0.2s ease'
+    }),
+
+    moduleCardContent: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 4
+    },
+
+    moduleTitle: {
+      fontSize: '1em',
+      fontWeight: 600,
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center'
+    },
+
+    moduleDescription: {
+      fontSize: '0.9em',
+      color: theme.colors.textSecondary,
+      margin: 0
+    },
+
+    moduleStats: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      fontSize: '0.8em',
+      color: theme.colors.textSecondary
+    },
+
+    contentHeader: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: theme.spacing,
+      borderBottom: `1px solid ${theme.colors.border}`
+    },
+
+    contentTitle: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 4
+    },
+
+    moduleNavigation: {
+      display: 'flex',
+      gap: theme.spacing,
+      alignItems: 'center'
+    },
+
+    navigationButton: (variant = 'primary') => ({
+      padding: '8px 16px',
+      borderRadius: 4,
+      cursor: 'pointer',
+      backgroundColor: variant === 'primary' ? theme.colors.primary : theme.colors.secondary,
+      color: '#ffffff',
+      border: 'none',
+      fontSize: '0.9em',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      opacity: 1,
+      transition: tutorial.reducedMotion ? 'none' : 'opacity 0.2s ease'
+    }),
+
+    navigationButtonDisabled: {
+      opacity: 0.5,
+      cursor: 'not-allowed'
+    },
+
+    stepInfo: {
+      fontSize: theme.typography.sm,
+      color: theme.colors.textSecondary,
+      fontWeight: theme.typography.medium
+    },
+
+    statusInfo: {
+      padding: theme.spacing,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 4,
+      background: theme.colors.paper,
+      borderBottom: `1px solid ${theme.colors.border}`
+    },
+
+    statusMetrics: {
+      display: 'flex',
+      gap: theme.spacing,
+      flexWrap: 'wrap'
+    },
+
+    metric: {
+      padding: '6px 12px',
+      borderRadius: 999,
+      background: theme.colors.primaryLight,
+      color: theme.colors.primary
+    },
+
+    contentBody: {
+      flex: 1,
+      display: 'grid',
+      gridTemplateColumns: tutorial.showSidebar ? '2fr 1fr' : '1fr',
+      gap: theme.spacing,
+      padding: theme.spacing,
+      height: '100%',
+      overflow: 'hidden'
+    },
+
+    hintsPanel: {
+      background: theme.colors.paper,
+      borderRadius: 12,
+      padding: theme.spacing,
+      border: `1px solid ${theme.colors.border}`,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: theme.spacing,
+      height: '100%'
+    },
+
+    hintCard: {
+      padding: '12px 16px',
+      borderRadius: 8,
+      background: theme.colors.primaryLight,
+      color: theme.colors.primaryContrast,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8
+    },
+
+    hintTitle: {
+      fontWeight: 600,
+      fontSize: '0.95em'
+    },
+
+    hintContent: {
+      fontSize: '0.85em',
+      lineHeight: 1.4
+    },
+
+    tutorialOverlayTrigger: {
+      position: 'fixed',
+      bottom: theme.spacing,
+      right: theme.spacing,
+      padding: '12px 20px',
+      borderRadius: 999,
+      background: theme.colors.primary,
+      color: '#ffffff',
+      border: 'none',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      boxShadow: theme.shadows.lg
+    },
+
+    welcomeScreen: {
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)',
+      padding: '40px 16px'
+    },
+
+    welcomeCard: {
+      maxWidth: 960,
+      width: '100%',
+      background: '#ffffff',
+      borderRadius: 24,
+      padding: '40px 48px',
+      boxShadow: '0 30px 60px rgba(15, 32, 39, 0.2)',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 24
+    },
+
+    welcomeTitle: {
+      fontSize: isMobile ? '2em' : '2.5em',
+      color: '#0f2027',
+      margin: 0
+    },
+
+    welcomeContent: {
+      display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
+      gap: 24
+    },
+
+    welcomeDescription: {
+      fontSize: '1.1em',
+      lineHeight: 1.6,
+      color: '#334e68'
+    },
+
+    featureGrid: {
+      display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
+      gap: 16
+    },
+
+    feature: {
+      padding: '16px 20px',
+      borderRadius: 16,
+      background: '#f8fbff',
+      border: '1px solid rgba(15, 32, 39, 0.1)',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8
+    },
+
+    featureIcon: {
+      fontSize: '1.8em'
+    },
+
+    estimatedTime: {
+      padding: '16px 24px',
+      borderRadius: 12,
+      background: '#eef7ff',
+      color: '#0f2027'
+    },
+
+    welcomeActions: {
+      display: 'flex',
+      gap: 16,
+      flexWrap: 'wrap'
+    },
+
+    primaryAction: {
+      padding: '12px 24px',
+      borderRadius: 999,
+      background: '#0f2027',
+      color: '#ffffff',
+      border: 'none',
+      fontSize: '1em',
+      cursor: 'pointer',
+      boxShadow: '0 12px 24px rgba(15, 32, 39, 0.2)'
+    },
+
+    secondaryAction: {
+      padding: '12px 24px',
+      borderRadius: 999,
+      background: 'transparent',
+      color: '#0f2027',
+      border: '1px solid rgba(15, 32, 39, 0.2)',
+      fontSize: '1em',
+      cursor: 'pointer'
+    },
+
+    resumeAction: {
+      padding: '12px 24px',
+      borderRadius: 999,
+      background: '#1b998b',
+      color: '#ffffff',
+      border: 'none',
+      fontSize: '1em',
+      cursor: 'pointer'
+    },
+
+    mobileSidebarToggle: {
+      position: 'fixed',
+      bottom: 16,
+      left: '50%',
+      transform: 'translateX(-50%)',
+      padding: '12px 24px',
+      borderRadius: 999,
+      background: theme.colors.primary,
+      color: '#ffffff',
+      border: 'none',
+      display: isMobile ? 'flex' : 'none',
+      alignItems: 'center',
+      gap: 8,
+      boxShadow: theme.shadows.lg,
+      zIndex: 200
+    },
+
+    loading: {
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: '#f5f7fa',
+      color: '#0f2027',
+      fontSize: '1.2em'
+    },
+
+    error: {
+      padding: theme.spacing,
+      background: '#ffebee',
+      color: '#c62828',
+      borderRadius: 8,
+      marginBottom: theme.spacing
+    },
+
+    preferencesPanel: {
+      display: 'flex',
+      gap: theme.spacing,
+      flexWrap: 'wrap'
+    },
+
+    preferenceToggle: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  };
+
+  const modules = Array.isArray(tutorial.modules) ? tutorial.modules : [];
+  const currentModuleIndex = modules.findIndex((module) => module.id === tutorial.currentModule);
+  const isFirstModule = currentModuleIndex <= 0;
+  const isLastModule = modules.length === 0 || currentModuleIndex === modules.length - 1;
+  const modulePosition = currentModuleIndex >= 0 ? currentModuleIndex + 1 : 0;
+  const totalModules = modules.length;
+
   // Keyboard navigation
   useEffect(() => {
     const handleKeyPress = (e) => {
@@ -97,7 +531,14 @@ const TutorialSystem = ({ onComplete, onExit }) => {
     };
 
     window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
+    const previousKeyDown = window.onkeydown;
+    window.onkeydown = handleKeyPress;
+    return () => {
+      window.removeEventListener('keydown', handleKeyPress);
+      if (window.onkeydown === handleKeyPress) {
+        window.onkeydown = previousKeyDown || null;
+      }
+    };
   }, [tutorial]);
 
   // Welcome screen component
@@ -179,14 +620,14 @@ const TutorialSystem = ({ onComplete, onExit }) => {
   // Get current module component
   const getCurrentModuleComponent = () => {
     if (!tutorial.currentModule) return null;
-    
+
     const ModuleComponent = MODULE_COMPONENTS[tutorial.currentModule];
     if (!ModuleComponent) {
       return <div style={styles.error}>Module not found: {tutorial.currentModule}</div>;
     }
-    
+
     return (
-      <ModuleComponent 
+      <ModuleComponent
         onStepComplete={progress.completeCurrentStep}
         onModuleComplete={progress.completeCurrentModule}
         currentStep={tutorial.currentStep}
@@ -202,240 +643,6 @@ const TutorialSystem = ({ onComplete, onExit }) => {
   if (!tutorial.isActive) {
     return <div style={styles.loading}>Initializing tutorial...</div>;
   }
-
-  const styles = {
-    container: {
-      display: 'flex',
-      height: '100vh',
-      fontFamily: theme.typography.fontFamily,
-      background: theme.colors.background,
-      color: theme.colors.textPrimary,
-      fontSize: tutorial.largeText ? '1.1em' : '1em',
-      filter: tutorial.highContrast ? 'contrast(150%)' : 'none',
-      flexDirection: isMobile ? 'column' : 'row',
-      position: 'relative'
-    },
-    
-    sidebar: {
-      width: isMobile 
-        ? '100%' 
-        : tutorial.sidebarCollapsed 
-          ? 60 
-          : sidebarWidth,
-      minWidth: isMobile ? '100%' : tutorial.sidebarCollapsed ? 60 : 250,
-      maxWidth: isMobile ? '100%' : 400,
-      height: isMobile ? (showMobileSidebar ? '50vh' : '60px') : '100vh',
-      background: theme.colors.paper,
-      borderRight: isMobile ? 'none' : `1px solid ${theme.colors.border}`,
-      borderBottom: isMobile ? `1px solid ${theme.colors.border}` : 'none',
-      display: 'flex',
-      flexDirection: 'column',
-      boxShadow: theme.shadows.base,
-      transition: tutorial.reducedMotion ? 'none' : 'all 0.3s ease',
-      resize: isMobile ? 'none' : 'horizontal',
-      overflow: 'hidden',
-      position: isMobile ? 'relative' : 'static',
-      zIndex: isMobile ? 100 : 'auto'
-    },
-    
-    mainContent: {
-      flex: 1,
-      display: 'flex',
-      flexDirection: 'column',
-      overflow: 'hidden',
-      height: isMobile ? 'calc(100vh - 60px)' : '100vh'
-    },
-    
-    moduleContainer: {
-      flex: 1,
-      padding: isMobile ? theme.spacing : theme.spacing,
-      overflow: 'auto',
-      maxWidth: 'none',
-      WebkitOverflowScrolling: 'touch' // Smooth scrolling on iOS
-    },
-    
-    header: {
-      padding: theme.spacing,
-      background: theme.colors.primary,
-      color: '#ffffff',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center'
-    },
-    
-    headerTitle: {
-      margin: 0,
-      fontSize: theme.typography.xl,
-      fontWeight: theme.typography.semibold
-    },
-    
-    headerActions: {
-      display: 'flex',
-      gap: theme.spacing
-    },
-    
-    headerButton: {
-      background: 'rgba(255, 255, 255, 0.2)',
-      color: '#ffffff',
-      border: 'none',
-      borderRadius: theme.borderRadius.base,
-      padding: `${theme.spacing[2]} ${theme.spacing[3]}`,
-      cursor: 'pointer',
-      fontSize: theme.typography.sm,
-      transition: tutorial.reducedMotion ? 'none' : 'background-color 0.2s ease'
-    },
-    
-    navigation: {
-      padding: isMobile ? theme.spacing : theme.spacing,
-      borderTop: `1px solid ${theme.colors.border}`,
-      background: theme.colors.gray50,
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      flexWrap: isMobile ? 'wrap' : 'nowrap',
-      gap: isMobile ? theme.spacing : 0
-    },
-    
-    navButton: {
-      ...theme.buttonStyle,
-      fontSize: theme.typography.sm,
-      padding: `${theme.spacing[2]} ${theme.spacing[4]}`
-    },
-    
-    navButtonDisabled: {
-      ...theme.buttonStyle,
-      fontSize: theme.typography.sm,
-      padding: `${theme.spacing[2]} ${theme.spacing[4]}`,
-      backgroundColor: theme.colors.gray300,
-      color: theme.colors.gray500,
-      cursor: 'not-allowed'
-    },
-    
-    stepInfo: {
-      fontSize: theme.typography.sm,
-      color: theme.colors.textSecondary,
-      fontWeight: theme.typography.medium
-    },
-    
-    // Welcome screen styles
-    welcomeScreen: {
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      minHeight: '100vh',
-      background: theme.colors.background,
-      padding: theme.spacing
-    },
-    
-    welcomeCard: {
-      ...theme.cardStyle,
-      maxWidth: 800,
-      padding: theme.spacing,
-      textAlign: 'center'
-    },
-    
-    welcomeTitle: {
-      fontSize: theme.typography['3xl'],
-      color: theme.colors.primary,
-      marginBottom: theme.spacing,
-      fontWeight: theme.typography.bold
-    },
-    
-    welcomeDescription: {
-      fontSize: theme.typography.lg,
-      lineHeight: 1.6,
-      marginBottom: theme.spacing,
-      color: theme.colors.textSecondary
-    },
-    
-    featureGrid: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-      gap: theme.spacing,
-      marginBottom: theme.spacing
-    },
-    
-    feature: {
-      textAlign: 'center'
-    },
-    
-    featureIcon: {
-      fontSize: '2.5rem',
-      marginBottom: theme.spacing
-    },
-    
-    estimatedTime: {
-      background: theme.colors.gray100,
-      padding: theme.spacing,
-      borderRadius: theme.borderRadius.base,
-      marginBottom: theme.spacing,
-      fontSize: theme.typography.base
-    },
-    
-    welcomeActions: {
-      display: 'flex',
-      gap: theme.spacing,
-      justifyContent: 'center',
-      flexWrap: 'wrap'
-    },
-    
-    startButton: {
-      ...theme.buttonStyle,
-      fontSize: theme.typography.lg,
-      padding: `${theme.spacing[4]} ${theme.spacing[8]}`,
-      backgroundColor: theme.colors.success
-    },
-    
-    resumeButton: {
-      ...theme.buttonStyle,
-      fontSize: theme.typography.lg,
-      padding: `${theme.spacing[4]} ${theme.spacing[8]}`,
-      backgroundColor: theme.colors.accent
-    },
-    
-    skipButton: {
-      ...theme.buttonStyle,
-      fontSize: theme.typography.lg,
-      padding: `${theme.spacing[4]} ${theme.spacing[8]}`,
-      backgroundColor: theme.colors.gray400
-    },
-    
-    // Preferences setup styles
-    preferencesSetup: {
-      padding: theme.spacing
-    },
-    
-    preferenceGroup: {
-      marginBottom: theme.spacing
-    },
-    
-    checkboxLabel: {
-      display: 'block',
-      marginBottom: theme.spacing,
-      cursor: 'pointer'
-    },
-    
-    select: {
-      ...theme.inputStyle,
-      width: 'auto'
-    },
-    
-    loading: {
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      height: '100vh',
-      fontSize: theme.typography.xl
-    },
-    
-    error: {
-      padding: theme.spacing,
-      color: theme.colors.error,
-      textAlign: 'center',
-      fontSize: theme.typography.lg
-    }
-  };
-
   return (
     <div 
       style={styles.container}
@@ -496,11 +703,11 @@ const TutorialSystem = ({ onComplete, onExit }) => {
         style={styles.mainContent}
         role="main"
         aria-label="Tutorial content"
+        aria-live="polite"
+        aria-atomic="false"
       >
         <div 
           style={styles.moduleContainer}
-          aria-live="polite"
-          aria-atomic="false"
         >
           {getCurrentModuleComponent()}
         </div>
@@ -512,9 +719,12 @@ const TutorialSystem = ({ onComplete, onExit }) => {
           aria-label="Tutorial module navigation"
         >
           <button 
-            style={tutorial.currentModule === tutorial.modules?.id ? styles.navButtonDisabled : styles.navButton}
+            style={{
+              ...styles.navigationButton('secondary'),
+              ...(isFirstModule ? styles.navigationButtonDisabled : {})
+            }}
             onClick={tutorial.previousModule}
-            disabled={tutorial.currentModule === tutorial.modules?.id}
+            disabled={isFirstModule}
             aria-label="Go to previous module"
           >
             ← Previous Module
@@ -525,13 +735,16 @@ const TutorialSystem = ({ onComplete, onExit }) => {
             role="status"
             aria-live="polite"
           >
-            Module {tutorial.modules.findIndex(m => m.id === tutorial.currentModule) + 1} of {tutorial.modules.length}
+            Module {modulePosition} of {totalModules}
           </div>
           
           <button 
-            style={tutorial.currentModule === tutorial.modules[tutorial.modules.length - 1]?.id ? styles.navButtonDisabled : styles.navButton}
+            style={{
+              ...styles.navigationButton('primary'),
+              ...(isLastModule ? styles.navigationButtonDisabled : {})
+            }}
             onClick={tutorial.nextModule}
-            disabled={tutorial.currentModule === tutorial.modules[tutorial.modules.length - 1]?.id}
+            disabled={isLastModule}
             aria-label="Go to next module"
           >
             Next Module →

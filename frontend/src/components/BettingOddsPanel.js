@@ -141,14 +141,21 @@ const BettingOddsPanel = ({
     }
   }, [gameState]);
 
+  // Always ensure we have the latest odds when game state changes
+  useEffect(() => {
+    if (gameState?.active) {
+      fetchOddsData();
+    }
+  }, [fetchOddsData, gameState?.active]);
+
   // Auto-update effect
   useEffect(() => {
-    if (autoUpdate && gameState?.active) {
-      fetchOddsData();
-      
-      const interval = setInterval(fetchOddsData, refreshInterval);
-      return () => clearInterval(interval);
+    if (!autoUpdate || !gameState?.active) {
+      return;
     }
+
+    const interval = setInterval(fetchOddsData, refreshInterval);
+    return () => clearInterval(interval);
   }, [autoUpdate, refreshInterval, fetchOddsData, gameState?.active]);
 
   // Manual refresh
@@ -208,6 +215,14 @@ const BettingOddsPanel = ({
   if (!oddsData) {
     return null;
   }
+
+  const primaryScenario = oddsData.betting_scenarios?.[0];
+  const scenarioInsightsRaw = primaryScenario
+    ? generateStrategicInsight(primaryScenario, gameState)
+    : [];
+  const scenarioInsights = Array.isArray(scenarioInsightsRaw)
+    ? scenarioInsightsRaw
+    : [];
 
   return (
     <div className="betting-odds-panel" style={{ 
@@ -382,9 +397,9 @@ const BettingOddsPanel = ({
           )}
           
           {/* Dynamic strategic insights based on current scenario */}
-          {oddsData.betting_scenarios?.length > 0 && (
+          {scenarioInsights.length > 0 && (
             <div style={{ marginTop: 12 }}>
-              {generateStrategicInsight(oddsData.betting_scenarios[0], gameState).map((insight, index) => (
+              {scenarioInsights.map((insight, index) => (
                 <EducationalTooltip key={index} title={insight.title} content={insight.content} type={insight.type}>
                   <div style={{
                     display: 'inline-block',

@@ -10,7 +10,7 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 
@@ -316,7 +316,9 @@ describe('InteractiveElement', () => {
       );
 
       const element = screen.getByTestId('interactive-element');
-      element.focus();
+      act(() => {
+        element.focus();
+      });
       await userEvent.keyboard('{Enter}');
 
       expect(mockOnClick).toHaveBeenCalledTimes(1);
@@ -331,7 +333,9 @@ describe('InteractiveElement', () => {
       );
 
       const element = screen.getByTestId('interactive-element');
-      element.focus();
+      act(() => {
+        element.focus();
+      });
       await userEvent.keyboard(' ');
 
       expect(mockOnClick).toHaveBeenCalledTimes(1);
@@ -346,7 +350,9 @@ describe('InteractiveElement', () => {
       );
 
       const element = screen.getByTestId('interactive-element');
-      element.focus();
+      act(() => {
+        element.focus();
+      });
       await userEvent.keyboard('{Escape}');
       await userEvent.keyboard('{Tab}');
 
@@ -381,7 +387,9 @@ describe('InteractiveElement', () => {
       );
 
       const element = screen.getByTestId('interactive-element');
-      element.focus();
+      act(() => {
+        element.focus();
+      });
       await userEvent.keyboard('{Enter}');
 
       expect(mockOnClick).not.toHaveBeenCalled();
@@ -525,11 +533,15 @@ describe('InteractiveElement', () => {
       const element = screen.getByTestId('interactive-element');
       
       // Focus
-      element.focus();
+      act(() => {
+        element.focus();
+      });
       expect(element).toHaveStyle('box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25)');
 
       // Blur
-      element.blur();
+      act(() => {
+        element.blur();
+      });
       expect(element).toHaveStyle('box-shadow: none');
     });
 
@@ -591,10 +603,14 @@ describe('InteractiveElement', () => {
       const tooltip = screen.getByTestId('tooltip');
       const element = screen.getByTestId('interactive-element');
       
-      element.focus();
+      act(() => {
+        element.focus();
+      });
       expect(tooltip).toHaveStyle('visibility: visible');
       
-      element.blur();
+      act(() => {
+        element.blur();
+      });
       expect(tooltip).toHaveStyle('visibility: hidden');
     });
 

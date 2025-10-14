@@ -135,7 +135,11 @@ const GameStateWidget = ({ gameState, holeState, onAction }) => {
                 <strong style={{ color: COLORS.primary }}>Solo:</strong> {effectiveHoleState.teams.solo_player}
               </div>
               <div>
-                <strong style={{ color: COLORS.accent }}>Opponents:</strong> {effectiveHoleState.teams.opponents.join(', ')}
+                <strong style={{ color: COLORS.accent }}>Opponents:</strong> {
+                  effectiveHoleState.teams.opponents?.length
+                    ? effectiveHoleState.teams.opponents.join(', ')
+                    : 'None'
+                }
               </div>
             </div>
           )}

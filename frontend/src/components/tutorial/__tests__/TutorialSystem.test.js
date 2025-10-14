@@ -24,6 +24,21 @@ import { useTheme } from '../../../theme/Provider';
 
 import TutorialSystem from '../TutorialSystem';
 
+jest.mock('../../../context/TutorialContext', () => ({
+  __esModule: true,
+  useTutorial: jest.fn()
+}));
+
+jest.mock('../../../hooks/useTutorialProgress', () => ({
+  __esModule: true,
+  useTutorialProgress: jest.fn()
+}));
+
+jest.mock('../../../theme/Provider', () => ({
+  __esModule: true,
+  useTheme: jest.fn()
+}));
+
 // Mock all the tutorial modules
 jest.mock('../modules/GolfBasicsModule', () => {
   return function MockGolfBasicsModule({ onStepComplete, onModuleComplete, currentStep, goToStep }) {

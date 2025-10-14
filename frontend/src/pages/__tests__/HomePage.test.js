@@ -5,17 +5,13 @@
 
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, __setNavigateMock, __resetRouterMocks } from 'react-router-dom';
 import HomePage from '../HomePage';
 import { ThemeProvider } from '../../theme/Provider';
 import { AuthProvider } from '../../context/AuthContext';
 
 // Mock the navigation hook
 const mockNavigate = jest.fn();
-jest.mock('react-router-dom', () => ({
-  ...jest.requireActual('react-router-dom'),
-  useNavigate: () => mockNavigate,
-}));
 
 // Mock Auth0
 jest.mock('@auth0/auth0-react', () => ({
@@ -40,6 +36,8 @@ const TestWrapper = ({ children }) => (
 describe('HomePage', () => {
   beforeEach(() => {
     mockNavigate.mockClear();
+    __resetRouterMocks();
+    __setNavigateMock(mockNavigate);
   });
 
   test('renders homepage with welcome content', () => {

@@ -26,29 +26,7 @@ const usePlayerProfile = () => {
         LAST_SYNC: 'wgp_last_sync'
     };
 
-    const loadInitialData = useCallback(async () => {
-        try {
-            setLoading(true);
-            
-            // Load from localStorage first for immediate UI
-            loadFromLocalStorage();
-            
-            // Then sync with server
-            await syncWithServer();
-        } catch (err) {
-            console.error('Error loading initial data:', err);
-            setError('Failed to load player profiles');
-        } finally {
-            setLoading(false);
-        }
-    }, []); // Add dependencies array for useCallback
-
-    // Load initial data on mount
-    useEffect(() => {
-        loadInitialData();
-    }, [loadInitialData]);
-
-    const loadFromLocalStorage = () => {
+    const loadFromLocalStorage = useCallback(() => {
         try {
             // Load selected profile
             const savedProfile = localStorage.getItem(STORAGE_KEYS.SELECTED_PROFILE);
@@ -74,20 +52,70 @@ const usePlayerProfile = () => {
                 localStorage.removeItem(key);
             });
         }
-    };
+    }, []);
 
-    const saveToLocalStorage = (key, data) => {
+    const saveToLocalStorage = useCallback((key, data) => {
         try {
             localStorage.setItem(key, JSON.stringify(data));
         } catch (err) {
             console.error('Error saving to localStorage:', err);
         }
-    };
+    }, []);
+
+    const loadProfileStatistics = useCallback(async (profileId) => {
+        try {
+            // Return cached statistics if available and recent
+            const cached = profileStatistics[profileId];
+            if (cached && (Date.now() - cached.loadedAt) < 300000) { // 5 minutes
+                return cached.data;
+            }
+
+            const response = await fetch(`/api/players/${profileId}/statistics`);
+            if (!response.ok) {
+                // Statistics might not exist for new profiles
+                return null;
+            }
+
+            const stats = await response.json();
+
+            // Cache the statistics
+            const updatedStats = {
+                ...profileStatistics,
+                [profileId]: {
+                    data: stats,
+                    loadedAt: Date.now()
+                }
+            };
+            setProfileStatistics(updatedStats);
+            saveToLocalStorage(STORAGE_KEYS.STATISTICS_CACHE, updatedStats);
+
+            return stats;
+
+        } catch (err) {
+            console.error('Error loading profile statistics:', err);
+            return null;
+        }
+    }, [profileStatistics, saveToLocalStorage, STORAGE_KEYS.STATISTICS_CACHE]);
+
+    const updateLastPlayed = useCallback(async (profileId) => {
+        try {
+            await fetch(`/api/players/${profileId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    last_played: new Date().toISOString()
+                })
+            });
+        } catch (err) {
+            console.error('Error updating last played:', err);
+            // Don't throw - this is not critical
+        }
+    }, []);
 
     const syncWithServer = useCallback(async () => {
         try {
             setSyncStatus('syncing');
-            
+
             // Fetch latest profiles from server
             const response = await fetch('/api/players');
             if (!response.ok) {
@@ -122,6 +150,28 @@ const usePlayerProfile = () => {
             setTimeout(() => setSyncStatus('idle'), 5000);
         }
     }, [selectedProfile]);
+
+    const loadInitialData = useCallback(async () => {
+        try {
+            setLoading(true);
+
+            // Load from localStorage first for immediate UI
+            loadFromLocalStorage();
+
+            // Then sync with server
+            await syncWithServer();
+        } catch (err) {
+            console.error('Error loading initial data:', err);
+            setError('Failed to load player profiles');
+        } finally {
+            setLoading(false);
+        }
+    }, [loadFromLocalStorage, syncWithServer]);
+
+    // Load initial data on mount
+    useEffect(() => {
+        loadInitialData();
+    }, [loadInitialData]);
 
     const selectProfile = useCallback(async (profile) => {
         try {
@@ -257,56 +307,6 @@ const usePlayerProfile = () => {
             setLoading(false);
         }
     }, [profiles, selectedProfile, profileStatistics, STORAGE_KEYS.PROFILES_CACHE, STORAGE_KEYS.SELECTED_PROFILE, STORAGE_KEYS.STATISTICS_CACHE]);
-
-    const loadProfileStatistics = useCallback(async (profileId) => {
-        try {
-            // Return cached statistics if available and recent
-            const cached = profileStatistics[profileId];
-            if (cached && (Date.now() - cached.loadedAt) < 300000) { // 5 minutes
-                return cached.data;
-            }
-            
-            const response = await fetch(`/api/players/${profileId}/statistics`);
-            if (!response.ok) {
-                // Statistics might not exist for new profiles
-                return null;
-            }
-            
-            const stats = await response.json();
-            
-            // Cache the statistics
-            const updatedStats = {
-                ...profileStatistics,
-                [profileId]: {
-                    data: stats,
-                    loadedAt: Date.now()
-                }
-            };
-            setProfileStatistics(updatedStats);
-            saveToLocalStorage(STORAGE_KEYS.STATISTICS_CACHE, updatedStats);
-            
-            return stats;
-            
-        } catch (err) {
-            console.error('Error loading profile statistics:', err);
-            return null;
-        }
-    }, [profileStatistics, STORAGE_KEYS.STATISTICS_CACHE]);
-
-    const updateLastPlayed = useCallback(async (profileId) => {
-        try {
-            await fetch(`/api/players/${profileId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    last_played: new Date().toISOString()
-                })
-            });
-        } catch (err) {
-            console.error('Error updating last played:', err);
-            // Don't throw - this is not critical
-        }
-    }, [STORAGE_KEYS.LAST_SYNC]);
 
     const recordGameResult = useCallback(async (gameResult) => {
         try {

@@ -390,20 +390,28 @@ function GameSetupForm({ onSetup }) {
             )}
             
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <label htmlFor={`player-${idx}-name`} style={{ fontSize: 12, fontWeight: 600 }}>
+                Player {idx + 1} Name
+              </label>
               <input
                 type="text"
                 placeholder="Name"
                 value={player.name}
                 onChange={e => handleChange(idx, 'name', e.target.value)}
                 style={{ width: 120, marginRight: 8 }}
+                id={`player-${idx}-name`}
                 disabled={setupMode === 'profile' && idx === 0 && selectedProfile}
               />
+              <label htmlFor={`player-${idx}-handicap`} style={{ fontSize: 12, fontWeight: 600 }}>
+                Handicap
+              </label>
               <input
                 type="number"
                 placeholder="Handicap"
                 value={player.handicap}
                 onChange={e => handleChange(idx, 'handicap', e.target.value)}
                 style={{ width: 70, marginRight: 8 }}
+                id={`player-${idx}-handicap`}
                 disabled={setupMode === 'profile' && idx === 0 && selectedProfile}
               />
               <select

@@ -19,9 +19,6 @@ import '@testing-library/jest-dom';
 // Mock fetch for API calls
 global.fetch = jest.fn();
 
-// Mock environment variables
-process.env.REACT_APP_API_URL = 'http://localhost:8000';
-
 import { GameProvider, useGame } from '../GameProvider';
 
 // Test component to access context
@@ -221,7 +218,7 @@ describe('GameProvider', () => {
         expect(contextValue.gameState).toEqual(mockGameState);
       });
 
-      expect(fetch).toHaveBeenCalledWith(`${process.env.REACT_APP_API_URL}/api/game/state`);
+      expect(fetch).toHaveBeenCalledWith(`${process.env.REACT_APP_API_URL}/game/state`);
     });
 
     it('handles fetch game state error', async () => {
@@ -262,7 +259,7 @@ describe('GameProvider', () => {
       });
 
       expect(fetch).toHaveBeenCalledWith(
-        `${process.env.REACT_APP_API_URL}/api/game/action`,
+        `${process.env.REACT_APP_API_URL}/game/action`,
         expect.objectContaining({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

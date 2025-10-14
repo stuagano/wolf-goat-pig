@@ -13,6 +13,132 @@ import { useTutorialProgress } from '../../../hooks/useTutorialProgress';
 import { useOddsCalculation } from '../../../hooks/useOddsCalculation';
 import { usePlayerProfile } from '../../../hooks/usePlayerProfile';
 
+jest.mock('../../../hooks/useTutorialProgress', () => {
+  const mockHook = jest.fn();
+  return {
+    __esModule: true,
+    useTutorialProgress: mockHook,
+    default: mockHook,
+  };
+});
+
+jest.mock('../../../hooks/useOddsCalculation', () => {
+  const mockHook = jest.fn();
+  return {
+    __esModule: true,
+    useOddsCalculation: mockHook,
+    default: mockHook,
+  };
+});
+
+jest.mock('../../../hooks/usePlayerProfile', () => {
+  const mockHook = jest.fn();
+  return {
+    __esModule: true,
+    usePlayerProfile: mockHook,
+    default: mockHook,
+  };
+});
+
+const createTutorialProgressMock = () => ({
+  progress: {
+    currentModule: 'golf-basics',
+    currentStep: 1,
+    completedModules: ['introduction'],
+    completedSteps: 5,
+    timeSpent: 1200, // 20 minutes in seconds
+    hintsUsed: 3,
+    startTime: Date.now() - 1200000,
+    lastSaveTime: Date.now() - 600000
+  },
+
+  // Progress tracking methods
+  completeCurrentStep: jest.fn(),
+  completeCurrentModule: jest.fn(),
+  updateProgress: jest.fn(),
+
+  // Navigation methods
+  navigateToModule: jest.fn(),
+  navigateToStep: jest.fn(),
+
+  // Persistence methods
+  saveProgress: jest.fn(),
+  loadProgress: jest.fn(),
+  clearProgress: jest.fn(),
+  resumeFromSaved: jest.fn(),
+
+  // Analytics methods
+  getAnalytics: jest.fn().mockReturnValue({
+    totalTimeSpent: 2400,
+    modulesCompleted: 3,
+    stepsCompleted: 28,
+    hintsUsed: 7,
+    completionRate: 75,
+    averageTimePerModule: 800,
+    learningVelocity: 'normal',
+    strugglingAreas: ['betting-calculations'],
+    strengths: ['basic-rules', 'team-formation']
+  }),
+  trackEvent: jest.fn(),
+
+  // State methods
+  isModuleCompleted: jest.fn(),
+  isStepCompleted: jest.fn(),
+  getModuleProgress: jest.fn(),
+  getOverallProgress: jest.fn()
+});
+
+const createOddsCalculationMock = () => ({
+  odds: {
+    captain: 0.35,
+    opponents: 0.65
+  },
+  scenarios: [
+    { action: 'offer_double', win_probability: 0.35, expected_value: -0.8 },
+    { action: 'accept_double', win_probability: 0.65, expected_value: 1.2 }
+  ],
+  confidence: 0.8,
+  isLoading: false,
+  error: null,
+  lastUpdated: Date.now(),
+
+  // Tutorial-specific methods
+  calculateForTutorial: jest.fn(),
+  getSimplifiedExplanation: jest.fn(),
+  updateScenario: jest.fn(),
+  resetCalculation: jest.fn()
+});
+
+const createPlayerProfileMock = () => ({
+  profile: {
+    id: 'tutorial_user',
+    name: 'Tutorial Player',
+    handicap: 18,
+    avatar_url: null,
+    tutorialProgress: {
+      completed: false,
+      currentModule: 'golf-basics',
+      completedModules: [],
+      timeSpent: 300
+    },
+    preferences: {
+      tutorialDifficulty: 'beginner',
+      showHints: true,
+      audioEnabled: true
+    }
+  },
+
+  isLoading: false,
+  error: null,
+
+  // Tutorial-specific methods
+  updateTutorialProgress: jest.fn(),
+  completeTutorial: jest.fn(),
+  updatePreferences: jest.fn(),
+  resetTutorialProgress: jest.fn(),
+  getTutorialStats: jest.fn()
+});
+
 // Mock localStorage for tutorial progress persistence
 const mockLocalStorage = {
   getItem: jest.fn(),
@@ -34,48 +160,9 @@ describe('useTutorialProgress Hook', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
-    // Mock the hook implementation
-    mockTutorialProgress = {
-      progress: {
-        currentModule: 'golf-basics',
-        currentStep: 1,
-        completedModules: ['introduction'],
-        completedSteps: 5,
-        timeSpent: 1200, // 20 minutes in seconds
-        hintsUsed: 3,
-        startTime: Date.now() - 1200000,
-        lastSaveTime: Date.now() - 600000
-      },
-      
-      // Progress tracking methods
-      completeCurrentStep: jest.fn(),
-      completeCurrentModule: jest.fn(),
-      updateProgress: jest.fn(),
-      
-      // Navigation methods
-      navigateToModule: jest.fn(),
-      navigateToStep: jest.fn(),
-      
-      // Persistence methods
-      saveProgress: jest.fn(),
-      loadProgress: jest.fn(),
-      clearProgress: jest.fn(),
-      resumeFromSaved: jest.fn(),
-      
-      // Analytics methods
-      getAnalytics: jest.fn(),
-      trackEvent: jest.fn(),
-      
-      // State methods
-      isModuleCompleted: jest.fn(),
-      isStepCompleted: jest.fn(),
-      getModuleProgress: jest.fn(),
-      getOverallProgress: jest.fn()
-    };
 
-    // Setup hook return value
-    jest.mocked(useTutorialProgress).mockImplementation(() => mockTutorialProgress);
+    mockTutorialProgress = createTutorialProgressMock();
+    useTutorialProgress.mockImplementation(() => mockTutorialProgress);
   });
 
   describe('Progress Tracking', () => {
@@ -274,6 +361,8 @@ describe('useTutorialProgress Hook', () => {
     });
 
     test('identifies learning patterns', () => {
+      const { result } = renderHook(() => useTutorialProgress());
+
       const analytics = result.current.getAnalytics();
       
       expect(analytics.learningVelocity).toBeDefined();
@@ -319,7 +408,7 @@ describe('useOddsCalculation Hook (Tutorial Context)', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Mock fetch for API calls
     global.fetch.mockResolvedValue({
       ok: true,
@@ -333,28 +422,8 @@ describe('useOddsCalculation Hook (Tutorial Context)', () => {
       })
     });
 
-    mockOddsCalculation = {
-      odds: {
-        captain: 0.35,
-        opponents: 0.65
-      },
-      scenarios: [
-        { action: 'offer_double', win_probability: 0.35, expected_value: -0.8 },
-        { action: 'accept_double', win_probability: 0.65, expected_value: 1.2 }
-      ],
-      confidence: 0.8,
-      isLoading: false,
-      error: null,
-      lastUpdated: Date.now(),
-      
-      // Tutorial-specific methods
-      calculateForTutorial: jest.fn(),
-      getSimplifiedExplanation: jest.fn(),
-      updateScenario: jest.fn(),
-      resetCalculation: jest.fn()
-    };
-
-    jest.mocked(useOddsCalculation).mockImplementation(() => mockOddsCalculation);
+    mockOddsCalculation = createOddsCalculationMock();
+    useOddsCalculation.mockImplementation(() => mockOddsCalculation);
   });
 
   describe('Tutorial Integration', () => {
@@ -489,37 +558,9 @@ describe('usePlayerProfile Hook (Tutorial Context)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    mockPlayerProfile = {
-      profile: {
-        id: 'tutorial_user',
-        name: 'Tutorial Player',
-        handicap: 18,
-        avatar_url: null,
-        tutorialProgress: {
-          completed: false,
-          currentModule: 'golf-basics',
-          completedModules: [],
-          timeSpent: 300
-        },
-        preferences: {
-          tutorialDifficulty: 'beginner',
-          showHints: true,
-          audioEnabled: true
-        }
-      },
-      
-      isLoading: false,
-      error: null,
-      
-      // Tutorial-specific methods
-      updateTutorialProgress: jest.fn(),
-      completeTutorial: jest.fn(),
-      updatePreferences: jest.fn(),
-      resetTutorialProgress: jest.fn(),
-      getTutorialStats: jest.fn()
-    };
+    mockPlayerProfile = createPlayerProfileMock();
 
-    jest.mocked(usePlayerProfile).mockImplementation(() => mockPlayerProfile);
+    usePlayerProfile.mockImplementation(() => mockPlayerProfile);
   });
 
   describe('Tutorial Progress Integration', () => {
@@ -697,6 +738,22 @@ describe('usePlayerProfile Hook (Tutorial Context)', () => {
 });
 
 describe('Hook Integration Tests', () => {
+  let tutorialProgressMock;
+  let playerProfileMock;
+  let oddsCalculationMock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    tutorialProgressMock = createTutorialProgressMock();
+    playerProfileMock = createPlayerProfileMock();
+    oddsCalculationMock = createOddsCalculationMock();
+
+    useTutorialProgress.mockImplementation(() => tutorialProgressMock);
+    usePlayerProfile.mockImplementation(() => playerProfileMock);
+    useOddsCalculation.mockImplementation(() => oddsCalculationMock);
+  });
+
   test('tutorial progress and player profile sync correctly', () => {
     const { result: progressResult } = renderHook(() => useTutorialProgress());
     const { result: profileResult } = renderHook(() => usePlayerProfile());
