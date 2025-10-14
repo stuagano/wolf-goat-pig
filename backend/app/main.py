@@ -6661,17 +6661,99 @@ static_assets_dir = STATIC_DIR / "static"
 
 if STATIC_DIR.exists() and static_assets_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_assets_dir)), name="static")
-    
-    # Simple root route for testing
-    @app.get("/")
-    async def serve_homepage():
-        """Serve React app homepage"""
-        index_file = STATIC_DIR / "index.html" 
-        if index_file.exists():
-            return FileResponse(str(index_file))
-        else:
-            raise HTTPException(status_code=404, detail="Frontend not built")
 else:
     logger.warning(
         "Frontend static assets not found. Expected %s", static_assets_dir
     )
+
+
+@app.get("/", response_class=HTMLResponse)
+async def serve_homepage():
+    """Serve the built frontend when available, otherwise render a helpful status page."""
+    index_file = STATIC_DIR / "index.html"
+    if index_file.exists():
+        return FileResponse(str(index_file))
+
+    frontend_url = (
+        os.getenv("PUBLIC_FRONTEND_URL")
+        or os.getenv("FRONTEND_BASE_URL")
+        or "https://wolf-goat-pig.vercel.app"
+    )
+
+    docs_link = ""
+    if app.docs_url:
+        docs_link = f'<li><a href="{app.docs_url}">Interactive API docs</a></li>'
+
+    html = f"""
+    <!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Wolf Goat Pig API</title>
+        <style>
+          body {{
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #0f172a;
+            color: #e2e8f0;
+          }}
+          .card {{
+            background: rgba(15, 23, 42, 0.9);
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 520px;
+            box-shadow: 0 20px 45px rgba(15, 23, 42, 0.4);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+          }}
+          h1 {{
+            margin-top: 0;
+            font-size: 1.75rem;
+            letter-spacing: 0.02em;
+          }}
+          p {{
+            line-height: 1.55;
+            margin-bottom: 1.25rem;
+            color: #cbd5f5;
+          }}
+          ul {{
+            padding-left: 1.2rem;
+            margin: 0 0 1.25rem 0;
+          }}
+          a {{
+            color: #38bdf8;
+            text-decoration: none;
+            font-weight: 600;
+          }}
+          a:hover {{
+            text-decoration: underline;
+          }}
+          .meta {{
+            font-size: 0.85rem;
+            color: #94a3b8;
+          }}
+        </style>
+      </head>
+      <body>
+        <main class="card">
+          <h1>Wolf Goat Pig API</h1>
+          <p>
+            The backend is running and healthy. The interactive frontend lives on our
+            Vercel deployment — you can reach it here:
+          </p>
+          <ul>
+            <li><a href="{frontend_url}" target="_blank" rel="noopener">Open the production app</a></li>
+            {docs_link}
+          </ul>
+          <p class="meta">Last checked: {datetime.utcnow().isoformat()}Z</p>
+        </main>
+      </body>
+    </html>
+    """
+
+    return HTMLResponse(content=html, status_code=200)
