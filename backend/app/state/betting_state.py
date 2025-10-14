@@ -105,7 +105,11 @@ class BettingState:
     def _distribute_points_karl_marx(self, winners: List[str], losers: List[str], base: int, players: List[Player]) -> str:
         n_win = len(winners)
         n_lose = len(losers)
-        total_quarters = base * n_lose
+        # Use the larger team size when calculating total quarters so that
+        # asymmetric matchups (e.g., solo captain versus three opponents)
+        # grant the expected base wager to each winner. This aligns the game
+        # logic with the scoring rules exercised in the backend tests.
+        total_quarters = base * max(n_win, n_lose)
         per_winner = total_quarters // n_win
         odd_quarters = total_quarters % n_win
         for p in players:

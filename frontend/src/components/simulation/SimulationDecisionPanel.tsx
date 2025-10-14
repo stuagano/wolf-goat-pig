@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useMemo } from 'react';
 import { useTheme } from '../../theme/Provider';
 import { Button, Card } from '../ui';

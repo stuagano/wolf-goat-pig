@@ -11,6 +11,7 @@
     "test:all": "./scripts/diagnostics/run_simulation_tests.sh",
     "test:backend": "cd backend && pytest",
     "test:frontend": "cd frontend && npm test -- --watchAll=false",
+    "test:bdd": "./scripts/testing/run_behave.sh",
     "build:frontend": "cd frontend && npm run build",
     "deploy:check": ".husky/deployment-checklist",
     "deploy:test": "./scripts/test-prod-all.sh",

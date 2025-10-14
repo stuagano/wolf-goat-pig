@@ -77,6 +77,17 @@ The frontend expects `REACT_APP_API_URL` to be defined. When running everything 
 | `./scripts/diagnostics/test-local.sh` | Legacy shell health check for quick API verification. |
 | `python scripts/diagnostics/simulation_startup_check.py` | Validates that core simulation modules import correctly without external services. |
 
+### Behaviour-Driven Development (BDD)
+
+| Command | Purpose |
+| ------- | ------- |
+| `npm run test:bdd` | Execute Gherkin features with Behave (Cucumber) against the FastAPI application. |
+| `./scripts/testing/run_behave.sh --tags @smoke` | Run a tagged subset of scenarios. |
+
+See [`docs/guides/bdd-workflow.md`](./docs/guides/bdd-workflow.md) for authoring guidance and collaboration tips with the AI agent.
+
+> **Pre-commit hooks** now run `npm test`, `./scripts/test-prod-backend.sh`, and `./scripts/test-prod-frontend.sh` automatically to keep Render and Vercel deployments compliant. Configure `.env.production` and `frontend/.env.production` with the values from your Render (service `srv-d0pa0vje5dus73djl050`) and Vercel dashboards—at minimum `DATABASE_URL`, `REACT_APP_API_URL`, Auth0 credentials, and SMTP settings—before committing to avoid false failures.
+
 ### Deployment Testing
 
 | Command | Purpose |

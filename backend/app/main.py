@@ -541,6 +541,18 @@ def health_check():
         health_status["error"] = str(e)
         raise HTTPException(status_code=503, detail=f"Health check failed: {str(e)}")
 
+
+@app.get("/healthz")
+def health_check_render_alias():
+    """Simplified health endpoint for Render monitoring."""
+    try:
+        # Reuse the comprehensive health check; Render only needs 200/503.
+        health_check()
+        return {"status": "ok"}
+    except HTTPException as exc:
+        # Mirror original status code to keep behaviour consistent.
+        raise exc
+
 @app.get("/rules", response_model=list[schemas.Rule])
 def get_rules():
     """Get Wolf Goat Pig rules"""
@@ -6640,8 +6652,10 @@ async def debug_paths():
     }
 
 # Mount static files if build directory exists
-if STATIC_DIR.exists():
-    app.mount("/static", StaticFiles(directory=str(STATIC_DIR / "static")), name="static")
+static_assets_dir = STATIC_DIR / "static"
+
+if STATIC_DIR.exists() and static_assets_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(static_assets_dir)), name="static")
     
     # Simple root route for testing
     @app.get("/")
@@ -6653,4 +6667,6 @@ if STATIC_DIR.exists():
         else:
             raise HTTPException(status_code=404, detail="Frontend not built")
 else:
-    logger.warning("Frontend build directory not found. Frontend will not be served.")
+    logger.warning(
+        "Frontend static assets not found. Expected %s", static_assets_dir
+    )

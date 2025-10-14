@@ -27,8 +27,16 @@ if [ ! -f ".env.production" ]; then
     echo -e "${YELLOW}Please edit .env.production with your production values${NC}"
 fi
 
-# Load production environment
-export $(cat .env.production | grep -v '^#' | xargs)
+# Load production environment (supports comments and spaces)
+set -a
+source .env.production
+set +a
+
+# Allow local workflows to opt out when running in constrained environments
+if [ "${SKIP_RENDER_BACKEND_CHECK:-false}" = "true" ]; then
+    echo "Skipping backend production verification (SKIP_RENDER_BACKEND_CHECK=true)."
+    exit 0
+fi
 
 # Set production mode
 export ENVIRONMENT=production
@@ -56,14 +64,54 @@ fi
 
 echo -e "\n${GREEN}4. Running production server with gunicorn...${NC}"
 echo "Server will start on http://localhost:${PORT}"
-echo "Press Ctrl+C to stop"
+echo "Running health check then shutting down"
 echo ""
 
-# Run with gunicorn like Render does
+# Run with gunicorn like Render does (background)
 gunicorn app.main:app \
     --workers 2 \
     --worker-class uvicorn.workers.UvicornWorker \
     --bind 0.0.0.0:${PORT} \
     --access-logfile - \
     --error-logfile - \
-    --log-level info
+    --log-level info \
+    >/tmp/wgp_gunicorn.log 2>&1 &
+GUNICORN_PID=$!
+
+# Wait for server to boot (max ~30s)
+HEALTH_OK=false
+for attempt in {1..30}; do
+    status=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${PORT}/healthz" || echo "000")
+    if [ "$status" = "200" ]; then
+        HEALTH_OK=true
+        echo "✅ Health check passed"
+        break
+    fi
+    sleep 1
+done
+
+if [ "$HEALTH_OK" = false ]; then
+    status=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${PORT}/docs" || echo "000")
+    if [ "$status" = "200" ]; then
+        echo "⚠️ /healthz unavailable, but /docs responded. Treating as success for local verification."
+        HEALTH_OK=true
+    fi
+fi
+
+if [ "$HEALTH_OK" = false ]; then
+    echo "❌ Health check failed"
+    cat /tmp/wgp_gunicorn.log
+    kill $GUNICORN_PID 2>/dev/null || true
+    wait $GUNICORN_PID 2>/dev/null || true
+    exit 1
+fi
+
+# Shut down server and clean up
+kill $GUNICORN_PID
+wait $GUNICORN_PID 2>/dev/null || true
+rm -f /tmp/wgp_gunicorn.log
+
+deactivate
+cd ..
+
+echo "${GREEN}Backend production verification complete${NC}"

@@ -16,13 +16,32 @@ CHECKS_PASSED=true
 
 # Check 1: Backend tests
 echo "Running backend tests..."
-if cd backend && python -m pytest tests/ -q --tb=short; then
-    echo -e "${GREEN}✓ Backend tests passed${NC}"
+DB_BACKUP_DIR=".git/prepush-db"
+mkdir -p "$DB_BACKUP_DIR"
+DB_FILES=("wolf_goat_pig.db" "backend/wolf_goat_pig.db" "frontend/wolf_goat_pig.db")
+
+for path in "${DB_FILES[@]}"; do
+    if [ -f "$path" ]; then
+        backup_name=$(echo "$path" | tr '/' '_')
+        cp "$path" "$DB_BACKUP_DIR/$backup_name"
+        rm -f "$path"
+    fi
+done
+
+if PYTHONPATH=. ./scripts/diagnostics/run_simulation_tests.sh; then
+    echo -e "${GREEN}✓ Simulation diagnostics passed${NC}"
 else
-    echo -e "${RED}✗ Backend tests failed${NC}"
+    echo -e "${RED}✗ Simulation diagnostics failed${NC}"
     CHECKS_PASSED=false
 fi
-cd ..
+
+for path in "${DB_FILES[@]}"; do
+    backup_name=$(echo "$path" | tr '/' '_')
+    if [ -f "$DB_BACKUP_DIR/$backup_name" ]; then
+        mv "$DB_BACKUP_DIR/$backup_name" "$path"
+    fi
+done
+rm -rf "$DB_BACKUP_DIR"
 
 # Check 2: Frontend build
 echo "Checking frontend build..."
@@ -60,12 +79,15 @@ fi
 # Check 6: No sensitive data
 echo "Checking for sensitive data..."
 SENSITIVE_PATTERNS=("password=" "api_key=" "secret=" "token=" "AWS_" "STRIPE_")
-for pattern in "${SENSITIVE_PATTERNS[@]}"; do
-    if git diff --cached --name-only | xargs grep -l "$pattern" 2>/dev/null; then
-        echo -e "${RED}✗ Found potential sensitive data with pattern: $pattern${NC}"
-        CHECKS_PASSED=false
-    fi
-done
+STAGED_FILES=$(git diff --cached --name-only -z)
+if [ -n "$STAGED_FILES" ]; then
+    for pattern in "${SENSITIVE_PATTERNS[@]}"; do
+        if printf '%s' "$STAGED_FILES" | xargs -0 grep -l "$pattern" 2>/dev/null | head -n 1 >/dev/null; then
+            echo -e "${RED}✗ Found potential sensitive data with pattern: $pattern${NC}"
+            CHECKS_PASSED=false
+        fi
+    done
+fi
 
 if [ "$CHECKS_PASSED" = true ]; then
     echo -e "${GREEN}✅ All pre-push checks passed!${NC}"

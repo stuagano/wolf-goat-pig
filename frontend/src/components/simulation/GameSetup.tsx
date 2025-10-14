@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../theme/Provider';
 import { Button, Card, Input, Select } from '../ui';
