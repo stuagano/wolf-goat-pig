@@ -37,7 +37,7 @@ class AuthService:
             db.close()
     
     @staticmethod
-    async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any]:
+    def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any]:
         """Verify Auth0 JWT token"""
         token = credentials.credentials
         
