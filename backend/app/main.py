@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from . import models, schemas, crud, database
 
 from .game_state import game_state
-from .wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer
+from .wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer, BallPosition, TeamFormation
 from .post_hole_analytics import PostHoleAnalyzer
 from .simulation_timeline_enhancements import (
     enhance_simulation_with_timeline, 
@@ -77,6 +77,59 @@ class CourseImportRequest(BaseModel):
     state: Optional[str] = None
     city: Optional[str] = None
 
+
+class BallSeed(BaseModel):
+    """Testing helper payload for manually positioning a ball."""
+
+    player_id: str = Field(..., description="Unique player identifier")
+    distance_to_pin: float = Field(..., ge=0, description="Distance remaining in yards")
+    lie_type: str = Field("fairway", description="Current lie type for the ball")
+    shot_count: int = Field(1, ge=0, description="Number of strokes taken on the hole")
+    holed: bool = Field(False, description="Whether the ball is in the hole")
+    conceded: bool = Field(False, description="If the putt has been conceded")
+    penalty_strokes: int = Field(0, ge=0, description="Penalty strokes assessed on the shot")
+
+
+class BettingSeed(BaseModel):
+    """Testing helper payload for adjusting betting metadata."""
+
+    base_wager: Optional[int] = Field(None, ge=0)
+    current_wager: Optional[int] = Field(None, ge=0)
+    doubled: Optional[bool] = None
+    redoubled: Optional[bool] = None
+    carry_over: Optional[bool] = None
+    float_invoked: Optional[bool] = None
+    option_invoked: Optional[bool] = None
+    duncan_invoked: Optional[bool] = None
+    tunkarri_invoked: Optional[bool] = None
+    big_dick_invoked: Optional[bool] = None
+    joes_special_value: Optional[int] = None
+    line_of_scrimmage: Optional[str] = None
+    ping_pong_count: Optional[int] = Field(None, ge=0)
+
+
+class SimulationSeedRequest(BaseModel):
+    """Parameters accepted by the test seeding endpoint."""
+
+    current_hole: Optional[int] = Field(
+        None, description="Hole number to switch the active simulation to"
+    )
+    shot_order: Optional[List[str]] = Field(
+        None, description="Explicit hitting order for the active hole"
+    )
+    ball_positions: List[BallSeed] = Field(default_factory=list)
+    ball_positions_replace: bool = Field(False, description="Replace all ball positions when True")
+    line_of_scrimmage: Optional[str] = None
+    next_player_to_hit: Optional[str] = None
+    current_order_of_play: Optional[List[str]] = None
+    wagering_closed: Optional[bool] = None
+    betting: Optional[BettingSeed] = None
+    team_formation: Optional[Dict[str, Any]] = Field(
+        None, description="Override the current TeamFormation dataclass"
+    )
+    clear_balls_in_hole: bool = Field(False, description="Clear recorded holed balls before applying seed")
+    reset_doubles_history: bool = Field(True, description="Clear double-offer history to avoid stale offers")
+
 app = FastAPI(
     title="Wolf Goat Pig Golf Simulation API",
     description="A comprehensive golf betting simulation API with unified Action API",
@@ -84,6 +137,8 @@ app = FastAPI(
     docs_url="/docs" if os.getenv("ENVIRONMENT") != "production" else None,
     redoc_url="/redoc" if os.getenv("ENVIRONMENT") != "production" else None
 )
+
+ENABLE_TEST_ENDPOINTS = os.getenv("ENABLE_TEST_ENDPOINTS", "true").lower() in {"1", "true", "yes"}
 
 # Database initialization moved to main startup handler
 
@@ -4544,6 +4599,144 @@ def simulate_hole(request: Dict[str, Any] = Body(default_factory=dict)):
     except Exception as e:
         logger.error(f"Hole simulation failed: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to simulate hole: {str(e)}")
+
+
+if ENABLE_TEST_ENDPOINTS:
+
+    @app.post("/simulation/test/seed-state")
+    def seed_simulation_state(payload: SimulationSeedRequest):
+        """Testing-only helper for seeding the current simulation state.
+
+        Allows BDD and backend tests to manipulate the in-memory simulation using
+        the public HTTP API instead of reaching into the global simulation object.
+        """
+
+        global wgp_simulation
+
+        if not wgp_simulation:
+            raise HTTPException(status_code=400, detail="Simulation not initialized. Call /simulation/setup first.")
+
+        if payload.current_hole is not None:
+            if payload.current_hole not in wgp_simulation.hole_states:
+                try:
+                    wgp_simulation._initialize_hole(payload.current_hole)
+                except Exception as exc:  # pragma: no cover - defensive fallback
+                    raise HTTPException(status_code=500, detail=f"Failed to initialise hole {payload.current_hole}: {exc}") from exc
+            wgp_simulation.current_hole = payload.current_hole
+
+        hole_state = _get_current_hole_state()
+        if not hole_state:
+            raise HTTPException(status_code=400, detail="No active hole to seed")
+
+        player_ids = {player.id for player in wgp_simulation.players}
+
+        # Seed ball positions
+        if payload.ball_positions:
+            if payload.ball_positions_replace:
+                hole_state.ball_positions.clear()
+
+            if payload.clear_balls_in_hole:
+                hole_state.balls_in_hole = []
+
+            for seed in payload.ball_positions:
+                if seed.player_id not in player_ids:
+                    raise HTTPException(status_code=422, detail=f"Unknown player id '{seed.player_id}'")
+
+                ball = BallPosition(
+                    player_id=seed.player_id,
+                    distance_to_pin=seed.distance_to_pin,
+                    lie_type=seed.lie_type,
+                    shot_count=seed.shot_count,
+                    penalty_strokes=seed.penalty_strokes,
+                )
+                ball.holed = seed.holed
+                ball.conceded = seed.conceded
+
+                hole_state.ball_positions[seed.player_id] = ball
+
+                if seed.holed:
+                    if seed.player_id not in hole_state.balls_in_hole:
+                        hole_state.balls_in_hole.append(seed.player_id)
+                elif seed.player_id in hole_state.balls_in_hole:
+                    hole_state.balls_in_hole.remove(seed.player_id)
+
+        # Update ordering metadata
+        if payload.line_of_scrimmage is not None:
+            if payload.line_of_scrimmage and payload.line_of_scrimmage not in player_ids:
+                raise HTTPException(status_code=422, detail=f"Unknown line of scrimmage player '{payload.line_of_scrimmage}'")
+            hole_state.line_of_scrimmage = payload.line_of_scrimmage
+            if payload.betting is None:
+                hole_state.betting.line_of_scrimmage = payload.line_of_scrimmage
+
+        if payload.current_order_of_play is not None:
+            unknown = [pid for pid in payload.current_order_of_play if pid not in player_ids]
+            if unknown:
+                raise HTTPException(status_code=422, detail=f"Unknown players in order of play: {', '.join(unknown)}")
+            hole_state.current_order_of_play = payload.current_order_of_play
+
+        if payload.shot_order is not None:
+            unknown = [pid for pid in payload.shot_order if pid not in player_ids]
+            if unknown:
+                raise HTTPException(status_code=422, detail=f"Unknown players in shot order: {', '.join(unknown)}")
+            hole_state.hitting_order = payload.shot_order
+
+        if payload.next_player_to_hit is not None:
+            if payload.next_player_to_hit and payload.next_player_to_hit not in player_ids:
+                raise HTTPException(status_code=422, detail=f"Unknown next player '{payload.next_player_to_hit}'")
+            hole_state.next_player_to_hit = payload.next_player_to_hit
+
+        if payload.wagering_closed is not None:
+            hole_state.wagering_closed = payload.wagering_closed
+
+        if payload.betting:
+            betting = hole_state.betting
+            updates = payload.betting.dict(exclude_unset=True)
+            line_of_scrimmage = updates.pop("line_of_scrimmage", None)
+            if line_of_scrimmage is not None:
+                if line_of_scrimmage and line_of_scrimmage not in player_ids:
+                    raise HTTPException(status_code=422, detail=f"Unknown line of scrimmage player '{line_of_scrimmage}'")
+                hole_state.line_of_scrimmage = line_of_scrimmage
+                betting.line_of_scrimmage = line_of_scrimmage
+
+            for key, value in updates.items():
+                setattr(betting, key, value)
+
+        if payload.team_formation:
+            formation_data = payload.team_formation
+            hole_state.teams = TeamFormation(
+                type=formation_data.get("type", hole_state.teams.type),
+                captain=formation_data.get("captain", hole_state.teams.captain),
+                second_captain=formation_data.get("second_captain", hole_state.teams.second_captain),
+                team1=formation_data.get("team1", hole_state.teams.team1),
+                team2=formation_data.get("team2", hole_state.teams.team2),
+                team3=formation_data.get("team3", hole_state.teams.team3),
+                solo_player=formation_data.get("solo_player", hole_state.teams.solo_player),
+                opponents=formation_data.get("opponents", hole_state.teams.opponents),
+                pending_request=formation_data.get("pending_request", hole_state.teams.pending_request),
+            )
+
+        if payload.reset_doubles_history:
+            hole_state.betting.doubles_history = []
+
+        return {
+            "status": "seeded",
+            "game_state": wgp_simulation.get_game_state(),
+        }
+
+
+@app.get("/simulation/state")
+def get_simulation_state():
+    """Return the current simulation state for diagnostics and testing."""
+    global wgp_simulation
+
+    if not wgp_simulation:
+        raise HTTPException(status_code=404, detail="Simulation not initialized")
+
+    try:
+        return wgp_simulation.get_game_state()
+    except Exception as exc:  # pragma: no cover
+        logger.error(f"Failed to fetch simulation state: {exc}")
+        raise HTTPException(status_code=500, detail="Failed to fetch simulation state")
 
 @app.get("/simulation/available-personalities")
 def get_available_personalities():
