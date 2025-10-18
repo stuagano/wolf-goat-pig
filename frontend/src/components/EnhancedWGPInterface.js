@@ -53,8 +53,9 @@ const EnhancedWGPInterface = () => {
             setCurrentView('analysis');
           }
         }
-        
-        console.log('Action response:', data);
+        if (process.env.NODE_ENV !== 'production') {
+          console.debug('Action response:', data);
+        }
       } else {
         const errorText = await response.text();
         console.error('Action error:', errorText);

@@ -68,8 +68,9 @@ const WolfGoatPigGame = () => {
         if (data.timeline_event) {
           setTimelineEvents(prev => [...prev, data.timeline_event]);
         }
-        
-        console.log('Action response:', data);
+        if (process.env.NODE_ENV !== 'production') {
+          console.debug('Action response:', data);
+        }
       } else {
         const errorText = await response.text();
         console.error('Action error:', errorText);

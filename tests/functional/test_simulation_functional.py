@@ -200,29 +200,49 @@ class TestSimulationGameplay(SimulationFunctionalTest):
             return False
             
         # Request partnership
-        partnership_data = {
-            "action": "request_partner",
-            "requested_partner": "comp1"
-        }
-        
-        response = self.session.post(f"{self.api_url}/simulation/play-hole", json=partnership_data)
-        
-        if response.status_code == 200:
-            result = response.json()
+        candidate_partners = ["comp1", "comp2", "comp3"]
+        request_result = None
+
+        for partner_id in candidate_partners:
+            if partner_id == "human":
+                continue
+
+            partnership_data = {
+                "action": "request_partner",
+                "requested_partner": partner_id
+            }
+            print("🔧 Partnership request payload:", partnership_data)
+
+            response = self.session.post(f"{self.api_url}/simulation/play-hole", json=partnership_data)
+
+            if response.status_code == 400 and 'Captain cannot partner with themselves' in response.text:
+                # Try next partner in the list
+                continue
+
+            if response.status_code != 200:
+                print(f"⚠️ Partnership request failed: {response.status_code} - {response.text}")
+                return False
+
+            request_result = response.json()
             print("✅ Partnership request sent")
-            
-            # Check for partnership response interaction
-            if result.get('interaction_needed', {}).get('type') == 'partnership_response':
-                print("✅ Partnership response interaction detected")
-                
-                # Accept partnership
-                response_data = {"accept_partnership": True}
-                response = self.session.post(f"{self.api_url}/simulation/play-hole", json=response_data)
-                
-                if response.status_code == 200:
-                    print("✅ Partnership accepted")
-                    return True
-                    
+            break
+
+        if not request_result:
+            print("⚠️ Partnership workflow incomplete: Unable to find eligible partner")
+            return False
+
+        # Check for partnership response interaction
+        if request_result.get('interaction_needed', {}).get('type') == 'partnership_response':
+            print("✅ Partnership response interaction detected")
+
+            # Accept partnership
+            response_data = {"accept_partnership": True}
+            response = self.session.post(f"{self.api_url}/simulation/play-hole", json=response_data)
+
+            if response.status_code == 200:
+                print("✅ Partnership accepted")
+                return True
+
         print(f"⚠️ Partnership workflow incomplete: {response.status_code if 'response' in locals() else 'No response'}")
         return False
         

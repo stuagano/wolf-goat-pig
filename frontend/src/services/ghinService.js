@@ -16,7 +16,9 @@ class GHINService {
       this.client = new GhinClient(username, password);
       await this.client.login();
       this.initialized = true;
-      console.log('GHIN client initialized successfully');
+      if (process.env.NODE_ENV !== 'production') {
+        console.debug('GHIN client initialized successfully');
+      }
       return true;
     } catch (error) {
       console.error('Failed to initialize GHIN client:', error);

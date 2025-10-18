@@ -708,7 +708,9 @@ function SimulationMode() {
   
   const playNextShot = async () => {
     if (loading || interactionNeeded) {
-      console.log("Cannot play shot:", { loading, interactionNeeded });
+      if (process.env.NODE_ENV !== 'production') {
+        console.debug("Cannot play shot:", { loading, interactionNeeded });
+      }
       return;
     }
 

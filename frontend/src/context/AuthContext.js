@@ -23,12 +23,13 @@ export const AuthProvider = ({ children }) => {
     throw new Error('Please define REACT_APP_AUTH0_DOMAIN and REACT_APP_AUTH0_CLIENT_ID environment variables');
   }
 
-  // Log Auth0 configuration for debugging
-  console.log('🔧 Auth0 Configuration:', {
-    domain,
-    clientId: clientId.substring(0, 8) + '...',
-    redirectUri: window.location.origin
-  });
+  if (process.env.NODE_ENV !== 'production') {
+    console.debug('🔧 Auth0 Configuration:', {
+      domain,
+      clientId: clientId.substring(0, 8) + '...',
+      redirectUri: window.location.origin
+    });
+  }
 
   const value = {
     // Additional auth context values can be added here

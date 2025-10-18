@@ -92,7 +92,9 @@ const WGPAnalyticsDashboard = () => {
       });
 
       setGhinData(ghinDataMap);
-      console.log(`Fetched GHIN data for ${Object.keys(ghinDataMap).length} players`);
+      if (process.env.NODE_ENV !== 'production') {
+        console.debug(`Fetched GHIN data for ${Object.keys(ghinDataMap).length} players`);
+      }
 
     } catch (error) {
       console.error('Error fetching GHIN data:', error);
@@ -178,10 +180,12 @@ const WGPAnalyticsDashboard = () => {
     try {
       const ghinInitialized = await initializeGHIN();
       setGhinEnabled(ghinInitialized);
-      if (ghinInitialized) {
-        console.log('GHIN service initialized successfully');
-      } else {
-        console.log('GHIN service not available - continuing without GHIN integration');
+      if (process.env.NODE_ENV !== 'production') {
+        if (ghinInitialized) {
+          console.debug('GHIN service initialized successfully');
+        } else {
+          console.debug('GHIN service not available - continuing without GHIN integration');
+        }
       }
     } catch (error) {
       console.error('Failed to initialize GHIN service:', error);

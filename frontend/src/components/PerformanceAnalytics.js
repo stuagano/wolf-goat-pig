@@ -414,8 +414,9 @@ const PerformanceAnalytics = ({ playerId, playerName, timeRange = 30 }) => {
                     <div className="flex space-x-2">
                         <button
                             onClick={() => {
-                                // Implement CSV export
-                                console.log('Export to CSV');
+                                if (process.env.NODE_ENV !== 'production') {
+                                    console.debug('Export to CSV (coming soon)');
+                                }
                             }}
                             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                         >
@@ -423,8 +424,9 @@ const PerformanceAnalytics = ({ playerId, playerName, timeRange = 30 }) => {
                         </button>
                         <button
                             onClick={() => {
-                                // Implement PDF export
-                                console.log('Export to PDF');
+                                if (process.env.NODE_ENV !== 'production') {
+                                    console.debug('Export to PDF (coming soon)');
+                                }
                             }}
                             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                         >

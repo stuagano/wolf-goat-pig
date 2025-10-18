@@ -73,8 +73,9 @@ export const SheetSyncProvider = ({ children }) => {
   const performLiveSync = useCallback(async (manualSheetUrl = null) => {
     const currentSheetUrl = manualSheetUrl || sheetUrl;
     
-    // Debug logging
-    console.log('performLiveSync called with:', { manualSheetUrl, sheetUrl, currentSheetUrl });
+    if (process.env.NODE_ENV !== 'production') {
+      console.debug('performLiveSync called with:', { manualSheetUrl, sheetUrl, currentSheetUrl });
+    }
     
     if (!currentSheetUrl) {
       console.error('No sheet URL available for sync');
