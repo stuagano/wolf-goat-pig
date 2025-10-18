@@ -5,8 +5,14 @@ Test end-to-end flows with realistic data
 import pytest
 import sys
 import os
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
+HELPERS_PATH = os.path.join(os.path.dirname(__file__), "helpers")
+if HELPERS_PATH not in sys.path:
+    sys.path.append(HELPERS_PATH)
+
+from simulation_engine import SimulationEngine
 from app.wolf_goat_pig_simulation import WolfGoatPigSimulation
 from app.domain.player import Player
 
