@@ -138,7 +138,13 @@ app = FastAPI(
     redoc_url="/redoc" if os.getenv("ENVIRONMENT") != "production" else None
 )
 
-ENABLE_TEST_ENDPOINTS = os.getenv("ENABLE_TEST_ENDPOINTS", "true").lower() in {"1", "true", "yes"}
+ENABLE_TEST_ENDPOINTS = os.getenv("ENABLE_TEST_ENDPOINTS", "false").lower() in {"1", "true", "yes"}
+ADMIN_EMAILS = {"stuagano@gmail.com", "admin@wgp.com"}
+
+
+def require_admin(x_admin_email: Optional[str] = Header(None)) -> None:
+    if not x_admin_email or x_admin_email not in ADMIN_EMAILS:
+        raise HTTPException(status_code=403, detail="Admin access required")
 
 # Database initialization moved to main startup handler
 
@@ -4604,7 +4610,7 @@ def simulate_hole(request: Dict[str, Any] = Body(default_factory=dict)):
 if ENABLE_TEST_ENDPOINTS:
 
     @app.post("/simulation/test/seed-state")
-    def seed_simulation_state(payload: SimulationSeedRequest):
+    def seed_simulation_state(payload: SimulationSeedRequest, x_admin_email: Optional[str] = Header(None)):
         """Testing-only helper for seeding the current simulation state.
 
         Allows BDD and backend tests to manipulate the in-memory simulation using
@@ -4612,6 +4618,8 @@ if ENABLE_TEST_ENDPOINTS:
         """
 
         global wgp_simulation
+
+        require_admin(x_admin_email)
 
         if not wgp_simulation:
             raise HTTPException(status_code=400, detail="Simulation not initialized. Call /simulation/setup first.")
@@ -4725,9 +4733,14 @@ if ENABLE_TEST_ENDPOINTS:
 
 
 @app.get("/simulation/state")
-def get_simulation_state():
+def get_simulation_state(x_admin_email: Optional[str] = Header(None)):
     """Return the current simulation state for diagnostics and testing."""
     global wgp_simulation
+
+    if not ENABLE_TEST_ENDPOINTS:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    require_admin(x_admin_email)
 
     if not wgp_simulation:
         raise HTTPException(status_code=404, detail="Simulation not initialized")
@@ -6826,28 +6839,30 @@ async def create_and_notify_matches():
         if 'db' in locals():
             db.close()
 
-# Simple test endpoint  
 @app.get("/test-deployment")
-async def test_deployment():
-    """Test that new deployments are working"""
+async def test_deployment(x_admin_email: Optional[str] = Header(None)):
+    """Test that new deployments are working."""
+    require_admin(x_admin_email)
     return {"message": "Deployment is working", "timestamp": datetime.now().isoformat()}
 
-# Debug endpoint to check paths
-@app.get("/debug/paths")
-async def debug_paths():
-    """Debug endpoint to check file paths"""
-    current_file = Path(__file__).resolve()
-    static_dir = STATIC_DIR.resolve()
-    index_file = static_dir / "index.html"
-    
-    return {
-        "current_file": str(current_file),
-        "static_dir": str(static_dir),
-        "static_dir_exists": static_dir.exists(),
-        "index_file": str(index_file),
-        "index_file_exists": index_file.exists(),
-        "static_dir_contents": list(static_dir.iterdir()) if static_dir.exists() else []
-    }
+if ENABLE_TEST_ENDPOINTS:
+
+    @app.get("/debug/paths")
+    async def debug_paths(x_admin_email: Optional[str] = Header(None)):
+        """Debug endpoint to check file paths."""
+        require_admin(x_admin_email)
+        current_file = Path(__file__).resolve()
+        static_dir = STATIC_DIR.resolve()
+        index_file = static_dir / "index.html"
+
+        return {
+            "current_file": str(current_file),
+            "static_dir": str(static_dir),
+            "static_dir_exists": static_dir.exists(),
+            "index_file": str(index_file),
+            "index_file_exists": index_file.exists(),
+            "static_dir_contents": list(static_dir.iterdir()) if static_dir.exists() else []
+        }
 
 # Mount static files if build directory exists
 static_assets_dir = STATIC_DIR / "static"

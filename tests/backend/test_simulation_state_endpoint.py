@@ -5,8 +5,8 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 import pytest
 
-os.environ.setdefault("ENVIRONMENT", "development")
-os.environ.setdefault("ENABLE_TEST_ENDPOINTS", "true")
+os.environ["ENVIRONMENT"] = "development"
+os.environ["ENABLE_TEST_ENDPOINTS"] = "true"
 
 ROOT = Path(__file__).resolve().parents[2]
 BACKEND_ROOT = ROOT / "backend"
@@ -43,7 +43,11 @@ def setup_simulation():
 def _seed_state(payload: dict) -> dict:
     """Helper to post to the seed endpoint and return the resulting game state."""
 
-    response = client.post("/simulation/test/seed-state", json=payload)
+    response = client.post(
+        "/simulation/test/seed-state",
+        json=payload,
+        headers={"x-admin-email": "stuagano@gmail.com"}
+    )
     assert response.status_code == 200, response.text
     return response.json()["game_state"]
 
@@ -51,7 +55,7 @@ def _seed_state(payload: dict) -> dict:
 def _get_state() -> dict:
     """Helper to fetch the current simulation state."""
 
-    response = client.get("/simulation/state")
+    response = client.get("/simulation/state", headers={"x-admin-email": "stuagano@gmail.com"})
     assert response.status_code == 200
     return response.json()
 
@@ -87,8 +91,16 @@ def _default_ball_positions() -> list[dict[str, object]]:
     ]
 
 
-def test_simulation_state_endpoint_returns_game_state():
+def test_simulation_state_endpoint_requires_admin():
+    """Test that /simulation/state requires admin header."""
     resp = client.get("/simulation/state")
+    assert resp.status_code == 403
+    assert "Admin access required" in resp.json()["detail"]
+
+
+def test_simulation_state_endpoint_with_admin_header():
+    """Test that /simulation/state works with valid admin header."""
+    resp = client.get("/simulation/state", headers={"x-admin-email": "stuagano@gmail.com"})
     assert resp.status_code == 200
     body = resp.json()
 
@@ -97,6 +109,37 @@ def test_simulation_state_endpoint_returns_game_state():
     assert body["players"][0]["id"] == "captain"
     assert "hole_state" in body
     assert body["hole_state"]["hitting_order"]
+
+
+def test_simulation_state_endpoint_returns_game_state():
+    """Legacy test - updated to use admin header."""
+    resp = client.get("/simulation/state", headers={"x-admin-email": "stuagano@gmail.com"})
+    assert resp.status_code == 200
+    body = resp.json()
+
+    assert body["current_hole"] == 1
+    assert body["player_count"] == 4
+    assert body["players"][0]["id"] == "captain"
+    assert "hole_state" in body
+    assert body["hole_state"]["hitting_order"]
+
+
+def test_seed_state_endpoint_requires_admin():
+    """Test that /simulation/test/seed-state requires admin header."""
+    seed_payload = {
+        "ball_positions": [
+            {
+                "player_id": "captain",
+                "distance_to_pin": 125.5,
+                "lie_type": "fairway",
+                "shot_count": 2,
+            }
+        ]
+    }
+
+    resp = client.post("/simulation/test/seed-state", json=seed_payload)
+    assert resp.status_code == 403
+    assert "Admin access required" in resp.json()["detail"]
 
 
 def test_seed_state_endpoint_updates_ball_positions():
@@ -123,7 +166,11 @@ def test_seed_state_endpoint_updates_ball_positions():
         "betting": {"current_wager": 2, "doubled": True},
     }
 
-    resp = client.post("/simulation/test/seed-state", json=seed_payload)
+    resp = client.post(
+        "/simulation/test/seed-state",
+        json=seed_payload,
+        headers={"x-admin-email": "stuagano@gmail.com"}
+    )
     assert resp.status_code == 200
     seeded = resp.json()["game_state"]
 
@@ -325,7 +372,11 @@ def test_seed_state_with_unknown_player_id():
         ]
     }
 
-    response = client.post("/simulation/test/seed-state", json=seed_payload)
+    response = client.post(
+        "/simulation/test/seed-state",
+        json=seed_payload,
+        headers={"x-admin-email": "stuagano@gmail.com"}
+    )
     assert response.status_code == 422
     assert "Unknown player id" in response.json()["detail"]
 
@@ -347,7 +398,11 @@ def test_seed_state_before_setup():
             "ball_positions": _default_ball_positions(),
         }
 
-        response = client.post("/simulation/test/seed-state", json=seed_payload)
+        response = client.post(
+            "/simulation/test/seed-state",
+            json=seed_payload,
+            headers={"x-admin-email": "stuagano@gmail.com"}
+        )
         assert response.status_code == 400
         assert "Simulation not initialized" in response.json()["detail"]
     finally:
@@ -361,7 +416,11 @@ def test_seed_state_conflicting_shot_order():
         "shot_order": ["captain", "player_two", "nonexistent_player", "player_four"],
     }
 
-    response = client.post("/simulation/test/seed-state", json=seed_payload)
+    response = client.post(
+        "/simulation/test/seed-state",
+        json=seed_payload,
+        headers={"x-admin-email": "stuagano@gmail.com"}
+    )
     assert response.status_code == 422
     assert "Unknown players in shot order" in response.json()["detail"]
 
@@ -372,7 +431,11 @@ def test_seed_state_invalid_line_of_scrimmage():
         "line_of_scrimmage": "invalid_player",
     }
 
-    response = client.post("/simulation/test/seed-state", json=seed_payload)
+    response = client.post(
+        "/simulation/test/seed-state",
+        json=seed_payload,
+        headers={"x-admin-email": "stuagano@gmail.com"}
+    )
     assert response.status_code == 422
     assert "Unknown line of scrimmage player" in response.json()["detail"]
 
@@ -383,7 +446,11 @@ def test_seed_state_invalid_next_player():
         "next_player_to_hit": "ghost_player",
     }
 
-    response = client.post("/simulation/test/seed-state", json=seed_payload)
+    response = client.post(
+        "/simulation/test/seed-state",
+        json=seed_payload,
+        headers={"x-admin-email": "stuagano@gmail.com"}
+    )
     assert response.status_code == 422
     assert "Unknown next player" in response.json()["detail"]
 
@@ -394,7 +461,11 @@ def test_seed_state_invalid_current_order_of_play():
         "current_order_of_play": ["captain", "fake_player", "player_three"],
     }
 
-    response = client.post("/simulation/test/seed-state", json=seed_payload)
+    response = client.post(
+        "/simulation/test/seed-state",
+        json=seed_payload,
+        headers={"x-admin-email": "stuagano@gmail.com"}
+    )
     assert response.status_code == 422
     assert "Unknown players in order of play" in response.json()["detail"]
 
@@ -407,7 +478,11 @@ def test_seed_state_betting_line_of_scrimmage_invalid():
         }
     }
 
-    response = client.post("/simulation/test/seed-state", json=seed_payload)
+    response = client.post(
+        "/simulation/test/seed-state",
+        json=seed_payload,
+        headers={"x-admin-email": "stuagano@gmail.com"}
+    )
     assert response.status_code == 422
     assert "Unknown line of scrimmage player" in response.json()["detail"]
 
@@ -635,7 +710,11 @@ def test_seed_state_multiple_validation_errors():
         "next_player_to_hit": "invalid4",
     }
 
-    response = client.post("/simulation/test/seed-state", json=seed_payload)
+    response = client.post(
+        "/simulation/test/seed-state",
+        json=seed_payload,
+        headers={"x-admin-email": "stuagano@gmail.com"}
+    )
     assert response.status_code == 422
     # The first error will be caught and returned
     assert "Unknown" in response.json()["detail"]
