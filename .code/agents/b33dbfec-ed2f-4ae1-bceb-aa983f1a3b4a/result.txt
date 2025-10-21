@@ -1,0 +1,83 @@
+## Root Cause Analysis: 405 Method Not Allowed on POST `/sheet-integration/sync-wgp-sheet`
+
+### Summary
+The browser reports `405 Method Not Allowed` when attempting to POST to `/sheet-integration/sync-wgp-sheet`. Investigation reveals that FastAPI is **only allowing GET requests** on this endpoint, despite it being decorated with `@app.post()`.
+
+### Evidence
+1. **Route is correctly registered** (backend/app/main.py:3312):
+   ```python
+   @app.post("/sheet-integration/sync-wgp-sheet")
+   async def sync_wgp_sheet_data(request: Dict[str, str]):
+   ```
+
+2. **HTTP response confirms GET-only**:
+   ```
+   < HTTP/1.1 405 Method Not Allowed
+   < allow: GET
+   ```
+
+3. **CORS middleware is correctly configured** with POST in allowed methods (line 185)
+
+4. **Multiple routes affected**: `/sheet-integration/fetch-google-sheet` (line 4031) shows the same issue
+
+### Root Cause
+
+**Primary Issue: Reserved Parameter Name Conflict**
+
+The route handler uses `request` as a parameter name:
+```python
+async def sync_wgp_sheet_data(request: Dict[str, str]):
+```
+
+In FastAPI, the parameter name `request` has special meaning - it's **reserved for the Starlette `Request` object**. When FastAPI sees a parameter named `request`, it treats it as a dependency injection for the HTTP request object, not as a request body parameter.
+
+**How this causes the 405 error:**
+1. FastAPI interprets `request: Dict[str, str]` as "inject the HTTP Request object, but expect it to be a Dict"
+2. This type mismatch causes FastAPI to fail to properly bind the route handler to POST requests  
+3. FastAPI may be falling back to treating this as a GET endpoint that expects query parameters
+4. The actual POST method registration is being ignored or overridden due to the malformed parameter binding
+
+### Fix Recommendations
+
+**Option 1: Rename the parameter (Recommended)**
+```python
+@app.post("/sheet-integration/sync-wgp-sheet")
+async def sync_wgp_sheet_data(payload: Dict[str, str]):  # Changed from 'request'
+    """Sync Wolf Goat Pig specific sheet data format."""
+    csv_url = payload.get("csv_url")  # Changed from 'request.get'
+    # ... rest of code
+```
+
+**Option 2: Use Pydantic model (Best Practice)**
+```python
+class SyncRequest(BaseModel):
+    csv_url: str
+
+@app.post("/sheet-integration/sync-wgp-sheet")
+async def sync_wgp_sheet_data(sync_request: SyncRequest):
+    csv_url = sync_request.csv_url
+    # ... rest of code
+```
+
+**Option 3: Use Body() explicitly**
+```python
+from fastapi import Body
+
+@app.post("/sheet-integration/sync-wgp-sheet")
+async def sync_wgp_sheet_data(request: Dict[str, str] = Body(...)):
+    csv_url = request.get("csv_url")
+    # ... rest of code
+```
+
+### Affected Routes
+The following routes need the same fix:
+1. `/sheet-integration/sync-wgp-sheet` (line 3312)
+2. `/sheet-integration/fetch-google-sheet` (line 4031)
+
+### Implementation Steps
+1. Rename `request` parameter to `payload` or `data` in both routes
+2. Update all references to the parameter within the function bodies
+3. Restart uvicorn (should auto-reload with `--reload` flag)
+4. Test with curl or frontend to verify POST works
+
+**Note**: This is running in read-only mode, so I cannot make the code changes directly. The developer should apply these fixes to resolve the 405 error.

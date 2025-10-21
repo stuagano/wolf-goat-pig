@@ -1,0 +1,207 @@
+Cloud task completed: task_e_68f7a39605e88330b21442be578dafce
+
+Prompt:
+Context: Repo: Wolf Goat Pig. Key files: backend/app/main.py (CORS, require_admin, simulation routes), frontend/src/hooks/useSimulationApi.js (uses REACT_APP_API_URL), frontend/package.json (proxy). Goal: produce the most straightforward process to boot both services and create/play a local Simulation game without “Not allowed” errors.
+
+Agent: We’re running Wolf Goat Pig locally (FastAPI backend + React frontend) and want the Simulation UI to work end-to-end. Recent tests show the backend responds, but the UI still shows “Not allowed” when creating a game, likely due to CORS/env configuration or the frontend pointing to the wrong base URL. Please investigate the minimal steps (env vars, start scripts, proxy/REACT_APP_API_URL, admin headers) to make local Simulation mode work smoothly and document a simple checklist for future runs.
+
+[Running in read-only mode - no modifications allowed]
+
+Assistant Messages:
+1. ### Summary of what’s going on
+* The FastAPI app already enables CORS for the local React dev servers whenever `ENVIRONMENT` is anything other than `production`, so as long as your backend loads a `.env` (or shell exports) with `ENVIRONMENT=development`, requests from `http://localhost:3000`/`http://127.0.0.1:3000` are accepted.
+
+2. * The simulation endpoints (`/simulation/setup`, `/simulation/play-next-shot`, `/simulation/play-hole`, etc.) do not require any admin headers—only JSON bodies that match the expected payload—so a 403/“Not allowed” response is usually caused by the frontend calling the wrong base URL or a CORS preflight failure.
+
+3. * The React code reads `process.env.REACT_APP_API_URL` (falling back to an empty string) in both the simulation hook and the setup screen. If that variable is blank, requests are sent relative to the current origin; if it points at the wrong host you’ll see the “Not allowed” symptom.
+
+4. * During `npm start`, CRA’s proxy forwards relative requests to `http://localhost:8000`, but production or non-proxied builds require `REACT_APP_API_URL` to be populated explicitly.
+
+5. ### Minimal startup & play checklist (no more “Not allowed”)
+1. **Lay down shared environment files**
+   * Copy the root `.env.example` to `.env` and keep the local defaults (`ENVIRONMENT=development`, `FRONTEND_URL=http://localhost:3000`, `WGP_API_BASE=http://localhost:8000`). This keeps configuration DRY and avoids hard-coding URLs in scripts.
+
+6. * Copy `backend/.env.example` to `backend/.env` (or export the same values in your shell) so FastAPI knows it is in development mode and uses SQLite locally.
+
+7. * Create `frontend/.env.local` containing `REACT_APP_API_URL=http://localhost:8000` (and any mock toggles you want). That forces both the hook and the setup screen to talk to the live backend even when the proxy is bypassed.
+
+8. 2. **Start the backend**
+   ```bash
+   cd backend
+   python -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   # Load environment (if you didn’t use a process manager that auto-loads .env)
+   export $(grep -v '^#' ../.env | xargs)  # or use direnv/foreman for better management
+   uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+   ```
+   * Browse to `http://localhost:8000/docs` and test `POST /simulation/setup` with a sample four-player payload to confirm the endpoint responds with 200 before touching the UI.
+
+9. 3. **Start the frontend**
+   ```bash
+   cd frontend
+   npm install
+   npm start
+   ```
+   * CRA will proxy API calls to `http://localhost:8000` automatically thanks to `package.json`, but the `.env.local` guard keeps you safe if you ever serve a production build from a different origin.
+
+10. 4. **Create and play a simulation game**
+   * Visit `http://localhost:3000`, open Simulation Mode, pick a course and three computer opponents, then click Start. The first call hits `POST /simulation/setup`; subsequent buttons call `/simulation/play-next-shot` or `/simulation/play-hole`. Because the backend accepts the local origin, you should no longer see “Not allowed.”
+
+5. **Quick diagnostics if something regresses**
+   * Run `curl -i http://localhost:8000/healthz` to ensure the API is reachable.
+   * Inspect the browser’s Network tab—if requests are trying to reach `http://localhost:3000/simulation/...` in a production build, your `REACT_APP_API_URL` was not picked up.
+   * Verify the console shows the correct `ENVIRONMENT` during startup (FastAPI logs it on boot).
+
+11. ### Recommendations for better long-term ergonomics
+* The base API URL is redeclared in multiple React files; consider exporting `simulationConfig.apiUrl` everywhere instead of repeating `const API_URL = ...` to stay DRY and avoid drift when you tweak env handling.
+
+12. * Adopt a single dotenv loader (e.g., `python-dotenv`, `direnv`, or a process manager) so the backend never boots without the `.env` values that relax CORS in development. That eliminates flaky “Not allowed” errors caused by missing environment variables.
+* If you routinely switch between local and remote APIs, define `REACT_APP_API_URL` variants in `.env.development.local` / `.env.production.local` to prevent accidental commits and keep configuration centralized (per your DRY guideline).
+
+13. I’ll follow the read-only mode and search for AGENTS, without making any changes.
+
+14. I need to locate the AGENTS.md file for guidance.
+
+15. I need to review the files, focusing on minimal steps to run backend and front.
+
+16. I need to review the `require_admin` and `simulation` endpoints for the admin header.
+
+17. I wonder if I should look for `require_admin` in another file; using `rg` now.
+
+18. I think `require_admin` might be defined inside `main`. I'll search for `admin_email`.
+
+19. I need to locate the portion relevant to simulation creation. Maybe an admin function required.
+
+20. I need to check the setup function around line 4270 to confirm the admin header requirement.
+
+21. No admin needed for setup. I'll check for CORS errors or incorrect base URL by inspecting `useSimulationApi.js`.
+
+22. I'll confirm if `REACT_APP_API_URL` is set to adjust fetch calls, and check for a proxy.
+
+23. The "Not allowed" error could be related to missing admin permissions. I need to confirm why.
+
+24. I think the "Not allowed" error could be related to the wrong backend route or admin access.
+
+25. I wonder if the message is from the backend. Let me check the simulation UI.
+
+26. I don't see an AGENTS.md, but I'll focus on hooking instead. Checking components now.
+
+27. I need to look at the `GameSetup.tsx` file to understand its API usage.
+
+28. I'll search for `@app.get("/courses")` to review backend endpoint access.
+
+29. I need to verify if the `/courses` endpoint requires admin access.
+
+30. It seems like the CORS issue might come from the API URL or backend headers. I'll inspect the `.env` settings for `REACT_APP_API_URL` and ensure the dev server is using the correct origin.
+
+31. I'll check the root directory for the .env file.
+
+32. I need to check the `.env.example` file for relevant details.
+
+33. I need the backend environment file, like `backend/.env.example`.
+
+34. I need to check `frontend/src/config` to verify the `.env` settings for the API.
+
+35. I need to verify if using POST instead of GET resolves the "Not allowed" issue.
+
+36. I’ll look for the `setupSimulation` function to find where the simulation starts.
+
+37. I'm going to search for `useSimulationApi` to confirm the hook in SimulationMode.
+
+38. I think `SimulationMode` might be using context hooking to trigger fetch calls. Let's search `simulation/play-hole`.
+
+39. I'll review `SimulationMode.js` and the use of `SIMULATION_API_URL` and surrounding logic.
+
+40. I need to see if there's a `dev.sh` file around here.
+
+41. I need to gather info to boot both services and troubleshoot the "Not allowed" error.
+
+42. I suspect the error arises from hitting the wrong endpoint with a GET instead of POST.
+
+43. Hmm, could "Not allowed" be coming from a CORS preflight? Time to check the repo.
+
+44. Hmm, could the error be related to the network? Maybe the 403 message needs proper parsing. I'll check if it's a result of cross-domain issues between frontend and backend. Need to verify backend setup.
+
+45. I need to start the backend—checking dependencies in `backend/requirements.txt` before proceeding.
+
+46. I need to gather lines from `backend/app/main.py` and ensure proper environment variable usage.
+
+I'll search the frontend for where "Not allowed" is displayed in the UI.
+
+47. The issue might be from a "Method Not Allowed" error due to a wrong method.
+
+48. I need to review environment settings and API URL setup across frontend and backend.
+
+49. I need to compile line references for specifics like CORS origins, then outline step-by-step instructions.
+
+50. I need to gather lines from the `main.py` file for the simulation setup endpoint.
+
+51. I need to reference `useSimulationApi` and its connection to `process.env` using `nl -ba`.
+
+52. I'll get the line ranges for `GameSetup.tsx` mentioning fetch to courses, personalities, etc.
+
+53. I'll use `nl -ba` to list relevant lines from `frontend/package.json` for proxy.
+
+54. I'll use `nl -ba` to number lines in `.env.example` and suggest environment variables.
+
+55. I'll provide a simple guide for setting up `.env` files for frontend/backend, environment variables, and instructions for avoiding proxy issues. I'll emphasize starting the backend with `uvicorn` in dev mode and using `npm start` for the frontend. I'll mention simulating game steps and keeping configuration consistent using `.env`.
+
+I'll clarify setup steps: configure `.env`, install dependencies, and start backend/frontend. Mention `REACT_APP_API_URL` and ensure correct environment variable settings to avoid CORS issues.
+
+If `ENVIRONMENT` is unset, it defaults to `None`, allowing localhost. Still, it's safer to set it to `development`.
+
+56. I'm looking to locate the `@app.post("/wgp/start-game")` handler in the code.
+
+57. To ensure smooth setup, I'll create an easy-to-follow checklist with environment and config steps.
+
+I'll organize the findings, checklist, and recommendations in Markdown with citations and troubleshooting tips.
+
+I'll form a clean checklist in Markdown, highlight relevant behavior, and provide helpful troubleshooting steps.
+
+58. ### Summary of what’s going on
+* The FastAPI app already enables CORS for the local React dev servers whenever `ENVIRONMENT` is anything other than `production`, so as long as your backend loads a `.env` (or shell exports) with `ENVIRONMENT=development`, requests from `http://localhost:3000`/`http://127.0.0.1:3000` are accepted.【F:backend/app/main.py†L159-L193】
+* The simulation endpoints (`/simulation/setup`, `/simulation/play-next-shot`, `/simulation/play-hole`, etc.) do not require any admin headers—only JSON bodies that match the expected payload—so a 403/“Not allowed” response is usually caused by the frontend calling the wrong base URL or a CORS preflight failure.【F:backend/app/main.py†L4273-L4388】
+* The React code reads `process.env.REACT_APP_API_URL` (falling back to an empty string) in both the simulation hook and the setup screen. If that variable is blank, requests are sent relative to the current origin; if it points at the wrong host you’ll see the “Not allowed” symptom.【F:frontend/src/hooks/useSimulationApi.js†L1-L58】【F:frontend/src/components/simulation/GameSetup.tsx†L6-L158】【F:frontend/src/config/environment.js†L14-L18】
+* During `npm start`, CRA’s proxy forwards relative requests to `http://localhost:8000`, but production or non-proxied builds require `REACT_APP_API_URL` to be populated explicitly.【F:frontend/package.json†L1-L47】
+
+### Minimal startup & play checklist (no more “Not allowed”)
+1. **Lay down shared environment files**
+   * Copy the root `.env.example` to `.env` and keep the local defaults (`ENVIRONMENT=development`, `FRONTEND_URL=http://localhost:3000`, `WGP_API_BASE=http://localhost:8000`). This keeps configuration DRY and avoids hard-coding URLs in scripts.【F:.env.example†L1-L55】
+   * Copy `backend/.env.example` to `backend/.env` (or export the same values in your shell) so FastAPI knows it is in development mode and uses SQLite locally.【F:backend/.env.example†L1-L61】
+   * Create `frontend/.env.local` containing `REACT_APP_API_URL=http://localhost:8000` (and any mock toggles you want). That forces both the hook and the setup screen to talk to the live backend even when the proxy is bypassed.【F:frontend/src/hooks/useSimulationApi.js†L1-L37】【F:frontend/src/components/simulation/GameSetup.tsx†L6-L133】【F:frontend/src/config/environment.js†L14-L18】
+
+2. **Start the backend**
+   ```bash
+   cd backend
+   python -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   # Load environment (if you didn’t use a process manager that auto-loads .env)
+   export $(grep -v '^#' ../.env | xargs)  # or use direnv/foreman for better management
+   uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+   ```
+   * Browse to `http://localhost:8000/docs` and test `POST /simulation/setup` with a sample four-player payload to confirm the endpoint responds with 200 before touching the UI.【F:backend/app/main.py†L4273-L4388】
+
+3. **Start the frontend**
+   ```bash
+   cd frontend
+   npm install
+   npm start
+   ```
+   * CRA will proxy API calls to `http://localhost:8000` automatically thanks to `package.json`, but the `.env.local` guard keeps you safe if you ever serve a production build from a different origin.【F:frontend/package.json†L16-L43】
+
+4. **Create and play a simulation game**
+   * Visit `http://localhost:3000`, open Simulation Mode, pick a course and three computer opponents, then click Start. The first call hits `POST /simulation/setup`; subsequent buttons call `/simulation/play-next-shot` or `/simulation/play-hole`. Because the backend accepts the local origin, you should no longer see “Not allowed.”
+
+5. **Quick diagnostics if something regresses**
+   * Run `curl -i http://localhost:8000/healthz` to ensure the API is reachable.
+   * Inspect the browser’s Network tab—if requests are trying to reach `http://localhost:3000/simulation/...` in a production build, your `REACT_APP_API_URL` was not picked up.
+   * Verify the console shows the correct `ENVIRONMENT` during startup (FastAPI logs it on boot).【F:backend/app/main.py†L218-L223】
+
+### Recommendations for better long-term ergonomics
+* The base API URL is redeclared in multiple React files; consider exporting `simulationConfig.apiUrl` everywhere instead of repeating `const API_URL = ...` to stay DRY and avoid drift when you tweak env handling.【F:frontend/src/hooks/useSimulationApi.js†L1-L37】【F:frontend/src/components/simulation/GameSetup.tsx†L6-L158】【F:frontend/src/config/environment.js†L14-L21】
+* Adopt a single dotenv loader (e.g., `python-dotenv`, `direnv`, or a process manager) so the backend never boots without the `.env` values that relax CORS in development. That eliminates flaky “Not allowed” errors caused by missing environment variables.
+* If you routinely switch between local and remote APIs, define `REACT_APP_API_URL` variants in `.env.development.local` / `.env.production.local` to prevent accidental commits and keep configuration centralized (per your DRY guideline).
+
+No diff available.

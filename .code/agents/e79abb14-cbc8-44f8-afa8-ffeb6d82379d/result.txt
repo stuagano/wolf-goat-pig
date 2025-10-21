@@ -1,0 +1,32 @@
+## Key Points Confirmation
+
+**1. ENABLE_TEST_ENDPOINTS Default:** 
+- Defaults to `true` in backend/app/main.py:141
+- Controlled via environment variable accepting "1", "true", "yes" (case-insensitive)
+
+**2. Helper Removal Impact:**
+- tests/backend/helpers/simulation_engine.py deleted
+- tests/backend/test_integration_scenarios.py now imports directly from backend
+- helpers directory exists but only contains __pycache__
+
+**3. Sunday Seeding Behavior:**
+- Environment variable: `SUNDAY_GAME_RANDOM_SEED` 
+- Service at backend/app/services/sunday_game_service.py
+- Falls back to non-deterministic if invalid seed provided
+- Endpoint: POST /signups/{date}/sunday-game/pairings
+
+**4. GHIN Secrets:**
+- Required: `GHIN_API_USER`, `GHIN_API_PASS`
+- Optional: `GHIN_API_STATIC_TOKEN` (defaults to "ghincom")
+- Legacy: `GHIN_API_KEY` referenced in course_import.py:49
+
+**5. Sheets Validation Gaps:**
+- Basic validation in sheet_integration_service.py:178-200
+- Only checks column presence and transformation errors
+- Missing: data type validation, range checks, business rule validation
+- Warnings logged but processing continues
+
+**6. Frontend Logging Guards:**
+- Production guards using `process.env.NODE_ENV !== 'production'`
+- Found in: ghinService.js, AuthContext.js, SimulationMode.js, WGPAnalyticsDashboard.js
+- TODO found: SimulationMode.js:886 - "Make this a user preference" for useEnhancedLayout

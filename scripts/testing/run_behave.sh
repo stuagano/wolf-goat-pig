@@ -16,5 +16,5 @@ if [ -f "backend/requirements.txt" ]; then
   PIP_BREAK_SYSTEM_PACKAGES=1 python3 -m pip install -r backend/requirements.txt >/dev/null
 fi
 
-echo "🚀 Running Behave against tests/bdd"
-behave tests/bdd "$@"
+echo "🚀 Running Behave against tests/bdd/behave"
+behave tests/bdd/behave "$@"

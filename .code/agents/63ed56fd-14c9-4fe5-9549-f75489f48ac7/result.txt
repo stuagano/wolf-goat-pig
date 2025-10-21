@@ -1,0 +1,1527 @@
+[2025-10-20T14:55:10] OpenAI Codex v0.0.0 (research preview)
+--------
+workdir: /Users/stuartgano/Documents/wolf-goat-pig
+model: gpt-5-codex
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: medium
+reasoning summaries: auto
+--------
+[2025-10-20T14:55:10] User instructions:
+Context: wolf-goat-pig repo
+
+Agent: Inventory backend product modes (Simulation, Signup/Matchmaking, Sunday Game, GHIN/Sheets sync, Analytics, Legacy Signup): list main code entry points (modules/routes/services), highlight key tests per mode, summarize current state & risks.
+
+Files to consider: backend, tests/backend
+
+[Running in read-only mode - no modifications allowed]
+[2025-10-20T14:55:12] OpenAI Codex v0.0.0 (research preview)
+--------
+workdir: /Users/stuartgano/Documents/wolf-goat-pig
+model: gpt-5-codex
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: medium
+reasoning summaries: auto
+--------
+[2025-10-20T14:55:12] User instructions:
+Context: wolf-goat-pig repo
+
+Agent: Inventory backend product modes (Simulation, Signup/Matchmaking, Sunday Game, GHIN/Sheets sync, Analytics, Legacy Signup): list main code entry points (modules/routes/services), highlight key tests per mode, summarize current state & risks.
+
+Files to consider: backend, tests/backend
+
+[Running in read-only mode - no modifications allowed]
+
+[2025-10-20T14:55:17] thinking
+
+**Planning inventory backend analysis**
+[2025-10-20T14:55:18] exec bash -lc ls in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:55:19] bash -lc ls exited 124 in 1.01s:
+ERROR
+[2025-10-20T14:55:19] tokens used: 7,650
+
+[2025-10-20T14:55:21] thinking
+
+**Adjusting timeout settings**
+[2025-10-20T14:55:22] exec bash -lc ls in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:55:23] bash -lc ls succeeded in 747ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+AGENTS.md
+backend
+BACKEND_ADJUSTMENTS_NEEDED.md
+config
+dev-local.sh
+dev.sh
+docker-compose.prod.yml
+docs
+error.log
+frontend
+install.py
+node_modules
+package-lock.json
+package.json
+README.md
+render.yaml
+reports
+[2025-10-20T14:55:23] tokens used: 7,855
+
+[2025-10-20T14:55:25] thinking
+
+**Exploring backend structure**
+[2025-10-20T14:55:26] exec bash -lc 'ls backend' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:55:27] bash -lc 'ls backend' succeeded in 697ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+__init__.py
+__pycache__
+app
+backend.log
+BOOTSTRAP_README.md
+data
+deploy.sh
+docker-compose.yml
+docker-startup.sh
+Dockerfile
+Dockerfile.prod
+ghin_test.py
+manual_migration.py
+migrate_database.py
+migrate_email_tables.py
+Procfile
+requirements-local.txt
+[2025-10-20T14:55:27] tokens used: 8,205
+
+[2025-10-20T14:55:28] thinking
+
+**Identifying backend structure**
+[2025-10-20T14:55:29] exec bash -lc 'ls backend/app' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:55:29] bash -lc 'ls backend/app' succeeded in 721ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+__pycache__
+course_import.py
+crud.py
+data
+database.py
+domain
+game_state.py
+main.py
+migrate_player_profiles.py
+models.py
+post_hole_analytics.py
+schemas.py
+seed_courses.py
+seed_data.py
+seed_rules.py
+services
+simulation_timeline_enhancements.py
+[2025-10-20T14:55:29] tokens used: 8,611
+
+[2025-10-20T14:55:31] thinking
+
+**Checking main entry point**
+[2025-10-20T14:55:32] exec bash -lc "sed -n '1,160p' backend/app/main.py" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:55:33] bash -lc "sed -n '1,160p' backend/app/main.py" succeeded in 734ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+from fastapi import FastAPI, Depends, Body, HTTPException, Request, Path, Query, UploadFile, File, Header
+from sqlalchemy.orm import Session
+from sqlalchemy import text
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from . import models, schemas, crud, database
+
+from .game_state import game_state
+from .wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer, BallPosition, TeamFormation
+from .post_hole_analytics import PostHoleAnalyzer
+from .simulation_timeline_enhancements import (
+    enhance_simulation_with_timeline, 
+    format_poker_betting_state, 
+    create_betting_options
+)
+[2025-10-20T14:55:33] tokens used: 8,959
+
+[2025-10-20T14:55:35] thinking
+
+**Searching for route definitions**
+[2025-10-20T14:55:36] exec bash -lc 'rg "@app" -n backend/app/main.py' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:55:37] bash -lc 'rg "@app" -n backend/app/main.py' exited 127 in 745ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+
+ERROR
+bash: rg: command not found
+[2025-10-20T14:55:37] tokens used: 10,814
+
+[2025-10-20T14:55:38] thinking
+
+**Switching to grep fallback**
+[2025-10-20T14:55:39] exec bash -lc 'grep -n "@app" backend/app/main.py' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:55:40] bash -lc 'grep -n "@app" backend/app/main.py' succeeded in 731ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+197:@app.exception_handler(HTTPException)
+209:@app.exception_handler(Exception)
+218:@app.on_event("startup")
+334:@app.on_event("shutdown")
+378:@app.get("/health")
+605:@app.get("/healthz")
+616:@app.get("/rules", response_model=list[schemas.Rule])
+630:@app.get("/players/all", response_model=List[schemas.PlayerProfileResponse])
+639:@app.get("/courses")
+733:@app.get("/courses/{course_id}")
+756:@app.post("/courses", response_model=dict)
+766:@app.put("/courses/{course_name}")
+776:@app.delete("/courses/{course_name}")
+787:@app.post("/courses/import/search")
+797:@app.post("/courses/import/file")
+813:@app.get("/courses/import/sources")
+835:@app.post("/courses/import/preview")
+[2025-10-20T14:55:40] tokens used: 11,049
+
+[2025-10-20T14:55:46] thinking
+
+**Organizing endpoints by product mode**
+[2025-10-20T14:55:47] exec bash -lc 'ls backend/app/services' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:55:48] bash -lc 'ls backend/app/services' succeeded in 701ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+__init__.py
+__pycache__
+auth_service.py
+email_scheduler.py
+email_service.py
+ghin_service.py
+legacy_signup_service.py
+matchmaking_service.py
+monte_carlo.py
+oauth2_email_service.py
+odds_calculator.py
+player_service.py
+sheet_integration_service.py
+statistics_service.py
+sunday_game_service.py
+team_formation_service.py
+[2025-10-20T14:55:48] tokens used: 13,455
+
+[2025-10-20T14:55:50] thinking
+
+**Inspecting backend test structure**
+[2025-10-20T14:55:51] exec bash -lc 'ls tests/backend' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:55:52] bash -lc 'ls tests/backend' succeeded in 693ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+__pycache__
+conftest.py
+helpers
+test_aardvark.py
+test_advanced_rules.py
+test_analytics.py
+test_api_endpoints.py
+test_api_simple.py
+test_api_working.py
+test_api.py
+test_basic_functionality.py
+test_course_data.py
+test_debug_api.py
+test_debug.py
+test_dict_references.py
+test_final_implementation.py
+test_full_game_flow.py
+[2025-10-20T14:55:52] tokens used: 13,772
+
+[2025-10-20T14:56:01] thinking
+
+**Mapping tests to product modes**
+[2025-10-20T14:56:03] exec bash -lc "sed -n '1,200p' backend/app/services/team_formation_service.py" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:56:03] bash -lc "sed -n '1,200p' backend/app/services/team_formation_service.py" succeeded in 703ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+"""
+Random team formation service for creating balanced 4-player groups from daily signups.
+Handles scenarios where more than 4 players are signed up for a given day.
+"""
+
+from typing import List, Dict, Optional, Tuple
+from random import Random, SystemRandom
+import logging
+from datetime import datetime
+from itertools import combinations
+
+logger = logging.getLogger(__name__)
+
+class TeamFormationService:
+    """Service for creating random team formations from daily signups."""
+    
+    @staticmethod
+[2025-10-20T14:56:03] tokens used: 14,357
+
+[2025-10-20T14:56:07] thinking
+
+**Inspecting sunday_game_service**
+[2025-10-20T14:56:08] exec bash -lc "sed -n '1,200p' backend/app/services/sunday_game_service.py" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:56:09] bash -lc "sed -n '1,200p' backend/app/services/sunday_game_service.py" succeeded in 738ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+"""Utility functions for preparing Sunday game pairings with randomness support."""
+
+import logging
+import os
+from random import Random, SystemRandom
+from typing import Dict, List, Optional
+
+from .team_formation_service import TeamFormationService
+
+logger = logging.getLogger(__name__)
+
+SUNDAY_GAME_SEED_ENV = "SUNDAY_GAME_RANDOM_SEED"
+
+
+def _resolve_seed(explicit_seed: Optional[int]) -> Optional[int]:
+    """Determine the random seed from an explicit value or environment variable."""
+    if explicit_seed is not None:
+[2025-10-20T14:56:09] tokens used: 16,231
+
+[2025-10-20T14:56:10] thinking
+
+**Examining legacy_signup_service**
+[2025-10-20T14:56:11] exec bash -lc "sed -n '1,200p' backend/app/services/legacy_signup_service.py" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:56:12] bash -lc "sed -n '1,200p' backend/app/services/legacy_signup_service.py" succeeded in 718ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+"""Utilities for synchronizing daily sign-up activity with the legacy CGI sheet.
+
+The production workflow still depends on https://thousand-cranes.com/WolfGoatPig/
+wgp_tee_sheet.cgi. We expose a light-weight client that can mirror create, update,
+and cancel operations back to that system so that operators can trial the new
+application without breaking the existing sign-up board.
+
+All configuration is handled through environment variables so we do not have to
+hardcode any deployment-specific constants. The client is intentionally
+extensible—field mappings, constant form values, and payload format (JSON vs.
+`application/x-www-form-urlencoded`) can all be tuned without code changes.
+
+Example configuration (added to ``.env``)::
+
+    LEGACY_SIGNUP_SYNC_ENABLED=true
+    LEGACY_SIGNUP_CREATE_URL=https://thousand-cranes.com/WolfGoatPig/wgp_tee_sheet.cgi
+    LEGACY_SIGNUP_CANCEL_URL=https://thousand-cranes.com/WolfGoatPig/wgp_tee_sheet.cgi
+[2025-10-20T14:56:12] tokens used: 17,219
+
+[2025-10-20T14:56:14] thinking
+
+**Planning service inspection and entry points**
+[2025-10-20T14:56:15] exec bash -lc "sed -n '1,200p' backend/app/wolf_goat_pig_simulation.py" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:56:15] bash -lc "sed -n '1,200p' backend/app/wolf_goat_pig_simulation.py" succeeded in 727ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+import random
+import math
+from typing import Dict, List, Tuple, Optional, Any, Union
+from dataclasses import dataclass, field
+from enum import Enum
+import logging
+from copy import deepcopy
+from datetime import datetime
+
+logger = logging.getLogger(__name__)
+
+class GamePhase(Enum):
+    """Game phases according to Wolf Goat Pig rules"""
+    REGULAR = "regular"
+    VINNIE_VARIATION = "vinnie_variation"  # Holes 13-16 in 4-man game
+    HOEPFINGER = "hoepfinger"  # Final holes with Goat choosing position
+
+[2025-10-20T14:56:15] tokens used: 19,304
+
+[2025-10-20T14:56:17] thinking
+
+**Inspecting GHIN service**
+[2025-10-20T14:56:18] exec bash -lc "sed -n '1,200p' backend/app/services/ghin_service.py" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:56:19] bash -lc "sed -n '1,200p' backend/app/services/ghin_service.py" succeeded in 682ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+"""
+GHIN Service for integrating with Golf Handicap Information Network
+
+This service handles:
+- Syncing player handicaps from GHIN
+- Fetching recent scores 
+- Updating local database with GHIN data
+- Joining GHIN data with existing player statistics
+"""
+
+from typing import List, Dict, Optional, Any
+from sqlalchemy.orm import Session
+from sqlalchemy import and_, desc
+from datetime import datetime, timedelta
+import logging
+import os
+import httpx # Added httpx for API calls
+[2025-10-20T14:56:19] tokens used: 21,864
+
+[2025-10-20T14:56:20] thinking
+
+**Identifying asynchronous behavior with GHIN integration**
+[2025-10-20T14:56:21] exec bash -lc "sed -n '1,200p' backend/app/services/sheet_integration_service.py" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:56:22] bash -lc "sed -n '1,200p' backend/app/services/sheet_integration_service.py" succeeded in 774ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+"""
+Sheet Integration Service
+
+This service provides functionality to integrate with Google Sheets data
+and create a read replica of spreadsheet-based metrics and leaderboards.
+
+Features:
+- Data mapping from sheet structure to database models
+- Batch data import/sync utilities
+- Custom metric calculation for sheet compatibility
+- Export functionality for migration validation
+"""
+
+from typing import List, Dict, Any, Optional
+from sqlalchemy.orm import Session
+from sqlalchemy import func, desc, asc
+from datetime import datetime
+[2025-10-20T14:56:22] tokens used: 23,998
+
+[2025-10-20T14:56:24] thinking
+
+**Noting relevance of statistics_service**
+[2025-10-20T14:56:24] exec bash -lc "sed -n '1,200p' backend/app/services/statistics_service.py" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:56:25] bash -lc "sed -n '1,200p' backend/app/services/statistics_service.py" succeeded in 710ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+"""
+Statistics Service for Advanced Player Analytics
+
+This service provides advanced statistical analysis and insights for player performance:
+- Performance trend analysis
+- Statistical modeling and predictions
+- Comparative analytics
+- Advanced metrics calculation
+- Data visualization support
+"""
+
+from typing import List, Dict, Any, Optional, Tuple
+from sqlalchemy.orm import Session
+from sqlalchemy import func, and_, desc, asc
+from datetime import datetime, timedelta
+from dataclasses import dataclass
+import json
+[2025-10-20T14:56:25] tokens used: 26,809
+
+[2025-10-20T14:56:27] thinking
+
+**Collecting matchmaking_service information**
+[2025-10-20T14:56:28] exec bash -lc "sed -n '1,200p' backend/app/services/matchmaking_service.py" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:56:29] bash -lc "sed -n '1,200p' backend/app/services/matchmaking_service.py" succeeded in 872ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+"""
+Matchmaking service for automatically finding compatible golf groups.
+Analyzes player availability to create 4-player groups with overlapping schedules.
+"""
+
+from typing import List, Dict, Optional, Tuple
+from datetime import datetime, time, timedelta
+from itertools import combinations
+import logging
+from collections import defaultdict
+
+logger = logging.getLogger(__name__)
+
+class MatchmakingService:
+    """Service for finding compatible 4-player golf groups based on availability."""
+    
+    @staticmethod
+[2025-10-20T14:56:29] tokens used: 28,912
+
+[2025-10-20T14:56:36] thinking
+
+**Outlining simulation entry points and tests**
+[2025-10-20T14:56:36] exec bash -lc "sed -n '1,160p' tests/backend/test_simulation_state_endpoint.py" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:56:37] bash -lc "sed -n '1,160p' tests/backend/test_simulation_state_endpoint.py" succeeded in 849ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+import os
+import sys
+from pathlib import Path
+
+from fastapi.testclient import TestClient
+import pytest
+
+os.environ.setdefault("ENVIRONMENT", "development")
+os.environ.setdefault("ENABLE_TEST_ENDPOINTS", "true")
+
+ROOT = Path(__file__).resolve().parents[2]
+BACKEND_ROOT = ROOT / "backend"
+if str(BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(BACKEND_ROOT))
+
+from app.main import app  # noqa: E402
+
+[2025-10-20T14:56:37] tokens used: 31,639
+
+[2025-10-20T14:56:39] thinking
+
+**Identifying relevant tests**
+[2025-10-20T14:56:40] exec bash -lc "sed -n '1,200p' tests/backend/test_analytics.py" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:56:41] bash -lc "sed -n '1,200p' tests/backend/test_analytics.py" succeeded in 771ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+#!/usr/bin/env python3
+"""
+Quick test script for advanced analytics functionality
+"""
+
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '.'))
+
+from app.wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer
+
+def test_analytics():
+    """Test the advanced analytics functionality"""
+    print("🧪 Testing Advanced Analytics")
+    print("=" * 50)
+    
+    # Create simulation with test players
+[2025-10-20T14:56:41] tokens used: 33,370
+
+[2025-10-20T14:56:43] thinking
+
+**Reviewing test files for GHIN integration**
+[2025-10-20T14:56:44] exec bash -lc "sed -n '1,200p' backend/test_ghin_integration.py" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:56:45] bash -lc "sed -n '1,200p' backend/test_ghin_integration.py" succeeded in 722ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+#!/usr/bin/env python3
+"""
+Test GHIN integration to verify API connection and handicap syncing
+"""
+
+import asyncio
+import os
+import sys
+from pathlib import Path
+
+# Add the backend directory to the path
+sys.path.insert(0, str(Path(__file__).parent))
+
+from app.services.ghin_service import GHINService
+from app.database import SessionLocal
+from app.models import PlayerProfile
+import logging
+[2025-10-20T14:56:45] tokens used: 35,377
+
+[2025-10-20T14:56:47] thinking
+
+**Searching tests for sheet integration**
+[2025-10-20T14:56:48] exec bash -lc 'grep -R "sheet" -n tests/backend | head' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:56:49] bash -lc 'grep -R "sheet" -n tests/backend | head' succeeded in 716ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+[2025-10-20T14:56:49] tokens used: 36,968
+
+[2025-10-20T14:56:52] thinking
+
+**Investigating grep results**
+[2025-10-20T14:56:53] exec bash -lc 'grep -R "sheet-integration" -n backend/app/main.py' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:56:54] bash -lc 'grep -R "sheet-integration" -n backend/app/main.py' succeeded in 717ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+backend/app/main.py:3193:@app.post("/sheet-integration/analyze-structure")
+backend/app/main.py:3224:@app.post("/sheet-integration/create-leaderboard")
+backend/app/main.py:3254:@app.post("/sheet-integration/sync-data")
+backend/app/main.py:3282:@app.get("/sheet-integration/export-current-data")
+backend/app/main.py:3306:@app.post("/sheet-integration/sync-wgp-sheet")
+backend/app/main.py:4024:@app.post("/sheet-integration/fetch-google-sheet")
+backend/app/main.py:4070:@app.post("/sheet-integration/compare-data")
+[2025-10-20T14:56:54] tokens used: 37,603
+
+[2025-10-20T14:56:55] thinking
+
+**Examining endpoint dependencies**
+[2025-10-20T14:56:56] exec bash -lc "sed -n '3150,3400p' backend/app/main.py" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:56:57] bash -lc "sed -n '3150,3400p' backend/app/main.py" succeeded in 814ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error recording game result: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to record game result: {str(e)}")
+    finally:
+        db.close()
+
+# Analytics Overview
+@app.get("/analytics/overview")
+def get_analytics_overview():
+    """Get overall analytics overview."""
+    try:
+        db = database.SessionLocal()
+        from .services.statistics_service import StatisticsService
+        
+        stats_service = StatisticsService(db)
+[2025-10-20T14:56:57] tokens used: 38,026
+
+[2025-10-20T14:57:00] thinking
+
+**Identifying signup-related modules**
+[2025-10-20T14:57:01] exec bash -lc 'grep -R "signups" -n tests/backend | head' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:57:02] bash -lc 'grep -R "signups" -n tests/backend | head' succeeded in 845ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+[2025-10-20T14:57:02] tokens used: 41,607
+
+[2025-10-20T14:57:04] thinking
+
+**Searching for signup tests in repo**
+[2025-10-20T14:57:05] exec bash -lc 'grep -R "DailySignup" -n tests/backend' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:57:06] bash -lc 'grep -R "DailySignup" -n tests/backend' exited 1 in 844ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+
+ERROR
+[2025-10-20T14:57:06] tokens used: 41,857
+
+[2025-10-20T14:57:08] thinking
+
+**Searching for signup tests**
+[2025-10-20T14:57:09] exec bash -lc 'grep -R "signups" -n backend | head' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:57:19] tokens used: 42,130
+[2025-10-20T14:57:19] bash -lc 'grep -R "signups" -n backend | head' exited 124 in 10.00s:
+ERROR
+[2025-10-20T14:57:19] grep -R "signups" -n backend | head completed in background
+
+[2025-10-20T14:57:23] thinking
+
+**Pausing for next step**
+[2025-10-20T14:57:24] tool wait
+{
+  "call_id": "call_Ajsg9qL39DrQOXERvZKIH1Sm",
+  "timeout_ms": 1000,
+  "for": "grep -R \"signups\" -n backend | head"
+}
+[2025-10-20T14:57:24] tool wait failed
+{"output":"🎯 ADK auto-sync aliases loaded!\n💡 Use 'sync' to sync with upstream anytime\n💡 Use 'synccheck' to check sync status\n","metadata":{"exit_code":124,"duration_seconds":10.0}}
+[2025-10-20T14:57:24] tokens used: 42,341
+
+[2025-10-20T14:57:27] thinking
+
+**Trying to locate "signups" definition**
+[2025-10-20T14:57:28] exec bash -lc 'grep -n "signups" backend/app/main.py | head' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:57:29] bash -lc 'grep -n "signups" backend/app/main.py | head' succeeded in 792ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+2950:        # Get recent signups
+2951:        recent_signups = db.query(models.DailySignup).filter(
+2958:            "recent_signups": recent_signups,
+5388:@app.get("/signups/weekly", response_model=schemas.WeeklySignupView)
+5389:def get_weekly_signups(week_start: str = Query(description="YYYY-MM-DD format for Monday of the week")):
+5404:            signups = db.query(models.DailySignup).filter(
+5411:                signups=[schemas.DailySignupResponse.from_orm(signup) for signup in signups],
+5412:                total_count=len(signups)
+5423:        logger.error(f"Error getting weekly signups: {e}")
+5424:        raise HTTPException(status_code=500, detail=f"Failed to get weekly signups: {str(e)}")
+[2025-10-20T14:57:29] tokens used: 43,640
+
+[2025-10-20T14:57:31] thinking
+
+**Inspecting signup-related services**
+[2025-10-20T14:57:32] exec bash -lc "sed -n '1,200p' backend/app/services/player_service.py" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:57:32] bash -lc "sed -n '1,200p' backend/app/services/player_service.py" succeeded in 801ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+"""
+Player Profile Management Service
+
+This service handles all player profile operations including:
+- Profile creation, retrieval, update, and deletion
+- Profile statistics management
+- Game result tracking
+- Achievement system
+- Performance analytics
+"""
+
+from typing import List, Optional, Dict, Any
+from sqlalchemy.orm import Session
+from sqlalchemy import and_, desc, asc, func
+from datetime import datetime, timedelta
+import json
+import logging
+[2025-10-20T14:57:32] tokens used: 44,161
+
+[2025-10-20T14:57:36] thinking
+
+**Identifying key test files for simulation**
+[2025-10-20T14:57:37] exec bash -lc "sed -n '1,200p' tests/backend/test_unified_action_api.py" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:57:37] bash -lc "sed -n '1,200p' tests/backend/test_unified_action_api.py" succeeded in 729ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+import os
+import pytest
+from fastapi.testclient import TestClient
+from datetime import datetime
+
+# Set environment to bypass TrustedHostMiddleware BEFORE importing app
+os.environ["ENVIRONMENT"] = "development"
+
+from app.main import app
+
+client = TestClient(app)
+
+# Global simulation instance for testing
+from app.main import wgp_simulation
+
+class TestUnifiedActionAPI:
+    def setup_method(self):
+[2025-10-20T14:57:37] tokens used: 46,045
+
+[2025-10-20T14:57:40] thinking
+
+**Checking for signup tests in API tests**
+[2025-10-20T14:57:40] exec bash -lc "sed -n '1,200p' tests/backend/test_api_endpoints.py" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:57:41] bash -lc "sed -n '1,200p' tests/backend/test_api_endpoints.py" succeeded in 759ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+"""
+Comprehensive tests for Wolf Goat Pig API endpoints
+"""
+import pytest
+from fastapi.testclient import TestClient
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+from app.main import app
+from app.database import SessionLocal, init_db
+
+
+@pytest.fixture
+def client():
+    """Create test client"""
+    return TestClient(app)
+[2025-10-20T14:57:41] tokens used: 48,232
+
+[2025-10-20T14:57:44] thinking
+
+**Continuing to scroll for signups**
+[2025-10-20T14:57:45] exec bash -lc "sed -n '200,400p' tests/backend/test_api_endpoints.py" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:57:46] bash -lc "sed -n '200,400p' tests/backend/test_api_endpoints.py" succeeded in 755ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+        
+        response = client.post("/wgp/test-game/action", json=shot_action)
+        assert response.status_code == 200
+        data = response.json()
+        assert "shot" in data["log_message"].lower()
+        assert "timeline_event" in data
+    
+    def test_request_partnership_action(self, client):
+        # Initialize game first
+        init_action = {
+            "action_type": "INITIALIZE_GAME",
+            "payload": {
+                "players": [
+                    {"id": "p1", "name": "Alice", "handicap": 10},
+                    {"id": "p2", "name": "Bob", "handicap": 15},
+                    {"id": "p3", "name": "Charlie", "handicap": 18},
+                    {"id": "p4", "name": "David", "handicap": 20}
+[2025-10-20T14:57:46] tokens used: 50,362
+
+[2025-10-20T14:57:56] thinking
+
+**Summarizing product modes and tests**
+[2025-10-20T14:57:57] exec bash -lc "sed -n '5380,6260p' backend/app/main.py" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:57:58] bash -lc "sed -n '5380,6260p' backend/app/main.py" succeeded in 743ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get poker state: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get poker state: {str(e)}")
+
+# Daily Sign-up System Endpoints
+
+@app.get("/signups/weekly", response_model=schemas.WeeklySignupView)
+def get_weekly_signups(week_start: str = Query(description="YYYY-MM-DD format for Monday of the week")):
+    """Get sign-ups for a rolling 7-day period starting from specified Monday."""
+    try:
+        db = database.SessionLocal()
+        from datetime import datetime, timedelta
+        
+        # Parse the week start date
+        start_date = datetime.strptime(week_start, '%Y-%m-%d')
+[2025-10-20T14:57:58] tokens used: 52,214
+
+[2025-10-20T14:58:10] thinking
+
+**Identifying signup-related entry points and test coverage**
+[2025-10-20T14:58:11] exec bash -lc 'ls backend/tests' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:58:11] bash -lc 'ls backend/tests' succeeded in 669ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+__init__.py
+__pycache__
+conftest.py
+simulation
+test_api_integration.py
+test_betting_state.py
+test_bootstrapping.py
+test_courses_error_handling.py
+test_game_state.py
+test_legacy_signup_service.py
+test_models_schemas.py
+test_monte_carlo.py
+test_odds_calculator.py
+test_performance.py
+test_player_profiles.py
+test_player_service.py
+test_post_hole_analytics.py
+[2025-10-20T14:58:11] tokens used: 61,276
+
+[2025-10-20T14:58:34] thinking
+
+**Reviewing legacy signup tests**
+[2025-10-20T14:58:40] exec bash -lc "sed -n '1,200p' backend/tests/test_legacy_signup_service.py" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:58:40] bash -lc "sed -n '1,200p' backend/tests/test_legacy_signup_service.py" succeeded in 889ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+from types import SimpleNamespace
+
+import pytest
+
+from backend.app.services import legacy_signup_service as legacy_sync
+
+
+class DummyResponse:
+    def __init__(self, status_code: int = 200) -> None:
+        self.status_code = status_code
+
+    def raise_for_status(self) -> None:
+        if self.status_code >= 400:
+            raise RuntimeError("legacy CGI returned error status")
+
+
+class DummyClient:
+[2025-10-20T14:58:40] tokens used: 61,650
+
+[2025-10-20T14:58:43] thinking
+
+**Identifying relevant test file**
+[2025-10-20T14:58:44] exec bash -lc "sed -n '1,200p' backend/tests/test_sunday_game_service.py" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:58:45] bash -lc "sed -n '1,200p' backend/tests/test_sunday_game_service.py" succeeded in 681ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+"""Tests for Sunday game pairing logic and related randomization helpers."""
+
+import copy
+
+from backend.app.services import sunday_game_service
+from backend.app.services.team_formation_service import TeamFormationService
+
+
+def _make_players(count: int):
+    """Create synthetic signup payloads for testing team formation."""
+    players = []
+    for idx in range(count):
+        players.append({
+            "id": idx + 1,
+            "player_profile_id": idx + 1,
+            "player_name": f"Player {idx + 1}",
+            "preferred_start_time": None,
+[2025-10-20T14:58:45] tokens used: 63,477
+
+[2025-10-20T14:58:49] thinking
+
+**Identifying test files for GHIN and analytics**
+[2025-10-20T14:58:50] exec bash -lc "sed -n '1,200p' backend/test_analytics_scenarios.py" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:58:51] bash -lc "sed -n '1,200p' backend/test_analytics_scenarios.py" succeeded in 768ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+#!/usr/bin/env python3
+"""
+Test various scenarios for Post-Hole Analytics to ensure quality analysis
+"""
+
+import requests
+import json
+import time
+import random
+from typing import Dict, Any, List
+
+API_BASE = "http://localhost:8000"
+
+class AnalyticsScenarioTester:
+    def __init__(self):
+        self.session = requests.Session()
+        self.game_id = "test-scenario"
+[2025-10-20T14:58:51] tokens used: 64,575
+
+[2025-10-20T14:58:56] thinking
+
+**Collecting test coverage information**
+[2025-10-20T14:58:58] exec bash -lc 'grep -n "matchmaking" -n backend/tests -R' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:58:59] bash -lc 'grep -n "matchmaking" -n backend/tests -R' exited 1 in 773ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+
+ERROR
+[2025-10-20T14:58:59] tokens used: 67,432
+
+[2025-10-20T14:59:06] thinking
+
+**Reviewing tests and services overview**
+[2025-10-20T14:59:08] exec bash -lc "sed -n '1,160p' backend/tests/test_player_service.py" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:59:08] bash -lc "sed -n '1,160p' backend/tests/test_player_service.py" succeeded in 718ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+"""
+Comprehensive tests for player_service.py - Player profile management service
+
+Tests cover:
+- Player profile CRUD operations
+- Statistics management and updates
+- Game result recording
+- Performance analytics
+- Achievement system
+- Leaderboard functionality
+- Error handling and edge cases
+- Data validation
+"""
+
+import pytest
+from unittest.mock import Mock, patch, MagicMock
+from datetime import datetime, timedelta
+[2025-10-20T14:59:08] tokens used: 67,785
+
+[2025-10-20T14:59:20] thinking
+
+**Preparing test and entry point references with line numbers**
+[2025-10-20T14:59:21] exec bash -lc "nl -ba backend/app/main.py | sed -n '4260,4340p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:59:22] bash -lc "nl -ba backend/app/main.py | sed -n '4260,4340p'" succeeded in 727ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+  4260	    elif lie_type in {"bunker"}:
+  4261	        base_distribution["excellent"] *= 0.6
+  4262	        base_distribution["good"] *= 0.75
+  4263	        base_distribution["poor"] *= 1.25
+  4264	        base_distribution["disaster"] *= 1.4
+  4265	    elif lie_type in {"green"}:
+  4266	        base_distribution["excellent"] *= 1.4
+  4267	        base_distribution["good"] *= 1.15
+  4268	        base_distribution["poor"] *= 0.6
+  4269	        base_distribution["disaster"] *= 0.4
+  4270	
+  4271	    return _normalize_probabilities(base_distribution)
+  4272	
+  4273	@app.post("/simulation/setup")
+  4274	def setup_simulation(request: Dict[str, Any]):
+  4275	    """Initialize a new simulation with specified players and configuration"""
+  4276	    global wgp_simulation
+[2025-10-20T14:59:22] tokens used: 69,847
+
+[2025-10-20T14:59:25] thinking
+
+**Locating line numbers for routes**
+[2025-10-20T14:59:27] exec bash -lc "nl -ba backend/app/main.py | sed -n '5380,5620p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:59:28] bash -lc "nl -ba backend/app/main.py | sed -n '5380,5620p'" succeeded in 855ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+  5380	        }
+  5381	        
+  5382	    except Exception as e:
+  5383	        logger.error(f"Failed to get poker state: {e}")
+  5384	        raise HTTPException(status_code=500, detail=f"Failed to get poker state: {str(e)}")
+  5385	
+  5386	# Daily Sign-up System Endpoints
+  5387	
+  5388	@app.get("/signups/weekly", response_model=schemas.WeeklySignupView)
+  5389	def get_weekly_signups(week_start: str = Query(description="YYYY-MM-DD format for Monday of the week")):
+  5390	    """Get sign-ups for a rolling 7-day period starting from specified Monday."""
+  5391	    try:
+  5392	        db = database.SessionLocal()
+  5393	        from datetime import datetime, timedelta
+  5394	        
+  5395	        # Parse the week start date
+  5396	        start_date = datetime.strptime(week_start, '%Y-%m-%d')
+[2025-10-20T14:59:28] tokens used: 71,380
+
+[2025-10-20T14:59:32] thinking
+
+**Searching for Sunday pairings logic**
+[2025-10-20T14:59:34] exec bash -lc "nl -ba backend/app/main.py | sed -n '6600,6760p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:59:34] bash -lc "nl -ba backend/app/main.py | sed -n '6600,6760p'" succeeded in 788ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+  6600	        }
+  6601	        
+  6602	    except Exception as e:
+  6603	        logger.error(f"Failed to initialize email scheduler: {str(e)}")
+  6604	        raise HTTPException(
+  6605	            status_code=500, 
+  6606	            detail=f"Failed to initialize email scheduler: {str(e)}"
+  6607	        )
+  6608	
+  6609	@app.get("/email/scheduler-status")
+  6610	async def get_email_scheduler_status():
+  6611	    """Get the status of the email scheduler"""
+  6612	    global email_scheduler
+  6613	    
+  6614	    return {
+  6615	        "initialized": email_scheduler is not None,
+  6616	        "running": email_scheduler is not None and hasattr(email_scheduler, '_started') and email_scheduler._started,
+[2025-10-20T14:59:34] tokens used: 75,132
+
+[2025-10-20T14:59:37] thinking
+
+**Identifying code entry points**
+[2025-10-20T14:59:38] exec bash -lc "nl -ba backend/app/main.py | sed -n '850,920p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:59:39] bash -lc "nl -ba backend/app/main.py | sed -n '850,920p'" succeeded in 801ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+   850	                    {"hole": 2, "par": 3, "yards": 175, "stroke_index": 15}
+   851	                ]
+   852	            }
+   853	        }
+   854	    except Exception as e:
+   855	        logger.error(f"Error previewing course import: {e}")
+   856	        raise HTTPException(status_code=500, detail=f"Failed to preview course: {str(e)}")
+   857	
+   858	# GHIN Integration Endpoints
+   859	@app.get("/ghin/lookup")
+   860	async def ghin_lookup(
+   861	    last_name: str = Query(..., description="Golfer's last name"),
+   862	    first_name: str = Query(None, description="Golfer's first name (optional)"),
+   863	    page: int = Query(1),
+   864	    per_page: int = Query(10),
+   865	    db: Session = Depends(database.get_db)
+   866	):
+[2025-10-20T14:59:39] tokens used: 78,457
+
+[2025-10-20T14:59:41] thinking
+
+**Preparing to extract analytics code snippets**
+[2025-10-20T14:59:43] exec bash -lc "nl -ba backend/app/main.py | sed -n '2850,3210p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:59:44] bash -lc "nl -ba backend/app/main.py | sed -n '2850,3210p'" succeeded in 969ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+  2850	    finally:
+  2851	        db.close()
+  2852	
+  2853	# Leaderboard and Comparative Analytics
+  2854	@app.get("/leaderboard", response_model=List[schemas.LeaderboardEntry])
+  2855	def get_leaderboard(
+  2856	    limit: int = Query(100, ge=1, le=100),  # Default to 100 to show all players
+  2857	    sort: str = Query("desc", regex="^(asc|desc)$")  # Add sort parameter
+  2858	):
+  2859	    """Get the player leaderboard."""
+  2860	    try:
+  2861	        db = database.SessionLocal()
+  2862	        from .services.player_service import PlayerService
+  2863	        
+  2864	        player_service = PlayerService(db)
+  2865	        leaderboard = player_service.get_leaderboard(limit=limit)
+  2866	        
+[2025-10-20T14:59:44] tokens used: 80,044
+
+[2025-10-20T14:59:51] thinking
+
+**Summarizing service endpoints and tests**
+
+I’m gathering details on the `sheet-integration` endpoints and the legacy signup service from `main`. I’ll also outline testing coverage—pointing out solid test files for simulation and signup/matchmaking modes, while noting that signup endpoints overall have thin test coverage and possible risks. I plan to verify if `test_api_integration.py` covers signup routes.
+[2025-10-20T14:59:53] exec bash -lc "sed -n '1,160p' backend/tests/test_api_integration.py" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:59:54] bash -lc "sed -n '1,160p' backend/tests/test_api_integration.py" succeeded in 1.02s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+"""
+Comprehensive API Integration Test Suite
+
+This module provides thorough testing for all API endpoints and integrations,
+including request/response validation, error handling, authentication,
+rate limiting, and end-to-end API workflows.
+
+Test Coverage:
+- All REST API endpoints
+- WebSocket connections
+- Authentication and authorization
+- Request/response validation
+- Error handling and status codes
+- Rate limiting and throttling
+- CORS handling
+- File upload/download
+- Database integration
+[2025-10-20T14:59:54] tokens used: 85,667
+
+[2025-10-20T15:00:02] thinking
+
+**Assessing service risks and test coverage**
+
+I'm organizing the current state and risks across different service modes—simulation, signup/matchmaking, Sunday Game, GHIN/Sheets, and analytics—by reviewing their code implementation, test coverage, and dependencies. I'm noting concurrency and environment risks, especially with external APIs and global state reliance, while identifying gaps in test automation and integration. Let's verify analytics methods next to confirm coverage.
+[2025-10-20T15:00:04] exec bash -lc 'grep -n "get_game_mode_analytics" backend/app/services/statistics_service.py' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:00:05] bash -lc 'grep -n "get_game_mode_analytics" backend/app/services/statistics_service.py' succeeded in 942ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+418:    def get_game_mode_analytics(self, player_id: Optional[int] = None) -> Dict[str, Any]:
+[2025-10-20T15:00:05] tokens used: 87,459
+
+[2025-10-20T15:00:11] thinking
+
+**Identifying service risks and legacy signup details**
+[2025-10-20T15:00:12] exec bash -lc 'grep -n "get_legacy_signup_service" -n backend/app/services/legacy_signup_service.py' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:00:13] bash -lc 'grep -n "get_legacy_signup_service" -n backend/app/services/legacy_signup_service.py' succeeded in 898ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+281:def get_legacy_signup_service() -> LegacySignupSyncService:
+[2025-10-20T15:00:13] tokens used: 87,911
+
+[2025-10-20T15:00:16] thinking
+
+**Checking caching function**
+[2025-10-20T15:00:16] exec bash -lc "sed -n '260,340p' backend/app/services/legacy_signup_service.py" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:00:17] bash -lc "sed -n '260,340p' backend/app/services/legacy_signup_service.py" succeeded in 1.03s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+                continue
+
+            field_name = self.config.field_map.get(attribute, attribute)
+            base_payload[field_name] = value
+
+        # Only add the action marker if both the field and value are provided.
+        if action_field and action_value is not None:
+            resolved_field = self.config.field_map.get(action_field, action_field)
+            base_payload[resolved_field] = action_value
+
+        # Merge any static extra fields (e.g., sheet identifier)
+        for key, value in self.config.extra_fields.items():
+            if key not in base_payload and value is not None:
+                base_payload[key] = value
+
+        return base_payload
+
+[2025-10-20T15:00:17] tokens used: 89,036
+
+[2025-10-20T15:00:21] thinking
+
+**Checking for MatchmakingService tests**
+[2025-10-20T15:00:22] exec bash -lc 'grep -R "MatchmakingService" -n tests backend/tests' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:00:24] bash -lc 'grep -R "MatchmakingService" -n tests backend/tests' exited 1 in 2.01s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+
+ERROR
+[2025-10-20T15:00:24] tokens used: 89,565
+
+[2025-10-20T15:00:27] thinking
+
+**Reviewing test coverage areas**
+[2025-10-20T15:00:28] exec bash -lc 'grep -R "SheetIntegrationService" -n backend/tests tests/backend' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:00:29] bash -lc 'grep -R "SheetIntegrationService" -n backend/tests tests/backend' exited 1 in 1.09s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+
+ERROR
+[2025-10-20T15:00:29] tokens used: 89,732
+
+[2025-10-20T15:00:36] thinking
+
+**Outlining final summary structure**
+[2025-10-20T15:00:37] exec bash -lc 'nl -ba backend/app/wolf_goat_pig_simulation.py | grep -n "class WolfGoatPigSimulation"' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:00:37] bash -lc 'nl -ba backend/app/wolf_goat_pig_simulation.py | grep -n "class WolfGoatPigSimulation"' succeeded in 921ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+601:   601	class WolfGoatPigSimulation:
+[2025-10-20T15:00:37] tokens used: 90,838
+
+[2025-10-20T15:00:40] thinking
+
+**Noting additional modules to mention**
+[2025-10-20T15:00:41] exec bash -lc 'nl -ba backend/app/simulation_timeline_enhancements.py | head' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:00:42] bash -lc 'nl -ba backend/app/simulation_timeline_enhancements.py | head' succeeded in 799ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+     1	"""
+     2	Timeline enhancements for Wolf-Goat-Pig simulation
+     3	Adds proper timeline tracking and poker-style betting visualization
+     4	"""
+     5	
+     6	from typing import Dict, List, Any, Optional
+     7	from datetime import datetime
+     8	from dataclasses import dataclass, field
+     9	import logging
+    10	
+[2025-10-20T15:00:42] tokens used: 91,073
+
+[2025-10-20T15:00:53] thinking
+
+**Considering line number references**
+[2025-10-20T15:00:54] exec bash -lc 'nl -ba tests/backend/test_unified_action_api.py | head' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:00:55] bash -lc 'nl -ba tests/backend/test_unified_action_api.py | head' succeeded in 749ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+     1	import os
+     2	import pytest
+     3	from fastapi.testclient import TestClient
+     4	from datetime import datetime
+     5	
+     6	# Set environment to bypass TrustedHostMiddleware BEFORE importing app
+     7	os.environ["ENVIRONMENT"] = "development"
+     8	
+     9	from app.main import app
+    10	
+[2025-10-20T15:00:55] tokens used: 91,474
+
+[2025-10-20T15:01:02] thinking
+
+**Considering test function line references**
+[2025-10-20T15:01:04] exec bash -lc 'nl -ba tests/backend/test_simulation_state_endpoint.py | head' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:01:04] bash -lc 'nl -ba tests/backend/test_simulation_state_endpoint.py | head' succeeded in 885ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+     1	import os
+     2	import sys
+     3	from pathlib import Path
+     4	
+     5	from fastapi.testclient import TestClient
+     6	import pytest
+     7	
+     8	os.environ.setdefault("ENVIRONMENT", "development")
+     9	os.environ.setdefault("ENABLE_TEST_ENDPOINTS", "true")
+    10	
+[2025-10-20T15:01:04] tokens used: 92,250
+
+[2025-10-20T15:01:08] thinking
+
+**Checking test coverage details**
+[2025-10-20T15:01:09] exec bash -lc 'nl -ba backend/tests/test_legacy_signup_service.py | head' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:01:10] bash -lc 'nl -ba backend/tests/test_legacy_signup_service.py | head' succeeded in 821ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+     1	from types import SimpleNamespace
+     2	
+     3	import pytest
+     4	
+     5	from backend.app.services import legacy_signup_service as legacy_sync
+     6	
+     7	
+     8	class DummyResponse:
+     9	    def __init__(self, status_code: int = 200) -> None:
+    10	        self.status_code = status_code
+[2025-10-20T15:01:10] tokens used: 92,520
+
+[2025-10-20T15:01:16] thinking
+
+**Identifying important test locations**
+[2025-10-20T15:01:17] exec bash -lc 'nl -ba backend/tests/test_sunday_game_service.py | head' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:01:18] bash -lc 'nl -ba backend/tests/test_sunday_game_service.py | head' succeeded in 869ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+     1	"""Tests for Sunday game pairing logic and related randomization helpers."""
+     2	
+     3	import copy
+     4	
+     5	from backend.app.services import sunday_game_service
+     6	from backend.app.services.team_formation_service import TeamFormationService
+     7	
+     8	
+     9	def _make_players(count: int):
+    10	    """Create synthetic signup payloads for testing team formation."""
+[2025-10-20T15:01:18] tokens used: 172,269
+
+[2025-10-20T15:01:21] thinking
+
+**Checking test_simulation_endpoints.py**
+[2025-10-20T15:01:22] exec bash -lc 'nl -ba backend/tests/test_simulation_endpoints.py | head' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:01:23] bash -lc 'nl -ba backend/tests/test_simulation_endpoints.py | head' succeeded in 873ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+     1	#!/usr/bin/env python3
+     2	"""
+     3	Test suite for simulation API endpoints
+     4	Tests the specific "simulation not found" error scenario and resolution
+     5	"""
+     6	
+     7	import pytest
+     8	import json
+     9	from unittest.mock import Mock, patch
+    10	
+[2025-10-20T15:01:23] tokens used: 172,937
+
+[2025-10-20T15:01:26] thinking
+
+**Identifying relevant test files**
+[2025-10-20T15:01:27] exec bash -lc 'nl -ba backend/tests/test_post_hole_analytics.py | head' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:01:29] bash -lc 'nl -ba backend/tests/test_post_hole_analytics.py | head' succeeded in 1.49s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+     1	"""
+     2	Unit tests for Post-Hole Analytics Module
+     3	Tests each function and method in isolation with mock data
+     4	"""
+     5	
+     6	import pytest
+     7	from unittest.mock import Mock, MagicMock, patch
+     8	from datetime import datetime
+     9	from typing import List, Dict, Any
+    10	
+[2025-10-20T15:01:29] tokens used: 173,376
+
+[2025-10-20T15:02:13] thinking
+
+**Summarizing system components and risks**
+
+I'm organizing a detailed inventory of the system’s main modes, covering their entry points, key services, test coverage, current maturity, and notable risks like async network calls, placeholder data, and test gaps. I'll keep the summary concise yet thorough, following the bullet structure requested for clarity and easy reference.
+[2025-10-20T15:02:15] exec bash -lc "nl -ba tests/backend/test_unified_action_api.py | sed -n '20,140p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:02:16] bash -lc "nl -ba tests/backend/test_unified_action_api.py | sed -n '20,140p'" succeeded in 836ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+    20	        self.players = [
+    21	            {"id": "p1", "name": "Scott", "handicap": 10.5, "strength": 75},
+    22	            {"id": "p2", "name": "Bob", "handicap": 15.0, "strength": 70},
+    23	            {"id": "p3", "name": "Tim", "handicap": 8.0, "strength": 80},
+    24	            {"id": "p4", "name": "Steve", "handicap": 20.5, "strength": 65}
+    25	        ]
+    26	        self.course_name = None  # Use default course
+    27	        
+    28	        # Reset the simulation for each test by creating a new instance
+    29	        from app.wolf_goat_pig_simulation import WolfGoatPigSimulation
+    30	        import app.main
+    31	        app.main.wgp_simulation = WolfGoatPigSimulation(player_count=4)
+    32	    
+    33	    def test_initialize_game(self):
+    34	        """Test game initialization"""
+    35	        action_data = {
+    36	            "action_type": "INITIALIZE_GAME",
+[2025-10-20T15:02:16] tokens used: 176,733
+
+[2025-10-20T15:02:19] thinking
+
+**Identifying test line numbers**
+[2025-10-20T15:02:19] exec bash -lc "nl -ba tests/backend/test_simulation_state_endpoint.py | sed -n '34,140p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:02:20] bash -lc "nl -ba tests/backend/test_simulation_state_endpoint.py | sed -n '34,140p'" succeeded in 771ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+    34	    assert resp.status_code == 200
+    35	
+    36	
+    37	@pytest.fixture(autouse=True)
+    38	def setup_simulation():
+    39	    _bootstrap_simulation()
+    40	    yield
+    41	
+    42	
+    43	def _seed_state(payload: dict) -> dict:
+    44	    """Helper to post to the seed endpoint and return the resulting game state."""
+    45	
+    46	    response = client.post("/simulation/test/seed-state", json=payload)
+    47	    assert response.status_code == 200, response.text
+    48	    return response.json()["game_state"]
+    49	
+    50	
+[2025-10-20T15:02:20] tokens used: 178,826
+
+[2025-10-20T15:02:23] thinking
+
+**Checking test line numbers**
+[2025-10-20T15:02:24] exec bash -lc "nl -ba backend/tests/test_legacy_signup_service.py | sed -n '32,160p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:02:25] bash -lc "nl -ba backend/tests/test_legacy_signup_service.py | sed -n '32,160p'" succeeded in 760ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+    32	        self._record["json"] = json
+    33	        self._record["headers"] = headers or {}
+    34	        self._record["timeout"] = self.kwargs.get("timeout")
+    35	        return DummyResponse(status_code=self._status_code)
+    36	
+    37	
+    38	def test_sync_disabled_short_circuits(monkeypatch):
+    39	    """Sync is skipped entirely when the feature flag is disabled."""
+    40	
+    41	    config = legacy_sync.LegacySignupConfig(enabled=False, create_url="http://legacy")
+    42	    service = legacy_sync.LegacySignupSyncService(config)
+    43	
+    44	    def _fail_client(*args, **kwargs):  # pragma: no cover - defensive guard
+    45	        raise AssertionError("Legacy client should not be instantiated when disabled")
+    46	
+    47	    monkeypatch.setattr(legacy_sync.httpx, "Client", _fail_client)
+    48	
+[2025-10-20T15:02:25] tokens used: 185,424
+
+[2025-10-20T15:02:33] thinking
+
+**Identifying key Sunday test lines**
+[2025-10-20T15:02:34] exec bash -lc "nl -ba backend/tests/test_sunday_game_service.py | sed -n '20,160p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:02:35] bash -lc "nl -ba backend/tests/test_sunday_game_service.py | sed -n '20,160p'" succeeded in 771ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+    20	        })
+    21	    return players
+    22	
+    23	
+    24	def _extract_team_signatures(teams):
+    25	    """Build comparable signatures for generated teams ignoring metadata fields."""
+    26	    signatures = []
+    27	    for team in teams:
+    28	        player_ids = sorted(player["player_profile_id"] for player in team["players"])
+    29	        signatures.append(tuple(player_ids))
+    30	    return sorted(signatures)
+    31	
+    32	
+    33	def test_generate_random_teams_is_deterministic_with_seed():
+    34	    players = _make_players(8)
+    35	
+    36	    first_result = TeamFormationService.generate_random_teams(players, seed=42)
+[2025-10-20T15:02:35] tokens used: 188,144
+
+[2025-10-20T15:02:41] thinking
+
+**Identifying relevant analytics tests**
+[2025-10-20T15:02:41] exec bash -lc "nl -ba backend/tests/test_post_hole_analytics.py | sed -n '60,160p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:02:42] bash -lc "nl -ba backend/tests/test_post_hole_analytics.py | sed -n '60,160p'" succeeded in 780ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+    60	    """Test PartnershipAnalysis functionality"""
+    61	    
+    62	    def test_partnership_formed_analysis(self):
+    63	        """Test analysis when partnership is formed"""
+    64	        pa = PartnershipAnalysis(
+    65	            partnership_formed=True,
+    66	            captain_id="p1",
+    67	            partner_id="p2",
+    68	            timing="after_1st_shot",
+    69	            success=True,
+    70	            chemistry_rating=0.85,
+    71	            alternative_partners=[{"id": "p3", "chemistry": 0.6}],
+    72	            optimal_choice=True,
+    73	            explanation="Strong partnership with compatible player"
+    74	        )
+    75	        
+    76	        assert pa.partnership_formed is True
+[2025-10-20T15:02:42] tokens used: 192,800
+
+[2025-10-20T15:02:45] thinking
+
+**Noting manual test details**
+[2025-10-20T15:02:46] exec bash -lc 'nl -ba backend/test_analytics_scenarios.py | head' in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-20T15:02:47] bash -lc 'nl -ba backend/test_analytics_scenarios.py | head' succeeded in 778ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+     1	#!/usr/bin/env python3
+     2	"""
+     3	Test various scenarios for Post-Hole Analytics to ensure quality analysis
+     4	"""
+     5	
+     6	import requests
+     7	import json
+     8	import time
+     9	import random
+    10	from typing import Dict, Any, List
+[2025-10-20T15:02:47] tokens used: 195,854
+
+[2025-10-20T15:02:49] thinking
+
+**Mentioning GHIN script lines**
+[2025-10-20T15:02:50] exec bash -lc 'nl -ba backend/test_ghin_integration.py | head' in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-20T15:02:51] bash -lc 'nl -ba backend/test_ghin_integration.py | head' succeeded in 761ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+     1	#!/usr/bin/env python3
+     2	"""
+     3	Test GHIN integration to verify API connection and handicap syncing
+     4	"""
+     5	
+     6	import asyncio
+     7	import os
+     8	import sys
+     9	from pathlib import Path
+    10	
+[2025-10-20T15:02:51] tokens used: 198,225
+
+[2025-10-20T15:03:09] thinking
+
+**Summarizing backend mode inventory**
+
+I'll compile a concise but thorough overview of major backend modes, listing entry points with line references, core modules, tests, and current state or risks for each area—including Simulation, Signup/Matchmaking, Sunday Game, GHIN/Sheets Sync, Analytics, and Legacy Signup. I’ll highlight risks like missing dependency injection, placeholder analytics values, unhandled service return values, and lack of input validation, wrapping up with a next step suggestion focused on adding integration tests and improving GHIN/Sheet client stubs.
+[2025-10-20T15:03:10] codex
+
+**Mode Inventory**
+- Simulation — entry points `backend/app/main.py:4273`, `backend/app/main.py:4394`, `backend/app/main.py:4727`, `backend/app/main.py:5048` orchestrate setup, shot flow, state reads, and post-hole analytics; core engine and betting/timeline helpers live in `backend/app/wolf_goat_pig_simulation.py:601` and `backend/app/simulation_timeline_enhancements.py:1`; exercised primarily by `tests/backend/test_unified_action_api.py:33`, `tests/backend/test_simulation_state_endpoint.py:90`, and `backend/tests/test_simulation_endpoints.py:1`; state is feature-rich but concentrated in a single module with process-wide `wgp_simulation`, so concurrent requests or multi-tenant sessions will bleed state and the tight coupling makes dependency injection and scaling difficult.
+- Signup / Matchmaking — entry points `backend/app/main.py:5388`, `backend/app/main.py:5463`, `backend/app/main.py:5761`, `backend/app/main.py:5999`, `backend/app/main.py:6630`, `backend/app/main.py:6720` cover weekly views, CRUD, availability, team formation, matchmaking suggestions, and notifications; supporting services include `backend/app/services/team_formation_service.py:1`, `backend/app/services/player_service.py:18`, and `backend/app/services/matchmaking_service.py:1`; coverage is mostly indirect through unit suites like `backend/tests/test_player_service.py:33` and deterministic team tests reused from Sunday mode, with no end-to-end API tests or DB fixture asserts—risks include untested validation paths, lack of transactional boundaries, and the matchmaking scheduler persisting suggestions without guard rails against duplication.
+- Sunday Game — pairing endpoint `backend/app/main.py:6153` delegates to `backend/app/services/sunday_game_service.py:1` and the shared team utilities at `backend/app/services/team_formation_service.py:33`; validation is limited to deterministic seeding tests `backend/tests/test_sunday_game_service.py:33`, leaving the FastAPI handler (and any downstream notification hook) untested and vulnerable to signup data anomalies or seed misconfiguration.
+- GHIN / Sheets Sync — GHIN flows surface at `backend/app/main.py:859`, `backend/app/main.py:893`, `backend/app/main.py:3003` backed by `backend/app/services/ghin_service.py:1`; sheet reconciliation endpoints land at `backend/app/main.py:3193`, `backend/app/main.py:3254`, `backend/app/main.py:3306`, `backend/app/main.py:4024` and rely on `backend/app/services/sheet_integration_service.py:1`; only ad-hoc scripts like `backend/test_ghin_integration.py:1` exist (requiring live credentials) and there are no automated tests for the sheet pipeline, so the current state is “works with real services when properly configured” but fragile—network failures bubble up as 500s, rate limiting/auth renewal is manual, and CSV parsing in `sync_wgp_sheet_data` trusts remote structure.
+- Analytics — leaderboard and insight endpoints `backend/app/main.py:2854`, `backend/app/main.py:2910`, `backend/app/main.py:3032`, `backend/app/main.py:3159` sit atop `backend/app/services/statistics_service.py:1` and `backend/app/post_hole_analytics.py:1`; test coverage comes from service-focused suites (`backend/tests/test_player_service.py:147`, `backend/tests/test_post_hole_analytics.py:62`, `tests/backend/test_analytics.py:18`), but several API responses still emit placeholder aggregates (e.g., fixed average handicap) and long-running queries lack pagination—risking misleading dashboards and performance pain once data volume grows.
+- Legacy Signup — modern signup endpoints (`backend/app/main.py:5463`, `backend/app/main.py:5518`, `backend/app/main.py:5562`) mirror actions into the legacy CGI via the cached client in `backend/app/services/legacy_signup_service.py:281`; `backend/tests/test_legacy_signup_service.py:38` verifies payload shaping and env overrides, yet the live integration is best-effort only (errors are logged and dropped), config is read once per process, and there’s no integration test ensuring create/update/cancel flows actually hit the CGI, so operational drift can go undetected.
+
+Next: consider adding FastAPI TestClient coverage for signups/matchmaking and a mocked GHIN/Sheets harness so the higher-risk endpoints can be validated without external dependencies.
+[2025-10-20T15:03:24] tokens used: 200,174

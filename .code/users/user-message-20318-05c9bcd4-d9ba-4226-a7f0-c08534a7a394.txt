@@ -1,0 +1,1367 @@
+📋 Test Results Summary
+------------------------------
+Backend Unit Tests:     ✅ PASS
+Backend Endpoint Tests: ✅ PASS
+Frontend Unit Tests:    ✅ PASS
+Functional Tests:       ✅ PASS
+End-to-End Tests:       ✅ PASS
+
+🎉 ALL SIMULATION TESTS PASSED!
+�� Simulation mode is fully tested and functional
+�� Verifying Render-style backend deployment
+🔍 Testing Production Backend Deployment...
+==========================================
+Error: Port 8000 is already in use.
+Hint: stop the other process or rerun with PORT=<free-port> ./scripts/test-prod-backend.sh
+husky - pre-commit script failed (code 1)
+(base) stuartgano-macbookpro2:wolf-goat-pig stuartgano$ INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:app.main:🛑 Wolf Goat Pig API shutting down...
+INFO:app.services.email_scheduler:Email scheduler stopped
+INFO:app.main:📧 Email scheduler stopped successfully
+INFO:     Application shutdown complete.
+INFO:     Finished server process [6162]
+
+(base) stuartgano-macbookpro2:wolf-goat-pig stuartgano$ git commit -m "Harden simulation test endpoints and cover adm
+"
+🔍 Running simulation diagnostics (npm test)
+
+> wolf-goat-pig@1.0.0 test
+> ./scripts/diagnostics/run_simulation_tests.sh
+
+🧪 Wolf Goat Pig Simulation Test Suite
+==================================================
+
+📋 Environment Check
+------------------------------
+✅ Python 3 available
+Python 3.12.7
+✅ Node.js available
+v22.16.0
+✅ pytest available
+
+📋 Backend Unit Tests
+------------------------------
+Installing backend dependencies...
+Running backend unit tests...
+========================= test session starts =========================
+platform darwin -- Python 3.12.7, pytest-8.4.2, pluggy-1.6.0 -- /opt/anaconda3/bin/python3
+cachedir: .pytest_cache
+metadata: {'Python': '3.12.7', 'Platform': 'macOS-26.0.1-arm64-arm-64bit', 'Packages': {'pytest': '8.4.2', 'pluggy': '1.6.0'}, 'Plugins': {'anyio': '4.10.0', 'mock': '3.15.1', 'asyncio': '1.2.0', 'html': '4.1.1', 'metadata': '3.1.1', 'cov': '6.2.1', 'bdd': '8.1.0'}}
+rootdir: /Users/stuartgano/Documents/wolf-goat-pig/backend
+plugins: anyio-4.10.0, mock-3.15.1, asyncio-1.2.0, html-4.1.1, metadata-3.1.1, cov-6.2.1, bdd-8.1.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 27 items                                                    
+
+tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_simulation_initialization SKIPPED [  3%]
+tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_add_players SKIPPED [  7%]
+tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_set_course SKIPPED [ 11%]
+tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_start_game SKIPPED [ 14%]
+tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_get_current_captain SKIPPED [ 18%]
+tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_captain_rotation SKIPPED [ 22%]
+tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_partnership_request SKIPPED [ 25%]
+tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_partnership_response SKIPPED [ 29%]
+tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_shot_simulation SKIPPED [ 33%]
+tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_short_game_progression SKIPPED [ 37%]
+tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_lie_type_determination_with_distance SKIPPED [ 40%]
+tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_game_state_serialization SKIPPED [ 44%]
+tests/test_simulation_unit.py::TestGameState::test_game_state_creation SKIPPED [ 48%]
+tests/test_simulation_unit.py::TestGameState::test_hole_progression SKIPPED [ 51%]
+tests/test_simulation_unit.py::TestGameState::test_score_tracking SKIPPED [ 55%]
+tests/test_simulation_unit.py::TestMonteCarloService::test_monte_carlo_initialization SKIPPED [ 59%]
+tests/test_simulation_unit.py::TestMonteCarloService::test_shot_probability_calculation SKIPPED [ 62%]
+tests/test_simulation_unit.py::TestMonteCarloService::test_outcome_simulation SKIPPED [ 66%]
+tests/test_simulation_unit.py::TestOddsCalculator::test_odds_calculator_initialization SKIPPED [ 70%]
+tests/test_simulation_unit.py::TestOddsCalculator::test_betting_odds_calculation SKIPPED [ 74%]
+tests/test_simulation_unit.py::TestOddsCalculator::test_double_decision_logic SKIPPED [ 77%]
+tests/test_simulation_unit.py::TestSimulationUtilities::test_handicap_calculation PASSED [ 81%]
+tests/test_simulation_unit.py::TestSimulationUtilities::test_net_score_calculation PASSED [ 85%]
+tests/test_simulation_unit.py::TestSimulationUtilities::test_team_formation_validation PASSED [ 88%]
+tests/test_simulation_unit.py::TestSimulationErrorHandling::test_invalid_player_count PASSED [ 92%]
+tests/test_simulation_unit.py::TestSimulationErrorHandling::test_missing_course PASSED [ 96%]
+tests/test_simulation_unit.py::TestSimulationErrorHandling::test_invalid_partnership_request PASSED [100%]
+
+========================== warnings summary ===========================
+app/database.py:34
+  /Users/stuartgano/Documents/wolf-goat-pig/backend/tests/../app/database.py:34: MovedIn20Warning: The ``declarative_base()`` function is now available as sqlalchemy.orm.declarative_base(). (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    Base = declarative_base()
+
+app/game_state.py:293
+  /Users/stuartgano/Documents/wolf-goat-pig/backend/tests/../app/game_state.py:293: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    obj = session.query(GameStateModel).get(1)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- Generated html report: file:///Users/stuartgano/Documents/wolf-goat-pig/backend/../reports/backend_unit_tests.html -
+============== 6 passed, 21 skipped, 2 warnings in 0.49s ==============
+✅ Backend unit tests PASSED
+Running existing simulation tests...
+========================= test session starts =========================
+platform darwin -- Python 3.12.7, pytest-8.4.2, pluggy-1.6.0 -- /opt/anaconda3/bin/python3
+cachedir: .pytest_cache
+metadata: {'Python': '3.12.7', 'Platform': 'macOS-26.0.1-arm64-arm-64bit', 'Packages': {'pytest': '8.4.2', 'pluggy': '1.6.0'}, 'Plugins': {'anyio': '4.10.0', 'mock': '3.15.1', 'asyncio': '1.2.0', 'html': '4.1.1', 'metadata': '3.1.1', 'cov': '6.2.1', 'bdd': '8.1.0'}}
+rootdir: /Users/stuartgano/Documents/wolf-goat-pig/backend
+plugins: anyio-4.10.0, mock-3.15.1, asyncio-1.2.0, html-4.1.1, metadata-3.1.1, cov-6.2.1, bdd-8.1.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 7 items                                                     
+
+tests/test_simulation_endpoints.py::test_simulation_endpoints_exist PASSED [ 14%]
+tests/test_simulation_endpoints.py::test_simulation_setup_request_format PASSED [ 28%]
+tests/test_simulation_endpoints.py::test_simulation_response_format PASSED [ 42%]
+tests/test_simulation_endpoints.py::test_frontend_api_hook_compatibility PASSED [ 57%]
+tests/test_simulation_endpoints.py::test_error_scenarios PASSED [ 71%]
+tests/test_simulation_endpoints.py::test_simulation_not_found_error_resolution PASSED [ 85%]
+tests/test_simulation_endpoints.py::test_simulation_startup_integration PASSED [100%]
+
+========================== 7 passed in 0.02s ==========================
+✅ Simulation endpoint tests PASSED
+
+📋 Frontend Unit Tests
+------------------------------
+Installing frontend dependencies...
+Running frontend unit tests...
+
+> wgp-frontend@0.1.1 test
+> react-scripts test --coverage --watchAll=false --testPathPattern=simulation --passWithNoTests
+
+ PASS  src/components/simulation/__tests__/SimulationMode.probabilities.test.js
+ PASS  src/components/simulation/__tests__/SimulationMode.test.js
+ PASS  src/components/simulation/__tests__/GamePlay.test.js
+ PASS  src/components/simulation/__tests__/GameSetup.test.js
+----------|---------|----------|---------|---------|-------------------
+File      | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+----------|---------|----------|---------|---------|-------------------
+All files |     5.3 |     4.18 |     4.2 |    5.55 |                   
+ src      |       0 |        0 |       0 |       0 |                   
+  App.js  |       0 |        0 |       0 |       0 | 28-274            
+  ...x.js |       0 |      100 |     100 |       0 | 6-7               
+ ...nents |       0 |        0 |       0 |       0 |                   
+  ...d.js |       0 |        0 |       0 |       0 | 3-536             
+  ...l.js |       0 |        0 |       0 |       0 | 6-854             
+  ...t.js |       0 |        0 |       0 |       0 | 3-187             
+  ...r.js |       0 |        0 |       0 |       0 | 4-216             
+  ...p.js |       0 |        0 |       0 |       0 | 3-293             
+  ...s.js |       0 |        0 |       0 |       0 | 3-183             
+  ...t.js |       0 |        0 |       0 |       0 | 4-446             
+  ...t.js |       0 |        0 |       0 |       0 | 4-484             
+  ...e.js |       0 |        0 |       0 |       0 | 5-872             
+  ...n.js |       0 |        0 |       0 |       0 | 4-326             
+  ...d.js |       0 |        0 |       0 |       0 | 5-316             
+  ...y.js |       0 |        0 |       0 |       0 | 5-327             
+  ...t.js |       0 |        0 |       0 |       0 | 3-342             
+  ...r.js |       0 |        0 |       0 |       0 | 14-326            
+  ...c.js |       0 |        0 |       0 |       0 | 5-162             
+  ...y.js |       0 |        0 |       0 |       0 | 4-185             
+  ...n.js |       0 |        0 |       0 |       0 | 3-418             
+  ...d.js |       0 |        0 |       0 |       0 | 4-425             
+  ...d.js |       0 |        0 |       0 |       0 | 5-258             
+  ...n.js |       0 |        0 |       0 |       0 | 6-243             
+  ...s.js |       0 |        0 |       0 |       0 | 14-428            
+  ...r.js |       0 |        0 |       0 |       0 | 14-499            
+  ...s.js |       0 |        0 |       0 |       0 | 14-401            
+  ...n.js |       0 |        0 |       0 |       0 | 3-348             
+  ...d.js |       0 |        0 |       0 |       0 | 14-388            
+  ...t.js |       0 |        0 |       0 |       0 | 11-593            
+  ...r.js |       0 |        0 |       0 |       0 | 5-310             
+  ...t.js |       0 |        0 |       0 |       0 | 3-53              
+  ...y.js |       0 |        0 |       0 |       0 | 8-241             
+  ...t.js |       0 |        0 |       0 |       0 | 3-245             
+  ...d.js |       0 |        0 |       0 |       0 | 4-401             
+  ...d.js |       0 |        0 |       0 |       0 | 9-156             
+  ...x.js |       0 |        0 |       0 |       0 |                   
+ ...ytics |       0 |        0 |       0 |       0 |                   
+  ...s.js |       0 |        0 |       0 |       0 | 8-508             
+ .../auth |       0 |        0 |       0 |       0 |                   
+  ...k.js |       0 |        0 |       0 |       0 | 5-78              
+  ...n.js |       0 |        0 |       0 |       0 | 5-31              
+  ...n.js |       0 |        0 |       0 |       0 | 5-40              
+  ...e.js |       0 |        0 |       0 |       0 | 4-36              
+  ...e.js |       0 |        0 |       0 |       0 | 6-95              
+  ...x.js |       0 |        0 |       0 |       0 |                   
+ ...email |       0 |        0 |       0 |       0 |                   
+  ...s.js |       0 |        0 |       0 |       0 | 4-174             
+ .../game |       0 |        0 |       0 |       0 |                   
+  ...t.js |       0 |        0 |       0 |       0 | 3-490             
+  ...r.js |       0 |        0 |       0 |       0 | 4-385             
+  ...m.js |       0 |        0 |       0 |       0 | 6-448             
+  ...t.js |       0 |        0 |       0 |       0 | 8-608             
+  ...e.js |       0 |        0 |       0 |       0 | 34-714            
+  ...e.js |       0 |        0 |       0 |       0 | 8-359             
+  ...x.js |       0 |        0 |       0 |       0 |                   
+ ...ctice |       0 |        0 |       0 |       0 |                   
+  ...e.js |       0 |        0 |       0 |       0 | 6-472             
+ ...ignup |       0 |        0 |       0 |       0 |                   
+  ...y.js |       0 |        0 |       0 |       0 | 3-344             
+  ...w.js |       0 |        0 |       0 |       0 | 4-823             
+  ...s.js |       0 |        0 |       0 |       0 | 4-604             
+  ...s.js |       0 |        0 |       0 |       0 | 3-348             
+  ...y.js |       0 |        0 |       0 |       0 | 4-452             
+  ...r.js |       0 |        0 |       0 |       0 | 4-541             
+ ...ation |   24.97 |    16.91 |   22.95 |   26.12 |                   
+  ...t.js |    2.59 |        0 |       0 |    2.59 | 29-359            
+  ...r.js |       0 |        0 |       0 |       0 | 3-389             
+  ...y.js |     100 |    88.57 |     100 |     100 | 20,38,77-79       
+  ....tsx |   44.96 |    37.17 |   38.46 |    47.5 | ...19-360,383-468 
+  ....tsx |    8.33 |        0 |       0 |    8.69 | ...8,42-45,57-233 
+  ...n.js |    2.22 |        0 |       0 |    2.43 | 5-242             
+  ...l.js |    5.88 |        0 |       0 |    7.69 | 12-193            
+  ....tsx |      78 |    71.23 |      60 |   79.78 | ...22,355-357,415 
+  ...e.js |   30.68 |    22.61 |   30.76 |   31.49 | ...32-841,866,909 
+  ...e.js |    3.03 |        0 |       0 |    3.57 | 12-145            
+  ...e.js |    0.89 |        0 |       0 |    1.07 | 14-412            
+  ...x.js |       0 |        0 |       0 |       0 |                   
+ ...res__ |   86.66 |    76.92 |      80 |    86.2 |                   
+  ...x.js |       0 |        0 |       0 |       0 |                   
+  ...a.js |   86.66 |    76.92 |      80 |    86.2 | 3,6,9,318         
+ ...tyles |   33.33 |        0 |       0 |   35.71 |                   
+  ...t.js |   33.33 |        0 |       0 |   35.71 | 2-12,27-29        
+ ...orial |       0 |        0 |       0 |       0 |                   
+  ...t.js |       0 |        0 |       0 |       0 | 10-571            
+  ...r.js |       0 |        0 |       0 |       0 | 6-503             
+  ...e.js |       0 |        0 |       0 |       0 | 9-335             
+  ...y.js |       0 |        0 |       0 |       0 | 9-382             
+  ...m.js |       0 |        0 |       0 |       0 | 18-688            
+  ...x.js |       0 |        0 |       0 |       0 |                   
+ ...dules |       0 |        0 |       0 |       0 |                   
+  ...e.js |       0 |        0 |       0 |       0 | 7-220             
+  ...e.js |       0 |        0 |       0 |       0 | 7-291             
+  ...e.js |       0 |        0 |       0 |       0 | 7-1029            
+  ...e.js |       0 |        0 |       0 |       0 | 7-911             
+  ...e.js |       0 |        0 |       0 |       0 | 7-518             
+  ...e.js |       0 |        0 |       0 |       0 | 7-391             
+  ...e.js |       0 |        0 |       0 |       0 | 7-940             
+ ...ts/ui |     100 |    74.32 |     100 |     100 |                   
+  ...n.js |     100 |    90.47 |     100 |     100 | 22-23             
+  Card.js |     100 |       75 |     100 |     100 | 24-51             
+  ...t.js |     100 |    72.22 |     100 |     100 | 38-47,80          
+  ...t.js |     100 |    62.96 |     100 |     100 | 8-11,38-53,97-105 
+  ...x.js |       0 |        0 |       0 |       0 |                   
+ ...onfig |      70 |       60 |     100 |      70 |                   
+  ...t.js |      70 |       60 |     100 |      70 | 3,6,9             
+ ...ntext |     4.6 |     1.03 |    1.02 |    4.86 |                   
+  ...t.js |       0 |        0 |       0 |       0 | 5-60              
+  ...r.js |   12.32 |     2.94 |    3.03 |   12.94 | ...25-383,410-414 
+  ...t.js |       0 |      100 |       0 |       0 | 3-22              
+  ...t.js |       0 |        0 |       0 |       0 | 3-213             
+  ...t.js |       0 |        0 |       0 |       0 | 4-520             
+  ...x.js |       0 |        0 |       0 |       0 |                   
+ ...hooks |       0 |        0 |       0 |       0 |                   
+  ...h.js |       0 |        0 |       0 |       0 | 7-10              
+  ...i.js |       0 |        0 |       0 |       0 | 3-138             
+  ...n.js |       0 |        0 |       0 |       0 | 7-383             
+  ...e.js |       0 |        0 |       0 |       0 | 13-397            
+  ...s.js |       0 |        0 |       0 |       0 | 6-52              
+  ...i.js |       0 |        0 |       0 |       0 | 3-165             
+  ...s.js |       0 |        0 |       0 |       0 | 8-275             
+ ...pages |       0 |        0 |       0 |       0 |                   
+  ...e.js |       0 |      100 |       0 |       0 | 5-339             
+  ...e.js |       0 |        0 |       0 |       0 | 7-665             
+  ...e.js |       0 |        0 |       0 |       0 | 5-483             
+  ...e.js |       0 |        0 |       0 |       0 | 7-365             
+  ...e.js |       0 |      100 |       0 |       0 | 5-485             
+  ...e.js |       0 |      100 |       0 |       0 | 6-11              
+  ...e.js |       0 |        0 |       0 |       0 | 11-158            
+  ...x.js |       0 |        0 |       0 |       0 |                   
+ ...vices |       0 |        0 |       0 |       0 |                   
+  ...e.js |       0 |        0 |       0 |       0 | 5-225             
+ ...theme |      75 |    16.66 |      25 |      75 |                   
+  ...r.js |      75 |       50 |      50 |      75 | 9,20              
+  ...e.js |      75 |        0 |       0 |      75 | 159-181,185-212   
+ ...utils |       0 |        0 |       0 |       0 |                   
+  api.js  |       0 |        0 |       0 |       0 | 8-174             
+----------|---------|----------|---------|---------|-------------------
+
+Test Suites: 4 passed, 4 total
+Tests:       20 passed, 20 total
+Snapshots:   0 total
+Time:        3.617 s
+Ran all test suites matching /simulation/i.
+✅ Frontend unit tests PASSED
+
+📋 Functional Tests
+------------------------------
+Checking if backend is running...
+⚠️ Backend API is not running
+Starting backend for functional tests...
+WARNING:app.services.email_service:Email service is not fully configured. Check environment variables: SMTP_USER, SMTP_PASSWORD, SMTP_HOST
+WARNING:app.main:Frontend static assets not found. Expected /Users/stuartgano/Documents/wolf-goat-pig/frontend/build/static
+INFO:     Started server process [10574]
+INFO:     Waiting for application startup.
+INFO:app.main:🐺 Wolf Goat Pig API starting up...
+INFO:app.main:ENVIRONMENT: None
+INFO:app.database:Database initialized successfully
+INFO:app.database:Database connection test successful
+INFO:app.main:Database initialized successfully
+INFO:app.main:game_state table verified
+INFO:app.main:📧 Email scheduler will be initialized on-demand
+INFO:app.main:🔍 Checking existing data status...
+INFO:app.seed_data:Checking seeding status...
+INFO:app.main:✅ All required data already present, skipping seeding
+INFO:app.main:🎯 Initializing game state...
+INFO:app.main:📚 Game state initialized with 3 courses
+INFO:app.main:🔧 Verifying simulation initialization...
+INFO:app.main:✅ Simulation initialization verified
+INFO:app.main:📧 Initializing email scheduler...
+INFO:app.services.email_scheduler:Email schedules set up successfully
+INFO:app.services.email_scheduler:Email scheduler started
+INFO:app.main:📧 Email scheduler initialized on demand
+INFO:app.main:✅ Email scheduler initialized
+INFO:app.main:🚀 Wolf Goat Pig API startup completed successfully!
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:app.seed_data:Checking seeding status...
+INFO:     127.0.0.1:62342 - "GET /health HTTP/1.1" 200 OK
+✅ Backend API is running
+Running functional tests...
+🌐 Testing against API: http://localhost:8000
+🌐 Frontend URL: http://localhost:3000
+
+🎮 Simulation Functional Test Suite
+==================================================
+
+📋 Setup Tests
+------------------------------
+🔧 Testing complete simulation setup workflow...
+INFO:app.seed_data:Checking seeding status...
+INFO:     127.0.0.1:62344 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62344 - "GET /simulation/available-personalities HTTP/1.1" 200 OK
+✅ Retrieved 5 personalities
+INFO:     127.0.0.1:62344 - "GET /simulation/suggested-opponents HTTP/1.1" 200 OK
+✅ Retrieved 3 opponents
+INFO:app.main:Retrieved 3 courses: ['Wing Point Golf & Country Club', 'Championship Links', 'Executive Course']
+INFO:     127.0.0.1:62344 - "GET /courses HTTP/1.1" 200 OK
+✅ Retrieved 3 courses
+INFO:app.main:Setting up new simulation...
+INFO:app.main:Using course: Wing Point Golf & Country Club
+INFO:app.main:Simulation setup completed successfully
+INFO:     127.0.0.1:62344 - "POST /simulation/setup HTTP/1.1" 200 OK
+✅ Simulation setup successful: Simulation initialized successfully
+✅ test_complete_setup_workflow
+🔧 Testing invalid setup handling...
+INFO:app.seed_data:Checking seeding status...
+INFO:     127.0.0.1:62345 - "GET /health HTTP/1.1" 200 OK
+INFO:app.main:Setting up new simulation...
+ERROR:app.main:Simulation setup failed: 400: Missing player data
+ERROR:app.main:HTTP exception: 500 - Failed to setup simulation: 400: Missing player data
+ERROR:app.main:Request Host header: localhost:8000
+ERROR:app.main:Request Client host: 127.0.0.1
+INFO:     127.0.0.1:62345 - "POST /simulation/setup HTTP/1.1" 500 Internal Server Error
+✅ Invalid setup 1 properly rejected
+INFO:app.main:Setting up new simulation...
+ERROR:app.main:Simulation setup failed: 400: Missing player data
+ERROR:app.main:HTTP exception: 500 - Failed to setup simulation: 400: Missing player data
+ERROR:app.main:Request Host header: localhost:8000
+ERROR:app.main:Request Client host: 127.0.0.1
+INFO:     127.0.0.1:62345 - "POST /simulation/setup HTTP/1.1" 500 Internal Server Error
+✅ Invalid setup 2 properly rejected
+INFO:app.main:Setting up new simulation...
+ERROR:app.main:Simulation setup failed: 400: Missing player data
+ERROR:app.main:HTTP exception: 500 - Failed to setup simulation: 400: Missing player data
+ERROR:app.main:Request Host header: localhost:8000
+ERROR:app.main:Request Client host: 127.0.0.1
+INFO:     127.0.0.1:62345 - "POST /simulation/setup HTTP/1.1" 500 Internal Server Error
+✅ Invalid setup 3 properly rejected
+INFO:app.main:Setting up new simulation...
+ERROR:app.main:Simulation setup failed: 400: At least 4 players required
+ERROR:app.main:HTTP exception: 500 - Failed to setup simulation: 400: At least 4 players required
+ERROR:app.main:Request Host header: localhost:8000
+ERROR:app.main:Request Client host: 127.0.0.1
+INFO:     127.0.0.1:62345 - "POST /simulation/setup HTTP/1.1" 500 Internal Server Error
+✅ Invalid setup 4 properly rejected
+✅ test_invalid_setup_handling
+
+📋 Gameplay Tests
+------------------------------
+🔧 Testing betting workflow...
+INFO:app.seed_data:Checking seeding status...
+INFO:     127.0.0.1:62346 - "GET /health HTTP/1.1" 200 OK
+INFO:app.main:Setting up new simulation...
+WARNING:app.main:Course not found: Test Course
+INFO:app.main:Simulation setup completed successfully
+INFO:     127.0.0.1:62346 - "POST /simulation/setup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62346 - "POST /simulation/betting-decision HTTP/1.1" 200 OK
+✅ Double offer sent
+✅ Double response interaction detected
+INFO:     127.0.0.1:62346 - "POST /simulation/betting-decision HTTP/1.1" 200 OK
+✅ Double accepted
+✅ test_betting_workflow
+🔧 Testing partnership workflow...
+INFO:app.seed_data:Checking seeding status...
+INFO:     127.0.0.1:62347 - "GET /health HTTP/1.1" 200 OK
+INFO:app.main:Setting up new simulation...
+WARNING:app.main:Course not found: Test Course
+INFO:app.main:Simulation setup completed successfully
+INFO:     127.0.0.1:62347 - "POST /simulation/setup HTTP/1.1" 200 OK
+�� Partnership request payload: {'action': 'request_partner', 'requested_partner': 'comp1'}
+INFO:app.simulation_timeline_enhancements:Timeline event: Test Player requests partnership with Computer 1
+INFO:     127.0.0.1:62347 - "POST /simulation/play-hole HTTP/1.1" 200 OK
+✅ Partnership request sent
+✅ Partnership response interaction detected
+INFO:     127.0.0.1:62347 - "POST /simulation/play-hole HTTP/1.1" 200 OK
+✅ Partnership accepted
+✅ test_partnership_workflow
+🔧 Testing shot sequence workflow...
+INFO:app.seed_data:Checking seeding status...
+INFO:     127.0.0.1:62348 - "GET /health HTTP/1.1" 200 OK
+INFO:app.main:Setting up new simulation...
+WARNING:app.main:Course not found: Test Course
+INFO:app.main:Simulation setup completed successfully
+INFO:     127.0.0.1:62348 - "POST /simulation/setup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62348 - "POST /simulation/play-next-shot HTTP/1.1" 200 OK
+✅ First shot played: ok
+✅ test_shot_sequence_workflow
+
+📋 Probability Tests
+------------------------------
+🔧 Testing shot probabilities...
+INFO:app.seed_data:Checking seeding status...
+INFO:     127.0.0.1:62349 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62349 - "POST /simulation/shot-probabilities HTTP/1.1" 200 OK
+✅ Shot probabilities calculated
+✅ All probability categories present
+✅ Probabilities sum correctly: 1.00
+✅ test_shot_probabilities
+
+📋 Error Handling Tests
+------------------------------
+🔧 Testing malformed requests...
+INFO:app.seed_data:Checking seeding status...
+INFO:     127.0.0.1:62350 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62350 - "POST /simulation/setup HTTP/1.1" 422 Unprocessable Entity
+✅ Malformed JSON properly rejected
+✅ test_malformed_requests
+🔧 Testing non-existent endpoints...
+INFO:app.seed_data:Checking seeding status...
+INFO:     127.0.0.1:62351 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62351 - "GET /simulation/invalid-endpoint HTTP/1.1" 404 Not Found
+✅ Correctly returned 404 for /simulation/invalid-endpoint
+INFO:     127.0.0.1:62351 - "GET /simulation/missing HTTP/1.1" 404 Not Found
+✅ Correctly returned 404 for /simulation/missing
+INFO:     127.0.0.1:62351 - "GET /simulation/setup/invalid HTTP/1.1" 404 Not Found
+✅ Correctly returned 404 for /simulation/setup/invalid
+✅ test_nonexistent_endpoints
+
+🎯 Functional Test Results
+==================================================
+Passed: 8/8
+🎉 All functional tests PASSED!
+💡 Simulation mode is functioning correctly
+
+📋 Test Summary
+==================================================
+✅ Simulation mode functional tests PASSED
+🎮 Simulation is ready for end-to-end testing
+✅ Functional tests PASSED
+
+📋 End-to-End Tests
+------------------------------
+Checking if frontend is running...
+⚠️ Frontend is not running
+⚠️ Frontend not running - E2E tests may fail
+⚠️ Chrome browser not available - skipping E2E tests
+Stopping backend...
+
+📋 Test Results Summary
+------------------------------
+Backend Unit Tests:     ✅ PASS
+Backend Endpoint Tests: ✅ PASS
+Frontend Unit Tests:    ✅ PASS
+Functional Tests:       ✅ PASS
+End-to-End Tests:       ✅ PASS
+
+🎉 ALL SIMULATION TESTS PASSED!
+�� Simulation mode is fully tested and functional
+�� Verifying Render-style backend deployment
+🔍 Testing Production Backend Deployment...
+==========================================
+INFO:     Shutting down
+
+1. Setting up production virtual environment...
+INFO:     Waiting for application shutdown.
+INFO:app.main:🛑 Wolf Goat Pig API shutting down...
+
+2. Installing production dependencies...
+Requirement already satisfied: pip in ./.venv-prod/lib/python3.13/site-packages (25.2)
+Requirement already satisfied: fastapi>=0.110.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 2)) (0.119.0)
+Requirement already satisfied: uvicorn>=0.29.0 in ./.venv-prod/lib/python3.13/site-packages (from uvicorn[standard]>=0.29.0->-r requirements.txt (line 3)) (0.37.0)
+Requirement already satisfied: python-multipart>=0.0.9 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 4)) (0.0.20)
+Requirement already satisfied: SQLAlchemy>=2.0.30 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 7)) (2.0.44)
+Requirement already satisfied: psycopg2-binary>=2.9.9 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 8)) (2.9.11)
+Requirement already satisfied: alembic>=1.13.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 9)) (1.17.0)
+Requirement already satisfied: httpx>=0.27.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 12)) (0.28.1)
+Requirement already satisfied: python-dotenv>=1.0.1 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 13)) (1.1.1)
+Requirement already satisfied: requests>=2.31.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 14)) (2.32.5)
+Requirement already satisfied: pydantic>=2.6.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 17)) (2.12.2)
+Requirement already satisfied: numpy>=1.24.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 20)) (2.3.3)
+Requirement already satisfied: pytest>=7.4.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 23)) (8.4.2)
+Requirement already satisfied: pytest-asyncio>=0.21.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 24)) (1.2.0)
+Requirement already satisfied: pytest-mock>=3.11.1 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 25)) (3.15.1)
+Requirement already satisfied: pytest-html>=4.1.1 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 26)) (4.1.1)
+Requirement already satisfied: behave>=1.2.6 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 27)) (1.3.3)
+Requirement already satisfied: structlog>=23.2.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 30)) (25.4.0)
+Requirement already satisfied: psutil>=5.9.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 33)) (7.1.0)
+Requirement already satisfied: python-dateutil>=2.8.2 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 36)) (2.9.0.post0)
+Requirement already satisfied: orjson>=3.9.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 39)) (3.11.3)
+Requirement already satisfied: emails>=0.6.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 42)) (0.6)
+Requirement already satisfied: schedule>=1.2.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 43)) (1.2.2)
+Requirement already satisfied: python-jose>=3.3.0 in ./.venv-prod/lib/python3.13/site-packages (from python-jose[cryptography]>=3.3.0->-r requirements.txt (line 44)) (3.5.0)
+Requirement already satisfied: jinja2>=3.1.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 45)) (3.1.6)
+Requirement already satisfied: google-auth>=2.23.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 48)) (2.41.1)
+Requirement already satisfied: google-auth-oauthlib>=1.1.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 49)) (1.2.2)
+Requirement already satisfied: google-auth-httplib2>=0.1.1 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 50)) (0.2.0)
+Requirement already satisfied: google-api-python-client>=2.100.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 51)) (2.184.0)
+Requirement already satisfied: gunicorn>=21.2.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 54)) (23.0.0)
+Requirement already satisfied: starlette<0.49.0,>=0.40.0 in ./.venv-prod/lib/python3.13/site-packages (from fastapi>=0.110.0->-r requirements.txt (line 2)) (0.48.0)
+Requirement already satisfied: typing-extensions>=4.8.0 in ./.venv-prod/lib/python3.13/site-packages (from fastapi>=0.110.0->-r requirements.txt (line 2)) (4.15.0)
+Requirement already satisfied: annotated-types>=0.6.0 in ./.venv-prod/lib/python3.13/site-packages (from pydantic>=2.6.0->-r requirements.txt (line 17)) (0.7.0)
+Requirement already satisfied: pydantic-core==2.41.4 in ./.venv-prod/lib/python3.13/site-packages (from pydantic>=2.6.0->-r requirements.txt (line 17)) (2.41.4)
+Requirement already satisfied: typing-inspection>=0.4.2 in ./.venv-prod/lib/python3.13/site-packages (from pydantic>=2.6.0->-r requirements.txt (line 17)) (0.4.2)
+Requirement already satisfied: anyio<5,>=3.6.2 in ./.venv-prod/lib/python3.13/site-packages (from starlette<0.49.0,>=0.40.0->fastapi>=0.110.0->-r requirements.txt (line 2)) (4.11.0)
+Requirement already satisfied: idna>=2.8 in ./.venv-prod/lib/python3.13/site-packages (from anyio<5,>=3.6.2->starlette<0.49.0,>=0.40.0->fastapi>=0.110.0->-r requirements.txt (line 2)) (3.11)
+Requirement already satisfied: sniffio>=1.1 in ./.venv-prod/lib/python3.13/site-packages (from anyio<5,>=3.6.2->starlette<0.49.0,>=0.40.0->fastapi>=0.110.0->-r requirements.txt (line 2)) (1.3.1)
+Requirement already satisfied: click>=7.0 in ./.venv-prod/lib/python3.13/site-packages (from uvicorn>=0.29.0->uvicorn[standard]>=0.29.0->-r requirements.txt (line 3)) (8.3.0)
+Requirement already satisfied: h11>=0.8 in ./.venv-prod/lib/python3.13/site-packages (from uvicorn>=0.29.0->uvicorn[standard]>=0.29.0->-r requirements.txt (line 3)) (0.16.0)
+Requirement already satisfied: Mako in ./.venv-prod/lib/python3.13/site-packages (from alembic>=1.13.0->-r requirements.txt (line 9)) (1.3.10)
+Requirement already satisfied: certifi in ./.venv-prod/lib/python3.13/site-packages (from httpx>=0.27.0->-r requirements.txt (line 12)) (2025.10.5)
+Requirement already satisfied: httpcore==1.* in ./.venv-prod/lib/python3.13/site-packages (from httpx>=0.27.0->-r requirements.txt (line 12)) (1.0.9)
+Requirement already satisfied: charset_normalizer<4,>=2 in ./.venv-prod/lib/python3.13/site-packages (from requests>=2.31.0->-r requirements.txt (line 14)) (3.4.4)
+Requirement already satisfied: urllib3<3,>=1.21.1 in ./.venv-prod/lib/python3.13/site-packages (from requests>=2.31.0->-r requirements.txt (line 14)) (2.5.0)
+Requirement already satisfied: iniconfig>=1 in ./.venv-prod/lib/python3.13/site-packages (from pytest>=7.4.0->-r requirements.txt (line 23)) (2.1.0)
+Requirement already satisfied: packaging>=20 in ./.venv-prod/lib/python3.13/site-packages (from pytest>=7.4.0->-r requirements.txt (line 23)) (25.0)
+Requirement already satisfied: pluggy<2,>=1.5 in ./.venv-prod/lib/python3.13/site-packages (from pytest>=7.4.0->-r requirements.txt (line 23)) (1.6.0)
+Requirement already satisfied: pygments>=2.7.2 in ./.venv-prod/lib/python3.13/site-packages (from pytest>=7.4.0->-r requirements.txt (line 23)) (2.19.2)
+Requirement already satisfied: pytest-metadata>=2.0.0 in ./.venv-prod/lib/python3.13/site-packages (from pytest-html>=4.1.1->-r requirements.txt (line 26)) (3.1.1)
+Requirement already satisfied: cucumber-tag-expressions>=4.1.0 in ./.venv-prod/lib/python3.13/site-packages (from behave>=1.2.6->-r requirements.txt (line 27)) (8.0.0)
+Requirement already satisfied: cucumber-expressions>=17.1.0 in ./.venv-prod/lib/python3.13/site-packages (from behave>=1.2.6->-r requirements.txt (line 27)) (18.0.1)
+Requirement already satisfied: parse>=1.18.0 in ./.venv-prod/lib/python3.13/site-packages (from behave>=1.2.6->-r requirements.txt (line 27)) (1.20.2)
+Requirement already satisfied: parse-type>=0.6.0 in ./.venv-prod/lib/python3.13/site-packages (from behave>=1.2.6->-r requirements.txt (line 27)) (0.6.6)
+Requirement already satisfied: six>=1.15.0 in ./.venv-prod/lib/python3.13/site-packages (from behave>=1.2.6->-r requirements.txt (line 27)) (1.17.0)
+Requirement already satisfied: colorama>=0.3.7 in ./.venv-prod/lib/python3.13/site-packages (from behave>=1.2.6->-r requirements.txt (line 27)) (0.4.6)
+Requirement already satisfied: cssutils in ./.venv-prod/lib/python3.13/site-packages (from emails>=0.6.0->-r requirements.txt (line 42)) (2.11.1)
+Requirement already satisfied: lxml in ./.venv-prod/lib/python3.13/site-packages (from emails>=0.6.0->-r requirements.txt (line 42)) (6.0.2)
+Requirement already satisfied: chardet in ./.venv-prod/lib/python3.13/site-packages (from emails>=0.6.0->-r requirements.txt (line 42)) (5.2.0)
+Requirement already satisfied: premailer in ./.venv-prod/lib/python3.13/site-packages (from emails>=0.6.0->-r requirements.txt (line 42)) (3.10.0)
+Requirement already satisfied: ecdsa!=0.15 in ./.venv-prod/lib/python3.13/site-packages (from python-jose>=3.3.0->python-jose[cryptography]>=3.3.0->-r requirements.txt (line 44)) (0.19.1)
+Requirement already satisfied: rsa!=4.1.1,!=4.4,<5.0,>=4.0 in ./.venv-prod/lib/python3.13/site-packages (from python-jose>=3.3.0->python-jose[cryptography]>=3.3.0->-r requirements.txt (line 44)) (4.9.1)
+Requirement already satisfied: pyasn1>=0.5.0 in ./.venv-prod/lib/python3.13/site-packages (from python-jose>=3.3.0->python-jose[cryptography]>=3.3.0->-r requirements.txt (line 44)) (0.6.1)
+Requirement already satisfied: MarkupSafe>=2.0 in ./.venv-prod/lib/python3.13/site-packages (from jinja2>=3.1.0->-r requirements.txt (line 45)) (3.0.3)
+Requirement already satisfied: cachetools<7.0,>=2.0.0 in ./.venv-prod/lib/python3.13/site-packages (from google-auth>=2.23.0->-r requirements.txt (line 48)) (6.2.1)
+Requirement already satisfied: pyasn1-modules>=0.2.1 in ./.venv-prod/lib/python3.13/site-packages (from google-auth>=2.23.0->-r requirements.txt (line 48)) (0.4.2)
+Requirement already satisfied: requests-oauthlib>=0.7.0 in ./.venv-prod/lib/python3.13/site-packages (from google-auth-oauthlib>=1.1.0->-r requirements.txt (line 49)) (2.0.0)
+Requirement already satisfied: httplib2>=0.19.0 in ./.venv-prod/lib/python3.13/site-packages (from google-auth-httplib2>=0.1.1->-r requirements.txt (line 50)) (0.31.0)
+Requirement already satisfied: google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5 in ./.venv-prod/lib/python3.13/site-packages (from google-api-python-client>=2.100.0->-r requirements.txt (line 51)) (2.26.0)
+Requirement already satisfied: uritemplate<5,>=3.0.1 in ./.venv-prod/lib/python3.13/site-packages (from google-api-python-client>=2.100.0->-r requirements.txt (line 51)) (4.2.0)
+Requirement already satisfied: googleapis-common-protos<2.0.0,>=1.56.2 in ./.venv-prod/lib/python3.13/site-packages (from google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5->google-api-python-client>=2.100.0->-r requirements.txt (line 51)) (1.70.0)
+Requirement already satisfied: protobuf!=3.20.0,!=3.20.1,!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<7.0.0,>=3.19.5 in ./.venv-prod/lib/python3.13/site-packages (from google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5->google-api-python-client>=2.100.0->-r requirements.txt (line 51)) (6.32.1)
+Requirement already satisfied: proto-plus<2.0.0,>=1.22.3 in ./.venv-prod/lib/python3.13/site-packages (from google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5->google-api-python-client>=2.100.0->-r requirements.txt (line 51)) (1.26.1)
+Requirement already satisfied: pyparsing<4,>=3.0.4 in ./.venv-prod/lib/python3.13/site-packages (from httplib2>=0.19.0->google-auth-httplib2>=0.1.1->-r requirements.txt (line 50)) (3.2.5)
+Requirement already satisfied: cryptography>=3.4.0 in ./.venv-prod/lib/python3.13/site-packages (from python-jose[cryptography]>=3.3.0->-r requirements.txt (line 44)) (46.0.2)
+Requirement already satisfied: cffi>=2.0.0 in ./.venv-prod/lib/python3.13/site-packages (from cryptography>=3.4.0->python-jose[cryptography]>=3.3.0->-r requirements.txt (line 44)) (2.0.0)
+Requirement already satisfied: pycparser in ./.venv-prod/lib/python3.13/site-packages (from cffi>=2.0.0->cryptography>=3.4.0->python-jose[cryptography]>=3.3.0->-r requirements.txt (line 44)) (2.23)
+Requirement already satisfied: oauthlib>=3.0.0 in ./.venv-prod/lib/python3.13/site-packages (from requests-oauthlib>=0.7.0->google-auth-oauthlib>=1.1.0->-r requirements.txt (line 49)) (3.3.1)
+Requirement already satisfied: httptools>=0.6.3 in ./.venv-prod/lib/python3.13/site-packages (from uvicorn[standard]>=0.29.0->-r requirements.txt (line 3)) (0.7.1)
+Requirement already satisfied: pyyaml>=5.1 in ./.venv-prod/lib/python3.13/site-packages (from uvicorn[standard]>=0.29.0->-r requirements.txt (line 3)) (6.0.3)
+Requirement already satisfied: uvloop>=0.15.1 in ./.venv-prod/lib/python3.13/site-packages (from uvicorn[standard]>=0.29.0->-r requirements.txt (line 3)) (0.21.0)
+Requirement already satisfied: watchfiles>=0.13 in ./.venv-prod/lib/python3.13/site-packages (from uvicorn[standard]>=0.29.0->-r requirements.txt (line 3)) (1.1.1)
+Requirement already satisfied: websockets>=10.4 in ./.venv-prod/lib/python3.13/site-packages (from uvicorn[standard]>=0.29.0->-r requirements.txt (line 3)) (15.0.1)
+Requirement already satisfied: more-itertools in ./.venv-prod/lib/python3.13/site-packages (from cssutils->emails>=0.6.0->-r requirements.txt (line 42)) (10.8.0)
+Requirement already satisfied: cssselect in ./.venv-prod/lib/python3.13/site-packages (from premailer->emails>=0.6.0->-r requirements.txt (line 42)) (1.3.0)
+Requirement already satisfied: gunicorn in ./.venv-prod/lib/python3.13/site-packages (23.0.0)
+Requirement already satisfied: packaging in ./.venv-prod/lib/python3.13/site-packages (from gunicorn) (25.0)
+
+3. Running database migrations (if PostgreSQL configured)...
+PostgreSQL detected, would run migrations here
+
+4. Running production server with gunicorn...
+Server will start on http://localhost:8000
+Running health check then shutting down
+
+INFO:app.services.email_scheduler:Email scheduler stopped
+INFO:app.main:📧 Email scheduler stopped successfully
+INFO:     Application shutdown complete.
+INFO:     Finished server process [10574]
+✅ Health check passed
+\033[0;32mBackend production verification complete\033[0m
+🌐 Verifying Vercel-style frontend deployment
+🔍 Testing Production Frontend Build...
+=======================================
+
+1. Installing dependencies...
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated stable@0.1.8: Modern JS already guarantees Array#sort() is a stable sort, so this library is deprecated. See the compatibility table on MDN: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort#browser_compatibility
+npm warn deprecated @babel/plugin-proposal-nullish-coalescing-operator@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-nullish-coalescing-operator instead.
+npm warn deprecated @babel/plugin-proposal-class-properties@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-class-properties instead.
+npm warn deprecated @babel/plugin-proposal-private-methods@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-private-methods instead.
+npm warn deprecated @babel/plugin-proposal-numeric-separator@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-numeric-separator instead.
+npm warn deprecated rollup-plugin-terser@7.0.2: This package has been deprecated and is no longer maintained. Please use @rollup/plugin-terser
+npm warn deprecated @humanwhocodes/config-array@0.13.0: Use @eslint/config-array instead
+npm warn deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
+npm warn deprecated abab@2.0.6: Use your platform's native atob() and btoa() methods instead
+npm warn deprecated @babel/plugin-proposal-optional-chaining@7.21.0: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-optional-chaining instead.
+npm warn deprecated @babel/plugin-proposal-private-property-in-object@7.21.11: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-private-property-in-object instead.
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated @humanwhocodes/object-schema@2.0.3: Use @eslint/object-schema instead
+npm warn deprecated domexception@2.0.1: Use your platform's native DOMException instead
+npm warn deprecated w3c-hr-time@1.0.2: Use your platform's native performance.now() and performance.timeOrigin.
+npm warn deprecated q@1.5.1: You or someone you depend on is using Q, the JavaScript Promise library that gave JavaScript developers strong feelings about promises. They can almost certainly migrate to the native JavaScript promise now. Thank you literally everyone for joining me in this bet against the odds. Be excellent to each other.
+npm warn deprecated
+npm warn deprecated (For a CapTP with native promises, see @endo/eventual-send and @endo/captp)
+npm warn deprecated sourcemap-codec@1.4.8: Please use @jridgewell/sourcemap-codec instead
+npm warn deprecated workbox-cacheable-response@6.6.0: workbox-background-sync@6.6.0
+npm warn deprecated workbox-google-analytics@6.6.0: It is not compatible with newer versions of GA starting with v4, as long as you are using GAv3 it should be ok, but the package is not longer being maintained
+npm warn deprecated svgo@1.3.2: This SVGO version is no longer supported. Upgrade to v2.x.x.
+npm warn deprecated eslint@8.57.1: This version is no longer supported. Please see https://eslint.org/version-support for other options.
+
+> wgp-frontend@0.1.1 prepare
+> husky
+
+
+added 1352 packages, and audited 1353 packages in 14s
+
+271 packages are looking for funding
+  run `npm fund` for details
+
+12 vulnerabilities (2 low, 3 moderate, 6 high, 1 critical)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+
+2. Running production build...
+
+> wgp-frontend@0.1.1 build
+> react-scripts build
+
+Creating an optimized production build...
+Compiled successfully.
+
+File sizes after gzip:
+
+  231.48 kB  build/static/js/main.aeb88c84.js
+  2.5 kB     build/static/css/main.4aa8f6d7.css
+
+The project was built assuming it is hosted at ./.
+You can control this with the homepage field in your package.json.
+
+The build folder is ready to be deployed.
+
+Find out more about deployment here:
+
+  https://cra.link/deployment
+
+✓ Build successful! Size: 4.3M
+
+3. Analyzing build...
+Build contents:
+total 16
+drwxr-xr-x@  5 stuartgano  primarygroup  160 Oct 20 11:53 .
+drwxr-xr-x@ 24 stuartgano  primarygroup  768 Oct 20 11:53 ..
+-rw-r--r--@  1 stuartgano  primarygroup  374 Oct 20 11:53 asset-manifest.json
+-rw-r--r--@  1 stuartgano  primarygroup  597 Oct 20 11:53 index.html
+drwxr-xr-x@  4 stuartgano  primarygroup  128 Oct 20 11:53 static
+
+Checking for common deployment issues...
+✓ index.html found
+✓ Static assets found
+  JS files:        1
+  CSS files:        1
+
+Checking environment configuration...
+⚠ Found REACT_APP_API_URL in build (this is expected)
+  Configured API URL: https://wolf-goat-pig.onrender.com
+
+4. Starting local production server...
+Installing serve if needed...
+
+Server starting at http://localhost:3000
+This simulates Vercel's static hosting
+✓ Local static server responded successfully
+[main 865249f6] Harden simulation test endpoints and cover adm
+ 2 files changed, 130 insertions(+), 36 deletions(-)
+(base) stuartgano-macbookpro2:wolf-goat-pig stuartgano$ 📋 Test Results Summary
+------------------------------
+Backend Unit Tests:     ✅ PASS
+Backend Endpoint Tests: ✅ PASS
+Frontend Unit Tests:    ✅ PASS
+Functional Tests:       ✅ PASS
+End-to-End Tests:       ✅ PASS
+
+🎉 ALL SIMULATION TESTS PASSED!
+�� Simulation mode is fully tested and functional
+�� Verifying Render-style backend deployment
+🔍 Testing Production Backend Deployment...
+==========================================
+Error: Port 8000 is already in use.
+Hint: stop the other process or rerun with PORT=<free-port> ./scripts/test-prod-backend.sh
+husky - pre-commit script failed (code 1)
+(base) stuartgano-macbookpro2:wolf-goat-pig stuartgano$ INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:app.main:🛑 Wolf Goat Pig API shutting down...
+INFO:app.services.email_scheduler:Email scheduler stopped
+INFO:app.main:📧 Email scheduler stopped successfully
+INFO:     Application shutdown complete.
+INFO:     Finished server process [6162]
+
+(base) stuartgano-macbookpro2:wolf-goat-pig stuartgano$ git commit -m "Harden simulation test endpoints and cover adm
+"
+🔍 Running simulation diagnostics (npm test)
+
+> wolf-goat-pig@1.0.0 test
+> ./scripts/diagnostics/run_simulation_tests.sh
+
+🧪 Wolf Goat Pig Simulation Test Suite
+==================================================
+
+📋 Environment Check
+------------------------------
+✅ Python 3 available
+Python 3.12.7
+✅ Node.js available
+v22.16.0
+✅ pytest available
+
+📋 Backend Unit Tests
+------------------------------
+Installing backend dependencies...
+Running backend unit tests...
+========================= test session starts =========================
+platform darwin -- Python 3.12.7, pytest-8.4.2, pluggy-1.6.0 -- /opt/anaconda3/bin/python3
+cachedir: .pytest_cache
+metadata: {'Python': '3.12.7', 'Platform': 'macOS-26.0.1-arm64-arm-64bit', 'Packages': {'pytest': '8.4.2', 'pluggy': '1.6.0'}, 'Plugins': {'anyio': '4.10.0', 'mock': '3.15.1', 'asyncio': '1.2.0', 'html': '4.1.1', 'metadata': '3.1.1', 'cov': '6.2.1', 'bdd': '8.1.0'}}
+rootdir: /Users/stuartgano/Documents/wolf-goat-pig/backend
+plugins: anyio-4.10.0, mock-3.15.1, asyncio-1.2.0, html-4.1.1, metadata-3.1.1, cov-6.2.1, bdd-8.1.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 27 items                                                    
+
+tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_simulation_initialization SKIPPED [  3%]
+tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_add_players SKIPPED [  7%]
+tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_set_course SKIPPED [ 11%]
+tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_start_game SKIPPED [ 14%]
+tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_get_current_captain SKIPPED [ 18%]
+tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_captain_rotation SKIPPED [ 22%]
+tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_partnership_request SKIPPED [ 25%]
+tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_partnership_response SKIPPED [ 29%]
+tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_shot_simulation SKIPPED [ 33%]
+tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_short_game_progression SKIPPED [ 37%]
+tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_lie_type_determination_with_distance SKIPPED [ 40%]
+tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_game_state_serialization SKIPPED [ 44%]
+tests/test_simulation_unit.py::TestGameState::test_game_state_creation SKIPPED [ 48%]
+tests/test_simulation_unit.py::TestGameState::test_hole_progression SKIPPED [ 51%]
+tests/test_simulation_unit.py::TestGameState::test_score_tracking SKIPPED [ 55%]
+tests/test_simulation_unit.py::TestMonteCarloService::test_monte_carlo_initialization SKIPPED [ 59%]
+tests/test_simulation_unit.py::TestMonteCarloService::test_shot_probability_calculation SKIPPED [ 62%]
+tests/test_simulation_unit.py::TestMonteCarloService::test_outcome_simulation SKIPPED [ 66%]
+tests/test_simulation_unit.py::TestOddsCalculator::test_odds_calculator_initialization SKIPPED [ 70%]
+tests/test_simulation_unit.py::TestOddsCalculator::test_betting_odds_calculation SKIPPED [ 74%]
+tests/test_simulation_unit.py::TestOddsCalculator::test_double_decision_logic SKIPPED [ 77%]
+tests/test_simulation_unit.py::TestSimulationUtilities::test_handicap_calculation PASSED [ 81%]
+tests/test_simulation_unit.py::TestSimulationUtilities::test_net_score_calculation PASSED [ 85%]
+tests/test_simulation_unit.py::TestSimulationUtilities::test_team_formation_validation PASSED [ 88%]
+tests/test_simulation_unit.py::TestSimulationErrorHandling::test_invalid_player_count PASSED [ 92%]
+tests/test_simulation_unit.py::TestSimulationErrorHandling::test_missing_course PASSED [ 96%]
+tests/test_simulation_unit.py::TestSimulationErrorHandling::test_invalid_partnership_request PASSED [100%]
+
+========================== warnings summary ===========================
+app/database.py:34
+  /Users/stuartgano/Documents/wolf-goat-pig/backend/tests/../app/database.py:34: MovedIn20Warning: The ``declarative_base()`` function is now available as sqlalchemy.orm.declarative_base(). (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    Base = declarative_base()
+
+app/game_state.py:293
+  /Users/stuartgano/Documents/wolf-goat-pig/backend/tests/../app/game_state.py:293: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    obj = session.query(GameStateModel).get(1)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- Generated html report: file:///Users/stuartgano/Documents/wolf-goat-pig/backend/../reports/backend_unit_tests.html -
+============== 6 passed, 21 skipped, 2 warnings in 0.49s ==============
+✅ Backend unit tests PASSED
+Running existing simulation tests...
+========================= test session starts =========================
+platform darwin -- Python 3.12.7, pytest-8.4.2, pluggy-1.6.0 -- /opt/anaconda3/bin/python3
+cachedir: .pytest_cache
+metadata: {'Python': '3.12.7', 'Platform': 'macOS-26.0.1-arm64-arm-64bit', 'Packages': {'pytest': '8.4.2', 'pluggy': '1.6.0'}, 'Plugins': {'anyio': '4.10.0', 'mock': '3.15.1', 'asyncio': '1.2.0', 'html': '4.1.1', 'metadata': '3.1.1', 'cov': '6.2.1', 'bdd': '8.1.0'}}
+rootdir: /Users/stuartgano/Documents/wolf-goat-pig/backend
+plugins: anyio-4.10.0, mock-3.15.1, asyncio-1.2.0, html-4.1.1, metadata-3.1.1, cov-6.2.1, bdd-8.1.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 7 items                                                     
+
+tests/test_simulation_endpoints.py::test_simulation_endpoints_exist PASSED [ 14%]
+tests/test_simulation_endpoints.py::test_simulation_setup_request_format PASSED [ 28%]
+tests/test_simulation_endpoints.py::test_simulation_response_format PASSED [ 42%]
+tests/test_simulation_endpoints.py::test_frontend_api_hook_compatibility PASSED [ 57%]
+tests/test_simulation_endpoints.py::test_error_scenarios PASSED [ 71%]
+tests/test_simulation_endpoints.py::test_simulation_not_found_error_resolution PASSED [ 85%]
+tests/test_simulation_endpoints.py::test_simulation_startup_integration PASSED [100%]
+
+========================== 7 passed in 0.02s ==========================
+✅ Simulation endpoint tests PASSED
+
+📋 Frontend Unit Tests
+------------------------------
+Installing frontend dependencies...
+Running frontend unit tests...
+
+> wgp-frontend@0.1.1 test
+> react-scripts test --coverage --watchAll=false --testPathPattern=simulation --passWithNoTests
+
+ PASS  src/components/simulation/__tests__/SimulationMode.probabilities.test.js
+ PASS  src/components/simulation/__tests__/SimulationMode.test.js
+ PASS  src/components/simulation/__tests__/GamePlay.test.js
+ PASS  src/components/simulation/__tests__/GameSetup.test.js
+----------|---------|----------|---------|---------|-------------------
+File      | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+----------|---------|----------|---------|---------|-------------------
+All files |     5.3 |     4.18 |     4.2 |    5.55 |                   
+ src      |       0 |        0 |       0 |       0 |                   
+  App.js  |       0 |        0 |       0 |       0 | 28-274            
+  ...x.js |       0 |      100 |     100 |       0 | 6-7               
+ ...nents |       0 |        0 |       0 |       0 |                   
+  ...d.js |       0 |        0 |       0 |       0 | 3-536             
+  ...l.js |       0 |        0 |       0 |       0 | 6-854             
+  ...t.js |       0 |        0 |       0 |       0 | 3-187             
+  ...r.js |       0 |        0 |       0 |       0 | 4-216             
+  ...p.js |       0 |        0 |       0 |       0 | 3-293             
+  ...s.js |       0 |        0 |       0 |       0 | 3-183             
+  ...t.js |       0 |        0 |       0 |       0 | 4-446             
+  ...t.js |       0 |        0 |       0 |       0 | 4-484             
+  ...e.js |       0 |        0 |       0 |       0 | 5-872             
+  ...n.js |       0 |        0 |       0 |       0 | 4-326             
+  ...d.js |       0 |        0 |       0 |       0 | 5-316             
+  ...y.js |       0 |        0 |       0 |       0 | 5-327             
+  ...t.js |       0 |        0 |       0 |       0 | 3-342             
+  ...r.js |       0 |        0 |       0 |       0 | 14-326            
+  ...c.js |       0 |        0 |       0 |       0 | 5-162             
+  ...y.js |       0 |        0 |       0 |       0 | 4-185             
+  ...n.js |       0 |        0 |       0 |       0 | 3-418             
+  ...d.js |       0 |        0 |       0 |       0 | 4-425             
+  ...d.js |       0 |        0 |       0 |       0 | 5-258             
+  ...n.js |       0 |        0 |       0 |       0 | 6-243             
+  ...s.js |       0 |        0 |       0 |       0 | 14-428            
+  ...r.js |       0 |        0 |       0 |       0 | 14-499            
+  ...s.js |       0 |        0 |       0 |       0 | 14-401            
+  ...n.js |       0 |        0 |       0 |       0 | 3-348             
+  ...d.js |       0 |        0 |       0 |       0 | 14-388            
+  ...t.js |       0 |        0 |       0 |       0 | 11-593            
+  ...r.js |       0 |        0 |       0 |       0 | 5-310             
+  ...t.js |       0 |        0 |       0 |       0 | 3-53              
+  ...y.js |       0 |        0 |       0 |       0 | 8-241             
+  ...t.js |       0 |        0 |       0 |       0 | 3-245             
+  ...d.js |       0 |        0 |       0 |       0 | 4-401             
+  ...d.js |       0 |        0 |       0 |       0 | 9-156             
+  ...x.js |       0 |        0 |       0 |       0 |                   
+ ...ytics |       0 |        0 |       0 |       0 |                   
+  ...s.js |       0 |        0 |       0 |       0 | 8-508             
+ .../auth |       0 |        0 |       0 |       0 |                   
+  ...k.js |       0 |        0 |       0 |       0 | 5-78              
+  ...n.js |       0 |        0 |       0 |       0 | 5-31              
+  ...n.js |       0 |        0 |       0 |       0 | 5-40              
+  ...e.js |       0 |        0 |       0 |       0 | 4-36              
+  ...e.js |       0 |        0 |       0 |       0 | 6-95              
+  ...x.js |       0 |        0 |       0 |       0 |                   
+ ...email |       0 |        0 |       0 |       0 |                   
+  ...s.js |       0 |        0 |       0 |       0 | 4-174             
+ .../game |       0 |        0 |       0 |       0 |                   
+  ...t.js |       0 |        0 |       0 |       0 | 3-490             
+  ...r.js |       0 |        0 |       0 |       0 | 4-385             
+  ...m.js |       0 |        0 |       0 |       0 | 6-448             
+  ...t.js |       0 |        0 |       0 |       0 | 8-608             
+  ...e.js |       0 |        0 |       0 |       0 | 34-714            
+  ...e.js |       0 |        0 |       0 |       0 | 8-359             
+  ...x.js |       0 |        0 |       0 |       0 |                   
+ ...ctice |       0 |        0 |       0 |       0 |                   
+  ...e.js |       0 |        0 |       0 |       0 | 6-472             
+ ...ignup |       0 |        0 |       0 |       0 |                   
+  ...y.js |       0 |        0 |       0 |       0 | 3-344             
+  ...w.js |       0 |        0 |       0 |       0 | 4-823             
+  ...s.js |       0 |        0 |       0 |       0 | 4-604             
+  ...s.js |       0 |        0 |       0 |       0 | 3-348             
+  ...y.js |       0 |        0 |       0 |       0 | 4-452             
+  ...r.js |       0 |        0 |       0 |       0 | 4-541             
+ ...ation |   24.97 |    16.91 |   22.95 |   26.12 |                   
+  ...t.js |    2.59 |        0 |       0 |    2.59 | 29-359            
+  ...r.js |       0 |        0 |       0 |       0 | 3-389             
+  ...y.js |     100 |    88.57 |     100 |     100 | 20,38,77-79       
+  ....tsx |   44.96 |    37.17 |   38.46 |    47.5 | ...19-360,383-468 
+  ....tsx |    8.33 |        0 |       0 |    8.69 | ...8,42-45,57-233 
+  ...n.js |    2.22 |        0 |       0 |    2.43 | 5-242             
+  ...l.js |    5.88 |        0 |       0 |    7.69 | 12-193            
+  ....tsx |      78 |    71.23 |      60 |   79.78 | ...22,355-357,415 
+  ...e.js |   30.68 |    22.61 |   30.76 |   31.49 | ...32-841,866,909 
+  ...e.js |    3.03 |        0 |       0 |    3.57 | 12-145            
+  ...e.js |    0.89 |        0 |       0 |    1.07 | 14-412            
+  ...x.js |       0 |        0 |       0 |       0 |                   
+ ...res__ |   86.66 |    76.92 |      80 |    86.2 |                   
+  ...x.js |       0 |        0 |       0 |       0 |                   
+  ...a.js |   86.66 |    76.92 |      80 |    86.2 | 3,6,9,318         
+ ...tyles |   33.33 |        0 |       0 |   35.71 |                   
+  ...t.js |   33.33 |        0 |       0 |   35.71 | 2-12,27-29        
+ ...orial |       0 |        0 |       0 |       0 |                   
+  ...t.js |       0 |        0 |       0 |       0 | 10-571            
+  ...r.js |       0 |        0 |       0 |       0 | 6-503             
+  ...e.js |       0 |        0 |       0 |       0 | 9-335             
+  ...y.js |       0 |        0 |       0 |       0 | 9-382             
+  ...m.js |       0 |        0 |       0 |       0 | 18-688            
+  ...x.js |       0 |        0 |       0 |       0 |                   
+ ...dules |       0 |        0 |       0 |       0 |                   
+  ...e.js |       0 |        0 |       0 |       0 | 7-220             
+  ...e.js |       0 |        0 |       0 |       0 | 7-291             
+  ...e.js |       0 |        0 |       0 |       0 | 7-1029            
+  ...e.js |       0 |        0 |       0 |       0 | 7-911             
+  ...e.js |       0 |        0 |       0 |       0 | 7-518             
+  ...e.js |       0 |        0 |       0 |       0 | 7-391             
+  ...e.js |       0 |        0 |       0 |       0 | 7-940             
+ ...ts/ui |     100 |    74.32 |     100 |     100 |                   
+  ...n.js |     100 |    90.47 |     100 |     100 | 22-23             
+  Card.js |     100 |       75 |     100 |     100 | 24-51             
+  ...t.js |     100 |    72.22 |     100 |     100 | 38-47,80          
+  ...t.js |     100 |    62.96 |     100 |     100 | 8-11,38-53,97-105 
+  ...x.js |       0 |        0 |       0 |       0 |                   
+ ...onfig |      70 |       60 |     100 |      70 |                   
+  ...t.js |      70 |       60 |     100 |      70 | 3,6,9             
+ ...ntext |     4.6 |     1.03 |    1.02 |    4.86 |                   
+  ...t.js |       0 |        0 |       0 |       0 | 5-60              
+  ...r.js |   12.32 |     2.94 |    3.03 |   12.94 | ...25-383,410-414 
+  ...t.js |       0 |      100 |       0 |       0 | 3-22              
+  ...t.js |       0 |        0 |       0 |       0 | 3-213             
+  ...t.js |       0 |        0 |       0 |       0 | 4-520             
+  ...x.js |       0 |        0 |       0 |       0 |                   
+ ...hooks |       0 |        0 |       0 |       0 |                   
+  ...h.js |       0 |        0 |       0 |       0 | 7-10              
+  ...i.js |       0 |        0 |       0 |       0 | 3-138             
+  ...n.js |       0 |        0 |       0 |       0 | 7-383             
+  ...e.js |       0 |        0 |       0 |       0 | 13-397            
+  ...s.js |       0 |        0 |       0 |       0 | 6-52              
+  ...i.js |       0 |        0 |       0 |       0 | 3-165             
+  ...s.js |       0 |        0 |       0 |       0 | 8-275             
+ ...pages |       0 |        0 |       0 |       0 |                   
+  ...e.js |       0 |      100 |       0 |       0 | 5-339             
+  ...e.js |       0 |        0 |       0 |       0 | 7-665             
+  ...e.js |       0 |        0 |       0 |       0 | 5-483             
+  ...e.js |       0 |        0 |       0 |       0 | 7-365             
+  ...e.js |       0 |      100 |       0 |       0 | 5-485             
+  ...e.js |       0 |      100 |       0 |       0 | 6-11              
+  ...e.js |       0 |        0 |       0 |       0 | 11-158            
+  ...x.js |       0 |        0 |       0 |       0 |                   
+ ...vices |       0 |        0 |       0 |       0 |                   
+  ...e.js |       0 |        0 |       0 |       0 | 5-225             
+ ...theme |      75 |    16.66 |      25 |      75 |                   
+  ...r.js |      75 |       50 |      50 |      75 | 9,20              
+  ...e.js |      75 |        0 |       0 |      75 | 159-181,185-212   
+ ...utils |       0 |        0 |       0 |       0 |                   
+  api.js  |       0 |        0 |       0 |       0 | 8-174             
+----------|---------|----------|---------|---------|-------------------
+
+Test Suites: 4 passed, 4 total
+Tests:       20 passed, 20 total
+Snapshots:   0 total
+Time:        3.617 s
+Ran all test suites matching /simulation/i.
+✅ Frontend unit tests PASSED
+
+📋 Functional Tests
+------------------------------
+Checking if backend is running...
+⚠️ Backend API is not running
+Starting backend for functional tests...
+WARNING:app.services.email_service:Email service is not fully configured. Check environment variables: SMTP_USER, SMTP_PASSWORD, SMTP_HOST
+WARNING:app.main:Frontend static assets not found. Expected /Users/stuartgano/Documents/wolf-goat-pig/frontend/build/static
+INFO:     Started server process [10574]
+INFO:     Waiting for application startup.
+INFO:app.main:🐺 Wolf Goat Pig API starting up...
+INFO:app.main:ENVIRONMENT: None
+INFO:app.database:Database initialized successfully
+INFO:app.database:Database connection test successful
+INFO:app.main:Database initialized successfully
+INFO:app.main:game_state table verified
+INFO:app.main:📧 Email scheduler will be initialized on-demand
+INFO:app.main:🔍 Checking existing data status...
+INFO:app.seed_data:Checking seeding status...
+INFO:app.main:✅ All required data already present, skipping seeding
+INFO:app.main:🎯 Initializing game state...
+INFO:app.main:📚 Game state initialized with 3 courses
+INFO:app.main:🔧 Verifying simulation initialization...
+INFO:app.main:✅ Simulation initialization verified
+INFO:app.main:📧 Initializing email scheduler...
+INFO:app.services.email_scheduler:Email schedules set up successfully
+INFO:app.services.email_scheduler:Email scheduler started
+INFO:app.main:📧 Email scheduler initialized on demand
+INFO:app.main:✅ Email scheduler initialized
+INFO:app.main:🚀 Wolf Goat Pig API startup completed successfully!
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:app.seed_data:Checking seeding status...
+INFO:     127.0.0.1:62342 - "GET /health HTTP/1.1" 200 OK
+✅ Backend API is running
+Running functional tests...
+🌐 Testing against API: http://localhost:8000
+🌐 Frontend URL: http://localhost:3000
+
+🎮 Simulation Functional Test Suite
+==================================================
+
+📋 Setup Tests
+------------------------------
+🔧 Testing complete simulation setup workflow...
+INFO:app.seed_data:Checking seeding status...
+INFO:     127.0.0.1:62344 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62344 - "GET /simulation/available-personalities HTTP/1.1" 200 OK
+✅ Retrieved 5 personalities
+INFO:     127.0.0.1:62344 - "GET /simulation/suggested-opponents HTTP/1.1" 200 OK
+✅ Retrieved 3 opponents
+INFO:app.main:Retrieved 3 courses: ['Wing Point Golf & Country Club', 'Championship Links', 'Executive Course']
+INFO:     127.0.0.1:62344 - "GET /courses HTTP/1.1" 200 OK
+✅ Retrieved 3 courses
+INFO:app.main:Setting up new simulation...
+INFO:app.main:Using course: Wing Point Golf & Country Club
+INFO:app.main:Simulation setup completed successfully
+INFO:     127.0.0.1:62344 - "POST /simulation/setup HTTP/1.1" 200 OK
+✅ Simulation setup successful: Simulation initialized successfully
+✅ test_complete_setup_workflow
+🔧 Testing invalid setup handling...
+INFO:app.seed_data:Checking seeding status...
+INFO:     127.0.0.1:62345 - "GET /health HTTP/1.1" 200 OK
+INFO:app.main:Setting up new simulation...
+ERROR:app.main:Simulation setup failed: 400: Missing player data
+ERROR:app.main:HTTP exception: 500 - Failed to setup simulation: 400: Missing player data
+ERROR:app.main:Request Host header: localhost:8000
+ERROR:app.main:Request Client host: 127.0.0.1
+INFO:     127.0.0.1:62345 - "POST /simulation/setup HTTP/1.1" 500 Internal Server Error
+✅ Invalid setup 1 properly rejected
+INFO:app.main:Setting up new simulation...
+ERROR:app.main:Simulation setup failed: 400: Missing player data
+ERROR:app.main:HTTP exception: 500 - Failed to setup simulation: 400: Missing player data
+ERROR:app.main:Request Host header: localhost:8000
+ERROR:app.main:Request Client host: 127.0.0.1
+INFO:     127.0.0.1:62345 - "POST /simulation/setup HTTP/1.1" 500 Internal Server Error
+✅ Invalid setup 2 properly rejected
+INFO:app.main:Setting up new simulation...
+ERROR:app.main:Simulation setup failed: 400: Missing player data
+ERROR:app.main:HTTP exception: 500 - Failed to setup simulation: 400: Missing player data
+ERROR:app.main:Request Host header: localhost:8000
+ERROR:app.main:Request Client host: 127.0.0.1
+INFO:     127.0.0.1:62345 - "POST /simulation/setup HTTP/1.1" 500 Internal Server Error
+✅ Invalid setup 3 properly rejected
+INFO:app.main:Setting up new simulation...
+ERROR:app.main:Simulation setup failed: 400: At least 4 players required
+ERROR:app.main:HTTP exception: 500 - Failed to setup simulation: 400: At least 4 players required
+ERROR:app.main:Request Host header: localhost:8000
+ERROR:app.main:Request Client host: 127.0.0.1
+INFO:     127.0.0.1:62345 - "POST /simulation/setup HTTP/1.1" 500 Internal Server Error
+✅ Invalid setup 4 properly rejected
+✅ test_invalid_setup_handling
+
+📋 Gameplay Tests
+------------------------------
+🔧 Testing betting workflow...
+INFO:app.seed_data:Checking seeding status...
+INFO:     127.0.0.1:62346 - "GET /health HTTP/1.1" 200 OK
+INFO:app.main:Setting up new simulation...
+WARNING:app.main:Course not found: Test Course
+INFO:app.main:Simulation setup completed successfully
+INFO:     127.0.0.1:62346 - "POST /simulation/setup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62346 - "POST /simulation/betting-decision HTTP/1.1" 200 OK
+✅ Double offer sent
+✅ Double response interaction detected
+INFO:     127.0.0.1:62346 - "POST /simulation/betting-decision HTTP/1.1" 200 OK
+✅ Double accepted
+✅ test_betting_workflow
+🔧 Testing partnership workflow...
+INFO:app.seed_data:Checking seeding status...
+INFO:     127.0.0.1:62347 - "GET /health HTTP/1.1" 200 OK
+INFO:app.main:Setting up new simulation...
+WARNING:app.main:Course not found: Test Course
+INFO:app.main:Simulation setup completed successfully
+INFO:     127.0.0.1:62347 - "POST /simulation/setup HTTP/1.1" 200 OK
+�� Partnership request payload: {'action': 'request_partner', 'requested_partner': 'comp1'}
+INFO:app.simulation_timeline_enhancements:Timeline event: Test Player requests partnership with Computer 1
+INFO:     127.0.0.1:62347 - "POST /simulation/play-hole HTTP/1.1" 200 OK
+✅ Partnership request sent
+✅ Partnership response interaction detected
+INFO:     127.0.0.1:62347 - "POST /simulation/play-hole HTTP/1.1" 200 OK
+✅ Partnership accepted
+✅ test_partnership_workflow
+🔧 Testing shot sequence workflow...
+INFO:app.seed_data:Checking seeding status...
+INFO:     127.0.0.1:62348 - "GET /health HTTP/1.1" 200 OK
+INFO:app.main:Setting up new simulation...
+WARNING:app.main:Course not found: Test Course
+INFO:app.main:Simulation setup completed successfully
+INFO:     127.0.0.1:62348 - "POST /simulation/setup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62348 - "POST /simulation/play-next-shot HTTP/1.1" 200 OK
+✅ First shot played: ok
+✅ test_shot_sequence_workflow
+
+📋 Probability Tests
+------------------------------
+🔧 Testing shot probabilities...
+INFO:app.seed_data:Checking seeding status...
+INFO:     127.0.0.1:62349 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62349 - "POST /simulation/shot-probabilities HTTP/1.1" 200 OK
+✅ Shot probabilities calculated
+✅ All probability categories present
+✅ Probabilities sum correctly: 1.00
+✅ test_shot_probabilities
+
+📋 Error Handling Tests
+------------------------------
+🔧 Testing malformed requests...
+INFO:app.seed_data:Checking seeding status...
+INFO:     127.0.0.1:62350 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62350 - "POST /simulation/setup HTTP/1.1" 422 Unprocessable Entity
+✅ Malformed JSON properly rejected
+✅ test_malformed_requests
+🔧 Testing non-existent endpoints...
+INFO:app.seed_data:Checking seeding status...
+INFO:     127.0.0.1:62351 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62351 - "GET /simulation/invalid-endpoint HTTP/1.1" 404 Not Found
+✅ Correctly returned 404 for /simulation/invalid-endpoint
+INFO:     127.0.0.1:62351 - "GET /simulation/missing HTTP/1.1" 404 Not Found
+✅ Correctly returned 404 for /simulation/missing
+INFO:     127.0.0.1:62351 - "GET /simulation/setup/invalid HTTP/1.1" 404 Not Found
+✅ Correctly returned 404 for /simulation/setup/invalid
+✅ test_nonexistent_endpoints
+
+🎯 Functional Test Results
+==================================================
+Passed: 8/8
+🎉 All functional tests PASSED!
+💡 Simulation mode is functioning correctly
+
+📋 Test Summary
+==================================================
+✅ Simulation mode functional tests PASSED
+🎮 Simulation is ready for end-to-end testing
+✅ Functional tests PASSED
+
+📋 End-to-End Tests
+------------------------------
+Checking if frontend is running...
+⚠️ Frontend is not running
+⚠️ Frontend not running - E2E tests may fail
+⚠️ Chrome browser not available - skipping E2E tests
+Stopping backend...
+
+📋 Test Results Summary
+------------------------------
+Backend Unit Tests:     ✅ PASS
+Backend Endpoint Tests: ✅ PASS
+Frontend Unit Tests:    ✅ PASS
+Functional Tests:       ✅ PASS
+End-to-End Tests:       ✅ PASS
+
+🎉 ALL SIMULATION TESTS PASSED!
+�� Simulation mode is fully tested and functional
+�� Verifying Render-style backend deployment
+🔍 Testing Production Backend Deployment...
+==========================================
+INFO:     Shutting down
+
+1. Setting up production virtual environment...
+INFO:     Waiting for application shutdown.
+INFO:app.main:🛑 Wolf Goat Pig API shutting down...
+
+2. Installing production dependencies...
+Requirement already satisfied: pip in ./.venv-prod/lib/python3.13/site-packages (25.2)
+Requirement already satisfied: fastapi>=0.110.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 2)) (0.119.0)
+Requirement already satisfied: uvicorn>=0.29.0 in ./.venv-prod/lib/python3.13/site-packages (from uvicorn[standard]>=0.29.0->-r requirements.txt (line 3)) (0.37.0)
+Requirement already satisfied: python-multipart>=0.0.9 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 4)) (0.0.20)
+Requirement already satisfied: SQLAlchemy>=2.0.30 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 7)) (2.0.44)
+Requirement already satisfied: psycopg2-binary>=2.9.9 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 8)) (2.9.11)
+Requirement already satisfied: alembic>=1.13.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 9)) (1.17.0)
+Requirement already satisfied: httpx>=0.27.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 12)) (0.28.1)
+Requirement already satisfied: python-dotenv>=1.0.1 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 13)) (1.1.1)
+Requirement already satisfied: requests>=2.31.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 14)) (2.32.5)
+Requirement already satisfied: pydantic>=2.6.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 17)) (2.12.2)
+Requirement already satisfied: numpy>=1.24.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 20)) (2.3.3)
+Requirement already satisfied: pytest>=7.4.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 23)) (8.4.2)
+Requirement already satisfied: pytest-asyncio>=0.21.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 24)) (1.2.0)
+Requirement already satisfied: pytest-mock>=3.11.1 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 25)) (3.15.1)
+Requirement already satisfied: pytest-html>=4.1.1 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 26)) (4.1.1)
+Requirement already satisfied: behave>=1.2.6 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 27)) (1.3.3)
+Requirement already satisfied: structlog>=23.2.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 30)) (25.4.0)
+Requirement already satisfied: psutil>=5.9.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 33)) (7.1.0)
+Requirement already satisfied: python-dateutil>=2.8.2 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 36)) (2.9.0.post0)
+Requirement already satisfied: orjson>=3.9.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 39)) (3.11.3)
+Requirement already satisfied: emails>=0.6.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 42)) (0.6)
+Requirement already satisfied: schedule>=1.2.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 43)) (1.2.2)
+Requirement already satisfied: python-jose>=3.3.0 in ./.venv-prod/lib/python3.13/site-packages (from python-jose[cryptography]>=3.3.0->-r requirements.txt (line 44)) (3.5.0)
+Requirement already satisfied: jinja2>=3.1.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 45)) (3.1.6)
+Requirement already satisfied: google-auth>=2.23.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 48)) (2.41.1)
+Requirement already satisfied: google-auth-oauthlib>=1.1.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 49)) (1.2.2)
+Requirement already satisfied: google-auth-httplib2>=0.1.1 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 50)) (0.2.0)
+Requirement already satisfied: google-api-python-client>=2.100.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 51)) (2.184.0)
+Requirement already satisfied: gunicorn>=21.2.0 in ./.venv-prod/lib/python3.13/site-packages (from -r requirements.txt (line 54)) (23.0.0)
+Requirement already satisfied: starlette<0.49.0,>=0.40.0 in ./.venv-prod/lib/python3.13/site-packages (from fastapi>=0.110.0->-r requirements.txt (line 2)) (0.48.0)
+Requirement already satisfied: typing-extensions>=4.8.0 in ./.venv-prod/lib/python3.13/site-packages (from fastapi>=0.110.0->-r requirements.txt (line 2)) (4.15.0)
+Requirement already satisfied: annotated-types>=0.6.0 in ./.venv-prod/lib/python3.13/site-packages (from pydantic>=2.6.0->-r requirements.txt (line 17)) (0.7.0)
+Requirement already satisfied: pydantic-core==2.41.4 in ./.venv-prod/lib/python3.13/site-packages (from pydantic>=2.6.0->-r requirements.txt (line 17)) (2.41.4)
+Requirement already satisfied: typing-inspection>=0.4.2 in ./.venv-prod/lib/python3.13/site-packages (from pydantic>=2.6.0->-r requirements.txt (line 17)) (0.4.2)
+Requirement already satisfied: anyio<5,>=3.6.2 in ./.venv-prod/lib/python3.13/site-packages (from starlette<0.49.0,>=0.40.0->fastapi>=0.110.0->-r requirements.txt (line 2)) (4.11.0)
+Requirement already satisfied: idna>=2.8 in ./.venv-prod/lib/python3.13/site-packages (from anyio<5,>=3.6.2->starlette<0.49.0,>=0.40.0->fastapi>=0.110.0->-r requirements.txt (line 2)) (3.11)
+Requirement already satisfied: sniffio>=1.1 in ./.venv-prod/lib/python3.13/site-packages (from anyio<5,>=3.6.2->starlette<0.49.0,>=0.40.0->fastapi>=0.110.0->-r requirements.txt (line 2)) (1.3.1)
+Requirement already satisfied: click>=7.0 in ./.venv-prod/lib/python3.13/site-packages (from uvicorn>=0.29.0->uvicorn[standard]>=0.29.0->-r requirements.txt (line 3)) (8.3.0)
+Requirement already satisfied: h11>=0.8 in ./.venv-prod/lib/python3.13/site-packages (from uvicorn>=0.29.0->uvicorn[standard]>=0.29.0->-r requirements.txt (line 3)) (0.16.0)
+Requirement already satisfied: Mako in ./.venv-prod/lib/python3.13/site-packages (from alembic>=1.13.0->-r requirements.txt (line 9)) (1.3.10)
+Requirement already satisfied: certifi in ./.venv-prod/lib/python3.13/site-packages (from httpx>=0.27.0->-r requirements.txt (line 12)) (2025.10.5)
+Requirement already satisfied: httpcore==1.* in ./.venv-prod/lib/python3.13/site-packages (from httpx>=0.27.0->-r requirements.txt (line 12)) (1.0.9)
+Requirement already satisfied: charset_normalizer<4,>=2 in ./.venv-prod/lib/python3.13/site-packages (from requests>=2.31.0->-r requirements.txt (line 14)) (3.4.4)
+Requirement already satisfied: urllib3<3,>=1.21.1 in ./.venv-prod/lib/python3.13/site-packages (from requests>=2.31.0->-r requirements.txt (line 14)) (2.5.0)
+Requirement already satisfied: iniconfig>=1 in ./.venv-prod/lib/python3.13/site-packages (from pytest>=7.4.0->-r requirements.txt (line 23)) (2.1.0)
+Requirement already satisfied: packaging>=20 in ./.venv-prod/lib/python3.13/site-packages (from pytest>=7.4.0->-r requirements.txt (line 23)) (25.0)
+Requirement already satisfied: pluggy<2,>=1.5 in ./.venv-prod/lib/python3.13/site-packages (from pytest>=7.4.0->-r requirements.txt (line 23)) (1.6.0)
+Requirement already satisfied: pygments>=2.7.2 in ./.venv-prod/lib/python3.13/site-packages (from pytest>=7.4.0->-r requirements.txt (line 23)) (2.19.2)
+Requirement already satisfied: pytest-metadata>=2.0.0 in ./.venv-prod/lib/python3.13/site-packages (from pytest-html>=4.1.1->-r requirements.txt (line 26)) (3.1.1)
+Requirement already satisfied: cucumber-tag-expressions>=4.1.0 in ./.venv-prod/lib/python3.13/site-packages (from behave>=1.2.6->-r requirements.txt (line 27)) (8.0.0)
+Requirement already satisfied: cucumber-expressions>=17.1.0 in ./.venv-prod/lib/python3.13/site-packages (from behave>=1.2.6->-r requirements.txt (line 27)) (18.0.1)
+Requirement already satisfied: parse>=1.18.0 in ./.venv-prod/lib/python3.13/site-packages (from behave>=1.2.6->-r requirements.txt (line 27)) (1.20.2)
+Requirement already satisfied: parse-type>=0.6.0 in ./.venv-prod/lib/python3.13/site-packages (from behave>=1.2.6->-r requirements.txt (line 27)) (0.6.6)
+Requirement already satisfied: six>=1.15.0 in ./.venv-prod/lib/python3.13/site-packages (from behave>=1.2.6->-r requirements.txt (line 27)) (1.17.0)
+Requirement already satisfied: colorama>=0.3.7 in ./.venv-prod/lib/python3.13/site-packages (from behave>=1.2.6->-r requirements.txt (line 27)) (0.4.6)
+Requirement already satisfied: cssutils in ./.venv-prod/lib/python3.13/site-packages (from emails>=0.6.0->-r requirements.txt (line 42)) (2.11.1)
+Requirement already satisfied: lxml in ./.venv-prod/lib/python3.13/site-packages (from emails>=0.6.0->-r requirements.txt (line 42)) (6.0.2)
+Requirement already satisfied: chardet in ./.venv-prod/lib/python3.13/site-packages (from emails>=0.6.0->-r requirements.txt (line 42)) (5.2.0)
+Requirement already satisfied: premailer in ./.venv-prod/lib/python3.13/site-packages (from emails>=0.6.0->-r requirements.txt (line 42)) (3.10.0)
+Requirement already satisfied: ecdsa!=0.15 in ./.venv-prod/lib/python3.13/site-packages (from python-jose>=3.3.0->python-jose[cryptography]>=3.3.0->-r requirements.txt (line 44)) (0.19.1)
+Requirement already satisfied: rsa!=4.1.1,!=4.4,<5.0,>=4.0 in ./.venv-prod/lib/python3.13/site-packages (from python-jose>=3.3.0->python-jose[cryptography]>=3.3.0->-r requirements.txt (line 44)) (4.9.1)
+Requirement already satisfied: pyasn1>=0.5.0 in ./.venv-prod/lib/python3.13/site-packages (from python-jose>=3.3.0->python-jose[cryptography]>=3.3.0->-r requirements.txt (line 44)) (0.6.1)
+Requirement already satisfied: MarkupSafe>=2.0 in ./.venv-prod/lib/python3.13/site-packages (from jinja2>=3.1.0->-r requirements.txt (line 45)) (3.0.3)
+Requirement already satisfied: cachetools<7.0,>=2.0.0 in ./.venv-prod/lib/python3.13/site-packages (from google-auth>=2.23.0->-r requirements.txt (line 48)) (6.2.1)
+Requirement already satisfied: pyasn1-modules>=0.2.1 in ./.venv-prod/lib/python3.13/site-packages (from google-auth>=2.23.0->-r requirements.txt (line 48)) (0.4.2)
+Requirement already satisfied: requests-oauthlib>=0.7.0 in ./.venv-prod/lib/python3.13/site-packages (from google-auth-oauthlib>=1.1.0->-r requirements.txt (line 49)) (2.0.0)
+Requirement already satisfied: httplib2>=0.19.0 in ./.venv-prod/lib/python3.13/site-packages (from google-auth-httplib2>=0.1.1->-r requirements.txt (line 50)) (0.31.0)
+Requirement already satisfied: google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5 in ./.venv-prod/lib/python3.13/site-packages (from google-api-python-client>=2.100.0->-r requirements.txt (line 51)) (2.26.0)
+Requirement already satisfied: uritemplate<5,>=3.0.1 in ./.venv-prod/lib/python3.13/site-packages (from google-api-python-client>=2.100.0->-r requirements.txt (line 51)) (4.2.0)
+Requirement already satisfied: googleapis-common-protos<2.0.0,>=1.56.2 in ./.venv-prod/lib/python3.13/site-packages (from google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5->google-api-python-client>=2.100.0->-r requirements.txt (line 51)) (1.70.0)
+Requirement already satisfied: protobuf!=3.20.0,!=3.20.1,!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<7.0.0,>=3.19.5 in ./.venv-prod/lib/python3.13/site-packages (from google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5->google-api-python-client>=2.100.0->-r requirements.txt (line 51)) (6.32.1)
+Requirement already satisfied: proto-plus<2.0.0,>=1.22.3 in ./.venv-prod/lib/python3.13/site-packages (from google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5->google-api-python-client>=2.100.0->-r requirements.txt (line 51)) (1.26.1)
+Requirement already satisfied: pyparsing<4,>=3.0.4 in ./.venv-prod/lib/python3.13/site-packages (from httplib2>=0.19.0->google-auth-httplib2>=0.1.1->-r requirements.txt (line 50)) (3.2.5)
+Requirement already satisfied: cryptography>=3.4.0 in ./.venv-prod/lib/python3.13/site-packages (from python-jose[cryptography]>=3.3.0->-r requirements.txt (line 44)) (46.0.2)
+Requirement already satisfied: cffi>=2.0.0 in ./.venv-prod/lib/python3.13/site-packages (from cryptography>=3.4.0->python-jose[cryptography]>=3.3.0->-r requirements.txt (line 44)) (2.0.0)
+Requirement already satisfied: pycparser in ./.venv-prod/lib/python3.13/site-packages (from cffi>=2.0.0->cryptography>=3.4.0->python-jose[cryptography]>=3.3.0->-r requirements.txt (line 44)) (2.23)
+Requirement already satisfied: oauthlib>=3.0.0 in ./.venv-prod/lib/python3.13/site-packages (from requests-oauthlib>=0.7.0->google-auth-oauthlib>=1.1.0->-r requirements.txt (line 49)) (3.3.1)
+Requirement already satisfied: httptools>=0.6.3 in ./.venv-prod/lib/python3.13/site-packages (from uvicorn[standard]>=0.29.0->-r requirements.txt (line 3)) (0.7.1)
+Requirement already satisfied: pyyaml>=5.1 in ./.venv-prod/lib/python3.13/site-packages (from uvicorn[standard]>=0.29.0->-r requirements.txt (line 3)) (6.0.3)
+Requirement already satisfied: uvloop>=0.15.1 in ./.venv-prod/lib/python3.13/site-packages (from uvicorn[standard]>=0.29.0->-r requirements.txt (line 3)) (0.21.0)
+Requirement already satisfied: watchfiles>=0.13 in ./.venv-prod/lib/python3.13/site-packages (from uvicorn[standard]>=0.29.0->-r requirements.txt (line 3)) (1.1.1)
+Requirement already satisfied: websockets>=10.4 in ./.venv-prod/lib/python3.13/site-packages (from uvicorn[standard]>=0.29.0->-r requirements.txt (line 3)) (15.0.1)
+Requirement already satisfied: more-itertools in ./.venv-prod/lib/python3.13/site-packages (from cssutils->emails>=0.6.0->-r requirements.txt (line 42)) (10.8.0)
+Requirement already satisfied: cssselect in ./.venv-prod/lib/python3.13/site-packages (from premailer->emails>=0.6.0->-r requirements.txt (line 42)) (1.3.0)
+Requirement already satisfied: gunicorn in ./.venv-prod/lib/python3.13/site-packages (23.0.0)
+Requirement already satisfied: packaging in ./.venv-prod/lib/python3.13/site-packages (from gunicorn) (25.0)
+
+3. Running database migrations (if PostgreSQL configured)...
+PostgreSQL detected, would run migrations here
+
+4. Running production server with gunicorn...
+Server will start on http://localhost:8000
+Running health check then shutting down
+
+INFO:app.services.email_scheduler:Email scheduler stopped
+INFO:app.main:📧 Email scheduler stopped successfully
+INFO:     Application shutdown complete.
+INFO:     Finished server process [10574]
+✅ Health check passed
+\033[0;32mBackend production verification complete\033[0m
+🌐 Verifying Vercel-style frontend deployment
+🔍 Testing Production Frontend Build...
+=======================================
+
+1. Installing dependencies...
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated stable@0.1.8: Modern JS already guarantees Array#sort() is a stable sort, so this library is deprecated. See the compatibility table on MDN: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort#browser_compatibility
+npm warn deprecated @babel/plugin-proposal-nullish-coalescing-operator@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-nullish-coalescing-operator instead.
+npm warn deprecated @babel/plugin-proposal-class-properties@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-class-properties instead.
+npm warn deprecated @babel/plugin-proposal-private-methods@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-private-methods instead.
+npm warn deprecated @babel/plugin-proposal-numeric-separator@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-numeric-separator instead.
+npm warn deprecated rollup-plugin-terser@7.0.2: This package has been deprecated and is no longer maintained. Please use @rollup/plugin-terser
+npm warn deprecated @humanwhocodes/config-array@0.13.0: Use @eslint/config-array instead
+npm warn deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
+npm warn deprecated abab@2.0.6: Use your platform's native atob() and btoa() methods instead
+npm warn deprecated @babel/plugin-proposal-optional-chaining@7.21.0: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-optional-chaining instead.
+npm warn deprecated @babel/plugin-proposal-private-property-in-object@7.21.11: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-private-property-in-object instead.
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated @humanwhocodes/object-schema@2.0.3: Use @eslint/object-schema instead
+npm warn deprecated domexception@2.0.1: Use your platform's native DOMException instead
+npm warn deprecated w3c-hr-time@1.0.2: Use your platform's native performance.now() and performance.timeOrigin.
+npm warn deprecated q@1.5.1: You or someone you depend on is using Q, the JavaScript Promise library that gave JavaScript developers strong feelings about promises. They can almost certainly migrate to the native JavaScript promise now. Thank you literally everyone for joining me in this bet against the odds. Be excellent to each other.
+npm warn deprecated
+npm warn deprecated (For a CapTP with native promises, see @endo/eventual-send and @endo/captp)
+npm warn deprecated sourcemap-codec@1.4.8: Please use @jridgewell/sourcemap-codec instead
+npm warn deprecated workbox-cacheable-response@6.6.0: workbox-background-sync@6.6.0
+npm warn deprecated workbox-google-analytics@6.6.0: It is not compatible with newer versions of GA starting with v4, as long as you are using GAv3 it should be ok, but the package is not longer being maintained
+npm warn deprecated svgo@1.3.2: This SVGO version is no longer supported. Upgrade to v2.x.x.
+npm warn deprecated eslint@8.57.1: This version is no longer supported. Please see https://eslint.org/version-support for other options.
+
+> wgp-frontend@0.1.1 prepare
+> husky
+
+
+added 1352 packages, and audited 1353 packages in 14s
+
+271 packages are looking for funding
+  run `npm fund` for details
+
+12 vulnerabilities (2 low, 3 moderate, 6 high, 1 critical)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+
+2. Running production build...
+
+> wgp-frontend@0.1.1 build
+> react-scripts build
+
+Creating an optimized production build...
+Compiled successfully.
+
+File sizes after gzip:
+
+  231.48 kB  build/static/js/main.aeb88c84.js
+  2.5 kB     build/static/css/main.4aa8f6d7.css
+
+The project was built assuming it is hosted at ./.
+You can control this with the homepage field in your package.json.
+
+The build folder is ready to be deployed.
+
+Find out more about deployment here:
+
+  https://cra.link/deployment
+
+✓ Build successful! Size: 4.3M
+
+3. Analyzing build...
+Build contents:
+total 16
+drwxr-xr-x@  5 stuartgano  primarygroup  160 Oct 20 11:53 .
+drwxr-xr-x@ 24 stuartgano  primarygroup  768 Oct 20 11:53 ..
+-rw-r--r--@  1 stuartgano  primarygroup  374 Oct 20 11:53 asset-manifest.json
+-rw-r--r--@  1 stuartgano  primarygroup  597 Oct 20 11:53 index.html
+drwxr-xr-x@  4 stuartgano  primarygroup  128 Oct 20 11:53 static
+
+Checking for common deployment issues...
+✓ index.html found
+✓ Static assets found
+  JS files:        1
+  CSS files:        1
+
+Checking environment configuration...
+⚠ Found REACT_APP_API_URL in build (this is expected)
+  Configured API URL: https://wolf-goat-pig.onrender.com
+
+4. Starting local production server...
+Installing serve if needed...
+
+Server starting at http://localhost:3000
+This simulates Vercel's static hosting
+✓ Local static server responded successfully
+[main 865249f6] Harden simulation test endpoints and cover adm
+ 2 files changed, 130 insertions(+), 36 deletions(-)
+(base) stuartgano-macbookpro2:wolf-goat-pig stuartgano$ this seems like a gauntlet are there overlapping things here? and that is why 

@@ -1,0 +1,1 @@
+Documentation refreshed with detailed mode mappings including all key endpoints, services, tests, feature flags, and identified risks with specific file:line references.

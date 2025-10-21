@@ -1,0 +1,95 @@
+## 📊 Mode Analysis Report
+
+### 🎯 **Signup/Matchmaking Mode**
+
+**Key Endpoints/Services:**
+- `GET /signups/weekly` backend/app/main.py:5388
+- `POST /signups` backend/app/main.py:5463  
+- `POST /signups/{date}/team-formation/balanced` backend/app/main.py:6053
+- `POST /matchmaking/create-and-notify` backend/app/main.py:6720
+- Services: `team_formation_service.py`, `email_service.py`, `sunday_game_service.py`
+- Tests: `test_sunday_game_service.py`
+
+**Current State/Risks:**
+- ✅ Full CRUD operations for signups working
+- ✅ Multiple team formation algorithms (random, balanced, rotations)
+- ✅ Email confirmation system integrated
+- ⚠️ Sunday game pairings algorithm needs testing
+- ⚠️ Matchmaking suggestions endpoint returns placeholder data
+
+**Candidate Tasks:**
+- Implement real matchmaking algorithm based on player stats
+- Add preference-based team formation
+- Create signup conflict resolution
+
+---
+
+### 📈 **GHIN/Sheets Integration**
+
+**Key Endpoints/Services:**
+- `GET /ghin/lookup` backend/app/main.py:859
+- `POST /ghin/sync-player-handicap/{id}` backend/app/main.py:893
+- `POST /sheet-integration/sync-wgp-sheet` backend/app/main.py:3306
+- `POST /sheet-integration/fetch-google-sheet` backend/app/main.py:4024
+- Services: `ghin_service.py:28`, `sheet_integration_service.py:44`
+- Tests: `test_ghin_local.py`, `test_ghin_integration.py`
+
+**Current State/Risks:**
+- ✅ GHIN API authentication working with JWT tokens
+- ✅ Sheet column mapping system flexible
+- ⚠️ GHIN service requires env credentials (`GHIN_USERNAME`, `GHIN_PASSWORD`)
+- ⚠️ Google Sheets sync partially implemented
+- 🔴 No error recovery for API rate limits
+
+**Candidate Tasks:**
+- Add GHIN API rate limiting/retry logic
+- Implement full Google Sheets bidirectional sync
+- Create handicap history tracking
+- Add bulk player sync capability
+
+---
+
+### 📊 **Analytics Features**
+
+**Key Endpoints/Services:**
+- `GET /analytics/overview` backend/app/main.py:3159
+- `GET /players/{id}/analytics` backend/app/main.py:2784
+- `GET /analytics/game-stats` backend/app/main.py:2910
+- Services: `post_hole_analytics.py:85`, `statistics_service.py:57`
+- Tests: `test_post_hole_analytics.py`, `test_analytics.py`
+
+**Current State/Risks:**
+- ✅ Post-hole analysis with decision tracking
+- ✅ Advanced metrics calculation (percentiles, trends)
+- ✅ Partnership chemistry ratings
+- ⚠️ InsightCategory.RISK_MANAGEMENT defined but not implemented
+- ⚠️ Missing visualization data transformation
+
+**Candidate Tasks:**
+- Implement risk management analytics
+- Add ML-based performance predictions
+- Create comparative player analytics
+- Build betting pattern analysis
+
+---
+
+### 🔄 **Legacy Signup Mode**
+
+**Key Endpoints/Services:**
+- Service: `legacy_signup_service.py:92`
+- Script: `legacy_sync_probe.py:60` (manual testing)
+- Tests: `test_legacy_signup_service.py:38`
+- Config via env: `LEGACY_SIGNUP_SYNC_ENABLED`, `LEGACY_SIGNUP_CREATE_URL`
+
+**Current State/Risks:**
+- ✅ Best-effort sync (never blocks API)
+- ✅ Configurable field mappings via JSON env vars
+- ✅ Support for form/JSON payloads
+- ⚠️ No bidirectional sync (one-way only)
+- ⚠️ No status tracking for sync failures
+
+**Candidate Tasks:**
+- Add sync status monitoring/alerts
+- Implement retry queue for failed syncs
+- Create reconciliation report
+- Add legacy data migration tools

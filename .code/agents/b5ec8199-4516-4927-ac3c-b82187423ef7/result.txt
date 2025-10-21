@@ -1,0 +1,654 @@
+[2025-10-21T00:58:26] OpenAI Codex v0.0.0 (research preview)
+--------
+workdir: /Users/stuartgano/Documents/wolf-goat-pig
+model: gpt-5-codex
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: medium
+reasoning summaries: auto
+--------
+[2025-10-21T00:58:26] User instructions:
+Context: Current health.feature only checks /health and minimal validation of setup error. partnership.feature covers team formation basics but misses admin gating, error responses, and sync with betting logic. Simulation endpoints require x-admin-email header when ENABLE_TEST_ENDPOINTS=true. Provide ideas that can be implemented without new backend code.
+
+Agent: Audit existing Simulation health and partnership Behave features to spot coverage gaps. Propose new Gherkin scenarios for failure modes (e.g., unauthorized admin access, seeding mismatches, course availability) and long-form flows (multi-hole captain rotation). Provide for each scenario: purpose, key steps with sample tables, and how it ensures parity with FastAPI endpoints.
+
+Desired output: Table or structured list with scenario name, summary, Given/When/Then sketch, and implementation notes.
+
+Files to consider: tests/bdd/behave/features/simulation_health.feature, tests/bdd/behave/features/simulation_partnership.feature, tests/bdd/behave/steps/simulation_steps.py
+
+[Running in read-only mode - no modifications allowed]
+[2025-10-21T00:58:27] OpenAI Codex v0.0.0 (research preview)
+--------
+workdir: /Users/stuartgano/Documents/wolf-goat-pig
+model: gpt-5-codex
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: medium
+reasoning summaries: auto
+--------
+[2025-10-21T00:58:27] User instructions:
+Context: Current health.feature only checks /health and minimal validation of setup error. partnership.feature covers team formation basics but misses admin gating, error responses, and sync with betting logic. Simulation endpoints require x-admin-email header when ENABLE_TEST_ENDPOINTS=true. Provide ideas that can be implemented without new backend code.
+
+Agent: Audit existing Simulation health and partnership Behave features to spot coverage gaps. Propose new Gherkin scenarios for failure modes (e.g., unauthorized admin access, seeding mismatches, course availability) and long-form flows (multi-hole captain rotation). Provide for each scenario: purpose, key steps with sample tables, and how it ensures parity with FastAPI endpoints.
+
+Desired output: Table or structured list with scenario name, summary, Given/When/Then sketch, and implementation notes.
+
+Files to consider: tests/bdd/behave/features/simulation_health.feature, tests/bdd/behave/features/simulation_partnership.feature, tests/bdd/behave/steps/simulation_steps.py
+
+[Running in read-only mode - no modifications allowed]
+
+[2025-10-21T00:58:32] thinking
+
+**Deciding whether to plan**
+[2025-10-21T00:58:33] exec bash -lc 'ls tests/bdd/behave/features' in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-21T00:58:34] bash -lc 'ls tests/bdd/behave/features' succeeded in 1.05s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+simulation_betting.feature
+simulation_health.feature
+simulation_partnership.feature
+[2025-10-21T00:58:34] tokens used: 7,926
+
+[2025-10-21T00:58:36] thinking
+
+**Reviewing health feature**
+[2025-10-21T00:58:36] exec bash -lc 'cat tests/bdd/behave/features/simulation_health.feature' in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-21T00:58:37] bash -lc 'cat tests/bdd/behave/features/simulation_health.feature' succeeded in 806ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+Feature: Simulation service health checks
+  The Wolf Goat Pig platform needs high-level functional signals so stakeholders can express
+  expectations in plain English. These Gherkin scenarios can be generated collaboratively with the AI agent
+  from conversational requirements and then executed automatically.
+
+  Background:
+    Given the simulation API is available
+
+  Scenario: Health endpoint returns an "ok" status payload
+    When I request the "GET" "health" endpoint
+    Then the response code is 200
+    And the JSON response contains:
+      | status | ok |
+
+  Scenario: Simulation setup rejects requests with fewer than four players
+    When I submit a simulation setup request with 2 players
+    # Backend currently surfaces this as an internal error wrapping the 400 detail
+[2025-10-21T00:58:37] tokens used: 8,182
+
+[2025-10-21T00:58:38] thinking
+
+**Identifying feature needs**
+[2025-10-21T00:58:39] exec bash -lc 'cat tests/bdd/behave/features/simulation_partnership.feature' in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-21T00:58:39] bash -lc 'cat tests/bdd/behave/features/simulation_partnership.feature' succeeded in 919ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+Feature: Simulation partnership and team formation
+  Wolf Goat Pig involves dynamic team formation with partnership requests, solo play, and captain decisions.
+  These scenarios validate team-related helpers supported by the seeding DSL.
+
+  Background:
+    Given the simulation API is available
+    And a simulation is set up with the following players
+      | id   | name       | handicap | is_human |
+      | p1   | Captain    | 10       | true     |
+      | bot1 | Computer 1 | 12       | false    |
+      | bot2 | Computer 2 | 14       | false    |
+      | bot3 | Computer 3 | 8        | false    |
+
+  Scenario: Partnership formation after tee shots
+    Given the simulation is at hole 2
+    And the ball positions are
+      | player_id | distance_to_pin | lie_type | shot_count |
+[2025-10-21T00:58:39] tokens used: 8,631
+
+[2025-10-21T00:58:41] thinking
+
+**Identifying need for steps file**
+[2025-10-21T00:58:42] exec bash -lc "sed -n '1,200p' tests/bdd/behave/steps/simulation_steps.py" in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-21T00:58:42] bash -lc "sed -n '1,200p' tests/bdd/behave/steps/simulation_steps.py" succeeded in 822ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+"""Step definitions for simulation BDD tests."""
+
+from __future__ import annotations
+
+import json
+import os
+from typing import Any, Dict, List, Optional
+
+from behave import given, then, when
+from fastapi.testclient import TestClient
+
+from utils.simulation_helpers import (
+    format_value_for_comparison,
+    get_nested_value,
+    make_simulation_request,
+    parse_table_to_dict,
+    parse_table_to_list_of_dicts,
+[2025-10-21T00:58:42] tokens used: 11,985
+[2025-10-21T00:58:45] exec bash -lc "sed -n '200,400p' tests/bdd/behave/steps/simulation_steps.py" in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-21T00:58:46] bash -lc "sed -n '200,400p' tests/bdd/behave/steps/simulation_steps.py" succeeded in 761ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+        path, raw_value = row[0], row[1]
+
+        if raw_value.startswith(("[", "{")) and raw_value.endswith(("]", "}")):
+            try:
+                parsed_value = json.loads(raw_value)
+            except json.JSONDecodeError:
+                parsed_value = raw_value
+        elif raw_value.lower() in {"true", "false"}:
+            parsed_value = raw_value.lower() == "true"
+        elif raw_value.lower() in {"none", "null", ""}:
+            parsed_value = None
+        else:
+            try:
+                parsed_value = int(raw_value)
+            except ValueError:
+                try:
+                    parsed_value = float(raw_value)
+[2025-10-21T00:58:46] tokens used: 13,980
+
+[2025-10-21T00:58:47] thinking
+
+**Searching for team steps**
+[2025-10-21T00:58:48] exec bash -lc 'rg "team 1 contains" -n tests/bdd/behave/steps/simulation_steps.py' in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-21T00:58:49] bash -lc 'rg "team 1 contains" -n tests/bdd/behave/steps/simulation_steps.py' exited 127 in 768ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+
+ERROR
+bash: rg: command not found
+[2025-10-21T00:58:49] tokens used: 16,988
+
+[2025-10-21T00:58:51] thinking
+
+**Using grep due to missing rg**
+[2025-10-21T00:58:51] exec bash -lc 'grep -n "team 1 contains" tests/bdd/behave/steps/simulation_steps.py' in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-21T00:58:52] bash -lc 'grep -n "team 1 contains" tests/bdd/behave/steps/simulation_steps.py' succeeded in 851ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+458:@then("team 1 contains players {players}")
+[2025-10-21T00:58:52] tokens used: 18,090
+[2025-10-21T00:58:54] exec bash -lc "sed -n '400,520p' tests/bdd/behave/steps/simulation_steps.py" in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-21T00:58:55] bash -lc "sed -n '400,520p' tests/bdd/behave/steps/simulation_steps.py" succeeded in 767ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+
+
+@then('player "{player_id}" is in the {lie_type}')
+def step_assert_ball_lie(context, player_id: str, lie_type: str) -> None:
+    """Assert a player's lie type."""
+
+    positions = context.current_state.get("ball_positions", [])
+    for position in positions:
+        if position.get("player_id") == player_id:
+            assert position.get("lie_type") == lie_type, (
+                f"Expected {player_id} in {lie_type}, got {position.get('lie_type')}"
+            )
+            return
+
+    raise AssertionError(f"No ball position found for player {player_id}")
+
+
+[2025-10-21T00:58:55] tokens used: 19,339
+
+[2025-10-21T00:59:00] thinking
+
+**Designing new test scenarios**
+[2025-10-21T00:59:01] exec bash -lc 'grep -n "def make_simulation_request" -n utils/simulation_helpers.py' in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-21T00:59:02] bash -lc 'grep -n "def make_simulation_request" -n utils/simulation_helpers.py' exited 2 in 867ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+
+ERROR
+grep: utils/simulation_helpers.py: No such file or directory
+[2025-10-21T00:59:02] tokens used: 20,992
+
+[2025-10-21T00:59:03] thinking
+
+**Searching for test utility path**
+[2025-10-21T00:59:04] exec bash -lc 'find . -name "simulation_helpers.py"' in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-21T00:59:07] bash -lc 'find . -name "simulation_helpers.py"' succeeded in 3.07s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+./tests/bdd/behave/steps/utils/simulation_helpers.py
+[2025-10-21T00:59:07] tokens used: 21,272
+[2025-10-21T00:59:10] exec bash -lc "sed -n '1,200p' tests/bdd/behave/steps/utils/simulation_helpers.py" in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-21T00:59:10] bash -lc "sed -n '1,200p' tests/bdd/behave/steps/utils/simulation_helpers.py" succeeded in 780ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+"""Helper utilities for simulation BDD tests."""
+
+from __future__ import annotations
+
+import json
+from typing import Any, Dict, List, Optional
+
+from fastapi.testclient import TestClient
+
+
+ADMIN_HEADERS = {"x-admin-email": "stuagano@gmail.com"}
+
+
+def refresh_state(client: TestClient) -> Dict[str, Any]:
+    """Fetch the latest simulation snapshot and expose handy top-level keys."""
+
+    response = client.get("/simulation/state", headers=ADMIN_HEADERS)
+[2025-10-21T00:59:10] tokens used: 21,579
+
+[2025-10-21T00:59:38] thinking
+
+**Designing failure and admin scenarios**
+
+I’m thinking through gaps in health and partnership simulation tests, focusing on failures like missing admin headers, seeding mismatches, and course validity. I want to propose scenarios using existing test steps or minimal step changes, outlining scenario names, summaries, Given/When/Then sketches, and notes on implementing them without backend code. Let’s explore ways to simulate unauthorized access and error flows while ensuring endpoint parity.
+[2025-10-21T00:59:39] exec bash -lc 'head -n 40 tests/bdd/behave/features/simulation_betting.feature' in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-21T00:59:40] bash -lc 'head -n 40 tests/bdd/behave/features/simulation_betting.feature' succeeded in 1.19s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+Feature: Simulation betting mechanics
+  Wolf Goat Pig betting involves progressive wagering with doubles, carries, and special rules.
+  These scenarios exercise the reusable seeding DSL for betting-related state.
+
+  Background:
+    Given the simulation API is available
+    And a simulation is set up with 4 players
+
+  Scenario: Seeded double state snapshot
+    Given the simulation is at hole 3
+    And the ball positions are
+      | player_id | distance_to_pin | lie_type | shot_count |
+      | p1        | 180             | fairway  | 1          |
+      | bot1      | 150             | fairway  | 1          |
+      | bot2      | 200             | rough    | 1          |
+      | bot3      | 165             | fairway  | 1          |
+    And the betting state is
+[2025-10-21T00:59:40] tokens used: 25,166
+
+[2025-10-21T00:59:47] thinking
+
+**Planning new scenario coverage**
+[2025-10-21T00:59:48] exec bash -lc 'grep -R "@router" -n backend/app -n | head' in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-21T00:59:49] bash -lc 'grep -R "@router" -n backend/app -n | head' succeeded in 993ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+[2025-10-21T00:59:49] tokens used: 26,040
+
+[2025-10-21T00:59:51] thinking
+
+**Checking backend/app directory**
+[2025-10-21T00:59:51] exec bash -lc 'ls backend' in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-21T00:59:53] bash -lc 'ls backend' succeeded in 1.47s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+__init__.py
+__pycache__
+app
+backend.log
+BOOTSTRAP_README.md
+data
+deploy.sh
+docker-compose.yml
+docker-startup.sh
+Dockerfile
+Dockerfile.prod
+ghin_test.py
+manual_migration.py
+migrate_database.py
+migrate_email_tables.py
+Procfile
+requirements-local.txt
+[2025-10-21T00:59:53] tokens used: 26,287
+
+[2025-10-21T00:59:55] thinking
+
+**Searching router for admin header**
+[2025-10-21T00:59:56] exec bash -lc 'grep -R "x-admin-email" -n' in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-21T01:00:06] tokens used: 26,726
+
+[2025-10-21T01:00:07] thinking
+
+**Pausing briefly**
+[2025-10-21T01:00:08] tool wait
+{
+  "call_id": "call_99xhbxsh3MRlbsRRqg28gCyL",
+  "for": "grep -R \"x-admin-email\" -n"
+}
+[2025-10-21T01:00:48] bash -lc 'grep -R "x-admin-email" -n' succeeded in 52.19s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+./.code/agents/ca0c9452-fbf5-4e5e-bf54-a8d7e9557957/result.txt:109:2. **Lines 143-154**: Added `require_admin()` helper function that validates the `x-admin-email` header against a whitelist
+./.code/agents/978bf3c5-d195-453e-897a-5276353d757b/result.txt:607:- “Admin” operations (`/admin/email-config`, `/admin/oauth2-*`, `/admin/upload-credentials`) simply read an `x-admin-email` header and check it against a hard-coded allowlist (`backend/app/main.py:3594-3992`); there is no shared dependency, token check, or linkage to Auth0 roles.
+./.code/agents/6c506fa8-c829-4772-bf0b-a63c7df3a0c6/result.txt:13:   - Created admin authentication dependency that checks `x-admin-email` header
+./.code/agents/6c506fa8-c829-4772-bf0b-a63c7df3a0c6/result.txt:47:   - All `client.post("/simulation/test/seed-state", ...)` calls now include `headers={"x-admin-email": "stuagano@gmail.com"}`
+./.code/agents/18709/exec-call_EvriVwb5Uf7UMKZmJAmChft6.txt:121:+2. **Lines 143-154**: Added `require_admin()` helper function that validates the `x-admin-email` header against a whitelist
+./.code/agents/18709/exec-call_KWp7G5dxcf3tsStWYM9dfijO.txt:115:+2. **Lines 143-154**: Added `require_admin()` helper function that validates the `x-admin-email` header against a whitelist
+./.code/agents/52027d6f-d0d3-4c62-8db2-40df1a587fde/result.txt:21:   - Exercise GET /simulation/state without x-admin-email header expecting 403.
+./.code/agents/52027d6f-d0d3-4c62-8db2-40df1a587fde/result.txt:22:   - Exercise the same endpoint with x-admin-email header using stuagano@gmail.com (allowed admin) expecting 200.
+./.code/agents/52027d6f-d0d3-4c62-8db2-40df1a587fde/result.txt:50:   - Exercise GET /simulation/state without x-admin-email header expecting 403.
+./.code/agents/52027d6f-d0d3-4c62-8db2-40df1a587fde/result.txt:51:   - Exercise the same endpoint with x-admin-email header using stuagano@gmail.com (allowed admin) expecting 200.
+./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:33:        resp = client.get("/simulation/state", headers={"x-admin-email": "stuagano@gmail.com"})
+./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:47:        resp = client.get("/simulation/state", headers={"x-admin-email": "stuagano@gmail.com"})
+./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:107:            headers={"x-admin-email": "stuagano@gmail.com"}
+./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:140:            headers={"x-admin-email": "stuagano@gmail.com"}
+./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:174:            headers={"x-admin-email": "stuagano@gmail.com"}
+./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:211:            headers={"x-admin-email": "stuagano@gmail.com"}
+./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:248:            headers={"x-admin-email": "stuagano@gmail.com"}
+[2025-10-21T01:00:48] tool wait success
+{"output":"🎯 ADK auto-sync aliases loaded!\n💡 Use 'sync' to sync with upstream anytime\n💡 Use 'synccheck' to check sync status\n./.code/agents/ca0c9452-fbf5-4e5e-bf54-a8d7e9557957/result.txt:109:2. **Lines 143-154**: Added `require_admin()` helper function that validates the `x-admin-email` header against a whitelist\n./.code/agents/978bf3c5-d195-453e-897a-5276353d757b/result.txt:607:- “Admin” operations (`/admin/email-config`, `/admin/oauth2-*`, `/admin/upload-credentials`) simply read an `x-admin-email` header and check it against a hard-coded allowlist (`backend/app/main.py:3594-3992`); there is no shared dependency, token check, or linkage to Auth0 roles.\n./.code/agents/6c506fa8-c829-4772-bf0b-a63c7df3a0c6/result.txt:13:   - Created admin authentication dependency that checks `x-admin-email` header\n./.code/agents/6c506fa8-c829-4772-bf0b-a63c7df3a0c6/result.txt:47:   - All `client.post(\"/simulation/test/seed-state\", ...)` calls now include `headers={\"x-admin-email\": \"stuagano@gmail.com\"}`\n./.code/agents/18709/exec-call_EvriVwb5Uf7UMKZmJAmChft6.txt:121:+2. **Lines 143-154**: Added `require_admin()` helper function that validates the `x-admin-email` header against a whitelist\n./.code/agents/18709/exec-call_KWp7G5dxcf3tsStWYM9dfijO.txt:115:+2. **Lines 143-154**: Added `require_admin()` helper function that validates the `x-admin-email` header against a whitelist\n./.code/agents/52027d6f-d0d3-4c62-8db2-40df1a587fde/result.txt:21:   - Exercise GET /simulation/state without x-admin-email header expecting 403.\n./.code/agents/52027d6f-d0d3-4c62-8db2-40df1a587fde/result.txt:22:   - Exercise the same endpoint with x-admin-email header using stuagano@gmail.com (allowed admin) expecting 200.\n./.code/agents/52027d6f-d0d3-4c62-8db2-40df1a587fde/result.txt:50:   - Exercise GET /simulation/state without x-admin-email header expecting 403.\n./.code/agents/52027d6f-d0d3-4c62-8db2-40df1a587fde/result.txt:51:   - Exercise the same endpoint with x-admin-email header using stuagano@gmail.com (allowed admin) expecting 200.\n./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:33:        resp = client.get(\"/simulation/state\", headers={\"x-admin-email\": \"stuagano@gmail.com\"})\n./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:47:        resp = client.get(\"/simulation/state\", headers={\"x-admin-email\": \"stuagano@gmail.com\"})\n./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:107:            headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:140:            headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:174:            headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:211:            headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:248:            headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:285:            headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:310:            headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:339:            headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:365:            headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:394:                headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:412:            headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:430:            headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:448:            headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:466:            headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:486:            headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:520:            headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:560:            headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:594:            headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:633:            headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:672:            headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:706:            headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./.code/agents/19765/exec-call_SlDH8LtgZ4pQbZlJO9m3yvi6.txt:740:            headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./tests/backend/test_simulation_state_endpoint.py:49:        headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./tests/backend/test_simulation_state_endpoint.py:58:    response = client.get(\"/simulation/state\", headers={\"x-admin-email\": \"stuagano@gmail.com\"})\n./tests/backend/test_simulation_state_endpoint.py:103:    resp = client.get(\"/simulation/state\", headers={\"x-admin-email\": \"stuagano@gmail.com\"})\n./tests/backend/test_simulation_state_endpoint.py:116:    resp = client.get(\"/simulation/state\", headers={\"x-admin-email\": \"stuagano@gmail.com\"})\n./tests/backend/test_simulation_state_endpoint.py:172:        headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./tests/backend/test_simulation_state_endpoint.py:378:        headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./tests/backend/test_simulation_state_endpoint.py:404:            headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./tests/backend/test_simulation_state_endpoint.py:422:        headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./tests/backend/test_simulation_state_endpoint.py:437:        headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./tests/backend/test_simulation_state_endpoint.py:452:        headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./tests/backend/test_simulation_state_endpoint.py:467:        headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./tests/backend/test_simulation_state_endpoint.py:484:        headers={\"x-admin-email\": \"stuagano@gmail.com\"}\n./tests/backend/test_simulation_state_endpoint.py:716:        headers={\"x-admin-email\": \"stuagano@gmail.com\"}\nBinary file ./tests/backend/__pycache__/test_simulation_state_endpoint.cpython-313-pytest-8.4.1.pyc matches\nBinary file ./tests/bdd/behave/steps/utils/__pycache__/simulation_helpers.cpython-313.pyc matches\n./tests/bdd/behave/steps/utils/simulation_helpers.py:11:ADMIN_HEADERS = {\"x-admin-email\": \"stuagano@gmail.com\"}\n","metadata":{"exit_code":0,"duration_seconds":52.2}}
+[2025-10-21T01:00:48] tokens used: 27,455
+
+[2025-10-21T01:00:57] thinking
+
+**Designing authorization test scenarios**
+
+I'm outlining test scenarios focused on verifying admin header requirements and handling unauthorized requests, especially for simulation endpoints gated by the ENABLE_TEST_ENDPOINTS flag. I want to cover missing cases like 403 responses when headers are absent and validation for invalid setups, proposing detailed scenario ideas for implementation without backend changes.
+[2025-10-21T01:00:58] exec bash -lc 'grep -R "Wing Point" -n backend/app | head' in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-21T01:00:59] bash -lc 'grep -R "Wing Point" -n backend/app | head' succeeded in 800ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+backend/app/game_state.py:238:            self.course_manager.hole_stroke_indexes = data.get("hole_stroke_indexes", [h["stroke_index"] for h in DEFAULT_COURSES["Wing Point Golf & Country Club"]])
+backend/app/game_state.py:239:            self.course_manager.hole_pars = data.get("hole_pars", [h["par"] for h in DEFAULT_COURSES["Wing Point Golf & Country Club"]])
+backend/app/game_state.py:240:            self.course_manager.hole_yards = data.get("hole_yards", [h["yards"] for h in DEFAULT_COURSES["Wing Point Golf & Country Club"]])
+backend/app/seed_courses.py:9:        "name": "Wing Point Golf & Country Club",
+Binary file backend/app/__pycache__/game_state.cpython-312.pyc matches
+Binary file backend/app/__pycache__/main.cpython-313.pyc matches
+Binary file backend/app/__pycache__/main.cpython-312.pyc matches
+Binary file backend/app/__pycache__/game_state.cpython-313.pyc matches
+Binary file backend/app/__pycache__/seed_data.cpython-313.pyc matches
+Binary file backend/app/__pycache__/seed_data.cpython-312.pyc matches
+[2025-10-21T01:00:59] tokens used: 30,515
+
+[2025-10-21T01:01:01] thinking
+
+**Searching for specific endpoint in main.py**
+[2025-10-21T01:01:02] exec bash -lc 'grep -n "seed-state" backend/app/main.py' in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-21T01:01:03] bash -lc 'grep -n "seed-state" backend/app/main.py' succeeded in 774ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+4612:    @app.post("/simulation/test/seed-state")
+[2025-10-21T01:01:03] tokens used: 31,036
+[2025-10-21T01:01:05] exec bash -lc "sed -n '4600,4680p' backend/app/main.py" in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-21T01:01:06] bash -lc "sed -n '4600,4680p' backend/app/main.py" succeeded in 737ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+        
+    except HTTPException:
+        raise
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Hole simulation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to simulate hole: {str(e)}")
+
+
+if ENABLE_TEST_ENDPOINTS:
+
+    @app.post("/simulation/test/seed-state")
+    def seed_simulation_state(payload: SimulationSeedRequest, x_admin_email: Optional[str] = Header(None)):
+        """Testing-only helper for seeding the current simulation state.
+
+        Allows BDD and backend tests to manipulate the in-memory simulation using
+[2025-10-21T01:01:06] tokens used: 31,329
+
+[2025-10-21T01:01:08] thinking
+
+**Continuing team formation**
+[2025-10-21T01:01:09] exec bash -lc "sed -n '4680,4840p' backend/app/main.py" in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-21T01:01:10] bash -lc "sed -n '4680,4840p' backend/app/main.py" succeeded in 765ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+            unknown = [pid for pid in payload.current_order_of_play if pid not in player_ids]
+            if unknown:
+                raise HTTPException(status_code=422, detail=f"Unknown players in order of play: {', '.join(unknown)}")
+            hole_state.current_order_of_play = payload.current_order_of_play
+
+        if payload.shot_order is not None:
+            unknown = [pid for pid in payload.shot_order if pid not in player_ids]
+            if unknown:
+                raise HTTPException(status_code=422, detail=f"Unknown players in shot order: {', '.join(unknown)}")
+            hole_state.hitting_order = payload.shot_order
+
+        if payload.next_player_to_hit is not None:
+            if payload.next_player_to_hit and payload.next_player_to_hit not in player_ids:
+                raise HTTPException(status_code=422, detail=f"Unknown next player '{payload.next_player_to_hit}'")
+            hole_state.next_player_to_hit = payload.next_player_to_hit
+
+        if payload.wagering_closed is not None:
+[2025-10-21T01:01:10] tokens used: 32,419
+
+[2025-10-21T01:01:25] thinking
+
+**Drafting detailed test scenarios**
+[2025-10-21T01:01:26] exec bash -lc 'grep -n "class SimulationSetupRequest" -n backend/app -R' in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-21T01:01:27] bash -lc 'grep -n "class SimulationSetupRequest" -n backend/app -R' succeeded in 809ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+backend/app/main.py:4116:class SimulationSetupRequest(BaseModel):
+[2025-10-21T01:01:27] tokens used: 36,219
+[2025-10-21T01:01:30] exec bash -lc "sed -n '4116,4236p' backend/app/main.py" in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-21T01:01:31] bash -lc "sed -n '4116,4236p' backend/app/main.py" succeeded in 791ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+class SimulationSetupRequest(BaseModel):
+    """Request model for simulation setup"""
+    players: List[Dict[str, Any]]
+    course_id: Optional[int] = None
+    computer_players: Optional[List[str]] = []
+    personalities: Optional[List[str]] = []
+    game_options: Optional[Dict[str, Any]] = {}
+
+class SimulationPlayShotRequest(BaseModel):
+    """Request model for playing next shot"""
+    decision: Optional[Dict[str, Any]] = {}
+
+class SimulationPlayHoleRequest(BaseModel):
+    """Request model for hole simulation decision"""
+    decision: Dict[str, Any]
+
+class BettingDecisionRequest(BaseModel):
+[2025-10-21T01:01:31] tokens used: 36,465
+
+[2025-10-21T01:01:33] thinking
+
+**Searching for simulation setup endpoint**
+[2025-10-21T01:01:34] exec bash -lc 'grep -n "simulation/setup" backend/app/main.py' in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-21T01:01:35] bash -lc 'grep -n "simulation/setup" backend/app/main.py' succeeded in 783ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+4279:@app.post("/simulation/setup")
+4407:            raise HTTPException(status_code=400, detail="Simulation not initialized. Call /simulation/setup first.")
+4479:            raise HTTPException(status_code=400, detail="Simulation not initialized. Call /simulation/setup first.")
+4625:            raise HTTPException(status_code=400, detail="Simulation not initialized. Call /simulation/setup first.")
+[2025-10-21T01:01:35] tokens used: 37,995
+[2025-10-21T01:01:38] exec bash -lc "sed -n '4270,4406p' backend/app/main.py" in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-21T01:01:39] bash -lc "sed -n '4270,4406p' backend/app/main.py" succeeded in 791ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+        base_distribution["disaster"] *= 1.4
+    elif lie_type in {"green"}:
+        base_distribution["excellent"] *= 1.4
+        base_distribution["good"] *= 1.15
+        base_distribution["poor"] *= 0.6
+        base_distribution["disaster"] *= 0.4
+
+    return _normalize_probabilities(base_distribution)
+
+@app.post("/simulation/setup")
+def setup_simulation(request: Dict[str, Any]):
+    """Initialize a new simulation with specified players and configuration"""
+    global wgp_simulation
+    
+    try:
+        logger.info("Setting up new simulation...")
+        
+[2025-10-21T01:01:39] tokens used: 38,348
+
+[2025-10-21T01:01:53] thinking
+
+**Planning test scenarios for simulation API validation**
+[2025-10-21T01:01:54] exec bash -lc 'grep -n "def require_admin" -n backend/app/main.py' in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-21T01:01:54] bash -lc 'grep -n "def require_admin" -n backend/app/main.py' succeeded in 778ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+145:def require_admin(x_admin_email: Optional[str] = Header(None)) -> None:
+[2025-10-21T01:01:54] tokens used: 40,505
+[2025-10-21T01:01:58] exec bash -lc "sed -n '130,160p' backend/app/main.py" in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-21T01:01:59] bash -lc "sed -n '130,160p' backend/app/main.py" succeeded in 740ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+    clear_balls_in_hole: bool = Field(False, description="Clear recorded holed balls before applying seed")
+    reset_doubles_history: bool = Field(True, description="Clear double-offer history to avoid stale offers")
+
+app = FastAPI(
+    title="Wolf Goat Pig Golf Simulation API",
+    description="A comprehensive golf betting simulation API with unified Action API",
+    version="1.0.0",
+    docs_url="/docs" if os.getenv("ENVIRONMENT") != "production" else None,
+    redoc_url="/redoc" if os.getenv("ENVIRONMENT") != "production" else None
+)
+
+ENABLE_TEST_ENDPOINTS = os.getenv("ENABLE_TEST_ENDPOINTS", "false").lower() in {"1", "true", "yes"}
+ADMIN_EMAILS = {"stuagano@gmail.com", "admin@wgp.com"}
+
+
+def require_admin(x_admin_email: Optional[str] = Header(None)) -> None:
+    if not x_admin_email or x_admin_email not in ADMIN_EMAILS:
+[2025-10-21T01:01:59] tokens used: 40,806
+
+[2025-10-21T01:02:15] thinking
+
+**Evaluating failure-mode scenarios**
+[2025-10-21T01:02:16] exec bash -lc 'grep -n "available-course" -R backend/app' in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-21T01:02:17] bash -lc 'grep -n "available-course" -R backend/app' exited 1 in 804ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+
+ERROR
+[2025-10-21T01:02:17] tokens used: 42,222
+
+[2025-10-21T01:02:20] thinking
+
+**Planning test scenario for setup fallback**
+[2025-10-21T01:02:21] exec bash -lc 'grep -n "course" -n backend/app/game_state.py | head' in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-21T01:02:22] bash -lc 'grep -n "course" -n backend/app/game_state.py | head' succeeded in 788ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+11:from .state.course_manager import CourseManager, DEFAULT_COURSES
+28:        self.course_manager = getattr(self, 'course_manager', CourseManager())
+52:        self.course_manager = CourseManager()
+182:            "course_manager": getattr(self, "course_manager", CourseManager()).to_dict(),
+230:        # Handle course manager - check for new format first, then fall back to old format
+231:        if "course_manager" in data:
+232:            self.course_manager = CourseManager()
+233:            self.course_manager.from_dict(data["course_manager"])
+236:            self.course_manager = CourseManager()
+237:            self.course_manager.selected_course = data.get("selected_course", None)
+[2025-10-21T01:02:22] tokens used: 42,543
+
+[2025-10-21T01:03:13] thinking
+
+**Proposing detailed failure and flow scenarios**
+
+I’m organizing several new Gherkin scenarios around failure modes and complex flows for health and partnership features—covering admin header checks, seeding errors, roster limits, course availability fallback, unauthorized state fetches, and a detailed multi-hole captain rotation syncing betting with team formation. I’m sketching their steps, implementation notes, and feature file placement to help ensure backend and API parity while noting where new testing steps might be needed. This structured approach should help the user implement thorough behavior validation without backend changes.
+[2025-10-21T01:03:15] exec bash -lc 'grep -n "course" backend/app/main.py | head -n 40' in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-21T01:03:16] bash -lc 'grep -n "course" backend/app/main.py | head -n 40' succeeded in 965ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+18:from .course_import import CourseImporter, import_course_by_name, import_course_from_json, save_course_to_database
+76:    course_name: str
+289:        # Initialize game state and course manager
+292:            # Ensure game_state is properly initialized with courses
+293:            courses = game_state.get_courses()
+294:            if not courses:
+295:                logger.warning("⚠️ No courses found in game state, attempting to reload...")
+296:                game_state.course_manager.__init__()  # Reinitialize course manager
+297:                courses = game_state.get_courses()
+299:            logger.info(f"📚 Game state initialized with {len(courses)} courses")
+420:            courses = game_state.get_courses()
+421:            course_count = len(courses) if courses else 0
+423:            if course_count >= 1:
+424:                health_status["components"]["courses"] = {
+426:                    "message": f"{course_count} courses available",
+427:                    "courses": list(courses.keys()) if courses else []
+430:                health_status["components"]["courses"] = {
+[2025-10-21T01:03:16] tokens used: 46,879
+
+[2025-10-21T01:03:19] thinking
+
+**Investigating health endpoint details**
+[2025-10-21T01:03:19] exec bash -lc "sed -n '400,460p' backend/app/main.py" in /Users/stuartgano/Documents/wolf-goat-pig
+[2025-10-21T01:03:20] bash -lc "sed -n '400,460p' backend/app/main.py" succeeded in 748ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+        # 1. Database connectivity test
+        db = database.SessionLocal()
+        try:
+            db.execute(text("SELECT 1"))
+            health_status["components"]["database"] = {
+                "status": "healthy",
+                "message": "Database connection successful"
+            }
+        except Exception as e:
+            logger.error(f"Database health check failed: {e}")
+            health_status["components"]["database"] = {
+                "status": "unhealthy",
+                "message": f"Database connection failed: {str(e)}"
+            }
+            overall_healthy = False
+        finally:
+            db.close()
+[2025-10-21T01:03:20] tokens used: 47,702
+
+[2025-10-21T01:03:42] thinking
+
+**Designing health check failure scenarios**
+
+I'm outlining scenarios to test course availability via the `/health` endpoint, including simulating missing courses by clearing the course registry in the game state. I'm proposing GWT steps for this and related failure modes, suggesting ways to implement them with existing modules or monkeypatching, and planning a detailed final message with a scenario table and implementation notes.
+[2025-10-21T01:03:44] codex
+
+Expanded the coverage gaps I spotted in the existing Behave suites and drafted concrete scenario ideas that stay within current backend capabilities.
+
+| Scenario | Summary | Given / When / Then sketch | Implementation notes |
+| --- | --- | --- | --- |
+| Seed-state blocks missing admin header *(simulation_health.feature)* | Exercises the 403 guard on `/simulation/test/seed-state` when the `x-admin-email` header is absent. | Given the simulation API is available<br>When I request the "POST" "/simulation/test/seed-state" endpoint **without admin credentials** with<br> \| current_hole \| 1 \|<br>Then the response code is 403<br>And the JSON response contains<br> \| detail \| Admin access required \| | Add a `when` step variant that skips `ADMIN_HEADERS` before calling `make_simulation_request`; no backend changes required. Confirms parity with the FastAPI `require_admin()` dependency. |
+| Seed-state fails before setup *(simulation_health.feature)* | Validates the 400 response when seeding is attempted prior to `/simulation/setup`. | Given the simulation API is available<br>When I request the "POST" "/simulation/test/seed-state" endpoint with<br> \| current_hole \| 1 \|<br>Then the response code is 400<br>And the JSON response contains<br> \| detail \| Simulation not initialized. Call /simulation/setup first. \| | Uses existing request helper; ensure the scenario omits any setup step in its Background. Mirrors the FastAPI guard around `wgp_simulation`. |
+| Health reports missing course data *(simulation_health.feature)* | Ensures `/health` surfaces a warning when the course catalog is empty (course availability failure mode). | Given the simulation API is available<br>And course data is cleared for diagnostics<br>When I request the "GET" "/health" endpoint<br>Then the response code is 200<br>And the JSON response contains<br> \| components.courses.status \| warning \|<br> \| components.courses.message \| No courses available (may be initializing) \| | Implement the “course data is cleared” step by resetting `game_state.course_manager.available_courses` via the existing module—no backend edits. Confirms the `/health` contract described around lines 420‑432 of `backend/app/main.py`. |
+| Ball position seeding rejects unknown players *(simulation_health.feature)* | Covers seeding mismatches by provoking the 422 guard for unknown player IDs. | Given the simulation API is available<br>And a simulation is set up with the following players …<br>When I request the "POST" "/simulation/test/seed-state" endpoint with<br> \| ball_positions \| [{"player_id":"intruder","distance_to_pin":150}] \|<br>Then the response code is 422<br>And the JSON response contains<br> \| detail \| Unknown player id 'intruder' \| | Reuse the JSON-in-table pattern already accepted by `simulation_steps`. Aligns with the validation block in `seed_simulation_state`. |
+| State snapshot blocked without admin header *(simulation_partnership.feature)* | Verifies `/simulation/state` enforces the admin header before partnership assertions run. | Given the simulation API is available<br>And a simulation is set up with the following players …<br>When I request the "GET" "/simulation/state" endpoint **without admin credentials**<br>Then the response code is 403<br>And the JSON response contains<br> \| detail \| Admin access required \| | Share the new “without admin” helper from the health scenario. Prevents silent reliance on headers hard-coded in helpers and mirrors FastAPI’s guard. |
+| Line of scrimmage seeding validates roster *(simulation_partnership.feature)* | Captures the 422 response when partnership-related metadata references a non-roster player. | Given the simulation API is available<br>And a simulation is set up with the following players …<br>And the simulation is at hole 3<br>When I request the "POST" "/simulation/test/seed-state" endpoint with<br> \| line_of_scrimmage \| bot99 \|<br>Then the response code is 422<br>And the JSON response contains<br> \| detail \| Unknown line of scrimmage player 'bot99' \| | Keeps failure focused on partnership flow because line of scrimmage influences betting/team logic. Uses the same direct-request pattern so the test observes the FastAPI validation error. |
+| Captain rotation syncs betting across holes *(simulation_partnership.feature)* | Long-form happy path covering multi-hole rotations, pending requests, and betting parity. | Given the simulation is at hole 5<br>And the team formation is<br> \| type \| partners \|<br> \| captain \| p1 \|<br> \| team1 \| ["p1","bot1"] \|<br> \| team2 \| ["bot2","bot3"] \|<br>And the betting state is<br> \| current_wager \| 2 \|<br> \| doubled \| false \|<br>When I refresh the simulation state<br>Then the simulation state contains …<br>When the simulation is moved to hole 6<br>And I seed the team formation with … pending captain bot2<br>Then the simulation state contains …<br>When I seed the simulation state with an accepted pending_request and move to hole 7 as solo captain<br>Then the simulation state contains updated captain, solo_player, wagering_closed=false, and betting.current_wager preserved | Chains existing seeding steps to mirror `/simulation/state` snapshots after each FastAPI call. Ensures UX flows (captain rotation + betting sync) stay aligned with backend transitions without touching backend code. |
+
+Next step ideas (if you want help): 1) add the “without admin credentials” step definition so the new scenarios can hit unauthorized paths; 2) prototype the course-clearing hook to make sure it reliably drives the `/health` component into warning state.
+[2025-10-21T01:04:00] tokens used: 51,757

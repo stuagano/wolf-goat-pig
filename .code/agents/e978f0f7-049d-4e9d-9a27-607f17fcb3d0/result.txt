@@ -1,0 +1,51 @@
+## Backend Mode Coverage Summary
+
+### 1. **Simulation Mode** 
+**Entry Points:** `/simulation/*` endpoints (15+ routes)
+**Tests:** `test_simulation_*.py`, `test_integration_scenarios.py`
+**Flags:** `ENABLE_TEST_ENDPOINTS` for `/simulation/test/seed-state`
+**Risks:** Complex state management, Monte Carlo performance
+
+### 2. **Signup/Matchmaking**
+**Entry Points:** `/signups/*`, `/matchmaking/*`, availability endpoints
+**Tests:** Embedded in main API tests
+**Flags:** Standard environment controls
+**Risks:** Player sync, team balance algorithms
+
+### 3. **Sunday Game**
+**Entry Points:** `/signups/{date}/sunday-game/pairings`
+**Tests:** `test_sunday_game_service.py`
+**Flags:** `SUNDAY_GAME_SEED` for pairing control
+**Risks:** Pairing algorithm optimization
+
+### 4. **GHIN Integration**
+**Entry Points:** `/ghin/*` endpoints, handicap sync
+**Tests:** `test_ghin_local.py`, `test_ghin_integration.py`
+**Flags:** `GHIN_USERNAME/PASSWORD` credentials
+**Risks:** API auth, rate limits, data privacy
+
+### 5. **Google Sheets Sync**
+**Entry Points:** `/sheet-integration/*` endpoints
+**Tests:** `test_sheet_parsing.py`, `test_sync_endpoints.py`
+**Flags:** OAuth2 credentials configuration
+**Risks:** OAuth flow, format validation, sync conflicts
+
+### 6. **Analytics**
+**Entry Points:** `/analytics/*`, `/players/{id}/analytics`
+**Tests:** `test_analytics.py`
+**Flags:** Standard environment controls
+**Risks:** Large dataset performance, statistical accuracy
+
+### 7. **Legacy Signup Bridge**
+**Entry Points:** Transparent within signup endpoints
+**Tests:** `test_legacy_signup_service.py`
+**Flags:** `LEGACY_SIGNUP_SYNC_ENABLED`, URL configs
+**Risks:** Legacy system dependency, format compatibility
+
+### 8. **Email/Notifications**
+**Entry Points:** `/email/*`, OAuth2 setup endpoints
+**Tests:** Embedded in main suites
+**Flags:** SMTP configs, OAuth2 credentials
+**Risks:** Delivery reliability, token refresh
+
+**Global Flags:** `ENABLE_TEST_ENDPOINTS`, `ENVIRONMENT`, `SKIP_SEEDING`

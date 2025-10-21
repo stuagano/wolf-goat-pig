@@ -1,0 +1,821 @@
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+============================= test session starts ==============================
+platform darwin -- Python 3.13.3, pytest-8.4.1, pluggy-1.6.0
+rootdir: /Users/stuartgano/Documents/wolf-goat-pig
+plugins: mock-3.15.1, html-4.1.1, asyncio-1.1.0, metadata-3.1.1, anyio-4.10.0
+asyncio: mode=Mode.STRICT, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 26 items
+
+tests/backend/test_simulation_state_endpoint.py FFFFFFFFFFFFFFFFFFFFFFFF [ 92%]
+FF                                                                       [100%]
+
+=================================== FAILURES ===================================
+________________ test_simulation_state_endpoint_requires_admin _________________
+
+    def test_simulation_state_endpoint_requires_admin():
+        """Test that /simulation/state requires admin header."""
+        resp = client.get("/simulation/state")
+>       assert resp.status_code == 403
+E       assert 404 == 403
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/backend/test_simulation_state_endpoint.py:97: AssertionError
+------------------------------ Captured log call -------------------------------
+ERROR    app.main:main.py:206 HTTP exception: 404 - Not found
+ERROR    app.main:main.py:208 Request Host header: testserver
+ERROR    app.main:main.py:209 Request Client host: testclient
+_______________ test_simulation_state_endpoint_with_admin_header _______________
+
+    def test_simulation_state_endpoint_with_admin_header():
+        """Test that /simulation/state works with valid admin header."""
+        resp = client.get("/simulation/state", headers={"x-admin-email": "stuagano@gmail.com"})
+>       assert resp.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/backend/test_simulation_state_endpoint.py:104: AssertionError
+------------------------------ Captured log call -------------------------------
+ERROR    app.main:main.py:206 HTTP exception: 404 - Not found
+ERROR    app.main:main.py:208 Request Host header: testserver
+ERROR    app.main:main.py:209 Request Client host: testclient
+______________ test_simulation_state_endpoint_returns_game_state _______________
+
+    def test_simulation_state_endpoint_returns_game_state():
+        """Legacy test - updated to use admin header."""
+        resp = client.get("/simulation/state", headers={"x-admin-email": "stuagano@gmail.com"})
+>       assert resp.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/backend/test_simulation_state_endpoint.py:117: AssertionError
+------------------------------ Captured log call -------------------------------
+ERROR    app.main:main.py:206 HTTP exception: 404 - Not found
+ERROR    app.main:main.py:208 Request Host header: testserver
+ERROR    app.main:main.py:209 Request Client host: testclient
+___________________ test_seed_state_endpoint_requires_admin ____________________
+
+    def test_seed_state_endpoint_requires_admin():
+        """Test that /simulation/test/seed-state requires admin header."""
+        seed_payload = {
+            "ball_positions": [
+                {
+                    "player_id": "captain",
+                    "distance_to_pin": 125.5,
+                    "lie_type": "fairway",
+                    "shot_count": 2,
+                }
+            ]
+        }
+    
+        resp = client.post("/simulation/test/seed-state", json=seed_payload)
+>       assert resp.status_code == 403
+E       assert 404 == 403
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/backend/test_simulation_state_endpoint.py:141: AssertionError
+_______________ test_seed_state_endpoint_updates_ball_positions ________________
+
+    def test_seed_state_endpoint_updates_ball_positions():
+        seed_payload = {
+            "ball_positions": [
+                {
+                    "player_id": "captain",
+                    "distance_to_pin": 125.5,
+                    "lie_type": "fairway",
+                    "shot_count": 2,
+                },
+                {
+                    "player_id": "player_two",
+                    "distance_to_pin": 140.0,
+                    "lie_type": "fairway",
+                    "shot_count": 2,
+                },
+            ],
+            "ball_positions_replace": True,
+            "line_of_scrimmage": "player_two",
+            "current_order_of_play": ["player_two", "captain", "player_three", "player_four"],
+            "next_player_to_hit": "player_two",
+            "wagering_closed": False,
+            "betting": {"current_wager": 2, "doubled": True},
+        }
+    
+        resp = client.post(
+            "/simulation/test/seed-state",
+            json=seed_payload,
+            headers={"x-admin-email": "stuagano@gmail.com"}
+        )
+>       assert resp.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/backend/test_simulation_state_endpoint.py:174: AssertionError
+___________________ test_seed_state_team_formation_partners ____________________
+
+    def test_seed_state_team_formation_partners():
+>       _seed_state(
+            {
+                "ball_positions": _default_ball_positions(),
+                "team_formation": {
+                    "type": "partners",
+                    "captain": "captain",
+                    "team1": ["captain", "player_two"],
+                    "team2": ["player_three", "player_four"],
+                },
+            }
+        )
+
+tests/backend/test_simulation_state_endpoint.py:188: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+payload = {'ball_positions': [{'distance_to_pin': 150.0, 'lie_type': 'fairway', 'player_id': 'captain', 'shot_count': 1}, {'dist...captain': 'captain', 'team1': ['captain', 'player_two'], 'team2': ['player_three', 'player_four'], 'type': 'partners'}}
+
+    def _seed_state(payload: dict) -> dict:
+        """Helper to post to the seed endpoint and return the resulting game state."""
+    
+        response = client.post(
+            "/simulation/test/seed-state",
+            json=payload,
+            headers={"x-admin-email": "stuagano@gmail.com"}
+        )
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"Not Found"}
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/backend/test_simulation_state_endpoint.py:51: AssertionError
+_____________________ test_seed_state_team_formation_solo ______________________
+
+    def test_seed_state_team_formation_solo():
+>       _seed_state(
+            {
+                "ball_positions": _default_ball_positions(),
+                "team_formation": {
+                    "type": "solo",
+                    "captain": "player_two",
+                    "solo_player": "player_two",
+                    "opponents": ["captain", "player_three", "player_four"],
+                },
+            }
+        )
+
+tests/backend/test_simulation_state_endpoint.py:209: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+payload = {'ball_positions': [{'distance_to_pin': 150.0, 'lie_type': 'fairway', 'player_id': 'captain', 'shot_count': 1}, {'dist...': 'player_two', 'opponents': ['captain', 'player_three', 'player_four'], 'solo_player': 'player_two', 'type': 'solo'}}
+
+    def _seed_state(payload: dict) -> dict:
+        """Helper to post to the seed endpoint and return the resulting game state."""
+    
+        response = client.post(
+            "/simulation/test/seed-state",
+            json=payload,
+            headers={"x-admin-email": "stuagano@gmail.com"}
+        )
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"Not Found"}
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/backend/test_simulation_state_endpoint.py:51: AssertionError
+________________ test_seed_state_team_formation_pending_request ________________
+
+    def test_seed_state_team_formation_pending_request():
+>       _seed_state(
+            {
+                "ball_positions": _default_ball_positions(),
+                "team_formation": {
+                    "type": "pending",
+                    "captain": "captain",
+                    "pending_request": {
+                        "captain": "captain",
+                        "requested": "player_three",
+                        "status": "pending",
+                    },
+                },
+            }
+        )
+
+tests/backend/test_simulation_state_endpoint.py:228: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+payload = {'ball_positions': [{'distance_to_pin': 150.0, 'lie_type': 'fairway', 'player_id': 'captain', 'shot_count': 1}, {'dist...tain', 'pending_request': {'captain': 'captain', 'requested': 'player_three', 'status': 'pending'}, 'type': 'pending'}}
+
+    def _seed_state(payload: dict) -> dict:
+        """Helper to post to the seed endpoint and return the resulting game state."""
+    
+        response = client.post(
+            "/simulation/test/seed-state",
+            json=payload,
+            headers={"x-admin-email": "stuagano@gmail.com"}
+        )
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"Not Found"}
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/backend/test_simulation_state_endpoint.py:51: AssertionError
+________________ test_seed_state_line_of_scrimmage_and_ordering ________________
+
+    def test_seed_state_line_of_scrimmage_and_ordering():
+        seed_payload = {
+            "ball_positions": _default_ball_positions(),
+            "current_order_of_play": [
+                "player_two",
+                "captain",
+                "player_three",
+                "player_four",
+            ],
+            "line_of_scrimmage": "player_two",
+            "shot_order": ["player_two", "player_four", "captain", "player_three"],
+            "next_player_to_hit": "player_two",
+        }
+    
+>       _seed_state(seed_payload)
+
+tests/backend/test_simulation_state_endpoint.py:266: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+payload = {'ball_positions': [{'distance_to_pin': 150.0, 'lie_type': 'fairway', 'player_id': 'captain', 'shot_count': 1}, {'dist... 'captain', 'player_three', 'player_four'], 'line_of_scrimmage': 'player_two', 'next_player_to_hit': 'player_two', ...}
+
+    def _seed_state(payload: dict) -> dict:
+        """Helper to post to the seed endpoint and return the resulting game state."""
+    
+        response = client.post(
+            "/simulation/test/seed-state",
+            json=payload,
+            headers={"x-admin-email": "stuagano@gmail.com"}
+        )
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"Not Found"}
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/backend/test_simulation_state_endpoint.py:51: AssertionError
+___________________ test_seed_state_extended_betting_fields ____________________
+
+    def test_seed_state_extended_betting_fields():
+        seed_payload = {
+            "ball_positions": _default_ball_positions(),
+            "wagering_closed": True,
+            "betting": {
+                "base_wager": 3,
+                "current_wager": 6,
+                "doubled": True,
+                "ping_pong_count": 2,
+                "float_invoked": True,
+                "carry_over": True,
+            },
+        }
+    
+>       _seed_state(seed_payload)
+
+tests/backend/test_simulation_state_endpoint.py:298: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+payload = {'ball_positions': [{'distance_to_pin': 150.0, 'lie_type': 'fairway', 'player_id': 'captain', 'shot_count': 1}, {'dist...], 'betting': {'base_wager': 3, 'carry_over': True, 'current_wager': 6, 'doubled': True, ...}, 'wagering_closed': True}
+
+    def _seed_state(payload: dict) -> dict:
+        """Helper to post to the seed endpoint and return the resulting game state."""
+    
+        response = client.post(
+            "/simulation/test/seed-state",
+            json=payload,
+            headers={"x-admin-email": "stuagano@gmail.com"}
+        )
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"Not Found"}
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/backend/test_simulation_state_endpoint.py:51: AssertionError
+____________________ test_seed_state_ball_positions_replace ____________________
+
+    def test_seed_state_ball_positions_replace():
+        # Seed with four positions
+>       _seed_state({"ball_positions": _default_ball_positions()})
+
+tests/backend/test_simulation_state_endpoint.py:314: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+payload = {'ball_positions': [{'distance_to_pin': 150.0, 'lie_type': 'fairway', 'player_id': 'captain', 'shot_count': 1}, {'dist...ee', 'shot_count': 1}, {'distance_to_pin': 170.0, 'lie_type': 'fairway', 'player_id': 'player_four', 'shot_count': 1}]}
+
+    def _seed_state(payload: dict) -> dict:
+        """Helper to post to the seed endpoint and return the resulting game state."""
+    
+        response = client.post(
+            "/simulation/test/seed-state",
+            json=payload,
+            headers={"x-admin-email": "stuagano@gmail.com"}
+        )
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"Not Found"}
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/backend/test_simulation_state_endpoint.py:51: AssertionError
+_____________________ test_seed_state_wagering_closed_flag _____________________
+
+    def test_seed_state_wagering_closed_flag():
+>       _seed_state(
+            {
+                "ball_positions": _default_ball_positions(),
+                "wagering_closed": True,
+            }
+        )
+
+tests/backend/test_simulation_state_endpoint.py:347: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+payload = {'ball_positions': [{'distance_to_pin': 150.0, 'lie_type': 'fairway', 'player_id': 'captain', 'shot_count': 1}, {'dist...distance_to_pin': 170.0, 'lie_type': 'fairway', 'player_id': 'player_four', 'shot_count': 1}], 'wagering_closed': True}
+
+    def _seed_state(payload: dict) -> dict:
+        """Helper to post to the seed endpoint and return the resulting game state."""
+    
+        response = client.post(
+            "/simulation/test/seed-state",
+            json=payload,
+            headers={"x-admin-email": "stuagano@gmail.com"}
+        )
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"Not Found"}
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/backend/test_simulation_state_endpoint.py:51: AssertionError
+____________________ test_seed_state_with_unknown_player_id ____________________
+
+    def test_seed_state_with_unknown_player_id():
+        """Test that seeding with unknown player IDs fails with 422 error."""
+        seed_payload = {
+            "ball_positions": [
+                {
+                    "player_id": "unknown_player",
+                    "distance_to_pin": 150.0,
+                    "lie_type": "fairway",
+                    "shot_count": 1,
+                }
+            ]
+        }
+    
+        response = client.post(
+            "/simulation/test/seed-state",
+            json=seed_payload,
+            headers={"x-admin-email": "stuagano@gmail.com"}
+        )
+>       assert response.status_code == 422
+E       assert 404 == 422
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/backend/test_simulation_state_endpoint.py:380: AssertionError
+_________________________ test_seed_state_before_setup _________________________
+
+    def test_seed_state_before_setup():
+        """Test that seeding before simulation setup fails appropriately."""
+        # This test needs to run without the autouse fixture
+        # Since we can't disable it, we'll test the global state instead
+        import app.main as main_module
+    
+        # Save current simulation state
+        original_sim = main_module.wgp_simulation
+    
+        try:
+            # Clear the global simulation
+            main_module.wgp_simulation = None
+    
+            seed_payload = {
+                "ball_positions": _default_ball_positions(),
+            }
+    
+            response = client.post(
+                "/simulation/test/seed-state",
+                json=seed_payload,
+                headers={"x-admin-email": "stuagano@gmail.com"}
+            )
+>           assert response.status_code == 400
+E           assert 404 == 400
+E            +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/backend/test_simulation_state_endpoint.py:406: AssertionError
+____________________ test_seed_state_conflicting_shot_order ____________________
+
+    def test_seed_state_conflicting_shot_order():
+        """Test that shot order must contain only valid player IDs."""
+        seed_payload = {
+            "shot_order": ["captain", "player_two", "nonexistent_player", "player_four"],
+        }
+    
+        response = client.post(
+            "/simulation/test/seed-state",
+            json=seed_payload,
+            headers={"x-admin-email": "stuagano@gmail.com"}
+        )
+>       assert response.status_code == 422
+E       assert 404 == 422
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/backend/test_simulation_state_endpoint.py:424: AssertionError
+__________________ test_seed_state_invalid_line_of_scrimmage ___________________
+
+    def test_seed_state_invalid_line_of_scrimmage():
+        """Test that line of scrimmage must be a valid player ID."""
+        seed_payload = {
+            "line_of_scrimmage": "invalid_player",
+        }
+    
+        response = client.post(
+            "/simulation/test/seed-state",
+            json=seed_payload,
+            headers={"x-admin-email": "stuagano@gmail.com"}
+        )
+>       assert response.status_code == 422
+E       assert 404 == 422
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/backend/test_simulation_state_endpoint.py:439: AssertionError
+_____________________ test_seed_state_invalid_next_player ______________________
+
+    def test_seed_state_invalid_next_player():
+        """Test that next player to hit must be a valid player ID."""
+        seed_payload = {
+            "next_player_to_hit": "ghost_player",
+        }
+    
+        response = client.post(
+            "/simulation/test/seed-state",
+            json=seed_payload,
+            headers={"x-admin-email": "stuagano@gmail.com"}
+        )
+>       assert response.status_code == 422
+E       assert 404 == 422
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/backend/test_simulation_state_endpoint.py:454: AssertionError
+________________ test_seed_state_invalid_current_order_of_play _________________
+
+    def test_seed_state_invalid_current_order_of_play():
+        """Test that current order of play must contain only valid player IDs."""
+        seed_payload = {
+            "current_order_of_play": ["captain", "fake_player", "player_three"],
+        }
+    
+        response = client.post(
+            "/simulation/test/seed-state",
+            json=seed_payload,
+            headers={"x-admin-email": "stuagano@gmail.com"}
+        )
+>       assert response.status_code == 422
+E       assert 404 == 422
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/backend/test_simulation_state_endpoint.py:469: AssertionError
+______________ test_seed_state_betting_line_of_scrimmage_invalid _______________
+
+    def test_seed_state_betting_line_of_scrimmage_invalid():
+        """Test that betting line of scrimmage must be a valid player ID."""
+        seed_payload = {
+            "betting": {
+                "line_of_scrimmage": "invalid_player",
+            }
+        }
+    
+        response = client.post(
+            "/simulation/test/seed-state",
+            json=seed_payload,
+            headers={"x-admin-email": "stuagano@gmail.com"}
+        )
+>       assert response.status_code == 422
+E       assert 404 == 422
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/backend/test_simulation_state_endpoint.py:486: AssertionError
+_________________ test_seed_state_double_when_wagering_closed __________________
+
+    def test_seed_state_double_when_wagering_closed():
+        """Test behavior when attempting to double after wagering is closed."""
+        # First, seed with wagering closed
+>       _seed_state(
+            {
+                "ball_positions": _default_ball_positions(),
+                "wagering_closed": True,
+                "betting": {
+                    "current_wager": 1,
+                    "doubled": False,
+                },
+            }
+        )
+
+tests/backend/test_simulation_state_endpoint.py:493: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+payload = {'ball_positions': [{'distance_to_pin': 150.0, 'lie_type': 'fairway', 'player_id': 'captain', 'shot_count': 1}, {'dist...ayer_id': 'player_four', 'shot_count': 1}], 'betting': {'current_wager': 1, 'doubled': False}, 'wagering_closed': True}
+
+    def _seed_state(payload: dict) -> dict:
+        """Helper to post to the seed endpoint and return the resulting game state."""
+    
+        response = client.post(
+            "/simulation/test/seed-state",
+            json=payload,
+            headers={"x-admin-email": "stuagano@gmail.com"}
+        )
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"Not Found"}
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/backend/test_simulation_state_endpoint.py:51: AssertionError
+_____________________ test_seed_state_solo_captain_double ______________________
+
+    def test_seed_state_solo_captain_double():
+        """Test that a solo captain can double even when wagering is closed."""
+>       _seed_state(
+            {
+                "ball_positions": _default_ball_positions(),
+                "team_formation": {
+                    "type": "solo",
+                    "captain": "captain",
+                    "solo_player": "captain",
+                    "opponents": ["player_two", "player_three", "player_four"],
+                },
+                "wagering_closed": True,
+                "betting": {
+                    "current_wager": 2,
+                    "doubled": True,
+                },
+            }
+        )
+
+tests/backend/test_simulation_state_endpoint.py:528: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+payload = {'ball_positions': [{'distance_to_pin': 150.0, 'lie_type': 'fairway', 'player_id': 'captain', 'shot_count': 1}, {'dist...ts': ['player_two', 'player_three', 'player_four'], 'solo_player': 'captain', 'type': 'solo'}, 'wagering_closed': True}
+
+    def _seed_state(payload: dict) -> dict:
+        """Helper to post to the seed endpoint and return the resulting game state."""
+    
+        response = client.post(
+            "/simulation/test/seed-state",
+            json=payload,
+            headers={"x-admin-email": "stuagano@gmail.com"}
+        )
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"Not Found"}
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/backend/test_simulation_state_endpoint.py:51: AssertionError
+_____________________ test_seed_state_ping_pong_increment ______________________
+
+    def test_seed_state_ping_pong_increment():
+        """Test ping-pong counter increments."""
+        # Seed initial state with ping pong count
+>       _seed_state(
+            {
+                "ball_positions": _default_ball_positions(),
+                "betting": {
+                    "ping_pong_count": 0,
+                    "current_wager": 1,
+                },
+            }
+        )
+
+tests/backend/test_simulation_state_endpoint.py:558: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+payload = {'ball_positions': [{'distance_to_pin': 150.0, 'lie_type': 'fairway', 'player_id': 'captain', 'shot_count': 1}, {'dist...type': 'fairway', 'player_id': 'player_four', 'shot_count': 1}], 'betting': {'current_wager': 1, 'ping_pong_count': 0}}
+
+    def _seed_state(payload: dict) -> dict:
+        """Helper to post to the seed endpoint and return the resulting game state."""
+    
+        response = client.post(
+            "/simulation/test/seed-state",
+            json=payload,
+            headers={"x-admin-email": "stuagano@gmail.com"}
+        )
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"Not Found"}
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/backend/test_simulation_state_endpoint.py:51: AssertionError
+________________ test_seed_state_pending_partnership_acceptance ________________
+
+    def test_seed_state_pending_partnership_acceptance():
+        """Test pending partnership request state transitions."""
+        # Set up pending partnership request
+>       _seed_state(
+            {
+                "ball_positions": _default_ball_positions(),
+                "team_formation": {
+                    "type": "pending",
+                    "captain": "captain",
+                    "pending_request": {
+                        "captain": "captain",
+                        "requested": "player_three",
+                        "status": "pending",
+                    },
+                },
+            }
+        )
+
+tests/backend/test_simulation_state_endpoint.py:613: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+payload = {'ball_positions': [{'distance_to_pin': 150.0, 'lie_type': 'fairway', 'player_id': 'captain', 'shot_count': 1}, {'dist...tain', 'pending_request': {'captain': 'captain', 'requested': 'player_three', 'status': 'pending'}, 'type': 'pending'}}
+
+    def _seed_state(payload: dict) -> dict:
+        """Helper to post to the seed endpoint and return the resulting game state."""
+    
+        response = client.post(
+            "/simulation/test/seed-state",
+            json=payload,
+            headers={"x-admin-email": "stuagano@gmail.com"}
+        )
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"Not Found"}
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/backend/test_simulation_state_endpoint.py:51: AssertionError
+_________________ test_seed_state_pending_partnership_decline __________________
+
+    def test_seed_state_pending_partnership_decline():
+        """Test declining a pending partnership request."""
+        # Set up pending partnership request
+>       _seed_state(
+            {
+                "ball_positions": _default_ball_positions(),
+                "team_formation": {
+                    "type": "pending",
+                    "captain": "player_two",
+                    "pending_request": {
+                        "captain": "player_two",
+                        "requested": "player_four",
+                        "status": "pending",
+                    },
+                },
+            }
+        )
+
+tests/backend/test_simulation_state_endpoint.py:655: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+payload = {'ball_positions': [{'distance_to_pin': 150.0, 'lie_type': 'fairway', 'player_id': 'captain', 'shot_count': 1}, {'dist...wo', 'pending_request': {'captain': 'player_two', 'requested': 'player_four', 'status': 'pending'}, 'type': 'pending'}}
+
+    def _seed_state(payload: dict) -> dict:
+        """Helper to post to the seed endpoint and return the resulting game state."""
+    
+        response = client.post(
+            "/simulation/test/seed-state",
+            json=payload,
+            headers={"x-admin-email": "stuagano@gmail.com"}
+        )
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"Not Found"}
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/backend/test_simulation_state_endpoint.py:51: AssertionError
+__________________ test_seed_state_multiple_validation_errors __________________
+
+    def test_seed_state_multiple_validation_errors():
+        """Test that multiple validation errors are caught."""
+        seed_payload = {
+            "ball_positions": [
+                {
+                    "player_id": "invalid1",
+                    "distance_to_pin": 100.0,
+                    "lie_type": "fairway",
+                    "shot_count": 1,
+                },
+                {
+                    "player_id": "invalid2",
+                    "distance_to_pin": 120.0,
+                    "lie_type": "rough",
+                    "shot_count": 1,
+                },
+            ],
+            "line_of_scrimmage": "invalid3",
+            "next_player_to_hit": "invalid4",
+        }
+    
+        response = client.post(
+            "/simulation/test/seed-state",
+            json=seed_payload,
+            headers={"x-admin-email": "stuagano@gmail.com"}
+        )
+>       assert response.status_code == 422
+E       assert 404 == 422
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/backend/test_simulation_state_endpoint.py:718: AssertionError
+____________________ test_seed_state_reset_doubles_history _____________________
+
+    def test_seed_state_reset_doubles_history():
+        """Test that doubles history can be reset."""
+        # First seed with some betting state
+>       _seed_state(
+            {
+                "ball_positions": _default_ball_positions(),
+                "betting": {
+                    "current_wager": 2,
+                    "doubled": True,
+                },
+                "reset_doubles_history": False,
+            }
+        )
+
+tests/backend/test_simulation_state_endpoint.py:726: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+payload = {'ball_positions': [{'distance_to_pin': 150.0, 'lie_type': 'fairway', 'player_id': 'captain', 'shot_count': 1}, {'dist...d': 'player_four', 'shot_count': 1}], 'betting': {'current_wager': 2, 'doubled': True}, 'reset_doubles_history': False}
+
+    def _seed_state(payload: dict) -> dict:
+        """Helper to post to the seed endpoint and return the resulting game state."""
+    
+        response = client.post(
+            "/simulation/test/seed-state",
+            json=payload,
+            headers={"x-admin-email": "stuagano@gmail.com"}
+        )
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"detail":"Not Found"}
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/backend/test_simulation_state_endpoint.py:51: AssertionError
+=============================== warnings summary ===============================
+backend/app/database.py:34
+  /Users/stuartgano/Documents/wolf-goat-pig/backend/app/database.py:34: MovedIn20Warning: The ``declarative_base()`` function is now available as sqlalchemy.orm.declarative_base(). (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    Base = declarative_base()
+
+../../../../opt/homebrew/lib/python3.13/site-packages/pydantic/_internal/_config.py:323: 11 warnings
+  /opt/homebrew/lib/python3.13/site-packages/pydantic/_internal/_config.py:323: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
+    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+
+backend/app/game_state.py:293
+  /Users/stuartgano/Documents/wolf-goat-pig/backend/app/game_state.py:293: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    obj = session.query(GameStateModel).get(1)
+
+backend/app/main.py:224
+  /Users/stuartgano/Documents/wolf-goat-pig/backend/app/main.py:224: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+../../../../opt/homebrew/lib/python3.13/site-packages/fastapi/applications.py:4495
+../../../../opt/homebrew/lib/python3.13/site-packages/fastapi/applications.py:4495
+  /opt/homebrew/lib/python3.13/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+backend/app/main.py:340
+  /Users/stuartgano/Documents/wolf-goat-pig/backend/app/main.py:340: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("shutdown")
+
+backend/app/main.py:2863
+  /Users/stuartgano/Documents/wolf-goat-pig/backend/app/main.py:2863: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    sort: str = Query("desc", regex="^(asc|desc)$")  # Add sort parameter
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/backend/test_simulation_state_endpoint.py::test_simulation_state_endpoint_requires_admin
+FAILED tests/backend/test_simulation_state_endpoint.py::test_simulation_state_endpoint_with_admin_header
+FAILED tests/backend/test_simulation_state_endpoint.py::test_simulation_state_endpoint_returns_game_state
+FAILED tests/backend/test_simulation_state_endpoint.py::test_seed_state_endpoint_requires_admin
+FAILED tests/backend/test_simulation_state_endpoint.py::test_seed_state_endpoint_updates_ball_positions
+FAILED tests/backend/test_simulation_state_endpoint.py::test_seed_state_team_formation_partners
+FAILED tests/backend/test_simulation_state_endpoint.py::test_seed_state_team_formation_solo
+FAILED tests/backend/test_simulation_state_endpoint.py::test_seed_state_team_formation_pending_request
+FAILED tests/backend/test_simulation_state_endpoint.py::test_seed_state_line_of_scrimmage_and_ordering
+FAILED tests/backend/test_simulation_state_endpoint.py::test_seed_state_extended_betting_fields
+FAILED tests/backend/test_simulation_state_endpoint.py::test_seed_state_ball_positions_replace
+FAILED tests/backend/test_simulation_state_endpoint.py::test_seed_state_wagering_closed_flag
+FAILED tests/backend/test_simulation_state_endpoint.py::test_seed_state_with_unknown_player_id
+FAILED tests/backend/test_simulation_state_endpoint.py::test_seed_state_before_setup
+FAILED tests/backend/test_simulation_state_endpoint.py::test_seed_state_conflicting_shot_order
+FAILED tests/backend/test_simulation_state_endpoint.py::test_seed_state_invalid_line_of_scrimmage
+FAILED tests/backend/test_simulation_state_endpoint.py::test_seed_state_invalid_next_player
+FAILED tests/backend/test_simulation_state_endpoint.py::test_seed_state_invalid_current_order_of_play
+FAILED tests/backend/test_simulation_state_endpoint.py::test_seed_state_betting_line_of_scrimmage_invalid
+FAILED tests/backend/test_simulation_state_endpoint.py::test_seed_state_double_when_wagering_closed
+FAILED tests/backend/test_simulation_state_endpoint.py::test_seed_state_solo_captain_double
+FAILED tests/backend/test_simulation_state_endpoint.py::test_seed_state_ping_pong_increment
+FAILED tests/backend/test_simulation_state_endpoint.py::test_seed_state_pending_partnership_acceptance
+FAILED tests/backend/test_simulation_state_endpoint.py::test_seed_state_pending_partnership_decline
+FAILED tests/backend/test_simulation_state_endpoint.py::test_seed_state_multiple_validation_errors
+FAILED tests/backend/test_simulation_state_endpoint.py::test_seed_state_reset_doubles_history
+======================= 26 failed, 18 warnings in 1.42s ========================

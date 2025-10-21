@@ -1,0 +1,117 @@
+Now let me create a comprehensive summary of the authentication context:
+
+## Auth Context Summary
+
+Based on my review of the backend authentication utilities and dependencies, here's a comprehensive summary to inform the gating plan for test endpoints:
+
+### Current Authentication Mechanisms
+
+#### 1. **Auth0-based Authentication (Production)**
+- **Location**: `backend/app/services/auth_service.py`
+- **Token Verification**: `verify_token()` method (line 40)
+  - Uses JWT with RS256 algorithm
+  - Validates against Auth0 JWKS endpoint
+  - Environment-aware: Production requires full Auth0 validation
+  - Development mode: Accepts mock tokens
+- **Dependency**: `get_current_user()` function (line 176)
+  - Extracts Auth0 user from JWT token
+  - Auto-creates/updates `PlayerProfile` in database
+  - Returns authenticated `PlayerProfile` instance
+  - Used via FastAPI `Depends(get_current_user)`
+
+#### 2. **Header-based Admin Authentication (Current)**
+- **Location**: `backend/app/main.py` (multiple endpoints)
+- **Method**: `x_admin_email` header validation
+- **Hardcoded Admin List**:
+  ```python
+  admin_emails = ['stuagano@gmail.com', 'admin@wgp.com']
+  ```
+- **Usage Pattern**:
+  ```python
+  def endpoint(x_admin_email: str = Header(None)):
+      if not x_admin_email or x_admin_email not in admin_emails:
+          raise HTTPException(status_code=403, detail="Admin access required")
+  ```
+- **Current Admin Endpoints** (lines 3593-3986):
+  - `/admin/email-config` (GET, POST)
+  - `/admin/test-email` (POST)
+  - `/admin/oauth2-status` (GET)
+  - `/admin/oauth2-authorize` (POST)
+  - `/admin/oauth2-callback` (GET) - **No auth check!**
+  - `/admin/oauth2-test-email` (POST)
+  - `/admin/upload-credentials` (POST)
+
+### Current Test Endpoint Gating
+
+#### Environment Variable Flag
+- **Variable**: `ENABLE_TEST_ENDPOINTS` (line 141)
+- **Default**: `"true"`
+- **Values**: Accepts `"1"`, `"true"`, `"yes"` (case-insensitive)
+- **Current Protected Endpoint**:
+  - `/simulation/test/seed-state` (POST) - line 4606
+  - **No authentication required** - only gated by environment flag
+
+### Database Models
+
+#### PlayerProfile Model (`backend/app/models.py`, line 53)
+- **No admin field** in the current schema
+- Fields include:
+  - `id`, `name`, `email`, `handicap`, `ghin_id`
+  - `avatar_url`, `created_at`, `updated_at`
+  - `preferences` (JSON) - contains `auth0_id`
+  - `is_active`, `is_ai`
+  - No `is_admin` or `role` field
+
+### Security Utilities
+
+#### HTTPBearer Security
+- **Location**: `backend/app/services/auth_service.py:25`
+- **Instance**: `security = HTTPBearer()`
+- **Purpose**: Extract Bearer tokens from Authorization header
+- **Used by**: Auth0 JWT validation flow
+
+### Recommended Gating Strategy for Test Endpoints
+
+Based on this analysis, here are options for gating test endpoints:
+
+#### Option 1: Extend Header-based Admin (Simplest)
+- Reuse existing `x_admin_email` header pattern
+- Add same validation to `/simulation/test/seed-state`
+- **Pros**: Consistent with existing admin endpoints, simple to implement
+- **Cons**: Relies on hardcoded email list, no database persistence
+
+#### Option 2: Auth0 + Admin Flag in PlayerProfile
+- Add `is_admin` field to `PlayerProfile` model
+- Use `Depends(get_current_user)` to authenticate
+- Check `current_user.is_admin` or `current_user.email in admin_list`
+- **Pros**: Database-backed, integrates with existing auth, auditable
+- **Cons**: Requires database migration
+
+#### Option 3: Combined Approach (Recommended)
+- Use environment flag (`ENABLE_TEST_ENDPOINTS`) for dev/test environments
+- In production, require `Depends(get_current_user)` + admin check
+- Allow both Auth0 and header-based admin for flexibility
+- **Pros**: Flexible, secure in production, convenient in development
+- **Cons**: Slightly more complex logic
+
+#### Option 4: Environment-Only Gating (Current)
+- Keep using `ENABLE_TEST_ENDPOINTS` environment variable
+- Disable in production deployments
+- **Pros**: Simple, no auth logic needed
+- **Cons**: No fine-grained control, all-or-nothing
+
+### Key Files Reference
+
+- `backend/app/services/auth_service.py` - Auth0 integration and user dependencies
+- `backend/app/main.py:141` - Test endpoint flag
+- `backend/app/main.py:3593-3986` - Admin endpoints with header validation
+- `backend/app/main.py:4606` - Test seed endpoint
+- `backend/app/models.py:53` - PlayerProfile model
+
+### Testing Considerations
+
+- Tests in `backend/tests/` currently **do not** use admin headers
+- No fixtures found for admin authentication in `backend/tests/conftest.py`
+- Test integration scenarios likely rely on `ENABLE_TEST_ENDPOINTS=true`
+
+This summary provides a complete picture of the authentication context for designing a gating strategy for test endpoints.

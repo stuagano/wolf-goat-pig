@@ -1,0 +1,368 @@
+backend/smoke_tests.py:10:from app.wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer
+backend/smoke_tests.py:65:    sim = WolfGoatPigSimulation(player_count=4, players=players)
+backend/smoke_tests.py:71:    print("   ✓ Simulation created with 4 players")
+backend/smoke_tests.py:83:    sim = WolfGoatPigSimulation(player_count=4, players=players)
+backend/smoke_tests.py:137:    sim = WolfGoatPigSimulation(player_count=4, players=players)
+backend/smoke_tests.py:182:    sim = WolfGoatPigSimulation(player_count=4, players=players)
+backend/smoke_tests.py:220:    sim = WolfGoatPigSimulation(player_count=4, players=players)
+backend/smoke_tests.py:273:    sim = WolfGoatPigSimulation(player_count=4, players=players)
+backend/smoke_tests.py:313:    sim = WolfGoatPigSimulation(player_count=4, players=players)
+backend/smoke_tests.py:339:    runner.run_test("Basic Simulation Creation", test_basic_simulation_creation)
+backend/backend.log:35:INFO:app.main:✅ Simulation initialization verified
+backend/startup.py:444:        from app.wolf_goat_pig_simulation import WolfGoatPigSimulation
+backend/startup.py:475:        # 3. Simulation engine
+backend/startup.py:477:            test_sim = WolfGoatPigSimulation(player_count=4)
+backend/startup.py:479:            logging.info("✅ Simulation engine health check passed")
+backend/startup.py:483:            logging.error(f"❌ Simulation engine health check failed: {e}")
+backend/startup.py:635:            from app.wolf_goat_pig_simulation import WolfGoatPigSimulation
+backend/startup.py:674:        # 3. Simulation engine check
+backend/startup.py:676:            test_sim = WolfGoatPigSimulation(player_count=4)
+backend/startup.py:678:            logger.info("✅ Simulation engine verified")
+backend/startup.py:681:            health_status["warnings"].append("Simulation engine check failed")
+backend/startup.py:682:            logger.warning(f"⚠️ Simulation engine check failed: {e}")
+backend/app/wolf_goat_pig_simulation.py:601:class WolfGoatPigSimulation:
+backend/app/wolf_goat_pig_simulation.py:3389:        new_sim = WolfGoatPigSimulation(player_count=len(wgp_players), players=wgp_players)
+backend/app/models.py:43:class SimulationResult(Base):
+Binary file backend/app/__pycache__/main.cpython-313.pyc matches
+Binary file backend/app/__pycache__/schemas.cpython-313.pyc matches
+Binary file backend/app/__pycache__/schemas.cpython-312.pyc matches
+Binary file backend/app/__pycache__/main.cpython-312.pyc matches
+Binary file backend/app/__pycache__/wolf_goat_pig_simulation.cpython-312.pyc matches
+Binary file backend/app/__pycache__/wolf_goat_pig_simulation.cpython-313.pyc matches
+Binary file backend/app/__pycache__/models.cpython-312.pyc matches
+Binary file backend/app/__pycache__/models.cpython-313.pyc matches
+Binary file backend/app/__pycache__/simulation_timeline_enhancements.cpython-312.pyc matches
+Binary file backend/app/__pycache__/simulation_timeline_enhancements.cpython-313.pyc matches
+Binary file backend/app/__pycache__/simulation.cpython-312.pyc matches
+backend/app/schemas.py:143:class SimulationCourseData(BaseModel):
+backend/app/schemas.py:351:# Game Setup and Simulation Schemas
+backend/app/simulation_timeline_enhancements.py:68:class SimulationTimelineManager:
+backend/app/simulation_timeline_enhancements.py:113:        simulation.timeline_manager = SimulationTimelineManager()
+backend/app/main.py:11:from .wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer, BallPosition, TeamFormation
+backend/app/main.py:49:# Initialize Wolf Goat Pig Simulation (will be replaced when game starts)
+backend/app/main.py:50:wgp_simulation = WolfGoatPigSimulation(player_count=4)
+backend/app/main.py:111:class SimulationSeedRequest(BaseModel):
+backend/app/main.py:134:    title="Wolf Goat Pig Golf Simulation API",
+backend/app/main.py:308:            test_simulation = WolfGoatPigSimulation(player_count=4)
+backend/app/main.py:309:            logger.info("✅ Simulation initialization verified")
+backend/app/main.py:311:            logger.warning(f"⚠️ Simulation test failed (non-critical): {e}")
+backend/app/main.py:512:        # 5. Simulation initialization test
+backend/app/main.py:515:            test_simulation = WolfGoatPigSimulation(player_count=4)
+backend/app/main.py:518:                "message": "Simulation engine operational"
+backend/app/main.py:521:            logger.error(f"Simulation initialization test failed: {e}")
+backend/app/main.py:524:                "message": f"Simulation test failed: {str(e)}"
+backend/app/main.py:2369:        from .services.monte_carlo import run_monte_carlo_simulation, SimulationParams
+backend/app/main.py:2394:            mc_params = SimulationParams()
+backend/app/main.py:2918:        total_simulations = db.query(models.SimulationResult).count()
+backend/app/main.py:4110:class SimulationSetupRequest(BaseModel):
+backend/app/main.py:4118:class SimulationPlayShotRequest(BaseModel):
+backend/app/main.py:4122:class SimulationPlayHoleRequest(BaseModel):
+backend/app/main.py:4315:        wgp_simulation = WolfGoatPigSimulation(
+backend/app/main.py:4371:        logger.info("Simulation setup completed successfully")
+backend/app/main.py:4375:            "message": "Simulation initialized successfully",
+backend/app/main.py:4391:        logger.error(f"Simulation setup failed: {e}")
+backend/app/main.py:4395:def play_next_shot(request: SimulationPlayShotRequest = None):
+backend/app/main.py:4401:            raise HTTPException(status_code=400, detail="Simulation not initialized. Call /simulation/setup first.")
+backend/app/main.py:4473:            raise HTTPException(status_code=400, detail="Simulation not initialized. Call /simulation/setup first.")
+backend/app/main.py:4607:    def seed_simulation_state(payload: SimulationSeedRequest):
+backend/app/main.py:4617:            raise HTTPException(status_code=400, detail="Simulation not initialized. Call /simulation/setup first.")
+backend/app/main.py:4733:        raise HTTPException(status_code=404, detail="Simulation not initialized")
+backend/app/main.py:4875:            raise HTTPException(status_code=400, detail="Simulation not initialized")
+backend/app/main.py:4956:            raise HTTPException(status_code=400, detail="Simulation not initialized")
+backend/app/main.py:5055:            raise HTTPException(status_code=400, detail="Simulation not initialized")
+backend/app/main.py:5164:            raise HTTPException(status_code=400, detail="Simulation not initialized")
+backend/app/main.py:5302:            raise HTTPException(status_code=400, detail="Simulation not initialized")
+backend/app/main.py:5330:            raise HTTPException(status_code=400, detail="Simulation not initialized")
+backend/app/services/monte_carlo.py:17:class SimulationParams:
+backend/app/services/monte_carlo.py:28:class SimulationResult:
+backend/app/services/monte_carlo.py:44:    def __init__(self, params: Optional[SimulationParams] = None):
+backend/app/services/monte_carlo.py:45:        self.params = params or SimulationParams()
+backend/app/services/monte_carlo.py:58:        params: Optional[SimulationParams] = None
+backend/app/services/monte_carlo.py:59:    ) -> SimulationResult:
+backend/app/services/monte_carlo.py:76:        params: SimulationParams,
+backend/app/services/monte_carlo.py:78:    ) -> SimulationResult:
+backend/app/services/monte_carlo.py:112:                    print(f"Simulation batch failed: {e}")
+backend/app/services/monte_carlo.py:123:        params: SimulationParams,
+backend/app/services/monte_carlo.py:125:    ) -> SimulationResult:
+backend/app/services/monte_carlo.py:502:    ) -> SimulationResult:
+backend/app/services/monte_carlo.py:506:            return SimulationResult(
+backend/app/services/monte_carlo.py:558:        return SimulationResult(
+backend/app/services/monte_carlo.py:659:) -> SimulationResult:
+backend/app/services/monte_carlo.py:664:    params = SimulationParams(
+Binary file backend/app/services/__pycache__/monte_carlo.cpython-312.pyc matches
+Binary file backend/app/services/__pycache__/monte_carlo.cpython-313.pyc matches
+backend/test_short_game.py:13:    from app.wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPShotResult
+backend/test_short_game.py:20:        sim = WolfGoatPigSimulation()
+backend/test_progression.py:13:    from app.wolf_goat_pig_simulation import WolfGoatPigSimulation
+backend/test_progression.py:20:        sim = WolfGoatPigSimulation()
+backend/test_progression.py:52:        print("\n🎯 Testing Hole Completion Simulation")
+backend/tests/test_models_schemas.py:19:    Rule, Course, Hole, GameStateModel, SimulationResult,
+backend/tests/test_simulation_unit.py:16:    from app.wolf_goat_pig_simulation import WolfGoatPigSimulation
+backend/tests/test_simulation_unit.py:27:class TestWolfGoatPigSimulation:
+backend/tests/test_simulation_unit.py:43:        sim = WolfGoatPigSimulation()
+backend/tests/test_simulation_unit.py:50:        sim = WolfGoatPigSimulation()
+backend/tests/test_simulation_unit.py:58:        sim = WolfGoatPigSimulation()
+backend/tests/test_simulation_unit.py:66:        sim = WolfGoatPigSimulation()
+backend/tests/test_simulation_unit.py:77:        sim = WolfGoatPigSimulation()
+backend/tests/test_simulation_unit.py:88:        sim = WolfGoatPigSimulation()
+backend/tests/test_simulation_unit.py:101:        sim = WolfGoatPigSimulation()
+backend/tests/test_simulation_unit.py:114:        sim = WolfGoatPigSimulation()
+backend/tests/test_simulation_unit.py:129:        sim = WolfGoatPigSimulation()
+backend/tests/test_simulation_unit.py:143:        sim = WolfGoatPigSimulation()
+backend/tests/test_simulation_unit.py:166:        sim = WolfGoatPigSimulation()
+backend/tests/test_simulation_unit.py:197:        sim = WolfGoatPigSimulation()
+backend/tests/test_simulation_unit.py:335:class TestSimulationUtilities:
+backend/tests/test_simulation_unit.py:378:class TestSimulationErrorHandling:
+backend/tests/test_simulation_unit.py:384:            WolfGoatPigSimulation(player_count=3)
+backend/tests/test_simulation_unit.py:388:        sim = WolfGoatPigSimulation()
+backend/tests/test_simulation_unit.py:394:        sim = WolfGoatPigSimulation()
+backend/tests/test_simulation_unit.py:401:    print("🧪 Simulation Unit Tests")
+backend/tests/test_simulation_unit.py:405:        print("⚠️ Simulation components not available for testing")
+backend/tests/test_simulation_unit.py:411:        TestWolfGoatPigSimulation,
+backend/tests/test_simulation_unit.py:415:        TestSimulationUtilities,
+backend/tests/test_simulation_unit.py:416:        TestSimulationErrorHandling,
+backend/tests/test_monte_carlo.py:17:    SimulationParams,
+backend/tests/test_monte_carlo.py:18:    SimulationResult,
+backend/tests/test_monte_carlo.py:75:        valid_params = SimulationParams(
+backend/tests/test_monte_carlo.py:84:        default_params = SimulationParams()
+backend/tests/test_monte_carlo.py:182:        params = SimulationParams(num_simulations=5000, use_parallel=False)
+backend/tests/test_monte_carlo.py:199:        params = SimulationParams(
+backend/tests/test_monte_carlo.py:210:        self.assertLess(total_time, 50, f"Simulation took {total_time:.1f}ms, should be under 50ms")
+backend/tests/test_monte_carlo.py:228:        params = SimulationParams(num_simulations=1000, use_parallel=False)
+backend/tests/test_monte_carlo.py:249:        params = SimulationParams(num_simulations=2000, confidence_level=0.95)
+backend/tests/test_monte_carlo.py:270:        params = SimulationParams(num_simulations=1000)
+backend/tests/test_monte_carlo.py:305:        params_parallel = SimulationParams(num_simulations=1000, use_parallel=True, num_threads=2)
+backend/tests/test_monte_carlo.py:306:        params_sequential = SimulationParams(num_simulations=1000, use_parallel=False)
+backend/tests/test_monte_carlo.py:327:        params = SimulationParams(
+backend/tests/test_monte_carlo.py:343:        minimal_params = SimulationParams(num_simulations=10)
+backend/tests/test_monte_carlo.py:346:        self.assertIsInstance(minimal_result, SimulationResult)
+backend/tests/test_monte_carlo.py:353:        self.assertIsInstance(single_result, SimulationResult)
+backend/tests/test_monte_carlo.py:363:        params = SimulationParams(num_simulations=2000, use_parallel=False)
+backend/tests/test_monte_carlo.py:406:        self.assertIsInstance(result, SimulationResult)
+backend/tests/test_monte_carlo.py:425:        self.assertIsInstance(result, SimulationResult)
+backend/tests/simulation/test_simulation_scenarios.py:102:class WolfGoatPigSimulationTester:
+backend/tests/simulation/test_simulation_scenarios.py:258:class SimulationScenarios:
+backend/tests/simulation/test_simulation_scenarios.py:316:class TestSimulationMode:
+backend/tests/simulation/test_simulation_scenarios.py:322:        return WolfGoatPigSimulationTester()
+backend/tests/simulation/test_simulation_scenarios.py:326:        scenario = SimulationScenarios.aggressive_captain_solo()
+backend/tests/simulation/test_simulation_scenarios.py:341:        scenario = SimulationScenarios.partnership_acceptance()
+backend/tests/simulation/test_simulation_scenarios.py:356:        tester = WolfGoatPigSimulationTester()
+backend/tests/simulation/test_simulation_scenarios.py:357:        scenario = SimulationScenarios.partnership_acceptance()
+backend/tests/simulation/__init__.py:1:"""Simulation test subpackage for backend suite."""
+Binary file backend/tests/simulation/__pycache__/test_simulation_scenarios.cpython-313-pytest-8.4.1.pyc matches
+Binary file backend/tests/simulation/__pycache__/test_simulation_scenarios.cpython-313-pytest-8.4.2.pyc matches
+Binary file backend/tests/simulation/__pycache__/test_simulation_scenarios.cpython-312-pytest-8.4.2.pyc matches
+Binary file backend/tests/simulation/__pycache__/__init__.cpython-312.pyc matches
+Binary file backend/tests/simulation/__pycache__/__init__.cpython-313.pyc matches
+Binary file backend/tests/__pycache__/test_monte_carlo.cpython-313-pytest-8.4.1.pyc matches
+Binary file backend/tests/__pycache__/test_simulation_endpoints.cpython-313-pytest-8.4.1.pyc matches
+Binary file backend/tests/__pycache__/test_monte_carlo.cpython-313-pytest-8.4.2.pyc matches
+Binary file backend/tests/__pycache__/test_performance.cpython-312-pytest-8.4.2.pyc matches
+Binary file backend/tests/__pycache__/test_simulation_endpoints.cpython-313-pytest-8.4.2.pyc matches
+Binary file backend/tests/__pycache__/test_simulation_integration.cpython-313-pytest-8.4.2.pyc matches
+Binary file backend/tests/__pycache__/test_bootstrapping.cpython-312-pytest-8.4.2.pyc matches
+Binary file backend/tests/__pycache__/test_simulation_integration.cpython-313-pytest-8.4.1.pyc matches
+Binary file backend/tests/__pycache__/test_performance.cpython-313-pytest-8.4.1.pyc matches
+Binary file backend/tests/__pycache__/test_simulation_endpoints.cpython-312-pytest-8.4.2.pyc matches
+Binary file backend/tests/__pycache__/test_performance.cpython-313-pytest-8.4.2.pyc matches
+Binary file backend/tests/__pycache__/test_monte_carlo.cpython-312-pytest-8.4.2.pyc matches
+Binary file backend/tests/__pycache__/test_simulation_integration.cpython-312-pytest-8.4.2.pyc matches
+Binary file backend/tests/__pycache__/test_simulation_integration.cpython-313.pyc matches
+Binary file backend/tests/__pycache__/test_bootstrapping.cpython-313-pytest-8.4.1.pyc matches
+Binary file backend/tests/__pycache__/test_bootstrapping.cpython-313-pytest-8.4.2.pyc matches
+Binary file backend/tests/__pycache__/test_models_schemas.cpython-312-pytest-8.4.2.pyc matches
+Binary file backend/tests/__pycache__/test_simulation_unit.cpython-312-pytest-8.4.2.pyc matches
+Binary file backend/tests/__pycache__/test_models_schemas.cpython-313-pytest-8.4.2.pyc matches
+Binary file backend/tests/__pycache__/test_simulation_unit.cpython-313-pytest-8.4.1.pyc matches
+Binary file backend/tests/__pycache__/test_models_schemas.cpython-313-pytest-8.4.1.pyc matches
+Binary file backend/tests/__pycache__/test_simulation_unit.cpython-313-pytest-8.4.2.pyc matches
+backend/tests/test_performance.py:161:            with self.profiler.timer(f"Simulation with {iterations} iterations"):
+backend/tests/test_performance.py:206:                name=f"Simulation with {player_count} players"
+backend/tests/test_performance.py:230:        with self.profiler.memory_monitor("Large Monte Carlo Simulation"):
+backend/tests/test_bootstrapping.py:317:                with patch('app.main.WolfGoatPigSimulation') as mock_sim:
+backend/tests/test_bootstrapping.py:364:                with patch('app.main.WolfGoatPigSimulation') as mock_sim:
+backend/tests/test_bootstrapping.py:365:                    mock_sim.side_effect = Exception("Simulation initialization failed")
+backend/tests/test_simulation_endpoints.py:12:class MockSimulation:
+backend/tests/test_simulation_endpoints.py:24:mock_wgp_simulation = MockSimulation()
+backend/tests/test_simulation_endpoints.py:94:        "message": "Simulation initialized successfully",
+backend/tests/test_simulation_endpoints.py:127:    """Test compatibility with useSimulationApi.js frontend hook"""
+backend/tests/test_simulation_endpoints.py:131:    # This tests the specific calls made by useSimulationApi.js
+backend/tests/test_simulation_endpoints.py:202:            "message": "Simulation initialized",
+backend/tests/test_simulation_endpoints.py:213:    print("✅ 'Simulation not found' error has been resolved")
+backend/tests/test_simulation_endpoints.py:232:    print("✅ Simulation integrates properly with bootstrap system")
+backend/tests/test_simulation_endpoints.py:237:    print("🎮 Simulation Endpoints Test Suite")
+backend/tests/test_simulation_integration.py:13:class TestSimulationIntegration:
+backend/tests/test_simulation_integration.py:58:        assert "Simulation not initialized" in response.json()["detail"]
+backend/SIMULATION_ENDPOINTS_SUMMARY.md:1:# Simulation API Endpoints Implementation Summary
+backend/SIMULATION_ENDPOINTS_SUMMARY.md:96:- Uses existing `WolfGoatPigSimulation` class and `WGPPlayer` objects
+backend/SIMULATION_ENDPOINTS_SUMMARY.md:109:  - `SimulationSetupRequest`
+backend/SIMULATION_ENDPOINTS_SUMMARY.md:110:  - `SimulationPlayShotRequest` 
+backend/SIMULATION_ENDPOINTS_SUMMARY.md:111:  - `SimulationPlayHoleRequest`
+backend/SIMULATION_ENDPOINTS_SUMMARY.md:116:- **Shot Simulation**: Uses existing shot simulation engine
+backend/SIMULATION_ENDPOINTS_SUMMARY.md:129:The implemented endpoints match exactly what the frontend `useSimulationApi.js` hook expects:
+backend/SIMULATION_ENDPOINTS_SUMMARY.md:130:- `setupSimulation()` → POST /simulation/setup
+backend/SIMULATION_ENDPOINTS_SUMMARY.md:132:- `makeSimulationDecision()` → POST /simulation/play-hole
+backend/BOOTSTRAP_README.md:45:- **Simulation Verification**: Tests simulation initialization
+backend/BOOTSTRAP_README.md:60:- Simulation engine functionality
+backend/BOOTSTRAP_README.md:81:- Simulation engine recovery
+backend/BOOTSTRAP_README.md:340:- Simulation initialization success rate
+Binary file backend/__pycache__/test_fixes.cpython-312-pytest-8.4.2.pyc matches
+Binary file backend/__pycache__/test_progression.cpython-313-pytest-8.4.1.pyc matches
+Binary file backend/__pycache__/test_betting_flow.cpython-312-pytest-8.4.2.pyc matches
+Binary file backend/__pycache__/test_hole_completion.cpython-313-pytest-8.4.1.pyc matches
+Binary file backend/__pycache__/test_progression.cpython-312-pytest-8.4.2.pyc matches
+Binary file backend/__pycache__/dev_workflow.cpython-312.pyc matches
+Binary file backend/__pycache__/test_fixes.cpython-313-pytest-8.4.1.pyc matches
+Binary file backend/__pycache__/test_hole_completion.cpython-312-pytest-8.4.2.pyc matches
+Binary file backend/__pycache__/startup.cpython-313.pyc matches
+Binary file backend/__pycache__/test_betting_flow.cpython-313-pytest-8.4.1.pyc matches
+Binary file backend/__pycache__/test_short_game.cpython-312-pytest-8.4.2.pyc matches
+Binary file backend/__pycache__/test_simulation_timeline.cpython-313-pytest-8.4.1.pyc matches
+Binary file backend/__pycache__/test_short_game.cpython-313-pytest-8.4.1.pyc matches
+Binary file backend/__pycache__/test_simulation_timeline.cpython-312-pytest-8.4.2.pyc matches
+backend/test_fixes.py:8:from app.wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer
+backend/test_fixes.py:21:    sim = WolfGoatPigSimulation(player_count=4, players=players)
+backend/test_betting_flow.py:8:from app.wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer
+backend/test_betting_flow.py:21:    sim = WolfGoatPigSimulation(player_count=4, players=players)
+backend/deploy.sh:251:  "name": "Wolf-Goat-Pig Golf Simulation API",
+backend/test_hole_completion.py:35:    print("✅ Simulation setup successful")
+backend/test_simulation_timeline.py:16:        print('🎮 Testing Wolf-Goat-Pig Simulation - Poker/Golf Hybrid')
+backend/test_simulation_timeline.py:41:            print('✅ Simulation setup successful!')
+backend/test_simulation_timeline.py:170:        print('✅ Simulation test complete!')
+backend/server.log:19:INFO:app.main:✅ Simulation initialization verified
+tests/backend/test_integration_scenarios.py:12:from app.wolf_goat_pig_simulation import WolfGoatPigSimulation
+tests/backend/test_integration_scenarios.py:31:        base = WolfGoatPigSimulation(player_count=len(configs) + 1)
+tests/backend/test_integration_scenarios.py:119:        base = WolfGoatPigSimulation(player_count=4)
+tests/backend/test_integration_scenarios.py:164:        base = WolfGoatPigSimulation(player_count=4)
+tests/backend/test_debug.py:10:from app.wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer
+tests/backend/test_debug.py:14:    print("🧪 Testing Wolf Goat Pig Simulation")
+tests/backend/test_debug.py:26:    sim = WolfGoatPigSimulation(player_count=4, players=players)
+tests/backend/test_debug.py:28:    print(f"✅ Simulation created")
+tests/backend/test_basic_functionality.py:10:from app.wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer
+tests/backend/test_basic_functionality.py:16:class TestBasicSimulation:
+tests/backend/test_basic_functionality.py:21:        sim = WolfGoatPigSimulation(player_count=4)
+tests/backend/test_basic_functionality.py:35:        sim = WolfGoatPigSimulation(player_count=4)
+tests/backend/test_basic_functionality.py:45:        sim = WolfGoatPigSimulation(player_count=4)
+tests/backend/test_basic_functionality.py:130:class TestSimulationFlow:
+tests/backend/test_basic_functionality.py:135:        sim = WolfGoatPigSimulation(player_count=4)
+tests/backend/test_basic_functionality.py:145:        sim = WolfGoatPigSimulation(player_count=4)
+tests/backend/test_basic_functionality.py:154:        sim = WolfGoatPigSimulation(player_count=4)
+tests/backend/test_basic_functionality.py:164:class TestShotSimulation:
+tests/backend/test_basic_functionality.py:169:        sim = WolfGoatPigSimulation(player_count=4)
+tests/backend/test_basic_functionality.py:177:        sim = WolfGoatPigSimulation(player_count=4)
+tests/backend/test_basic_functionality.py:195:        sim = WolfGoatPigSimulation(player_count=4)
+tests/backend/test_basic_functionality.py:207:        sim = WolfGoatPigSimulation(player_count=4)
+tests/backend/test_final_implementation.py:6:from app.wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer, WGPShotResult
+tests/backend/test_final_implementation.py:20:    sim = WolfGoatPigSimulation(player_count=4, players=players)
+tests/backend/test_aardvark.py:10:from app.wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer
+tests/backend/test_aardvark.py:26:    simulation = WolfGoatPigSimulation(player_count=5, players=players)
+tests/backend/test_aardvark.py:95:    simulation = WolfGoatPigSimulation(player_count=5, players=players)
+tests/backend/test_aardvark.py:147:    simulation = WolfGoatPigSimulation(player_count=6, players=players)
+tests/backend/test_simulation_state_endpoint.py:352:        assert "Simulation not initialized" in response.json()["detail"]
+tests/backend/test_simulation_courses.py:10:from app.wolf_goat_pig_simulation import WolfGoatPigSimulation
+tests/backend/test_simulation_courses.py:15:    print("🧪 Testing Simulation with Course Data")
+tests/backend/test_simulation_courses.py:19:    engine = WolfGoatPigSimulation()
+tests/backend/test_wgp_direct.py:10:from app.wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer
+tests/backend/test_wgp_direct.py:14:    print("🧪 Testing Wolf Goat Pig Simulation Directly")
+tests/backend/test_wgp_direct.py:26:    sim = WolfGoatPigSimulation(player_count=4, players=players)
+tests/backend/test_wgp_direct.py:28:    print(f"✅ Simulation created with {len(players)} players")
+tests/backend/test_wgp_direct.py:86:    sim = WolfGoatPigSimulation(4)
+tests/backend/test_simulation_components.py:11:from app.wolf_goat_pig_simulation import WolfGoatPigSimulation
+tests/backend/test_simulation_components.py:90:class TestShotSimulation:
+tests/backend/test_simulation_components.py:111:        engine = WolfGoatPigSimulation()
+tests/backend/test_simulation_components.py:141:class TestSimulationFlow:
+tests/backend/test_simulation_components.py:146:        engine = WolfGoatPigSimulation()
+tests/backend/test_analytics.py:10:from app.wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer
+tests/backend/test_analytics.py:25:    simulation = WolfGoatPigSimulation(player_count=4, players=players)
+Binary file tests/backend/__pycache__/test_basic_functionality.cpython-313-pytest-8.4.1.pyc matches
+Binary file tests/backend/__pycache__/test_analytics.cpython-313-pytest-8.4.1.pyc matches
+Binary file tests/backend/__pycache__/test_simulation_components_fixed.cpython-313-pytest-8.4.1.pyc matches
+Binary file tests/backend/__pycache__/test_advanced_rules.cpython-313-pytest-8.4.1.pyc matches
+Binary file tests/backend/__pycache__/test_simulation_components.cpython-313-pytest-8.4.1.pyc matches
+Binary file tests/backend/__pycache__/test_wgp_direct.cpython-313-pytest-8.4.1.pyc matches
+Binary file tests/backend/__pycache__/test_simulation_state_endpoint.cpython-313-pytest-8.4.1.pyc matches
+Binary file tests/backend/__pycache__/test_simulation_state_endpoint.cpython-313-pytest-8.4.2.pyc matches
+Binary file tests/backend/__pycache__/test_final_implementation.cpython-313-pytest-8.4.1.pyc matches
+Binary file tests/backend/__pycache__/test_integration_scenarios.cpython-313.pyc matches
+Binary file tests/backend/__pycache__/test_integration_scenarios.cpython-312-pytest-8.4.2.pyc matches
+Binary file tests/backend/__pycache__/test_debug.cpython-313-pytest-8.4.1.pyc matches
+Binary file tests/backend/__pycache__/test_integration_scenarios.cpython-313-pytest-8.4.2.pyc matches
+Binary file tests/backend/__pycache__/test_simulation_courses.cpython-313-pytest-8.4.1.pyc matches
+Binary file tests/backend/__pycache__/test_unified_action_api.cpython-313-pytest-8.4.1.pyc matches
+Binary file tests/backend/__pycache__/test_integration_scenarios.cpython-313-pytest-8.4.1.pyc matches
+Binary file tests/backend/__pycache__/test_aardvark.cpython-313-pytest-8.4.1.pyc matches
+tests/backend/test_advanced_rules.py:10:from app.wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer
+tests/backend/test_advanced_rules.py:18:        self.simulation = WolfGoatPigSimulation(player_count=4)
+tests/backend/test_advanced_rules.py:37:        simulation_5 = WolfGoatPigSimulation(player_count=5)
+tests/backend/test_advanced_rules.py:42:        simulation_6 = WolfGoatPigSimulation(player_count=6)
+tests/backend/test_advanced_rules.py:196:        simulation_5 = WolfGoatPigSimulation(player_count=5)
+tests/backend/test_advanced_rules.py:292:        simulation_6 = WolfGoatPigSimulation(player_count=6)
+tests/backend/test_unified_action_api.py:29:        from app.wolf_goat_pig_simulation import WolfGoatPigSimulation
+tests/backend/test_unified_action_api.py:31:        app.main.wgp_simulation = WolfGoatPigSimulation(player_count=4)
+tests/backend/test_unified_action_api.py:301:        print("\n=== Starting Two Full Holes Simulation ===")
+tests/backend/test_unified_action_api.py:335:        print("\n=== Two Full Holes Simulation Completed Successfully ===")
+Binary file tests/backend/helpers/__pycache__/simulation_engine.cpython-313.pyc matches
+tests/backend/test_simulation_components_fixed.py:11:from app.wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer
+tests/backend/test_simulation_components_fixed.py:82:class TestWolfGoatPigSimulation:
+tests/backend/test_simulation_components_fixed.py:86:        sim = WolfGoatPigSimulation(player_count=4)
+tests/backend/test_simulation_components_fixed.py:99:        sim = WolfGoatPigSimulation(player_count=4, players=players)
+tests/backend/test_simulation_components_fixed.py:104:        sim = WolfGoatPigSimulation(player_count=4)
+tests/backend/test_simulation_components_fixed.py:113:        sim = WolfGoatPigSimulation(player_count=4)
+tests/backend/test_simulation_components_fixed.py:121:        sim = WolfGoatPigSimulation(player_count=4)
+tests/backend/test_simulation_components_fixed.py:129:        sim = WolfGoatPigSimulation(player_count=4)
+tests/backend/test_simulation_components_fixed.py:139:        sim = WolfGoatPigSimulation(player_count=4)
+tests/backend/test_simulation_components_fixed.py:147:        sim = WolfGoatPigSimulation(player_count=4)
+tests/backend/test_simulation_components_fixed.py:158:        sim = WolfGoatPigSimulation(player_count=4)
+tests/backend/test_simulation_components_fixed.py:170:        sim = WolfGoatPigSimulation(player_count=4)
+tests/backend/test_simulation_components_fixed.py:186:        sim = WolfGoatPigSimulation(player_count=4)
+tests/backend/test_simulation_components_fixed.py:194:        sim = WolfGoatPigSimulation(player_count=4)
+tests/backend/test_simulation_components_fixed.py:202:        sim = WolfGoatPigSimulation(player_count=4)
+tests/backend/test_simulation_components_fixed.py:218:        sim = WolfGoatPigSimulation(player_count=4)
+tests/backend/test_simulation_components_fixed.py:227:        sim = WolfGoatPigSimulation(player_count=4)
+reports/test_summary.md:1:# Simulation Mode Test Results
+reports/test_summary.md:17:🎉 **ALL TESTS PASSED** - Simulation mode is ready for production use.
+reports/backend_unit_tests.html:432:    <div id="data-container" data-jsonblob="{&#34;environment&#34;: {&#34;Python&#34;: &#34;3.13.3&#34;, &#34;Platform&#34;: &#34;macOS-26.0.1-arm64-arm-64bit-Mach-O&#34;, &#34;Packages&#34;: {&#34;pytest&#34;: &#34;8.4.1&#34;, &#34;pluggy&#34;: &#34;1.6.0&#34;}, &#34;Plugins&#34;: {&#34;mock&#34;: &#34;3.15.1&#34;, &#34;html&#34;: &#34;4.1.1&#34;, &#34;asyncio&#34;: &#34;1.1.0&#34;, &#34;metadata&#34;: &#34;3.1.1&#34;, &#34;anyio&#34;: &#34;4.10.0&#34;}}, &#34;tests&#34;: {&#34;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_simulation_initialization&#34;: [{&#34;extras&#34;: [], &#34;result&#34;: &#34;Skipped&#34;, &#34;testId&#34;: &#34;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_simulation_initialization::setup&#34;, &#34;duration&#34;: &#34;0 ms&#34;, &#34;resultsTableRow&#34;: [&#34;&lt;td class=\&#34;col-result\&#34;&gt;Skipped&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-testId\&#34;&gt;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_simulation_initialization::setup&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-duration\&#34;&gt;0 ms&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-links\&#34;&gt;&lt;/td&gt;&#34;], &#34;log&#34;: &#34;(&amp;#x27;/Users/stuartgano/Documents/wolf-goat-pig/backend/tests/test_simulation_unit.py&amp;#x27;, 41, &amp;#x27;Skipped: Required imports not available&amp;#x27;)\n&#34;}], &#34;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_add_players&#34;: [{&#34;extras&#34;: [], &#34;result&#34;: &#34;Skipped&#34;, &#34;testId&#34;: &#34;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_add_players::setup&#34;, &#34;duration&#34;: &#34;0 ms&#34;, &#34;resultsTableRow&#34;: [&#34;&lt;td class=\&#34;col-result\&#34;&gt;Skipped&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-testId\&#34;&gt;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_add_players::setup&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-duration\&#34;&gt;0 ms&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-links\&#34;&gt;&lt;/td&gt;&#34;], &#34;log&#34;: &#34;(&amp;#x27;/Users/stuartgano/Documents/wolf-goat-pig/backend/tests/test_simulation_unit.py&amp;#x27;, 48, &amp;#x27;Skipped: Required imports not available&amp;#x27;)\n&#34;}], &#34;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_set_course&#34;: [{&#34;extras&#34;: [], &#34;result&#34;: &#34;Skipped&#34;, &#34;testId&#34;: &#34;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_set_course::setup&#34;, &#34;duration&#34;: &#34;0 ms&#34;, &#34;resultsTableRow&#34;: [&#34;&lt;td class=\&#34;col-result\&#34;&gt;Skipped&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-testId\&#34;&gt;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_set_course::setup&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-duration\&#34;&gt;0 ms&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-links\&#34;&gt;&lt;/td&gt;&#34;], &#34;log&#34;: &#34;(&amp;#x27;/Users/stuartgano/Documents/wolf-goat-pig/backend/tests/test_simulation_unit.py&amp;#x27;, 56, &amp;#x27;Skipped: Required imports not available&amp;#x27;)\n&#34;}], &#34;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_start_game&#34;: [{&#34;extras&#34;: [], &#34;result&#34;: &#34;Skipped&#34;, &#34;testId&#34;: &#34;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_start_game::setup&#34;, &#34;duration&#34;: &#34;0 ms&#34;, &#34;resultsTableRow&#34;: [&#34;&lt;td class=\&#34;col-result\&#34;&gt;Skipped&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-testId\&#34;&gt;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_start_game::setup&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-duration\&#34;&gt;0 ms&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-links\&#34;&gt;&lt;/td&gt;&#34;], &#34;log&#34;: &#34;(&amp;#x27;/Users/stuartgano/Documents/wolf-goat-pig/backend/tests/test_simulation_unit.py&amp;#x27;, 64, &amp;#x27;Skipped: Required imports not available&amp;#x27;)\n&#34;}], &#34;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_get_current_captain&#34;: [{&#34;extras&#34;: [], &#34;result&#34;: &#34;Skipped&#34;, &#34;testId&#34;: &#34;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_get_current_captain::setup&#34;, &#34;duration&#34;: &#34;0 ms&#34;, &#34;resultsTableRow&#34;: [&#34;&lt;td class=\&#34;col-result\&#34;&gt;Skipped&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-testId\&#34;&gt;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_get_current_captain::setup&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-duration\&#34;&gt;0 ms&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-links\&#34;&gt;&lt;/td&gt;&#34;], &#34;log&#34;: &#34;(&amp;#x27;/Users/stuartgano/Documents/wolf-goat-pig/backend/tests/test_simulation_unit.py&amp;#x27;, 75, &amp;#x27;Skipped: Required imports not available&amp;#x27;)\n&#34;}], &#34;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_captain_rotation&#34;: [{&#34;extras&#34;: [], &#34;result&#34;: &#34;Skipped&#34;, &#34;testId&#34;: &#34;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_captain_rotation::setup&#34;, &#34;duration&#34;: &#34;0 ms&#34;, &#34;resultsTableRow&#34;: [&#34;&lt;td class=\&#34;col-result\&#34;&gt;Skipped&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-testId\&#34;&gt;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_captain_rotation::setup&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-duration\&#34;&gt;0 ms&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-links\&#34;&gt;&lt;/td&gt;&#34;], &#34;log&#34;: &#34;(&amp;#x27;/Users/stuartgano/Documents/wolf-goat-pig/backend/tests/test_simulation_unit.py&amp;#x27;, 86, &amp;#x27;Skipped: Required imports not available&amp;#x27;)\n&#34;}], &#34;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_partnership_request&#34;: [{&#34;extras&#34;: [], &#34;result&#34;: &#34;Skipped&#34;, &#34;testId&#34;: &#34;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_partnership_request::setup&#34;, &#34;duration&#34;: &#34;0 ms&#34;, &#34;resultsTableRow&#34;: [&#34;&lt;td class=\&#34;col-result\&#34;&gt;Skipped&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-testId\&#34;&gt;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_partnership_request::setup&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-duration\&#34;&gt;0 ms&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-links\&#34;&gt;&lt;/td&gt;&#34;], &#34;log&#34;: &#34;(&amp;#x27;/Users/stuartgano/Documents/wolf-goat-pig/backend/tests/test_simulation_unit.py&amp;#x27;, 99, &amp;#x27;Skipped: Required imports not available&amp;#x27;)\n&#34;}], &#34;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_partnership_response&#34;: [{&#34;extras&#34;: [], &#34;result&#34;: &#34;Skipped&#34;, &#34;testId&#34;: &#34;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_partnership_response::setup&#34;, &#34;duration&#34;: &#34;0 ms&#34;, &#34;resultsTableRow&#34;: [&#34;&lt;td class=\&#34;col-result\&#34;&gt;Skipped&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-testId\&#34;&gt;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_partnership_response::setup&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-duration\&#34;&gt;0 ms&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-links\&#34;&gt;&lt;/td&gt;&#34;], &#34;log&#34;: &#34;(&amp;#x27;/Users/stuartgano/Documents/wolf-goat-pig/backend/tests/test_simulation_unit.py&amp;#x27;, 112, &amp;#x27;Skipped: Required imports not available&amp;#x27;)\n&#34;}], &#34;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_shot_simulation&#34;: [{&#34;extras&#34;: [], &#34;result&#34;: &#34;Skipped&#34;, &#34;testId&#34;: &#34;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_shot_simulation::setup&#34;, &#34;duration&#34;: &#34;0 ms&#34;, &#34;resultsTableRow&#34;: [&#34;&lt;td class=\&#34;col-result\&#34;&gt;Skipped&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-testId\&#34;&gt;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_shot_simulation::setup&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-duration\&#34;&gt;0 ms&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-links\&#34;&gt;&lt;/td&gt;&#34;], &#34;log&#34;: &#34;(&amp;#x27;/Users/stuartgano/Documents/wolf-goat-pig/backend/tests/test_simulation_unit.py&amp;#x27;, 127, &amp;#x27;Skipped: Required imports not available&amp;#x27;)\n&#34;}], &#34;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_short_game_progression&#34;: [{&#34;extras&#34;: [], &#34;result&#34;: &#34;Skipped&#34;, &#34;testId&#34;: &#34;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_short_game_progression::setup&#34;, &#34;duration&#34;: &#34;0 ms&#34;, &#34;resultsTableRow&#34;: [&#34;&lt;td class=\&#34;col-result\&#34;&gt;Skipped&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-testId\&#34;&gt;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_short_game_progression::setup&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-duration\&#34;&gt;0 ms&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-links\&#34;&gt;&lt;/td&gt;&#34;], &#34;log&#34;: &#34;(&amp;#x27;/Users/stuartgano/Documents/wolf-goat-pig/backend/tests/test_simulation_unit.py&amp;#x27;, 141, &amp;#x27;Skipped: Required imports not available&amp;#x27;)\n&#34;}], &#34;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_lie_type_determination_with_distance&#34;: [{&#34;extras&#34;: [], &#34;result&#34;: &#34;Skipped&#34;, &#34;testId&#34;: &#34;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_lie_type_determination_with_distance::setup&#34;, &#34;duration&#34;: &#34;0 ms&#34;, &#34;resultsTableRow&#34;: [&#34;&lt;td class=\&#34;col-result\&#34;&gt;Skipped&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-testId\&#34;&gt;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_lie_type_determination_with_distance::setup&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-duration\&#34;&gt;0 ms&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-links\&#34;&gt;&lt;/td&gt;&#34;], &#34;log&#34;: &#34;(&amp;#x27;/Users/stuartgano/Documents/wolf-goat-pig/backend/tests/test_simulation_unit.py&amp;#x27;, 162, &amp;#x27;Skipped: Required imports not available&amp;#x27;)\n&#34;}], &#34;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_game_state_serialization&#34;: [{&#34;extras&#34;: [], &#34;result&#34;: &#34;Skipped&#34;, &#34;testId&#34;: &#34;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_game_state_serialization::setup&#34;, &#34;duration&#34;: &#34;0 ms&#34;, &#34;resultsTableRow&#34;: [&#34;&lt;td class=\&#34;col-result\&#34;&gt;Skipped&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-testId\&#34;&gt;tests/test_simulation_unit.py::TestWolfGoatPigSimulation::test_game_state_serialization::setup&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-duration\&#34;&gt;0 ms&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-links\&#34;&gt;&lt;/td&gt;&#34;], &#34;log&#34;: &#34;(&amp;#x27;/Users/stuartgano/Documents/wolf-goat-pig/backend/tests/test_simulation_unit.py&amp;#x27;, 195, &amp;#x27;Skipped: Required imports not available&amp;#x27;)\n&#34;}], &#34;tests/test_simulation_unit.py::TestGameState::test_game_state_creation&#34;: [{&#34;extras&#34;: [], &#34;result&#34;: &#34;Skipped&#34;, &#34;testId&#34;: &#34;tests/test_simulation_unit.py::TestGameState::test_game_state_creation::setup&#34;, &#34;duration&#34;: &#34;0 ms&#34;, &#34;resultsTableRow&#34;: [&#34;&lt;td class=\&#34;col-result\&#34;&gt;Skipped&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-testId\&#34;&gt;tests/test_simulation_unit.py::TestGameState::test_game_state_creation::setup&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-duration\&#34;&gt;0 ms&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-links\&#34;&gt;&lt;/td&gt;&#34;], &#34;log&#34;: &#34;(&amp;#x27;/Users/stuartgano/Documents/wolf-goat-pig/backend/tests/test_simulation_unit.py&amp;#x27;, 209, &amp;#x27;Skipped: Required imports not available&amp;#x27;)\n&#34;}], &#34;tests/test_simulation_unit.py::TestGameState::test_hole_progression&#34;: [{&#34;extras&#34;: [], &#34;result&#34;: &#34;Skipped&#34;, &#34;testId&#34;: &#34;tests/test_simulation_unit.py::TestGameState::test_hole_progression::setup&#34;, &#34;duration&#34;: &#34;0 ms&#34;, &#34;resultsTableRow&#34;: [&#34;&lt;td class=\&#34;col-result\&#34;&gt;Skipped&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-testId\&#34;&gt;tests/test_simulation_unit.py::TestGameState::test_hole_progression::setup&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-duration\&#34;&gt;0 ms&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-links\&#34;&gt;&lt;/td&gt;&#34;], &#34;log&#34;: &#34;(&amp;#x27;/Users/stuartgano/Documents/wolf-goat-pig/backend/tests/test_simulation_unit.py&amp;#x27;, 218, &amp;#x27;Skipped: Required imports not available&amp;#x27;)\n&#34;}], &#34;tests/test_simulation_unit.py::TestGameState::test_score_tracking&#34;: [{&#34;extras&#34;: [], &#34;result&#34;: &#34;Skipped&#34;, &#34;testId&#34;: &#34;tests/test_simulation_unit.py::TestGameState::test_score_tracking::setup&#34;, &#34;duration&#34;: &#34;0 ms&#34;, &#34;resultsTableRow&#34;: [&#34;&lt;td class=\&#34;col-result\&#34;&gt;Skipped&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-testId\&#34;&gt;tests/test_simulation_unit.py::TestGameState::test_score_tracking::setup&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-duration\&#34;&gt;0 ms&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-links\&#34;&gt;&lt;/td&gt;&#34;], &#34;log&#34;: &#34;(&amp;#x27;/Users/stuartgano/Documents/wolf-goat-pig/backend/tests/test_simulation_unit.py&amp;#x27;, 228, &amp;#x27;Skipped: Required imports not available&amp;#x27;)\n&#34;}], &#34;tests/test_simulation_unit.py::TestMonteCarloService::test_monte_carlo_initialization&#34;: [{&#34;extras&#34;: [], &#34;result&#34;: &#34;Skipped&#34;, &#34;testId&#34;: &#34;tests/test_simulation_unit.py::TestMonteCarloService::test_monte_carlo_initialization::setup&#34;, &#34;duration&#34;: &#34;0 ms&#34;, &#34;resultsTableRow&#34;: [&#34;&lt;td class=\&#34;col-result\&#34;&gt;Skipped&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-testId\&#34;&gt;tests/test_simulation_unit.py::TestMonteCarloService::test_monte_carlo_initialization::setup&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-duration\&#34;&gt;0 ms&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-links\&#34;&gt;&lt;/td&gt;&#34;], &#34;log&#34;: &#34;(&amp;#x27;/Users/stuartgano/Documents/wolf-goat-pig/backend/tests/test_simulation_unit.py&amp;#x27;, 242, &amp;#x27;Skipped: Required imports not available&amp;#x27;)\n&#34;}], &#34;tests/test_simulation_unit.py::TestMonteCarloService::test_shot_probability_calculation&#34;: [{&#34;extras&#34;: [], &#34;result&#34;: &#34;Skipped&#34;, &#34;testId&#34;: &#34;tests/test_simulation_unit.py::TestMonteCarloService::test_shot_probability_calculation::setup&#34;, &#34;duration&#34;: &#34;0 ms&#34;, &#34;resultsTableRow&#34;: [&#34;&lt;td class=\&#34;col-result\&#34;&gt;Skipped&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-testId\&#34;&gt;tests/test_simulation_unit.py::TestMonteCarloService::test_shot_probability_calculation::setup&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-duration\&#34;&gt;0 ms&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-links\&#34;&gt;&lt;/td&gt;&#34;], &#34;log&#34;: &#34;(&amp;#x27;/Users/stuartgano/Documents/wolf-goat-pig/backend/tests/test_simulation_unit.py&amp;#x27;, 247, &amp;#x27;Skipped: Required imports not available&amp;#x27;)\n&#34;}], &#34;tests/test_simulation_unit.py::TestMonteCarloService::test_outcome_simulation&#34;: [{&#34;extras&#34;: [], &#34;result&#34;: &#34;Skipped&#34;, &#34;testId&#34;: &#34;tests/test_simulation_unit.py::TestMonteCarloService::test_outcome_simulation::setup&#34;, &#34;duration&#34;: &#34;0 ms&#34;, &#34;resultsTableRow&#34;: [&#34;&lt;td class=\&#34;col-result\&#34;&gt;Skipped&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-testId\&#34;&gt;tests/test_simulation_unit.py::TestMonteCarloService::test_outcome_simulation::setup&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-duration\&#34;&gt;0 ms&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-links\&#34;&gt;&lt;/td&gt;&#34;], &#34;log&#34;: &#34;(&amp;#x27;/Users/stuartgano/Documents/wolf-goat-pig/backend/tests/test_simulation_unit.py&amp;#x27;, 275, &amp;#x27;Skipped: Required imports not available&amp;#x27;)\n&#34;}], &#34;tests/test_simulation_unit.py::TestOddsCalculator::test_odds_calculator_initialization&#34;: [{&#34;extras&#34;: [], &#34;result&#34;: &#34;Skipped&#34;, &#34;testId&#34;: &#34;tests/test_simulation_unit.py::TestOddsCalculator::test_odds_calculator_initialization::setup&#34;, &#34;duration&#34;: &#34;0 ms&#34;, &#34;resultsTableRow&#34;: [&#34;&lt;td class=\&#34;col-result\&#34;&gt;Skipped&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-testId\&#34;&gt;tests/test_simulation_unit.py::TestOddsCalculator::test_odds_calculator_initialization::setup&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-duration\&#34;&gt;0 ms&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-links\&#34;&gt;&lt;/td&gt;&#34;], &#34;log&#34;: &#34;(&amp;#x27;/Users/stuartgano/Documents/wolf-goat-pig/backend/tests/test_simulation_unit.py&amp;#x27;, 291, &amp;#x27;Skipped: Required imports not available&amp;#x27;)\n&#34;}], &#34;tests/test_simulation_unit.py::TestOddsCalculator::test_betting_odds_calculation&#34;: [{&#34;extras&#34;: [], &#34;result&#34;: &#34;Skipped&#34;, &#34;testId&#34;: &#34;tests/test_simulation_unit.py::TestOddsCalculator::test_betting_odds_calculation::setup&#34;, &#34;duration&#34;: &#34;0 ms&#34;, &#34;resultsTableRow&#34;: [&#34;&lt;td class=\&#34;col-result\&#34;&gt;Skipped&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-testId\&#34;&gt;tests/test_simulation_unit.py::TestOddsCalculator::test_betting_odds_calculation::setup&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-duration\&#34;&gt;0 ms&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-links\&#34;&gt;&lt;/td&gt;&#34;], &#34;log&#34;: &#34;(&amp;#x27;/Users/stuartgano/Documents/wolf-goat-pig/backend/tests/test_simulation_unit.py&amp;#x27;, 296, &amp;#x27;Skipped: Required imports not available&amp;#x27;)\n&#34;}], &#34;tests/test_simulation_unit.py::TestOddsCalculator::test_double_decision_logic&#34;: [{&#34;extras&#34;: [], &#34;result&#34;: &#34;Skipped&#34;, &#34;testId&#34;: &#34;tests/test_simulation_unit.py::TestOddsCalculator::test_double_decision_logic::setup&#34;, &#34;duration&#34;: &#34;0 ms&#34;, &#34;resultsTableRow&#34;: [&#34;&lt;td class=\&#34;col-result\&#34;&gt;Skipped&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-testId\&#34;&gt;tests/test_simulation_unit.py::TestOddsCalculator::test_double_decision_logic::setup&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-duration\&#34;&gt;0 ms&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-links\&#34;&gt;&lt;/td&gt;&#34;], &#34;log&#34;: &#34;(&amp;#x27;/Users/stuartgano/Documents/wolf-goat-pig/backend/tests/test_simulation_unit.py&amp;#x27;, 317, &amp;#x27;Skipped: Required imports not available&amp;#x27;)\n&#34;}], &#34;tests/test_simulation_unit.py::TestSimulationUtilities::test_handicap_calculation&#34;: [{&#34;extras&#34;: [], &#34;result&#34;: &#34;Passed&#34;, &#34;testId&#34;: &#34;tests/test_simulation_unit.py::TestSimulationUtilities::test_handicap_calculation&#34;, &#34;duration&#34;: &#34;83 ms&#34;, &#34;resultsTableRow&#34;: [&#34;&lt;td class=\&#34;col-result\&#34;&gt;Passed&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-testId\&#34;&gt;tests/test_simulation_unit.py::TestSimulationUtilities::test_handicap_calculation&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-duration\&#34;&gt;83 ms&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-links\&#34;&gt;&lt;/td&gt;&#34;], &#34;log&#34;: &#34;No log output captured.&#34;}], &#34;tests/test_simulation_unit.py::TestSimulationUtilities::test_net_score_calculation&#34;: [{&#34;extras&#34;: [], &#34;result&#34;: &#34;Passed&#34;, &#34;testId&#34;: &#34;tests/test_simulation_unit.py::TestSimulationUtilities::test_net_score_calculation&#34;, &#34;duration&#34;: &#34;0 ms&#34;, &#34;resultsTableRow&#34;: [&#34;&lt;td class=\&#34;col-result\&#34;&gt;Passed&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-testId\&#34;&gt;tests/test_simulation_unit.py::TestSimulationUtilities::test_net_score_calculation&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-duration\&#34;&gt;0 ms&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-links\&#34;&gt;&lt;/td&gt;&#34;], &#34;log&#34;: &#34;No log output captured.&#34;}], &#34;tests/test_simulation_unit.py::TestSimulationUtilities::test_team_formation_validation&#34;: [{&#34;extras&#34;: [], &#34;result&#34;: &#34;Passed&#34;, &#34;testId&#34;: &#34;tests/test_simulation_unit.py::TestSimulationUtilities::test_team_formation_validation&#34;, &#34;duration&#34;: &#34;0 ms&#34;, &#34;resultsTableRow&#34;: [&#34;&lt;td class=\&#34;col-result\&#34;&gt;Passed&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-testId\&#34;&gt;tests/test_simulation_unit.py::TestSimulationUtilities::test_team_formation_validation&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-duration\&#34;&gt;0 ms&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-links\&#34;&gt;&lt;/td&gt;&#34;], &#34;log&#34;: &#34;No log output captured.&#34;}], &#34;tests/test_simulation_unit.py::TestSimulationErrorHandling::test_invalid_player_count&#34;: [{&#34;extras&#34;: [], &#34;result&#34;: &#34;Passed&#34;, &#34;testId&#34;: &#34;tests/test_simulation_unit.py::TestSimulationErrorHandling::test_invalid_player_count&#34;, &#34;duration&#34;: &#34;0 ms&#34;, &#34;resultsTableRow&#34;: [&#34;&lt;td class=\&#34;col-result\&#34;&gt;Passed&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-testId\&#34;&gt;tests/test_simulation_unit.py::TestSimulationErrorHandling::test_invalid_player_count&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-duration\&#34;&gt;0 ms&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-links\&#34;&gt;&lt;/td&gt;&#34;], &#34;log&#34;: &#34;No log output captured.&#34;}], &#34;tests/test_simulation_unit.py::TestSimulationErrorHandling::test_missing_course&#34;: [{&#34;extras&#34;: [], &#34;result&#34;: &#34;Passed&#34;, &#34;testId&#34;: &#34;tests/test_simulation_unit.py::TestSimulationErrorHandling::test_missing_course&#34;, &#34;duration&#34;: &#34;0 ms&#34;, &#34;resultsTableRow&#34;: [&#34;&lt;td class=\&#34;col-result\&#34;&gt;Passed&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-testId\&#34;&gt;tests/test_simulation_unit.py::TestSimulationErrorHandling::test_missing_course&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-duration\&#34;&gt;0 ms&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-links\&#34;&gt;&lt;/td&gt;&#34;], &#34;log&#34;: &#34;No log output captured.&#34;}], &#34;tests/test_simulation_unit.py::TestSimulationErrorHandling::test_invalid_partnership_request&#34;: [{&#34;extras&#34;: [], &#34;result&#34;: &#34;Passed&#34;, &#34;testId&#34;: &#34;tests/test_simulation_unit.py::TestSimulationErrorHandling::test_invalid_partnership_request&#34;, &#34;duration&#34;: &#34;0 ms&#34;, &#34;resultsTableRow&#34;: [&#34;&lt;td class=\&#34;col-result\&#34;&gt;Passed&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-testId\&#34;&gt;tests/test_simulation_unit.py::TestSimulationErrorHandling::test_invalid_partnership_request&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-duration\&#34;&gt;0 ms&lt;/td&gt;&#34;, &#34;&lt;td class=\&#34;col-links\&#34;&gt;&lt;/td&gt;&#34;], &#34;log&#34;: &#34;No log output captured.&#34;}]}, &#34;renderCollapsed&#34;: [&#34;passed&#34;], &#34;initialSort&#34;: &#34;result&#34;, &#34;title&#34;: &#34;backend_unit_tests.html&#34;}"></div>
+reports/backend_dev.log:21:INFO:app.main:✅ Simulation initialization verified
+reports/backend_dev.log:329590:INFO:app.main:Simulation setup completed successfully
+reports/backend_dev.log:329595:ERROR:app.main:Simulation setup failed: 400: Missing player data
+reports/backend_dev.log:329601:ERROR:app.main:Simulation setup failed: 400: Missing player data
+reports/backend_dev.log:329607:ERROR:app.main:Simulation setup failed: 400: Missing player data
+reports/backend_dev.log:329613:ERROR:app.main:Simulation setup failed: 400: At least 4 players required
+reports/backend_dev.log:329622:INFO:app.main:Simulation setup completed successfully
+reports/backend_dev.log:329630:INFO:app.main:Simulation setup completed successfully
+reports/backend_dev.log:329639:INFO:app.main:Simulation setup completed successfully
+reports/backend_dev.log:329663:INFO:app.main:Simulation setup completed successfully
+reports/backend_dev.log:329668:ERROR:app.main:Simulation setup failed: 400: Missing player data
+reports/backend_dev.log:329674:ERROR:app.main:Simulation setup failed: 400: Missing player data
+reports/backend_dev.log:329680:ERROR:app.main:Simulation setup failed: 400: Missing player data
+reports/backend_dev.log:329686:ERROR:app.main:Simulation setup failed: 400: At least 4 players required
+reports/backend_dev.log:329695:INFO:app.main:Simulation setup completed successfully
+reports/backend_dev.log:329703:INFO:app.main:Simulation setup completed successfully
+reports/backend_dev.log:329713:INFO:app.main:Simulation setup completed successfully
+reports/backend_dev.log:329729:INFO:app.main:Simulation setup completed successfully
+reports/backend_dev.log:329743:INFO:app.main:Simulation setup completed successfully
+reports/backend_dev.log:329748:ERROR:app.main:Simulation setup failed: 400: Missing player data
+reports/backend_dev.log:329754:ERROR:app.main:Simulation setup failed: 400: Missing player data
+reports/backend_dev.log:329760:ERROR:app.main:Simulation setup failed: 400: Missing player data
+reports/backend_dev.log:329766:ERROR:app.main:Simulation setup failed: 400: At least 4 players required
+reports/backend_dev.log:329775:INFO:app.main:Simulation setup completed successfully
+reports/backend_dev.log:329783:INFO:app.main:Simulation setup completed successfully
+reports/backend_dev.log:329792:INFO:app.main:Simulation setup completed successfully
+reports/backend_dev.log:329816:INFO:app.main:Simulation setup completed successfully
+reports/backend_dev.log:329821:ERROR:app.main:Simulation setup failed: 400: Missing player data
+reports/backend_dev.log:329827:ERROR:app.main:Simulation setup failed: 400: Missing player data
+reports/backend_dev.log:329833:ERROR:app.main:Simulation setup failed: 400: Missing player data
+reports/backend_dev.log:329839:ERROR:app.main:Simulation setup failed: 400: At least 4 players required
+reports/backend_dev.log:329848:INFO:app.main:Simulation setup completed successfully
+reports/backend_dev.log:329856:INFO:app.main:Simulation setup completed successfully
+reports/backend_dev.log:329866:INFO:app.main:Simulation setup completed successfully
+reports/backend_dev.log:329882:INFO:app.main:Simulation setup completed successfully
+reports/backend_dev.log:329888:INFO:app.main:Simulation setup completed successfully
+reports/backend_dev.log:329904:INFO:app.main:Simulation setup completed successfully
+reports/backend_dev.log:329909:ERROR:app.main:Simulation setup failed: 400: Missing player data
+reports/backend_dev.log:329915:ERROR:app.main:Simulation setup failed: 400: Missing player data
+reports/backend_dev.log:329921:ERROR:app.main:Simulation setup failed: 400: Missing player data
+reports/backend_dev.log:329927:ERROR:app.main:Simulation setup failed: 400: At least 4 players required
+reports/backend_dev.log:329936:INFO:app.main:Simulation setup completed successfully
+reports/backend_dev.log:329944:INFO:app.main:Simulation setup completed successfully
+reports/backend_dev.log:329953:INFO:app.main:Simulation setup completed successfully

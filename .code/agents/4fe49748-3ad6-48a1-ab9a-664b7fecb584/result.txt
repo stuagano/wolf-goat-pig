@@ -1,0 +1,122 @@
+Now let me compile the full inventory of test-only endpoints. Based on my analysis:
+
+## Test-Only Endpoints Inventory
+
+### Configuration Guard
+**Line 141:**
+```python
+ENABLE_TEST_ENDPOINTS = os.getenv("ENABLE_TEST_ENDPOINTS", "true").lower() in {"1", "true", "yes"}
+```
+
+### Guarded Test Endpoint (requires ENABLE_TEST_ENDPOINTS=true)
+
+#### 1. POST /simulation/test/seed-state
+**Location:** `backend/app/main.py:4606-4724`
+
+**Definition:**
+```python
+@app.post("/simulation/test/seed-state")
+def seed_simulation_state(payload: SimulationSeedRequest):
+    """Testing-only helper for seeding the current simulation state.
+    
+    Allows BDD and backend tests to manipulate the in-memory simulation using
+    the public HTTP API instead of reaching into the global simulation object.
+    """
+```
+
+**Purpose:** Allows tests to seed/manipulate the in-memory simulation state via HTTP API
+
+**Key functionality:**
+- Sets current hole (line 4619-4625)
+- Seeds ball positions (lines 4634-4661)
+- Updates line of scrimmage (lines 4664-4669)
+- Updates order of play (lines 4671-4675)
+- Updates shot order (lines 4677-4681)
+- Sets next player to hit (lines 4683-4686)
+- Controls wagering state (lines 4688-4689)
+- Updates betting metadata (lines 4691-4702)
+- Configures team formations (lines 4704-4716)
+- Resets doubles history (lines 4718-4719)
+
+### Related Helper Models
+
+#### BallSeed (lines 81-90)
+```python
+class BallSeed(BaseModel):
+    """Testing helper payload for manually positioning a ball."""
+    
+    player_id: str
+    distance_to_pin: float
+    lie_type: str = "fairway"
+    shot_count: int = 1
+    holed: bool = False
+    conceded: bool = False
+    penalty_strokes: int = 0
+```
+
+#### BettingSeed (lines 93-109)
+```python
+class BettingSeed(BaseModel):
+    """Testing helper payload for adjusting betting metadata."""
+    
+    base_wager: Optional[int]
+    current_wager: Optional[int]
+    doubled: Optional[bool]
+    redoubled: Optional[bool]
+    carry_over: Optional[bool]
+    float_invoked: Optional[bool]
+    option_invoked: Optional[bool]
+    duncan_invoked: Optional[bool]
+    tunkarri_invoked: Optional[bool]
+    big_dick_invoked: Optional[bool]
+    joes_special_value: Optional[int]
+    line_of_scrimmage: Optional[str]
+    ping_pong_count: Optional[int]
+```
+
+#### SimulationSeedRequest (lines 111-131)
+```python
+class SimulationSeedRequest(BaseModel):
+    """Parameters accepted by the test seeding endpoint."""
+    
+    current_hole: Optional[int]
+    shot_order: Optional[List[str]]
+    ball_positions: List[BallSeed] = []
+    ball_positions_replace: bool = False
+    line_of_scrimmage: Optional[str]
+    next_player_to_hit: Optional[str]
+    current_order_of_play: Optional[List[str]]
+    wagering_closed: Optional[bool]
+    betting: Optional[BettingSeed]
+    team_formation: Optional[Dict[str, Any]]
+    clear_balls_in_hole: bool = False
+    reset_doubles_history: bool = True
+```
+
+### Unguarded Test/Debug Endpoints (always available)
+
+#### 2. GET /test-deployment
+**Location:** `backend/app/main.py:6830-6833`
+```python
+@app.get("/test-deployment")
+async def test_deployment():
+    """Test that new deployments are working"""
+    return {"message": "Deployment is working", "timestamp": datetime.now().isoformat()}
+```
+
+#### 3. GET /debug/paths  
+**Location:** `backend/app/main.py:6836-6848+`
+```python
+@app.get("/debug/paths")
+async def debug_paths():
+    """Debug endpoint to check file paths"""
+    # Returns file path information for debugging
+```
+
+### Summary
+
+- **1 endpoint** guarded by `ENABLE_TEST_ENDPOINTS` environment variable
+- **2 unguarded** test/debug endpoints (always available)
+- **3 helper Pydantic models** for the seeding endpoint (BallSeed, BettingSeed, SimulationSeedRequest)
+- The main test endpoint `/simulation/test/seed-state` provides comprehensive control over simulation state for testing purposes
+- Default state: `ENABLE_TEST_ENDPOINTS` defaults to `"true"`, so the test endpoint is enabled unless explicitly disabled

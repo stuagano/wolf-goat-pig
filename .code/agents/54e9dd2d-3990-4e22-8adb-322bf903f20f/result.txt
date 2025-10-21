@@ -1,0 +1,67 @@
+Based on my comprehensive investigation, I've identified the **root cause** of the 405 Method Not Allowed error:
+
+## Root Cause Analysis
+
+The `/sheet-integration/*` POST endpoints (including `/sync-wgp-sheet`) are **defined in the code** at backend/app/main.py:3199-3312 and beyond, but they are **NOT being registered with the FastAPI application** at runtime. Here's the evidence:
+
+1. **Endpoint exists in code**: Line 3312 clearly shows `@app.post("/sheet-integration/sync-wgp-sheet")`
+2. **405 Method Not Allowed**: All `/sheet-integration/` POST endpoints return 405
+3. **Missing from OpenAPI spec**: When querying `/openapi.json`, NO `/sheet-integration/*` endpoints appear
+4. **Similar endpoints work**: Other POST endpoints in different sections work fine
+
+## Likely Cause
+
+The most probable cause is a **Python exception during module import** that prevents these endpoint definitions from being executed. This typically happens when:
+
+1. **Import error in sheet_integration_service**: Line 3204 imports `SheetIntegrationService` - if this module has import errors, Python would skip the rest of the file
+2. **Syntax error after line 3198**: A syntax error in the sheet integration section would prevent subsequent decorators from registering
+3. **Circular import**: The sheet_integration_service might have a circular import that causes loading to fail
+
+## Recommended Solutions
+
+### Solution 1: Check for Import Errors (Most Likely)
+The sheet_integration_service may be failing to import. Check:
+```bash
+cd backend && python3 -c "from app.services.sheet_integration_service import SheetIntegrationService; print('OK')"
+```
+
+If this fails, fix the import errors in that service file.
+
+### Solution 2: Check Server Startup Logs
+When you run `./dev.sh`, check the terminal output for any errors or warnings about failed imports. Look for:
+- `ImportError`
+- `ModuleNotFoundError`
+- `AttributeError`
+- Warnings about routes not being registered
+
+### Solution 3: Restart with --reload disabled
+The `--reload` flag in uvicorn can sometimes cache bad imports. Try:
+```bash
+cd backend
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+(Without `--reload`)
+
+### Solution 4: Add Defensive Logging
+Add logging before the sheet endpoints to see if code execution reaches that point:
+```python
+# Add at line 3198
+logger.info("===== REGISTERING SHEET INTEGRATION ENDPOINTS =====")
+```
+
+### Solution 5: Check for Indentation Issues
+Though less likely given the file structure, verify that lines 3199-4110 are NOT indented inside a conditional block or try/except that's swallowing errors.
+
+## Quick Fix to Test
+To verify this theory, add a simple test endpoint RIGHT BEFORE line 3198:
+```python
+@app.get("/test-before-sheet")
+def test_before_sheet():
+    return {"status": "OK", "message": "Code execution reached here"}
+```
+
+If this endpoint works, but sheet-integration endpoints don't, it confirms an exception is occurring in that section.
+
+---
+
+**The frontend code is correct** - the issue is entirely on the backend where these routes are failing to register with FastAPI during application startup.

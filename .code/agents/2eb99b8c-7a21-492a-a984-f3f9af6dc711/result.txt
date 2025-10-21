@@ -1,0 +1,255 @@
+Excellent! Now I have a complete understanding of the current test coverage. Let me analyze the existing scenarios and brainstorm additional edge cases:
+
+## Analysis Summary
+
+Based on my review of the existing Behave features, I've identified the following current coverage:
+
+**simulation_betting.feature (current scenarios):**
+1. ✅ Seeded double state snapshot
+2. ✅ Line of scrimmage enforcement
+3. ✅ Wagering closes after tee shots
+4. ✅ Carry-over betting state
+5. ✅ Ping pong counter tracking
+6. ✅ Complex betting state with multiple flags
+7. ✅ Reject double when wagering is closed
+8. ✅ Solo captain can double when wagering closed
+9. ✅ Ping pong counter tracks escalating doubles
+10. ✅ Betting with special rules invoked
+11. ✅ Carry-over accumulates across holes
+12. ✅ Line of scrimmage affects betting opportunities
+13. ✅ Reset doubles history flag
+
+**Key dependencies identified:**
+- `ENABLE_TEST_ENDPOINTS=true` required for `/simulation/test/seed-state` and `/simulation/state`
+- Admin header `x-admin-email: stuagano@gmail.com` required when test endpoints enabled
+
+---
+
+## **Proposed Additional Betting Scenarios**
+
+Here are **6 candidate scenarios** that exercise edge cases around doubles, carry-overs, wagering locks, and admin-only state endpoints:
+
+---
+
+### **1. Maximum ping pong escalation cap enforcement**
+
+**Rationale:**
+- Tests boundary condition for ping-pong counter limits
+- Validates system behavior when doubles reach system-imposed maximum
+- Exercises edge case: what happens after multiple re-doubles?
+
+**Gherkin outline:**
+```gherkin
+Scenario: Maximum ping pong escalation cap enforcement
+  Given the simulation is at hole 13
+  And the betting state is
+    | base_wager      | 1     |
+    | current_wager   | 64    |
+    | ping_pong_count | 6     |
+    | doubled         | true  |
+    | redoubled       | true  |
+  When I refresh the simulation state
+  Then the simulation state contains
+    | betting_state.ping_pong_count | 6   |
+    | betting_state.current_wager   | 64  |
+  When I seed the betting state with
+    | ping_pong_count | 7   |
+    | current_wager   | 128 |
+  Then the simulation state contains
+    | betting_state.ping_pong_count | 7   |
+    | betting_state.current_wager   | 128 |
+```
+
+**Dependencies:** `ENABLE_TEST_ENDPOINTS=true`, admin header `x-admin-email`
+
+---
+
+### **2. Carry-over resets after hole completion**
+
+**Rationale:**
+- Tests carry-over lifecycle: does it persist or reset?
+- Edge case: carry-over flag behavior when hole is marked complete
+- Validates state transition between holes
+
+**Gherkin outline:**
+```gherkin
+Scenario: Carry-over resets after hole completion
+  Given the simulation is at hole 14
+  And the betting state is
+    | base_wager    | 2     |
+    | current_wager | 12    |
+    | carry_over    | true  |
+    | doubled       | true  |
+  And the ball positions are
+    | player_id | distance_to_pin | lie_type | shot_count | holed |
+    | p1        | 0               | green    | 4          | true  |
+    | bot1      | 0               | green    | 3          | true  |
+    | bot2      | 0               | green    | 5          | true  |
+    | bot3      | 0               | green    | 4          | true  |
+  When the simulation is moved to hole 15
+  And I refresh the simulation state
+  Then the simulation state contains
+    | current_hole              | 15    |
+    | betting_state.carry_over  | false |
+    | betting_state.doubled     | false |
+```
+
+**Dependencies:** `ENABLE_TEST_ENDPOINTS=true`, admin header `x-admin-email`
+
+---
+
+### **3. Duncan and Tunkarri invoked simultaneously with doubles**
+
+**Rationale:**
+- Tests interaction between special rules and doubling mechanics
+- Edge case: multiple special rules stacked together
+- Validates wager multiplication when special rules combine with doubles
+
+**Gherkin outline:**
+```gherkin
+Scenario: Duncan and Tunkarri invoked simultaneously with doubles
+  Given the simulation is at hole 16
+  And the betting state is
+    | base_wager       | 2     |
+    | current_wager    | 8     |
+    | doubled          | true  |
+    | duncan_invoked   | true  |
+    | tunkarri_invoked | true  |
+    | float_invoked    | false |
+    | option_invoked   | false |
+  When I refresh the simulation state
+  Then the simulation state contains
+    | betting_state.current_wager    | 8    |
+    | betting_state.doubled          | true |
+    | betting_state.duncan_invoked   | true |
+    | betting_state.tunkarri_invoked | true |
+```
+
+**Dependencies:** `ENABLE_TEST_ENDPOINTS=true`, admin header `x-admin-email`
+
+---
+
+### **4. Unauthorized access to test endpoints without admin header**
+
+**Rationale:**
+- Tests security boundary: admin header enforcement
+- Edge case: what happens when test endpoints called without proper auth?
+- Validates `ENABLE_TEST_ENDPOINTS` + admin header requirement
+
+**Gherkin outline:**
+```gherkin
+Scenario: Unauthorized access to test endpoints without admin header
+  Given the simulation is at hole 5
+  When I request the "GET" "/simulation/state" endpoint without admin headers
+  Then the response code is 403
+  And the JSON response contains
+    | detail | Admin access required |
+  When I request the "POST" "/simulation/test/seed-state" endpoint with
+    | betting.current_wager | 5 |
+  And the request omits admin headers
+  Then the response code is 403
+```
+
+**Dependencies:** `ENABLE_TEST_ENDPOINTS=true`, but specifically tests **missing** admin header
+
+**Implementation note:** This scenario would require a step definition update to support requests without admin headers:
+```python
+@when('I request the "{method}" "{endpoint}" endpoint without admin headers')
+def step_request_without_admin(context, method: str, endpoint: str):
+    # Similar to existing step but explicitly omits ADMIN_HEADERS
+```
+
+---
+
+### **5. Line of scrimmage changes mid-hole affecting double opportunity**
+
+**Rationale:**
+- Tests dynamic state: line of scrimmage can change as shots progress
+- Edge case: does line of scrimmage update affect ability to double?
+- Validates interaction between ball positions and betting state
+
+**Gherkin outline:**
+```gherkin
+Scenario: Line of scrimmage changes mid-hole affecting double opportunity
+  Given the simulation is at hole 7
+  And the ball positions are
+    | player_id | distance_to_pin | lie_type | shot_count |
+    | p1        | 200             | rough    | 1          |
+    | bot1      | 150             | fairway  | 1          |
+    | bot2      | 160             | fairway  | 1          |
+    | bot3      | 170             | fairway  | 1          |
+  And the line of scrimmage is p1
+  And the betting state is
+    | current_wager | 1     |
+    | doubled       | false |
+  When I refresh the simulation state
+  Then the simulation state contains
+    | hole_state.line_of_scrimmage | p1 |
+  When I seed ball positions with
+    | player_id | distance_to_pin | lie_type | shot_count |
+    | p1        | 180             | rough    | 2          |
+    | bot1      | 150             | fairway  | 1          |
+    | bot2      | 160             | fairway  | 1          |
+    | bot3      | 210             | bunker   | 2          |
+  And the line of scrimmage is set to bot3
+  Then the simulation state contains
+    | hole_state.line_of_scrimmage | bot3 |
+  When I seed the betting state with
+    | doubled       | true |
+    | current_wager | 2    |
+  Then the betting is doubled
+```
+
+**Dependencies:** `ENABLE_TEST_ENDPOINTS=true`, admin header `x-admin-email`
+
+---
+
+### **6. Wagering reopens after new hole begins**
+
+**Rationale:**
+- Tests wagering lifecycle: locked state should reset on new hole
+- Edge case: does `wagering_closed` flag persist across holes?
+- Validates state cleanup between holes
+
+**Gherkin outline:**
+```gherkin
+Scenario: Wagering reopens after new hole begins
+  Given the simulation is at hole 11
+  And wagering is set to closed
+  And the betting state is
+    | current_wager | 2    |
+    | doubled       | true |
+  When I refresh the simulation state
+  Then wagering is closed
+  And the simulation state contains
+    | wagering_closed             | true |
+    | betting_state.current_wager | 2    |
+  When the simulation is moved to hole 12
+  And I seed the simulation state with
+    | wagering_closed   | false |
+    | betting.doubled   | false |
+    | betting.current_wager | 1 |
+  Then wagering is open
+  And the simulation state contains
+    | current_hole                | 12    |
+    | wagering_closed             | false |
+    | betting_state.doubled       | false |
+    | betting_state.current_wager | 1     |
+```
+
+**Dependencies:** `ENABLE_TEST_ENDPOINTS=true`, admin header `x-admin-email`
+
+---
+
+## **Summary Table**
+
+| # | Scenario Title | Edge Case Focus | Admin Header Required | Notes |
+|---|----------------|----------------|----------------------|-------|
+| 1 | Maximum ping pong escalation cap | Boundary: max re-doubles | ✅ Yes | Tests upper limit of ping-pong counter |
+| 2 | Carry-over resets after hole completion | State transition: hole completion | ✅ Yes | Validates carry-over lifecycle |
+| 3 | Duncan/Tunkarri + doubles simultaneous | Special rules interaction | ✅ Yes | Multiple special rules stacked |
+| 4 | Unauthorized test endpoint access | Security: missing admin header | ⚠️ Negative test | Requires step definition update |
+| 5 | Line of scrimmage mid-hole change | Dynamic state: LOS affects doubling | ✅ Yes | Tests state interaction |
+| 6 | Wagering reopens on new hole | State cleanup: wagering lock reset | ✅ Yes | Validates flag persistence |
+
+All scenarios rely on `ENABLE_TEST_ENDPOINTS=true` (set in `simulation_steps.py:30`). The admin header (`x-admin-email: stuagano@gmail.com`) is automatically injected by `simulation_helpers.py:11-17` for seed and state endpoints.

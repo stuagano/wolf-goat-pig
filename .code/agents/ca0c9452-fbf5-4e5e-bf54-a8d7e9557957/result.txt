@@ -1,0 +1,119 @@
+Perfect! Now I understand the structure. Let me create a proposed patch with the following changes:
+
+1. Change ENABLE_TEST_ENDPOINTS default from "true" to "false"
+2. Add a `require_admin` helper function near the flag
+3. Gate `/simulation/state` via flag + admin check
+4. Add admin requirement to `/simulation/test/seed-state` 
+5. Move `/test-deployment` and `/debug/paths` under the flag with admin requirement
+
+Here's the proposed patch:
+
+## Proposed Patch
+
+```diff
+--- a/backend/app/main.py
++++ b/backend/app/main.py
+@@ -138,7 +138,20 @@
+     redoc_url="/redoc" if os.getenv("ENVIRONMENT") != "production" else None
+ )
+ 
+-ENABLE_TEST_ENDPOINTS = os.getenv("ENABLE_TEST_ENDPOINTS", "true").lower() in {"1", "true", "yes"}
++ENABLE_TEST_ENDPOINTS = os.getenv("ENABLE_TEST_ENDPOINTS", "false").lower() in {"1", "true", "yes"}
++
++def require_admin(x_admin_email: str = Header(None)):
++    """
++    Helper to require admin access for sensitive endpoints.
++    Raises HTTPException(403) if admin email is not provided or not in the allowed list.
++    """
++    admin_emails = ['stuagano@gmail.com', 'admin@wgp.com']
++    if not x_admin_email or x_admin_email not in admin_emails:
++        raise HTTPException(status_code=403, detail="Admin access required")
++    return x_admin_email
+ 
+ # Database initialization moved to main startup handler
+ 
+@@ -4604,7 +4617,7 @@
+ if ENABLE_TEST_ENDPOINTS:
+ 
+     @app.post("/simulation/test/seed-state")
+-    def seed_simulation_state(payload: SimulationSeedRequest):
++    def seed_simulation_state(payload: SimulationSeedRequest, admin_email: str = Depends(require_admin)):
+         """Testing-only helper for seeding the current simulation state.
+ 
+         Allows BDD and backend tests to manipulate the in-memory simulation using
+@@ -4724,8 +4737,11 @@
+         }
+ 
+ 
+-@app.get("/simulation/state")
+-def get_simulation_state():
++if ENABLE_TEST_ENDPOINTS:
++
++    @app.get("/simulation/state")
++    def get_simulation_state(admin_email: str = Depends(require_admin)):
++        """Return the current simulation state for diagnostics and testing."""
+     """Return the current simulation state for diagnostics and testing."""
+     global wgp_simulation
+ 
+@@ -4738,6 +4754,7 @@
+         logger.error(f"Failed to fetch simulation state: {exc}")
+         raise HTTPException(status_code=500, detail="Failed to fetch simulation state")
+ 
++
+ @app.get("/simulation/available-personalities")
+ def get_available_personalities():
+     """Get list of available AI personality types"""
+@@ -6827,15 +6844,20 @@
+             db.close()
+ 
+ # Simple test endpoint  
+-@app.get("/test-deployment")
+-async def test_deployment():
+-    """Test that new deployments are working"""
+-    return {"message": "Deployment is working", "timestamp": datetime.now().isoformat()}
++if ENABLE_TEST_ENDPOINTS:
++
++    @app.get("/test-deployment")
++    async def test_deployment(admin_email: str = Depends(require_admin)):
++        """Test that new deployments are working"""
++        return {"message": "Deployment is working", "timestamp": datetime.now().isoformat()}
+ 
+-# Debug endpoint to check paths
+-@app.get("/debug/paths")
+-async def debug_paths():
+-    """Debug endpoint to check file paths"""
++    # Debug endpoint to check paths
++    @app.get("/debug/paths")
++    async def debug_paths(admin_email: str = Depends(require_admin)):
++        """Debug endpoint to check file paths"""
++        current_file = Path(__file__).resolve()
++        static_dir = STATIC_DIR.resolve()
++        index_file = static_dir / "index.html"
+     current_file = Path(__file__).resolve()
+     static_dir = STATIC_DIR.resolve()
+     index_file = static_dir / "index.html"
+@@ -6849,6 +6871,7 @@
+         "static_dir_contents": list(static_dir.iterdir()) if static_dir.exists() else []
+     }
+ 
++
+ # Mount static files if build directory exists
+ static_assets_dir = STATIC_DIR / "static"
+```
+
+## Summary of Changes
+
+**backend/app/main.py:**
+
+1. **Line 141**: Changed `ENABLE_TEST_ENDPOINTS` default from `"true"` to `"false"` for production safety
+2. **Lines 143-154**: Added `require_admin()` helper function that validates the `x-admin-email` header against a whitelist
+3. **Line 4620**: Added admin requirement to `/simulation/test/seed-state` endpoint via `Depends(require_admin)`
+4. **Lines 4740-4743**: Wrapped `/simulation/state` endpoint inside `if ENABLE_TEST_ENDPOINTS:` block and added admin requirement
+5. **Lines 6847-6860**: Wrapped `/test-deployment` endpoint inside `if ENABLE_TEST_ENDPOINTS:` block and added admin requirement
+6. **Lines 6855-6872**: Wrapped `/debug/paths` endpoint inside `if ENABLE_TEST_ENDPOINTS:` block and added admin requirement
+
+These changes ensure that:
+- Test endpoints are disabled by default in production
+- All diagnostic/test endpoints require admin authentication
+- The authentication mechanism is consistent across all protected endpoints
+- Changes are minimal and leverage existing patterns from the codebase

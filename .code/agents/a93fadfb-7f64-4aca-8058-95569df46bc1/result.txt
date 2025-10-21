@@ -1,0 +1,1621 @@
+[2025-10-20T14:55:18] OpenAI Codex v0.0.0 (research preview)
+--------
+workdir: /Users/stuartgano/Documents/wolf-goat-pig
+model: gpt-5-codex
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: medium
+reasoning summaries: auto
+--------
+[2025-10-20T14:55:18] User instructions:
+Context: wolf-goat-pig repo
+
+Agent: Cover frontend counterparts for the same modes plus any shared scripts/docs references; gather entry points, tests, and note UX/diagnostic concerns.
+
+Files to consider: frontend, scripts, docs
+
+[Running in read-only mode - no modifications allowed]
+[2025-10-20T14:55:19] OpenAI Codex v0.0.0 (research preview)
+--------
+workdir: /Users/stuartgano/Documents/wolf-goat-pig
+model: gpt-5-codex
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: medium
+reasoning summaries: auto
+--------
+[2025-10-20T14:55:19] User instructions:
+Context: wolf-goat-pig repo
+
+Agent: Cover frontend counterparts for the same modes plus any shared scripts/docs references; gather entry points, tests, and note UX/diagnostic concerns.
+
+Files to consider: frontend, scripts, docs
+
+[Running in read-only mode - no modifications allowed]
+
+[2025-10-20T14:55:23] thinking
+
+**Exploring frontend directory**
+[2025-10-20T14:55:24] exec bash -lc ls in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:55:25] bash -lc ls succeeded in 711ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+AGENTS.md
+backend
+BACKEND_ADJUSTMENTS_NEEDED.md
+config
+dev-local.sh
+dev.sh
+docker-compose.prod.yml
+docs
+error.log
+frontend
+install.py
+node_modules
+package-lock.json
+package.json
+README.md
+render.yaml
+reports
+[2025-10-20T14:55:25] tokens used: 7,695
+
+[2025-10-20T14:55:26] thinking
+
+**Inspecting frontend structure**
+[2025-10-20T14:55:27] exec bash -lc 'ls frontend' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:55:28] bash -lc 'ls frontend' succeeded in 696ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+AUTH0_CREDENTIALS_SETUP.md
+AUTH0_SETUP.md
+coverage
+Dockerfile.prod
+frontend.log
+node_modules
+package-lock.json
+package.json
+public
+README.md
+src
+TEST_REPORT.md
+test-visualization.html
+tsconfig.json
+wolf_goat_pig.db
+[2025-10-20T14:55:28] tokens used: 7,936
+
+[2025-10-20T14:55:31] thinking
+
+**Exploring frontend entry points**
+[2025-10-20T14:55:31] exec bash -lc 'ls frontend/src' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:55:32] bash -lc 'ls frontend/src' succeeded in 736ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+__mocks__
+__tests__
+App.js
+components
+config
+context
+hooks
+index.js
+pages
+services
+setupTests.js
+theme
+utils
+[2025-10-20T14:55:32] tokens used: 8,236
+
+[2025-10-20T14:55:37] thinking
+
+**Identifying React app entry points**
+[2025-10-20T14:55:39] exec bash -lc "sed -n '1,160p' frontend/src/index.js" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:55:40] bash -lc "sed -n '1,160p' frontend/src/index.js" succeeded in 722ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App";
+import { BrowserRouter } from "react-router-dom";
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </React.StrictMode>
+); 
+[2025-10-20T14:55:40] tokens used: 8,456
+
+[2025-10-20T14:55:42] thinking
+
+**Gathering app entry points and tests**
+[2025-10-20T14:55:43] exec bash -lc "sed -n '1,200p' frontend/src/App.js" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:55:43] bash -lc "sed -n '1,200p' frontend/src/App.js" succeeded in 680ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+import React, { useState } from "react";
+import { Routes, Route, useNavigate, Navigate, useLocation } from "react-router-dom";
+import { useAuth0 } from "@auth0/auth0-react";
+import { UnifiedGameInterface } from "./components/game";
+import { SimulationMode, MonteCarloSimulation } from "./components/simulation";
+import FeedAnalyzer from "./components/simulation/FeedAnalyzer";
+import ShotRangeAnalyzer from "./components/ShotRangeAnalyzer";
+import ColdStartHandler from "./components/ColdStartHandler";
+import TutorialSystem from "./components/tutorial/TutorialSystem";
+import WGPAnalyticsDashboard from "./components/WGPAnalyticsDashboard";
+import SheetIntegrationDashboard from "./components/SheetIntegrationDashboard";
+import GoogleSheetsLiveSync from "./components/GoogleSheetsLiveSync";
+import Leaderboard from "./components/Leaderboard";
+import { ThemeProvider, useTheme } from "./theme/Provider";
+import { GameProvider, SheetSyncProvider } from "./context";
+import { MockAuthProvider } from "./context/MockAuthContext";
+import { AuthProvider } from "./context/AuthContext";
+[2025-10-20T14:55:43] tokens used: 8,798
+
+[2025-10-20T14:55:45] thinking
+
+**Listing simulation components**
+[2025-10-20T14:55:46] exec bash -lc 'ls frontend/src/components/simulation' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:55:46] bash -lc 'ls frontend/src/components/simulation' succeeded in 688ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+__fixtures__
+__tests__
+EnhancedSimulationLayout.js
+FeedAnalyzer.js
+GamePlay.js
+GameSetup.tsx
+HoleVisualization.tsx
+index.js
+MonteCarloSimulation.css
+MonteCarloSimulation.js
+PokerBettingPanel.js
+SimulationDecisionPanel.tsx
+SimulationMode.js
+styles
+Timeline.js
+TurnBasedInterface.js
+[2025-10-20T14:55:46] tokens used: 10,828
+
+[2025-10-20T14:55:48] thinking
+
+**Inspecting simulation modes**
+[2025-10-20T14:55:49] exec bash -lc "sed -n '1,200p' frontend/src/components/simulation/SimulationMode.js" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:55:49] bash -lc "sed -n '1,200p' frontend/src/components/simulation/SimulationMode.js" succeeded in 715ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+import React, { useState, useEffect, useCallback } from "react";
+import { useGame } from "../../context";
+import { simulationConfig } from "../../config/environment";
+import { getSimulationMock } from "./__fixtures__";
+import { GameSetup, GamePlay, EnhancedSimulationLayout } from "./";
+import TurnBasedInterface from "./TurnBasedInterface";
+// import { Timeline, PokerBettingPanel } from "./"; // Removed - not currently used
+// import TVPokerLayout from "../game/TVPokerLayout"; // Removed - not currently used
+
+const {
+  apiUrl: SIMULATION_API_URL,
+  useMocks: USE_SIMULATION_MOCKS,
+  mockPreset: SIMULATION_MOCK_PRESET,
+} = simulationConfig;
+
+// Helper function to safely serialize error details
+const formatErrorDetail = (detail) => {
+[2025-10-20T14:55:49] tokens used: 11,157
+
+[2025-10-20T14:55:54] thinking
+
+**Collecting frontend simulation info**
+[2025-10-20T14:55:55] exec bash -lc 'rg -n "SimulationMode" frontend/src' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:55:55] bash -lc 'rg -n "SimulationMode" frontend/src' exited 127 in 709ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+
+ERROR
+bash: rg: command not found
+[2025-10-20T14:55:55] tokens used: 13,190
+
+[2025-10-20T14:55:57] thinking
+
+**Switching to grep fallback**
+[2025-10-20T14:55:58] exec bash -lc 'grep -R "SimulationMode" -n frontend/src' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:55:59] bash -lc 'grep -R "SimulationMode" -n frontend/src' succeeded in 768ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+frontend/src/components/simulation/index.js:3:export { default as SimulationMode } from './SimulationMode';
+frontend/src/components/simulation/SimulationMode.js:24:function SimulationMode() {
+frontend/src/components/simulation/SimulationMode.js:924:export default SimulationMode;
+frontend/src/components/simulation/__tests__/SimulationMode.test.js:5:import SimulationMode from '../SimulationMode';
+frontend/src/components/simulation/__tests__/SimulationMode.test.js:87:      <SimulationMode />
+frontend/src/components/simulation/__tests__/SimulationMode.test.js:91:const flushSimulationModeEffects = async () => {
+frontend/src/components/simulation/__tests__/SimulationMode.test.js:97:describe('SimulationMode', () => {
+frontend/src/components/simulation/__tests__/SimulationMode.test.js:113:    await flushSimulationModeEffects();
+frontend/src/components/simulation/__tests__/SimulationMode.test.js:123:    await flushSimulationModeEffects();
+frontend/src/components/simulation/__tests__/SimulationMode.probabilities.test.js:62:import SimulationMode from '../SimulationMode';
+frontend/src/components/simulation/__tests__/SimulationMode.probabilities.test.js:66:const flushSimulationModeEffects = async () => {
+frontend/src/components/simulation/__tests__/SimulationMode.probabilities.test.js:72:describe('SimulationMode probabilities merging', () => {
+frontend/src/components/simulation/__tests__/SimulationMode.probabilities.test.js:113:    render(<SimulationMode />);
+frontend/src/components/simulation/__tests__/SimulationMode.probabilities.test.js:114:    await flushSimulationModeEffects();
+frontend/src/App.js:5:import { SimulationMode, MonteCarloSimulation } from "./components/simulation";
+frontend/src/App.js:216:          <Route path="/simulation" element={<SimulationMode />} />
+[2025-10-20T14:55:59] tokens used: 13,474
+
+[2025-10-20T14:56:00] thinking
+
+**Checking simulation component tests**
+[2025-10-20T14:56:01] exec bash -lc "sed -n '1,120p' frontend/src/components/simulation/index.js" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:56:02] bash -lc "sed -n '1,120p' frontend/src/components/simulation/index.js" succeeded in 722ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+export { default as GameSetup } from './GameSetup.tsx';
+export { default as GamePlay } from './GamePlay';
+export { default as SimulationMode } from './SimulationMode';
+export { default as MonteCarloSimulation } from './MonteCarloSimulation';
+export { default as Timeline } from './Timeline';
+export { default as PokerBettingPanel } from './PokerBettingPanel';
+export { default as EnhancedSimulationLayout } from './EnhancedSimulationLayout';
+export { default as TurnBasedInterface } from './TurnBasedInterface';
+export { default as SimulationDecisionPanel } from './SimulationDecisionPanel';
+export { default as HoleVisualization } from './HoleVisualization';
+[2025-10-20T14:56:02] tokens used: 14,026
+
+[2025-10-20T14:56:05] thinking
+
+**Identifying simulation entry points**
+[2025-10-20T14:56:05] exec bash -lc "sed -n '1,200p' frontend/src/components/simulation/__tests__/SimulationMode.test.js" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:56:06] bash -lc "sed -n '1,200p' frontend/src/components/simulation/__tests__/SimulationMode.test.js" succeeded in 825ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+import React from 'react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act } from 'react';
+import '@testing-library/jest-dom';
+import SimulationMode from '../SimulationMode';
+import { GameProvider } from '../../../context/GameProvider';
+
+const mockGameContext = {
+  gameState: null,
+  setGameState: jest.fn(),
+  isGameActive: false,
+  startGame: jest.fn(),
+  endGame: jest.fn(),
+  loading: false,
+  setLoading: jest.fn(),
+  feedback: [],
+  addFeedback: jest.fn(),
+[2025-10-20T14:56:06] tokens used: 14,358
+
+[2025-10-20T14:56:09] thinking
+
+**Opening test file SimulationMode.probabilities.test.js**
+[2025-10-20T14:56:10] exec bash -lc "sed -n '1,200p' frontend/src/components/simulation/__tests__/SimulationMode.probabilities.test.js" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:56:11] bash -lc "sed -n '1,200p' frontend/src/components/simulation/__tests__/SimulationMode.probabilities.test.js" succeeded in 734ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+import React from 'react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act } from 'react';
+import '@testing-library/jest-dom';
+
+const mockGameContext = {
+  gameState: null,
+  setGameState: jest.fn(),
+  isGameActive: true,
+  startGame: jest.fn(),
+  endGame: jest.fn(),
+  loading: false,
+  setLoading: jest.fn(),
+  feedback: [],
+  addFeedback: jest.fn(),
+  clearFeedback: jest.fn(),
+  shotState: null,
+[2025-10-20T14:56:11] tokens used: 15,629
+
+[2025-10-20T14:56:14] thinking
+
+**Collecting test dependencies and entry points**
+[2025-10-20T14:56:15] exec bash -lc 'grep -R "simulation" -n scripts docs | head' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:56:16] bash -lc 'grep -R "simulation" -n scripts docs | head' succeeded in 784ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+scripts/development/run_simulation_tests.py:3:Quick test runner for simulation engine during development
+scripts/development/run_simulation_tests.py:10:from app.wolf_goat_pig_simulation import WolfGoatPigSimulation
+scripts/development/run_simulation_tests.py:20:    from app.wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer
+scripts/development/run_simulation_tests.py:22:    simulation = WolfGoatPigSimulation(player_count=4)
+scripts/development/run_simulation_tests.py:30:    # Initialize simulation properly
+scripts/development/run_simulation_tests.py:31:    simulation.players = players
+scripts/development/run_simulation_tests.py:32:    simulation.current_hole = 1
+scripts/development/run_simulation_tests.py:33:    simulation._initialize_hole(1)
+scripts/development/run_simulation_tests.py:36:    hole_state = simulation.hole_states[simulation.current_hole]
+scripts/development/run_simulation_tests.py:42:    result1 = simulation.request_partner(captain_id, "p2")  # Captain requests partner
+[2025-10-20T14:56:16] tokens used: 17,057
+
+[2025-10-20T14:56:18] thinking
+
+**Searching docs for simulation mode**
+[2025-10-20T14:56:19] exec bash -lc 'grep -R "Monte Carlo" -n docs frontend | head' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:56:20] bash -lc 'grep -R "Monte Carlo" -n docs frontend | head' exited 124 in 1.00s:
+ERROR
+[2025-10-20T14:56:20] tokens used: 17,569
+
+[2025-10-20T14:56:23] thinking
+
+**Adjusting command timeout**
+[2025-10-20T14:56:24] exec bash -lc 'grep -R "Monte Carlo" -n docs frontend | head' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:56:27] bash -lc 'grep -R "Monte Carlo" -n docs frontend | head' exited 124 in 3.01s:
+ERROR
+[2025-10-20T14:56:27] tokens used: 17,842
+
+[2025-10-20T14:56:29] thinking
+
+**Narrowing search scope**
+[2025-10-20T14:56:30] exec bash -lc 'grep -R "Monte" -n frontend/src/components' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:56:31] bash -lc 'grep -R "Monte" -n frontend/src/components' succeeded in 807ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+frontend/src/components/EducationalTooltip.js:143:    title: "Monte Carlo Simulation",
+frontend/src/components/simulation/index.js:4:export { default as MonteCarloSimulation } from './MonteCarloSimulation';
+frontend/src/components/simulation/MonteCarloSimulation.js:2:import './MonteCarloSimulation.css';
+frontend/src/components/simulation/MonteCarloSimulation.js:4:const MonteCarloSimulation = () => {
+frontend/src/components/simulation/MonteCarloSimulation.js:51:  const runMonteCarloSimulation = async () => {
+frontend/src/components/simulation/MonteCarloSimulation.js:95:      <h2>🎲 Monte Carlo Simulation</h2>
+frontend/src/components/simulation/MonteCarloSimulation.js:198:          onClick={runMonteCarloSimulation}
+frontend/src/components/simulation/MonteCarloSimulation.js:201:          {isRunning ? '🔄 Running Simulation...' : '🚀 Run Monte Carlo Simulation'}
+frontend/src/components/simulation/MonteCarloSimulation.js:323:export default MonteCarloSimulation;
+[2025-10-20T14:56:31] tokens used: 18,111
+
+[2025-10-20T14:56:35] thinking
+
+**Inspecting MonteCarlo component**
+[2025-10-20T14:56:36] exec bash -lc "sed -n '1,200p' frontend/src/components/simulation/MonteCarloSimulation.js" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:56:37] bash -lc "sed -n '1,200p' frontend/src/components/simulation/MonteCarloSimulation.js" succeeded in 870ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+import React, { useState } from 'react';
+import './MonteCarloSimulation.css';
+
+const MonteCarloSimulation = () => {
+  const [formData, setFormData] = useState({
+    humanPlayer: {
+      id: 'human',
+      name: 'Stuart',
+      handicap: 10,
+      is_human: true
+    },
+    computerPlayers: [
+      { id: 'comp1', name: 'Tiger Bot', handicap: 2.0, personality: 'aggressive', is_human: false },
+      { id: 'comp2', name: 'Strategic Sam', handicap: 8.5, personality: 'strategic', is_human: false },
+      { id: 'comp3', name: 'Conservative Carl', handicap: 15.0, personality: 'conservative', is_human: false }
+    ],
+    numSimulations: 100,
+[2025-10-20T14:56:37] tokens used: 18,633
+
+[2025-10-20T14:56:40] thinking
+
+**Identifying key frontend components**
+[2025-10-20T14:56:40] exec bash -lc 'ls frontend/src/components/game' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:56:41] bash -lc 'ls frontend/src/components/game' succeeded in 738ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+__tests__
+CourseImport.js
+CourseManager.js
+GameSetupForm.js
+index.js
+TVPokerLayout.js
+UnifiedGameInterface.js
+WolfGoatPigGame.js
+[2025-10-20T14:56:41] tokens used: 20,571
+
+[2025-10-20T14:56:43] thinking
+
+**Examining UnifiedGameInterface structure**
+[2025-10-20T14:56:44] exec bash -lc "sed -n '1,200p' frontend/src/components/game/UnifiedGameInterface.js" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:56:45] bash -lc "sed -n '1,200p' frontend/src/components/game/UnifiedGameInterface.js" succeeded in 735ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+import React, { useState, useEffect } from 'react';
+import { useTheme } from '../../theme/Provider';
+import { useGame } from '../../context';
+import { Button, Card, Select } from '../ui';
+import useOddsCalculation from '../../hooks/useOddsCalculation';
+
+// Import existing widgets
+import ShotResultWidget from '../ShotResultWidget';
+import BettingOpportunityWidget from '../BettingOpportunityWidget';
+import BettingOddsPanel from '../BettingOddsPanel';
+import GameStateWidget from '../GameStateWidget';
+import StrategicAnalysisWidget from '../StrategicAnalysisWidget';
+import AnalyticsDashboard from '../AnalyticsDashboard';
+import HoleStrategyDisplay from '../HoleStrategyDisplay';
+
+// Import enhanced components
+import EnhancedBettingWidget from '../EnhancedBettingWidget';
+[2025-10-20T14:56:45] tokens used: 21,690
+
+[2025-10-20T14:56:48] thinking
+
+**Locating tests for UnifiedGameInterface**
+[2025-10-20T14:56:49] exec bash -lc 'ls frontend/src/components/game/__tests__' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:56:49] bash -lc 'ls frontend/src/components/game/__tests__' succeeded in 723ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+UnifiedGameInterface.test.js
+[2025-10-20T14:56:49] tokens used: 42,672
+
+[2025-10-20T14:56:52] thinking
+
+**Opening coverage notes**
+[2025-10-20T14:56:52] exec bash -lc "sed -n '1,200p' frontend/src/components/game/__tests__/UnifiedGameInterface.test.js" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:56:53] bash -lc "sed -n '1,200p' frontend/src/components/game/__tests__/UnifiedGameInterface.test.js" succeeded in 799ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+/**
+ * Comprehensive tests for UnifiedGameInterface.js - Main game interface component
+ * 
+ * Tests cover:
+ * - Component initialization and rendering
+ * - Game state management integration
+ * - Mode switching (regular/enhanced/simulation)
+ * - Player interactions and game actions
+ * - Real-time odds integration
+ * - Error handling and loading states
+ * - Component lifecycle and cleanup
+ * - Accessibility features
+ */
+
+import React from 'react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+[2025-10-20T14:56:53] tokens used: 42,952
+
+[2025-10-20T14:56:56] thinking
+
+**Examining project structure and scripts**
+[2025-10-20T14:56:57] exec bash -lc 'cat frontend/package.json' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:56:57] bash -lc 'cat frontend/package.json' succeeded in 795ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+{
+  "name": "wgp-frontend",
+  "version": "0.1.1",
+  "private": true,
+  "dependencies": {
+    "@auth0/auth0-react": "^2.4.0",
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "ghin": "^0.7.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-router-dom": "^7.8.2",
+    "react-scripts": "^5.0.1"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+[2025-10-20T14:56:57] tokens used: 45,012
+
+[2025-10-20T14:57:00] thinking
+
+**Searching documentation for simulation interface**
+[2025-10-20T14:57:01] exec bash -lc "sed -n '1,200p' docs/guides/project-structure.md" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:57:02] bash -lc "sed -n '1,200p' docs/guides/project-structure.md" exited 124 in 1.00s:
+ERROR
+[2025-10-20T14:57:02] tokens used: 45,719
+
+[2025-10-20T14:57:04] thinking
+
+**Using head to preview large file**
+[2025-10-20T14:57:04] exec bash -lc 'head -n 40 docs/guides/project-structure.md' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:57:05] bash -lc 'head -n 40 docs/guides/project-structure.md' succeeded in 786ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+# Wolf-Goat-Pig Project Structure
+
+## Directory Organization
+
+```
+wolf-goat-pig/
+├── backend/              # Backend application code
+│   ├── app/             # Main application modules
+│   │   ├── domain/      # Domain models and business logic
+│   │   ├── services/    # Service layer
+│   │   └── state/       # State management
+│   └── archive/         # Archived/deprecated code
+│
+├── frontend/            # Frontend React application
+│   ├── src/
+│   │   ├── components/  # React components
+│   │   ├── context/     # React context providers
+[2025-10-20T14:57:05] tokens used: 45,951
+
+[2025-10-20T14:57:08] thinking
+
+**Searching documentation for Simulation**
+[2025-10-20T14:57:08] exec bash -lc 'grep -R "Simulation" -n docs | head' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:57:09] bash -lc 'grep -R "Simulation" -n docs | head' succeeded in 756ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+docs/prd.md:1:# Wolf Goat Pig Golf Simulation - Product Requirements Document (PRD)
+docs/prd.md:6:Wolf Goat Pig Golf Simulation is a comprehensive digital implementation of the classic golf betting game from Wing Point Golf & Country Club. The product transforms the complex, paper-based golf betting experience into an interactive, real-time simulation that combines authentic golf physics, strategic betting mechanics, and educational gameplay analysis.
+docs/prd.md:197:- **Shot Simulation**: <50ms per shot calculation
+docs/prd.md:292:### Epic 2: Enhanced Simulation Features
+docs/architecture.md:4:- **Project**: BMad - Wolf Goat Pig Golf Simulation
+docs/architecture.md:57:│ - State Mgmt    │    │ - Simulation    │    │ - Course Data   │
+docs/architecture.md:90:- **Simulation Engine**: Monte Carlo analysis with realistic golf physics
+docs/architecture.md:98:- **Simulation Results**: Statistical analysis and result caching
+docs/architecture.md:325:│   │   ├── MonteCarloSimulation.js # Simulation interface
+docs/architecture.md:326:│   │   ├── SimulationMode.js       # Simulation controls
+[2025-10-20T14:57:09] tokens used: 46,590
+
+[2025-10-20T14:57:13] thinking
+
+**Reviewing documentation and scripts references**
+[2025-10-20T14:57:13] exec bash -lc 'ls scripts' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:57:14] bash -lc 'ls scripts' succeeded in 714ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+deployment
+development
+diagnostics
+install_test_dependencies.sh.bak
+legacy_sync_probe.py
+run_bdd_tests.sh
+setup-claude-github.sh
+test-prod-all.sh
+test-prod-backend.sh
+test-prod-frontend.sh
+testing
+verify-deployments.py
+[2025-10-20T14:57:14] tokens used: 47,173
+
+[2025-10-20T14:57:16] thinking
+
+**Checking diagnostics scripts**
+[2025-10-20T14:57:17] exec bash -lc 'ls scripts/diagnostics' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:57:17] bash -lc 'ls scripts/diagnostics' succeeded in 729ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+__pycache__
+bootstrap_check.py
+run_simulation_tests.sh
+simulation_startup_check.py
+test_all_routes.py
+test_google_sheets_live_sync.js
+test_sheet_parsing.py
+test_simulation_e2e.py
+test_sync_endpoints.py
+test_wgp_round_generation.py
+test-local.sh
+test-simulation-flow.sh
+[2025-10-20T14:57:17] tokens used: 47,458
+
+[2025-10-20T14:57:20] thinking
+
+**Identifying front-end related tests**
+[2025-10-20T14:57:21] exec bash -lc "sed -n '1,200p' scripts/diagnostics/test_google_sheets_live_sync.js" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:57:22] bash -lc "sed -n '1,200p' scripts/diagnostics/test_google_sheets_live_sync.js" succeeded in 718ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+// Playwright test for GoogleSheetsLiveSync component
+const { chromium } = require('playwright');
+
+async function testGoogleSheetsLiveSync() {
+  console.log('🔍 Starting GoogleSheetsLiveSync Playwright test...\n');
+  
+  const browser = await chromium.launch({ 
+    headless: false, 
+    devtools: true 
+  });
+  
+  try {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    
+    // Listen for console messages, especially errors
+    const consoleMessages = [];
+[2025-10-20T14:57:22] tokens used: 47,702
+
+[2025-10-20T14:57:25] thinking
+
+**Searching documentation for front features**
+[2025-10-20T14:57:25] exec bash -lc 'grep -n "Monte Carlo" docs/prd.md | head' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:57:26] bash -lc 'grep -n "Monte Carlo" docs/prd.md | head' succeeded in 733ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+[2025-10-20T14:57:26] tokens used: 49,824
+
+[2025-10-20T14:57:28] thinking
+
+**Searching for Monte Carlo mentions**
+[2025-10-20T14:57:29] exec bash -lc 'grep -n "Monte" docs/prd.md | head' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:57:30] bash -lc 'grep -n "Monte" docs/prd.md | head' succeeded in 745ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+[2025-10-20T14:57:30] tokens used: 50,054
+
+[2025-10-20T14:57:33] thinking
+
+**Searching for UnifiedGameInterface references**
+[2025-10-20T14:57:33] exec bash -lc 'grep -R "UnifiedGameInterface" -n' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:57:34] bash -lc 'grep -R "UnifiedGameInterface" -n' exited 124 in 1.00s:
+ERROR
+[2025-10-20T14:57:34] tokens used: 50,302
+
+[2025-10-20T14:57:38] thinking
+
+**Identifying relevant test files**
+[2025-10-20T14:57:39] exec bash -lc "sed -n '1,200p' frontend/src/components/__tests__/UnifiedGameInterface.integration.test.js" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:57:39] bash -lc "sed -n '1,200p' frontend/src/components/__tests__/UnifiedGameInterface.integration.test.js" succeeded in 716ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+import React from 'react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import { ThemeProvider } from '../../theme/Provider';
+import { GameProvider } from '../../context';
+import UnifiedGameInterface from '../game/UnifiedGameInterface';
+
+// Mock the API module
+jest.mock('../../utils/api', () => ({
+  apiPost: jest.fn(),
+  useApiCall: () => ({
+    makeApiCall: jest.fn().mockResolvedValue({
+      analysis: {
+        recommended_shot: {
+          type: 'conservative_approach',
+          success_rate: '85%',
+          risk_level: '25'
+[2025-10-20T14:57:39] tokens used: 69,124
+
+[2025-10-20T14:57:44] thinking
+
+**Summarizing test files and line references**
+[2025-10-20T14:57:45] exec bash -lc "nl -ba frontend/src/App.js | sed -n '1,180p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:57:46] bash -lc "nl -ba frontend/src/App.js | sed -n '1,180p'" succeeded in 804ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+     1	import React, { useState } from "react";
+     2	import { Routes, Route, useNavigate, Navigate, useLocation } from "react-router-dom";
+     3	import { useAuth0 } from "@auth0/auth0-react";
+     4	import { UnifiedGameInterface } from "./components/game";
+     5	import { SimulationMode, MonteCarloSimulation } from "./components/simulation";
+     6	import FeedAnalyzer from "./components/simulation/FeedAnalyzer";
+     7	import ShotRangeAnalyzer from "./components/ShotRangeAnalyzer";
+     8	import ColdStartHandler from "./components/ColdStartHandler";
+     9	import TutorialSystem from "./components/tutorial/TutorialSystem";
+    10	import WGPAnalyticsDashboard from "./components/WGPAnalyticsDashboard";
+    11	import SheetIntegrationDashboard from "./components/SheetIntegrationDashboard";
+    12	import GoogleSheetsLiveSync from "./components/GoogleSheetsLiveSync";
+    13	import Leaderboard from "./components/Leaderboard";
+    14	import { ThemeProvider, useTheme } from "./theme/Provider";
+    15	import { GameProvider, SheetSyncProvider } from "./context";
+    16	import { MockAuthProvider } from "./context/MockAuthContext";
+    17	import { AuthProvider } from "./context/AuthContext";
+[2025-10-20T14:57:46] tokens used: 71,058
+
+[2025-10-20T14:57:50] thinking
+
+**Continuing to locate route definitions**
+[2025-10-20T14:57:52] exec bash -lc "nl -ba frontend/src/App.js | sed -n '200,360p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:57:52] bash -lc "nl -ba frontend/src/App.js | sed -n '200,360p'" succeeded in 722ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+   200	      </ThemeProvider>
+   201	    );
+   202	  }
+   203	
+   204	  // Main application
+   205	  return (
+   206	    <ThemeProvider>
+   207	      <div>
+   208	        <Navigation />
+   209	        <Routes>
+   210	          <Route path="/" element={<HomePage />} />
+   211	          <Route path="/game" element={
+   212	            <ProtectedRoute>
+   213	              <UnifiedGameInterface />
+   214	            </ProtectedRoute>
+   215	          } />
+   216	          <Route path="/simulation" element={<SimulationMode />} />
+[2025-10-20T14:57:52] tokens used: 73,793
+
+[2025-10-20T14:57:55] thinking
+
+**Identifying entry points and route protection**
+[2025-10-20T14:57:56] exec bash -lc 'ls frontend/src/context' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:57:57] bash -lc 'ls frontend/src/context' succeeded in 937ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+__tests__
+AuthContext.js
+GameProvider.js
+index.js
+MockAuthContext.js
+SheetSyncContext.js
+TutorialContext.js
+[2025-10-20T14:57:57] tokens used: 75,846
+
+[2025-10-20T14:57:59] thinking
+
+**Identifying GameProvider locations**
+[2025-10-20T14:58:01] exec bash -lc "nl -ba frontend/src/context/index.js | sed -n '1,200p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:58:02] bash -lc "nl -ba frontend/src/context/index.js | sed -n '1,200p'" succeeded in 713ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+     1	export { GameProvider, useGame, GameActions } from './GameProvider';
+     2	export { AuthProvider, useAuth } from './AuthContext';
+     3	export { SheetSyncProvider, useSheetSync } from './SheetSyncContext';
+[2025-10-20T14:58:02] tokens used: 76,148
+
+[2025-10-20T14:58:07] thinking
+
+**Noting GameProvider details**
+[2025-10-20T14:58:09] exec bash -lc "nl -ba frontend/src/context/GameProvider.js | sed -n '1,200p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:58:10] bash -lc "nl -ba frontend/src/context/GameProvider.js | sed -n '1,200p'" succeeded in 699ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+     1	import React, { createContext, useContext, useReducer, useCallback } from 'react';
+     2	
+     3	const API_URL = process.env.REACT_APP_API_URL || '';
+     4	
+     5	// Game Context
+     6	const GameContext = createContext();
+     7	
+     8	// Initial game state
+     9	const initialGameState = {
+    10	  // Core game state
+    11	  gameState: null,
+    12	  shotState: null,
+    13	  holeState: null,
+    14	  
+    15	  // UI state
+    16	  loading: false,
+    17	  error: null,
+[2025-10-20T14:58:10] tokens used: 76,446
+
+[2025-10-20T14:58:13] thinking
+
+**Identifying key functions and doc references**
+[2025-10-20T14:58:14] exec bash -lc "sed -n '300,360p' docs/architecture.md" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:58:15] bash -lc "sed -n '300,360p' docs/architecture.md" succeeded in 683ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+  "player_name": Optional[str],
+  "details": Optional[Dict[str, Any]]
+}
+```
+
+### Database Design Principles
+
+1. **JSON Flexibility**: Use JSON columns for complex, evolving data structures
+2. **Relational Integrity**: Maintain referential integrity for core relationships
+3. **Performance Optimization**: Indexed columns for common queries
+4. **Version Compatibility**: Schema supports both SQLite (dev) and PostgreSQL (prod)
+
+## Frontend Architecture
+
+### Component Architecture
+
+```
+[2025-10-20T14:58:15] tokens used: 79,100
+
+[2025-10-20T14:58:21] thinking
+
+**Reviewing frontend configuration references**
+[2025-10-20T14:58:22] exec bash -lc "nl -ba frontend/src/config/environment/index.js | sed -n '1,200p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:58:23] bash -lc "nl -ba frontend/src/config/environment/index.js | sed -n '1,200p'" succeeded in 691ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+[2025-10-20T14:58:23] tokens used: 79,863
+
+[2025-10-20T14:58:25] thinking
+
+**Checking frontend config path**
+[2025-10-20T14:58:26] exec bash -lc 'ls frontend/src/config' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:58:27] bash -lc 'ls frontend/src/config' succeeded in 690ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+environment.js
+[2025-10-20T14:58:27] tokens used: 80,192
+
+[2025-10-20T14:58:31] thinking
+
+**Opening file**
+[2025-10-20T14:58:32] exec bash -lc "nl -ba frontend/src/config/environment.js | sed -n '1,160p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:58:33] bash -lc "nl -ba frontend/src/config/environment.js | sed -n '1,160p'" succeeded in 883ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+     1	const toBoolean = (value) => {
+     2	  if (typeof value === 'boolean') {
+     3	    return value;
+     4	  }
+     5	  if (typeof value === 'string') {
+     6	    return ['true', '1', 'yes', 'on'].includes(value.trim().toLowerCase());
+     7	  }
+     8	  if (typeof value === 'number') {
+     9	    return value === 1;
+    10	  }
+    11	  return false;
+    12	};
+    13	
+    14	export const simulationConfig = {
+    15	  apiUrl: process.env.REACT_APP_API_URL || '',
+    16	  useMocks: toBoolean(process.env.REACT_APP_SIMULATION_USE_MOCKS),
+    17	  mockPreset: process.env.REACT_APP_SIMULATION_MOCK_PRESET || 'default',
+[2025-10-20T14:58:33] tokens used: 80,395
+
+[2025-10-20T14:58:38] thinking
+
+**Reviewing simulation-related tests and components**
+[2025-10-20T14:58:39] exec bash -lc "nl -ba frontend/src/components/simulation/GameSetup.tsx | sed -n '1,200p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:58:40] bash -lc "nl -ba frontend/src/components/simulation/GameSetup.tsx | sed -n '1,200p'" succeeded in 771ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+     1	// @ts-nocheck
+     2	import React, { useState, useEffect } from 'react';
+     3	import { useTheme } from '../../theme/Provider';
+     4	import { Button, Card, Input, Select } from '../ui';
+     5	
+     6	const API_URL = process.env.REACT_APP_API_URL || "";
+     7	
+     8	interface Player {
+     9	  id?: string;
+    10	  name: string;
+    11	  handicap: string;
+    12	  personality?: string;
+    13	  is_human: boolean;
+    14	}
+    15	
+    16	interface Course {
+    17	  name: string;
+[2025-10-20T14:58:40] tokens used: 81,829
+
+[2025-10-20T14:58:46] thinking
+
+**Noting potential bug and gathering references**
+[2025-10-20T14:58:47] exec bash -lc 'grep -n "simulation/play-hole" frontend/src/components/simulation/SimulationMode.js' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:58:48] bash -lc 'grep -n "simulation/play-hole" frontend/src/components/simulation/SimulationMode.js' succeeded in 747ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+583:      let endpoint = '/simulation/play-hole';
+589:        endpoint = '/simulation/play-hole';
+596:        endpoint = '/simulation/play-hole';
+[2025-10-20T14:58:48] tokens used: 84,843
+
+[2025-10-20T14:58:52] thinking
+
+**Checking code context around line 550-640**
+[2025-10-20T14:58:53] exec bash -lc "nl -ba frontend/src/components/simulation/SimulationMode.js | sed -n '520,660p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:58:54] bash -lc "nl -ba frontend/src/components/simulation/SimulationMode.js | sed -n '520,660p'" succeeded in 783ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+   520	
+   521	      const decision = {
+   522	        decision_type: action,
+   523	        player_id: 'human',
+   524	        amount: option.amount || 0,
+   525	        ...option
+   526	      };
+   527	
+   528	      const response = await fetch(`${SIMULATION_API_URL}/simulation/betting-decision`, {
+   529	        method: 'POST',
+   530	        headers: { 'Content-Type': 'application/json' },
+   531	        body: JSON.stringify(decision)
+   532	      });
+   533	
+   534	      if (response.ok) {
+   535	        const result = await response.json();
+   536	        if (result.success) {
+[2025-10-20T14:58:54] tokens used: 85,106
+
+[2025-10-20T14:59:00] thinking
+
+**Searching for simulation API usage**
+[2025-10-20T14:59:02] exec bash -lc 'grep -n "SIMULATION_API_URL" frontend/src/components/simulation/SimulationMode.js' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:59:03] bash -lc 'grep -n "SIMULATION_API_URL" frontend/src/components/simulation/SimulationMode.js' succeeded in 719ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+11:  apiUrl: SIMULATION_API_URL,
+295:        fetch(`${SIMULATION_API_URL}/simulation/available-personalities`),
+296:        fetch(`${SIMULATION_API_URL}/simulation/suggested-opponents`),
+297:        fetch(`${SIMULATION_API_URL}/courses`)
+326:      const response = await fetch(`${SIMULATION_API_URL}/simulation/turn-based-state`);
+388:      const response = await fetch(`${SIMULATION_API_URL}/simulation/setup`, {
+442:      const response = await fetch(`${SIMULATION_API_URL}/simulation/timeline`);
+459:      const response = await fetch(`${SIMULATION_API_URL}/simulation/poker-state`);
+528:      const response = await fetch(`${SIMULATION_API_URL}/simulation/betting-decision`, {
+614:      const response = await fetch(`${SIMULATION_API_URL}${endpoint}`, {
+768:      const response = await fetch(`${SIMULATION_API_URL}/simulation/play-next-shot`, {
+[2025-10-20T14:59:03] tokens used: 87,123
+
+[2025-10-20T14:59:08] thinking
+
+**Exploring simulation play-next-shot section**
+[2025-10-20T14:59:09] exec bash -lc "nl -ba frontend/src/components/simulation/SimulationMode.js | sed -n '720,820p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:59:09] bash -lc "nl -ba frontend/src/components/simulation/SimulationMode.js | sed -n '720,820p'" succeeded in 697ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+   720	
+   721	      pushMockTimelineEvent({
+   722	        type: 'shot',
+   723	        description:
+   724	          nextPreset.shotState?.recommended_shot ||
+   725	          `Mock shot progression ${mockStep + 1}.`,
+   726	      });
+   727	
+   728	      addFeedback(`🎯 Mock shot advanced (step ${mockStep + 1}).`);
+   729	
+   730	      setGameState((previous) => {
+   731	        if (!previous) {
+   732	          return nextPreset.gameState || previous;
+   733	        }
+   734	
+   735	        const nextHoleState = {
+   736	          ...(previous.hole_state || {}),
+[2025-10-20T14:59:09] tokens used: 87,598
+
+[2025-10-20T14:59:13] thinking
+
+**Noting configuration and UI connection**
+[2025-10-20T14:59:14] exec bash -lc "nl -ba frontend/src/components/simulation/TurnBasedInterface.js | sed -n '1,200p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:59:14] bash -lc "nl -ba frontend/src/components/simulation/TurnBasedInterface.js | sed -n '1,200p'" succeeded in 719ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+     1	import React, { useState, useEffect } from 'react';
+     2	import { useTheme } from '../../theme/Provider';
+     3	import { Button, Card } from '../ui';
+     4	
+     5	const TurnBasedInterface = ({
+     6	  gameState,
+     7	  onMakeDecision,
+     8	  interactionNeeded,
+     9	  feedback,
+    10	  shotState,
+    11	  onNextShot,
+    12	  hasNextShot
+    13	}) => {
+    14	  const theme = useTheme();
+    15	  const [showPartnershipPrompt, setShowPartnershipPrompt] = useState(false);
+    16	  
+    17	  // Determine whose turn it is and what decision is needed
+[2025-10-20T14:59:14] tokens used: 89,119
+
+[2025-10-20T14:59:20] thinking
+
+**Assessing UI customization and test coverage**
+[2025-10-20T14:59:29] exec bash -lc 'grep -R "MonteCarlo" -n frontend/src/__tests__ frontend/src/components/__tests__ frontend/src/components/simulation/__tests__' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:59:30] bash -lc 'grep -R "MonteCarlo" -n frontend/src/__tests__ frontend/src/components/__tests__ frontend/src/components/simulation/__tests__' exited 1 in 754ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+
+ERROR
+[2025-10-20T14:59:30] tokens used: 92,293
+
+[2025-10-20T14:59:35] thinking
+
+**Noting test coverage gaps**
+[2025-10-20T14:59:37] exec bash -lc "nl -ba frontend/src/hooks/useOddsCalculation.js | sed -n '1,160p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:59:37] bash -lc "nl -ba frontend/src/hooks/useOddsCalculation.js | sed -n '1,160p'" succeeded in 743ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+     1	import { useState, useEffect, useCallback, useRef } from 'react';
+     2	
+     3	/**
+     4	 * Custom hook for real-time odds calculation and management.
+     5	 * Provides automated updates, caching, and performance optimization.
+     6	 */
+     7	const useOddsCalculation = ({
+     8	  gameState,
+     9	  autoUpdate = true,
+    10	  updateInterval = 5000,
+    11	  useMonteCarloThreshold = 4, // Enable Monte Carlo for 4+ players
+    12	  performanceTarget = 50, // Target calculation time in ms
+    13	  maxRetries = 3,
+    14	  enableCaching = true,
+    15	  onOddsUpdate,
+    16	  onError
+    17	} = {}) => {
+[2025-10-20T14:59:37] tokens used: 92,557
+
+[2025-10-20T14:59:42] thinking
+
+**Mentioning context hooking and tests**
+[2025-10-20T14:59:43] exec bash -lc 'ls frontend/src/context/__tests__' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:59:43] bash -lc 'ls frontend/src/context/__tests__' succeeded in 970ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+GameProvider.shotProbabilities.test.js
+GameProvider.test.js
+[2025-10-20T14:59:43] tokens used: 94,875
+
+[2025-10-20T14:59:46] thinking
+
+**Checking test coverage files**
+[2025-10-20T14:59:48] exec bash -lc "sed -n '1,160p' frontend/src/context/__tests__/GameProvider.test.js" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:59:48] bash -lc "sed -n '1,160p' frontend/src/context/__tests__/GameProvider.test.js" succeeded in 877ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+/**
+ * Comprehensive tests for GameProvider.js - Game state management context
+ * 
+ * Tests cover:
+ * - Context provider initialization
+ * - State management and reducer actions
+ * - API interactions and error handling
+ * - Game lifecycle methods
+ * - State persistence and cleanup
+ * - Performance optimizations
+ * - Error boundaries
+ */
+
+import React from 'react';
+import { render, screen, act, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import '@testing-library/jest-dom';
+[2025-10-20T14:59:48] tokens used: 95,172
+
+[2025-10-20T14:59:51] thinking
+
+**Noting relevant test files**
+[2025-10-20T14:59:52] exec bash -lc "sed -n '1,200p' frontend/src/context/__tests__/GameProvider.shotProbabilities.test.js" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T14:59:53] bash -lc "sed -n '1,200p' frontend/src/context/__tests__/GameProvider.shotProbabilities.test.js" succeeded in 870ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+import React from 'react';
+import { render, act } from '@testing-library/react';
+
+import { GameProvider, useGame } from '../GameProvider';
+
+const ContextConsumer = ({ onReady }) => {
+  const context = useGame();
+
+  React.useEffect(() => {
+    if (onReady) {
+      onReady(context);
+    }
+  }, [context, onReady]);
+
+  return null;
+};
+
+[2025-10-20T14:59:53] tokens used: 96,789
+
+[2025-10-20T14:59:58] thinking
+
+**Marking component for testing**
+[2025-10-20T15:00:00] exec bash -lc "nl -ba frontend/src/components/GoogleSheetsLiveSync.js | sed -n '1,160p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:00:01] bash -lc "nl -ba frontend/src/components/GoogleSheetsLiveSync.js | sed -n '1,160p'" succeeded in 997ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+     1	import React from 'react';
+     2	import { useSheetSync } from '../context';
+     3	import { Card } from './ui';
+     4	
+     5	const GoogleSheetsLiveSync = () => {
+     6	  const {
+     7	    sheetUrl,
+     8	    setSheetUrl,
+     9	    syncStatus,
+    10	    lastSync,
+    11	    syncInterval,
+    12	    setSyncInterval,
+    13	    autoSync,
+    14	    setAutoSync,
+    15	    syncData,
+    16	    error,
+    17	    performLiveSync,
+[2025-10-20T15:00:01] tokens used: 97,401
+
+[2025-10-20T15:00:04] thinking
+
+**Reviewing SheetSyncContext interplay**
+[2025-10-20T15:00:05] exec bash -lc "nl -ba frontend/src/context/SheetSyncContext.js | sed -n '1,160p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:00:06] bash -lc "nl -ba frontend/src/context/SheetSyncContext.js | sed -n '1,160p'" exited 124 in 1.00s:
+ERROR
+[2025-10-20T15:00:06] tokens used: 99,868
+
+[2025-10-20T15:00:09] thinking
+
+**Questioning the need for `head`**
+[2025-10-20T15:00:10] exec bash -lc 'head -n 120 frontend/src/context/SheetSyncContext.js' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:00:11] bash -lc 'head -n 120 frontend/src/context/SheetSyncContext.js' exited 124 in 1.00s:
+ERROR
+[2025-10-20T15:00:11] tokens used: 100,876
+
+[2025-10-20T15:00:13] thinking
+
+**Adjusting timeout for large file**
+[2025-10-20T15:00:15] exec bash -lc 'head -n 120 frontend/src/context/SheetSyncContext.js' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:00:16] bash -lc 'head -n 120 frontend/src/context/SheetSyncContext.js' succeeded in 1.01s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+import React, { createContext, useState, useEffect, useCallback, useContext } from 'react';
+
+const SheetSyncContext = createContext();
+
+export const useSheetSync = () => {
+  return useContext(SheetSyncContext);
+};
+
+export const SheetSyncProvider = ({ children }) => {
+  // Hardcode the Wolf-Goat-Pig Google Sheets URL
+  const [sheetUrl, setSheetUrl] = useState('https://docs.google.com/spreadsheets/d/1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM/edit?pli=1&gid=0#gid=0');
+  const [syncStatus, setSyncStatus] = useState('idle'); // idle, connecting, syncing, error, success
+  const [lastSync, setLastSync] = useState(null);
+  const [syncInterval, setSyncInterval] = useState(30); // seconds
+  const [autoSync, setAutoSync] = useState(true); // Enable auto sync by default
+  const [syncData, setSyncData] = useState([]);
+  const [error, setError] = useState(null);
+[2025-10-20T15:00:16] tokens used: 101,069
+
+[2025-10-20T15:00:27] thinking
+
+**Reviewing frontend auto-sync and diagnostics**
+
+I'm gathering information on frontend auto-sync defaults and potential issues like real backend calls causing heavy network load. I'll also explore relevant docs, scripts, entry points, and tests, noting concerns like GameSetup fallback bugs, alert overuse, unprotected routes, env var dependencies, missing test coverage (MonteCarlo, TurnBasedInterface), and diagnostic scripts tied to front features. This will help prepare a thorough response covering frontend modes and shared tooling.
+[2025-10-20T15:00:29] exec bash -lc 'head -n 80 scripts/diagnostics/test_simulation_e2e.py' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:00:30] bash -lc 'head -n 80 scripts/diagnostics/test_simulation_e2e.py' exited 124 in 1.00s:
+ERROR
+[2025-10-20T15:00:30] tokens used: 103,798
+
+[2025-10-20T15:00:33] thinking
+
+**Increasing timeout setting**
+[2025-10-20T15:00:34] exec bash -lc 'head -n 80 scripts/diagnostics/test_simulation_e2e.py' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:00:35] bash -lc 'head -n 80 scripts/diagnostics/test_simulation_e2e.py' succeeded in 1.22s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+#!/usr/bin/env python3
+"""
+End-to-end test for Wolf Goat Pig simulation
+Tests the complete simulation flow without external dependencies
+"""
+
+import os
+import sys
+import json
+import time
+import logging
+from pathlib import Path
+
+def setup_test_environment():
+    """Setup test environment"""
+    # Add backend to path
+    backend_path = Path(__file__).parent / "backend"
+[2025-10-20T15:00:35] tokens used: 104,044
+
+[2025-10-20T15:00:39] thinking
+
+**Preparing summary for frontend documentation**
+[2025-10-20T15:00:40] exec bash -lc 'head -n 120 frontend/README.md' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:00:41] bash -lc 'head -n 120 frontend/README.md' succeeded in 846ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+# Frontend (React)
+
+## Quickstart
+
+```bash
+npm install
+npm start
+``` 
+[2025-10-20T15:00:41] tokens used: 104,979
+
+[2025-10-20T15:00:46] thinking
+
+**Checking testing configuration**
+[2025-10-20T15:00:48] exec bash -lc "sed -n '1,120p' frontend/src/setupTests.js" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:00:49] bash -lc "sed -n '1,120p' frontend/src/setupTests.js" exited 124 in 1.01s:
+ERROR
+[2025-10-20T15:00:49] tokens used: 105,163
+
+[2025-10-20T15:00:51] thinking
+
+**Choosing size options**
+[2025-10-20T15:00:52] exec bash -lc "sed -n '1,120p' frontend/src/setupTests.js" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:00:52] bash -lc "sed -n '1,120p' frontend/src/setupTests.js" succeeded in 871ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+// jest-dom adds custom jest matchers for asserting on DOM nodes.
+import '@testing-library/jest-dom';
+
+// Note: react-router-dom mocking is handled in individual test files
+
+// Mock environment variables
+process.env.REACT_APP_API_URL = 'http://test-api.com';
+process.env.REACT_APP_USE_MOCK_AUTH = 'true';
+
+// Mock window.alert
+global.alert = jest.fn();
+
+// Mock window.confirm
+global.confirm = jest.fn(() => true);
+
+const defaultFetchImplementation = () =>
+  Promise.resolve({
+[2025-10-20T15:00:52] tokens used: 105,350
+
+[2025-10-20T15:00:56] thinking
+
+**Preparing to review environment and test directories**
+[2025-10-20T15:00:56] exec bash -lc 'ls frontend/src/__tests__' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:00:57] bash -lc 'ls frontend/src/__tests__' exited 124 in 1.01s:
+ERROR
+[2025-10-20T15:00:57] tokens used: 106,491
+
+[2025-10-20T15:01:00] thinking
+
+**Expanding scope**
+[2025-10-20T15:01:01] exec bash -lc 'ls frontend/src/__tests__' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:01:02] bash -lc 'ls frontend/src/__tests__' succeeded in 1.09s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+fixtures
+utils
+[2025-10-20T15:01:02] tokens used: 106,717
+
+[2025-10-20T15:01:14] thinking
+
+**Summarizing frontend structure and references**
+
+I’m wrapping up with a clear summary of front entry points, tests, docs, scripts, and UX details. I’ll include file paths and relevant line numbers to keep things precise and note that I stayed in read-only mode without making changes. This way, the user gets a neat overview of key files and their roles.
+[2025-10-20T15:01:16] exec bash -lc "nl -ba docs/architecture.md | sed -n '320,360p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:01:17] bash -lc "nl -ba docs/architecture.md | sed -n '320,360p'" succeeded in 1.23s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+   320	│   │   ├── WolfGoatPigGame.js      # Main game interface
+   321	│   │   ├── UnifiedGameInterface.js  # Unified action handler
+   322	│   │   ├── GameSetupForm.js        # Player configuration
+   323	│   │   └── CourseManager.js        # Course selection
+   324	│   ├── simulation/
+   325	│   │   ├── MonteCarloSimulation.js # Simulation interface
+   326	│   │   ├── SimulationMode.js       # Simulation controls
+   327	│   │   └── GameSetup.js           # Simulation setup
+   328	│   └── ui/
+   329	│       ├── Button.js              # Reusable UI components
+   330	│       ├── Card.js
+   331	│       ├── Input.js
+   332	│       └── Select.js
+   333	├── context/
+   334	│   └── GameProvider.js            # Global game state
+   335	├── hooks/
+   336	│   ├── useGameApi.js              # Game API integration
+[2025-10-20T15:01:17] tokens used: 107,321
+
+[2025-10-20T15:01:21] thinking
+
+**Preparing to cite script line numbers**
+[2025-10-20T15:01:23] exec bash -lc "nl -ba scripts/diagnostics/test_google_sheets_live_sync.js | sed -n '1,40p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:01:24] bash -lc "nl -ba scripts/diagnostics/test_google_sheets_live_sync.js | sed -n '1,40p'" succeeded in 861ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+     1	// Playwright test for GoogleSheetsLiveSync component
+     2	const { chromium } = require('playwright');
+     3	
+     4	async function testGoogleSheetsLiveSync() {
+     5	  console.log('🔍 Starting GoogleSheetsLiveSync Playwright test...\n');
+     6	  
+     7	  const browser = await chromium.launch({ 
+     8	    headless: false, 
+     9	    devtools: true 
+    10	  });
+    11	  
+    12	  try {
+    13	    const context = await browser.newContext();
+    14	    const page = await context.newPage();
+    15	    
+    16	    // Listen for console messages, especially errors
+    17	    const consoleMessages = [];
+[2025-10-20T15:01:24] tokens used: 108,892
+
+[2025-10-20T15:01:27] thinking
+
+**Referencing main hook and test script**
+[2025-10-20T15:01:28] exec bash -lc "nl -ba scripts/diagnostics/run_simulation_tests.sh | sed -n '1,120p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:01:29] bash -lc "nl -ba scripts/diagnostics/run_simulation_tests.sh | sed -n '1,120p'" exited 124 in 1.01s:
+ERROR
+[2025-10-20T15:01:29] tokens used: 110,119
+
+[2025-10-20T15:01:34] thinking
+
+**Extending time range for execution**
+[2025-10-20T15:01:35] exec bash -lc "nl -ba scripts/diagnostics/run_simulation_tests.sh | sed -n '1,120p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:01:36] bash -lc "nl -ba scripts/diagnostics/run_simulation_tests.sh | sed -n '1,120p'" succeeded in 926ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+     1	#!/bin/bash
+     2	# Comprehensive test runner for simulation mode
+     3	# Runs unit tests, functional tests, and end-to-end tests
+     4	
+     5	set -e
+     6	
+     7	# Colors for output
+     8	RED='\033[0;31m'
+     9	GREEN='\033[0;32m'
+    10	YELLOW='\033[1;33m'
+    11	BLUE='\033[0;34m'
+    12	NC='\033[0m' # No Color
+    13	
+    14	# Configuration
+    15	BACKEND_DIR="backend"
+    16	FRONTEND_DIR="frontend"
+    17	TEST_DIR="tests"
+[2025-10-20T15:01:36] tokens used: 110,364
+
+[2025-10-20T15:01:42] thinking
+
+**Detailing frontend test references**
+[2025-10-20T15:01:43] exec bash -lc "grep -n \"alert('\" frontend/src/components/simulation -R" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:01:44] bash -lc "grep -n \"alert('\" frontend/src/components/simulation -R" succeeded in 799ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+frontend/src/components/simulation/GameSetup.tsx:132:        alert('Unable to load courses from server. Using default course to continue the game.');
+[2025-10-20T15:01:44] tokens used: 112,250
+
+[2025-10-20T15:01:48] thinking
+
+**Searching for alert references**
+[2025-10-20T15:01:49] exec bash -lc 'grep -n "alert" frontend/src/components/simulation/SimulationMode.js' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:01:50] bash -lc 'grep -n "alert" frontend/src/components/simulation/SimulationMode.js' succeeded in 861ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+357:      alert("Please enter your name");
+424:        alert("Error starting simulation: " + (formatErrorDetail(data.detail) || "Unknown error"));
+428:      alert("Error starting simulation");
+699:      // Add error to feedback instead of alert
+[2025-10-20T15:01:50] tokens used: 112,513
+
+[2025-10-20T15:01:56] thinking
+
+**Listing frontend test and UI details**
+[2025-10-20T15:01:57] exec bash -lc "nl -ba scripts/test-prod-frontend.sh | sed -n '1,160p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:01:58] bash -lc "nl -ba scripts/test-prod-frontend.sh | sed -n '1,160p'" succeeded in 902ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+     1	#!/bin/bash
+     2	
+     3	# Test production-like frontend deployment locally
+     4	# Simulates Vercel deployment environment
+     5	
+     6	set -e
+     7	
+     8	echo "🔍 Testing Production Frontend Build..."
+     9	echo "======================================="
+    10	
+    11	# Colors for output
+    12	RED='\033[0;31m'
+    13	GREEN='\033[0;32m'
+    14	YELLOW='\033[1;33m'
+    15	BLUE='\033[0;34m'
+    16	NC='\033[0m' # No Color
+    17	
+[2025-10-20T15:01:58] tokens used: 112,996
+
+[2025-10-20T15:02:08] thinking
+
+**Reviewing frontend simulation coverage and routing**
+[2025-10-20T15:02:09] exec bash -lc "grep -R \"mode=\\\"enhanced\\\"\" -n frontend/src" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:02:10] bash -lc "grep -R \"mode=\\\"enhanced\\\"\" -n frontend/src" succeeded in 950ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+frontend/src/components/game/__tests__/UnifiedGameInterface.test.js:167:      render(<UnifiedGameInterface mode="enhanced" />);
+frontend/src/components/game/__tests__/UnifiedGameInterface.test.js:231:      render(<UnifiedGameInterface mode="enhanced" />);
+frontend/src/components/game/__tests__/UnifiedGameInterface.test.js:244:      const { rerender } = render(<UnifiedGameInterface mode="enhanced" />);
+frontend/src/components/game/__tests__/UnifiedGameInterface.test.js:251:      rerender(<UnifiedGameInterface mode="enhanced" />);
+frontend/src/components/game/__tests__/UnifiedGameInterface.test.js:308:      render(<UnifiedGameInterface mode="enhanced" />);
+frontend/src/components/game/__tests__/UnifiedGameInterface.test.js:366:      render(<UnifiedGameInterface mode="enhanced" />);
+frontend/src/components/game/__tests__/UnifiedGameInterface.test.js:379:      render(<UnifiedGameInterface mode="enhanced" />);
+frontend/src/components/game/__tests__/UnifiedGameInterface.test.js:468:      render(<UnifiedGameInterface mode="enhanced" />);
+frontend/src/components/game/__tests__/UnifiedGameInterface.test.js:476:      render(<UnifiedGameInterface mode="enhanced" />);
+frontend/src/components/game/__tests__/UnifiedGameInterface.test.js:522:      const { unmount } = render(<UnifiedGameInterface mode="enhanced" />);
+frontend/src/components/game/__tests__/UnifiedGameInterface.test.js:547:      render(<UnifiedGameInterface mode="enhanced" />);
+frontend/src/components/__tests__/UnifiedGameInterface.integration.test.js:149:          <UnifiedGameInterface mode="enhanced" />
+frontend/src/components/__tests__/UnifiedGameInterface.integration.test.js:160:          <UnifiedGameInterface mode="enhanced" />
+frontend/src/components/__tests__/UnifiedGameInterface.integration.test.js:178:          <UnifiedGameInterface mode="enhanced" />
+frontend/src/components/__tests__/UnifiedGameInterface.integration.test.js:193:          <UnifiedGameInterface mode="enhanced" />
+frontend/src/components/__tests__/UnifiedGameInterface.integration.test.js:208:          <UnifiedGameInterface mode="enhanced" />
+frontend/src/components/__tests__/UnifiedGameInterface.integration.test.js:221:          <UnifiedGameInterface mode="enhanced" />
+[2025-10-20T15:02:10] tokens used: 115,339
+
+[2025-10-20T15:02:14] thinking
+
+**Searching for runtime usage of UnifiedGameInterface**
+[2025-10-20T15:02:15] exec bash -lc 'grep -R "UnifiedGameInterface" -n frontend/src | head' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:02:16] bash -lc 'grep -R "UnifiedGameInterface" -n frontend/src | head' succeeded in 852ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+frontend/src/components/game/index.js:1:export { default as UnifiedGameInterface } from './UnifiedGameInterface';
+frontend/src/components/game/UnifiedGameInterface.js:34:const UnifiedGameInterface = ({ mode = 'regular' }) => {
+frontend/src/components/game/UnifiedGameInterface.js:768:export default UnifiedGameInterface;
+frontend/src/components/game/__tests__/UnifiedGameInterface.test.js:2: * Comprehensive tests for UnifiedGameInterface.js - Main game interface component
+frontend/src/components/game/__tests__/UnifiedGameInterface.test.js:91:import UnifiedGameInterface from '../UnifiedGameInterface';
+frontend/src/components/game/__tests__/UnifiedGameInterface.test.js:95:describe('UnifiedGameInterface', () => {
+frontend/src/components/game/__tests__/UnifiedGameInterface.test.js:160:      render(<UnifiedGameInterface mode="regular" />);
+frontend/src/components/game/__tests__/UnifiedGameInterface.test.js:167:      render(<UnifiedGameInterface mode="enhanced" />);
+frontend/src/components/game/__tests__/UnifiedGameInterface.test.js:174:      render(<UnifiedGameInterface mode="simulation" />);
+frontend/src/components/game/__tests__/UnifiedGameInterface.test.js:181:      render(<UnifiedGameInterface />);
+[2025-10-20T15:02:16] tokens used: 116,066
+
+[2025-10-20T15:02:20] thinking
+
+**Searching for mode usage in components**
+[2025-10-20T15:02:21] exec bash -lc "grep -R \"mode=\\\"\" -n frontend/src/components | head" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:02:21] bash -lc "grep -R \"mode=\\\"\" -n frontend/src/components | head" succeeded in 790ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+frontend/src/components/game/__tests__/UnifiedGameInterface.test.js:160:      render(<UnifiedGameInterface mode="regular" />);
+frontend/src/components/game/__tests__/UnifiedGameInterface.test.js:167:      render(<UnifiedGameInterface mode="enhanced" />);
+frontend/src/components/game/__tests__/UnifiedGameInterface.test.js:174:      render(<UnifiedGameInterface mode="simulation" />);
+frontend/src/components/game/__tests__/UnifiedGameInterface.test.js:190:      render(<UnifiedGameInterface mode="regular" />);
+frontend/src/components/game/__tests__/UnifiedGameInterface.test.js:201:      render(<UnifiedGameInterface mode="regular" />);
+frontend/src/components/game/__tests__/UnifiedGameInterface.test.js:210:      render(<UnifiedGameInterface mode="regular" />);
+frontend/src/components/game/__tests__/UnifiedGameInterface.test.js:220:      render(<UnifiedGameInterface mode="regular" />);
+frontend/src/components/game/__tests__/UnifiedGameInterface.test.js:231:      render(<UnifiedGameInterface mode="enhanced" />);
+frontend/src/components/game/__tests__/UnifiedGameInterface.test.js:244:      const { rerender } = render(<UnifiedGameInterface mode="enhanced" />);
+frontend/src/components/game/__tests__/UnifiedGameInterface.test.js:251:      rerender(<UnifiedGameInterface mode="enhanced" />);
+[2025-10-20T15:02:21] tokens used: 116,563
+
+[2025-10-20T15:02:26] thinking
+
+**Checking frontend pages for mode settings**
+[2025-10-20T15:02:26] exec bash -lc 'ls frontend/src/pages' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:02:27] bash -lc 'ls frontend/src/pages' succeeded in 769ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+__tests__
+AboutPage.js
+AdminPage.js
+GamePage.js
+HomePage.js
+index.js
+RulesPage.js
+SetupPage.js
+SignupPage.js
+[2025-10-20T15:02:27] tokens used: 117,108
+
+[2025-10-20T15:02:32] thinking
+
+**Inspecting GamePage usage**
+[2025-10-20T15:02:33] exec bash -lc "nl -ba frontend/src/pages/GamePage.js | sed -n '1,160p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:02:34] bash -lc "nl -ba frontend/src/pages/GamePage.js | sed -n '1,160p'" succeeded in 762ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+     1	import React, { useState, useEffect } from 'react';
+     2	import { Navigate } from 'react-router-dom';
+     3	import { useTheme } from '../theme/Provider';
+     4	
+     5	const API_URL = process.env.REACT_APP_API_URL || "";
+     6	
+     7	const PLAYER_NAMES = {
+     8	  p1: "Bob",
+     9	  p2: "Scott", 
+    10	  p3: "Vince",
+    11	  p4: "Mike",
+    12	};
+    13	
+    14	// Simple utility to check if game state is blank/empty
+    15	const isBlankGameState = (gameState) => {
+    16	  return !gameState || !gameState.players || gameState.players.length === 0;
+    17	};
+[2025-10-20T15:02:34] tokens used: 117,317
+
+[2025-10-20T15:02:41] thinking
+
+**Checking for page tests**
+[2025-10-20T15:02:42] exec bash -lc 'ls frontend/src/pages/__tests__' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:02:43] bash -lc 'ls frontend/src/pages/__tests__' succeeded in 738ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+AboutPage.test.js
+AdminPage.test.js
+GamePage.test.js
+HomePage.test.js
+RulesPage.test.js
+SetupPage.test.js
+SignupPage.test.js
+[2025-10-20T15:02:43] tokens used: 119,579
+
+[2025-10-20T15:03:05] thinking
+
+**Summarizing simulation components and concerns**
+
+I'm organizing key points on the simulation feature including the unprotected SimulationMode route at `frontend/src/App.js:216`, how `UnifiedGameInterface` manages modes at `frontend/src/components/game/UnifiedGameInterface.js:34`, and noting `MonteCarloSimulation` UX issues like hardcoded default names and missing input validation at `frontend/src/components/simulation/MonteCarloSimulation.js:1`. I'll cover tests scattered across simulation components and diagnostics scripts, mention important hooks like `useOddsCalculation.js`, and call out identified bugs around data typing and object key handling in `GameSetup.tsx` and elsewhere. This should help clarify architecture, testing coverage, and UX gaps.
+[2025-10-20T15:03:07] codex
+
+**Entrypoints**
+- `frontend/src/App.js:210` routes `/game` through `ProtectedRoute` → `<UnifiedGameInterface />`, `/simulation` is public → `<SimulationMode />`, and `/monte-carlo` is auth-gated → `<MonteCarloSimulation />`; no UI toggles currently surface `mode="enhanced"` or `mode="simulation"` variants of the unified interface.
+- `frontend/src/components/game/UnifiedGameInterface.js:34` accepts `mode` (`regular|enhanced|simulation`) and wires shared state, odds updates, and timeline logistics; simulations reuse `SimulationSetup`/`SimulationPlay` from the simulation bundle.
+
+**Simulation Stack**
+- `frontend/src/components/simulation/SimulationMode.js:573` orchestrates live simulations: pulls personalities/opponents/courses over `/simulation/*`, combines shot + betting probabilities, and polls timeline/poker state when active.
+- `frontend/src/components/simulation/GameSetup.tsx:88` fetches `/courses`, `/personalities`, `/suggested_opponents` with fallback data but still raises blocking `alert()`s on failure and mistakenly sets `selectedCourse` to an array (`Object.keys(data)`).
+- `frontend/src/components/simulation/MonteCarloSimulation.js:1` exposes a standalone Monte Carlo form posting to `/api/simulation/monte-carlo`; defaults include hard-coded player names and no client-side validation beyond simple disables.
+- `frontend/src/context/GameProvider.js:1` and `frontend/src/hooks/useOddsCalculation.js:1` provide the shared simulation/regular game state pipeline, handling interaction gating, probability merges, caching, and auto odds refresh logic.
+
+**Tests & Tooling**
+- Jest suites cover simulation flows via `frontend/src/components/simulation/__tests__/SimulationMode.test.js:1` and `.probabilities.test.js`, validating turn-based decisions and probability merges against `GameProvider`.
+- `frontend/src/components/game/__tests__/UnifiedGameInterface.test.js:2` plus `frontend/src/components/__tests__/UnifiedGameInterface.integration.test.js:1` exercise all three modes, view switching, and error handling; coverage depends on extensive mocks aligned with `frontend/src/setupTests.js:1`.
+- Context behavior is validated in `frontend/src/context/__tests__/GameProvider.test.js:1` and `.shotProbabilities.test.js`, ensuring updater functions resolve correctly.
+- Frontend automation hooks into shared diagnostics: `scripts/diagnostics/run_simulation_tests.sh:1` runs targeted `npm test --testPathPattern="simulation"` and `scripts/diagnostics/test_google_sheets_live_sync.js:1` drives Playwright against the Sheets sync UI; production sanity is scripted in `scripts/test-prod-frontend.sh:1` (Vercel-style build + serve).
+
+**Docs & Shared References**
+- `docs/architecture.md:320` lists the frontend simulation surface (`SimulationMode.js`, `MonteCarloSimulation.js`, `GameSetup.js`) alongside the unified game shell, tying expectations back to the backend simulation engine.
+- Contributor checklists in `docs/guides/` rely on the diagnostics scripts above, so simulation UI regressions are expected to surface in those shared flows.
+
+**UX / Diagnostic Concerns**
+- Reliance on `window.alert` for validation/error messaging in simulation setup (`SimulationMode.js:357`, `GameSetup.tsx:132`) breaks theme consistency and impedes automated UX testing; consider in-app toasts or surfaced feedback panels.
+- `GameSetup.tsx:105` assigns an array to `selectedCourse` (type expects string) which can cascade into malformed requests when the backend lacks courses—needs first-key selection instead.
+- Monte Carlo defaults (`MonteCarloSimulation.js:6`) ship a named human player and three bots, likely confusing real users and leaking personal data; also fetches against `/api` without surfacing auth or error-state styling beyond simple text.
+- Sheets sync context auto-starts with a real Google Sheet URL and immediate `autoSync` (`frontend/src/context/SheetSyncContext.js:9`), posing privacy and network concerns during local development and tests.
+- `UnifiedGameInterface` modes beyond regular are only reachable programmatically; without dedicated routes or toggles, enhanced/simulation UX can drift away from backend expectations unnoticed.
+[2025-10-20T15:03:22] tokens used: 121,636

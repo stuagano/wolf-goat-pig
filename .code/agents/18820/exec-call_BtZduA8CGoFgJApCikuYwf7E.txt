@@ -1,0 +1,2233 @@
+@app.get("/simulation/state")
+def get_simulation_state(x_admin_email: Optional[str] = Header(None)):
+    """Return the current simulation state for diagnostics and testing."""
+    global wgp_simulation
+
+    if not ENABLE_TEST_ENDPOINTS:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    require_admin(x_admin_email)
+
+    if not wgp_simulation:
+        raise HTTPException(status_code=404, detail="Simulation not initialized")
+
+    try:
+        return wgp_simulation.get_game_state()
+    except Exception as exc:  # pragma: no cover
+        logger.error(f"Failed to fetch simulation state: {exc}")
+        raise HTTPException(status_code=500, detail="Failed to fetch simulation state")
+
+@app.get("/simulation/available-personalities")
+def get_available_personalities():
+    """Get list of available AI personality types"""
+    try:
+        personalities = [
+            {
+                "id": "aggressive",
+                "name": "Aggressive",
+                "description": "Takes risks, goes for bold shots and betting decisions"
+            },
+            {
+                "id": "conservative", 
+                "name": "Conservative",
+                "description": "Plays it safe, avoids risky bets and shots"
+            },
+            {
+                "id": "balanced",
+                "name": "Balanced",
+                "description": "Balanced approach to risk and reward"
+            },
+            {
+                "id": "strategic",
+                "name": "Strategic", 
+                "description": "Focuses on long-term game positioning"
+            },
+            {
+                "id": "maverick",
+                "name": "Maverick",
+                "description": "Unpredictable playing style, keeps opponents guessing"
+            }
+        ]
+        
+        return {
+            "status": "ok",
+            "success": True,
+            "personalities": personalities
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get personalities: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get personalities: {str(e)}")
+
+# Legacy endpoints for frontend compatibility - return direct arrays
+@app.get("/personalities")
+def get_personalities_legacy():
+    """Legacy endpoint for personalities - returns direct array for frontend compatibility"""
+    try:
+        personalities = [
+            {"id": "aggressive", "name": "Aggressive"},
+            {"id": "conservative", "name": "Conservative"},
+            {"id": "balanced", "name": "Balanced"},
+            {"id": "strategic", "name": "Strategic"},
+            {"id": "maverick", "name": "Maverick"}
+        ]
+        return personalities
+    except Exception as e:
+        logger.error(f"Failed to get personalities: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get personalities: {str(e)}")
+
+@app.get("/suggested_opponents") 
+def get_suggested_opponents_legacy():
+    """Legacy endpoint for suggested opponents - returns direct array for frontend compatibility"""
+    try:
+        # Return array of individual players, not grouped opponents
+        opponents = [
+            {"name": "Clive", "handicap": "8", "personality": "aggressive"},
+            {"name": "Gary", "handicap": "12", "personality": "conservative"}, 
+            {"name": "Bernard", "handicap": "15", "personality": "strategic"},
+            {"name": "Alex", "handicap": "5", "personality": "balanced"},
+            {"name": "Sam", "handicap": "18", "personality": "maverick"},
+            {"name": "Jordan", "handicap": "22", "personality": "conservative"},
+            {"name": "Ace", "handicap": "3", "personality": "aggressive"},
+            {"name": "Blade", "handicap": "6", "personality": "aggressive"},
+            {"name": "Chase", "handicap": "9", "personality": "strategic"}
+        ]
+        return opponents
+    except Exception as e:
+        logger.error(f"Failed to get suggested opponents: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get suggested opponents: {str(e)}")
+
+@app.get("/simulation/suggested-opponents")
+def get_suggested_opponents():
+    """Get list of suggested AI opponent configurations"""
+    try:
+        opponents = [
+            {
+                "id": "classic_quartet",
+                "name": "Classic Quartet",
+                "description": "Traditional Wolf Goat Pig characters",
+                "players": [
+                    {"name": "Clive", "handicap": 8, "personality": "aggressive"},
+                    {"name": "Gary", "handicap": 12, "personality": "conservative"},
+                    {"name": "Bernard", "handicap": 15, "personality": "strategic"}
+                ]
+            },
+            {
+                "id": "mixed_bag",
+                "name": "Mixed Bag",
+                "description": "Diverse skill levels and personalities",
+                "players": [
+                    {"name": "Alex", "handicap": 5, "personality": "balanced"},
+                    {"name": "Sam", "handicap": 18, "personality": "maverick"},
+                    {"name": "Jordan", "handicap": 22, "personality": "conservative"}
+                ]
+            },
+            {
+                "id": "high_rollers",
+                "name": "High Rollers", 
+                "description": "Aggressive betting and low handicaps",
+                "players": [
+                    {"name": "Ace", "handicap": 3, "personality": "aggressive"},
+                    {"name": "Blade", "handicap": 6, "personality": "aggressive"},
+                    {"name": "Chase", "handicap": 9, "personality": "strategic"}
+                ]
+            }
+        ]
+        
+        return {
+            "status": "ok",
+            "success": True,
+            "opponents": opponents
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get suggested opponents: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get suggested opponents: {str(e)}")
+
+@app.get("/simulation/shot-probabilities")  
+def get_shot_probabilities():
+    """Get current shot outcome probabilities for the active player"""
+    global wgp_simulation
+    
+    try:
+        if not wgp_simulation:
+            raise HTTPException(status_code=400, detail="Simulation not initialized")
+        
+        # Get next player to shoot
+        next_player = wgp_simulation._get_next_shot_player()
+        if not next_player:
+            return {"success": True, "probabilities": {}}
+        
+        # Get current hole state
+        hole_state = _get_current_hole_state()
+        if not hole_state:
+            return {"success": True, "probabilities": {}}
+        
+        # Get player's current ball position
+        ball_position = hole_state.get_player_ball_position(next_player)
+        
+        player_obj = next((p for p in wgp_simulation.players if p.id == next_player), None)
+        hole_info = {
+            "difficulty": getattr(hole_state, "hole_difficulty", "medium"),
+            "par": getattr(hole_state, "hole_par", 4),
+            "distance": getattr(ball_position, "distance_to_pin", None)
+        }
+        probabilities = _compute_shot_probabilities(
+            player_stats={"handicap": getattr(player_obj, "handicap", 18)} if player_obj else None,
+            hole_info=hole_info,
+            lie_type=getattr(ball_position, "lie_type", None)
+        )
+
+        return {
+            "success": True,
+            "probabilities": probabilities,
+            "player_id": next_player,
+            "ball_position": {
+                "lie_type": ball_position.lie_type if ball_position else "unknown",
+                "distance_to_pin": ball_position.distance_to_pin if ball_position else 0
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get shot probabilities: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get shot probabilities: {str(e)}")
+
+
+@app.post("/simulation/shot-probabilities")
+def calculate_shot_probabilities(payload: Dict[str, Any]):
+    """Calculate shot probabilities for arbitrary scenarios (used by tests/tools)"""
+    try:
+        player_stats = payload.get("player_stats") or {}
+        hole_info = payload.get("hole_info") or {}
+        lie_type = payload.get("lie_type")
+        
+        probabilities = _compute_shot_probabilities(player_stats, hole_info, lie_type)
+        insights = []
+        if player_stats.get("handicap") is not None:
+            handicap = float(player_stats["handicap"])
+            if handicap <= 10:
+                insights.append("Low handicap boosts excellent shot odds.")
+            elif handicap >= 20:
+                insights.append("Higher handicap reduces premium shot outcomes.")
+        
+        difficulty = str(hole_info.get("difficulty", "")).lower()
+        if difficulty in {"hard", "very hard", "difficult"}:
+            insights.append("Difficult hole increases chance of poor or disaster outcomes.")
+        elif difficulty in {"easy", "very easy"}:
+            insights.append("Easier hole improves strong shot percentages.")
+        
+        return {
+            "success": True,
+            "probabilities": probabilities,
+            "insights": insights
+        }
+    except Exception as exc:
+        logger.error(f"Shot probability calculation failed: {exc}")
+        raise HTTPException(status_code=500, detail=f"Failed to calculate shot probabilities: {str(exc)}")
+
+@app.post("/simulation/betting-decision")
+def make_betting_decision(request: Dict[str, Any]):
+    """Process a betting decision in the simulation with poker-style actions"""
+    global wgp_simulation
+    
+    try:
+        if not wgp_simulation:
+            raise HTTPException(status_code=400, detail="Simulation not initialized")
+        
+        # Handle both old format and new format
+        decision = request['decision'] if isinstance(request, dict) and 'decision' in request else request
+        
+        action = decision.get("action")
+        decision_type = decision.get("type") or decision.get("decision_type")
+        if action and not decision_type:
+            legacy_action_map = {
+                "request_partner": "partnership_request",
+                "accept_partnership": "partnership_response",
+                "decline_partnership": "partnership_response",
+                "offer_double": "double_offer",
+                "accept_double": "double_response",
+                "decline_double": "double_response",
+                "go_solo": "go_solo",
+            }
+            decision_type = legacy_action_map.get(action, action)
+        
+        player_id = decision.get("player_id") or decision.get("captain_id") or _get_default_player_id()
+        
+        result = {"success": False, "message": "Unknown decision type"}
+        interaction_needed = None
+        
+        # Process different types of betting decisions
+        if decision_type == "partnership_request":
+            partner_id = decision.get("partner_id")
+            if not partner_id:
+                partner_id = decision.get("requested_partner")
+            if partner_id:
+                if not player_id:
+                    raise HTTPException(status_code=400, detail="Captain player_id required for partnership request")
+                result = wgp_simulation.request_partner(player_id, partner_id)
+                interaction_needed = {
+                    "type": "partnership_response",
+                    "requested_partner": partner_id,
+                    "captain_id": player_id
+                }
+                
+        elif decision_type == "partnership_response":
+            partner_id = decision.get("partner_id") or decision.get("requested_partner")
+            if not partner_id:
+                pending = _get_pending_partnership_request()
+                partner_id = pending.get("requested")
+            if not partner_id:
+                raise HTTPException(status_code=400, detail="No pending partnership request to resolve")
+            accept = decision.get("accept", decision.get("accept_partnership", action == "accept_partnership"))
+            result = wgp_simulation.respond_to_partnership(partner_id, bool(accept))
+            
+        elif decision_type == "double_offer":
+            if not player_id:
+                raise HTTPException(status_code=400, detail="player_id required to offer a double")
+            result = wgp_simulation.offer_double(player_id)
+            interaction_needed = {
+                "type": "double_response",
+                "offering_player": player_id
+            }
+            
+        elif decision_type == "double_response":
+            accept = decision.get("accept", decision.get("accept_double", action == "accept_double"))
+            hole_state = _get_current_hole_state()
+            offer_history = []
+            if hole_state and getattr(hole_state, "betting", None):
+                offer_history = hole_state.betting.doubles_history or []
+            offering_player = decision.get("offering_player")
+            if not offering_player and offer_history:
+                offering_player = offer_history[-1].get("offering_player")
+            responding_team = decision.get("team_id") or _get_opposing_team_id(offering_player or player_id)
+            result = wgp_simulation.respond_to_double(responding_team, bool(accept))
+            
+        elif decision_type == "go_solo":
+            if not player_id:
+                raise HTTPException(status_code=400, detail="player_id required for go_solo decision")
+            result = wgp_simulation.captain_go_solo(player_id)
+            
+        # Get updated game state
+        updated_state = wgp_simulation.get_game_state()
+        
+        return {
+            "success": True,
+            "decision_result": result,
+            "game_state": updated_state,
+            "interaction_needed": interaction_needed
+        }
+    except HTTPException:
+        raise
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Betting decision failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to process betting decision: {str(e)}")
+
+@app.get("/simulation/post-hole-analytics/{hole_number}")
+def get_post_hole_analytics(hole_number: int):
+    """Get comprehensive post-hole analytics for learning and improvement"""
+    global wgp_simulation, post_hole_analyzer
+    
+    try:
+        if not wgp_simulation:
+            raise HTTPException(status_code=400, detail="Simulation not initialized")
+        
+        # Get hole state
+        hole_state = wgp_simulation.hole_states.get(hole_number)
+        if not hole_state:
+            raise HTTPException(status_code=404, detail=f"Hole {hole_number} not found")
+        
+        # Check if hole is complete
+        if not hole_state.hole_complete:
+            raise HTTPException(status_code=400, detail=f"Hole {hole_number} is not complete yet")
+        
+        # Get game state and timeline events
+        game_state = wgp_simulation.get_game_state()
+        timeline_events = []
+        if hasattr(wgp_simulation, 'hole_progression') and wgp_simulation.hole_progression:
+            timeline_events = wgp_simulation.hole_progression.timeline_events
+        
+        # Generate analytics
+        analytics = post_hole_analyzer.analyze_hole(hole_state, game_state, timeline_events)
+        
+        # Convert to dict for JSON response
+        analytics_dict = {
+            "hole_number": analytics.hole_number,
+            "hole_par": analytics.hole_par,
+            "hole_yardage": analytics.hole_yardage,
+            "winner": analytics.winner,
+            "quarters_exchanged": analytics.quarters_exchanged,
+            "final_scores": analytics.final_scores,
+            "decision_points": [
+                {
+                    "decision_type": dp.decision_type,
+                    "player_id": dp.player_id,
+                    "timestamp": dp.timestamp,
+                    "options_available": dp.options_available,
+                    "decision_made": dp.decision_made,
+                    "outcome": dp.outcome,
+                    "quarters_impact": dp.quarters_impact,
+                    "quality": dp.quality.value,
+                    "explanation": dp.explanation
+                }
+                for dp in analytics.decision_points
+            ],
+            "partnership_analysis": {
+                "partnership_formed": analytics.partnership_analysis.partnership_formed,
+                "captain_id": analytics.partnership_analysis.captain_id,
+                "partner_id": analytics.partnership_analysis.partner_id,
+                "timing": analytics.partnership_analysis.timing,
+                "success": analytics.partnership_analysis.success,
+                "chemistry_rating": analytics.partnership_analysis.chemistry_rating,
+                "alternative_partners": analytics.partnership_analysis.alternative_partners,
+                "optimal_choice": analytics.partnership_analysis.optimal_choice,
+                "explanation": analytics.partnership_analysis.explanation
+            } if analytics.partnership_analysis else None,
+            "betting_analysis": {
+                "doubles_offered": analytics.betting_analysis.doubles_offered,
+                "doubles_accepted": analytics.betting_analysis.doubles_accepted,
+                "doubles_declined": analytics.betting_analysis.doubles_declined,
+                "duncan_used": analytics.betting_analysis.duncan_used,
+                "timing_quality": analytics.betting_analysis.timing_quality,
+                "aggressive_rating": analytics.betting_analysis.aggressive_rating,
+                "missed_opportunities": analytics.betting_analysis.missed_opportunities,
+                "costly_mistakes": analytics.betting_analysis.costly_mistakes,
+                "net_quarter_impact": analytics.betting_analysis.net_quarter_impact
+            },
+            "shot_analysis": {
+                "total_shots": analytics.shot_analysis.total_shots,
+                "shot_quality_distribution": analytics.shot_analysis.shot_quality_distribution,
+                "clutch_shots": analytics.shot_analysis.clutch_shots,
+                "worst_shot": analytics.shot_analysis.worst_shot,
+                "best_shot": analytics.shot_analysis.best_shot,
+                "pressure_performance": analytics.shot_analysis.pressure_performance
+            },
+            "key_moments": [
+                {
+                    "description": km.description,
+                    "impact": km.impact,
+                    "quarters_swing": km.quarters_swing,
+                    "player_involved": km.player_involved,
+                    "timestamp": km.timestamp
+                }
+                for km in analytics.key_moments
+            ],
+            "biggest_mistake": analytics.biggest_mistake,
+            "best_decision": analytics.best_decision,
+            "learning_points": analytics.learning_points,
+            "overall_performance": analytics.overall_performance,
+            "decision_making_score": analytics.decision_making_score,
+            "risk_management_score": analytics.risk_management_score,
+            "ai_comparison": analytics.ai_comparison,
+            "historical_comparison": analytics.historical_comparison,
+            "tips_for_improvement": analytics.tips_for_improvement,
+            "similar_scenarios_to_practice": analytics.similar_scenarios_to_practice
+        }
+        
+        return analytics_dict
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating post-hole analytics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/simulation/turn-based-state")
+def get_turn_based_state():
+    """Get structured turn-based game state for Wolf Goat Pig"""
+    global wgp_simulation
+    
+    try:
+        if not wgp_simulation:
+            raise HTTPException(status_code=400, detail="Simulation not initialized")
+        
+        current_hole = wgp_simulation.current_hole
+        hole_state = wgp_simulation.hole_states.get(current_hole)
+        
+        if not hole_state:
+            return {"success": False, "message": "No active hole"}
+        
+        # Determine current game phase
+        phase = "setup"
+        if hole_state.teams.type == "pending":
+            phase = "captain_selection"
+        elif hole_state.teams.pending_request:
+            phase = "partnership_decision"
+        elif hole_state.teams.type in ["partners", "solo"]:
+            phase = "match_play"
+        
+        # Get captain information
+        captain_id = hole_state.teams.captain
+        captain_player = None
+        if captain_id:
+            captain_player = next((p for p in wgp_simulation.players if p.id == captain_id), None)
+        
+        # Get rotation order for this hole
+        rotation_order = getattr(hole_state, 'rotation_order', [p.id for p in wgp_simulation.players])
+        
+        # Get shots played
+        shots_played = []
+        for player_id, position in hole_state.ball_positions.items():
+            shots_played.append({
+                "player_id": player_id,
+                "shot_number": position.shot_count,
+                "distance_to_pin": position.distance_to_pin,
+                "lie_type": position.lie_type,
+                "holed": position.holed
+            })
+        
+        # Determine whose turn it is for decisions or shots
+        current_turn = None
+        furthest_player = None
+        
+        if phase == "match_play":
+            # Find furthest from hole for shot order
+            max_distance = -1
+            for player_id, pos in hole_state.ball_positions.items():
+                if not pos.holed and pos.distance_to_pin > max_distance:
+                    max_distance = pos.distance_to_pin
+                    furthest_player = next((p for p in wgp_simulation.players if p.id == player_id), None)
+            current_turn = furthest_player.id if furthest_player else None
+        
+        # Get pending decision info
+        pending_decision = None
+        if hole_state.teams.pending_request:
+            pending_decision = {
+                "type": "partnership_request",
+                "from_player": hole_state.teams.pending_request.get("requestor"),
+                "to_player": hole_state.teams.pending_request.get("requested"),
+                "message": f"Partnership requested by {wgp_simulation._get_player_name(hole_state.teams.pending_request.get('requestor'))}"
+            }
+        
+        # Check for betting opportunities
+        betting_opportunities = []
+        if phase == "match_play" and not hole_state.betting.doubled:
+            # Check Line of Scrimmage rule
+            line_of_scrimmage_player = furthest_player.id if furthest_player else None
+            betting_opportunities.append({
+                "type": "double_offer",
+                "available": True,
+                "line_of_scrimmage": line_of_scrimmage_player,
+                "current_wager": hole_state.betting.current_wager,
+                "potential_wager": hole_state.betting.current_wager * 2
+            })
+        
+        # Get team formations
+        teams_display = []
+        if hole_state.teams.type == "partners":
+            team1_names = [wgp_simulation._get_player_name(pid) for pid in hole_state.teams.team1]
+            team2_names = [wgp_simulation._get_player_name(pid) for pid in hole_state.teams.team2]
+            teams_display.append({
+                "type": "partnership",
+                "description": f"{' & '.join(team1_names)} vs {' & '.join(team2_names)}"
+            })
+        elif hole_state.teams.type == "solo":
+            solo_name = wgp_simulation._get_player_name(hole_state.teams.solo_player)
+            opponent_names = [wgp_simulation._get_player_name(pid) for pid in hole_state.teams.opponents]
+            teams_display.append({
+                "type": "solo",
+                "description": f"{solo_name} (Solo) vs {', '.join(opponent_names)}"
+            })
+        
+        return {
+            "success": True,
+            "turn_based_state": {
+                "current_hole": current_hole,
+                "phase": phase,
+                "current_turn": current_turn,
+                "captain_id": captain_id,
+                "captain_name": captain_player.name if captain_player else None,
+                "rotation_order": rotation_order,
+                "teams": teams_display,
+                "betting": {
+                    "current_wager": hole_state.betting.current_wager,
+                    "base_wager": hole_state.betting.base_wager,
+                    "doubled": hole_state.betting.doubled,
+                    "in_hole": any(pos.holed for pos in hole_state.ball_positions.values())
+                },
+                "pending_decision": pending_decision,
+                "betting_opportunities": betting_opportunities,
+                "shots_played": shots_played,
+                "ball_positions": [
+                    {
+                        "player_id": player_id,
+                        "player_name": wgp_simulation._get_player_name(player_id),
+                        "distance_to_pin": pos.distance_to_pin,
+                        "lie_type": pos.lie_type,
+                        "shot_count": pos.shot_count,
+                        "holed": pos.holed
+                    } for player_id, pos in hole_state.ball_positions.items()
+                ],
+                "furthest_from_hole": {
+                    "player_id": furthest_player.id if furthest_player else None,
+                    "player_name": furthest_player.name if furthest_player else None,
+                    "distance": max_distance if furthest_player else None
+                } if furthest_player else None
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get turn-based state: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get turn-based state: {str(e)}")
+
+@app.get("/simulation/timeline")
+def get_simulation_timeline(limit: int = 20):
+    """Get timeline events in reverse chronological order"""
+    global wgp_simulation
+    
+    try:
+        if not wgp_simulation:
+            raise HTTPException(status_code=400, detail="Simulation not initialized")
+        
+        # Get timeline events from the simulation
+        if hasattr(wgp_simulation, 'timeline_manager'):
+            events = wgp_simulation.timeline_manager.get_recent_events(limit)
+        else:
+            # Fallback to hole progression events
+            events = []
+            if wgp_simulation.hole_progression:
+                events = wgp_simulation.hole_progression.get_timeline_events()[:limit]
+        
+        return {
+            "success": True,
+            "events": events,
+            "total_events": len(events)
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get timeline: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get timeline: {str(e)}")
+
+@app.get("/simulation/poker-state")
+def get_poker_betting_state():
+    """Get current betting state in poker terms"""
+    global wgp_simulation
+    
+    try:
+        if not wgp_simulation:
+            raise HTTPException(status_code=400, detail="Simulation not initialized")
+        
+        # Get poker-style betting state using correct hole state structure
+        current_hole = wgp_simulation.current_hole
+        hole_state = wgp_simulation.hole_states.get(current_hole)
+        
+        if not hole_state:
+            raise HTTPException(status_code=400, detail="No active hole state")
+        
+        # Format poker betting state manually
+        betting = hole_state.betting
+        pot_size = betting.current_wager * len(wgp_simulation.players)
+        if betting.doubled:
+            pot_size *= 2
+        
+        # Determine betting phase
+        phase = "pre-flop"  # Before tee shots
+        shots_taken = sum(1 for shot in hole_state.shots_completed.values() if shot)
+        if shots_taken >= len(wgp_simulation.players):
+            phase = "flop"  # After tee shots
+        if hole_state.current_shot_number > len(wgp_simulation.players) * 2:
+            phase = "turn"  # Mid-hole
+        if any(hole_state.balls_in_hole):
+            phase = "river"  # Near completion
+        
+        poker_state = {
+            "pot_size": pot_size,
+            "base_bet": betting.base_wager,
+            "current_bet": betting.current_wager,
+            "betting_phase": phase,
+            "doubled": betting.doubled,
+            "players_in": len(wgp_simulation.players),
+            "wagering_closed": hole_state.wagering_closed
+        }
+        
+        # Get available betting options for current player
+        current_player_id = hole_state.next_player_to_hit or "human"
+        betting_options = []  # Simplified for now
+        
+        return {
+            "success": True,
+            "pot_size": poker_state["pot_size"],
+            "base_bet": poker_state["base_bet"],
+            "current_bet": poker_state["current_bet"],
+            "betting_phase": poker_state["betting_phase"],
+            "doubled": poker_state["doubled"],
+            "players_in": poker_state["players_in"],
+            "wagering_closed": poker_state["wagering_closed"],
+            "betting_options": betting_options,
+            "current_player": current_player_id
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get poker state: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get poker state: {str(e)}")
+
+# Daily Sign-up System Endpoints
+
+@app.get("/signups/weekly", response_model=schemas.WeeklySignupView)
+def get_weekly_signups(week_start: str = Query(description="YYYY-MM-DD format for Monday of the week")):
+    """Get sign-ups for a rolling 7-day period starting from specified Monday."""
+    try:
+        db = database.SessionLocal()
+        from datetime import datetime, timedelta
+        
+        # Parse the week start date
+        start_date = datetime.strptime(week_start, '%Y-%m-%d')
+        
+        # Get all 7 days
+        daily_summaries = []
+        for i in range(7):
+            current_date = start_date + timedelta(days=i)
+            date_str = current_date.strftime('%Y-%m-%d')
+            
+            signups = db.query(models.DailySignup).filter(
+                models.DailySignup.date == date_str,
+                models.DailySignup.status != "cancelled"
+            ).all()
+            
+            daily_summaries.append(schemas.DailySignupSummary(
+                date=date_str,
+                signups=[schemas.DailySignupResponse.from_orm(signup) for signup in signups],
+                total_count=len(signups)
+            ))
+        
+        return schemas.WeeklySignupView(
+            week_start=week_start,
+            daily_summaries=daily_summaries
+        )
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid date format: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error getting weekly signups: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get weekly signups: {str(e)}")
+    finally:
+        db.close()
+
+@app.get("/signups")
+def get_signups(limit: int = Query(50, description="Maximum number of signups to return")):
+    """Get recent signups with basic information"""
+    try:
+        db = database.SessionLocal()
+        
+        # Get recent signups
+        signups = db.query(models.DailySignup).filter(
+            models.DailySignup.status != "cancelled"
+        ).order_by(models.DailySignup.created_at.desc()).limit(limit).all()
+        
+        return {
+            "signups": [
+                {
+                    "id": signup.id,
+                    "date": signup.date,
+                    "player_name": signup.player_name,
+                    "player_profile_id": signup.player_profile_id,
+                    "status": signup.status,
+                    "signup_time": signup.signup_time,
+                    "preferred_start_time": signup.preferred_start_time,
+                    "notes": signup.notes,
+                    "created_at": signup.created_at if signup.created_at else None
+                }
+                for signup in signups
+            ],
+            "total": len(signups)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting signups: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get signups: {str(e)}")
+    finally:
+        db.close()
+
+@app.post("/signups", response_model=schemas.DailySignupResponse)
+def create_signup(signup: schemas.DailySignupCreate):
+    """Create a daily sign-up for a player."""
+    try:
+        db = database.SessionLocal()
+        
+        # Check if player already signed up for this date
+        existing = db.query(models.DailySignup).filter(
+            models.DailySignup.date == signup.date,
+            models.DailySignup.player_profile_id == signup.player_profile_id,
+            models.DailySignup.status != "cancelled"
+        ).first()
+        
+        if existing:
+            raise HTTPException(status_code=400, detail="Player already signed up for this date")
+        
+        # Create new signup
+        db_signup = models.DailySignup(
+            date=signup.date,
+            player_profile_id=signup.player_profile_id,
+            player_name=signup.player_name,
+            signup_time=datetime.now().isoformat(),
+            preferred_start_time=signup.preferred_start_time,
+            notes=signup.notes,
+            status="signed_up",
+            created_at=datetime.now().isoformat(),
+            updated_at=datetime.now().isoformat()
+        )
+        
+        db.add(db_signup)
+        db.commit()
+        db.refresh(db_signup)
+
+        logger.info(f"Created signup for player {signup.player_name} on {signup.date}")
+
+        # Mirror the signup to the legacy CGI sheet when configured.
+        try:
+            legacy_service = get_legacy_signup_service()
+            legacy_service.sync_signup_created(db_signup)
+        except Exception:
+            logger.exception(
+                "Legacy signup sync failed for create id=%s", db_signup.id
+            )
+
+        return schemas.DailySignupResponse.from_orm(db_signup)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error creating signup: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create signup: {str(e)}")
+    finally:
+        db.close()
+
+@app.put("/signups/{signup_id}", response_model=schemas.DailySignupResponse)
+def update_signup(signup_id: int, signup_update: schemas.DailySignupUpdate):
+    """Update a daily sign-up."""
+    try:
+        db = database.SessionLocal()
+        
+        db_signup = db.query(models.DailySignup).filter(models.DailySignup.id == signup_id).first()
+        if not db_signup:
+            raise HTTPException(status_code=404, detail="Sign-up not found")
+        
+        # Update fields
+        if signup_update.preferred_start_time is not None:
+            db_signup.preferred_start_time = signup_update.preferred_start_time
+        if signup_update.notes is not None:
+            db_signup.notes = signup_update.notes
+        if signup_update.status is not None:
+            db_signup.status = signup_update.status
+            
+        db_signup.updated_at = datetime.now().isoformat()
+        
+        db.commit()
+        db.refresh(db_signup)
+
+        logger.info(f"Updated signup {signup_id}")
+
+        try:
+            legacy_service = get_legacy_signup_service()
+            legacy_service.sync_signup_updated(db_signup)
+        except Exception:
+            logger.exception(
+                "Legacy signup sync failed for update id=%s", db_signup.id
+            )
+
+        return schemas.DailySignupResponse.from_orm(db_signup)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error updating signup {signup_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update signup: {str(e)}")
+    finally:
+        db.close()
+
+@app.delete("/signups/{signup_id}")
+def cancel_signup(signup_id: int):
+    """Cancel a daily sign-up."""
+    try:
+        db = database.SessionLocal()
+        
+        db_signup = db.query(models.DailySignup).filter(models.DailySignup.id == signup_id).first()
+        if not db_signup:
+            raise HTTPException(status_code=404, detail="Sign-up not found")
+        
+        db_signup.status = "cancelled"
+        db_signup.updated_at = datetime.now().isoformat()
+        
+        db.commit()
+
+        logger.info(f"Cancelled signup {signup_id}")
+
+        try:
+            legacy_service = get_legacy_signup_service()
+            legacy_service.sync_signup_cancelled(db_signup)
+        except Exception:
+            logger.exception(
+                "Legacy signup sync failed for cancel id=%s", db_signup.id
+            )
+
+        return {"message": "Sign-up cancelled successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error cancelling signup {signup_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to cancel signup: {str(e)}")
+    finally:
+        db.close()
+
+# Daily Message Board Endpoints
+
+@app.get("/messages/daily", response_model=List[schemas.DailyMessageResponse])
+def get_daily_messages(date: str = Query(description="YYYY-MM-DD format")):
+    """Get all messages for a specific date."""
+    try:
+        db = database.SessionLocal()
+        
+        messages = db.query(models.DailyMessage).filter(
+            models.DailyMessage.date == date,
+            models.DailyMessage.is_active == 1
+        ).order_by(models.DailyMessage.message_time).all()
+        
+        return [schemas.DailyMessageResponse.from_orm(message) for message in messages]
+        
+    except Exception as e:
+        logger.error(f"Error getting messages for date {date}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get messages: {str(e)}")
+    finally:
+        db.close()
+
+@app.get("/signups/weekly-with-messages", response_model=schemas.WeeklySignupWithMessagesView)
+def get_weekly_signups_with_messages(week_start: str = Query(description="YYYY-MM-DD format for Monday of the week")):
+    """Get sign-ups and messages for a rolling 7-day period starting from specified Monday."""
+    try:
+        db = database.SessionLocal()
+        from datetime import datetime, timedelta
+        
+        # Parse the week start date
+        start_date = datetime.strptime(week_start, '%Y-%m-%d')
+        
+        # Get all 7 days
+        daily_summaries = []
+        for i in range(7):
+            current_date = start_date + timedelta(days=i)
+            date_str = current_date.strftime('%Y-%m-%d')
+            
+            # Get signups
+            signups = db.query(models.DailySignup).filter(
+                models.DailySignup.date == date_str,
+                models.DailySignup.status != "cancelled"
+            ).all()
+            
+            # Get messages
+            messages = db.query(models.DailyMessage).filter(
+                models.DailyMessage.date == date_str,
+                models.DailyMessage.is_active == 1
+            ).order_by(models.DailyMessage.message_time).all()
+            
+            daily_summaries.append(schemas.DailySignupWithMessages(
+                date=date_str,
+                signups=[schemas.DailySignupResponse.from_orm(signup) for signup in signups],
+                total_count=len(signups),
+                messages=[schemas.DailyMessageResponse.from_orm(message) for message in messages],
+                message_count=len(messages)
+            ))
+        
+        return schemas.WeeklySignupWithMessagesView(
+            week_start=week_start,
+            daily_summaries=daily_summaries
+        )
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid date format: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error getting weekly data with messages: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get weekly data: {str(e)}")
+    finally:
+        db.close()
+
+@app.post("/messages", response_model=schemas.DailyMessageResponse)
+def create_message(message: schemas.DailyMessageCreate):
+    """Create a new daily message."""
+    try:
+        db = database.SessionLocal()
+        from datetime import datetime
+        
+        # Create new message
+        db_message = models.DailyMessage(
+            date=message.date,
+            player_profile_id=message.player_profile_id or 1,  # Default player if not provided
+            player_name=message.player_name or "Anonymous",
+            message=message.message,
+            message_time=datetime.now().isoformat(),
+            is_active=1,
+            created_at=datetime.now().isoformat(),
+            updated_at=datetime.now().isoformat()
+        )
+        
+        db.add(db_message)
+        db.commit()
+        db.refresh(db_message)
+        
+        logger.info(f"Created message {db_message.id} for date {message.date}")
+        return schemas.DailyMessageResponse.from_orm(db_message)
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error creating message: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create message: {str(e)}")
+    finally:
+        db.close()
+
+@app.put("/messages/{message_id}", response_model=schemas.DailyMessageResponse)
+def update_message(message_id: int, message_update: schemas.DailyMessageUpdate):
+    """Update an existing message."""
+    try:
+        db = database.SessionLocal()
+        from datetime import datetime
+        
+        db_message = db.query(models.DailyMessage).filter(models.DailyMessage.id == message_id).first()
+        if not db_message:
+            raise HTTPException(status_code=404, detail="Message not found")
+        
+        if message_update.message is not None:
+            db_message.message = message_update.message
+            db_message.updated_at = datetime.now().isoformat()
+        
+        db.commit()
+        db.refresh(db_message)
+        
+        logger.info(f"Updated message {message_id}")
+        return schemas.DailyMessageResponse.from_orm(db_message)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error updating message {message_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update message: {str(e)}")
+    finally:
+        db.close()
+
+@app.delete("/messages/{message_id}")
+def delete_message(message_id: int):
+    """Delete (deactivate) a message."""
+    try:
+        db = database.SessionLocal()
+        from datetime import datetime
+        
+        db_message = db.query(models.DailyMessage).filter(models.DailyMessage.id == message_id).first()
+        if not db_message:
+            raise HTTPException(status_code=404, detail="Message not found")
+        
+        db_message.is_active = 0
+        db_message.updated_at = datetime.now().isoformat()
+        
+        db.commit()
+        
+        logger.info(f"Deleted message {message_id}")
+        return {"message": "Message deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error deleting message {message_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete message: {str(e)}")
+    finally:
+        db.close()
+
+# Player Availability Endpoints
+
+@app.get("/players/me/availability", response_model=List[schemas.PlayerAvailabilityResponse])
+async def get_my_availability(current_user: models.PlayerProfile = Depends(get_current_user)):
+    """Get current user's weekly availability."""
+    try:
+        db = database.SessionLocal()
+        
+        availability = db.query(models.PlayerAvailability).filter(
+            models.PlayerAvailability.player_profile_id == current_user.id
+        ).all()
+        
+        return [schemas.PlayerAvailabilityResponse.from_orm(a) for a in availability]
+        
+    except Exception as e:
+        logger.error(f"Error getting availability for user {current_user.id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get availability: {str(e)}")
+    finally:
+        db.close()
+
+@app.post("/players/me/availability", response_model=schemas.PlayerAvailabilityResponse)
+async def set_my_availability(
+    availability: schemas.PlayerAvailabilityCreate,
+    current_user: models.PlayerProfile = Depends(get_current_user)
+):
+    """Set or update current user's availability for a specific day."""
+    try:
+        db = database.SessionLocal()
+        
+        # Override the player_profile_id with the current user's ID
+        availability.player_profile_id = current_user.id
+        
+        # Check if availability already exists for this day
+        existing = db.query(models.PlayerAvailability).filter(
+            models.PlayerAvailability.player_profile_id == current_user.id,
+            models.PlayerAvailability.day_of_week == availability.day_of_week
+        ).first()
+        
+        if existing:
+            # Update existing
+            existing.available_from_time = availability.available_from_time
+            existing.available_to_time = availability.available_to_time
+            existing.is_available = availability.is_available
+            existing.notes = availability.notes
+            existing.updated_at = datetime.now().isoformat()
+            
+            db.commit()
+            db.refresh(existing)
+            
+            logger.info(f"Updated availability for user {current_user.id}, day {availability.day_of_week}")
+            return schemas.PlayerAvailabilityResponse.from_orm(existing)
+        else:
+            # Create new
+            db_availability = models.PlayerAvailability(
+                player_profile_id=current_user.id,
+                day_of_week=availability.day_of_week,
+                available_from_time=availability.available_from_time,
+                available_to_time=availability.available_to_time,
+                is_available=availability.is_available,
+                notes=availability.notes,
+                created_at=datetime.now().isoformat(),
+                updated_at=datetime.now().isoformat()
+            )
+            
+            db.add(db_availability)
+            db.commit()
+            db.refresh(db_availability)
+            
+            logger.info(f"Created availability for user {current_user.id}, day {availability.day_of_week}")
+            return schemas.PlayerAvailabilityResponse.from_orm(db_availability)
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error setting availability for user {current_user.id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to set availability: {str(e)}")
+    finally:
+        db.close()
+
+@app.get("/players/{player_id}/availability", response_model=List[schemas.PlayerAvailabilityResponse])
+def get_player_availability(player_id: int):
+    """Get a player's weekly availability."""
+    try:
+        db = database.SessionLocal()
+        
+        availability = db.query(models.PlayerAvailability).filter(
+            models.PlayerAvailability.player_profile_id == player_id
+        ).order_by(models.PlayerAvailability.day_of_week).all()
+        
+        return [schemas.PlayerAvailabilityResponse.from_orm(avail) for avail in availability]
+        
+    except Exception as e:
+        logger.error(f"Error getting availability for player {player_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get availability: {str(e)}")
+    finally:
+        db.close()
+
+@app.get("/players/availability/all", response_model=List[Dict])
+def get_all_players_availability():
+    """Get all players' weekly availability with their names."""
+    try:
+        db = database.SessionLocal()
+        
+        # Get all players with their availability
+        players_with_availability = db.query(models.PlayerProfile).all()
+        
+        result = []
+        for player in players_with_availability:
+            player_data = {
+                "player_id": player.id,
+                "player_name": player.name,
+                "email": player.email,
+                "availability": []
+            }
+            
+            # Get this player's availability
+            availability = db.query(models.PlayerAvailability).filter(
+                models.PlayerAvailability.player_profile_id == player.id
+            ).all()
+            
+            for avail in availability:
+                player_data["availability"].append({
+                    "day_of_week": avail.day_of_week,
+                    "is_available": avail.is_available,
+                    "available_from_time": avail.available_from_time,
+                    "available_to_time": avail.available_to_time,
+                    "notes": avail.notes
+                })
+            
+            result.append(player_data)
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error getting all players availability: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get availability: {str(e)}")
+    finally:
+        db.close()
+
+@app.post("/players/{player_id}/availability", response_model=schemas.PlayerAvailabilityResponse)
+def set_player_availability(player_id: int, availability: schemas.PlayerAvailabilityCreate):
+    """Set or update a player's availability for a specific day."""
+    try:
+        db = database.SessionLocal()
+        
+        # Check if availability already exists for this day
+        existing = db.query(models.PlayerAvailability).filter(
+            models.PlayerAvailability.player_profile_id == player_id,
+            models.PlayerAvailability.day_of_week == availability.day_of_week
+        ).first()
+        
+        if existing:
+            # Update existing
+            existing.available_from_time = availability.available_from_time
+            existing.available_to_time = availability.available_to_time
+            existing.is_available = availability.is_available
+            existing.notes = availability.notes
+            existing.updated_at = datetime.now().isoformat()
+            
+            db.commit()
+            db.refresh(existing)
+            
+            logger.info(f"Updated availability for player {player_id}, day {availability.day_of_week}")
+            return schemas.PlayerAvailabilityResponse.from_orm(existing)
+        else:
+            # Create new
+            db_availability = models.PlayerAvailability(
+                player_profile_id=player_id,
+                day_of_week=availability.day_of_week,
+                available_from_time=availability.available_from_time,
+                available_to_time=availability.available_to_time,
+                is_available=availability.is_available,
+                notes=availability.notes,
+                created_at=datetime.now().isoformat(),
+                updated_at=datetime.now().isoformat()
+            )
+            
+            db.add(db_availability)
+            db.commit()
+            db.refresh(db_availability)
+            
+            logger.info(f"Created availability for player {player_id}, day {availability.day_of_week}")
+            return schemas.PlayerAvailabilityResponse.from_orm(db_availability)
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error setting availability for player {player_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to set availability: {str(e)}")
+    finally:
+        db.close()
+
+# Team Formation Helpers & Endpoints
+
+
+def _get_active_signups_for_date(db: Session, date: str) -> List[models.DailySignup]:
+    """Fetch non-cancelled signups for the requested date."""
+    return db.query(models.DailySignup).filter(
+        models.DailySignup.date == date,
+        models.DailySignup.status != "cancelled"
+    ).all()
+
+
+def _build_player_payload(
+    signups: List[models.DailySignup],
+    *,
+    include_handicap: bool = False,
+    db: Optional[Session] = None
+) -> List[Dict[str, Any]]:
+    """Convert signup records into the player dictionaries used by formation services."""
+    if include_handicap and db is None:
+        raise ValueError("Database session is required when include_handicap=True")
+
+    players: List[Dict[str, Any]] = []
+    handicap_lookup: Dict[int, float] = {}
+
+    if include_handicap:
+        profile_ids = [s.player_profile_id for s in signups if s.player_profile_id is not None]
+        if profile_ids:
+            profiles = db.query(models.PlayerProfile).filter(
+                models.PlayerProfile.id.in_(profile_ids)
+            ).all()
+            handicap_lookup = {profile.id: profile.handicap for profile in profiles}
+
+    for signup in signups:
+        player_data: Dict[str, Any] = {
+            "id": signup.id,
+            "player_profile_id": signup.player_profile_id,
+            "player_name": signup.player_name,
+            "preferred_start_time": signup.preferred_start_time,
+            "notes": signup.notes,
+            "signup_time": signup.signup_time
+        }
+
+        if include_handicap:
+            player_data["handicap"] = handicap_lookup.get(signup.player_profile_id, 18.0)
+
+        players.append(player_data)
+
+    return players
+
+
+@app.post("/signups/{date}/team-formation/random")
+def generate_random_teams_for_date(
+    date: str = Path(description="Date in YYYY-MM-DD format"),
+    seed: Optional[int] = Query(None, description="Random seed for reproducible results"),
+    max_teams: Optional[int] = Query(None, description="Maximum number of teams to create")
+):
+    """Generate random 4-player teams from players signed up for a specific date."""
+    try:
+        db = database.SessionLocal()
+
+        # Get all signups for the specified date
+        signups = _get_active_signups_for_date(db, date)
+        
+        if len(signups) < 4:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Not enough players signed up for {date}. Need at least 4 players, found {len(signups)}"
+            )
+        
+        # Convert signups to player dictionaries
+        players = _build_player_payload(signups)
+        
+        # Generate random teams
+        teams = TeamFormationService.generate_random_teams(
+            players=players,
+            seed=seed,
+            max_teams=max_teams
+        )
+        
+        # Create summary
+        summary = TeamFormationService.create_team_summary(teams)
+        summary["date"] = date
+        summary["total_signups"] = len(signups)
+        
+        # Validate results
+        validation = TeamFormationService.validate_team_formation(teams)
+        
+        logger.info(f"Generated {len(teams)} random teams for date {date}")
+        
+        return {
+            "summary": summary,
+            "teams": teams,
+            "validation": validation,
+            "remaining_players": len(signups) % 4
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating random teams for date {date}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate teams: {str(e)}")
+    finally:
+        db.close()
+
+@app.post("/signups/{date}/team-formation/balanced")
+def generate_balanced_teams_for_date(
+    date: str = Path(description="Date in YYYY-MM-DD format"),
+    seed: Optional[int] = Query(None, description="Random seed for reproducible results")
+):
+    """Generate skill-balanced 4-player teams from players signed up for a specific date."""
+    try:
+        db = database.SessionLocal()
+
+        # Get all signups for the specified date
+        signups = _get_active_signups_for_date(db, date)
+        
+        if len(signups) < 4:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Not enough players signed up for {date}. Need at least 4 players, found {len(signups)}"
+            )
+        
+        # Get player profiles with handicap information
+        players = _build_player_payload(signups, include_handicap=True, db=db)
+        
+        # Generate balanced teams
+        teams = TeamFormationService.generate_balanced_teams(
+            players=players,
+            skill_key="handicap",
+            seed=seed
+        )
+        
+        # Create summary
+        summary = TeamFormationService.create_team_summary(teams)
+        summary["date"] = date
+        summary["total_signups"] = len(signups)
+        
+        # Validate results
+        validation = TeamFormationService.validate_team_formation(teams)
+        
+        logger.info(f"Generated {len(teams)} balanced teams for date {date}")
+        
+        return {
+            "summary": summary,
+            "teams": teams,
+            "validation": validation,
+            "remaining_players": len(signups) % 4
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating balanced teams for date {date}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate balanced teams: {str(e)}")
+    finally:
+        db.close()
+
+@app.post("/signups/{date}/team-formation/rotations")
+def generate_team_rotations_for_date(
+    date: str = Path(description="Date in YYYY-MM-DD format"),
+    num_rotations: int = Query(3, description="Number of different team rotations to create"),
+    seed: Optional[int] = Query(None, description="Random seed for reproducible results")
+):
+    """Generate multiple team rotation options for variety throughout the day."""
+    try:
+        db = database.SessionLocal()
+
+        # Get all signups for the specified date
+        signups = _get_active_signups_for_date(db, date)
+        
+        if len(signups) < 4:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Not enough players signed up for {date}. Need at least 4 players, found {len(signups)}"
+            )
+        
+        # Convert signups to player dictionaries
+        players = _build_player_payload(signups)
+        
+        # Generate team rotations
+        rotations = TeamFormationService.create_team_pairings_with_rotations(
+            players=players,
+            num_rotations=num_rotations,
+            seed=seed
+        )
+        
+        logger.info(f"Generated {len(rotations)} team rotations for date {date}")
+        
+        return {
+            "date": date,
+            "total_signups": len(signups),
+            "num_rotations": len(rotations),
+            "rotations": rotations
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating team rotations for date {date}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate rotations: {str(e)}")
+    finally:
+        db.close()
+
+
+@app.post("/signups/{date}/sunday-game/pairings")
+def generate_sunday_game_pairings(
+    date: str = Path(description="Date in YYYY-MM-DD format"),
+    num_rotations: int = Query(3, description="Number of Sunday pairing options to generate"),
+    seed: Optional[int] = Query(None, description="Override random seed for reproducible results")
+):
+    """Generate randomized Sunday game pairings with optional deterministic seeding."""
+    try:
+        db = database.SessionLocal()
+
+        signups = _get_active_signups_for_date(db, date)
+
+        if len(signups) < 4:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Not enough players signed up for {date}. Need at least 4 players, found {len(signups)}"
+            )
+
+        players = _build_player_payload(signups)
+
+        pairing_result = generate_sunday_pairings(
+            players,
+            num_rotations=num_rotations,
+            seed=seed
+        )
+
+        return {
+            "date": date,
+            "total_signups": len(signups),
+            "player_count": pairing_result["player_count"],
+            "pairing_sets_available": pairing_result["total_rotations"],
+            "selected_rotation": pairing_result["selected_rotation"],
+            "rotations": pairing_result["rotations"],
+            "random_seed": pairing_result["random_seed"],
+            "remaining_players": pairing_result["remaining_players"]
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating Sunday game pairings for {date}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate Sunday pairings: {str(e)}")
+    finally:
+        db.close()
+
+@app.get("/signups/{date}/players")
+def get_players_for_date(date: str = Path(description="Date in YYYY-MM-DD format")):
+    """Get all players signed up for a specific date."""
+    try:
+        db = database.SessionLocal()
+        
+        # Get all signups for the specified date
+        signups = db.query(models.DailySignup).filter(
+            models.DailySignup.date == date,
+            models.DailySignup.status != "cancelled"
+        ).all()
+        
+        players = []
+        for signup in signups:
+            # Get player profile for additional info
+            player_profile = db.query(models.PlayerProfile).filter(
+                models.PlayerProfile.id == signup.player_profile_id
+            ).first()
+            
+            player_data = {
+                "signup_id": signup.id,
+                "player_profile_id": signup.player_profile_id,
+                "player_name": signup.player_name,
+                "preferred_start_time": signup.preferred_start_time,
+                "notes": signup.notes,
+                "signup_time": signup.signup_time,
+                "handicap": player_profile.handicap if player_profile else None,
+                "email": player_profile.email if player_profile else None
+            }
+            players.append(player_data)
+        
+        return {
+            "date": date,
+            "total_players": len(players),
+            "players": players,
+            "can_form_teams": len(players) >= 4,
+            "max_complete_teams": len(players) // 4,
+            "remaining_players": len(players) % 4
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting players for date {date}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get players: {str(e)}")
+    finally:
+        db.close()
+
+# Email Preferences Endpoints
+
+@app.get("/players/{player_id}/email-preferences", response_model=schemas.EmailPreferencesResponse)
+def get_email_preferences(player_id: int):
+    """Get a player's email preferences."""
+    try:
+        db = database.SessionLocal()
+        
+        preferences = db.query(models.EmailPreferences).filter(
+            models.EmailPreferences.player_profile_id == player_id
+        ).first()
+        
+        if not preferences:
+            # Create default preferences
+            preferences = models.EmailPreferences(
+                player_profile_id=player_id,
+                created_at=datetime.now().isoformat(),
+                updated_at=datetime.now().isoformat()
+            )
+            db.add(preferences)
+            db.commit()
+            db.refresh(preferences)
+            
+        return schemas.EmailPreferencesResponse.from_orm(preferences)
+        
+    except Exception as e:
+        logger.error(f"Error getting email preferences for player {player_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get email preferences: {str(e)}")
+    finally:
+        db.close()
+
+@app.put("/players/{player_id}/email-preferences", response_model=schemas.EmailPreferencesResponse)
+def update_email_preferences(player_id: int, preferences_update: schemas.EmailPreferencesUpdate):
+    """Update a player's email preferences."""
+    try:
+        db = database.SessionLocal()
+        
+        preferences = db.query(models.EmailPreferences).filter(
+            models.EmailPreferences.player_profile_id == player_id
+        ).first()
+        
+        if not preferences:
+            raise HTTPException(status_code=404, detail="Email preferences not found")
+        
+        # Update fields
+        if preferences_update.daily_signups_enabled is not None:
+            preferences.daily_signups_enabled = preferences_update.daily_signups_enabled
+        if preferences_update.signup_confirmations_enabled is not None:
+            preferences.signup_confirmations_enabled = preferences_update.signup_confirmations_enabled
+        if preferences_update.signup_reminders_enabled is not None:
+            preferences.signup_reminders_enabled = preferences_update.signup_reminders_enabled
+        if preferences_update.game_invitations_enabled is not None:
+            preferences.game_invitations_enabled = preferences_update.game_invitations_enabled
+        if preferences_update.weekly_summary_enabled is not None:
+            preferences.weekly_summary_enabled = preferences_update.weekly_summary_enabled
+        if preferences_update.email_frequency is not None:
+            preferences.email_frequency = preferences_update.email_frequency
+        if preferences_update.preferred_notification_time is not None:
+            preferences.preferred_notification_time = preferences_update.preferred_notification_time
+            
+        preferences.updated_at = datetime.now().isoformat()
+        
+        db.commit()
+        db.refresh(preferences)
+        
+        logger.info(f"Updated email preferences for player {player_id}")
+        return schemas.EmailPreferencesResponse.from_orm(preferences)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error updating email preferences for player {player_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update email preferences: {str(e)}")
+    finally:
+        db.close()
+
+# =============================================================================
+# AUTHENTICATED EMAIL PREFERENCE ENDPOINTS  
+# =============================================================================
+
+@app.get("/players/me/email-preferences", response_model=schemas.EmailPreferencesResponse)
+async def get_my_email_preferences(current_user: models.PlayerProfile = Depends(get_current_user)):
+    """Get current user's email preferences"""
+    db = database.SessionLocal()
+    try:
+        # Try to find existing preferences
+        prefs = db.query(models.EmailPreferences).filter(
+            models.EmailPreferences.player_profile_id == current_user.id
+        ).first()
+        
+        if not prefs:
+            # Create default preferences
+            prefs = models.EmailPreferences(
+                player_profile_id=current_user.id,
+                created_at=datetime.now().isoformat(),
+                updated_at=datetime.now().isoformat()
+            )
+            db.add(prefs)
+            db.commit()
+            db.refresh(prefs)
+        
+        return schemas.EmailPreferencesResponse(
+            id=prefs.id,
+            player_profile_id=prefs.player_profile_id,
+            daily_signups_enabled=bool(prefs.daily_signups_enabled),
+            signup_confirmations_enabled=bool(prefs.signup_confirmations_enabled),
+            signup_reminders_enabled=bool(prefs.signup_reminders_enabled),
+            game_invitations_enabled=bool(prefs.game_invitations_enabled),
+            weekly_summary_enabled=bool(prefs.weekly_summary_enabled),
+            email_frequency=prefs.email_frequency,
+            preferred_notification_time=prefs.preferred_notification_time
+        )
+    except Exception as e:
+        logger.error(f"Error getting email preferences for user {current_user.id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get email preferences: {str(e)}")
+    finally:
+        db.close()
+
+@app.put("/players/me/email-preferences", response_model=schemas.EmailPreferencesResponse)
+async def update_my_email_preferences(
+    preferences_update: schemas.EmailPreferencesUpdate,
+    current_user: models.PlayerProfile = Depends(get_current_user)
+):
+    """Update current user's email preferences"""
+    db = database.SessionLocal()
+    try:
+        # Find or create preferences
+        prefs = db.query(models.EmailPreferences).filter(
+            models.EmailPreferences.player_profile_id == current_user.id
+        ).first()
+        
+        if not prefs:
+            prefs = models.EmailPreferences(
+                player_profile_id=current_user.id,
+                created_at=datetime.now().isoformat()
+            )
+            db.add(prefs)
+        
+        # Update preferences
+        update_data = preferences_update.dict(exclude_unset=True)
+        for field, value in update_data.items():
+            if hasattr(prefs, field):
+                # Convert bool to int for SQLite
+                if isinstance(value, bool):
+                    value = 1 if value else 0
+                setattr(prefs, field, value)
+        
+        prefs.updated_at = datetime.now().isoformat()
+        db.commit()
+        db.refresh(prefs)
+        
+        logger.info(f"Updated email preferences for user {current_user.id}")
+        
+        return schemas.EmailPreferencesResponse(
+            id=prefs.id,
+            player_profile_id=prefs.player_profile_id,
+            daily_signups_enabled=bool(prefs.daily_signups_enabled),
+            signup_confirmations_enabled=bool(prefs.signup_confirmations_enabled),
+            signup_reminders_enabled=bool(prefs.signup_reminders_enabled),
+            game_invitations_enabled=bool(prefs.game_invitations_enabled),
+            weekly_summary_enabled=bool(prefs.weekly_summary_enabled),
+            email_frequency=prefs.email_frequency,
+            preferred_notification_time=prefs.preferred_notification_time
+        )
+    except Exception as e:
+        logger.error(f"Error updating email preferences for user {current_user.id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update email preferences: {str(e)}")
+    finally:
+        db.close()
+
+# =============================================================================
+# EMAIL ENDPOINTS
+# =============================================================================
+
+@app.post("/email/send-test")
+async def send_test_email(email_data: dict):
+    """Send a test email to verify email service configuration"""
+    try:
+        email_service = get_email_service()
+        
+        if not email_service.is_configured:
+            raise HTTPException(
+                status_code=503, 
+                detail="Email service not configured. Please set SMTP_USER, SMTP_PASSWORD, and SMTP_HOST environment variables."
+            )
+        
+        to_email = email_data.get('to_email')
+        if not to_email:
+            raise HTTPException(status_code=400, detail="to_email is required")
+            
+        success = email_service.send_signup_confirmation(
+            to_email=to_email,
+            player_name=email_data.get('player_name', 'Test Player'),
+            signup_date=email_data.get('signup_date', 'Tomorrow')
+        )
+        
+        if success:
+            return {"message": "Test email sent successfully", "to_email": to_email}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to send test email")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error sending test email: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to send test email: {str(e)}")
+
+@app.get("/email/status")
+async def get_email_service_status():
+    """Check if email service is properly configured"""
+    try:
+        email_service = get_email_service()
+        
+        return {
+            "configured": email_service.is_configured,
+            "smtp_host": email_service.smtp_config.get('host', 'Not set'),
+            "smtp_port": email_service.smtp_config.get('port', 'Not set'),
+            "from_email": email_service.from_email or 'Not set',
+            "from_name": email_service.from_name or 'Not set',
+            "missing_config": [
+                key for key in ['SMTP_USER', 'SMTP_PASSWORD', 'SMTP_HOST'] 
+                if not os.getenv(key)
+            ]
+        }
+        
+    except Exception as e:
+        logger.error(f"Error checking email service status: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to check email status: {str(e)}")
+
+@app.post("/email/signup-confirmation")
+async def send_signup_confirmation_email(email_data: dict):
+    """Send signup confirmation email"""
+    try:
+        email_service = get_email_service()
+        
+        if not email_service.is_configured:
+            raise HTTPException(status_code=503, detail="Email service not configured")
+        
+        required_fields = ['to_email', 'player_name', 'signup_date']
+        missing_fields = [field for field in required_fields if not email_data.get(field)]
+        
+        if missing_fields:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Missing required fields: {', '.join(missing_fields)}"
+            )
+        
+        success = email_service.send_signup_confirmation(
+            to_email=email_data['to_email'],
+            player_name=email_data['player_name'],
+            signup_date=email_data['signup_date']
+        )
+        
+        if success:
+            return {"message": "Signup confirmation email sent", "to_email": email_data['to_email']}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to send signup confirmation email")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error sending signup confirmation email: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
+
+@app.post("/email/daily-reminder")
+async def send_daily_reminder_email(email_data: dict):
+    """Send daily signup reminder email"""
+    try:
+        email_service = get_email_service()
+        
+        if not email_service.is_configured:
+            raise HTTPException(status_code=503, detail="Email service not configured")
+        
+        required_fields = ['to_email', 'player_name']
+        missing_fields = [field for field in required_fields if not email_data.get(field)]
+        
+        if missing_fields:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Missing required fields: {', '.join(missing_fields)}"
+            )
+        
+        success = email_service.send_daily_signup_reminder(
+            to_email=email_data['to_email'],
+            player_name=email_data['player_name'],
+            available_dates=email_data.get('available_dates', [])
+        )
+        
+        if success:
+            return {"message": "Daily reminder email sent", "to_email": email_data['to_email']}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to send daily reminder email")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error sending daily reminder email: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
+
+@app.post("/email/weekly-summary")
+async def send_weekly_summary_email(email_data: dict):
+    """Send weekly summary email"""
+    try:
+        email_service = get_email_service()
+        
+        if not email_service.is_configured:
+            raise HTTPException(status_code=503, detail="Email service not configured")
+        
+        required_fields = ['to_email', 'player_name']
+        missing_fields = [field for field in required_fields if not email_data.get(field)]
+        
+        if missing_fields:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Missing required fields: {', '.join(missing_fields)}"
+            )
+        
+        success = email_service.send_weekly_summary(
+            to_email=email_data['to_email'],
+            player_name=email_data['player_name'],
+            summary_data=email_data.get('summary_data', {})
+        )
+        
+        if success:
+            return {"message": "Weekly summary email sent", "to_email": email_data['to_email']}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to send weekly summary email")
+            
+    except HTTPException:
+        raise
+
+@app.post("/email/initialize-scheduler")
+async def initialize_email_scheduler():
+    """Initialize the email scheduler on demand"""
+    global email_scheduler
+    
+    try:
+        # Check if already initialized
+        if email_scheduler is not None:
+            return {
+                "status": "already_initialized",
+                "message": "Email scheduler is already running"
+            }
+        
+        # Import and initialize the scheduler
+        from .services.email_scheduler import email_scheduler as scheduler_instance
+        email_scheduler = scheduler_instance
+        email_scheduler.start()
+        
+        logger.info("📧 Email scheduler initialized on demand")
+        
+        return {
+            "status": "success",
+            "message": "Email scheduler initialized successfully",
+            "scheduled_jobs": ["daily_reminders", "weekly_summaries"]
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to initialize email scheduler: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Failed to initialize email scheduler: {str(e)}"
+        )
+
+@app.get("/email/scheduler-status")
+async def get_email_scheduler_status():
+    """Get the status of the email scheduler"""
+    global email_scheduler
+    
+    return {
+        "initialized": email_scheduler is not None,
+        "running": email_scheduler is not None and hasattr(email_scheduler, '_started') and email_scheduler._started,
+        "message": "Scheduler running" if email_scheduler else "Scheduler not initialized. Call /email/initialize-scheduler to start."
+    }
+
+# Static file serving for React frontend (must be at end after all API routes)
+from pathlib import Path
+
+# Get the path to the built React app
+STATIC_DIR = Path(__file__).parent.parent.parent / "frontend" / "build"
+
+# =============================================================================
+# MATCHMAKING ENDPOINTS
+# =============================================================================
+
+@app.get("/matchmaking/suggestions")
+def get_match_suggestions(
+    min_overlap_hours: float = 2.0,
+    preferred_days: Optional[str] = None
+):
+    """
+    Get matchmaking suggestions based on player availability.
+    
+    Args:
+        min_overlap_hours: Minimum hours of overlap required (default 2)
+        preferred_days: Comma-separated list of preferred days (0=Monday, 6=Sunday)
+    """
+    try:
+        from .services.matchmaking_service import MatchmakingService
+        
+        db = database.SessionLocal()
+        
+        # Get all players' availability (reuse existing endpoint logic)
+        players_with_availability = db.query(models.PlayerProfile).all()
+        
+        all_players_data = []
+        for player in players_with_availability:
+            player_data = {
+                "player_id": player.id,
+                "player_name": player.name,
+                "email": player.email,
+                "availability": []
+            }
+            
+            availability = db.query(models.PlayerAvailability).filter(
+                models.PlayerAvailability.player_profile_id == player.id
+            ).all()
+            
+            for avail in availability:
+                player_data["availability"].append({
+                    "day_of_week": avail.day_of_week,
+                    "is_available": avail.is_available,
+                    "available_from_time": avail.available_from_time,
+                    "available_to_time": avail.available_to_time,
+                    "notes": avail.notes
+                })
+            
+            all_players_data.append(player_data)
+        
+        # Parse preferred days if provided
+        preferred_days_list = None
+        if preferred_days:
+            preferred_days_list = [int(d.strip()) for d in preferred_days.split(",")]
+        
+        # Find matches
+        matches = MatchmakingService.find_matches(
+            all_players_data,
+            min_overlap_hours=min_overlap_hours,
+            preferred_days=preferred_days_list
+        )
+        
+        # Get recent match history to filter out recently matched players
+        recent_matches = db.query(models.MatchSuggestion).filter(
+            models.MatchSuggestion.created_at >= (datetime.now() - timedelta(days=7)).isoformat()
+        ).all()
+        
+        # Convert to format expected by filter function
+        recent_match_history = []
+        for match in recent_matches:
+            match_players = db.query(models.MatchPlayer).filter(
+                models.MatchPlayer.match_suggestion_id == match.id
+            ).all()
+            
+            recent_match_history.append({
+                "created_at": match.created_at,
+                "players": [{"player_id": mp.player_profile_id} for mp in match_players]
+            })
+        
+        # Filter out recently matched players
+        filtered_matches = MatchmakingService.filter_recent_matches(
+            matches, recent_match_history, days_between_matches=3
+        )
+        
+        return {
+            "total_matches_found": len(matches),
+            "filtered_matches": len(filtered_matches),
+            "matches": filtered_matches[:10]  # Return top 10 matches
+        }
+        
+    except Exception as e:
+        logger.error(f"Error finding match suggestions: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to find matches: {str(e)}")
+    finally:
+        db.close()
+
+@app.post("/matchmaking/create-and-notify")
+async def create_and_notify_matches():
+    """
+    Run the full matchmaking process: find matches and send notifications.
+    This endpoint can be called by a scheduler or manually.
+    """
+    try:
+        # First, find matches
+        matches_response = get_match_suggestions(min_overlap_hours=2.0)
+        
+        if not matches_response["matches"]:
+            return {
+                "message": "No suitable matches found",
+                "matches_checked": matches_response["total_matches_found"]
+            }
+        
+        db = database.SessionLocal()
+        email_service = get_email_service()
+        
+        # Save the top matches to database
+        saved_matches = []
+        notifications_sent = []
+        
+        for match_data in matches_response["matches"][:5]:  # Save top 5 matches
+            try:
+                # Create match suggestion
+                match = models.MatchSuggestion(
+                    day_of_week=match_data["day_of_week"],
+                    overlap_start=match_data["overlap_start"],
+                    overlap_end=match_data["overlap_end"],
+                    suggested_tee_time=match_data["suggested_tee_time"],
+                    match_quality_score=match_data["match_quality"],
+                    status="pending",
+                    created_at=datetime.now().isoformat(),
+                    expires_at=(datetime.now() + timedelta(days=7)).isoformat()
+                )
+                db.add(match)
+                db.commit()
+                db.refresh(match)
+                
+                # Add players to match
+                for player in match_data["players"]:
+                    match_player = models.MatchPlayer(
+                        match_suggestion_id=match.id,
+                        player_profile_id=player["player_id"],
+                        player_name=player["player_name"],
+                        player_email=player["email"],
+                        created_at=datetime.now().isoformat()
+                    )
+                    db.add(match_player)
+                
+                db.commit()
+                saved_matches.append(match.id)
+                
+                # Send notification email
+                from .services.matchmaking_service import MatchmakingService
+                notification = MatchmakingService.create_match_notification(match_data)
+                
+                # Send email to all players
+                try:
+                    for recipient in notification['recipients']:
+                        await email_service.send_email(
+                            to_email=recipient,
+                            subject=notification['subject'],
+                            body=notification['body']
+                        )
+                    
+                    # Mark as sent
+                    match.notification_sent = True
+                    match.notification_sent_at = datetime.now().isoformat()
+                    db.commit()
+                    
+                    notifications_sent.append({
+                        "match_id": match.id,
+                        "players": [p["player_name"] for p in match_data["players"]],
+                        "status": "sent"
+                    })
+                    
+                    logger.info(f"Sent match notification for match {match.id}")
+                    
+                except Exception as e:
+                    logger.error(f"Failed to send notification for match {match.id}: {e}")
+                    notifications_sent.append({
+                        "match_id": match.id,
+                        "players": [p["player_name"] for p in match_data["players"]],
+                        "status": "failed",
+                        "error": str(e)
+                    })
+                    
+            except Exception as e:
+                logger.error(f"Error creating match: {e}")
+                continue
+        
+        return {
+            "matches_found": matches_response["total_matches_found"],
+            "matches_created": len(saved_matches),
+            "notifications_sent": len([n for n in notifications_sent if n["status"] == "sent"]),
+            "notifications_failed": len([n for n in notifications_sent if n["status"] == "failed"]),
+            "match_ids": saved_matches,
+            "details": notifications_sent
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in create and notify matches: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create and notify matches: {str(e)}")
+    finally:
+        if 'db' in locals():
+            db.close()
+
+if ENABLE_TEST_ENDPOINTS:
+
+    @app.get("/test-deployment")
+    async def test_deployment(x_admin_email: Optional[str] = Header(None)):
+        """Test that new deployments are working"""
+        require_admin(x_admin_email)
+        return {"message": "Deployment is working", "timestamp": datetime.now().isoformat()}
+
+    @app.get("/debug/paths")
+    async def debug_paths(x_admin_email: Optional[str] = Header(None)):
+        """Debug endpoint to check file paths"""
+        require_admin(x_admin_email)
+        current_file = Path(__file__).resolve()
+        static_dir = STATIC_DIR.resolve()
+        index_file = static_dir / "index.html"
+
+        return {
+            "current_file": str(current_file),
+            "static_dir": str(static_dir),
+            "static_dir_exists": static_dir.exists(),
+            "index_file": str(index_file),
+            "index_file_exists": index_file.exists(),
+            "static_dir_contents": list(static_dir.iterdir()) if static_dir.exists() else []
+        }
+
+# Mount static files if build directory exists
+static_assets_dir = STATIC_DIR / "static"
+
+if STATIC_DIR.exists() and static_assets_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(static_assets_dir)), name="static")
+else:
+    logger.warning(
+        "Frontend static assets not found. Expected %s", static_assets_dir
+    )
+
+
+@app.get("/", response_class=HTMLResponse)
+async def serve_homepage():
+    """Serve the built frontend when available, otherwise render a helpful status page."""
+    index_file = STATIC_DIR / "index.html"
+    if index_file.exists():
+        return FileResponse(str(index_file))
+
+    frontend_url = (
+        os.getenv("PUBLIC_FRONTEND_URL")
+        or os.getenv("FRONTEND_BASE_URL")
+        or "https://wolf-goat-pig.vercel.app"
+    )
+
+    docs_link = ""
+    if app.docs_url:
+        docs_link = f'<li><a href="{app.docs_url}">Interactive API docs</a></li>'
+
+    html = f"""
+    <!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Wolf Goat Pig API</title>
+        <style>
+          body {{
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #0f172a;
+            color: #e2e8f0;
+          }}
+          .card {{
+            background: rgba(15, 23, 42, 0.9);
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 520px;
+            box-shadow: 0 20px 45px rgba(15, 23, 42, 0.4);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+          }}
+          h1 {{
+            margin-top: 0;
+            font-size: 1.75rem;
+            letter-spacing: 0.02em;
+          }}
+          p {{
+            line-height: 1.55;
+            margin-bottom: 1.25rem;
+            color: #cbd5f5;
+          }}
+          ul {{
+            padding-left: 1.2rem;
+            margin: 0 0 1.25rem 0;
+          }}
+          a {{
+            color: #38bdf8;
+            text-decoration: none;
+            font-weight: 600;
+          }}
+          a:hover {{
+            text-decoration: underline;
+          }}
+          .meta {{
+            font-size: 0.85rem;
+            color: #94a3b8;
+          }}
+        </style>
+      </head>
+      <body>
+        <main class="card">
+          <h1>Wolf Goat Pig API</h1>
+          <p>
+            The backend is running and healthy. The interactive frontend lives on our
+            Vercel deployment — you can reach it here:
+          </p>
+          <ul>
+            <li><a href="{frontend_url}" target="_blank" rel="noopener">Open the production app</a></li>
+            {docs_link}
+          </ul>
+          <p class="meta">Last checked: {datetime.utcnow().isoformat()}Z</p>
+        </main>
+      </body>
+    </html>
+    """
+
+    return HTMLResponse(content=html, status_code=200)

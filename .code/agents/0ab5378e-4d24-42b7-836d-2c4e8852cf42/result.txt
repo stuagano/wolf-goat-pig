@@ -1,0 +1,110 @@
+Cloud task completed: task_e_68f6dab429ec8330b4fcfb4e43c28373
+
+Prompt:
+Context: Current health.feature only checks /health and minimal validation of setup error. partnership.feature covers team formation basics but misses admin gating, error responses, and sync with betting logic. Simulation endpoints require x-admin-email header when ENABLE_TEST_ENDPOINTS=true. Provide ideas that can be implemented without new backend code.
+
+Agent: Audit existing Simulation health and partnership Behave features to spot coverage gaps. Propose new Gherkin scenarios for failure modes (e.g., unauthorized admin access, seeding mismatches, course availability) and long-form flows (multi-hole captain rotation). Provide for each scenario: purpose, key steps with sample tables, and how it ensures parity with FastAPI endpoints.
+
+Desired output: Table or structured list with scenario name, summary, Given/When/Then sketch, and implementation notes.
+
+Files to consider: tests/bdd/behave/features/simulation_health.feature, tests/bdd/behave/features/simulation_partnership.feature, tests/bdd/behave/steps/simulation_steps.py
+
+[Running in read-only mode - no modifications allowed]
+
+Assistant Messages:
+1. ## Audit Summary
+- `simulation_health.feature` only validates the `/health` happy path and a single setup validation error, leaving admin-gated and degraded-state behaviors untested.
+
+2. - `simulation_partnership.feature` exercises a variety of steady-state formations but skips explicit failure responses, admin header gating, and long-form, multi-hole flows that mirror betting sync expectations.
+
+3. - Existing step definitions already support state seeding, arbitrary request payloads, and response assertions, so the missing coverage can be added with new Behave steps and feature files without backend changes.
+
+4. ## Proposed Scenario Additions
+
+| Scenario | Summary | Given / When / Then sketch | Implementation notes |
+| --- | --- | --- | --- |
+| **Admin health ping rejected without header** | Ensure simulation admin endpoints return 403 when `ENABLE_TEST_ENDPOINTS=true` and the `x-admin-email` header is omitted. | **Given** test endpoints are enabled via env and the simulation API is available<br>**When** I request the `"GET"` `"/simulation/admin/health"` endpoint<br>**Then** the response code is `403`<br>**And** the JSON response contains:<br>`| detail | Admin access required |` | Add a `Given test endpoints are enabled` step that sets the flag before `_build_test_client()` is invoked to keep setup DRY.
+
+5. Reuse a shared helper for injecting headers to avoid scattering the header name; source it from `.env.test` so values are centralized. |
+| **Admin health succeeds with approved header** | Validate parity between BDD and FastAPI by demonstrating the same endpoint passes with a known admin email. | **Given** test endpoints are enabled<br>**And** the admin email header is set to `"qa-admin@example.com"`<br>**When** I request the `"GET"` `"/simulation/admin/health"` endpoint<br>**Then** the response code is `200`<br>**And** the JSON response contains:<br>`| status | ok |` | Extend the request step to accept headers through a table (e.g., dot paths like `headers.x-admin-email`) leveraging `set_nested_value` for minimal duplication.
+
+6. Keep header values in shared fixtures or env-driven constants to respect DRY. |
+| **Partnership seeding rejected for non-rostered player** | Cover the failure mode where a pending request references a golfer outside the roster and should return a validation error instead of silently storing it. | **Given** the simulation is at hole 4<br>**And** the team formation is seeded with a pending request for `"rogue_bot"`<br>**When** I refresh the simulation state through `"/simulation/state"`<br>**Then** the response code is `400`<br>**And** the JSON response contains:<br>`| detail | Unknown player rogue_bot |` | Leverage `step_seed_team_formation` to compose invalid payloads without new helpers.
+
+7. Assert on the latest response using the existing `response` cache. Consider consolidating repeated invalid-player tables into an outline to stay DRY. |
+| **Captain rotation syncs betting carry-overs across holes** | Model a multi-hole flow where captaincy changes, wagers roll, and wagering closed state syncs—matching real betting logic. | **Given** the simulation is at hole 12 and betting state is seeded with doubled quarters<br>**When** the simulation is moved to hole 13 and the team formation rotates captains via table<br>**And** wagering remains closed<br>**Then** the simulation state contains combined assertions for `current_hole`, `team_formation.captain`, and `betting_state.doubled` | Chain existing seeding steps (`hole`, `team formation`, `betting state`, `wagering`) to keep the flow readable.
+
+8. For DRYness, extract reusable tables with doc strings or background blocks instead of duplicating large grids. |
+| **Course availability gating partnership reset** | Confirm the API prevents team resets when the selected course lacks required holes, aligning with backend validation. | **Given** a simulation is set up for course `"Wing Point Golf & Country Club"`<br>**And** the simulation state is seeded with `course.available_holes = 9`<br>**When** I request the `"POST"` `"/simulation/team/reset"` endpoint with a table assigning hole 10<br>**Then** the response code is `422`<br>**And** the JSON response contains:<br>`| detail | Hole 10 unavailable for current course |` | Use `step_seed_complete_state` to set nested course metadata before hitting the reset endpoint.
+
+9. Add a shared constant for the course name instead of hardcoding it in multiple scenarios, and keep environment-derived values in `.env` to adhere to configuration best practices. |
+
+## Additional Recommendations
+- Centralize recurring admin metadata (email, header names, feature flags) in a shared config module that the Behave steps read, so future scenarios don’t repeat literal strings—this keeps the suite DRY and aligns with the project’s environment-driven configuration strategy.
+
+10. - Before implementing the new scenarios, refactor `_build_test_client()` to accept optional context configuration (headers, env flags) to avoid rebuilding similar helper logic in every step; this also ensures tests honor `.env` conventions instead of hardcoding.
+
+11. I need to check AGENTS.md for guidance.
+
+12. Is the container in read-only mode? I'll check using `pwd` to confirm.
+
+13. I need to locate the AGENTS.md file to proceed.
+
+14. I'll dive deeper into the repo to gather more context.
+
+15. I'll look for any AGENTS.md file near the tests to check for relevant instructions.
+
+16. The instructions apply to the whole repo, so I’ll need to read through everything.
+
+17. I'm checking the file for instructions and features to proceed.
+
+18. I wonder if the case of the file path is an issue. I'll list the directory.
+
+19. I’ll take a look at the tests directory to see if the path differs.
+
+20. Hmm, I'll check if features are under tests/features or in tests/bdd/features.
+
+21. I'm opening the file to check its contents now.
+
+22. I'll check the path for AGENTS files to see if they mention tests.
+
+23. I'll take a closer look at the partnership feature now.
+
+24. I need to locate the steps file to proceed with the task.
+
+25. I need to identify the line numbers for the partnership file.
+
+26. I need to get the rest of the lines for the changes I've made.
+
+27. I need to pull the relevant lines from the step file for citations.
+
+28. I'll grab lines starting from 400 and beyond for the changes.
+
+29. I'm outlining failure mode scenarios, focusing on unauthorized admin actions and health coverage gaps without backend changes. I'll suggest ways like using environment variables and seeding the state or headers. I'll also highlight coverage gaps related to current features and propose improvements, including DRY practices. The scenarios will be summarized in a table format with relevant details and references.
+
+I'll mention best practices like DRY, proposing shared header constants and utilizing environment variables. I'll structure answers with an overview, table, and notes. I'll cite relevant code references for health checks and admin gating. Since tests aren't an option, I'll exclude that section. The table will include scenario summaries and GWT, structured around existing code features.
+
+I’ll suggest failure modes like missing headers and health endpoint misconfigurations without backend changes. Scenarios include verifying header requirements and seeding validation errors. I'll focus on adjusting steps and implementing solution via environment variables. The idea is to toggle settings and check for error responses.
+
+I’ll suggest updates for step reuse and recommend improving practices like centralizing environment vars. I’ll also propose scenarios for health checks, admin gating, and partnership seeding. Scenarios will include GWT sketches and implementation notes, referencing existing code and keeping it aligned with current capabilities.
+
+30. ## Audit Summary
+- `simulation_health.feature` only validates the `/health` happy path and a single setup validation error, leaving admin-gated and degraded-state behaviors untested.【F:tests/bdd/features/simulation_health.feature†L9-L19】
+- `simulation_partnership.feature` exercises a variety of steady-state formations but skips explicit failure responses, admin header gating, and long-form, multi-hole flows that mirror betting sync expectations.【F:tests/bdd/features/simulation_partnership.feature†L14-L240】
+- Existing step definitions already support state seeding, arbitrary request payloads, and response assertions, so the missing coverage can be added with new Behave steps and feature files without backend changes.【F:tests/bdd/steps/simulation_steps.py†L41-L520】
+
+## Proposed Scenario Additions
+
+| Scenario | Summary | Given / When / Then sketch | Implementation notes |
+| --- | --- | --- | --- |
+| **Admin health ping rejected without header** | Ensure simulation admin endpoints return 403 when `ENABLE_TEST_ENDPOINTS=true` and the `x-admin-email` header is omitted. | **Given** test endpoints are enabled via env and the simulation API is available<br>**When** I request the `"GET"` `"/simulation/admin/health"` endpoint<br>**Then** the response code is `403`<br>**And** the JSON response contains:<br>`| detail | Admin access required |` | Add a `Given test endpoints are enabled` step that sets the flag before `_build_test_client()` is invoked to keep setup DRY.【F:tests/bdd/steps/simulation_steps.py†L25-L318】 Reuse a shared helper for injecting headers to avoid scattering the header name; source it from `.env.test` so values are centralized. |
+| **Admin health succeeds with approved header** | Validate parity between BDD and FastAPI by demonstrating the same endpoint passes with a known admin email. | **Given** test endpoints are enabled<br>**And** the admin email header is set to `"qa-admin@example.com"`<br>**When** I request the `"GET"` `"/simulation/admin/health"` endpoint<br>**Then** the response code is `200`<br>**And** the JSON response contains:<br>`| status | ok |` | Extend the request step to accept headers through a table (e.g., dot paths like `headers.x-admin-email`) leveraging `set_nested_value` for minimal duplication.【F:tests/bdd/steps/simulation_steps.py†L240-L283】 Keep header values in shared fixtures or env-driven constants to respect DRY. |
+| **Partnership seeding rejected for non-rostered player** | Cover the failure mode where a pending request references a golfer outside the roster and should return a validation error instead of silently storing it. | **Given** the simulation is at hole 4<br>**And** the team formation is seeded with a pending request for `"rogue_bot"`<br>**When** I refresh the simulation state through `"/simulation/state"`<br>**Then** the response code is `400`<br>**And** the JSON response contains:<br>`| detail | Unknown player rogue_bot |` | Leverage `step_seed_team_formation` to compose invalid payloads without new helpers.【F:tests/bdd/steps/simulation_steps.py†L146-L170】 Assert on the latest response using the existing `response` cache. Consider consolidating repeated invalid-player tables into an outline to stay DRY. |
+| **Captain rotation syncs betting carry-overs across holes** | Model a multi-hole flow where captaincy changes, wagers roll, and wagering closed state syncs—matching real betting logic. | **Given** the simulation is at hole 12 and betting state is seeded with doubled quarters<br>**When** the simulation is moved to hole 13 and the team formation rotates captains via table<br>**And** wagering remains closed<br>**Then** the simulation state contains combined assertions for `current_hole`, `team_formation.captain`, and `betting_state.doubled` | Chain existing seeding steps (`hole`, `team formation`, `betting state`, `wagering`) to keep the flow readable.【F:tests/bdd/steps/simulation_steps.py†L91-L179】 For DRYness, extract reusable tables with doc strings or background blocks instead of duplicating large grids. |
+| **Course availability gating partnership reset** | Confirm the API prevents team resets when the selected course lacks required holes, aligning with backend validation. | **Given** a simulation is set up for course `"Wing Point Golf & Country Club"`<br>**And** the simulation state is seeded with `course.available_holes = 9`<br>**When** I request the `"POST"` `"/simulation/team/reset"` endpoint with a table assigning hole 10<br>**Then** the response code is `422`<br>**And** the JSON response contains:<br>`| detail | Hole 10 unavailable for current course |` | Use `step_seed_complete_state` to set nested course metadata before hitting the reset endpoint.【F:tests/bdd/steps/simulation_steps.py†L191-L233】 Add a shared constant for the course name instead of hardcoding it in multiple scenarios, and keep environment-derived values in `.env` to adhere to configuration best practices. |
+
+## Additional Recommendations
+- Centralize recurring admin metadata (email, header names, feature flags) in a shared config module that the Behave steps read, so future scenarios don’t repeat literal strings—this keeps the suite DRY and aligns with the project’s environment-driven configuration strategy.【F:tests/bdd/steps/simulation_steps.py†L25-L318】
+- Before implementing the new scenarios, refactor `_build_test_client()` to accept optional context configuration (headers, env flags) to avoid rebuilding similar helper logic in every step; this also ensures tests honor `.env` conventions instead of hardcoding.
+
+No diff available.

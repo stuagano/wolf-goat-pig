@@ -1,0 +1,797 @@
+[2025-10-20T15:26:48] OpenAI Codex v0.0.0 (research preview)
+--------
+workdir: /Users/stuartgano/Documents/wolf-goat-pig
+model: gpt-5-codex
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: medium
+reasoning summaries: auto
+--------
+[2025-10-20T15:26:48] User instructions:
+Re-scan Simulation and Sunday Game modes to capture latest code routes, configs, and open risks after recent helper removal. Provide concise bullet notes with file:line references and note any failing tests mentioned in reports.
+
+Desired output: Simulation + Sunday Game updated notes
+
+Files to consider: backend, tests/backend, docs/status, reports
+
+[Running in read-only mode - no modifications allowed]
+[2025-10-20T15:26:49] OpenAI Codex v0.0.0 (research preview)
+--------
+workdir: /Users/stuartgano/Documents/wolf-goat-pig
+model: gpt-5-codex
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: medium
+reasoning summaries: auto
+--------
+[2025-10-20T15:26:49] User instructions:
+Re-scan Simulation and Sunday Game modes to capture latest code routes, configs, and open risks after recent helper removal. Provide concise bullet notes with file:line references and note any failing tests mentioned in reports.
+
+Desired output: Simulation + Sunday Game updated notes
+
+Files to consider: backend, tests/backend, docs/status, reports
+
+[Running in read-only mode - no modifications allowed]
+
+[2025-10-20T15:26:55] thinking
+
+**Preparing to scan project files**
+[2025-10-20T15:26:56] exec bash -lc ls in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:26:57] bash -lc ls succeeded in 989ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+AGENTS.md
+backend
+BACKEND_ADJUSTMENTS_NEEDED.md
+config
+dev-local.sh
+dev.sh
+docker-compose.prod.yml
+docs
+error.log
+frontend
+install.py
+node_modules
+package-lock.json
+package.json
+README.md
+render.yaml
+reports
+[2025-10-20T15:26:57] tokens used: 7,713
+
+[2025-10-20T15:27:00] thinking
+
+**Searching backend for game modes**
+[2025-10-20T15:27:01] exec bash -lc 'rg "Simulation" backend tests/backend docs/status reports' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:27:02] bash -lc 'rg "Simulation" backend tests/backend docs/status reports' exited 127 in 834ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+
+ERROR
+bash: rg: command not found
+[2025-10-20T15:27:02] tokens used: 8,949
+
+[2025-10-20T15:27:04] thinking
+
+**Switching to grep for search**
+[2025-10-20T15:27:05] exec bash -lc 'grep -R "Simulation" backend tests/backend docs/status reports' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:27:15] tokens used: 9,155
+
+[2025-10-20T15:27:17] thinking
+
+**Waiting for command completion**
+[2025-10-20T15:27:18] tool wait
+{
+  "call_id": "call_mjac5iygP1cbkLAVLhCQ5F5P",
+  "timeout_ms": 120000,
+  "for": "grep -R \"Simulation\" backend tests/backend docs/status reports"
+}
+[2025-10-20T15:27:26] bash -lc 'grep -R "Simulation" backend tests/backend docs/status reports' succeeded in 21.15s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+backend/smoke_tests.py:from app.wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer
+backend/smoke_tests.py:    sim = WolfGoatPigSimulation(player_count=4, players=players)
+backend/smoke_tests.py:    print("   ✓ Simulation created with 4 players")
+backend/smoke_tests.py:    sim = WolfGoatPigSimulation(player_count=4, players=players)
+backend/smoke_tests.py:    sim = WolfGoatPigSimulation(player_count=4, players=players)
+backend/smoke_tests.py:    sim = WolfGoatPigSimulation(player_count=4, players=players)
+backend/smoke_tests.py:    sim = WolfGoatPigSimulation(player_count=4, players=players)
+backend/smoke_tests.py:    sim = WolfGoatPigSimulation(player_count=4, players=players)
+backend/smoke_tests.py:    sim = WolfGoatPigSimulation(player_count=4, players=players)
+backend/smoke_tests.py:    runner.run_test("Basic Simulation Creation", test_basic_simulation_creation)
+backend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/securitycenter.v1.json:"$ref": "Simulation"
+backend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/securitycenter.v1.json:"Simulation": {
+backend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/securitycenter.v1.json:"id": "Simulation",
+backend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/securitycenter.v1.json:"description": "Full resource name of the Simulation: `organizations/123/simulations/456`",
+backend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/orgpolicy.v2.json:"supportsSimulation": {
+backend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1.json:"accessPolicySimulations": {
+backend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1.json:"flatPath": "v1/folders/{foldersId}/locations/{locationsId}/accessPolicySimulations/{accessPolicySimulationsId}/operations/{operationsId}",
+[2025-10-20T15:27:26] tool wait success
+{"output":"🎯 ADK auto-sync aliases loaded!\n💡 Use 'sync' to sync with upstream anytime\n💡 Use 'synccheck' to check sync status\nbackend/smoke_tests.py:from app.wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer\nbackend/smoke_tests.py:    sim = WolfGoatPigSimulation(player_count=4, players=players)\nbackend/smoke_tests.py:    print(\"   ✓ Simulation created with 4 players\")\nbackend/smoke_tests.py:    sim = WolfGoatPigSimulation(player_count=4, players=players)\nbackend/smoke_tests.py:    sim = WolfGoatPigSimulation(player_count=4, players=players)\nbackend/smoke_tests.py:    sim = WolfGoatPigSimulation(player_count=4, players=players)\nbackend/smoke_tests.py:    sim = WolfGoatPigSimulation(player_count=4, players=players)\nbackend/smoke_tests.py:    sim = WolfGoatPigSimulation(player_count=4, players=players)\nbackend/smoke_tests.py:    sim = WolfGoatPigSimulation(player_count=4, players=players)\nbackend/smoke_tests.py:    runner.run_test(\"Basic Simulation Creation\", test_basic_simulation_creation)\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/securitycenter.v1.json:\"$ref\": \"Simulation\"\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/securitycenter.v1.json:\"Simulation\": {\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/securitycenter.v1.json:\"id\": \"Simulation\",\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/securitycenter.v1.json:\"description\": \"Full resource name of the Simulation: `organizations/123/simulations/456`\",\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/orgpolicy.v2.json:\"supportsSimulation\": {\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1.json:\"accessPolicySimulations\": {\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1.json:\"flatPath\": \"v1/folders/{foldersId}/locations/{locationsId}/accessPolicySimulations/{accessPolicySimulationsId}/operations/{operationsId}\",\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1.json:\"id\": \"policysimulator.folders.locations.accessPolicySimulations.operations.get\",\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1.json:\"pattern\": \"^folders/[^/]+/locations/[^/]+/accessPolicySimulations/[^/]+/operations/.*$\",\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1.json:\"accessPolicySimulations\": {\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1.json:\"flatPath\": \"v1/organizations/{organizationsId}/locations/{locationsId}/accessPolicySimulations/{accessPolicySimulationsId}/operations/{operationsId}\",\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1.json:\"id\": \"policysimulator.organizations.locations.accessPolicySimulations.operations.get\",\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1.json:\"pattern\": \"^organizations/[^/]+/locations/[^/]+/accessPolicySimulations/[^/]+/operations/.*$\",\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1.json:\"accessPolicySimulations\": {\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1.json:\"flatPath\": \"v1/projects/{projectsId}/locations/{locationsId}/accessPolicySimulations/{accessPolicySimulationsId}/operations/{operationsId}\",\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1.json:\"id\": \"policysimulator.projects.locations.accessPolicySimulations.operations.get\",\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1.json:\"pattern\": \"^projects/[^/]+/locations/[^/]+/accessPolicySimulations/[^/]+/operations/.*$\",\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1alpha.json:\"accessPolicySimulations\": {\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1alpha.json:\"flatPath\": \"v1alpha/folders/{foldersId}/locations/{locationsId}/accessPolicySimulations/{accessPolicySimulationsId}/operations/{operationsId}\",\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1alpha.json:\"id\": \"policysimulator.folders.locations.accessPolicySimulations.operations.get\",\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1alpha.json:\"pattern\": \"^folders/[^/]+/locations/[^/]+/accessPolicySimulations/[^/]+/operations/.*$\",\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1alpha.json:\"accessPolicySimulations\": {\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1alpha.json:\"flatPath\": \"v1alpha/organizations/{organizationsId}/locations/{locationsId}/accessPolicySimulations/{accessPolicySimulationsId}/operations/{operationsId}\",\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1alpha.json:\"id\": \"policysimulator.organizations.locations.accessPolicySimulations.operations.get\",\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1alpha.json:\"pattern\": \"^organizations/[^/]+/locations/[^/]+/accessPolicySimulations/[^/]+/operations/.*$\",\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1alpha.json:\"accessPolicySimulations\": {\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1alpha.json:\"flatPath\": \"v1alpha/projects/{projectsId}/locations/{locationsId}/accessPolicySimulations/{accessPolicySimulationsId}/operations/{operationsId}\",\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1alpha.json:\"id\": \"policysimulator.projects.locations.accessPolicySimulations.operations.get\",\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1alpha.json:\"pattern\": \"^projects/[^/]+/locations/[^/]+/accessPolicySimulations/[^/]+/operations/.*$\",\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1beta.json:\"accessPolicySimulations\": {\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1beta.json:\"flatPath\": \"v1beta/folders/{foldersId}/locations/{locationsId}/accessPolicySimulations/{accessPolicySimulationsId}/operations/{operationsId}\",\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1beta.json:\"id\": \"policysimulator.folders.locations.accessPolicySimulations.operations.get\",\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1beta.json:\"pattern\": \"^folders/[^/]+/locations/[^/]+/accessPolicySimulations/[^/]+/operations/.*$\",\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1beta.json:\"accessPolicySimulations\": {\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1beta.json:\"flatPath\": \"v1beta/organizations/{organizationsId}/locations/{locationsId}/accessPolicySimulations/{accessPolicySimulationsId}/operations/{operationsId}\",\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1beta.json:\"id\": \"policysimulator.organizations.locations.accessPolicySimulations.operations.get\",\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1beta.json:\"pattern\": \"^organizations/[^/]+/locations/[^/]+/accessPolicySimulations/[^/]+/operations/.*$\",\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1beta.json:\"accessPolicySimulations\": {\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1beta.json:\"flatPath\": \"v1beta/projects/{projectsId}/locations/{locationsId}/accessPolicySimulations/{accessPolicySimulationsId}/operations/{operationsId}\",\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1beta.json:\"id\": \"policysimulator.projects.locations.accessPolicySimulations.operations.get\",\nbackend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/policysimulator.v1beta.json:\"pattern\": \"^projects/[^/]+/locations/[^/]+/accessPolicySimulations/[^/]+/operations/.*$\",\nbackend/.venv-prod/lib/python3.13/site-packages/pygments/lexers/hdl.py:                # Simulation control tasks (20.2)\nbackend/.venv-prod/lib/python3.13/site-packages/pygments/lexers/hdl.py:                # Simulation time functions (20.3)\nbackend/.venv-prod/lib/python3.13/site-packages/pygments/lexers/_scilab_builtins.py:    'xcosSimulationStarted',\nBinary file backend/.venv-prod/lib/python3.13/site-packages/pygments/lexers/__pycache__/_scilab_builtins.cpython-313.pyc matches\nBinary file backend/.venv-prod/lib/python3.13/site-packages/numpy/random/_generator.cpython-313-darwin.so matches\nBinary file backend/.venv-prod/lib/python3.13/site-packages/numpy/random/mtrand.cpython-313-darwin.so matches\nbackend/backend.log:INFO:app.main:✅ Simulation initialization verified\nbackend/startup.py:        from app.wolf_goat_pig_simulation import WolfGoatPigSimulation\nbackend/startup.py:        # 3. Simulation engine\nbackend/startup.py:            test_sim = WolfGoatPigSimulation(player_count=4)\nbackend/startup.py:            logging.info(\"✅ Simulation engine health check passed\")\nbackend/startup.py:            logging.error(f\"❌ Simulation engine health check failed: {e}\")\nbackend/startup.py:            from app.wolf_goat_pig_simulation import WolfGoatPigSimulation\nbackend/startup.py:        # 3. Simulation engine check\nbackend/startup.py:            test_sim = WolfGoatPigSimulation(player_count=4)\nbackend/startup.py:            logger.info(\"✅ Simulation engine verified\")\nbackend/startup.py:            health_status[\"warnings\"].append(\"Simulation engine check failed\")\nbackend/startup.py:            logger.warning(f\"⚠️ Simulation engine check failed: {e}\")\nbackend/app/wolf_goat_pig_simulation.py:class WolfGoatPigSimulation:\nbackend/app/wolf_goat_pig_simulation.py:        new_sim = WolfGoatPigSimulation(player_count=len(wgp_players), players=wgp_players)\nbackend/app/models.py:class SimulationResult(Base):\nBinary file backend/app/__pycache__/main.cpython-313.pyc matches\nBinary file backend/app/__pycache__/schemas.cpython-313.pyc matches\nBinary file backend/app/__pycache__/schemas.cpython-312.pyc matches\nBinary file backend/app/__pycache__/main.cpython-312.pyc matches\nBinary file backend/app/__pycache__/wolf_goat_pig_simulation.cpython-312.pyc matches\nBinary file backend/app/__pycache__/wolf_goat_pig_simulation.cpython-313.pyc matches\nBinary file backend/app/__pycache__/models.cpython-312.pyc matches\nBinary file backend/app/__pycache__/models.cpython-313.pyc matches\nBinary file backend/app/__pycache__/simulation_timeline_enhancements.cpython-312.pyc matches\nBinary file backend/app/__pycache__/simulation_timeline_enhancements.cpython-313.pyc matches\nBinary file backend/app/__pycache__/simulation.cpython-312.pyc matches\nbackend/app/schemas.py:class SimulationCourseData(BaseModel):\nbackend/app/schemas.py:# Game Setup and Simulation Schemas\nbackend/app/simulation_timeline_enhancements.py:class SimulationTimelineManager:\nbackend/app/simulation_timeline_enhancements.py:        simulation.timeline_manager = SimulationTimelineManager()\nbackend/app/main.py:from .wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer, BallPosition, TeamFormation\nbackend/app/main.py:# Initialize Wolf Goat Pig Simulation (will be replaced when game starts)\nbackend/app/main.py:wgp_simulation = WolfGoatPigSimulation(player_count=4)\nbackend/app/main.py:class SimulationSeedRequest(BaseModel):\nbackend/app/main.py:    title=\"Wolf Goat Pig Golf Simulation API\",\nbackend/app/main.py:            test_simulation = WolfGoatPigSimulation(player_count=4)\nbackend/app/main.py:            logger.info(\"✅ Simulation initialization verified\")\nbackend/app/main.py:            logger.warning(f\"⚠️ Simulation test failed (non-critical): {e}\")\nbackend/app/main.py:        # 5. Simulation initialization test\nbackend/app/main.py:            test_simulation = WolfGoatPigSimulation(player_count=4)\nbackend/app/main.py:                \"message\": \"Simulation engine operational\"\nbackend/app/main.py:            logger.error(f\"Simulation initialization test failed: {e}\")\nbackend/app/main.py:                \"message\": f\"Simulation test failed: {str(e)}\"\nbackend/app/main.py:        from .services.monte_carlo import run_monte_carlo_simulation, SimulationParams\nbackend/app/main.py:            mc_params = SimulationParams()\nbackend/app/main.py:        total_simulations = db.query(models.SimulationResult).count()\nbackend/app/main.py:class SimulationSetupRequest(BaseModel):\nbackend/app/main.py:class SimulationPlayShotRequest(BaseModel):\nbackend/app/main.py:class SimulationPlayHoleRequest(BaseModel):\nbackend/app/main.py:        wgp_simulation = WolfGoatPigSimulation(\nbackend/app/main.py:        logger.info(\"Simulation setup completed successfully\")\nbackend/app/main.py:            \"message\": \"Simulation initialized successfully\",\nbackend/app/main.py:        logger.error(f\"Simulation setup failed: {e}\")\nbackend/app/main.py:def play_next_shot(request: SimulationPlayShotRequest = None):\nbackend/app/main.py:            raise HTTPException(status_code=400, detail=\"Simulation not initialized. Call /simulation/setup first.\")\nbackend/app/main.py:            raise HTTPException(status_code=400, detail=\"Simulation not initialized. Call /simulation/setup first.\")\nbackend/app/main.py:    def seed_simulation_state(payload: SimulationSeedRequest):\nbackend/app/main.py:            raise HTTPException(status_code=400, detail=\"Simulation not initialized. Call /simulation/setup first.\")\nbackend/app/main.py:        raise HTTPException(status_code=404, detail=\"Simulation not initialized\")\nbackend/app/main.py:            raise HTTPException(status_code=400, detail=\"Simulation not initialized\")\nbackend/app/main.py:            raise HTTPException(status_code=400, detail=\"Simulation not initialized\")\nbackend/app/main.py:            raise HTTPException(status_code=400, detail=\"Simulation not initialized\")\nbackend/app/main.py:            raise HTTPException(status_code=400, detail=\"Simulation not initialized\")\nbackend/app/main.py:            raise HTTPException(status_code=400, detail=\"Simulation not initialized\")\nbackend/app/main.py:            raise HTTPException(status_code=400, detail=\"Simulation not initialized\")\nbackend/app/services/monte_carlo.py:class SimulationParams:\nbackend/app/services/monte_carlo.py:class SimulationResult:\nbackend/app/services/monte_carlo.py:    def __init__(self, params: Optional[SimulationParams] = None):\nbackend/app/services/monte_carlo.py:        self.params = params or SimulationParams()\nbackend/app/services/monte_carlo.py:        params: Optional[SimulationParams] = None\nbackend/app/services/monte_carlo.py:    ) -> SimulationResult:\nbackend/app/services/monte_carlo.py:        params: SimulationParams,\nbackend/app/services/monte_carlo.py:    ) -> SimulationResult:\nbackend/app/services/monte_carlo.py:                    print(f\"Simulation batch failed: {e}\")\nbackend/app/services/monte_carlo.py:        params: SimulationParams,\nbackend/app/services/monte_carlo.py:    ) -> SimulationResult:\nbackend/app/services/monte_carlo.py:    ) -> SimulationResult:\nbackend/app/services/monte_carlo.py:            return SimulationResult(\n…truncated…\nreports/backend_dev.log:INFO:app.main:✅ Simulation initialization verified\nreports/backend_dev.log:INFO:app.main:Simulation setup completed successfully\nreports/backend_dev.log:ERROR:app.main:Simulation setup failed: 400: Missing player data\nreports/backend_dev.log:ERROR:app.main:Simulation setup failed: 400: Missing player data\nreports/backend_dev.log:ERROR:app.main:Simulation setup failed: 400: Missing player data\nreports/backend_dev.log:ERROR:app.main:Simulation setup failed: 400: At least 4 players required\nreports/backend_dev.log:INFO:app.main:Simulation setup completed successfully\nreports/backend_dev.log:INFO:app.main:Simulation setup completed successfully\nreports/backend_dev.log:INFO:app.main:Simulation setup completed successfully\nreports/backend_dev.log:INFO:app.main:Simulation setup completed successfully\nreports/backend_dev.log:ERROR:app.main:Simulation setup failed: 400: Missing player data\nreports/backend_dev.log:ERROR:app.main:Simulation setup failed: 400: Missing player data\nreports/backend_dev.log:ERROR:app.main:Simulation setup failed: 400: Missing player data\nreports/backend_dev.log:ERROR:app.main:Simulation setup failed: 400: At least 4 players required\nreports/backend_dev.log:INFO:app.main:Simulation setup completed successfully\nreports/backend_dev.log:INFO:app.main:Simulation setup completed successfully\nreports/backend_dev.log:INFO:app.main:Simulation setup completed successfully\nreports/backend_dev.log:INFO:app.main:Simulation setup completed successfully\nreports/backend_dev.log:INFO:app.main:Simulation setup completed successfully\nreports/backend_dev.log:ERROR:app.main:Simulation setup failed: 400: Missing player data\nreports/backend_dev.log:ERROR:app.main:Simulation setup failed: 400: Missing player data\nreports/backend_dev.log:ERROR:app.main:Simulation setup failed: 400: Missing player data\nreports/backend_dev.log:ERROR:app.main:Simulation setup failed: 400: At least 4 players required\nreports/backend_dev.log:INFO:app.main:Simulation setup completed successfully\nreports/backend_dev.log:INFO:app.main:Simulation setup completed successfully\nreports/backend_dev.log:INFO:app.main:Simulation setup completed successfully\nreports/backend_dev.log:INFO:app.main:Simulation setup completed successfully\nreports/backend_dev.log:ERROR:app.main:Simulation setup failed: 400: Missing player data\nreports/backend_dev.log:ERROR:app.main:Simulation setup failed: 400: Missing player data\nreports/backend_dev.log:ERROR:app.main:Simulation setup failed: 400: Missing player data\nreports/backend_dev.log:ERROR:app.main:Simulation setup failed: 400: At least 4 players required\nreports/backend_dev.log:INFO:app.main:Simulation setup completed successfully\nreports/backend_dev.log:INFO:app.main:Simulation setup completed successfully\nreports/backend_dev.log:INFO:app.main:Simulation setup completed successfully\nreports/backend_dev.log:INFO:app.main:Simulation setup completed successfully\nreports/backend_dev.log:INFO:app.main:Simulation setup completed successfully\nreports/backend_dev.log:INFO:app.main:Simulation setup completed successfully\nreports/backend_dev.log:ERROR:app.main:Simulation setup failed: 400: Missing player data\nreports/backend_dev.log:ERROR:app.main:Simulation setup failed: 400: Missing player data\nreports/backend_dev.log:ERROR:app.main:Simulation setup failed: 400: Missing player data\nreports/backend_dev.log:ERROR:app.main:Simulation setup failed: 400: At least 4 players required\nreports/backend_dev.log:INFO:app.main:Simulation setup completed successfully\nreports/backend_dev.log:INFO:app.main:Simulation setup completed successfully\nreports/backend_dev.log:INFO:app.main:Simulation setup completed successfully\n\n\n[Full output saved to: /Users/stuartgano/Documents/wolf-goat-pig/.code/agents/1/exec-call_GrPsFmQJoGktg4oG3SwXMnIx.txt]","metadata":{"exit_code":0,"duration_seconds":21.1}}
+[2025-10-20T15:27:26] tokens used: 11,473
+
+[2025-10-20T15:27:29] thinking
+
+**Filtering logs for relevance**
+[2025-10-20T15:27:30] exec bash -lc 'grep -R "Sunday" backend tests/backend docs/status reports' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:27:40] tokens used: 16,678
+
+[2025-10-20T15:27:43] thinking
+
+**Filtering search to project directories**
+[2025-10-20T15:27:44] exec bash -lc "grep -R \"Simulation\" backend tests/backend docs/status reports --exclude-dir='.venv-prod' --exclude-dir='test_env' --exclude-dir='__pycache__' --exclude-dir='node_modules'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:27:48] bash -lc "grep -R \"Simulation\" backend tests/backend docs/status reports --exclude-dir='.venv-prod' --exclude-dir='test_env' --exclude-dir='__pycache__' --exclude-dir='node_modules'" succeeded in 4.18s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+backend/smoke_tests.py:from app.wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer
+backend/smoke_tests.py:    sim = WolfGoatPigSimulation(player_count=4, players=players)
+backend/smoke_tests.py:    print("   ✓ Simulation created with 4 players")
+backend/smoke_tests.py:    sim = WolfGoatPigSimulation(player_count=4, players=players)
+backend/smoke_tests.py:    sim = WolfGoatPigSimulation(player_count=4, players=players)
+backend/smoke_tests.py:    sim = WolfGoatPigSimulation(player_count=4, players=players)
+backend/smoke_tests.py:    sim = WolfGoatPigSimulation(player_count=4, players=players)
+backend/smoke_tests.py:    sim = WolfGoatPigSimulation(player_count=4, players=players)
+backend/smoke_tests.py:    sim = WolfGoatPigSimulation(player_count=4, players=players)
+backend/smoke_tests.py:    runner.run_test("Basic Simulation Creation", test_basic_simulation_creation)
+backend/backend.log:INFO:app.main:✅ Simulation initialization verified
+backend/startup.py:        from app.wolf_goat_pig_simulation import WolfGoatPigSimulation
+backend/startup.py:        # 3. Simulation engine
+backend/startup.py:            test_sim = WolfGoatPigSimulation(player_count=4)
+backend/startup.py:            logging.info("✅ Simulation engine health check passed")
+backend/startup.py:            logging.error(f"❌ Simulation engine health check failed: {e}")
+backend/startup.py:            from app.wolf_goat_pig_simulation import WolfGoatPigSimulation
+[2025-10-20T15:27:48] tokens used: 19,026
+[2025-10-20T15:27:49] bash -lc 'grep -R "Sunday" backend tests/backend docs/status reports' succeeded in 18.77s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+backend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/spanner.v1.json:"description": "Required. Textual representation of the crontab. User can customize the backup frequency and the backup version time using the cron expression. The version time must be in UTC timezone. The backup will contain an externally consistent copy of the database at the version time. Full backups must be scheduled a minimum of 12 hours apart and incremental backups must be scheduled a minimum of 4 hours apart. Examples of valid cron specifications: * `0 2/12 * * *` : every 12 hours at (2, 14) hours past midnight in UTC. * `0 2,14 * * *` : every 12 hours at (2, 14) hours past midnight in UTC. * `0 */4 * * *` : (incremental backups only) every 4 hours at (0, 4, 8, 12, 16, 20) hours past midnight in UTC. * `0 2 * * *` : once a day at 2 past midnight in UTC. * `0 2 * * 0` : once a week every Sunday at 2 past midnight in UTC. * `0 2 8 * *` : once a month on 8th day at 2 past midnight in UTC.",
+backend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/sheets.v4.json:"Group dates by day of week, for example Sunday. The days of the week will be translated based on the spreadsheet locale.",
+backend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/sheets.v4.json:"Sunday"
+backend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/sheets.v4.json:"Group dates by day of week, for example Sunday. The days of the week will be translated based on the spreadsheet locale.",
+backend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/businessprofileperformance.v1.json:"Sunday"
+backend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/businessprofileperformance.v1.json:"Sunday"
+backend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/composer.v1.json:"description": "Optional. The maintenance window is the period when Cloud Composer components may undergo maintenance. It is defined so that maintenance is not executed during peak hours or critical time periods. The system will not be under maintenance for every occurrence of this window, but when maintenance is planned, it will be scheduled during the window. The maintenance window period must encompass at least 12 hours per week. This may be split into multiple chunks, each with a size of at least 4 hours. If this value is omitted, the default value for maintenance window is applied. By default, maintenance windows are from 00:00:00 to 04:00:00 (GMT) on Friday, Saturday, and Sunday every week."
+backend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/osconfig.v1beta.json:"description": "Represents one week day in a month. An example is \"the 4th Sunday\".",
+backend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/osconfig.v1beta.json:"Sunday"
+backend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/osconfig.v1beta.json:"Sunday"
+backend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/metastore.v1beta.json:"Sunday"
+backend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/authorizedbuyersmarketplace.v1alpha.json:"Sunday"
+backend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/merchantapi.datasources_v1.json:"Sunday"
+backend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/mybusinessbusinessinformation.v1.json:"Sunday"
+backend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/mybusinessbusinessinformation.v1.json:"Sunday"
+backend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/alloydb.v1beta.json:"Sunday"
+backend/.venv-prod/lib/python3.13/site-packages/googleapiclient/discovery_cache/documents/alloydb.v1beta.json:"Sunday"
+[2025-10-20T15:27:49] grep -R "Sunday" backend tests/backend docs/status reports completed in background
+
+[2025-10-20T15:27:51] thinking
+
+**Searching for "Sunday" references**
+[2025-10-20T15:27:52] exec bash -lc "grep -R \"Sunday Game\" -n backend tests/backend docs/status reports --exclude-dir='.venv-prod' --exclude-dir='test_env' --exclude-dir='__pycache__' --exclude-dir='node_modules'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:27:56] bash -lc "grep -R \"Sunday Game\" -n backend tests/backend docs/status reports --exclude-dir='.venv-prod' --exclude-dir='test_env' --exclude-dir='__pycache__' --exclude-dir='node_modules'" exited 1 in 4.44s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+
+ERROR
+/opt/homebrew/Library/Homebrew/brew.sh: line 60: cannot create temp file for here document: Operation not permitted
+/opt/homebrew/Library/Homebrew/cmd/shellenv.sh: line 18: /bin/ps: Operation not permitted
+[2025-10-20T15:27:56] tokens used: 24,565
+
+[2025-10-20T15:28:03] thinking
+
+**Narrowing search scope for Sunday Game**
+[2025-10-20T15:28:04] exec bash -lc "grep -R -n \"Sunday\" backend/app backend/tests docs/status reports --exclude-dir='.venv-prod' --exclude-dir='venv' --exclude-dir='__pycache__'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:28:06] bash -lc "grep -R -n \"Sunday\" backend/app backend/tests docs/status reports --exclude-dir='.venv-prod' --exclude-dir='venv' --exclude-dir='__pycache__'" succeeded in 1.59s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+backend/app/models.py:168:    day_of_week = Column(Integer)  # 0=Monday, 1=Tuesday, ..., 6=Sunday
+backend/app/models.py:237:    day_of_week = Column(Integer)  # 0=Monday, 6=Sunday
+backend/app/schemas.py:422:            raise ValueError('Day of week must be between 0 (Monday) and 6 (Sunday)')
+backend/app/main.py:6156:    num_rotations: int = Query(3, description="Number of Sunday pairing options to generate"),
+backend/app/main.py:6159:    """Generate randomized Sunday game pairings with optional deterministic seeding."""
+backend/app/main.py:6193:        logger.error(f"Error generating Sunday game pairings for {date}: {e}")
+backend/app/main.py:6194:        raise HTTPException(status_code=500, detail=f"Failed to generate Sunday pairings: {str(e)}")
+backend/app/main.py:6640:        preferred_days: Comma-separated list of preferred days (0=Monday, 6=Sunday)
+backend/app/services/matchmaking_service.py:88:            preferred_days: List of preferred days of week (0=Monday, 6=Sunday)
+backend/app/services/matchmaking_service.py:213:                     'Friday', 'Saturday', 'Sunday']
+backend/app/services/sunday_game_service.py:1:"""Utility functions for preparing Sunday game pairings with randomness support."""
+backend/app/services/sunday_game_service.py:50:    """Generate randomized Sunday pairings and select one rotation when multiple exist."""
+backend/app/services/sunday_game_service.py:52:        logger.info("Sunday pairings requested with insufficient players: %s", len(players))
+backend/app/services/sunday_game_service.py:86:        "Generated %s Sunday rotations (seed=%s). Selected rotation %s.",
+backend/app/services/email_scheduler.py:43:        # Schedule weekly summaries on Sunday at 9 AM
+backend/tests/test_sunday_game_service.py:1:"""Tests for Sunday game pairing logic and related randomization helpers."""
+[2025-10-20T15:28:06] tokens used: 42,168
+
+[2025-10-20T15:28:14] thinking
+
+**Examining simulation-related code**
+[2025-10-20T15:28:15] exec bash -lc "grep -n \"@app.post\\(\" backend/app/main.py | head" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:28:16] bash -lc "grep -n \"@app.post\\(\" backend/app/main.py | head" succeeded in 1.30s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+[2025-10-20T15:28:16] tokens used: 44,098
+
+[2025-10-20T15:28:20] thinking
+
+**Reviewing string escaping in code**
+[2025-10-20T15:28:21] exec bash -lc 'grep -n "@app.post(" backend/app/main.py' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:28:22] bash -lc 'grep -n "@app.post(" backend/app/main.py' succeeded in 1.04s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+756:@app.post("/courses", response_model=dict)
+787:@app.post("/courses/import/search")
+797:@app.post("/courses/import/file")
+835:@app.post("/courses/import/preview")
+893:@app.post("/ghin/sync-player-handicap/{player_id}", response_model=Dict[str, Any])
+1039:@app.post("/game/action")
+1085:@app.post("/game/start")
+1094:@app.post("/game/setup")
+1115:@app.post("/wgp/{game_id}/action", response_model=ActionResponse)
+2295:@app.post("/wgp/shot-range-analysis")
+2357:@app.post("/wgp/calculate-odds", response_model=OddsCalculationResponse)
+2524:@app.post("/wgp/quick-odds")
+2622:@app.post("/players", response_model=schemas.PlayerProfileResponse)
+3003:@app.post("/ghin/sync-handicaps")
+3125:@app.post("/game-results")
+3193:@app.post("/sheet-integration/analyze-structure")
+3224:@app.post("/sheet-integration/create-leaderboard")
+[2025-10-20T15:28:22] tokens used: 44,437
+
+[2025-10-20T15:28:25] thinking
+
+**Extracting simulation endpoint code segment**
+[2025-10-20T15:28:26] exec bash -lc "nl -ba backend/app/main.py | sed -n '4240,4705p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:28:27] bash -lc "nl -ba backend/app/main.py | sed -n '4240,4705p'" succeeded in 1.03s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+  4240	        if distance < 100:
+  4241	            base_distribution["excellent"] *= 1.1
+  4242	            base_distribution["good"] *= 1.05
+  4243	            base_distribution["poor"] *= 0.9
+  4244	        elif distance > 200:
+  4245	            base_distribution["excellent"] *= 0.85
+  4246	            base_distribution["good"] *= 0.9
+  4247	            base_distribution["poor"] *= 1.1
+  4248	            base_distribution["disaster"] *= 1.15
+  4249	
+  4250	    if lie_type in {"tee"}:
+  4251	        base_distribution["excellent"] *= 1.2
+  4252	        base_distribution["good"] *= 1.1
+  4253	        base_distribution["poor"] *= 0.8
+  4254	        base_distribution["disaster"] *= 0.6
+  4255	    elif lie_type in {"rough", "deep_rough"}:
+  4256	        base_distribution["excellent"] *= 0.7
+[2025-10-20T15:28:27] tokens used: 45,409
+
+[2025-10-20T15:28:30] thinking
+
+**Gathering Sunday pairings section**
+[2025-10-20T15:28:31] exec bash -lc "nl -ba backend/app/main.py | sed -n '6120,6205p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:28:32] bash -lc "nl -ba backend/app/main.py | sed -n '6120,6205p'" succeeded in 1.40s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+  6120	            raise HTTPException(
+  6121	                status_code=400,
+  6122	                detail=f"Not enough players signed up for {date}. Need at least 4 players, found {len(signups)}"
+  6123	            )
+  6124	        
+  6125	        # Convert signups to player dictionaries
+  6126	        players = _build_player_payload(signups)
+  6127	        
+  6128	        # Generate team rotations
+  6129	        rotations = TeamFormationService.create_team_pairings_with_rotations(
+  6130	            players=players,
+  6131	            num_rotations=num_rotations,
+  6132	            seed=seed
+  6133	        )
+  6134	        
+  6135	        logger.info(f"Generated {len(rotations)} team rotations for date {date}")
+  6136	        
+[2025-10-20T15:28:32] tokens used: 52,759
+
+[2025-10-20T15:28:35] thinking
+
+**Inspecting Sunday game service file**
+[2025-10-20T15:28:36] exec bash -lc 'nl -ba backend/app/services/sunday_game_service.py' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:28:38] bash -lc 'nl -ba backend/app/services/sunday_game_service.py' succeeded in 1.96s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+     1	"""Utility functions for preparing Sunday game pairings with randomness support."""
+     2	
+     3	import logging
+     4	import os
+     5	from random import Random, SystemRandom
+     6	from typing import Dict, List, Optional
+     7	
+     8	from .team_formation_service import TeamFormationService
+     9	
+    10	logger = logging.getLogger(__name__)
+    11	
+    12	SUNDAY_GAME_SEED_ENV = "SUNDAY_GAME_RANDOM_SEED"
+    13	
+    14	
+    15	def _resolve_seed(explicit_seed: Optional[int]) -> Optional[int]:
+    16	    """Determine the random seed from an explicit value or environment variable."""
+    17	    if explicit_seed is not None:
+[2025-10-20T15:28:38] tokens used: 55,250
+
+[2025-10-20T15:28:40] thinking
+
+**Investigating helper removal impact**
+[2025-10-20T15:28:41] exec bash -lc 'nl -ba backend/tests/test_sunday_game_service.py' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:28:42] bash -lc 'nl -ba backend/tests/test_sunday_game_service.py' succeeded in 1.12s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+     1	"""Tests for Sunday game pairing logic and related randomization helpers."""
+     2	
+     3	import copy
+     4	
+     5	from backend.app.services import sunday_game_service
+     6	from backend.app.services.team_formation_service import TeamFormationService
+     7	
+     8	
+     9	def _make_players(count: int):
+    10	    """Create synthetic signup payloads for testing team formation."""
+    11	    players = []
+    12	    for idx in range(count):
+    13	        players.append({
+    14	            "id": idx + 1,
+    15	            "player_profile_id": idx + 1,
+    16	            "player_name": f"Player {idx + 1}",
+    17	            "preferred_start_time": None,
+[2025-10-20T15:28:42] tokens used: 56,997
+
+[2025-10-20T15:28:45] thinking
+
+**Checking simulation test documentation**
+[2025-10-20T15:28:46] exec bash -lc 'ls docs/status' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:28:47] bash -lc 'ls docs/status' succeeded in 1.05s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+current-state.md
+[2025-10-20T15:28:47] tokens used: 58,336
+
+[2025-10-20T15:28:50] thinking
+
+**Opening documentation**
+[2025-10-20T15:28:51] exec bash -lc 'cat -n docs/status/current-state.md' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:28:53] bash -lc 'cat -n docs/status/current-state.md' succeeded in 1.43s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+     1	# Current Project Status
+     2	
+     3	_Last updated: 2025-10-12_
+     4	
+     5	This document captures the real-world status of the Wolf Goat Pig stack so contributors can quickly understand what works, what is flaky, and the next cleanup priorities.
+     6	
+     7	## High-level summary
+     8	
+     9	- ✅ Repository layout has been normalized; reference documentation now lives under `docs/` with clear categories.
+    10	- ⚠️ `start_simulation.py` now auto-installs backend dependencies and configures `.env` defaults, but it needs internet access to pull packages on a fresh environment.
+    11	- ⚠️ Backend test execution expects Python 3.12.0 (via Pyenv); the version is missing in clean environments, so `pytest` fails until Pyenv is configured.
+    12	- ❓ Frontend build/test status is currently unverified—run `npm test` and `npm run build` after reinstalling dependencies to confirm.
+    13	
+    14	## Backend checklist
+    15	
+    16	| Item | Status | Notes |
+    17	| ---- | ------ | ----- |
+[2025-10-20T15:28:53] tokens used: 59,277
+
+[2025-10-20T15:28:55] thinking
+
+**Checking reports directory**
+[2025-10-20T15:28:56] exec bash -lc 'ls reports' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:28:57] bash -lc 'ls reports' succeeded in 972ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+backend_dev.log
+backend_unit_tests.html
+frontend_dev.log
+test_summary.md
+test.db
+wolf_goat_pig.db
+[2025-10-20T15:28:57] tokens used: 60,660
+
+[2025-10-20T15:29:01] thinking
+
+**Checking test summary report**
+[2025-10-20T15:29:02] exec bash -lc 'cat -n reports/test_summary.md' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:29:02] bash -lc 'cat -n reports/test_summary.md' succeeded in 904ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+     1	# Simulation Mode Test Results
+     2	
+     3	## Test Summary
+     4	- ✅ Backend Unit Tests: PASSED
+     5	- ✅ Backend Endpoint Tests: PASSED  
+     6	- ✅ Frontend Unit Tests: PASSED
+     7	- ✅ Functional Tests: PASSED
+     8	- ✅ End-to-End Tests: PASSED
+     9	
+    10	## Test Coverage
+    11	- **Unit Tests**: Individual components and functions
+    12	- **Integration Tests**: API endpoint functionality
+    13	- **Functional Tests**: End-to-end workflows
+    14	- **E2E Tests**: Complete user scenarios
+    15	
+    16	## Status
+    17	🎉 **ALL TESTS PASSED** - Simulation mode is ready for production use.
+[2025-10-20T15:29:02] tokens used: 60,914
+
+[2025-10-20T15:29:06] thinking
+
+**Checking backend_dev.log for errors**
+[2025-10-20T15:29:07] exec bash -lc 'grep -n "ERROR" reports/backend_dev.log | head' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:29:08] bash -lc 'grep -n "ERROR" reports/backend_dev.log | head' succeeded in 1.55s:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+28695:ERROR:app.main:Error finding match suggestions: name 'timedelta' is not defined
+28696:ERROR:app.main:Error in create and notify matches: 500: Failed to find matches: name 'timedelta' is not defined
+28697:ERROR:app.main:HTTP exception: 500 - Failed to create and notify matches: 500: Failed to find matches: name 'timedelta' is not defined
+28698:ERROR:app.main:Request Host header: localhost:8000
+28699:ERROR:app.main:Request Client host: 127.0.0.1
+28701:ERROR:app.services.email_scheduler:Matchmaking endpoint returned status 500
+317677:ERROR:app.main:Error fetching Google Sheet: 
+317678:ERROR:app.main:HTTP exception: 400 - Failed to fetch sheet: 
+317679:ERROR:app.main:Request Host header: localhost:8000
+317680:ERROR:app.main:Request Client host: 127.0.0.1
+[2025-10-20T15:29:08] tokens used: 61,398
+
+[2025-10-20T15:29:11] thinking
+
+**Searching for simulation errors**
+[2025-10-20T15:29:12] exec bash -lc 'grep -n "Simulation setup failed" reports/backend_dev.log | head' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:29:13] bash -lc 'grep -n "Simulation setup failed" reports/backend_dev.log | head' succeeded in 998ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+329595:ERROR:app.main:Simulation setup failed: 400: Missing player data
+329601:ERROR:app.main:Simulation setup failed: 400: Missing player data
+329607:ERROR:app.main:Simulation setup failed: 400: Missing player data
+329613:ERROR:app.main:Simulation setup failed: 400: At least 4 players required
+329668:ERROR:app.main:Simulation setup failed: 400: Missing player data
+329674:ERROR:app.main:Simulation setup failed: 400: Missing player data
+329680:ERROR:app.main:Simulation setup failed: 400: Missing player data
+329686:ERROR:app.main:Simulation setup failed: 400: At least 4 players required
+329748:ERROR:app.main:Simulation setup failed: 400: Missing player data
+329754:ERROR:app.main:Simulation setup failed: 400: Missing player data
+[2025-10-20T15:29:13] tokens used: 61,885
+
+[2025-10-20T15:29:17] thinking
+
+**Preparing error and test failure details**
+[2025-10-20T15:29:18] exec bash -lc 'cat backend/.pytest_cache/v/cache/lastfailed' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:29:19] bash -lc 'cat backend/.pytest_cache/v/cache/lastfailed' succeeded in 786ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+{
+  "tests/test_bootstrapping.py::TestDatabaseBootstrapping::test_database_initialization_resilience": true,
+  "tests/test_bootstrapping.py::TestDataSeeding::test_seeding_error_handling": true,
+  "tests/test_bootstrapping.py::TestApplicationStartup::test_startup_with_healthy_system": true,
+  "tests/test_bootstrapping.py::TestApplicationStartup::test_startup_with_missing_data": true,
+  "tests/test_bootstrapping.py::TestApplicationStartup::test_startup_error_resilience": true,
+  "tests/test_bootstrapping.py::TestApplicationStartup::test_seeding_process_execution": true,
+  "tests/test_bootstrapping.py::TestApplicationStartup::test_skip_seeding_environment_variable": true,
+  "tests/test_bootstrapping.py::TestHealthChecks::test_health_check_database_failure": true,
+  "tests/test_bootstrapping.py::TestGameInitializationResilience::test_game_initialization_with_valid_data": true,
+  "tests/test_bootstrapping.py::TestGameInitializationResilience::test_game_initialization_critical_failure": true,
+  "tests/test_bootstrapping.py::TestSystemRecovery::test_database_resilience": true,
+  "tests/test_api_integration.py::TestHealthAndStatus::test_status_endpoint_with_details": true,
+  "tests/test_api_integration.py::TestHealthAndStatus::test_metrics_endpoint": true,
+  "tests/test_api_integration.py::TestPlayerProfileAPI::test_create_player_profile_success": true,
+  "tests/test_api_integration.py::TestPlayerProfileAPI::test_create_player_profile_validation_error": true,
+  "tests/test_api_integration.py::TestPlayerProfileAPI::test_get_player_profile_success": true,
+[2025-10-20T15:29:19] tokens used: 62,370
+
+[2025-10-20T15:29:22] thinking
+
+**Examining relevant test failures**
+[2025-10-20T15:29:23] exec bash -lc "nl -ba backend/tests/test_simulation_integration.py | sed -n '1,200p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:29:24] bash -lc "nl -ba backend/tests/test_simulation_integration.py | sed -n '1,200p'" succeeded in 788ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+     1	"""
+     2	Integration tests for simulation endpoints and flow.
+     3	Tests the complete simulation lifecycle including setup, gameplay, and completion.
+     4	"""
+     5	
+     6	import pytest
+     7	import json
+     8	from fastapi.testclient import TestClient
+     9	from app.main import app
+    10	
+    11	client = TestClient(app)
+    12	
+    13	class TestSimulationIntegration:
+    14	    """Test simulation endpoints integration"""
+    15	    
+    16	    def test_simulation_setup_success(self):
+    17	        """Test successful simulation setup"""
+[2025-10-20T15:29:24] tokens used: 67,117
+
+[2025-10-20T15:29:28] thinking
+
+**Evaluating test failures and helper removal**
+[2025-10-20T15:29:29] exec bash -lc "nl -ba backend/app/wolf_goat_pig_simulation.py | sed -n '1,200p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:29:30] bash -lc "nl -ba backend/app/wolf_goat_pig_simulation.py | sed -n '1,200p'" succeeded in 771ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+     1	import random
+     2	import math
+     3	from typing import Dict, List, Tuple, Optional, Any, Union
+     4	from dataclasses import dataclass, field
+     5	from enum import Enum
+     6	import logging
+     7	from copy import deepcopy
+     8	from datetime import datetime
+     9	
+    10	logger = logging.getLogger(__name__)
+    11	
+    12	class GamePhase(Enum):
+    13	    """Game phases according to Wolf Goat Pig rules"""
+    14	    REGULAR = "regular"
+    15	    VINNIE_VARIATION = "vinnie_variation"  # Holes 13-16 in 4-man game
+    16	    HOEPFINGER = "hoepfinger"  # Final holes with Goat choosing position
+    17	
+[2025-10-20T15:29:30] tokens used: 69,181
+
+[2025-10-20T15:29:34] thinking
+
+**Investigating matchmaking_service for Sunday references**
+[2025-10-20T15:29:34] exec bash -lc "nl -ba backend/app/services/matchmaking_service.py | sed -n '60,160p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:29:35] bash -lc "nl -ba backend/app/services/matchmaking_service.py | sed -n '60,160p'" succeeded in 821ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+    60	                earliest_end = end
+    61	        
+    62	        # Check if there's actual overlap
+    63	        if latest_start and earliest_end and latest_start < earliest_end:
+    64	            return (latest_start, earliest_end)
+    65	        
+    66	        return None
+    67	    
+    68	    @staticmethod
+    69	    def calculate_overlap_duration(start: time, end: time) -> float:
+    70	        """Calculate duration of overlap in hours."""
+    71	        start_delta = timedelta(hours=start.hour, minutes=start.minute)
+    72	        end_delta = timedelta(hours=end.hour, minutes=end.minute)
+    73	        duration = end_delta - start_delta
+    74	        return duration.total_seconds() / 3600
+    75	    
+    76	    @staticmethod
+[2025-10-20T15:29:35] tokens used: 73,525
+
+[2025-10-20T15:29:42] thinking
+
+**Identifying potential import issues and config changes**
+[2025-10-20T15:29:43] exec bash -lc 'grep -n "Sunday" backend/.env.example' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:29:43] bash -lc 'grep -n "Sunday" backend/.env.example' succeeded in 766ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+90:# Sunday game configuration
+[2025-10-20T15:29:43] tokens used: 75,338
+
+[2025-10-20T15:29:45] thinking
+
+**Checking code lines**
+[2025-10-20T15:29:46] exec bash -lc "nl -ba backend/.env.example | sed -n '90,120p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:29:47] bash -lc "nl -ba backend/.env.example | sed -n '90,120p'" succeeded in 743ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+    90	# Sunday game configuration
+    91	SUNDAY_GAME_RANDOM_SEED=
+    92	
+    93	# =============================================================================
+    94	# DEPLOYMENT SETTINGS
+    95	# =============================================================================
+    96	
+    97	# Render.com specific settings
+    98	RENDER=false
+    99	RENDER_EXTERNAL_HOSTNAME=
+   100	
+   101	# Health check settings
+   102	HEALTH_CHECK_TIMEOUT=30
+   103	
+   104	# =============================================================================
+   105	# DEVELOPMENT SETTINGS
+   106	# =============================================================================
+[2025-10-20T15:29:47] tokens used: 76,426
+
+[2025-10-20T15:29:49] thinking
+
+**Checking configuration and searching docs for Sunday**
+[2025-10-20T15:29:50] exec bash -lc 'grep -R -n "Sunday" docs' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:29:51] bash -lc 'grep -R -n "Sunday" docs' exited 1 in 818ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+
+ERROR
+[2025-10-20T15:29:51] tokens used: 77,901
+
+[2025-10-20T15:29:55] thinking
+
+**Noting test report and log issues**
+[2025-10-20T15:29:56] exec bash -lc 'grep -n "FAIL" reports/backend_unit_tests.html | head' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:29:56] bash -lc 'grep -n "FAIL" reports/backend_unit_tests.html | head' succeeded in 748ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+[2025-10-20T15:29:56] tokens used: 78,549
+
+[2025-10-20T15:30:00] thinking
+
+**Assessing test failures and service impact**
+[2025-10-20T15:30:01] exec bash -lc "nl -ba backend/app/services/team_formation_service.py | sed -n '1,240p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:30:02] bash -lc "nl -ba backend/app/services/team_formation_service.py | sed -n '1,240p'" succeeded in 799ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+     1	"""
+     2	Random team formation service for creating balanced 4-player groups from daily signups.
+     3	Handles scenarios where more than 4 players are signed up for a given day.
+     4	"""
+     5	
+     6	from typing import List, Dict, Optional, Tuple
+     7	from random import Random, SystemRandom
+     8	import logging
+     9	from datetime import datetime
+    10	from itertools import combinations
+    11	
+    12	logger = logging.getLogger(__name__)
+    13	
+    14	class TeamFormationService:
+    15	    """Service for creating random team formations from daily signups."""
+    16	    
+    17	    @staticmethod
+[2025-10-20T15:30:02] tokens used: 78,872
+
+[2025-10-20T15:30:09] thinking
+
+**Documenting removal impact and risks**
+[2025-10-20T15:30:10] exec bash -lc "nl -ba backend/app/main.py | sed -n '60,200p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:30:11] bash -lc "nl -ba backend/app/main.py | sed -n '60,200p'" succeeded in 865ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+    60	class ActionResponse(BaseModel):
+    61	    """Standard response structure for all actions"""
+    62	    game_state: Dict[str, Any]
+    63	    log_message: str
+    64	    available_actions: List[Dict[str, Any]]
+    65	    timeline_event: Optional[Dict[str, Any]] = None
+    66	
+    67	# Course management models
+    68	class CourseCreate(BaseModel):
+    69	    name: str
+    70	    holes: List[Dict[str, Any]]
+    71	
+    72	class CourseUpdate(BaseModel):
+    73	    holes: List[Dict[str, Any]]
+    74	
+    75	class CourseImportRequest(BaseModel):
+    76	    course_name: str
+[2025-10-20T15:30:11] tokens used: 82,230
+
+[2025-10-20T15:30:13] thinking
+
+**Searching for global placeholder in wgp simulation**
+[2025-10-20T15:30:20] exec bash -lc 'grep -n "wgp_simulation" backend/app/main.py | head' in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:30:21] bash -lc 'grep -n "wgp_simulation" backend/app/main.py | head' succeeded in 773ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+50:wgp_simulation = WolfGoatPigSimulation(player_count=4)
+975:        simulation_state = wgp_simulation.get_game_state()
+1267:                wgp_simulation.__init__(player_count=len(wgp_players), players=wgp_players, course_manager=game_state.course_manager)
+1273:                    wgp_simulation.__init__(player_count=len(wgp_players), players=wgp_players)
+1277:                    wgp_simulation.__init__(player_count=len(wgp_players))
+1283:                wgp_simulation.set_computer_players(computer_player_ids)
+1291:                wgp_simulation._initialize_hole(1)
+1299:                wgp_simulation.enable_shot_progression()
+1307:                if hasattr(wgp_simulation, 'hole_progression') and wgp_simulation.hole_progression:
+1308:                    wgp_simulation.hole_progression.add_timeline_event(
+[2025-10-20T15:30:21] tokens used: 84,469
+
+[2025-10-20T15:30:27] thinking
+
+**Preparing risk summary notes**
+[2025-10-20T15:30:28] exec bash -lc "nl -ba backend/app/simulation_timeline_enhancements.py | sed -n '1,200p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:30:29] bash -lc "nl -ba backend/app/simulation_timeline_enhancements.py | sed -n '1,200p'" succeeded in 826ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+     1	"""
+     2	Timeline enhancements for Wolf-Goat-Pig simulation
+     3	Adds proper timeline tracking and poker-style betting visualization
+     4	"""
+     5	
+     6	from typing import Dict, List, Any, Optional
+     7	from datetime import datetime
+     8	from dataclasses import dataclass, field
+     9	import logging
+    10	
+    11	logger = logging.getLogger(__name__)
+    12	
+    13	@dataclass
+    14	class EnhancedTimelineEvent:
+    15	    """Enhanced timeline event with poker-style formatting"""
+    16	    id: str
+    17	    timestamp: datetime
+[2025-10-20T15:30:29] tokens used: 84,996
+
+[2025-10-20T15:30:54] thinking
+
+**Summarizing simulation and Sunday game risks**
+
+I’m compiling concise bullet points addressing hooking risks after helper removal, global simulation usage, and concurrency concerns. I’ll reference log errors like `reports/backend_dev.log:329595`, failing test entries in `backend/.pytest_cache/v/cache/lastfailed` including simulation-specific ones (e.g., line 83), and note missing imports causing runtime errors in services like matchmaking. I’ll also outline Sunday game endpoints and service features with their test status, encapsulating all into clear, informative bullets with file:line citations.
+[2025-10-20T15:30:56] exec bash -lc "nl -ba backend/.pytest_cache/v/cache/lastfailed | sed -n '80,120p'" in /Users/stuartgano/Documents/wolf-goat-pig/.
+[2025-10-20T15:30:57] bash -lc "nl -ba backend/.pytest_cache/v/cache/lastfailed | sed -n '80,120p'" succeeded in 791ms:
+🎯 ADK auto-sync aliases loaded!
+💡 Use 'sync' to sync with upstream anytime
+💡 Use 'synccheck' to check sync status
+    80	  "tests/test_player_profiles.py::TestConcurrencyAndEdgeCases::test_extreme_statistics_values": true,
+    81	  "tests/test_player_profiles.py::TestConcurrencyAndEdgeCases::test_data_persistence_across_sessions": true,
+    82	  "tests/test_simulation_integration.py::TestSimulationIntegration::test_simulation_setup_invalid_players": true,
+    83	  "tests/test_simulation_integration.py::TestSimulationIntegration::test_play_next_shot_without_setup": true,
+    84	  "tests/test_models_schemas.py::TestDatabaseModels::test_player_profile_model_creation": true,
+    85	  "tests/test_models_schemas.py::TestPlayerSchemas::test_game_player_result_create_validation": true,
+    86	  "tests/test_models_schemas.py::TestSchemaConversions::test_player_statistics_response_schema": true,
+    87	  "tests/test_models_schemas.py::TestDataIntegrity::test_player_statistics_consistency": true,
+    88	  "tests/test_player_service.py::TestPlayerProfileCRUD::test_create_player_profile_success": true,
+    89	  "tests/test_player_service.py::TestGameResultRecording::test_record_game_result_success": true,
+    90	  "tests/test_player_service.py::TestGameResultRecording::test_record_game_result_new_statistics": true,
+    91	  "tests/test_player_service.py::TestGameResultRecording::test_update_player_statistics_calculations": true,
+    92	  "tests/test_player_service.py::TestGameResultRecording::test_performance_trends_tracking": true,
+    93	  "tests/test_player_service.py::TestPerformanceAnalytics::test_get_player_performance_analytics_no_profile": true,
+    94	  "tests/test_player_service.py::TestPerformanceAnalytics::test_generate_improvement_recommendations": true,
+    95	  "tests/test_player_service.py::TestLeaderboard::test_get_leaderboard_success": true,
+    96	  "tests/test_player_service.py::TestAchievementSystem::test_check_and_award_achievements_first_win": true,
+[2025-10-20T15:30:57] tokens used: 89,150
+
+[2025-10-20T15:31:09] thinking
+
+**Preparing final report structure**
+
+I’m laying out the final message with two headers—Simulation and Sunday Game—each followed immediately by bullet points referencing specific code lines, logs, config files, and test statuses. I’ll include detailed notes on concurrency risks, 400 errors, seed configs, and any test failures to ensure the message meets all the formatting and content guidelines.
+[2025-10-20T15:31:10] codex
+
+**Simulation**
+- `backend/app/main.py:50` – Global `wgp_simulation = WolfGoatPigSimulation(player_count=4)` is still initialized at import; with the helper gone there’s no per-request isolation, so concurrent callers will mutate shared state.
+- `backend/app/main.py:4273` – `/simulation/setup` now normalizes both `{human_player, computer_players}` and legacy `{players}` payloads, re-wraps the engine with `enhance_simulation_with_timeline`, and hard-fails when <4 players or >6; the repeated 400s in `reports/backend_dev.log:329595` and `:329613` show the frontend is still hitting those validation branches.
+- `backend/app/main.py:4394` & `4466` – `/simulation/play-next-shot` and `/simulation/play-hole` depend on the global instance and undocumented `_get_*` internals; without the removed helper guarding flow, any lost initialization still yields 500s (see `reports/backend_dev.log:329690` for setup cascades).
+- `backend/app/simulation_timeline_enhancements.py:110` – Timeline enhancer monkey-patches `request_partner`, `go_solo`, and `simulate_shot`; if newly added engine methods aren’t wrapped, betting/shot timelines will silently miss events.
+- `backend/.pytest_cache/v/cache/lastfailed:82-83` – Pytest cache records failures for `tests/test_simulation_integration.py::test_simulation_setup_invalid_players` and `::test_play_next_shot_without_setup`; rerun after addressing the helper removal fallout.
+
+**Sunday Game**
+- `backend/app/main.py:6153` – `/signups/{date}/sunday-game/pairings` now calls `generate_sunday_pairings`, returning deterministic rotations plus `remaining_players`; keeps 400 guard for <4 signups.
+- `backend/app/services/sunday_game_service.py:44-99` – New service resolves seeds from query or `SUNDAY_GAME_RANDOM_SEED`, fans out to `TeamFormationService`, and randomly selects a rotation with a salt; without the old helper, this is the single entry point for pairings.
+- `backend/.env.example:90-92` – Seed pulled from `SUNDAY_GAME_RANDOM_SEED`; ensure deployments set it if deterministic Sunday rotations are required.
+- `backend/app/services/matchmaking_service.py:69-134` – Utility that Sunday workflows rely on still omits `timedelta` import; runtime errors (`reports/backend_dev.log:28695`) show match suggestions and notification jobs fail until that import is restored.
+- `backend/tests/test_sunday_game_service.py:45-72` – Regression coverage confirms seeded randomness and insufficient-player handling; no Sunday-specific failures recorded in reports.
+[2025-10-20T15:31:19] tokens used: 92,029
