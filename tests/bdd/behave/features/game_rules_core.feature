@@ -30,7 +30,7 @@ Feature: Core Wolf Goat Pig Game Rules
       | Player 4 | 5     |
     Then Player 2 net score should be 4
     And Player 1 net score should be 5
-    And Player 3 net score should be 5
+    And Player 3 net score should be 6
     And Player 4 net score should be 5
     And Team1 best ball is 4
     And Team2 best ball is 5
@@ -103,7 +103,7 @@ Feature: Core Wolf Goat Pig Game Rules
   Scenario: Handicap strokes applied correctly to net scores
     Given we are on hole 1 (Par 4, Stroke Index 1)
     And Player 2 has handicap 15 and receives 1 stroke
-    And Player 3 has handicap 8 and receives 1 stroke
+    And Player 3 has handicap 8 and receives 0 strokes
     And Player 4 has handicap 12 and receives 1 stroke
     And Player 1 has handicap 10 and receives 1 stroke
     When the hole is completed with gross scores:
@@ -116,7 +116,7 @@ Feature: Core Wolf Goat Pig Game Rules
       | player   | net |
       | Player 1 | 4   |
       | Player 2 | 5   |
-      | Player 3 | 3   |
+      | Player 3 | 4   |
       | Player 4 | 4   |
 
   Scenario: No handicap strokes on easier holes
