@@ -1,8 +1,7 @@
 """Step definitions for core game rules testing."""
 
 from behave import given, when, then
-from hamcrest import assert_that, equal_to, close_to, is_, not_none, has_entry
-import requests
+from hamcrest import assert_that, equal_to, close_to, is_, not_none
 import os
 
 
@@ -83,6 +82,7 @@ def step_setup_5_player_game(context):
 
 
 @given('players have the following handicaps')
+@given('players have the following handicaps:')
 def step_set_player_handicaps(context):
     """Set handicaps from table."""
     for row in context.table:
@@ -143,11 +143,19 @@ def step_captain_chooses_partner(context, captain, partner):
     }
 
 
+def normalize_player_name(name):
+    """Normalize player names to add space between Player and number."""
+    name = name.strip()
+    # Convert "Player1" to "Player 1", "Player2" to "Player 2", etc.
+    if name.startswith('Player') and len(name) > 6 and name[6].isdigit():
+        return f"Player {name[6:]}"
+    return name
+
 @given('teams are formed as {team1_str} vs {team2_str}')
 def step_teams_formed(context, team1_str, team2_str):
     """Set teams explicitly."""
-    team1 = [p.strip() for p in team1_str.replace('+', ',').split(',')]
-    team2 = [p.strip() for p in team2_str.replace('+', ',').split(',')]
+    team1 = [normalize_player_name(p) for p in team1_str.replace('+', ',').split(',')]
+    team2 = [normalize_player_name(p) for p in team2_str.replace('+', ',').split(',')]
     context.teams = {'Team1': team1, 'Team2': team2}
 
 
@@ -155,14 +163,24 @@ def step_teams_formed(context, team1_str, team2_str):
 def step_teams_config(context, team_config):
     """Set teams from configuration string."""
     # Parse formats like "Team1(Player1+Player2+Aardvark) vs Team2(Player3+Player4)"
+    # or simple format like "Player1+Player2 vs Player3+Player4"
     parts = team_config.split(' vs ')
-    teams = {}
-    for part in parts:
-        team_name = part.split('(')[0].strip()
-        players_str = part.split('(')[1].rstrip(')')
-        players = [p.strip() for p in players_str.split('+')]
-        teams[team_name] = players
-    context.teams = teams
+
+    # Check if it's the Team1(players) format or simple Player1+Player2 format
+    if '(' in parts[0]:
+        # Format: Team1(Player1+Player2) vs Team2(Player3+Player4)
+        teams = {}
+        for part in parts:
+            team_name = part.split('(')[0].strip()
+            players_str = part.split('(')[1].rstrip(')')
+            players = [normalize_player_name(p) for p in players_str.split('+')]
+            teams[team_name] = players
+        context.teams = teams
+    else:
+        # Format: Player1+Player2 vs Player3+Player4
+        team1 = [normalize_player_name(p) for p in parts[0].split('+')]
+        team2 = [normalize_player_name(p) for p in parts[1].split('+')]
+        context.teams = {'Team1': team1, 'Team2': team2}
 
 
 @given('{player} chooses to go solo')
@@ -183,7 +201,7 @@ def step_player_goes_solo(context, player):
 def step_solo_vs_opponents(context, player, opponents):
     """Set up solo player against opponents."""
     context.solo_player = player
-    opponent_list = [p.strip() for p in opponents.replace('+', ',').split(',')]
+    opponent_list = [normalize_player_name(p) for p in opponents.replace('+', ',').split(',')]
     context.teams = {
         'Solo': [player],
         'Opponents': opponent_list
@@ -233,6 +251,7 @@ def step_player_is_goat(context, player):
 
 
 @given('cumulative scores show')
+@given('cumulative scores show:')
 def step_set_cumulative_scores(context):
     """Set cumulative scores from table."""
     context.cumulative_scores = {}
@@ -298,6 +317,7 @@ def step_player_handicap_strokes(context, player, handicap, strokes):
 # ==============================================================================
 
 @when('the hole is completed with gross scores')
+@when('the hole is completed with gross scores:')
 def step_hole_completed_gross(context):
     """Complete hole with gross scores from table."""
     context.gross_scores = {}
@@ -317,6 +337,7 @@ def step_hole_completed_gross(context):
 
 
 @when('the hole is completed with net scores')
+@when('the hole is completed with net scores:')
 def step_hole_completed_net(context):
     """Complete hole with net scores from table."""
     context.net_scores = {}
@@ -451,6 +472,7 @@ def step_verify_net_score(context, player, expected):
 
 
 @then('net scores should be')
+@then('net scores should be:')
 def step_verify_all_net_scores(context):
     """Verify all net scores from table."""
     for row in context.table:
@@ -462,6 +484,7 @@ def step_verify_all_net_scores(context):
 
 
 @then('net scores should equal gross scores')
+@then('net scores should equal gross scores:')
 def step_verify_net_equals_gross(context):
     """Verify net scores equal gross scores (no handicap strokes)."""
     for row in context.table:
@@ -489,7 +512,14 @@ def step_verify_best_ball(context, team, expected):
 @then('{team} wins the hole')
 def step_verify_team_wins(context, team):
     """Verify which team won the hole."""
-    context.winning_team = team
+    # If team is actually a player name and they're solo, use 'Solo'
+    if hasattr(context, 'solo_player') and team == context.solo_player:
+        context.winning_team = 'Solo'
+    # If team is 'Opponents' and solo player exists, use 'Opponents'
+    elif team == 'Opponents' and hasattr(context, 'solo_player'):
+        context.winning_team = 'Opponents'
+    else:
+        context.winning_team = team
 
 
 @then('the hole is halved (tied)')
@@ -498,12 +528,6 @@ def step_verify_team_wins(context, team):
 def step_verify_hole_halved(context):
     """Verify hole was tied."""
     context.hole_tied = True
-
-
-@then('the opponents team wins the hole')
-def step_opponents_win(context):
-    """Verify opponents won against solo player."""
-    context.winning_team = 'Opponents'
 
 
 # ==============================================================================
@@ -765,8 +789,8 @@ def step_must_reach_better_position(context, player):
 @then('teams are formed as {team1_str} vs {team2_str}')
 def step_verify_teams_formed(context, team1_str, team2_str):
     """Verify teams were formed correctly."""
-    expected_team1 = [p.strip() for p in team1_str.replace('+', ',').split(',')]
-    expected_team2 = [p.strip() for p in team2_str.replace('+', ',').split(',')]
+    expected_team1 = [normalize_player_name(p) for p in team1_str.replace('+', ',').split(',')]
+    expected_team2 = [normalize_player_name(p) for p in team2_str.replace('+', ',').split(',')]
 
     actual_team1 = context.teams.get('Team1', [])
     actual_team2 = context.teams.get('Team2', [])
@@ -779,7 +803,7 @@ def step_verify_teams_formed(context, team1_str, team2_str):
 def step_verify_solo_setup(context, player, opponents):
     """Verify solo player setup."""
     assert_that(context.solo_player, equal_to(player))
-    opponent_list = [p.strip() for p in opponents.replace('+', ',').split(',')]
+    opponent_list = [normalize_player_name(p) for p in opponents.replace('+', ',').split(',')]
     actual_opponents = context.teams.get('Opponents', [])
     assert_that(set(actual_opponents), equal_to(set(opponent_list)))
 
@@ -794,3 +818,72 @@ def step_verify_partnership_after_shots(context):
 def step_verify_solo_privileges(context):
     """Verify solo player has special privileges."""
     assert_that(hasattr(context, 'solo_player'), is_(True))
+
+
+# ==============================================================================
+# ADDITIONAL STEPS FOR SPECIFIC SCENARIOS
+# ==============================================================================
+
+@then('{player} wins {quarters:d} quarter')
+@then('{player} wins {quarters:d} quarters')
+def step_verify_wins(context, player, quarters):
+    """Verify player wins (same as earns)."""
+    step_verify_earnings(context, player, quarters)
+
+
+@given('the current wager is {wager:d} quarters (base {base:d} + carry {carry:d})')
+@given('the current wager is {wager:d} quarter (base {base:d} + carry {carry:d})')
+def step_set_wager_with_carry(context, wager, base, carry):
+    """Set current wager with carry-over breakdown."""
+    context.base_wager = base
+    context.current_wager = wager
+    context.carry_over = True
+
+
+@given('players are Player1, Player2, Player3, Player4, and Aardvark')
+def step_set_5_players_specific(context):
+    """Set up specific 5-player game."""
+    step_setup_5_player_game(context)
+
+
+@then('each {team} player earns {quarters:f} quarters ({total:d} quarters / {count:d} players)')
+@then('each {team} player earns {quarters:f} quarter ({total:d} quarters / {count:d} players)')
+def step_verify_team_earnings_with_calc(context, team, quarters, total, count):
+    """Verify each team member's earnings with calculation shown."""
+    step_verify_team_earnings(context, team, quarters)
+
+
+@then('each {team} player loses {quarters:f} quarters ({total:d} quarters / {count:d} players)')
+@then('each {team} player loses {quarters:f} quarter ({total:d} quarters / {count:d} players)')
+def step_verify_team_losses_with_calc(context, team, quarters, total, count):
+    """Verify each team member's losses with calculation shown."""
+    step_verify_team_losses(context, team, quarters)
+
+
+@given('{team} has {count:d} players and {other_team} has {other_count:d} players')
+def step_verify_team_sizes(context, team, count, other_team, other_count):
+    """Verify team sizes for Karl Marx Rule."""
+    actual_team_size = len(context.teams.get(team, []))
+    actual_other_size = len(context.teams.get(other_team, []))
+    assert_that(actual_team_size, equal_to(count))
+    assert_that(actual_other_size, equal_to(other_count))
+
+
+@when('{captain} chooses {partner} as partner')
+def step_when_captain_chooses_partner(context, captain, partner):
+    """Captain chooses partner (when step)."""
+    step_captain_chooses_partner(context, captain, partner)
+
+
+@then('the base wager is {wager:d} quarter')
+@then('the base wager is {wager:d} quarters')
+def step_verify_base_wager(context, wager):
+    """Verify base wager amount."""
+    assert_that(context.base_wager, equal_to(wager))
+
+
+@then('the wager doubles to {wager:d} quarter')
+@then('the wager doubles to {wager:d} quarters')
+def step_verify_wager_doubles_to(context, wager):
+    """Verify wager doubled to specific amount."""
+    assert_that(context.current_wager, equal_to(wager))

@@ -71,7 +71,7 @@ Feature: Core Wolf Goat Pig Game Rules
       | Player 2 | 4   |
       | Player 3 | 5   |
       | Player 4 | 5   |
-    Then the opponents team wins the hole
+    Then Opponents wins the hole
     And Player 1 loses 6 quarters total
     And Player 2 wins 2 quarters
     And Player 3 wins 2 quarters
