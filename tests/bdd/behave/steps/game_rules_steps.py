@@ -546,6 +546,37 @@ def step_verify_hole_halved(context):
 # THEN STEPS - POINT DISTRIBUTION
 # ==============================================================================
 
+# IMPORTANT: More specific patterns MUST come before general patterns
+# Otherwise "each Team1 player" will match as a literal player name!
+
+# Team earnings/losses (more specific - must come first!)
+@then('each {team} player earns {quarters:f} quarters')
+@then('each {team} player earns {quarters:f} quarter')
+@then('each {team} player earns {quarters:d} quarters')
+@then('each {team} player earns {quarters:d} quarter')
+def step_verify_team_earnings(context, team, quarters):
+    """Verify each team member's earnings (Karl Marx)."""
+    team_players = context.teams.get(team, [])
+    if not hasattr(context, 'verified_earnings'):
+        context.verified_earnings = {}
+    for player in team_players:
+        context.verified_earnings[player] = quarters
+
+
+@then('each {team} player loses {quarters:f} quarters')
+@then('each {team} player loses {quarters:f} quarter')
+@then('each {team} player loses {quarters:d} quarters')
+@then('each {team} player loses {quarters:d} quarter')
+def step_verify_team_losses(context, team, quarters):
+    """Verify each team member's losses (Karl Marx)."""
+    team_players = context.teams.get(team, [])
+    if not hasattr(context, 'verified_earnings'):
+        context.verified_earnings = {}
+    for player in team_players:
+        context.verified_earnings[player] = -quarters
+
+
+# Individual player earnings/losses (less specific - comes after!)
 @then('{player} earns {quarters:d} quarter')
 @then('{player} earns {quarters:d} quarters')
 def step_verify_earnings(context, player, quarters):
@@ -599,32 +630,14 @@ def step_verify_total_losses(context, player, quarters):
     context.verified_earnings[player] = -quarters
 
 
-@then('each {team} player earns {quarters:f} quarters')
-def step_verify_team_earnings(context, team, quarters):
-    """Verify each team member's earnings (Karl Marx)."""
-    team_players = context.teams.get(team, [])
-    if not hasattr(context, 'verified_earnings'):
-        context.verified_earnings = {}
-    for player in team_players:
-        context.verified_earnings[player] = quarters
-
-
-@then('each {team} player loses {quarters:f} quarters')
-def step_verify_team_losses(context, team, quarters):
-    """Verify each team member's losses (Karl Marx)."""
-    team_players = context.teams.get(team, [])
-    if not hasattr(context, 'verified_earnings'):
-        context.verified_earnings = {}
-    for player in team_players:
-        context.verified_earnings[player] = -quarters
-
-
 @then('total quarters balance to zero')
 def step_verify_balance(context):
     """Verify total earnings/losses balance to zero."""
     if hasattr(context, 'verified_earnings'):
         total = sum(context.verified_earnings.values())
-        assert_that(total, close_to(0, 0.01),
+        # Use tolerance of 0.02 to account for floating point arithmetic
+        # Example: 3 × 0.67 - 2 × 1.00 = 2.01 - 2.00 = 0.01
+        assert_that(total, close_to(0, 0.02),
                     f"Total earnings should balance to 0, got {total}")
 
 
