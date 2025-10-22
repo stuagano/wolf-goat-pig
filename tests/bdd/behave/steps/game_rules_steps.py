@@ -14,20 +14,29 @@ def get_backend_url():
     return os.getenv('BACKEND_URL', 'http://localhost:8000')
 
 
-def calculate_handicap_strokes(player_handicap: int, hole_stroke_index: int) -> int:
+def calculate_handicap_strokes(player_handicap: int, hole_stroke_index: int, lowest_handicap: int = 0) -> int:
     """
     Calculate handicap strokes for a player on a specific hole.
 
+    Handicaps are calculated RELATIVE to the lowest handicap in the group.
+    Example: If lowest handicap is 8, then:
+    - Player with 15 handicap has adjusted handicap of 15 - 8 = 7
+    - On stroke index 10 hole, they get NO stroke (7 < 10)
+    - On stroke index 7 hole, they get 1 stroke (7 >= 7)
+
     Args:
-        player_handicap: Player's course handicap (e.g., 10)
+        player_handicap: Player's course handicap (e.g., 15)
         hole_stroke_index: Hole's stroke index/difficulty (1-18, where 1 is hardest)
+        lowest_handicap: Lowest handicap in the group (default 0 for absolute calculation)
 
     Returns:
         Number of strokes the player receives (0 or 1 for most handicaps)
     """
-    # Player receives a stroke if their handicap >= hole stroke index
-    # Example: 10 handicap gets strokes on holes 1-10 (stroke index 1-10)
-    return 1 if player_handicap >= hole_stroke_index else 0
+    # Adjust handicap relative to lowest in group
+    adjusted_handicap = player_handicap - lowest_handicap
+
+    # Player receives a stroke if their adjusted handicap >= hole stroke index
+    return 1 if adjusted_handicap >= hole_stroke_index else 0
 
 
 def calculate_net_score(gross_score: int, handicap_strokes: int) -> int:
@@ -323,15 +332,18 @@ def step_hole_completed_gross(context):
     context.gross_scores = {}
     context.net_scores = {}
 
+    # Find lowest handicap in the group (for relative handicap calculation)
+    lowest_handicap = min(p['handicap'] for p in context.players.values())
+
     for row in context.table:
         player = row['player']
         gross = int(row['gross'])
         context.gross_scores[player] = gross
 
-        # Calculate net score with handicap
+        # Calculate net score with handicap (relative to lowest handicap)
         player_handicap = context.players[player]['handicap']
         hole_stroke_index = context.current_hole['stroke_index']
-        strokes = calculate_handicap_strokes(player_handicap, hole_stroke_index)
+        strokes = calculate_handicap_strokes(player_handicap, hole_stroke_index, lowest_handicap)
         net = calculate_net_score(gross, strokes)
         context.net_scores[player] = net
 
