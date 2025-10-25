@@ -169,8 +169,9 @@ allowed_origins = [
     "https://wolf-goat-pig-frontend.onrender.com",  # Alternative frontend URL
 ]
 
-# Add localhost for development only
-if os.getenv("ENVIRONMENT") != "production":
+# Add localhost for development and local testing
+# Note: localhost is safe for local Podman/Docker testing even with ENVIRONMENT=production
+if os.getenv("ENVIRONMENT") != "production" or os.getenv("FRONTEND_URL", "").startswith("http://localhost"):
     allowed_origins.extend([
         "http://localhost:3000",             # Local development
         "http://localhost:3001",             # Alternative local port

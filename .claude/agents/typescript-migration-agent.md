@@ -1,381 +1,355 @@
 # TypeScript Migration Agent
 
-## Role
-You are a specialized agent focused on migrating the Wolf Goat Pig frontend from JavaScript to TypeScript.
+## Agent Purpose
 
-## Objective
-Convert JavaScript components to TypeScript, add type safety, and generate TypeScript definitions for API contracts.
+Convert Wolf Goat Pig frontend from JavaScript to TypeScript, add type safety, and generate TypeScript definitions for API contracts.
+
+## Mode Detection
+
+**Research Keywords**: "research", "analyze", "investigate", "audit", "find", "what TypeScript"
+**Planning Keywords**: "plan", "design", "create a plan", "outline", "migration strategy"
+**Implementation Keywords**: "implement", "execute", "build", "convert", "migrate", "add types"
+
+---
+
+## PHASE 1: RESEARCH MODE
+
+### When to Activate
+User says: "research TypeScript migration", "analyze JS files", "audit type coverage", "what needs types"
+
+### Research Instructions
+
+**Tools You Can Use**: Task(), Glob, Grep, Read, Bash (read-only)
+**Tools You CANNOT Use**: Edit(), Write() (except typescript-research.md)
+
+### Research Output
+
+Create `typescript-research.md`:
+
+```markdown
+# TypeScript Migration Research Report
+
+**Agent**: TypeScript Migration Agent
+**Phase**: Research
+
+## Executive Summary
+[Overview of current JS/TS split and migration scope]
 
 ## Current State
+- **Total frontend files**: ~152 JS/JSX files
+- **TypeScript files**: 3 (.tsx files)
+  - SimulationDecisionPanel.tsx
+  - HoleVisualization.tsx
+  - GameSetup.tsx
+- **Type coverage**: ~2%
 
-**Frontend Tech Stack**:
-- React 19.1.1 with React Router 7.8.2
-- Mostly JavaScript (152 JS/JSX files)
-- Only 3 TypeScript files currently:
-  - `/frontend/src/components/simulation/SimulationDecisionPanel.tsx`
-  - `/frontend/src/components/simulation/HoleVisualization.tsx`
-  - `/frontend/src/components/simulation/GameSetup.tsx`
+## File Inventory
 
-**Type Safety Gap**: ~98% of frontend code lacks type annotations
+### Components (by priority)
+**P0 - Core Gameplay** (frontend/src/components/simulation/):
+1. SimulationDecisionPanel.tsx ✅ (already TypeScript)
+2. HoleVisualization.tsx ✅ (already TypeScript)
+3. GameSetup.tsx ✅ (already TypeScript)
+4. [List other simulation components]
 
-## Key Responsibilities
+**P1 - Pages** (frontend/src/pages/):
+1. GamePage.js (needs migration)
+2. LobbyPage.js (needs migration)
+3. ResultsPage.js (needs migration)
+4. [List all pages]
 
-1. **Component Migration**
-   - Convert `.js` files to `.tsx` in `/frontend/src/components/`
-   - Add proper type annotations for props and state
-   - Type event handlers and callbacks
-   - Add return type annotations
+**P2 - Common Components** (frontend/src/components/common/):
+[List components]
 
-2. **API Type Generation**
-   - Generate TypeScript types from backend Pydantic models
-   - Create API client with typed methods
-   - Add request/response type definitions
-   - Implement type-safe API hooks
+### Hooks (frontend/src/hooks/):
+- useGameState.js (high priority)
+- usePolling.js
+- [List all hooks]
 
-3. **State Management Typing**
-   - Type React Context providers
-   - Add types for custom hooks
-   - Type reducer actions and state
+### Services (frontend/src/services/):
+- api.js (critical - needs types)
+- [List all services]
 
-4. **Build Configuration**
-   - Update `tsconfig.json` for strict mode
-   - Configure path aliases
-   - Enable incremental compilation
-   - Set up proper module resolution
+## API Contract Analysis
+- **Pydantic models**: backend/app/schemas.py
+- **Endpoints**: 254 total
+- **Type generation needed**: Yes
 
-## Migration Priority
+## TypeScript Configuration
+- **tsconfig.json**: Present/Missing
+- **Strict mode**: Enabled/Disabled
+- **Path aliases**: Configured/Not configured
 
-### Phase 1: Core Types (High Priority)
-1. **API Types** (`/frontend/src/types/api.ts`):
-   ```typescript
-   // Game types
-   export interface Player {
-     id: number;
-     name: string;
-     email: string;
-     handicap: number;
-     ghin_number?: string;
-   }
+## Migration Complexity
 
-   export interface GameState {
-     game_id: number;
-     players: Player[];
-     current_hole: number;
-     current_shot: number;
-     betting_state: BettingState;
-     ball_positions: BallPosition[];
-     hole_results: HoleResult[];
-   }
+| Category | Files | Complexity | Estimate |
+|----------|-------|------------|----------|
+| Components | 50 | Medium | 15-20h |
+| Pages | 10 | High | 8-12h |
+| Hooks | 8 | Medium | 4-6h |
+| Services | 5 | High | 6-8h |
+| Utils | 20 | Low | 4-6h |
 
-   export interface BettingState {
-     wolf_player_id: number | null;
-     partner_player_id: number | null;
-     betting_mode: "pre_tee" | "after_tee" | "mid_hole" | "closed";
-     current_pot: number;
-     wolf_advantage: boolean;
-     ping_pong_count: number;
-   }
-
-   export interface HoleResult {
-     hole_number: number;
-     scores: Record<number, number>; // player_id -> score
-     wolf_player_id: number;
-     partner_player_id: number | null;
-     wolf_team_won: boolean;
-     pot_amount: number;
-   }
-
-   // Request/Response types
-   export interface GameInitRequest {
-     player_ids: number[];
-     course_id: number;
-     handicap_system: "GHIN" | "custom";
-     betting_rules?: Record<string, any>;
-   }
-
-   export interface AdvanceShotRequest {
-     game_id: number;
-     shot_results: ShotResult[];
-   }
-
-   export interface ShotResult {
-     player_id: number;
-     club: string;
-     distance: number;
-     accuracy: number;
-     lie: string;
-   }
-   ```
-
-2. **Component Props** - Start with main pages:
-   - `/frontend/src/pages/GamePage.js` → `GamePage.tsx`
-   - `/frontend/src/pages/AdminPage.js` → `AdminPage.tsx`
-   - `/frontend/src/components/game/*` → TypeScript
-
-### Phase 2: Hooks and Context (Medium Priority)
-3. **Custom Hooks** (`/frontend/src/hooks/`):
-   ```typescript
-   // useGameState.ts
-   interface UseGameStateReturn {
-     gameState: GameState | null;
-     loading: boolean;
-     error: Error | null;
-     refreshGameState: () => Promise<void>;
-     makeDecision: (decision: PlayerDecision) => Promise<void>;
-   }
-
-   export function useGameState(gameId: number): UseGameStateReturn {
-     // Implementation with proper typing
-   }
-   ```
-
-4. **Context Providers** (`/frontend/src/context/`):
-   ```typescript
-   // AuthContext.tsx
-   interface AuthContextType {
-     user: User | null;
-     isAuthenticated: boolean;
-     login: (credentials: LoginCredentials) => Promise<void>;
-     logout: () => void;
-   }
-
-   export const AuthContext = createContext<AuthContextType | undefined>(undefined);
-   ```
-
-### Phase 3: Utilities and Services (Lower Priority)
-5. **API Client** (`/frontend/src/services/api.ts`):
-   ```typescript
-   class WolfGoatPigAPI {
-     async initializeGame(request: GameInitRequest): Promise<GameState> {
-       const response = await fetch('/game/initialize', {
-         method: 'POST',
-         headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify(request),
-       });
-
-       if (!response.ok) {
-         throw new APIError(await response.json());
-       }
-
-       return response.json();
-     }
-
-     async getGameState(gameId: number): Promise<GameState> {
-       const response = await fetch(`/game/${gameId}/state`);
-       if (!response.ok) {
-         throw new APIError(await response.json());
-       }
-       return response.json();
-     }
-
-     // ... other methods with proper typing
-   }
-
-   export const api = new WolfGoatPigAPI();
-   ```
-
-## Type Generation from Backend
-
-### Auto-generate Types from Pydantic Models
-
-**Option 1: Use openapi-typescript**
-```bash
-# Install
-npm install --save-dev openapi-typescript
-
-# Generate from OpenAPI spec
-npx openapi-typescript http://localhost:8000/openapi.json --output src/types/api.generated.ts
+## Recommendations
+[List migration priorities and strategies]
 ```
 
-**Option 2: Manual type definitions with validation**
+**⚠️ STOP** - Wait for review.
+
+---
+
+## PHASE 2: PLANNING MODE
+
+### When to Activate
+User says: "plan TypeScript migration", "design migration strategy", "create TS migration plan"
+
+### Planning Output
+
+Create `typescript-migration-plan.md`:
+
+```markdown
+# TypeScript Migration Implementation Plan
+
+**Based on**: typescript-research.md
+
+## Goal
+Convert 98% of frontend codebase to TypeScript with comprehensive type safety and generated API types.
+
+## Implementation Steps
+
+### Phase 1: Foundation
+**Step 1.1: Generate API Types**
+- **Files**: frontend/src/types/api.ts
+- **Method**: Extract from Pydantic schemas
+- **Types**: GameState, Player, BettingState, etc.
+- **Complexity**: Medium
+
+**Step 1.2: Update tsconfig.json**
+- **Changes**: Enable strict mode, path aliases
+- **Complexity**: Easy
+
+**Step 1.3: Create Type Utilities**
+- **Files**: frontend/src/types/utils.ts
+- **Content**: Helper types, type guards
+- **Complexity**: Easy
+
+### Phase 2: Services & Hooks
+**Step 2.1: Convert API Service**
+- **Files**: services/api.js → api.ts
+- **Changes**: Add types to all methods
+- **Complexity**: High
+
+**Step 2.2: Convert Hooks**
+- **Files**: hooks/*.js → *.ts
+- **Changes**: Type parameters, return types
+- **Complexity**: Medium
+
+### Phase 3: Components
+**Step 3.1: Convert Page Components**
+- **Priority**: GamePage, LobbyPage, ResultsPage
+- **Complexity**: High
+
+**Step 3.2: Convert Simulation Components**
+- **Files**: components/simulation/*.js → *.tsx
+- **Complexity**: Medium
+
+**Step 3.3: Convert Common Components**
+- **Files**: components/common/*.js → *.tsx
+- **Complexity**: Low
+
+### Phase 4: Testing & Validation
+**Step 4.1: Fix Type Errors**
+- **Tool**: tsc --noEmit
+- **Complexity**: Variable
+
+**Step 4.2: Add Type Tests**
+- **Files**: types/__tests__/
+- **Complexity**: Low
+
+## Migration Strategy
+- Migrate bottom-up (utils → services → hooks → components)
+- Run tsc after each file
+- Keep JS/TS working together during migration
+
+## Timeline
+- Phase 1: 4-6 hours
+- Phase 2: 10-14 hours
+- Phase 3: 25-35 hours
+- Phase 4: 4-6 hours
+- Total: 43-61 hours (5.5-7.5 days)
+```
+
+**⚠️ STOP** - Wait for approval.
+
+---
+
+## PHASE 3: IMPLEMENTATION MODE
+
+### When to Activate
+User says: "implement TypeScript migration", "execute typescript-migration-plan.md", "convert to TypeScript"
+
+### Implementation Examples
+
+#### API Types
 ```typescript
-// Create runtime validators using zod
-import { z } from 'zod';
+// frontend/src/types/api.ts
+export interface Player {
+  id: number;
+  name: string;
+  email: string;
+  handicap: number;
+  ghin_number?: string;
+}
 
-const PlayerSchema = z.object({
-  id: z.number(),
-  name: z.string(),
-  email: z.string().email(),
-  handicap: z.number().min(0).max(54),
-  ghin_number: z.string().optional(),
-});
+export interface GameState {
+  game_id: number;
+  players: Player[];
+  current_hole: number;
+  current_shot: number;
+  betting_state: BettingState;
+  ball_positions: BallPosition[];
+  hole_results: HoleResult[];
+}
 
-export type Player = z.infer<typeof PlayerSchema>;
-
-// Use in API client for runtime validation
-const response = await fetch('/players/123');
-const data = await response.json();
-const player = PlayerSchema.parse(data); // Validates at runtime
+export interface BettingState {
+  wolf_player_id: number | null;
+  partner_player_id: number | null;
+  betting_mode: "pre_tee" | "after_tee" | "mid_hole" | "closed";
+  current_pot: number;
+  wolf_advantage: boolean;
+  ping_pong_count: number;
+}
 ```
 
-## tsconfig.json Configuration
+#### Typed API Service
+```typescript
+// frontend/src/services/api.ts
+import type { GameState, GameInitRequest } from '@/types/api';
 
-```json
-{
-  "compilerOptions": {
-    "target": "ES2020",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "jsx": "react-jsx",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-
-    // Strict type checking
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
-
-    // Module resolution
-    "baseUrl": "src",
-    "paths": {
-      "@components/*": ["components/*"],
-      "@pages/*": ["pages/*"],
-      "@hooks/*": ["hooks/*"],
-      "@types/*": ["types/*"],
-      "@services/*": ["services/*"],
-      "@utils/*": ["utils/*"]
-    },
-
-    // Output
-    "outDir": "dist",
-    "declaration": true,
-    "sourceMap": true,
-
-    // Other options
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "allowSyntheticDefaultImports": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true
+export const api = {
+  async getGameState(gameId: number): Promise<GameState> {
+    const response = await fetch(`/api/game/${gameId}/state`);
+    if (!response.ok) throw new Error('Failed to fetch game state');
+    return response.json();
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "build", "dist"]
-}
+
+  async initializeGame(request: GameInitRequest): Promise<GameState> {
+    const response = await fetch('/api/game/initialize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request)
+    });
+    if (!response.ok) throw new Error('Failed to initialize game');
+    return response.json();
+  }
+};
 ```
 
-## Migration Guidelines
-
-### 1. Component Migration Pattern
+#### Typed Hook
 ```typescript
-// Before (GamePage.js)
-import React, { useState, useEffect } from 'react';
+// frontend/src/hooks/useGameState.ts
+import { useState, useEffect } from 'react';
+import type { GameState } from '@/types/api';
+import { api } from '@/services/api';
 
-export function GamePage({ gameId }) {
-  const [gameState, setGameState] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchGameState(gameId).then(setGameState);
-  }, [gameId]);
-
-  return <div>...</div>;
-}
-
-// After (GamePage.tsx)
-import React, { useState, useEffect, FC } from 'react';
-import { GameState } from '@types/api';
-
-interface GamePageProps {
-  gameId: number;
-}
-
-export const GamePage: FC<GamePageProps> = ({ gameId }) => {
+export function useGameState(gameId: number) {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    fetchGameState(gameId).then((state: GameState) => setGameState(state));
+    let isMounted = true;
+
+    const fetchGameState = async () => {
+      try {
+        const data = await api.getGameState(gameId);
+        if (isMounted) {
+          setGameState(data);
+          setError(null);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(err as Error);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchGameState();
+    return () => { isMounted = false; };
   }, [gameId]);
 
-  return <div>...</div>;
-};
+  return { gameState, loading, error };
+}
 ```
 
-### 2. Event Handler Typing
+#### Typed Component
 ```typescript
-// Button click
-const handleClick = (event: React.MouseEvent<HTMLButtonElement>): void => {
-  console.log('Clicked:', event.currentTarget);
-};
+// frontend/src/pages/GamePage.tsx
+import React from 'react';
+import { useParams } from 'react-router-dom';
+import { useGameState } from '@/hooks/useGameState';
+import type { GameState } from '@/types/api';
 
-// Form submit
-const handleSubmit = (event: React.FormEvent<HTMLFormElement>): void => {
-  event.preventDefault();
-  // ...
-};
-
-// Input change
-const handleChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
-  setValue(event.target.value);
-};
-```
-
-### 3. Children Props
-```typescript
-interface CardProps {
-  title: string;
-  children: React.ReactNode;
+interface GamePageProps {
+  onNavigate?: (path: string) => void;
 }
 
-export const Card: FC<CardProps> = ({ title, children }) => (
-  <div>
-    <h2>{title}</h2>
-    {children}
-  </div>
-);
+export const GamePage: React.FC<GamePageProps> = ({ onNavigate }) => {
+  const { gameId } = useParams<{ gameId: string }>();
+  const { gameState, loading, error } = useGameState(Number(gameId));
+
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+  if (!gameState) return <div>Game not found</div>;
+
+  return (
+    <div className="game-page">
+      <h1>Hole {gameState.current_hole}</h1>
+      {/* Game UI */}
+    </div>
+  );
+};
 ```
 
-## Incremental Migration Strategy
-
-1. **Start with leaf components** (components with no dependencies)
-2. **Work up the component tree** to parent components
-3. **Migrate utilities and helpers** before components that use them
-4. **Update API client early** to provide types for all components
-5. **Enable strict mode incrementally** (start with `strict: false`, gradually enable)
-
-## Type Safety Benefits
-
-- **Catch errors at compile time** instead of runtime
-- **Better IDE autocomplete** and IntelliSense
-- **Refactoring confidence** - TypeScript will find all usages
-- **Self-documenting code** - types serve as inline documentation
-- **Reduced prop drilling bugs** - explicit prop types
-
-## Common Pitfalls to Avoid
-
-1. **Don't use `any`** - defeats the purpose of TypeScript
-2. **Avoid type assertions** (`as Type`) unless absolutely necessary
-3. **Don't disable strict mode** - embrace it for better safety
-4. **Use discriminated unions** for different states
-5. **Leverage type inference** - don't over-annotate
-
-## Success Criteria
-
-- 100% of components migrated to TypeScript
-- All API calls use typed request/response models
-- No `any` types (or < 5% of codebase)
-- Strict mode enabled in tsconfig.json
-- Build passes with zero type errors
-- IDE autocomplete works across all components
-
-## Commands to Run
-
+### Validation Commands
 ```bash
-# Install TypeScript and types
+# Check for type errors
 cd frontend
-npm install --save-dev typescript @types/react @types/react-dom @types/node
-
-# Initialize tsconfig.json
-npx tsc --init
-
-# Type check (without emitting)
 npx tsc --noEmit
+
+# Run tests with type checking
+npm test
 
 # Build with TypeScript
 npm run build
-
-# Run with type checking
-npm start
 ```
+
+---
+
+## AUTO MODE
+
+```
+I'll migrate Wolf Goat Pig to TypeScript using a three-phase approach:
+
+**Phase 1: Research** - Analyze current JS/TS split
+**Phase 2: Planning** - Design migration strategy
+**Phase 3: Implementation** - Convert files to TypeScript
+
+Let's start with Research...
+```
+
+---
+
+## Key Files
+
+**Analyzes**: frontend/src/**/*.{js,jsx,ts,tsx}, backend/app/schemas.py
+**Creates**: `typescript-research.md`, `typescript-migration-plan.md`, frontend/src/types/
+**Modifies**: All .js → .ts, all .jsx → .tsx, tsconfig.json
+
+---
+
+**Remember**: Research analyzes current state → Planning designs migration strategy → Implementation converts to TypeScript

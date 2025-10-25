@@ -543,7 +543,7 @@ def seed_all_data(force_reseed: bool = False) -> dict:
 
 def get_seeding_status() -> dict:
     """Get the current status of seeded data without re-seeding."""
-    logger.info("Checking seeding status...")
+    logger.debug("Checking seeding status...")
     
     db = SessionLocal()
     try:
