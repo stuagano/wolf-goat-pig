@@ -91,6 +91,9 @@ Desktop.ini
 # Claude automation triggers
 .claude-triggers/processed/
 
+# Git worktrees
+.worktrees/
+
 # Additional common artifacts
 # Dependencies
 jspm_packages/
