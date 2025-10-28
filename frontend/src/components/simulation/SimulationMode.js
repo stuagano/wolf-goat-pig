@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useGame } from "../../context";
 import { simulationConfig } from "../../config/environment";
 import { getSimulationMock } from "./__fixtures__";
-import { GameSetup, GamePlay, EnhancedSimulationLayout } from "./";
+import { GameSetup } from "./";
 import TurnBasedInterface from "./TurnBasedInterface";
 import { SimulationVisualInterface } from "./visual";
 // import { Timeline, PokerBettingPanel } from "./"; // Removed - not currently used
@@ -48,10 +48,10 @@ function SimulationMode() {
   } = useGame();
 
   // Timeline and Poker state
-  const [timelineEvents, setTimelineEvents] = useState([]);
+  const [, setTimelineEvents] = useState([]);
   const [pokerState, setPokerState] = useState({});
-  const [bettingOptions, setBettingOptions] = useState([]);
-  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [, setBettingOptions] = useState([]);
+  const [, setTimelineLoading] = useState(false);
   const [mockStep, setMockStep] = useState(0);
   
   // Turn-based mode state
@@ -829,18 +829,19 @@ function SimulationMode() {
     }
   };
   
-  const resetSimulation = () => {
-    setGameState(null);
-    endGame();  // Use endGame directly instead of setIsGameActive
-    clearFeedback();
-    setHoleDecisions({
-      action: null,
-      requested_partner: null,
-      offer_double: false,
-      accept_double: false
-    });
-    setMockStep(0);
-  };
+  // Removed for now - not used with new visual interface
+  // const resetSimulation = () => {
+  //   setGameState(null);
+  //   endGame();  // Use endGame directly instead of setIsGameActive
+  //   clearFeedback();
+  //   setHoleDecisions({
+  //     action: null,
+  //     requested_partner: null,
+  //     offer_double: false,
+  //     accept_double: false
+  //   });
+  //   setMockStep(0);
+  // };
   
   if (!isGameActive) {
     return (
