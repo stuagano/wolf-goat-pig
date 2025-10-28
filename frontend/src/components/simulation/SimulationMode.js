@@ -244,7 +244,7 @@ function SimulationMode() {
       setInteractionNeeded(pressurePreset.interactionNeeded || null);
       setShotState(pressurePreset.shotState || shotState);
       setShotProbabilities(pressurePreset.shotProbabilities || shotProbabilities);
-      setBettingOptions(pressurePreset.bettingOptions || bettingOptions);
+      setBettingOptions(pressurePreset.bettingOptions || []);
       setPokerState((previous) => ({
         ...previous,
         ...pressurePreset.pokerState,
@@ -750,7 +750,7 @@ function SimulationMode() {
       setShotState(nextPreset.shotState || null);
       setShotProbabilities(nextPreset.shotProbabilities || null);
       setInteractionNeeded(nextPreset.interactionNeeded || null);
-      setBettingOptions(nextPreset.bettingOptions || bettingOptions);
+      setBettingOptions(nextPreset.bettingOptions || []);
       setPokerState((previous) => ({
         ...previous,
         ...nextPreset.pokerState,
