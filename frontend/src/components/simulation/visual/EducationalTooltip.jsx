@@ -1,53 +1,113 @@
 // frontend/src/components/simulation/visual/EducationalTooltip.jsx
-import React from 'react';
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
-import { Tooltip, IconButton, Typography, Box } from '@mui/material';
-import InfoIcon from '@mui/icons-material/Info';
 
 /**
- * Educational tooltip component that provides contextual help
- * Shows an info icon button that displays detailed explanation on hover
+ * Educational tooltip component
+ * Shows contextual help and explanations for game concepts
+ * Uses vanilla React (no Material-UI dependency)
  */
-const EducationalTooltip = ({ title, content, placement = 'top' }) => {
+const EducationalTooltip = ({ title, content, type = 'info' }) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+
+  const handleMouseEnter = (e) => {
+    setMousePosition({ x: e.clientX, y: e.clientY });
+    setIsVisible(true);
+  };
+
+  const handleMouseMove = (e) => {
+    setMousePosition({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleMouseLeave = () => {
+    setIsVisible(false);
+  };
+
+  const getTypeIcon = () => {
+    switch (type) {
+      case 'tip': return '💡';
+      case 'warning': return '⚠️';
+      case 'concept': return '🎓';
+      default: return 'ℹ️';
+    }
+  };
+
+  const getTypeColor = () => {
+    switch (type) {
+      case 'tip': return '#ff9800';
+      case 'warning': return '#d32f2f';
+      case 'concept': return '#388e3c';
+      default: return '#1976d2';
+    }
+  };
+
   return (
-    <Tooltip
-      title={
-        <Box>
-          <Typography variant="subtitle2" gutterBottom>
-            {title}
-          </Typography>
-          <Typography variant="body2">
-            {content}
-          </Typography>
-        </Box>
-      }
-      arrow
-      placement={placement}
-    >
-      <IconButton size="small" aria-label={title}>
-        <InfoIcon fontSize="small" />
-      </IconButton>
-    </Tooltip>
+    <div style={{ position: 'relative', display: 'inline-block' }}>
+      <button
+        onMouseEnter={handleMouseEnter}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        aria-label={title}
+        role="button"
+        style={{
+          background: 'transparent',
+          border: 'none',
+          cursor: 'help',
+          padding: '4px',
+          color: getTypeColor(),
+          fontSize: '16px',
+          lineHeight: 1,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}
+      >
+        {getTypeIcon()}
+      </button>
+
+      {isVisible && (
+        <div
+          style={{
+            position: 'fixed',
+            left: mousePosition.x + 10,
+            top: mousePosition.y - 10,
+            maxWidth: 300,
+            background: '#2c2c2c',
+            color: 'white',
+            padding: 12,
+            borderRadius: 8,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+            zIndex: 10000,
+            fontSize: 14,
+            lineHeight: 1.4,
+            pointerEvents: 'none'
+          }}
+        >
+          {title && (
+            <div style={{
+              fontWeight: 600,
+              marginBottom: 8,
+              color: getTypeColor(),
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6
+            }}>
+              <span>{getTypeIcon()}</span>
+              {title}
+            </div>
+          )}
+          <div>{content}</div>
+        </div>
+      )}
+    </div>
   );
 };
 
 EducationalTooltip.propTypes = {
   title: PropTypes.string.isRequired,
   content: PropTypes.string.isRequired,
-  placement: PropTypes.oneOf([
-    'bottom-end',
-    'bottom-start',
-    'bottom',
-    'left-end',
-    'left-start',
-    'left',
-    'right-end',
-    'right-start',
-    'right',
-    'top-end',
-    'top-start',
-    'top'
-  ])
+  type: PropTypes.oneOf(['info', 'tip', 'warning', 'concept'])
 };
 
 export default EducationalTooltip;

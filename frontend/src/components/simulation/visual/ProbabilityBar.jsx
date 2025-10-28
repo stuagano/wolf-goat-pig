@@ -1,7 +1,6 @@
 // frontend/src/components/simulation/visual/ProbabilityBar.jsx
 import React from 'react';
 import PropTypes from 'prop-types';
-import { Box } from '@mui/material';
 
 /**
  * Visual probability bar component
@@ -14,14 +13,14 @@ const ProbabilityBar = ({ value }) => {
   const filledDots = Math.round(clampedValue * totalDots);
 
   return (
-    <Box className="probability-bar">
+    <div className="probability-bar">
       {Array.from({ length: totalDots }).map((_, index) => (
-        <Box
+        <div
           key={index}
           className={`probability-dot ${index < filledDots ? 'filled' : ''}`}
         />
       ))}
-    </Box>
+    </div>
   );
 };
 

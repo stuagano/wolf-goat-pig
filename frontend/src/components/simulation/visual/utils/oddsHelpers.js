@@ -7,7 +7,7 @@
  */
 export const getProbabilityColor = (probability) => {
   if (probability > 0.6) return 'success';
-  if (probability > 0.4) return 'warning';
+  if (probability >= 0.4) return 'warning';
   return 'disabled';
 };
 
@@ -42,6 +42,6 @@ export const getRiskLevelColor = (riskLevel) => {
  */
 export const getProbabilityLabel = (probability) => {
   if (probability > 0.6) return 'Likely';
-  if (probability > 0.4) return 'Possible';
+  if (probability >= 0.4) return 'Possible';
   return 'Unlikely';
 };

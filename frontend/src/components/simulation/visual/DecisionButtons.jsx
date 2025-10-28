@@ -2,6 +2,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { Button } from '../../ui';
+import { formatExpectedValue, getProbabilityColor } from './utils/oddsHelpers';
 
 const DecisionButtons = ({
   interactionNeeded = null,
@@ -9,37 +10,96 @@ const DecisionButtons = ({
   onDecision = () => {},
   onNextShot = () => {},
   loading = false,
-  gameState = {}
+  gameState = {},
+  shotProbabilities = {}
 }) => {
-  // Helper to render large decision button
-  const renderButton = (key, icon, label, description, onClick, color = 'primary') => (
-    <Button
-      key={key}
-      variant="contained"
-      color={color}
-      size="large"
-      onClick={onClick}
-      disabled={loading}
-      style={{
-        minHeight: '80px',
-        fontSize: '18px',
-        fontWeight: 'bold',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '8px',
-        padding: '16px',
-        textTransform: 'none'
-      }}
-    >
-      <span style={{ fontSize: '24px' }}>{icon}</span>
-      <span>{label}</span>
-      {description && (
-        <span style={{ fontSize: '14px', opacity: 0.8, fontWeight: 'normal' }}>
-          {description}
-        </span>
-      )}
-    </Button>
-  );
+  // Helper to get odds hint for betting decisions
+  const getOddsHint = (decisionType) => {
+    const bettingAnalysis = shotProbabilities?.betting_analysis;
+    if (!bettingAnalysis || bettingAnalysis.error) return null;
+
+    let probability = null;
+    if (decisionType === 'offer-double' && bettingAnalysis.offer_double !== undefined) {
+      probability = bettingAnalysis.offer_double;
+    } else if (decisionType === 'accept-double' && bettingAnalysis.accept_double !== undefined) {
+      probability = bettingAnalysis.accept_double;
+    }
+
+    if (probability === null) return null;
+
+    const { expected_value } = bettingAnalysis;
+    const ev = expected_value !== undefined ? formatExpectedValue(expected_value) : null;
+
+    return {
+      probability,
+      ev,
+      isPositiveEV: expected_value >= 0,
+      isFavorable: probability >= 0.6 || expected_value >= 1.0
+    };
+  };
+
+  // Helper to render large decision button with optional odds hints
+  const renderButton = (key, icon, label, description, onClick, color = 'primary', oddsHint = null) => {
+    // Determine border color based on odds favorability
+    let borderColor = null;
+    let borderWidth = '3px';
+
+    if (oddsHint) {
+      if (oddsHint.isFavorable && oddsHint.isPositiveEV) {
+        borderColor = '#2e7d32'; // Green for favorable
+      } else if (!oddsHint.isPositiveEV) {
+        borderColor = '#d32f2f'; // Red for unfavorable
+      } else {
+        borderColor = '#f57c00'; // Orange for medium
+      }
+    }
+
+    return (
+      <Button
+        key={key}
+        variant="contained"
+        color={color}
+        size="large"
+        onClick={onClick}
+        disabled={loading}
+        data-decision-type={key}
+        style={{
+          minHeight: '80px',
+          fontSize: '18px',
+          fontWeight: 'bold',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+          padding: '16px',
+          textTransform: 'none',
+          ...(borderColor && {
+            border: `${borderWidth} solid ${borderColor}`,
+            boxShadow: `0 0 8px ${borderColor}40`
+          })
+        }}
+      >
+        <span style={{ fontSize: '24px' }}>{icon}</span>
+        <span>{label}</span>
+        {description && (
+          <span style={{ fontSize: '14px', opacity: 0.8, fontWeight: 'normal' }}>
+            {description}
+          </span>
+        )}
+        {oddsHint && (
+          <span style={{
+            fontSize: '12px',
+            marginTop: '4px',
+            padding: '4px 8px',
+            borderRadius: '4px',
+            background: 'rgba(255, 255, 255, 0.2)',
+            fontWeight: 'bold'
+          }}>
+            {Math.round(oddsHint.probability * 100)}% • EV: {oddsHint.ev} pts
+          </span>
+        )}
+      </Button>
+    );
+  };
 
   // No action available
   if (!interactionNeeded && !hasNextShot) {
@@ -144,13 +204,16 @@ const DecisionButtons = ({
 
   // Betting/Doubling decisions
   if (interactionNeeded.type === 'double_offer') {
+    const acceptOddsHint = getOddsHint('accept-double');
+
     buttons.push(renderButton(
       'accept-double',
       '💰',
       'Accept Double',
       'Raise the stakes',
       () => onDecision({ accept_double: true }),
-      'warning'
+      'warning',
+      acceptOddsHint
     ));
 
     buttons.push(renderButton(
@@ -164,13 +227,16 @@ const DecisionButtons = ({
   }
 
   if (interactionNeeded.type === 'offer_double') {
+    const offerOddsHint = getOddsHint('offer-double');
+
     buttons.push(renderButton(
       'offer-double',
       '💰',
       'Offer Double',
       'Double the wager',
       () => onDecision({ offer_double: true }),
-      'warning'
+      'warning',
+      offerOddsHint
     ));
 
     buttons.push(renderButton(
@@ -211,6 +277,15 @@ DecisionButtons.propTypes = {
   loading: PropTypes.bool,
   gameState: PropTypes.shape({
     players: PropTypes.array
+  }),
+  shotProbabilities: PropTypes.shape({
+    betting_analysis: PropTypes.shape({
+      offer_double: PropTypes.number,
+      accept_double: PropTypes.number,
+      expected_value: PropTypes.number,
+      risk_level: PropTypes.string,
+      error: PropTypes.string
+    })
   })
 };
 

@@ -41,6 +41,7 @@ const SimulationVisualInterface = ({
           betting={gameState?.betting}
           baseWager={gameState?.base_wager || 1}
           pokerState={pokerState}
+          shotProbabilities={shotProbabilities}
         />
         <ShotContextCard
           shotState={shotState}
@@ -58,6 +59,7 @@ const SimulationVisualInterface = ({
           onNextShot={onNextShot}
           loading={loading}
           gameState={gameState}
+          shotProbabilities={shotProbabilities}
         />
       </div>
     </div>
