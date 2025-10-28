@@ -2,6 +2,25 @@
 
 Wolf Goat Pig is a golf wagering simulation that pairs a FastAPI backend with a React frontend. The service models an entire round of play, including handicaps, betting state, and scenario-driven decision making for both humans and AI partners.
 
+## Features
+
+### Simulation Mode
+- **Visual Decision Interface**: Top-down hole visualization with player positions, game state cards, and large action buttons
+- **Real-Time Betting Odds**: AI-powered probability analysis for betting decisions with:
+  - Color-coded probability indicators (Green: Likely, Orange: Possible, Gray: Unlikely)
+  - Expected value calculations (+/- points gained/lost)
+  - Risk level assessment (Low/Medium/High)
+  - Strategic reasoning explanations
+  - Educational tooltips for learning game strategy
+- **Partnership Management**: Dynamic team formation with captain selection and partner requests
+- **Shot Simulation**: Monte Carlo-based shot outcomes with lie quality, distance, and skill factors
+- **Responsive Design**: Optimized layouts for desktop, tablet, and mobile devices
+
+### API
+- **RESTful Endpoints**: FastAPI-powered endpoints for game management, simulation, and analytics
+- **Quick Odds Calculation**: `/api/wgp/quick-odds` endpoint provides betting probabilities and strategic recommendations
+- **Game State Management**: Persistent game state with SQLite/PostgreSQL support
+
 ## Repository layout
 
 ```
