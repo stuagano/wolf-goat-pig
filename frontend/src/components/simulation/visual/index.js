@@ -3,3 +3,4 @@ export { default as HoleVisualization } from './HoleVisualization';
 export { default as PlayersCard } from './PlayersCard';
 export { default as BettingCard } from './BettingCard';
 export { default as ShotContextCard } from './ShotContextCard';
+export { default as DecisionButtons } from './DecisionButtons';
