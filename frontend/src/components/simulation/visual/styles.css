@@ -1,0 +1,81 @@
+/* frontend/src/components/simulation/visual/styles.css */
+
+/* Container */
+.simulation-visual-interface {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 16px;
+  padding: 16px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Sections */
+.visualization-section {
+  flex: 0 0 35%;
+  min-height: 300px;
+  max-height: 400px;
+}
+
+.cards-section {
+  flex: 0 0 25%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  min-height: 200px;
+}
+
+.buttons-section {
+  flex: 0 0 40%;
+  min-height: 250px;
+}
+
+/* Responsive: Tablet */
+@media (max-width: 1024px) {
+  .cards-section {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .cards-section > :last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Responsive: Mobile */
+@media (max-width: 768px) {
+  .simulation-visual-interface {
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .visualization-section {
+    flex: 0 0 30%;
+    min-height: 250px;
+    max-height: 300px;
+  }
+
+  .cards-section {
+    flex: 0 0 30%;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    min-height: auto;
+  }
+
+  .buttons-section {
+    flex: 0 0 40%;
+    min-height: 200px;
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 480px) {
+  .simulation-visual-interface {
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .visualization-section {
+    min-height: 200px;
+  }
+}
