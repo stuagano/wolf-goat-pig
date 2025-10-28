@@ -4,6 +4,7 @@ import { simulationConfig } from "../../config/environment";
 import { getSimulationMock } from "./__fixtures__";
 import { GameSetup, GamePlay, EnhancedSimulationLayout } from "./";
 import TurnBasedInterface from "./TurnBasedInterface";
+import { SimulationVisualInterface } from "./visual";
 // import { Timeline, PokerBettingPanel } from "./"; // Removed - not currently used
 // import TVPokerLayout from "../game/TVPokerLayout"; // Removed - not currently used
 
@@ -881,42 +882,19 @@ function SimulationMode() {
       />
     );
   }
-  
-  // Use Enhanced Simulation Layout with Timeline and Poker Betting
-  const useEnhancedLayout = true; // TODO: Make this a user preference
 
-  if (useEnhancedLayout) {
-    return (
-      <EnhancedSimulationLayout
-        gameState={gameState}
-        shotState={shotState}
-        probabilities={shotProbabilities}
-        onDecision={makeDecision}
-        onPlayNextShot={playNextShot}
-        timelineEvents={timelineEvents}
-        timelineLoading={timelineLoading}
-        pokerState={pokerState}
-        bettingOptions={bettingOptions}
-        onBettingAction={handleBettingAction}
-        currentPlayer="human"
-        interactionNeeded={interactionNeeded}
-        hasNextShot={hasNextShot}
-        feedback={feedback}
-      />
-    );
-  }
-
+  // Use new Visual Interface (replaces EnhancedSimulationLayout and GamePlay)
   return (
-    <GamePlay
+    <SimulationVisualInterface
       gameState={gameState}
-      onEndSimulation={resetSimulation}
-      interactionNeeded={interactionNeeded}
-      onMakeDecision={makeDecision}
-      feedback={feedback}
       shotState={shotState}
       shotProbabilities={shotProbabilities}
-      onNextShot={playNextShot}
+      interactionNeeded={interactionNeeded}
       hasNextShot={hasNextShot}
+      loading={loading}
+      pokerState={pokerState}
+      onMakeDecision={makeDecision}
+      onNextShot={playNextShot}
     />
   );
 }
