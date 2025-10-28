@@ -79,3 +79,74 @@
     min-height: 200px;
   }
 }
+
+/* Betting Odds Section */
+.betting-odds-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.betting-odds-section .MuiTypography-overline {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Probability Bar */
+.probability-bar {
+  display: flex;
+  gap: 2px;
+  height: 4px;
+  margin-left: 8px;
+}
+
+.probability-dot {
+  width: 12px;
+  height: 4px;
+  border-radius: 2px;
+  background-color: rgba(0, 0, 0, 0.12);
+  transition: background-color 0.2s;
+}
+
+.probability-dot.filled {
+  background-color: currentColor;
+}
+
+/* Odds States */
+.odds-unavailable {
+  color: #f57c00;
+  font-size: 0.875rem;
+  font-style: italic;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.odds-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+/* Expected Value */
+.expected-value-positive {
+  color: #2e7d32;
+}
+
+.expected-value-negative {
+  color: #d32f2f;
+}
+
+/* Mobile Responsive for Odds */
+@media (max-width: 768px) {
+  .betting-odds-section {
+    font-size: 0.875rem;
+  }
+
+  .probability-dot {
+    width: 10px;
+  }
+}
