@@ -60,8 +60,14 @@ describe('SimulationVisualInterface', () => {
       />
     );
 
-    const sections = container.querySelectorAll('[data-section]');
-    expect(sections.length).toBeGreaterThanOrEqual(3);
+    // Check for class-based sections instead of data attributes
+    const visualizationSection = container.querySelector('.visualization-section');
+    const cardsSection = container.querySelector('.cards-section');
+    const buttonsSection = container.querySelector('.buttons-section');
+
+    expect(visualizationSection).toBeInTheDocument();
+    expect(cardsSection).toBeInTheDocument();
+    expect(buttonsSection).toBeInTheDocument();
   });
 
   test('responsive: stacks cards on mobile', () => {
@@ -76,7 +82,7 @@ describe('SimulationVisualInterface', () => {
       />
     );
 
-    const cardsContainer = container.querySelector('[data-section="cards"]');
+    const cardsContainer = container.querySelector('.cards-section');
     expect(cardsContainer).toBeInTheDocument();
   });
 });

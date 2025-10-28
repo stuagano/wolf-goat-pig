@@ -58,6 +58,16 @@ jest.mock('../EnhancedSimulationLayout', () => ({ onDecision }) => (
   </div>
 ));
 
+jest.mock('../visual', () => ({
+  SimulationVisualInterface: ({ onMakeDecision }) => (
+    <div data-testid="visual-interface">
+      <button onClick={() => onMakeDecision({ action: 'test' })} data-testid="make-decision-btn">
+        Make Decision
+      </button>
+    </div>
+  )
+}));
+
 // Import after mocks are defined
 import SimulationMode from '../SimulationMode';
 
