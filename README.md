@@ -139,5 +139,10 @@ Tests generate a detailed report at `functional_test_report.json` with:
 
 ---
 
+## GHIN API
+This project uses a reverse-engineered version of the GHIN API to look up golfer information. For more details on how to use this API, see the [GHIN API Documentation](GHIN_API.md).
+
+---
+
 ## Questions?
 Open an issue or contact the maintainer. 
