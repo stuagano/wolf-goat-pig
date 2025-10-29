@@ -8,8 +8,18 @@ test.describe('Wolf-Goat-Pig Simulation Mode', () => {
     // Navigate to the app
     await page.goto(APP_URL);
 
-    // Wait for app to load
+    // Wait for app to fully initialize - first wait for network idle
     await page.waitForLoadState('networkidle');
+
+    // Wait for the loading screen to disappear and main content to appear
+    // The app shows "Hold On Please" while cold starting
+    await page.waitForFunction(() => {
+      const loadingText = document.body.textContent;
+      return !loadingText.includes('Hold On Please');
+    }, { timeout: 60000 });
+
+    // Additional wait to ensure React has fully rendered
+    await page.waitForTimeout(2000);
 
     // Click Browse Without Login to access the app
     const browseButton = page.locator('button:has-text("Browse Without Login")');
@@ -537,12 +547,20 @@ test.describe('Wolf-Goat-Pig Simulation Mode', () => {
   test.describe('Full Game Flow', () => {
     test('should complete an entire hole', async ({ page }) => {
       test.setTimeout(60000); // Extend timeout for full hole
-      
+
       // Setup game
       await page.locator('input[type="text"]').first().fill('Test Player');
       await page.locator('button:has-text("Clive")').first().click();
       await page.locator('button:has-text("Gary")').nth(1).click();
       await page.locator('button:has-text("Bernard")').nth(2).click();
+
+      // Wait for courses to load in dropdown before selecting
+      await page.waitForFunction(() => {
+        const selects = document.querySelectorAll('select');
+        const courseSelect = selects[selects.length - 1];
+        return courseSelect && courseSelect.options.length > 1;
+      }, { timeout: 10000 });
+
       await page.locator('select').last().selectOption('Wing Point');
       await page.click('button:has-text("🚀 Start Simulation")');
       await page.waitForSelector('button:has-text("⛳ Play Next Shot")', { timeout: 10000 });
