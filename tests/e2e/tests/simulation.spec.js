@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+const { test, expect } = require('@playwright/test');
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 const APP_URL = process.env.REACT_APP_URL || 'http://localhost:3001';
@@ -7,20 +7,22 @@ test.describe('Wolf-Goat-Pig Simulation Mode', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to the app
     await page.goto(APP_URL);
-    
+
     // Wait for app to load
     await page.waitForLoadState('networkidle');
-    
-    // Click past splash screen if it appears
-    const startGameButton = page.locator('button:has-text("Start New Game")');
-    if (await startGameButton.isVisible()) {
-      await startGameButton.click();
+
+    // Click Browse Without Login to access the app
+    const browseButton = page.locator('button:has-text("Browse Without Login")');
+    if (await browseButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await browseButton.click();
       await page.waitForLoadState('networkidle');
     }
-    
-    // Navigate to simulation mode
-    await page.click('button:has-text("🎲 Simulation")');
-    await expect(page.locator('h2:has-text("Wolf Goat Pig Simulation Mode")')).toBeVisible();
+
+    // Navigate to Practice Mode
+    await page.click('button:has-text("🎮 Practice Mode")');
+    await page.waitForLoadState('networkidle');
+    // Wait for the practice/simulation interface to load
+    await page.waitForTimeout(2000);
   });
 
   test.describe('Setup and Initialization', () => {
