@@ -7,43 +7,6 @@
   "devCommand": "npm start",
   "installCommand": "npm install",
   "framework": "create-react-app",
-  "public": false,
-  "github": {
-    "enabled": true,
-    "autoAlias": true,
-    "silent": false
-  },
-  "env": {
-    "REACT_APP_API_URL": {
-      "description": "Backend API URL (REQUIRED: set to https://wolf-goat-pig.onrender.com)",
-      "value": "https://wolf-goat-pig.onrender.com",
-      "required": true
-    },
-    "REACT_APP_AUTH0_DOMAIN": {
-      "description": "Auth0 Domain",
-      "value": "dev-jm88n088hpt7oe48.us.auth0.com"
-    },
-    "REACT_APP_AUTH0_CLIENT_ID": {
-      "description": "Auth0 Client ID",
-      "value": "qAZuRv5E9mPQ9uTGg7NWpkpfVj8bCeoB"
-    },
-    "REACT_APP_AUTH0_AUDIENCE": {
-      "description": "Auth0 API Audience",
-      "value": "https://api.wolf-goat-pig.com"
-    },
-    "REACT_APP_USE_MOCK_AUTH": {
-      "description": "Use mock authentication (false for production)",
-      "value": "false"
-    },
-    "REACT_APP_ENABLE_ANALYTICS": {
-      "description": "Enable analytics tracking",
-      "value": "true"
-    },
-    "REACT_APP_DEPLOY_PLATFORM": {
-      "description": "Deployment platform identifier",
-      "value": "vercel"
-    }
-  },
   "build": {
     "env": {
       "REACT_APP_API_URL": "https://wolf-goat-pig.onrender.com",
