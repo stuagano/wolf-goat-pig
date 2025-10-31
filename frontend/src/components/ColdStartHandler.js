@@ -6,12 +6,23 @@ const ColdStartHandler = ({ children, onReady }) => {
   const [backendStatus, setBackendStatus] = useState('checking'); // checking, cold, warming, ready, error
   const [retryAttempt, setRetryAttempt] = useState(0);
   // const [startTime, setStartTime] = useState(Date.now()); // Moved to useEffect
-  
+
   const API_URL = process.env.REACT_APP_API_URL || "";
+
+  // Skip cold start handler in development - localhost should be instant
+  const isLocalDevelopment = API_URL.includes('localhost') || API_URL.includes('127.0.0.1');
 
   useEffect(() => {
     let isMounted = true;
     const currentStartTime = Date.now();
+
+    // In local development, skip the health check and render immediately
+    if (isLocalDevelopment) {
+      console.log('[ColdStartHandler] Local development detected - skipping health check');
+      setBackendStatus('ready');
+      if (onReady) onReady();
+      return;
+    }
 
     const checkBackendHealth = async (attempt = 0) => {
       if (!isMounted) return;
@@ -65,7 +76,7 @@ const ColdStartHandler = ({ children, onReady }) => {
     return () => {
       isMounted = false;
     };
-  }, [API_URL, onReady]);
+  }, [API_URL, onReady, isLocalDevelopment]);
 
   const getStatusMessage = () => {
     switch (backendStatus) {
