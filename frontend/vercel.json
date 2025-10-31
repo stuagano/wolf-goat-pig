@@ -39,10 +39,6 @@
       "description": "Enable analytics tracking",
       "value": "true"
     },
-    "REACT_APP_SIMULATION_USE_MOCKS": {
-      "description": "Use mock data for simulation",
-      "value": "false"
-    },
     "REACT_APP_DEPLOY_PLATFORM": {
       "description": "Deployment platform identifier",
       "value": "vercel"
@@ -56,7 +52,6 @@
       "REACT_APP_AUTH0_AUDIENCE": "https://api.wolf-goat-pig.com",
       "REACT_APP_USE_MOCK_AUTH": "false",
       "REACT_APP_ENABLE_ANALYTICS": "true",
-      "REACT_APP_SIMULATION_USE_MOCKS": "false",
       "REACT_APP_DEPLOY_PLATFORM": "vercel"
     }
   },
