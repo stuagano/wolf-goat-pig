@@ -1,21 +1,10 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
-  "builds": [
-    {
-      "src": "frontend/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "frontend/build"
-      }
-    }
-  ],
-  "build": {
-    "env": {
-      "REACT_APP_API_URL": "https://wolf-goat-pig.onrender.com",
-      "REACT_APP_AUTH0_DOMAIN": "dev-jm88n088hpt7oe48.us.auth0.com",
-      "REACT_APP_AUTH0_CLIENT_ID": "qAZuRv5E9mPQ9uTGg7NWpkpfVj8bCeoB"
-    }
-  },
+  "buildCommand": "cd frontend && npm ci && npm run build",
+  "outputDirectory": "frontend/build",
+  "installCommand": "cd frontend && npm ci",
+  "framework": null,
   "rewrites": [
     {
       "source": "/(.*)",
