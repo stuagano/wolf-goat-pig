@@ -55,7 +55,7 @@ function SimulationMode() {
   const [mockStep, setMockStep] = useState(0);
   
   // Turn-based mode state
-  const useTurnBasedMode = true;
+  const useTurnBasedMode = false;
   const [turnBasedState, setTurnBasedState] = useState(null);
 
   // Setup state
