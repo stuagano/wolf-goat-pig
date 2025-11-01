@@ -337,18 +337,30 @@ const SimulationDecisionPanel: React.FC<SimulationDecisionPanelProps> = ({
       return null;
     }
 
-    switch (effectiveInteraction.type) {
-      case 'captain_decision':
-        return renderCaptainDecision();
-      case 'partnership_response':
-        return renderPartnershipResponse();
-      case 'double_offer':
-        return renderDoubleOffer();
-      case 'double_response':
-        return renderDoubleDecision();
-      default:
-        return renderGenericDecision();
+    // Normalize decision type to handle multiple naming conventions
+    const decisionType = effectiveInteraction.type;
+
+    // Captain choosing partner
+    if (decisionType === 'captain_decision' || decisionType === 'captain_chooses_partner') {
+      return renderCaptainDecision();
     }
+
+    // Partnership response
+    if (decisionType === 'partnership_response' || decisionType === 'partnership_request') {
+      return renderPartnershipResponse();
+    }
+
+    // Double offer/response
+    if (decisionType === 'double_offer') {
+      return renderDoubleOffer();
+    }
+
+    if (decisionType === 'double_response' || decisionType === 'offer_double') {
+      return renderDoubleDecision();
+    }
+
+    // Unknown decision type - show friendly fallback
+    return renderGenericDecision();
   };
 
   const renderNextShotCard = () => {

@@ -6,9 +6,9 @@ import {
   HoleVisualization,
   PlayersCard,
   BettingCard,
-  ShotContextCard,
-  DecisionButtons
+  ShotContextCard
 } from './index';
+import SimulationDecisionPanel from '../SimulationDecisionPanel';
 
 const SimulationVisualInterface = ({
   gameState = {},
@@ -50,16 +50,14 @@ const SimulationVisualInterface = ({
         />
       </div>
 
-      {/* Bottom 40% - Decision Buttons */}
+      {/* Bottom 40% - Decision Panel with Cards */}
       <div className="buttons-section">
-        <DecisionButtons
+        <SimulationDecisionPanel
+          gameState={gameState}
           interactionNeeded={interactionNeeded}
-          hasNextShot={hasNextShot}
           onDecision={onMakeDecision}
           onNextShot={onNextShot}
-          loading={loading}
-          gameState={gameState}
-          shotProbabilities={shotProbabilities}
+          hasNextShot={hasNextShot}
         />
       </div>
     </div>
