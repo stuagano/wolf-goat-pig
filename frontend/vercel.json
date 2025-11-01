@@ -18,34 +18,34 @@
       "REACT_APP_DEPLOY_PLATFORM": "vercel"
     }
   },
-  "routes": [
-    {
-      "src": "/static/(.*)",
-      "headers": {
-        "cache-control": "public, max-age=31536000, immutable"
-      },
-      "dest": "/static/$1"
-    },
-    {
-      "src": "/manifest.json",
-      "headers": {
-        "cache-control": "public, max-age=3600"
-      },
-      "dest": "/manifest.json"
-    },
-    {
-      "src": "/(.*\\.(?:ico|png|jpg|jpeg|svg|gif|css|js|json|woff|woff2|ttf|eot)$)",
-      "headers": {
-        "cache-control": "public, max-age=3600"
-      },
-      "dest": "/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ],
   "headers": [
+    {
+      "source": "/static/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/manifest.json",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600"
+        }
+      ]
+    },
+    {
+      "source": "/(.*\\.(?:ico|png|jpg|jpeg|svg|gif|css|js|json|woff|woff2|ttf|eot)$)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600"
+        }
+      ]
+    },
     {
       "source": "/(.*)",
       "headers": [
