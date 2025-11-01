@@ -403,11 +403,9 @@ function SimulationMode() {
         if (data.feedback && data.feedback.length > 0) {
           data.feedback.forEach(msg => addFeedback(msg));
         }
-        
-        // Handle shot result
-        if (data.shot_result) {
-          addFeedback(`🎯 Shot Result: ${JSON.stringify(data.shot_result)}`);
-        }
+
+        // Note: Shot result details are included in the feedback messages from the backend
+        // The raw shot_result object is captured in game state but not displayed as JSON
         
         // Handle interaction needed
         if (data.interaction_needed) {

@@ -319,23 +319,16 @@ const SimulationDecisionPanel: React.FC<SimulationDecisionPanelProps> = ({
   );
 
   const renderGenericDecision = () => (
-    <Card variant="warning">
-      <h3 style={{ color: theme.colors.warning, marginBottom: theme.spacing[3] }}>Decision Required</h3>
+    <Card variant="info">
+      <h3 style={{ color: theme.colors.primary, marginBottom: theme.spacing[3] }}>🎮 Game in Progress</h3>
       {effectiveInteraction?.message && (
-        <p style={{ marginBottom: theme.spacing[3] }}>{effectiveInteraction.message}</p>
+        <p style={{ marginBottom: theme.spacing[3], fontSize: theme.typography.base }}>{effectiveInteraction.message}</p>
       )}
-      <pre
-        style={{
-          backgroundColor: theme.colors.background,
-          padding: theme.spacing[3],
-          borderRadius: theme.borderRadius.base,
-          overflowX: 'auto',
-          fontFamily: theme.typography.fontMono,
-          fontSize: theme.typography.xs,
-        }}
-      >
-        {JSON.stringify(effectiveInteraction, null, 2)}
-      </pre>
+      {!effectiveInteraction?.message && (
+        <p style={{ fontSize: theme.typography.base, color: theme.colors.textSecondary }}>
+          The game is progressing. Your next decision will appear when it's ready.
+        </p>
+      )}
     </Card>
   );
 
