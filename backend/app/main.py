@@ -5059,6 +5059,63 @@ def make_betting_decision(request: Dict[str, Any]):
         logger.error(f"Betting decision failed: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to process betting decision: {str(e)}")
 
+@app.post("/simulation/next-hole")
+def advance_simulation_hole():
+    """Advance to the next hole in the simulation"""
+    global wgp_simulation
+
+    try:
+        if not wgp_simulation:
+            raise HTTPException(status_code=400, detail="Simulation not initialized")
+
+        # Check if current hole is complete
+        current_hole_state = wgp_simulation.hole_states.get(wgp_simulation.current_hole)
+        if current_hole_state and not current_hole_state.hole_complete:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Current hole {wgp_simulation.current_hole} is not complete yet"
+            )
+
+        # Advance to next hole (this handles both hole advancement and game completion)
+        result = wgp_simulation.advance_to_next_hole()
+
+        # Get updated game state
+        game_state = wgp_simulation.get_game_state()
+
+        # Prepare feedback messages
+        feedback = []
+        if result.get("status") == "game_finished":
+            # Game is complete
+            winners = result.get("winner_names", [])
+            if len(winners) == 1:
+                feedback.append(f"🏆 Round Complete! {winners[0]} wins the round!")
+            else:
+                feedback.append(f"🏆 Round Complete! Tie between {', '.join(winners)}!")
+            feedback.append(f"Final scores: {result.get('final_scores', {})}")
+        else:
+            # Moved to next hole
+            feedback.append(f"⛳ Advancing to Hole {result.get('current_hole', wgp_simulation.current_hole)}")
+            hole_info = game_state.get("hole_info", {})
+            if hole_info:
+                feedback.append(
+                    f"Hole {hole_info.get('number')}: Par {hole_info.get('par')}, {hole_info.get('distance', 0)} yards"
+                )
+
+        return {
+            "status": "ok",
+            "result": result,
+            "game_state": game_state,
+            "feedback": feedback,
+            "next_shot_available": result.get("status") != "game_finished",
+            "game_finished": result.get("status") == "game_finished"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to advance hole: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to advance to next hole: {str(e)}")
+
 @app.get("/simulation/post-hole-analytics/{hole_number}")
 def get_post_hole_analytics(hole_number: int):
     """Get comprehensive post-hole analytics for learning and improvement"""

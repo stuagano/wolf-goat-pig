@@ -3,6 +3,7 @@ import { useGame } from "../../context";
 import { simulationConfig } from "../../config/environment";
 import { GameSetup } from "./";
 import { SimulationVisualInterface } from "./visual";
+import RoundSummary from "./RoundSummary";
 
 const {
   apiUrl: SIMULATION_API_URL,
@@ -26,6 +27,7 @@ function SimulationMode() {
     endGame,
     loading,
     setLoading,
+    feedback,
     addFeedback,
     clearFeedback,
     shotState,
@@ -45,6 +47,9 @@ function SimulationMode() {
   const [pokerState, setPokerState] = useState({});
   const [, setBettingOptions] = useState([]);
   const [, setTimelineLoading] = useState(false);
+
+  // Round completion state
+  const [roundFinished, setRoundFinished] = useState(false);
 
   // Setup state
   const [humanPlayer, setHumanPlayer] = useState({
@@ -126,6 +131,7 @@ function SimulationMode() {
       setHasNextShot(true);
       setInteractionNeeded(null);
       setPendingDecision({});
+      setRoundFinished(false);
       setHoleDecisions({
         action: null,
         requested_partner: null,
@@ -403,11 +409,9 @@ function SimulationMode() {
         if (data.feedback && data.feedback.length > 0) {
           data.feedback.forEach(msg => addFeedback(msg));
         }
-        
-        // Handle shot result
-        if (data.shot_result) {
-          addFeedback(`🎯 Shot Result: ${JSON.stringify(data.shot_result)}`);
-        }
+
+        // Note: Shot result details are included in the feedback messages from the backend
+        // The raw shot_result object is captured in game state but not displayed as JSON
         
         // Handle interaction needed
         if (data.interaction_needed) {
@@ -445,7 +449,76 @@ function SimulationMode() {
       setLoading(false);
     }
   };
-  
+
+  const advanceToNextHole = async () => {
+    if (loading) {
+      console.debug("Cannot advance hole: loading");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${SIMULATION_API_URL}/simulation/next-hole`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Backend error: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+
+      if (data.status === "ok") {
+        setGameState(data.game_state);
+
+        // Add feedback messages
+        if (data.feedback && Array.isArray(data.feedback)) {
+          clearFeedback(); // Clear old feedback for new hole
+          data.feedback.forEach(msg => addFeedback(msg));
+        }
+
+        // Check if game is finished
+        if (data.game_finished) {
+          // Round is complete - show summary screen
+          setRoundFinished(true);
+          setHasNextShot(false);
+          addFeedback("🏆 Round complete! Final results are shown.");
+        } else {
+          // Moved to next hole
+          setHasNextShot(true);
+          setInteractionNeeded(null);
+          setPendingDecision({});
+        }
+
+        // Refresh timeline and poker state for new hole
+        await Promise.all([fetchTimelineEvents(), fetchPokerState()]);
+
+      } else {
+        throw new Error(data.message || 'Unknown error occurred');
+      }
+
+    } catch (error) {
+      console.error("Error advancing to next hole:", error);
+
+      let errorMessage = "Error advancing hole: ";
+      if (error.message.includes("Backend error: 500")) {
+        errorMessage += "Server error - please try again";
+      } else if (error.message.includes("Backend error: 400")) {
+        errorMessage += "Hole not complete yet or invalid request";
+      } else if (error.message.includes("fetch")) {
+        errorMessage += "Network error - check your connection";
+      } else {
+        errorMessage += error.message;
+      }
+
+      addFeedback(`❌ ${errorMessage}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Removed for now - not used with new visual interface
   // const resetSimulation = () => {
   //   setGameState(null);
@@ -480,6 +553,23 @@ function SimulationMode() {
     );
   }
 
+  // Show round summary if game is finished
+  if (roundFinished && gameState) {
+    return (
+      <RoundSummary
+        gameState={gameState}
+        onPlayAgain={() => {
+          setRoundFinished(false);
+          endGame();
+        }}
+        onExit={() => {
+          setRoundFinished(false);
+          endGame();
+        }}
+      />
+    );
+  }
+
   // Use Visual Interface as the single mode for running the game
   return (
     <SimulationVisualInterface
@@ -490,8 +580,10 @@ function SimulationMode() {
       hasNextShot={hasNextShot}
       loading={loading}
       pokerState={pokerState}
+      feedback={feedback}
       onMakeDecision={makeDecision}
       onNextShot={playNextShot}
+      onNextHole={advanceToNextHole}
     />
   );
 }

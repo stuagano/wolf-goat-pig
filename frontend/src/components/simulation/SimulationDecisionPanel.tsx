@@ -17,11 +17,18 @@ interface BettingState {
   current_wager?: number;
 }
 
+interface HoleState {
+  hole_complete?: boolean;
+  current_shot_number?: number;
+}
+
 interface GameState {
   players?: Player[];
   captain_id?: string;
   base_wager?: number;
   betting?: BettingState;
+  hole_state?: HoleState;
+  current_hole?: number;
 }
 
 interface InteractionNeeded {
@@ -44,6 +51,7 @@ interface SimulationDecisionPanelProps {
   interactionNeeded?: InteractionNeeded | null;
   onDecision?: (payload: Record<string, unknown>) => void;
   onNextShot?: () => void;
+  onNextHole?: () => void;
   hasNextShot?: boolean | null;
   style?: React.CSSProperties;
 }
@@ -53,6 +61,7 @@ const SimulationDecisionPanel: React.FC<SimulationDecisionPanelProps> = ({
   interactionNeeded,
   onDecision,
   onNextShot,
+  onNextHole,
   hasNextShot,
   style
 }) => {
@@ -319,23 +328,16 @@ const SimulationDecisionPanel: React.FC<SimulationDecisionPanelProps> = ({
   );
 
   const renderGenericDecision = () => (
-    <Card variant="warning">
-      <h3 style={{ color: theme.colors.warning, marginBottom: theme.spacing[3] }}>Decision Required</h3>
+    <Card variant="info">
+      <h3 style={{ color: theme.colors.primary, marginBottom: theme.spacing[3] }}>🎮 Game in Progress</h3>
       {effectiveInteraction?.message && (
-        <p style={{ marginBottom: theme.spacing[3] }}>{effectiveInteraction.message}</p>
+        <p style={{ marginBottom: theme.spacing[3], fontSize: theme.typography.base }}>{effectiveInteraction.message}</p>
       )}
-      <pre
-        style={{
-          backgroundColor: theme.colors.background,
-          padding: theme.spacing[3],
-          borderRadius: theme.borderRadius.base,
-          overflowX: 'auto',
-          fontFamily: theme.typography.fontMono,
-          fontSize: theme.typography.xs,
-        }}
-      >
-        {JSON.stringify(effectiveInteraction, null, 2)}
-      </pre>
+      {!effectiveInteraction?.message && (
+        <p style={{ fontSize: theme.typography.base, color: theme.colors.textSecondary }}>
+          The game is progressing. Your next decision will appear when it's ready.
+        </p>
+      )}
     </Card>
   );
 
@@ -344,18 +346,30 @@ const SimulationDecisionPanel: React.FC<SimulationDecisionPanelProps> = ({
       return null;
     }
 
-    switch (effectiveInteraction.type) {
-      case 'captain_decision':
-        return renderCaptainDecision();
-      case 'partnership_response':
-        return renderPartnershipResponse();
-      case 'double_offer':
-        return renderDoubleOffer();
-      case 'double_response':
-        return renderDoubleDecision();
-      default:
-        return renderGenericDecision();
+    // Normalize decision type to handle multiple naming conventions
+    const decisionType = effectiveInteraction.type;
+
+    // Captain choosing partner
+    if (decisionType === 'captain_decision' || decisionType === 'captain_chooses_partner') {
+      return renderCaptainDecision();
     }
+
+    // Partnership response
+    if (decisionType === 'partnership_response' || decisionType === 'partnership_request') {
+      return renderPartnershipResponse();
+    }
+
+    // Double offer/response
+    if (decisionType === 'double_offer') {
+      return renderDoubleOffer();
+    }
+
+    if (decisionType === 'double_response' || decisionType === 'offer_double') {
+      return renderDoubleDecision();
+    }
+
+    // Unknown decision type - show friendly fallback
+    return renderGenericDecision();
   };
 
   const renderNextShotCard = () => {
@@ -392,8 +406,54 @@ const SimulationDecisionPanel: React.FC<SimulationDecisionPanelProps> = ({
     );
   };
 
+  const renderHoleCompleteCard = () => {
+    // Check if hole is complete
+    const holeComplete = gameState?.hole_state?.hole_complete;
+
+    if (!holeComplete) {
+      return null;
+    }
+
+    // Don't show if there are interactions pending
+    if (effectiveInteraction) {
+      return null;
+    }
+
+    const currentHole = gameState?.current_hole || 1;
+    const isLastHole = currentHole >= 18;
+
+    return (
+      <Card
+        variant="success"
+        style={{
+          backgroundColor: '#fff8e1',
+          border: `4px solid ${theme.colors.success}`,
+        }}
+      >
+        <h3 style={{ color: theme.colors.success, marginBottom: theme.spacing[3] }}>
+          🏁 Hole {currentHole} Complete!
+        </h3>
+        <p style={{ marginBottom: theme.spacing[4], fontSize: theme.typography.base }}>
+          {isLastHole
+            ? "That's the final hole! Ready to see the final results?"
+            : `Great round on hole ${currentHole}! Ready to move to the next hole?`
+          }
+        </p>
+        <div style={{ textAlign: 'center' }}>
+          <Button
+            variant="primary"
+            size="large"
+            onClick={onNextHole}
+          >
+            {isLastHole ? '🏆 View Final Results' : `⛳ Continue to Hole ${currentHole + 1}`}
+          </Button>
+        </div>
+      </Card>
+    );
+  };
+
   const renderIdleCard = () => {
-    if (effectiveInteraction || shotAvailable) {
+    if (effectiveInteraction || shotAvailable || gameState?.hole_state?.hole_complete) {
       return null;
     }
 
@@ -408,10 +468,11 @@ const SimulationDecisionPanel: React.FC<SimulationDecisionPanelProps> = ({
   };
 
   const interactionCard = renderInteractionCard();
+  const holeCompleteCard = renderHoleCompleteCard();
   const nextShotCard = renderNextShotCard();
   const idleCard = renderIdleCard();
 
-  if (!interactionCard && !nextShotCard && !idleCard) {
+  if (!interactionCard && !holeCompleteCard && !nextShotCard && !idleCard) {
     return null;
   }
 
@@ -425,6 +486,7 @@ const SimulationDecisionPanel: React.FC<SimulationDecisionPanelProps> = ({
       }}
     >
       {interactionCard}
+      {holeCompleteCard}
       {nextShotCard}
       {idleCard}
     </div>
