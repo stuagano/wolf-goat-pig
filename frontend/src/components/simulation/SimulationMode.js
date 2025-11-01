@@ -26,6 +26,7 @@ function SimulationMode() {
     endGame,
     loading,
     setLoading,
+    feedback,
     addFeedback,
     clearFeedback,
     shotState,
@@ -488,6 +489,7 @@ function SimulationMode() {
       hasNextShot={hasNextShot}
       loading={loading}
       pokerState={pokerState}
+      feedback={feedback}
       onMakeDecision={makeDecision}
       onNextShot={playNextShot}
     />

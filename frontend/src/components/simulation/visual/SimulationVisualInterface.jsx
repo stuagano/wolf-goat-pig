@@ -9,6 +9,7 @@ import {
   ShotContextCard
 } from './index';
 import SimulationDecisionPanel from '../SimulationDecisionPanel';
+import { Card } from '../../ui';
 
 const SimulationVisualInterface = ({
   gameState = {},
@@ -18,6 +19,7 @@ const SimulationVisualInterface = ({
   hasNextShot = false,
   loading = false,
   pokerState = {},
+  feedback = [],
   onMakeDecision = () => {},
   onNextShot = () => {}
 }) => {
@@ -50,6 +52,34 @@ const SimulationVisualInterface = ({
         />
       </div>
 
+      {/* Feedback Messages */}
+      {feedback && feedback.length > 0 && (
+        <div style={{ padding: '0 16px' }}>
+          <Card variant="info" style={{ marginBottom: '16px' }}>
+            <h3 style={{ marginTop: 0, marginBottom: '12px', fontSize: '16px', fontWeight: 'bold' }}>
+              📢 Game Updates
+            </h3>
+            <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
+              {feedback.slice(-5).reverse().map((msg, index) => (
+                <div
+                  key={index}
+                  style={{
+                    padding: '8px 12px',
+                    marginBottom: '6px',
+                    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    borderLeft: '3px solid #2196F3'
+                  }}
+                >
+                  {msg}
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      )}
+
       {/* Bottom 40% - Decision Panel with Cards */}
       <div className="buttons-section">
         <SimulationDecisionPanel
@@ -72,6 +102,7 @@ SimulationVisualInterface.propTypes = {
   hasNextShot: PropTypes.bool,
   loading: PropTypes.bool,
   pokerState: PropTypes.object,
+  feedback: PropTypes.array,
   onMakeDecision: PropTypes.func,
   onNextShot: PropTypes.func
 };
