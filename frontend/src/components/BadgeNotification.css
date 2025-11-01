@@ -1,0 +1,441 @@
+/* Badge Notification Overlay */
+.badge-notification-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.badge-notification-overlay.visible {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* Notification Card */
+.badge-notification-card {
+  background: white;
+  border-radius: 20px;
+  padding: 40px 30px;
+  max-width: 450px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  position: relative;
+  transform: scale(0.7) translateY(50px);
+  opacity: 0;
+  transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.badge-notification-card.visible {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+}
+
+/* Rarity-specific card styles */
+.badge-notification-card.common {
+  border: 3px solid #9CA3AF;
+}
+
+.badge-notification-card.rare {
+  border: 3px solid #3B82F6;
+  box-shadow: 0 20px 60px rgba(59, 130, 246, 0.5);
+}
+
+.badge-notification-card.epic {
+  border: 3px solid #A855F7;
+  box-shadow: 0 20px 60px rgba(168, 85, 247, 0.5);
+}
+
+.badge-notification-card.legendary {
+  border: 3px solid #F59E0B;
+  box-shadow: 0 20px 60px rgba(245, 158, 11, 0.5);
+  background: linear-gradient(135deg, white 0%, #fffbeb 100%);
+  animation: legendary-pulse 2s ease-in-out infinite;
+}
+
+@keyframes legendary-pulse {
+  0%, 100% {
+    box-shadow: 0 20px 60px rgba(245, 158, 11, 0.5);
+  }
+  50% {
+    box-shadow: 0 20px 80px rgba(245, 158, 11, 0.8);
+  }
+}
+
+.badge-notification-card.mythic {
+  border: 3px solid #EC4899;
+  box-shadow: 0 0 60px rgba(236, 72, 153, 0.8);
+  background: linear-gradient(135deg, white 0%, #fff1f7 100%);
+  animation: mythic-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes mythic-pulse {
+  0%, 100% {
+    box-shadow: 0 0 60px rgba(236, 72, 153, 0.8),
+                0 0 30px rgba(139, 92, 246, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 80px rgba(236, 72, 153, 1),
+                0 0 40px rgba(139, 92, 246, 0.8);
+  }
+}
+
+/* Close Button */
+.notification-close {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: rgba(0, 0, 0, 0.2);
+  color: #666;
+  border: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.notification-close:hover {
+  background: rgba(0, 0, 0, 0.4);
+  color: white;
+}
+
+/* Header */
+.notification-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.success-emoji {
+  font-size: 4rem;
+  margin-bottom: 10px;
+  animation: bounce 1s ease infinite;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.success-message {
+  font-size: 1.8rem;
+  font-weight: bold;
+  margin: 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.badge-notification-card.mythic .success-message {
+  background: linear-gradient(90deg, #EC4899, #8B5CF6, #EC4899);
+  background-size: 200% 100%;
+  animation: rainbow-text 3s ease infinite;
+}
+
+@keyframes rainbow-text {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Badge Reveal Container */
+.notification-badge-container {
+  display: flex;
+  justify-content: center;
+  margin: 30px 0;
+}
+
+.badge-reveal {
+  width: 200px;
+  height: 200px;
+  position: relative;
+  border-radius: 15px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  animation: revealBadge 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55) 0.3s forwards;
+  transform: scale(0);
+}
+
+@keyframes revealBadge {
+  0% {
+    transform: scale(0) rotate(-180deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+/* Rarity-specific badge reveals */
+.badge-reveal.rare {
+  box-shadow: 0 10px 30px rgba(59, 130, 246, 0.4);
+}
+
+.badge-reveal.epic {
+  box-shadow: 0 10px 30px rgba(168, 85, 247, 0.4);
+  animation: revealBadge 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55) 0.3s forwards,
+             epicGlow 2s ease-in-out infinite 1.2s;
+}
+
+@keyframes epicGlow {
+  0%, 100% {
+    box-shadow: 0 10px 30px rgba(168, 85, 247, 0.4);
+  }
+  50% {
+    box-shadow: 0 10px 40px rgba(168, 85, 247, 0.8);
+  }
+}
+
+.badge-reveal.legendary {
+  box-shadow: 0 10px 30px rgba(245, 158, 11, 0.4);
+  animation: revealBadge 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55) 0.3s forwards,
+             legendaryGlow 1.5s ease-in-out infinite 1.2s;
+}
+
+@keyframes legendaryGlow {
+  0%, 100% {
+    box-shadow: 0 10px 30px rgba(245, 158, 11, 0.6),
+                0 0 20px rgba(245, 158, 11, 0.4);
+  }
+  50% {
+    box-shadow: 0 10px 50px rgba(245, 158, 11, 1),
+                0 0 40px rgba(245, 158, 11, 0.8);
+  }
+}
+
+.badge-reveal.mythic {
+  box-shadow: 0 0 40px rgba(236, 72, 153, 0.8);
+  animation: revealBadge 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55) 0.3s forwards,
+             mythicGlow 1s ease-in-out infinite 1.2s,
+             mythicRotate 4s linear infinite 1.2s;
+}
+
+@keyframes mythicGlow {
+  0%, 100% {
+    box-shadow: 0 0 40px rgba(236, 72, 153, 0.8),
+                0 0 20px rgba(139, 92, 246, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 60px rgba(236, 72, 153, 1),
+                0 0 30px rgba(139, 92, 246, 0.8);
+  }
+}
+
+@keyframes mythicRotate {
+  0% {
+    filter: hue-rotate(0deg);
+  }
+  100% {
+    filter: hue-rotate(360deg);
+  }
+}
+
+.badge-reveal-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.badge-reveal-serial {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+/* Details */
+.notification-details {
+  text-align: center;
+}
+
+.badge-notification-name {
+  font-size: 1.8rem;
+  font-weight: bold;
+  margin: 0 0 10px;
+  color: #1a1a1a;
+}
+
+.badge-notification-description {
+  font-size: 1.1rem;
+  color: #6b7280;
+  margin: 0 0 15px;
+  line-height: 1.5;
+}
+
+.rarity-badge {
+  display: inline-block;
+  padding: 6px 20px;
+  border-radius: 20px;
+  font-weight: bold;
+  font-size: 0.9rem;
+  margin: 10px 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.rarity-badge.common {
+  background: #9CA3AF;
+  color: white;
+}
+
+.rarity-badge.rare {
+  background: #3B82F6;
+  color: white;
+}
+
+.rarity-badge.epic {
+  background: #A855F7;
+  color: white;
+}
+
+.rarity-badge.legendary {
+  background: linear-gradient(90deg, #F59E0B, #FCD34D);
+  color: white;
+  animation: shimmer 2s ease infinite;
+}
+
+@keyframes shimmer {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.rarity-badge.mythic {
+  background: linear-gradient(90deg, #EC4899, #8B5CF6, #EC4899);
+  background-size: 200% 100%;
+  color: white;
+  animation: rainbow-bg 3s ease infinite;
+}
+
+@keyframes rainbow-bg {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.points-earned {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: #10b981;
+  margin: 10px 0;
+}
+
+/* Actions */
+.notification-actions {
+  margin-top: 25px;
+  display: flex;
+  justify-content: center;
+}
+
+.view-badge-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 12px 30px;
+  border-radius: 25px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.view-badge-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+}
+
+.view-badge-btn:active {
+  transform: translateY(0);
+}
+
+/* Confetti */
+.confetti-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.confetti-piece {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  top: -20px;
+  animation: confetti-fall linear forwards;
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(0) rotateZ(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotateZ(720deg);
+    opacity: 0;
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .badge-notification-card {
+    padding: 30px 20px;
+    max-width: 350px;
+  }
+
+  .success-emoji {
+    font-size: 3rem;
+  }
+
+  .success-message {
+    font-size: 1.4rem;
+  }
+
+  .badge-reveal {
+    width: 150px;
+    height: 150px;
+  }
+
+  .badge-notification-name {
+    font-size: 1.4rem;
+  }
+
+  .badge-notification-description {
+    font-size: 1rem;
+  }
+}

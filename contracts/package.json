@@ -1,0 +1,35 @@
+{
+  "name": "wolf-goat-pig-badges-contracts",
+  "version": "1.0.0",
+  "description": "Smart contracts for Wolf Goat Pig NFT badge system",
+  "main": "index.js",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:local": "hardhat run scripts/deploy.js --network hardhat",
+    "deploy:mumbai": "hardhat run scripts/deploy.js --network mumbai",
+    "deploy:polygon": "hardhat run scripts/deploy.js --network polygon",
+    "deploy:arbitrum-sepolia": "hardhat run scripts/deploy.js --network arbitrumSepolia",
+    "deploy:arbitrum": "hardhat run scripts/deploy.js --network arbitrumOne",
+    "verify": "hardhat verify",
+    "node": "hardhat node"
+  },
+  "keywords": [
+    "nft",
+    "erc1155",
+    "badges",
+    "achievements",
+    "polygon",
+    "arbitrum"
+  ],
+  "author": "Wolf Goat Pig Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "hardhat": "^2.19.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.0",
+    "dotenv": "^16.3.1"
+  }
+}
