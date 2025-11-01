@@ -17,11 +17,18 @@ interface BettingState {
   current_wager?: number;
 }
 
+interface HoleState {
+  hole_complete?: boolean;
+  current_shot_number?: number;
+}
+
 interface GameState {
   players?: Player[];
   captain_id?: string;
   base_wager?: number;
   betting?: BettingState;
+  hole_state?: HoleState;
+  current_hole?: number;
 }
 
 interface InteractionNeeded {
@@ -44,6 +51,7 @@ interface SimulationDecisionPanelProps {
   interactionNeeded?: InteractionNeeded | null;
   onDecision?: (payload: Record<string, unknown>) => void;
   onNextShot?: () => void;
+  onNextHole?: () => void;
   hasNextShot?: boolean | null;
   style?: React.CSSProperties;
 }
@@ -53,6 +61,7 @@ const SimulationDecisionPanel: React.FC<SimulationDecisionPanelProps> = ({
   interactionNeeded,
   onDecision,
   onNextShot,
+  onNextHole,
   hasNextShot,
   style
 }) => {
@@ -397,8 +406,54 @@ const SimulationDecisionPanel: React.FC<SimulationDecisionPanelProps> = ({
     );
   };
 
+  const renderHoleCompleteCard = () => {
+    // Check if hole is complete
+    const holeComplete = gameState?.hole_state?.hole_complete;
+
+    if (!holeComplete) {
+      return null;
+    }
+
+    // Don't show if there are interactions pending
+    if (effectiveInteraction) {
+      return null;
+    }
+
+    const currentHole = gameState?.current_hole || 1;
+    const isLastHole = currentHole >= 18;
+
+    return (
+      <Card
+        variant="success"
+        style={{
+          backgroundColor: '#fff8e1',
+          border: `4px solid ${theme.colors.success}`,
+        }}
+      >
+        <h3 style={{ color: theme.colors.success, marginBottom: theme.spacing[3] }}>
+          🏁 Hole {currentHole} Complete!
+        </h3>
+        <p style={{ marginBottom: theme.spacing[4], fontSize: theme.typography.base }}>
+          {isLastHole
+            ? "That's the final hole! Ready to see the final results?"
+            : `Great round on hole ${currentHole}! Ready to move to the next hole?`
+          }
+        </p>
+        <div style={{ textAlign: 'center' }}>
+          <Button
+            variant="primary"
+            size="large"
+            onClick={onNextHole}
+          >
+            {isLastHole ? '🏆 View Final Results' : `⛳ Continue to Hole ${currentHole + 1}`}
+          </Button>
+        </div>
+      </Card>
+    );
+  };
+
   const renderIdleCard = () => {
-    if (effectiveInteraction || shotAvailable) {
+    if (effectiveInteraction || shotAvailable || gameState?.hole_state?.hole_complete) {
       return null;
     }
 
@@ -413,10 +468,11 @@ const SimulationDecisionPanel: React.FC<SimulationDecisionPanelProps> = ({
   };
 
   const interactionCard = renderInteractionCard();
+  const holeCompleteCard = renderHoleCompleteCard();
   const nextShotCard = renderNextShotCard();
   const idleCard = renderIdleCard();
 
-  if (!interactionCard && !nextShotCard && !idleCard) {
+  if (!interactionCard && !holeCompleteCard && !nextShotCard && !idleCard) {
     return null;
   }
 
@@ -430,6 +486,7 @@ const SimulationDecisionPanel: React.FC<SimulationDecisionPanelProps> = ({
       }}
     >
       {interactionCard}
+      {holeCompleteCard}
       {nextShotCard}
       {idleCard}
     </div>

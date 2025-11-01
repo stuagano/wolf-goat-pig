@@ -21,7 +21,8 @@ const SimulationVisualInterface = ({
   pokerState = {},
   feedback = [],
   onMakeDecision = () => {},
-  onNextShot = () => {}
+  onNextShot = () => {},
+  onNextHole = () => {}
 }) => {
   return (
     <div className="simulation-visual-interface">
@@ -87,6 +88,7 @@ const SimulationVisualInterface = ({
           interactionNeeded={interactionNeeded}
           onDecision={onMakeDecision}
           onNextShot={onNextShot}
+          onNextHole={onNextHole}
           hasNextShot={hasNextShot}
         />
       </div>
@@ -104,7 +106,8 @@ SimulationVisualInterface.propTypes = {
   pokerState: PropTypes.object,
   feedback: PropTypes.array,
   onMakeDecision: PropTypes.func,
-  onNextShot: PropTypes.func
+  onNextShot: PropTypes.func,
+  onNextHole: PropTypes.func
 };
 
 export default SimulationVisualInterface;
