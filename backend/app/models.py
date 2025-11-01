@@ -256,4 +256,88 @@ class MatchPlayer(Base):
     response = Column(String, nullable=True)  # accepted, declined, no_response
     responded_at = Column(String, nullable=True)
     created_at = Column(String)
-    updated_at = Column(String, nullable=True) 
+    updated_at = Column(String, nullable=True)
+
+# Achievement Badge System Models
+class Badge(Base):
+    __tablename__ = "badges"
+    id = Column(Integer, primary_key=True, index=True)
+    badge_id = Column(Integer, unique=True, index=True)  # Unique badge identifier
+    name = Column(String, index=True)
+    description = Column(String)
+    category = Column(String, index=True)  # achievement, progression, seasonal, rare_event, collectible_series
+    rarity = Column(String, index=True)  # common, rare, epic, legendary, mythic
+    image_url = Column(String, nullable=True)  # Badge image path or URL
+    trigger_condition = Column(JSON)  # Logic for earning badge
+    trigger_type = Column(String)  # one_time, career_milestone, series_completion, seasonal
+    max_supply = Column(Integer, nullable=True)  # NULL = unlimited (for limited edition badges)
+    current_supply = Column(Integer, default=0)  # How many players have earned this
+    points_value = Column(Integer, default=0)  # Point value for gamification
+    is_active = Column(Boolean, default=True)
+    series_id = Column(Integer, nullable=True, index=True)  # References BadgeSeries.id
+    tier = Column(Integer, nullable=True)  # For progression badges (0=Bronze, 1=Silver, etc.)
+    created_at = Column(String)
+    updated_at = Column(String, nullable=True)
+
+class PlayerBadgeEarned(Base):
+    __tablename__ = "player_badges_earned"
+    id = Column(Integer, primary_key=True, index=True)
+    player_profile_id = Column(Integer, index=True)  # References PlayerProfile.id
+    badge_id = Column(Integer, index=True)  # References Badge.id
+    earned_at = Column(String, index=True)
+    game_record_id = Column(Integer, nullable=True, index=True)  # Game where badge was earned
+    serial_number = Column(Integer)  # Order earned (e.g., #47 of all players who earned this)
+    showcase_position = Column(Integer, nullable=True)  # Position in player's badge showcase (1-6)
+    is_favorited = Column(Boolean, default=False)
+    created_at = Column(String)
+    updated_at = Column(String, nullable=True)
+
+class BadgeProgress(Base):
+    __tablename__ = "badge_progress"
+    id = Column(Integer, primary_key=True, index=True)
+    player_profile_id = Column(Integer, index=True)  # References PlayerProfile.id
+    badge_id = Column(Integer, index=True)  # References Badge.id
+    current_progress = Column(Integer, default=0)  # e.g., 7/10 solo wins
+    target_progress = Column(Integer)  # 10
+    progress_percentage = Column(Float, default=0.0)  # 70.0
+    last_progress_date = Column(String, nullable=True)  # When progress was last updated
+    progress_data = Column(JSON, default=dict)  # Additional tracking data (streaks, specific achievements)
+    created_at = Column(String)
+    updated_at = Column(String)
+
+class BadgeSeries(Base):
+    __tablename__ = "badge_series"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True)  # "Four Horsemen", "Course Conquerer"
+    description = Column(String)
+    category = Column(String)  # collectible, progression
+    badge_count = Column(Integer)  # How many badges in series
+    completion_badge_id = Column(Integer, nullable=True)  # Badge earned when series complete
+    image_url = Column(String, nullable=True)  # Series artwork
+    is_active = Column(Boolean, default=True)
+    created_at = Column(String)
+
+class PlayerSeriesProgress(Base):
+    __tablename__ = "player_series_progress"
+    id = Column(Integer, primary_key=True, index=True)
+    player_profile_id = Column(Integer, index=True)  # References PlayerProfile.id
+    series_id = Column(Integer, index=True)  # References BadgeSeries.id
+    badges_earned = Column(Integer, default=0)  # How many badges collected
+    badges_needed = Column(Integer)  # Total badges in series
+    is_completed = Column(Boolean, default=False)
+    completed_at = Column(String, nullable=True)
+    progress_data = Column(JSON, default=dict)  # Which badges are earned
+    created_at = Column(String)
+    updated_at = Column(String)
+
+class SeasonalBadge(Base):
+    __tablename__ = "seasonal_badges"
+    id = Column(Integer, primary_key=True, index=True)
+    badge_id = Column(Integer, index=True)  # References Badge.id
+    season_name = Column(String, index=True)  # "January 2026", "Spring 2026"
+    start_date = Column(String, index=True)  # YYYY-MM-DD
+    end_date = Column(String, index=True)  # YYYY-MM-DD
+    is_active = Column(Boolean, default=True)
+    max_earners = Column(Integer, nullable=True)  # Limited number of players who can earn
+    current_earners = Column(Integer, default=0)
+    created_at = Column(String) 

@@ -39,6 +39,7 @@ from .services.legacy_signup_service import get_legacy_signup_service
 # Email scheduler will be initialized on-demand to prevent startup blocking
 # from .services.email_scheduler import email_scheduler
 from .services.auth_service import get_current_user
+from .badge_routes import router as badge_router
 
 # Global variable for email scheduler (initialized on demand)
 email_scheduler = None
@@ -199,6 +200,8 @@ app.add_middleware(
     expose_headers=["*"]
 )
 
+# Include badge system routes
+app.include_router(badge_router)
 
 # Global exception handler
 @app.exception_handler(HTTPException)
