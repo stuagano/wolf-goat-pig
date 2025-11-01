@@ -1,5 +1,5 @@
 """
-API Routes for NFT Badge System
+API Routes for Achievement Badge System
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -11,8 +11,8 @@ from datetime import datetime
 
 from .database import get_db
 from .models import (
-    NFTBadge, PlayerBadgeEarned, BadgeProgress, BadgeSeries,
-    PlayerSeriesProgress, SeasonalBadge, WalletConnection,
+    Badge, PlayerBadgeEarned, BadgeProgress, BadgeSeries,
+    PlayerSeriesProgress, SeasonalBadge,
     PlayerProfile, PlayerStatistics
 )
 from .badge_engine import BadgeEngine
@@ -47,9 +47,6 @@ class EarnedBadgeResponse(BaseModel):
     badge: BadgeResponse
     earned_at: str
     serial_number: int
-    is_minted: bool
-    transaction_hash: Optional[str]
-    wallet_address: Optional[str]
     game_record_id: Optional[int]
 
     class Config:
@@ -80,23 +77,11 @@ class SeriesResponse(BaseModel):
         from_attributes = True
 
 
-class WalletConnectRequest(BaseModel):
-    wallet_address: str
-    wallet_type: str = "metamask"
-    verification_signature: str
-
-
-class MintBadgeRequest(BaseModel):
-    badge_earned_id: int
-    wallet_address: str
-
-
 class BadgeLeaderboardEntry(BaseModel):
     player_id: int
     player_name: str
     serial_number: int
     earned_at: str
-    is_minted: bool
 
 
 # ====================================================================================
@@ -115,24 +100,24 @@ def get_available_badges(
     - category: achievement, progression, seasonal, rare_event, collectible_series
     - rarity: common, rare, epic, legendary, mythic
     """
-    query = db.query(NFTBadge).filter(NFTBadge.is_active == True)
+    query = db.query(Badge).filter(Badge.is_active == True)
 
     if category:
-        query = query.filter(NFTBadge.category == category)
+        query = query.filter(Badge.category == category)
 
     if rarity:
-        query = query.filter(NFTBadge.rarity == rarity)
+        query = query.filter(Badge.rarity == rarity)
 
     badges = query.order_by(
         # Sort by rarity tier, then by name
         func.case(
-            (NFTBadge.rarity == 'mythic', 5),
-            (NFTBadge.rarity == 'legendary', 4),
-            (NFTBadge.rarity == 'epic', 3),
-            (NFTBadge.rarity == 'rare', 2),
+            (Badge.rarity == 'mythic', 5),
+            (Badge.rarity == 'legendary', 4),
+            (Badge.rarity == 'epic', 3),
+            (Badge.rarity == 'rare', 2),
             else_=1
         ).desc(),
-        NFTBadge.name
+        Badge.name
     ).all()
 
     return badges
@@ -162,7 +147,7 @@ def get_player_earned_badges(
     # Enrich with badge details
     result = []
     for earned in earned_badges:
-        badge = db.query(NFTBadge).filter_by(id=earned.badge_id).first()
+        badge = db.query(Badge).filter_by(id=earned.badge_id).first()
         if badge:
             result.append({
                 **earned.__dict__,
@@ -200,7 +185,7 @@ def get_player_badge_progress(
             if has_badge:
                 continue
 
-        badge = db.query(NFTBadge).filter_by(id=progress.badge_id).first()
+        badge = db.query(Badge).filter_by(id=progress.badge_id).first()
         if badge:
             result.append({
                 'badge': badge,
@@ -222,42 +207,33 @@ def get_player_badge_stats(player_id: int, db: Session = Depends(get_db)):
 
     # Count by rarity
     rarity_counts = db.query(
-        NFTBadge.rarity,
+        Badge.rarity,
         func.count(PlayerBadgeEarned.id)
     ).join(
         PlayerBadgeEarned,
-        NFTBadge.id == PlayerBadgeEarned.badge_id
+        Badge.id == PlayerBadgeEarned.badge_id
     ).filter(
         PlayerBadgeEarned.player_profile_id == player_id
-    ).group_by(NFTBadge.rarity).all()
+    ).group_by(Badge.rarity).all()
 
     # Count by category
     category_counts = db.query(
-        NFTBadge.category,
+        Badge.category,
         func.count(PlayerBadgeEarned.id)
     ).join(
         PlayerBadgeEarned,
-        NFTBadge.id == PlayerBadgeEarned.badge_id
+        Badge.id == PlayerBadgeEarned.badge_id
     ).filter(
         PlayerBadgeEarned.player_profile_id == player_id
-    ).group_by(NFTBadge.category).all()
-
-    # Count minted badges
-    minted_count = db.query(PlayerBadgeEarned).filter(
-        and_(
-            PlayerBadgeEarned.player_profile_id == player_id,
-            PlayerBadgeEarned.is_minted == True
-        )
-    ).count()
+    ).group_by(Badge.category).all()
 
     # Total badges available
-    total_available = db.query(NFTBadge).filter(NFTBadge.is_active == True).count()
+    total_available = db.query(Badge).filter(Badge.is_active == True).count()
 
     return {
         'total_earned': earned_count,
         'total_available': total_available,
         'completion_percentage': (earned_count / total_available * 100) if total_available > 0 else 0,
-        'minted_count': minted_count,
         'by_rarity': {r: c for r, c in rarity_counts},
         'by_category': {cat: c for cat, c in category_counts}
     }
@@ -279,7 +255,7 @@ def get_badge_series(db: Session = Depends(get_db)):
         # Get completion badge if exists
         completion_badge = None
         if series.completion_badge_id:
-            completion_badge = db.query(NFTBadge).filter_by(
+            completion_badge = db.query(Badge).filter_by(
                 id=series.completion_badge_id
             ).first()
 
@@ -313,7 +289,7 @@ def get_player_series_progress(player_id: int, db: Session = Depends(get_db)):
         # Get completion badge
         completion_badge = None
         if series.completion_badge_id:
-            completion_badge = db.query(NFTBadge).filter_by(
+            completion_badge = db.query(Badge).filter_by(
                 id=series.completion_badge_id
             ).first()
 
@@ -337,7 +313,7 @@ def get_badge_leaderboard(badge_id: int, limit: int = 100, db: Session = Depends
     Get leaderboard for a specific badge (who has it, serial numbers).
     Useful for rare badges to see who the elite owners are.
     """
-    badge = db.query(NFTBadge).filter_by(id=badge_id).first()
+    badge = db.query(Badge).filter_by(id=badge_id).first()
     if not badge:
         raise HTTPException(status_code=404, detail="Badge not found")
 
@@ -358,8 +334,7 @@ def get_badge_leaderboard(badge_id: int, limit: int = 100, db: Session = Depends
             'player_id': earned.player_profile_id,
             'player_name': player_name,
             'serial_number': earned.serial_number,
-            'earned_at': earned.earned_at,
-            'is_minted': earned.is_minted
+            'earned_at': earned.earned_at
         })
 
     return result
@@ -386,14 +361,14 @@ def get_top_collectors(limit: int = 50, db: Session = Depends(get_db)):
     for player_id, player_name, badge_count in top_collectors:
         # Get rarity breakdown
         rarity_counts = db.query(
-            NFTBadge.rarity,
+            Badge.rarity,
             func.count(PlayerBadgeEarned.id)
         ).join(
             PlayerBadgeEarned,
-            NFTBadge.id == PlayerBadgeEarned.badge_id
+            Badge.id == PlayerBadgeEarned.badge_id
         ).filter(
             PlayerBadgeEarned.player_profile_id == player_id
-        ).group_by(NFTBadge.rarity).all()
+        ).group_by(Badge.rarity).all()
 
         result.append({
             'player_id': player_id,
@@ -403,106 +378,6 @@ def get_top_collectors(limit: int = 50, db: Session = Depends(get_db)):
         })
 
     return result
-
-
-# ====================================================================================
-# WALLET & MINTING ENDPOINTS
-# ====================================================================================
-
-@router.post("/wallet/connect")
-def connect_wallet(request: WalletConnectRequest, db: Session = Depends(get_db)):
-    """
-    Connect a Web3 wallet to a player profile.
-    Requires signature verification.
-    """
-    # Note: In production, verify the signature here
-    # For now, we'll accept the request
-
-    # Check if wallet already connected
-    existing = db.query(WalletConnection).filter_by(
-        wallet_address=request.wallet_address.lower()
-    ).first()
-
-    if existing:
-        if not existing.is_active:
-            existing.is_active = True
-            existing.updated_at = datetime.utcnow().isoformat()
-            db.commit()
-        return {"message": "Wallet already connected", "wallet_connection": existing}
-
-    # Create new wallet connection
-    # Note: player_profile_id should come from authenticated session
-    # For now, we'll leave it to be set later
-    connection = WalletConnection(
-        wallet_address=request.wallet_address.lower(),
-        wallet_type=request.wallet_type,
-        is_verified=True,  # Would verify signature in production
-        verification_signature=request.verification_signature,
-        last_verified_at=datetime.utcnow().isoformat(),
-        connected_at=datetime.utcnow().isoformat(),
-        is_active=True,
-        created_at=datetime.utcnow().isoformat()
-    )
-
-    db.add(connection)
-    db.commit()
-    db.refresh(connection)
-
-    return {"message": "Wallet connected successfully", "wallet_connection": connection}
-
-
-@router.get("/wallet/player/{player_id}")
-def get_player_wallet(player_id: int, db: Session = Depends(get_db)):
-    """Get wallet connection for a player"""
-    wallet = db.query(WalletConnection).filter_by(
-        player_profile_id=player_id,
-        is_active=True
-    ).first()
-
-    if not wallet:
-        return {"connected": False, "wallet_address": None}
-
-    return {
-        "connected": True,
-        "wallet_address": wallet.wallet_address,
-        "wallet_type": wallet.wallet_type,
-        "connected_at": wallet.connected_at
-    }
-
-
-@router.post("/mint")
-def mint_badge(request: MintBadgeRequest, db: Session = Depends(get_db)):
-    """
-    Mint an earned badge to the blockchain.
-    This endpoint would be called by the frontend after wallet transaction completes.
-    """
-    earned_badge = db.query(PlayerBadgeEarned).filter_by(
-        id=request.badge_earned_id
-    ).first()
-
-    if not earned_badge:
-        raise HTTPException(status_code=404, detail="Badge not found")
-
-    if earned_badge.is_minted:
-        raise HTTPException(status_code=400, detail="Badge already minted")
-
-    # In production, this would:
-    # 1. Call smart contract to mint NFT
-    # 2. Wait for transaction confirmation
-    # 3. Update database with transaction hash
-
-    # For now, we'll just mark as minted
-    earned_badge.is_minted = True
-    earned_badge.wallet_address = request.wallet_address.lower()
-    earned_badge.transaction_hash = "0x" + "0" * 64  # Placeholder
-    earned_badge.updated_at = datetime.utcnow().isoformat()
-
-    db.commit()
-
-    return {
-        "message": "Badge minted successfully",
-        "transaction_hash": earned_badge.transaction_hash
-    }
 
 
 # ====================================================================================
@@ -558,9 +433,7 @@ def get_badge_holders(badge_id: int, db: Session = Depends(get_db)):
                 "player_name": h[1],
                 "player_email": h[2],
                 "serial_number": h[0].serial_number,
-                "earned_at": h[0].earned_at,
-                "is_minted": h[0].is_minted,
-                "transaction_hash": h[0].transaction_hash
+                "earned_at": h[0].earned_at
             }
             for h in holders
         ]

@@ -5,14 +5,14 @@ Run this script to populate the badge system with all available badges.
 
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
-from .models import NFTBadge, BadgeSeries, SeasonalBadge
+from .models import Badge, BadgeSeries, SeasonalBadge
 from .database import SessionLocal
 
 def seed_badges(db: Session):
     """Seed all badges into the database"""
 
     # Clear existing badges if reseeding
-    # db.query(NFTBadge).delete()
+    # db.query(Badge).delete()
     # db.query(BadgeSeries).delete()
     # db.query(SeasonalBadge).delete()
     # db.commit()
@@ -240,7 +240,7 @@ def seed_badges(db: Session):
 
     # Add all achievement badges
     for badge_data in achievement_badges:
-        badge = NFTBadge(**badge_data)
+        badge = Badge(**badge_data)
         db.add(badge)
 
     # ====================================================================================
@@ -257,7 +257,7 @@ def seed_badges(db: Session):
     ]
 
     for tier_data in earnings_tiers:
-        badge = NFTBadge(
+        badge = Badge(
             badge_id=badge_id_counter,
             name=tier_data['name'],
             description=f"Earn {tier_data['threshold']} quarters (career)",
@@ -288,7 +288,7 @@ def seed_badges(db: Session):
     ]
 
     for tier_data in games_tiers:
-        badge = NFTBadge(
+        badge = Badge(
             badge_id=badge_id_counter,
             name=tier_data['name'],
             description=f"Play {tier_data['threshold']} games",
@@ -319,7 +319,7 @@ def seed_badges(db: Session):
     ]
 
     for tier_data in holes_tiers:
-        badge = NFTBadge(
+        badge = Badge(
             badge_id=badge_id_counter,
             name=tier_data['name'],
             description=f"Win {tier_data['threshold']} holes",
@@ -349,7 +349,7 @@ def seed_badges(db: Session):
     ]
 
     for wr_data in winrate_badges:
-        badge = NFTBadge(
+        badge = Badge(
             badge_id=badge_id_counter,
             name=wr_data['name'],
             description=f"{int(wr_data['rate']*100)}% win rate (minimum 100 holes played)",
@@ -391,7 +391,7 @@ def seed_badges(db: Session):
     # Four Horsemen Badges
     horsemen_badges = []
 
-    horsemen_badges.append(NFTBadge(
+    horsemen_badges.append(Badge(
         badge_id=badge_id_counter,
         name='War',
         description='Win 10 redoubled holes (career)',
@@ -408,7 +408,7 @@ def seed_badges(db: Session):
     ))
     badge_id_counter += 1
 
-    horsemen_badges.append(NFTBadge(
+    horsemen_badges.append(Badge(
         badge_id=badge_id_counter,
         name='Famine',
         description='Bankrupt an opponent (reduce to -50 quarters)',
@@ -425,7 +425,7 @@ def seed_badges(db: Session):
     ))
     badge_id_counter += 1
 
-    horsemen_badges.append(NFTBadge(
+    horsemen_badges.append(Badge(
         badge_id=badge_id_counter,
         name='Pestilence',
         description='Win 5 games in a row',
@@ -442,7 +442,7 @@ def seed_badges(db: Session):
     ))
     badge_id_counter += 1
 
-    horsemen_badges.append(NFTBadge(
+    horsemen_badges.append(Badge(
         badge_id=badge_id_counter,
         name='Death',
         description='Eliminate all 3 opponents in solo mode',
@@ -463,7 +463,7 @@ def seed_badges(db: Session):
         db.add(badge)
 
     # Create completion badge
-    apocalypse_master = NFTBadge(
+    apocalypse_master = Badge(
         badge_id=badge_id_counter,
         name='Apocalypse Master',
         description='Completed the Four Horsemen collection',
@@ -492,7 +492,7 @@ def seed_badges(db: Session):
     # ====================================================================================
 
     # Example: New Year Dominator (January 2026)
-    new_year_badge = NFTBadge(
+    new_year_badge = Badge(
         badge_id=badge_id_counter,
         name='New Year Dominator',
         description='Win 15 games during January 2026',

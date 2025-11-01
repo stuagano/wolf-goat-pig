@@ -258,21 +258,21 @@ class MatchPlayer(Base):
     created_at = Column(String)
     updated_at = Column(String, nullable=True)
 
-# NFT Badge System Models
-class NFTBadge(Base):
-    __tablename__ = "nft_badges"
+# Achievement Badge System Models
+class Badge(Base):
+    __tablename__ = "badges"
     id = Column(Integer, primary_key=True, index=True)
-    badge_id = Column(Integer, unique=True, index=True)  # Maps to smart contract token ID
+    badge_id = Column(Integer, unique=True, index=True)  # Unique badge identifier
     name = Column(String, index=True)
     description = Column(String)
     category = Column(String, index=True)  # achievement, progression, seasonal, rare_event, collectible_series
     rarity = Column(String, index=True)  # common, rare, epic, legendary, mythic
-    image_url = Column(String, nullable=True)  # IPFS hash or URL
+    image_url = Column(String, nullable=True)  # Badge image path or URL
     trigger_condition = Column(JSON)  # Logic for earning badge
     trigger_type = Column(String)  # one_time, career_milestone, series_completion, seasonal
-    max_supply = Column(Integer, nullable=True)  # NULL = unlimited
-    current_supply = Column(Integer, default=0)
-    points_value = Column(Integer, default=0)  # Optional: point value for gamification
+    max_supply = Column(Integer, nullable=True)  # NULL = unlimited (for limited edition badges)
+    current_supply = Column(Integer, default=0)  # How many players have earned this
+    points_value = Column(Integer, default=0)  # Point value for gamification
     is_active = Column(Boolean, default=True)
     series_id = Column(Integer, nullable=True, index=True)  # References BadgeSeries.id
     tier = Column(Integer, nullable=True)  # For progression badges (0=Bronze, 1=Silver, etc.)
@@ -283,14 +283,10 @@ class PlayerBadgeEarned(Base):
     __tablename__ = "player_badges_earned"
     id = Column(Integer, primary_key=True, index=True)
     player_profile_id = Column(Integer, index=True)  # References PlayerProfile.id
-    badge_id = Column(Integer, index=True)  # References NFTBadge.id
+    badge_id = Column(Integer, index=True)  # References Badge.id
     earned_at = Column(String, index=True)
     game_record_id = Column(Integer, nullable=True, index=True)  # Game where badge was earned
-    serial_number = Column(Integer)  # Mint number (e.g., #47 of 1000)
-    transaction_hash = Column(String, nullable=True)  # Blockchain transaction hash
-    is_minted = Column(Boolean, default=False)  # Minted on-chain?
-    wallet_address = Column(String, nullable=True, index=True)  # Player's wallet address
-    metadata_uri = Column(String, nullable=True)  # IPFS URI for NFT metadata
+    serial_number = Column(Integer)  # Order earned (e.g., #47 of all players who earned this)
     showcase_position = Column(Integer, nullable=True)  # Position in player's badge showcase (1-6)
     is_favorited = Column(Boolean, default=False)
     created_at = Column(String)
@@ -300,7 +296,7 @@ class BadgeProgress(Base):
     __tablename__ = "badge_progress"
     id = Column(Integer, primary_key=True, index=True)
     player_profile_id = Column(Integer, index=True)  # References PlayerProfile.id
-    badge_id = Column(Integer, index=True)  # References NFTBadge.id
+    badge_id = Column(Integer, index=True)  # References Badge.id
     current_progress = Column(Integer, default=0)  # e.g., 7/10 solo wins
     target_progress = Column(Integer)  # 10
     progress_percentage = Column(Float, default=0.0)  # 70.0
@@ -337,26 +333,11 @@ class PlayerSeriesProgress(Base):
 class SeasonalBadge(Base):
     __tablename__ = "seasonal_badges"
     id = Column(Integer, primary_key=True, index=True)
-    badge_id = Column(Integer, index=True)  # References NFTBadge.id
+    badge_id = Column(Integer, index=True)  # References Badge.id
     season_name = Column(String, index=True)  # "January 2026", "Spring 2026"
     start_date = Column(String, index=True)  # YYYY-MM-DD
     end_date = Column(String, index=True)  # YYYY-MM-DD
     is_active = Column(Boolean, default=True)
     max_earners = Column(Integer, nullable=True)  # Limited number of players who can earn
     current_earners = Column(Integer, default=0)
-    created_at = Column(String)
-
-class WalletConnection(Base):
-    __tablename__ = "wallet_connections"
-    id = Column(Integer, primary_key=True, index=True)
-    player_profile_id = Column(Integer, unique=True, index=True)  # References PlayerProfile.id
-    wallet_address = Column(String, unique=True, index=True)  # Ethereum address
-    wallet_type = Column(String, default="metamask")  # metamask, walletconnect, coinbase
-    is_verified = Column(Boolean, default=False)
-    verification_signature = Column(String, nullable=True)  # Signature for wallet ownership proof
-    last_verified_at = Column(String, nullable=True)
-    connected_at = Column(String)
-    disconnected_at = Column(String, nullable=True)
-    is_active = Column(Boolean, default=True)
-    created_at = Column(String)
-    updated_at = Column(String, nullable=True) 
+    created_at = Column(String) 

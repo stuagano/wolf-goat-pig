@@ -167,14 +167,6 @@ const BadgeGallery = ({ playerId }) => {
                     {new Date(selectedBadge.earnedData.earned_at).toLocaleDateString()}
                   </span>
                 </div>
-                {selectedBadge.earnedData.is_minted && (
-                  <div className="earned-stat">
-                    <span className="stat-label">Status</span>
-                    <span className="stat-value">
-                      <span className="mint-badge">🎨 Minted</span>
-                    </span>
-                  </div>
-                )}
               </div>
             )}
 
