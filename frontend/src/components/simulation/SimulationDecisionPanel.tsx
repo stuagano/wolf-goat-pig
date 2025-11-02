@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { useTheme } from '../../theme/Provider';
 import { Button, Card } from '../ui';
 
@@ -119,55 +119,55 @@ const SimulationDecisionPanel: React.FC<SimulationDecisionPanelProps> = ({
     return 1;
   }, [gameState]);
 
-  const handleDecision = (payload: Record<string, unknown>) => {
+  const handleDecision = useCallback((payload: Record<string, unknown>) => {
     if (onDecision) {
       onDecision(payload);
     }
-  };
+  }, [onDecision]);
 
-  const handlePartnerInvite = (partnerId: string) => {
+  const handlePartnerInvite = useCallback((partnerId: string) => {
     handleDecision({
       action: 'request_partner',
       requested_partner: partnerId,
       player_id: captainId,
       captain_id: captainId,
     });
-  };
+  }, [handleDecision, captainId]);
 
-  const handleGoSolo = () => {
+  const handleGoSolo = useCallback(() => {
     handleDecision({
       action: 'go_solo',
       player_id: captainId,
       captain_id: captainId,
     });
-  };
+  }, [handleDecision, captainId]);
 
-  const handleKeepWatching = () => {
+  const handleKeepWatching = useCallback(() => {
     handleDecision({
       action: 'keep_watching',
       player_id: captainId,
     });
-  };
+  }, [handleDecision, captainId]);
 
-  const handlePartnershipResponse = (accepted: boolean) => {
+  const handlePartnershipResponse = useCallback((accepted: boolean) => {
     handleDecision({
       accept_partnership: accepted,
       partner_id: effectiveInteraction?.captain_id ?? captainId,
     });
-  };
+  }, [handleDecision, effectiveInteraction?.captain_id, captainId]);
 
-  const handleDoubleResponse = (accepted: boolean) => {
+  const handleDoubleResponse = useCallback((accepted: boolean) => {
     handleDecision({
       accept_double: accepted,
     });
-  };
+  }, [handleDecision]);
 
-  const handleDoubleDecision = (offer: boolean) => {
+  const handleDoubleDecision = useCallback((offer: boolean) => {
     handleDecision({
       offer_double: offer,
       player_id: captainId,
     });
-  };
+  }, [handleDecision, captainId]);
 
   const renderCaptainDecision = () => {
     const captainName = players.find(player => player.id === captainId)?.name || 'You';

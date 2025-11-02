@@ -111,7 +111,8 @@ const HoleVisualization: React.FC<HoleVisualizationProps> = ({
     const leftPosition = `${safeProgress * 100}%`;
     const topPosition = 32 + rowIndex * laneHeight;
     const isNext = nextPlayerId === player.id;
-    const icon = player.id === 'human' || player.is_human ? '👤' : '🤖';
+    // Use is_human flag as primary indicator, with fallback to ID check for backward compatibility
+    const icon = player.is_human === true || player.id === 'human' ? '👤' : '🤖';
 
     return (
       <div
