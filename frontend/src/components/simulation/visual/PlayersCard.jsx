@@ -28,12 +28,12 @@ const PlayersCard = ({ players = [], captainId = null }) => {
                 border: isHuman ? '1px solid rgba(33, 150, 243, 0.3)' : '1px solid transparent'
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+                  <span style={{ fontSize: '20px', flexShrink: 0 }}>
                     {isHuman ? '👤' : '🤖'}
                   </span>
-                  <span style={{ fontWeight: isHuman ? 'bold' : 'normal' }}>
+                  <span style={{ fontWeight: isHuman ? 'bold' : 'normal', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                     {player.name}
                     {isCaptain && ' 👑'}
                   </span>

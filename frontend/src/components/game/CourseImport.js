@@ -45,11 +45,15 @@ const buttonStyle = {
 
 const inputStyle = {
   width: "100%",
+  maxWidth: "600px",
   padding: "12px",
   border: "2px solid #e0e0e0",
   borderRadius: 8,
   fontSize: 16,
-  marginBottom: 16
+  marginBottom: 16,
+  boxSizing: "border-box",
+  wordBreak: "break-word",
+  overflowWrap: "break-word"
 };
 
 const CourseImport = ({ onClose, onCourseImported }) => {
@@ -500,14 +504,16 @@ const CourseImport = ({ onClose, onCourseImported }) => {
       alignItems: "center",
       zIndex: 1000
     }}>
-      <div style={{ 
-        background: COLORS.background, 
-        borderRadius: 16, 
-        padding: 24, 
-        maxWidth: 800, 
-        maxHeight: "90vh", 
-        overflow: "auto",
-        width: "90%"
+      <div style={{
+        background: COLORS.background,
+        borderRadius: 16,
+        padding: 24,
+        maxWidth: 800,
+        maxHeight: "90vh",
+        overflowY: "auto",
+        overflowX: "hidden",
+        width: "90%",
+        boxSizing: "border-box"
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <h1 style={{ color: COLORS.text, margin: 0 }}>Import Course Data</h1>

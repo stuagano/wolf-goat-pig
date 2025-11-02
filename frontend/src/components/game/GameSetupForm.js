@@ -251,7 +251,7 @@ function GameSetupForm({ onSetup }) {
       }} />}
       {showProfileManager && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ backgroundColor: 'white', borderRadius: 12, maxWidth: '90vw', maxHeight: '90vh', overflow: 'auto', padding: 20 }}>
+          <div style={{ backgroundColor: 'white', borderRadius: 12, maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto', overflowX: 'hidden', padding: 20, boxSizing: 'border-box' }}>
             <PlayerProfileManager 
               onProfileSelect={(profile) => {
                 selectProfile(profile);
@@ -355,12 +355,12 @@ function GameSetupForm({ onSetup }) {
             )}
           </div>
         )}
-        <div style={{ marginBottom: 12, display: 'flex', flexWrap: 'wrap', gap: 8, flexDirection: window.innerWidth < 600 ? 'column' : 'row' }}>
-          <label style={{ fontWeight: 600, marginRight: 8 }}>Course:</label>
-          <select style={{ ...inputStyle, width: 180 }} value={courseName} onChange={e => setCourseName(e.target.value)}>
+        <div style={{ marginBottom: 12, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+          <label style={{ fontWeight: 600, flexShrink: 0 }}>Course:</label>
+          <select style={{ ...inputStyle, width: 180, minWidth: 120, maxWidth: 250, boxSizing: 'border-box', flex: '1 1 auto' }} value={courseName} onChange={e => setCourseName(e.target.value)}>
             {courses.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-          <button type="button" style={{ ...buttonStyle, background: COLORS.accent, marginLeft: 10, fontSize: 16, padding: "10px 18px" }} onClick={() => setShowCourseManager(true)}>Manage Courses</button>
+          <button type="button" style={{ ...buttonStyle, background: COLORS.accent, fontSize: 16, padding: "10px 18px", whiteSpace: 'nowrap' }} onClick={() => setShowCourseManager(true)}>Manage Courses</button>
         </div>
         {players.map((player, idx) => (
           <div key={player.id} style={{ marginBottom: 18, border: '1px solid #eee', borderRadius: 8, padding: 12 }}>
@@ -377,7 +377,7 @@ function GameSetupForm({ onSetup }) {
                     const selectedProfile = profiles.find(p => p.id === parseInt(profileId));
                     handleProfileSelect(idx, selectedProfile);
                   }}
-                  style={{ width: '100%', marginBottom: 8 }}
+                  style={{ width: '100%', maxWidth: '400px', marginBottom: 8, boxSizing: 'border-box' }}
                 >
                   <option value="">Manual Entry</option>
                   {profiles.map(profile => (
@@ -398,11 +398,11 @@ function GameSetupForm({ onSetup }) {
                 placeholder="Name"
                 value={player.name}
                 onChange={e => handleChange(idx, 'name', e.target.value)}
-                style={{ width: 120, marginRight: 8 }}
+                style={{ width: 120, minWidth: 80, maxWidth: 200, marginRight: 8, boxSizing: 'border-box', flex: '1 1 auto' }}
                 id={`player-${idx}-name`}
                 disabled={setupMode === 'profile' && idx === 0 && selectedProfile}
               />
-              <label htmlFor={`player-${idx}-handicap`} style={{ fontSize: 12, fontWeight: 600 }}>
+              <label htmlFor={`player-${idx}-handicap`} style={{ fontSize: 12, fontWeight: 600, flexShrink: 0 }}>
                 Handicap
               </label>
               <input
@@ -410,14 +410,14 @@ function GameSetupForm({ onSetup }) {
                 placeholder="Handicap"
                 value={player.handicap}
                 onChange={e => handleChange(idx, 'handicap', e.target.value)}
-                style={{ width: 70, marginRight: 8 }}
+                style={{ width: 70, minWidth: 60, maxWidth: 100, marginRight: 8, boxSizing: 'border-box', flex: '0 1 auto' }}
                 id={`player-${idx}-handicap`}
                 disabled={setupMode === 'profile' && idx === 0 && selectedProfile}
               />
               <select
                 value={player.strength}
                 onChange={e => handleChange(idx, 'strength', e.target.value)}
-                style={{ width: 110, marginRight: 8 }}
+                style={{ width: 110, minWidth: 90, maxWidth: 150, marginRight: 8, boxSizing: 'border-box', flex: '0 1 auto' }}
                 disabled={setupMode === 'profile' && ((idx === 0 && selectedProfile) || player.profile_id)}
               >
                 <option value="">Strength</option>
@@ -434,9 +434,27 @@ function GameSetupForm({ onSetup }) {
                 </span>
               )}
               {/* GHIN Lookup UI */}
-              <input type="text" placeholder="First Name (optional)" value={ghinSearch[player.id]?.first_name || ''} onChange={e => handleGhinSearchChange(player.id, 'first_name', e.target.value)} />
-              <input type="text" placeholder="Last Name (required)" value={ghinSearch[player.id]?.last_name || ''} onChange={e => handleGhinSearchChange(player.id, 'last_name', e.target.value)} required />
-              <button type="button" onClick={() => handleGhinLookup(player.id)} disabled={ghinLoading?.[player.id] || !ghinSearch[player.id]?.last_name} style={{ marginRight: 4 }}>
+              <input
+                type="text"
+                placeholder="First Name (optional)"
+                value={ghinSearch[player.id]?.first_name || ''}
+                onChange={e => handleGhinSearchChange(player.id, 'first_name', e.target.value)}
+                style={{ width: 120, minWidth: 80, maxWidth: 180, padding: 6, marginRight: 4, boxSizing: 'border-box', borderRadius: 4, border: '1px solid #ccc' }}
+              />
+              <input
+                type="text"
+                placeholder="Last Name (required)"
+                value={ghinSearch[player.id]?.last_name || ''}
+                onChange={e => handleGhinSearchChange(player.id, 'last_name', e.target.value)}
+                required
+                style={{ width: 120, minWidth: 80, maxWidth: 180, padding: 6, marginRight: 4, boxSizing: 'border-box', borderRadius: 4, border: '1px solid #ccc' }}
+              />
+              <button
+                type="button"
+                onClick={() => handleGhinLookup(player.id)}
+                disabled={ghinLoading?.[player.id] || !ghinSearch[player.id]?.last_name}
+                style={{ marginRight: 4, padding: '6px 12px', borderRadius: 4, border: '1px solid #ccc', background: '#f5f5f5', cursor: 'pointer', whiteSpace: 'nowrap' }}
+              >
                 {ghinLoading?.[player.id] ? 'Searching...' : 'GHIN Lookup'}
               </button>
             </div>

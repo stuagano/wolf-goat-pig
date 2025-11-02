@@ -31,7 +31,7 @@ const HoleVisualization = ({ hole, players = [] }) => {
   };
 
   return (
-    <div style={{ width: '100%', position: 'relative' }}>
+    <div style={{ width: '100%', maxWidth: '600px', margin: '0 auto', position: 'relative' }}>
       {/* Info overlay */}
       <div style={{
         position: 'absolute',

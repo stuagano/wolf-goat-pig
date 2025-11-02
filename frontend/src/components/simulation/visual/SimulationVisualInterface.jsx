@@ -55,12 +55,12 @@ const SimulationVisualInterface = ({
 
       {/* Feedback Messages */}
       {feedback && feedback.length > 0 && (
-        <div style={{ padding: '0 16px' }}>
-          <Card variant="info" style={{ marginBottom: '16px' }}>
+        <div style={{ padding: '0 16px', maxWidth: '1400px', margin: '0 auto' }}>
+          <Card variant="info" style={{ marginBottom: '16px', maxWidth: '100%' }}>
             <h3 style={{ marginTop: 0, marginBottom: '12px', fontSize: '16px', fontWeight: 'bold' }}>
               📢 Game Updates
             </h3>
-            <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
+            <div style={{ maxHeight: '150px', overflowY: 'auto', overflowX: 'hidden' }}>
               {feedback.slice(-5).reverse().map((msg, index) => (
                 <div
                   key={index}
@@ -70,7 +70,9 @@ const SimulationVisualInterface = ({
                     backgroundColor: 'rgba(0, 0, 0, 0.05)',
                     borderRadius: '4px',
                     fontSize: '14px',
-                    borderLeft: '3px solid #2196F3'
+                    borderLeft: '3px solid #2196F3',
+                    wordBreak: 'break-word',
+                    overflowWrap: 'break-word'
                   }}
                 >
                   {msg}

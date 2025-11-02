@@ -97,7 +97,9 @@ const Navigation = () => {
     display: isMobileMenuOpen ? 'block' : 'none',
     zIndex: 1000,
     maxHeight: '70vh',
-    overflowY: 'auto'
+    overflowY: 'auto',
+    overflowX: 'hidden',
+    boxSizing: 'border-box'
   };
 
   const mobileNavItemStyle = {
@@ -112,7 +114,11 @@ const Navigation = () => {
     width: '100%',
     textAlign: 'left',
     fontWeight: 500,
-    transition: 'all 0.2s'
+    transition: 'all 0.2s',
+    boxSizing: 'border-box',
+    wordBreak: 'break-word',
+    overflowWrap: 'break-word',
+    whiteSpace: 'normal'
   };
 
   const handleNavigate = (path) => {
@@ -126,7 +132,7 @@ const Navigation = () => {
   return (
     <nav style={navStyle}>
       <div style={navContainerStyle}>
-        <h1 style={{ margin: 0, fontSize: isMobile ? '20px' : '24px' }}>🐺🐐🐷 Wolf Goat Pig</h1>
+        <h1 style={{ margin: 0, fontSize: isMobile ? '20px' : '24px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '250px' }}>🐺🐐🐷 Wolf Goat Pig</h1>
         
         {/* Desktop Navigation */}
         <div style={{ display: isMobile ? 'none' : 'flex', alignItems: 'center' }}>
