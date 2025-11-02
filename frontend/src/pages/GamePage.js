@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useTheme } from '../theme/Provider';
+import Scorecard from '../components/simulation/visual/Scorecard';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -412,6 +413,15 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
         <div style={{marginBottom:8,fontSize:15,color:theme.colors.textSecondary}}><strong>Game Phase:</strong> {gameState.game_phase}</div>
         {statusBox}
         {teamStatus && <div style={{ margin: "10px 0", ...theme.cardStyle }}>{teamStatus}</div>}
+
+        {/* Scorecard */}
+        <div style={{ marginBottom: 16 }}>
+          <Scorecard
+            players={gameState.players}
+            holeHistory={gameState.hole_history || []}
+            currentHole={gameState.current_hole}
+          />
+        </div>
         <div style={theme.cardStyle}>
           <h3 style={{marginTop:0,marginBottom:8,fontSize:17,color:theme.colors.primary}}>Players</h3>
           {playersTable}
