@@ -399,7 +399,7 @@ const SimulationDecisionPanel: React.FC<SimulationDecisionPanelProps> = ({
             size="large"
             onClick={onNextShot}
           >
-            🏌️ Play Next Shot
+            ⛳ Play Next Shot
           </Button>
         </div>
       </Card>
