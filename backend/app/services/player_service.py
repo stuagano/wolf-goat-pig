@@ -280,7 +280,17 @@ class PlayerService:
         # Update solo statistics
         stats.solo_attempts += game_result.solo_attempts
         stats.solo_wins += game_result.solo_wins
-        
+
+        # Update score performance statistics (eagles, birdies, pars, bogeys, etc.)
+        if game_result.performance_metrics:
+            score_perf = game_result.performance_metrics.get('score_performance', {})
+            stats.eagles += score_perf.get('eagles', 0)
+            stats.birdies += score_perf.get('birdies', 0)
+            stats.pars += score_perf.get('pars', 0)
+            stats.bogeys += score_perf.get('bogeys', 0)
+            stats.double_bogeys += score_perf.get('double_bogeys', 0)
+            stats.worse_than_double += score_perf.get('worse', 0)
+
         # Update performance trends
         performance_point = {
             "game_date": datetime.now().isoformat(),

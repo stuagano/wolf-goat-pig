@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useTheme } from '../theme/Provider';
 import Scorecard from '../components/simulation/visual/Scorecard';
+import LargeScoringButtons from '../components/game/LargeScoringButtons';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -19,7 +20,6 @@ const isBlankGameState = (gameState) => {
 
 function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
   const theme = useTheme();
-  const [scoreInputs, setScoreInputs] = useState({});
   const [partnerSelect, setPartnerSelect] = useState("");
   const [showDebug, setShowDebug] = useState(false);
   const [bettingTips, setBettingTips] = useState([]);
@@ -182,9 +182,17 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
       return null;
     } finally {
       setLoading(false);
-      setScoreInputs({});
       setPartnerSelect("");
     }
+  };
+
+  const handleScoreSubmit = async (scores) => {
+    // Submit all scores
+    for (const pid of Object.keys(scores)) {
+      await doAction("record_net_score", { player_id: pid, score: Number(scores[pid]) });
+    }
+    // Calculate points after all scores are recorded
+    await doAction("calculate_hole_points");
   };
 
   const createNewGame = () => {
@@ -195,7 +203,6 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
       .then(data => {
         setGameState(null);
         setLoading(false);
-        setScoreInputs({});
         setPartnerSelect("");
       });
   };
@@ -265,35 +272,6 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
     </div>
   );
 
-  const scoreEntryTable = (
-    <div style={tableContainerStyle}>
-      <table style={tableStyle}>
-        <thead>
-          <tr>
-            <th style={thStyle}>Player</th>
-            <th style={thStyle}>Net Score</th>
-          </tr>
-        </thead>
-        <tbody>
-          {gameState.players.map(player => (
-            <tr key={player.id}>
-              <td style={tdStyle}>{player.name}</td>
-              <td style={tdStyle}>
-                <input
-                  type="number"
-                  value={scoreInputs[player.id] ?? gameState.hole_scores[player.id] ?? ""}
-                  onChange={e => setScoreInputs({ ...scoreInputs, [player.id]: e.target.value })}
-                  style={theme.inputStyle}
-                />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-
-  const canCalculate = Object.values({ ...gameState.hole_scores, ...scoreInputs }).every(v => v !== null && v !== "") && ["partners", "solo"].includes(gameState.teams?.type);
 
   const statusColor = gameState.game_status_message?.toLowerCase().includes("win") ? theme.colors.success : gameState.game_status_message?.toLowerCase().includes("error") ? theme.colors.error : theme.colors.primary;
   const statusBox = (
@@ -456,42 +434,15 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
           </div>
         )}
         {(["partners", "solo"].includes(gameState.teams?.type)) && !doublePending && (
-          <div style={{ ...theme.cardStyle, opacity: doublePending ? 0.5 : 1, pointerEvents: doublePending ? 'none' : 'auto' }}>
-            <div style={{marginBottom:8}}><strong>Enter Net Scores:</strong></div>
-            {scoreEntryTable}
-            <button
-              style={{...theme.buttonStyle, width:'100%'}}
-              disabled={!canCalculate}
-              onClick={async () => {
-                for (const pid of Object.keys(scoreInputs)) {
-                  await doAction("record_net_score", { player_id: pid, score: Number(scoreInputs[pid]) });
-                }
-                await doAction("calculate_hole_points");
-              }}
-            >Calculate Points</button>
+          <div style={{ opacity: doublePending ? 0.5 : 1, pointerEvents: doublePending ? 'none' : 'auto' }}>
+            <LargeScoringButtons
+              gameState={gameState}
+              onScoreSubmit={handleScoreSubmit}
+              onAction={doAction}
+              loading={loading}
+            />
           </div>
         )}
-        {(["partners", "solo"].includes(gameState.teams?.type)) && !doublePending && (
-          <div style={{ ...theme.cardStyle, opacity: doublePending ? 0.5 : 1, pointerEvents: doublePending ? 'none' : 'auto' }}>
-            <div style={{marginBottom:8}}><strong>Betting Actions:</strong></div>
-            {!gameState.doubled_status && (
-              <button style={{...theme.buttonStyle, width:'100%',marginBottom:6}} onClick={() => doAction("offer_double", { offering_team_id: "team1", target_team_id: "team2", player_id: gameState.captain_id })}>
-                Offer Double
-              </button>
-            )}
-            {!gameState.player_float_used[gameState.captain_id] && (
-              <button style={{...theme.buttonStyle, width:'100%',marginBottom:6}} onClick={() => doAction("invoke_float", { captain_id: gameState.captain_id })}>
-                Invoke Float
-              </button>
-            )}
-            <button style={{...theme.buttonStyle, width:'100%'}} onClick={() => doAction("toggle_option", { captain_id: gameState.captain_id })}>
-              Toggle Option
-            </button>
-          </div>
-        )}
-        <div style={{ ...theme.cardStyle, opacity: doublePending ? 0.5 : 1, pointerEvents: doublePending ? 'none' : 'auto', textAlign:'center' }}>
-          <button style={{...theme.buttonStyle, width:'100%'}} onClick={() => doAction("next_hole")}>Next Hole</button>
-        </div>
         {showDebug && (
           <div style={{ ...theme.cardStyle, background: theme.colors.background, fontSize: 12, overflowX: "auto" }}>
             <pre>{JSON.stringify(gameState, null, 2)}</pre>

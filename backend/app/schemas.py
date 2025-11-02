@@ -231,6 +231,13 @@ class PlayerStatisticsResponse(BaseModel):
     partnerships_won: int
     solo_attempts: int
     solo_wins: int
+    # Score performance metrics
+    eagles: int = 0
+    birdies: int = 0
+    pars: int = 0
+    bogeys: int = 0
+    double_bogeys: int = 0
+    worse_than_double: int = 0
     favorite_game_mode: str
     preferred_player_count: int
     best_hole_performance: List[Dict[str, Any]]

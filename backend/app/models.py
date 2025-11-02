@@ -95,6 +95,13 @@ class PlayerStatistics(Base):
     partnerships_won = Column(Integer, default=0)
     solo_attempts = Column(Integer, default=0)
     solo_wins = Column(Integer, default=0)
+    # Score performance tracking (eagles, birdies, pars, etc.)
+    eagles = Column(Integer, default=0)  # 2 or more under par
+    birdies = Column(Integer, default=0)  # 1 under par
+    pars = Column(Integer, default=0)  # Equal to par
+    bogeys = Column(Integer, default=0)  # 1 over par
+    double_bogeys = Column(Integer, default=0)  # 2 over par
+    worse_than_double = Column(Integer, default=0)  # 3+ over par
     favorite_game_mode = Column(String, default="wolf_goat_pig")
     preferred_player_count = Column(Integer, default=4)
     best_hole_performance = Column(JSON, default=list)  # Track best performing holes

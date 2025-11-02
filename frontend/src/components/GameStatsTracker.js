@@ -69,6 +69,7 @@ const GameStatsTracker = ({
                 solo_attempts: 0,
                 solo_wins: 0,
                 hole_scores: {},
+                hole_pars: {},  // Track par for each hole
                 betting_history: [],
                 shot_performance: {
                     excellent_shots: 0,
@@ -76,6 +77,14 @@ const GameStatsTracker = ({
                     average_shots: 0,
                     poor_shots: 0,
                     total_shots: 0
+                },
+                score_performance: {
+                    eagles: 0,        // 2 or more under par
+                    birdies: 0,       // 1 under par
+                    pars: 0,          // Equal to par
+                    bogeys: 0,        // 1 over par
+                    double_bogeys: 0, // 2 over par
+                    worse: 0          // 3+ over par
                 }
             };
         });
@@ -96,9 +105,29 @@ const GameStatsTracker = ({
 
             // Update player metrics based on hole results
             Object.entries(updated.playerMetrics).forEach(([playerId, metrics]) => {
-                // Track hole results
+                // Track hole results and score performance
                 if (holeState.scores && holeState.scores[playerId]) {
-                    metrics.hole_scores[currentHole] = holeState.scores[playerId];
+                    const score = holeState.scores[playerId];
+                    const holePar = holeState.par || currentGameState.hole_par || 4;
+
+                    metrics.hole_scores[currentHole] = score;
+                    metrics.hole_pars[currentHole] = holePar;
+
+                    // Calculate score performance category
+                    const diff = score - holePar;
+                    if (diff <= -2) {
+                        metrics.score_performance.eagles += 1;
+                    } else if (diff === -1) {
+                        metrics.score_performance.birdies += 1;
+                    } else if (diff === 0) {
+                        metrics.score_performance.pars += 1;
+                    } else if (diff === 1) {
+                        metrics.score_performance.bogeys += 1;
+                    } else if (diff === 2) {
+                        metrics.score_performance.double_bogeys += 1;
+                    } else {
+                        metrics.score_performance.worse += 1;
+                    }
                 }
 
                 // Track earnings
@@ -209,6 +238,8 @@ const GameStatsTracker = ({
                         betting_history: playerMetrics.betting_history,
                         performance_metrics: {
                             shot_performance: playerMetrics.shot_performance,
+                            score_performance: playerMetrics.score_performance,
+                            hole_pars: playerMetrics.hole_pars,
                             game_duration_minutes: calculateGameDuration(),
                             course_name: finalGameState.course_name || 'Unknown'
                         }
