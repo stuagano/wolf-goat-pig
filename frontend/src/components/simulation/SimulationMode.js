@@ -166,6 +166,11 @@ function SimulationMode() {
           addFeedback(data.message || "Simulation started!");
         }
 
+        // Handle interaction needed from setup response
+        if (data.interaction_needed) {
+          setInteractionNeeded(data.interaction_needed);
+        }
+
         // Set next shot availability from the response
         if (data.next_shot_available !== undefined) {
           setHasNextShot(data.next_shot_available);
