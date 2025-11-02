@@ -99,7 +99,9 @@ const BettingCard = ({ betting = {}, baseWager = 1, pokerState = {}, shotProbabi
             fontSize: '12px',
             color: theme.colors.textSecondary,
             marginTop: '8px',
-            fontStyle: 'italic'
+            fontStyle: 'italic',
+            wordBreak: 'break-word',
+            overflowWrap: 'break-word'
           }}>
             ℹ️ {reasoning}
           </div>

@@ -70,8 +70,8 @@ const EducationalTooltip = ({ title, content, type = 'info' }) => {
         <div
           style={{
             position: 'fixed',
-            left: mousePosition.x + 10,
-            top: mousePosition.y - 10,
+            left: Math.min(mousePosition.x + 10, window.innerWidth - 320),
+            top: Math.max(10, Math.min(mousePosition.y - 10, window.innerHeight - 150)),
             maxWidth: 300,
             background: '#2c2c2c',
             color: 'white',
@@ -81,7 +81,9 @@ const EducationalTooltip = ({ title, content, type = 'info' }) => {
             zIndex: 10000,
             fontSize: 14,
             lineHeight: 1.4,
-            pointerEvents: 'none'
+            pointerEvents: 'none',
+            wordBreak: 'break-word',
+            overflowWrap: 'break-word'
           }}
         >
           {title && (

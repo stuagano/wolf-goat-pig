@@ -178,6 +178,10 @@ const SimulationDecisionPanel: React.FC<SimulationDecisionPanelProps> = ({
         style={{
           border: `4px solid ${theme.colors.primary}`,
           backgroundColor: '#f0f8ff',
+          maxWidth: '800px',
+          margin: '0 auto',
+          wordBreak: 'break-word',
+          overflowWrap: 'break-word'
         }}
       >
         <h3 style={{ color: theme.colors.primary, marginBottom: theme.spacing[3] }}>🤔 Your Decision</h3>
@@ -239,6 +243,10 @@ const SimulationDecisionPanel: React.FC<SimulationDecisionPanelProps> = ({
         style={{
           border: `4px solid ${theme.colors.warning}`,
           backgroundColor: '#fff8e1',
+          maxWidth: '800px',
+          margin: '0 auto',
+          wordBreak: 'break-word',
+          overflowWrap: 'break-word'
         }}
       >
         <h3 style={{ color: theme.colors.warning, marginBottom: theme.spacing[3] }}>🤝 Partnership Invitation</h3>
@@ -272,6 +280,10 @@ const SimulationDecisionPanel: React.FC<SimulationDecisionPanelProps> = ({
       style={{
         border: `4px solid ${theme.colors.warning}`,
         backgroundColor: '#fff8e1',
+        maxWidth: '800px',
+        margin: '0 auto',
+        wordBreak: 'break-word',
+        overflowWrap: 'break-word'
       }}
     >
       <h3 style={{ color: theme.colors.warning, marginBottom: theme.spacing[3] }}>💰 Double Opportunity</h3>
@@ -304,6 +316,10 @@ const SimulationDecisionPanel: React.FC<SimulationDecisionPanelProps> = ({
       style={{
         border: `4px solid ${theme.colors.primary}`,
         backgroundColor: '#f0f8ff',
+        maxWidth: '800px',
+        margin: '0 auto',
+        wordBreak: 'break-word',
+        overflowWrap: 'break-word'
       }}
     >
       <h3 style={{ color: theme.colors.primary, marginBottom: theme.spacing[3] }}>🎲 Offer a Double?</h3>
@@ -328,7 +344,12 @@ const SimulationDecisionPanel: React.FC<SimulationDecisionPanelProps> = ({
   );
 
   const renderGenericDecision = () => (
-    <Card variant="info">
+    <Card variant="info" style={{
+      maxWidth: '800px',
+      margin: '0 auto',
+      wordBreak: 'break-word',
+      overflowWrap: 'break-word'
+    }}>
       <h3 style={{ color: theme.colors.primary, marginBottom: theme.spacing[3] }}>🎮 Game in Progress</h3>
       {effectiveInteraction?.message && (
         <p style={{ marginBottom: theme.spacing[3], fontSize: theme.typography.base }}>{effectiveInteraction.message}</p>
@@ -387,6 +408,10 @@ const SimulationDecisionPanel: React.FC<SimulationDecisionPanelProps> = ({
         style={{
           backgroundColor: '#f0fff4',
           border: `2px solid ${theme.colors.success}`,
+          maxWidth: '800px',
+          margin: '0 auto',
+          wordBreak: 'break-word',
+          overflowWrap: 'break-word'
         }}
       >
         <h3 style={{ marginBottom: theme.spacing[2] }}>⛳ Ready to Play</h3>
@@ -428,6 +453,10 @@ const SimulationDecisionPanel: React.FC<SimulationDecisionPanelProps> = ({
         style={{
           backgroundColor: '#fff8e1',
           border: `4px solid ${theme.colors.success}`,
+          maxWidth: '800px',
+          margin: '0 auto',
+          wordBreak: 'break-word',
+          overflowWrap: 'break-word'
         }}
       >
         <h3 style={{ color: theme.colors.success, marginBottom: theme.spacing[3] }}>
@@ -454,7 +483,12 @@ const SimulationDecisionPanel: React.FC<SimulationDecisionPanelProps> = ({
 
   const renderIdleCard = () => {
     return (
-      <Card>
+      <Card style={{
+        maxWidth: '800px',
+        margin: '0 auto',
+        wordBreak: 'break-word',
+        overflowWrap: 'break-word'
+      }}>
         <h3 style={{ marginBottom: theme.spacing[2] }}>Waiting on the Field</h3>
         <p style={{ margin: 0, color: theme.colors.textSecondary }}>
           The robots are completing their swings. We'll surface your next decision as soon as it's available.

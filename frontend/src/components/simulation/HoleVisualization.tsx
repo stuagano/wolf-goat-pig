@@ -122,6 +122,7 @@ const HoleVisualization: React.FC<HoleVisualizationProps> = ({
           top: topPosition,
           transform: 'translate(-50%, -50%)',
           minWidth: 140,
+          maxWidth: 180,
           background: isNext ? colors.accent : 'rgba(0, 0, 0, 0.6)',
           color: '#fff',
           padding: spacing[3],
@@ -130,6 +131,8 @@ const HoleVisualization: React.FC<HoleVisualizationProps> = ({
           border: `1px solid ${isNext ? colors.accentLight : 'rgba(255,255,255,0.3)'}`,
           transition: 'transform 0.2s ease, box-shadow 0.2s ease',
           fontFamily: typography.fontFamily,
+          wordBreak: 'break-word',
+          overflowWrap: 'break-word'
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2], marginBottom: spacing[1] }}>
