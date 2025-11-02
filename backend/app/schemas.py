@@ -550,4 +550,78 @@ class DailySignupWithMessages(BaseModel):
 
 class WeeklySignupWithMessagesView(BaseModel):
     week_start: str  # YYYY-MM-DD for the Monday
-    daily_summaries: List[DailySignupWithMessages] 
+    daily_summaries: List[DailySignupWithMessages]
+
+# Game Banner Schemas
+class GameBannerCreate(BaseModel):
+    title: Optional[str] = None
+    message: str
+    banner_type: str = "info"  # info, warning, announcement, rules
+    is_active: bool = True
+    background_color: str = "#3B82F6"  # Blue
+    text_color: str = "#FFFFFF"  # White
+    show_icon: bool = True
+    dismissible: bool = False
+
+    @field_validator('banner_type')
+    @classmethod
+    def validate_banner_type(cls, v):
+        allowed_types = ['info', 'warning', 'announcement', 'rules']
+        if v not in allowed_types:
+            raise ValueError(f'Banner type must be one of: {", ".join(allowed_types)}')
+        return v
+
+    @field_validator('message')
+    @classmethod
+    def validate_message(cls, v):
+        if not v or len(v.strip()) < 1:
+            raise ValueError('Banner message cannot be empty')
+        if len(v) > 500:
+            raise ValueError('Banner message cannot exceed 500 characters')
+        return v.strip()
+
+class GameBannerUpdate(BaseModel):
+    title: Optional[str] = None
+    message: Optional[str] = None
+    banner_type: Optional[str] = None
+    is_active: Optional[bool] = None
+    background_color: Optional[str] = None
+    text_color: Optional[str] = None
+    show_icon: Optional[bool] = None
+    dismissible: Optional[bool] = None
+
+    @field_validator('banner_type')
+    @classmethod
+    def validate_banner_type(cls, v):
+        if v is not None:
+            allowed_types = ['info', 'warning', 'announcement', 'rules']
+            if v not in allowed_types:
+                raise ValueError(f'Banner type must be one of: {", ".join(allowed_types)}')
+        return v
+
+    @field_validator('message')
+    @classmethod
+    def validate_message(cls, v):
+        if v is not None:
+            if len(v.strip()) < 1:
+                raise ValueError('Banner message cannot be empty')
+            if len(v) > 500:
+                raise ValueError('Banner message cannot exceed 500 characters')
+            return v.strip()
+        return v
+
+class GameBannerResponse(BaseModel):
+    id: int
+    title: Optional[str]
+    message: str
+    banner_type: str
+    is_active: bool
+    background_color: str
+    text_color: str
+    show_icon: bool
+    dismissible: bool
+    created_at: str
+    updated_at: Optional[str]
+
+    class Config:
+        from_attributes = True 
