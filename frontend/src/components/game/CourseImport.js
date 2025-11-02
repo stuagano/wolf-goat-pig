@@ -139,37 +139,42 @@ const CourseImport = ({ onClose, onCourseImported }) => {
     }
   };
 
+  // Extracted function for file upload import
+  const handleFileUpload = async () => {
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+
+    return await fetch(`${API_URL}/courses/import/file`, {
+      method: "POST",
+      body: formData,
+    });
+  };
+
+  // Extracted function for search-based import
+  const handleSearchImport = async () => {
+    return await fetch(`${API_URL}/courses/import/search`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        course_name: courseName,
+        state: state || undefined,
+        city: city || undefined
+      }),
+    });
+  };
+
   const importCourse = async () => {
     setLoading(true);
     setError("");
     setSuccess("");
 
     try {
-      let response;
-
-      if (selectedSource.name === "JSON File") {
-        // File upload
-        const formData = new FormData();
-        formData.append("file", selectedFile);
-
-        response = await fetch(`${API_URL}/courses/import/file`, {
-          method: "POST",
-          body: formData,
-        });
-      } else {
-        // Search import
-        response = await fetch(`${API_URL}/courses/import/search`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            course_name: courseName,
-            state: state || undefined,
-            city: city || undefined
-          }),
-        });
-      }
+      // Determine import method based on selected source
+      const response = selectedSource.name === "JSON File"
+        ? await handleFileUpload()
+        : await handleSearchImport();
 
       const data = await response.json();
 
@@ -180,7 +185,7 @@ const CourseImport = ({ onClose, onCourseImported }) => {
         setState("");
         setCity("");
         setSelectedFile(null);
-        
+
         // Notify parent component
         if (onCourseImported) {
           onCourseImported(data.course);

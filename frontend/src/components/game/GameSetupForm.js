@@ -57,7 +57,9 @@ const inputStyle = {
 };
 
 function GameSetupForm({ onSetup }) {
-  // Temporarily simplified profile handling
+  // TODO: Re-enable profile management once backend API is ready
+  // TODO: Restore usePlayerProfile hook when profile system is fully implemented
+  // Temporarily simplified profile handling - these stubs replace the full profile system
   const selectedProfile = null;
   const profiles = [];
   const hasProfiles = false;

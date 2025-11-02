@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useTheme } from '../theme/Provider';
@@ -8,6 +8,7 @@ const Navigation = () => {
   const location = useLocation();
   const theme = useTheme();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   
   // Use mock auth if environment variable is set
   const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === 'true';
@@ -121,13 +122,18 @@ const Navigation = () => {
     whiteSpace: 'normal'
   };
 
+  // Responsive hook to detect mobile screen size
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    handleResize(); // Initialize on mount
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const handleNavigate = (path) => {
     navigate(path);
     setIsMobileMenuOpen(false);
   };
-
-  // Check if screen is mobile size
-  const isMobile = window.innerWidth <= 768;
 
   return (
     <nav style={navStyle}>
