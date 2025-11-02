@@ -453,10 +453,6 @@ const SimulationDecisionPanel: React.FC<SimulationDecisionPanelProps> = ({
   };
 
   const renderIdleCard = () => {
-    if (effectiveInteraction || shotAvailable || gameState?.hole_state?.hole_complete) {
-      return null;
-    }
-
     return (
       <Card>
         <h3 style={{ marginBottom: theme.spacing[2] }}>Waiting on the Field</h3>
@@ -470,11 +466,9 @@ const SimulationDecisionPanel: React.FC<SimulationDecisionPanelProps> = ({
   const interactionCard = renderInteractionCard();
   const holeCompleteCard = renderHoleCompleteCard();
   const nextShotCard = renderNextShotCard();
-  const idleCard = renderIdleCard();
 
-  if (!interactionCard && !holeCompleteCard && !nextShotCard && !idleCard) {
-    return null;
-  }
+  // Show idle card only if no other cards are being displayed
+  const idleCard = (!interactionCard && !holeCompleteCard && !nextShotCard) ? renderIdleCard() : null;
 
   return (
     <div
