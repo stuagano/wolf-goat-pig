@@ -219,4 +219,322 @@ describe('GamePage', () => {
     // Should still render without crashing
     expect(screen.getByTestId('game-page')).toBeInTheDocument();
   });
+
+  describe('GameStateWidget Integration', () => {
+    test('renders GameStateWidget when game is active with hole_state', () => {
+      const mockGameState = {
+        current_hole: 3,
+        game_phase: 'regular',
+        players: [
+          { id: 'p1', name: 'Bob', handicap: 10.5, points: 5 },
+          { id: 'p2', name: 'Scott', handicap: 15, points: 3 }
+        ],
+        hole_state: {
+          hole_number: 3,
+          hole_par: 4,
+          stroke_index: 3,
+          current_shot_number: 2,
+          hole_complete: false,
+          teams: {
+            type: 'partners',
+            captain: 'p1',
+            team1: ['p1', 'p2'],
+            team2: []
+          },
+          betting: {
+            base_wager: 1,
+            current_wager: 2,
+            doubled: true
+          },
+          stroke_advantages: {
+            p1: { handicap: 10.5, strokes_received: 1.0 },
+            p2: { handicap: 15, strokes_received: 1.0 }
+          },
+          ball_positions: {}
+        }
+      };
+
+      render(
+        <TestWrapper>
+          <GamePage gameState={mockGameState} />
+        </TestWrapper>
+      );
+
+      // GameStateWidget should display hole information
+      expect(screen.getByText(/Hole 3/i)).toBeInTheDocument();
+      expect(screen.getByText(/Team Formation/i)).toBeInTheDocument();
+      expect(screen.getByText(/Betting State/i)).toBeInTheDocument();
+    });
+
+    test('GameStateWidget shows stroke advantages (Creecher Feature)', () => {
+      const mockGameState = {
+        current_hole: 5,
+        game_phase: 'regular',
+        players: [
+          { id: 'p1', name: 'Bob', handicap: 10.5, points: 0 },
+          { id: 'p2', name: 'Scott', handicap: 15, points: 0 }
+        ],
+        hole_state: {
+          hole_number: 5,
+          hole_par: 4,
+          stroke_index: 5,
+          teams: { type: 'pending', captain: 'p1' },
+          betting: { base_wager: 1, current_wager: 1 },
+          stroke_advantages: {
+            p1: { handicap: 10.5, strokes_received: 1.0, stroke_index: 5 },
+            p2: { handicap: 15, strokes_received: 1.0, stroke_index: 5 }
+          },
+          ball_positions: {}
+        }
+      };
+
+      render(
+        <TestWrapper>
+          <GamePage gameState={mockGameState} />
+        </TestWrapper>
+      );
+
+      // Should show stroke advantages section
+      expect(screen.getByText(/Handicap Stroke Advantages \(Creecher Feature\)/i)).toBeInTheDocument();
+    });
+
+    test('GameStateWidget updates when gameState changes', async () => {
+      const initialGameState = {
+        current_hole: 1,
+        game_phase: 'regular',
+        players: [
+          { id: 'p1', name: 'Bob', handicap: 10.5, points: 0 }
+        ],
+        hole_state: {
+          hole_number: 1,
+          hole_par: 4,
+          stroke_index: 1,
+          current_shot_number: 1,
+          teams: { type: 'pending', captain: 'p1' },
+          betting: { base_wager: 1, current_wager: 1 },
+          stroke_advantages: {},
+          ball_positions: {}
+        }
+      };
+
+      const { rerender } = render(
+        <TestWrapper>
+          <GamePage gameState={initialGameState} />
+        </TestWrapper>
+      );
+
+      expect(screen.getByText(/Hole 1/i)).toBeInTheDocument();
+
+      // Update to hole 2
+      const updatedGameState = {
+        ...initialGameState,
+        current_hole: 2,
+        hole_state: {
+          ...initialGameState.hole_state,
+          hole_number: 2
+        }
+      };
+
+      rerender(
+        <TestWrapper>
+          <GamePage gameState={updatedGameState} />
+        </TestWrapper>
+      );
+
+      expect(screen.getByText(/Hole 2/i)).toBeInTheDocument();
+    });
+
+    test('handles missing hole_state gracefully', () => {
+      const mockGameState = {
+        current_hole: 1,
+        game_phase: 'regular',
+        players: [
+          { id: 'p1', name: 'Bob', handicap: 10.5, points: 0 }
+        ]
+        // No hole_state property
+      };
+
+      render(
+        <TestWrapper>
+          <GamePage gameState={mockGameState} />
+        </TestWrapper>
+      );
+
+      // Page should still render without GameStateWidget
+      expect(screen.getByText(/Hole 1/i)).toBeInTheDocument();
+      // GameStateWidget sections should not be present
+      expect(screen.queryByText(/Team Formation/i)).not.toBeInTheDocument();
+    });
+
+    test('displays team formation types correctly', () => {
+      const mockGameState = {
+        current_hole: 2,
+        game_phase: 'regular',
+        players: [
+          { id: 'p1', name: 'Bob', handicap: 10.5, points: 0 },
+          { id: 'p2', name: 'Scott', handicap: 15, points: 0 },
+          { id: 'p3', name: 'Vince', handicap: 8, points: 0 }
+        ],
+        hole_state: {
+          hole_number: 2,
+          hole_par: 4,
+          stroke_index: 2,
+          teams: {
+            type: 'solo',
+            captain: 'p1',
+            solo_player: 'p1',
+            opponents: ['p2', 'p3']
+          },
+          betting: { base_wager: 1, current_wager: 2 },
+          stroke_advantages: {},
+          ball_positions: {}
+        }
+      };
+
+      render(
+        <TestWrapper>
+          <GamePage gameState={mockGameState} />
+        </TestWrapper>
+      );
+
+      // Should show solo formation
+      expect(screen.getByText(/Solo:/i)).toBeInTheDocument();
+      expect(screen.getByText(/p1/i)).toBeInTheDocument();
+    });
+
+    test('displays betting state including doubles', () => {
+      const mockGameState = {
+        current_hole: 4,
+        game_phase: 'regular',
+        players: [
+          { id: 'p1', name: 'Bob', handicap: 10.5, points: 0 }
+        ],
+        hole_state: {
+          hole_number: 4,
+          hole_par: 4,
+          stroke_index: 4,
+          teams: { type: 'pending', captain: 'p1' },
+          betting: {
+            base_wager: 1,
+            current_wager: 4,
+            doubled: true,
+            redoubled: true
+          },
+          stroke_advantages: {},
+          ball_positions: {}
+        }
+      };
+
+      render(
+        <TestWrapper>
+          <GamePage gameState={mockGameState} />
+        </TestWrapper>
+      );
+
+      // Should show doubled and redoubled indicators
+      expect(screen.getByText(/Current Wager: 4 quarters/i)).toBeInTheDocument();
+      expect(screen.getByText(/⚡⚡ Redoubled!/i)).toBeInTheDocument();
+    });
+
+    test('shows special rules when active', () => {
+      const mockGameState = {
+        current_hole: 6,
+        game_phase: 'regular',
+        players: [
+          { id: 'p1', name: 'Bob', handicap: 10.5, points: 0 }
+        ],
+        hole_state: {
+          hole_number: 6,
+          hole_par: 4,
+          stroke_index: 6,
+          teams: { type: 'pending', captain: 'p1' },
+          betting: {
+            base_wager: 1,
+            current_wager: 2,
+            doubled: false,
+            redoubled: false,
+            special_rules: {
+              float_invoked: true,
+              duncan_invoked: true
+            }
+          },
+          stroke_advantages: {},
+          ball_positions: {}
+        }
+      };
+
+      render(
+        <TestWrapper>
+          <GamePage gameState={mockGameState} />
+        </TestWrapper>
+      );
+
+      // Should show special rules section
+      expect(screen.getByText(/⚡ Special Rules Active/i)).toBeInTheDocument();
+      expect(screen.getByText(/🦅 Float Invoked/i)).toBeInTheDocument();
+      expect(screen.getByText(/👑 Duncan Invoked/i)).toBeInTheDocument();
+    });
+
+    test('displays ball positions for players', () => {
+      const mockGameState = {
+        current_hole: 7,
+        game_phase: 'regular',
+        players: [
+          { id: 'p1', name: 'Bob', handicap: 10.5, points: 0 },
+          { id: 'p2', name: 'Scott', handicap: 15, points: 0 }
+        ],
+        hole_state: {
+          hole_number: 7,
+          hole_par: 4,
+          stroke_index: 7,
+          teams: { type: 'pending', captain: 'p1' },
+          betting: { base_wager: 1, current_wager: 1 },
+          stroke_advantages: {},
+          ball_positions: {
+            p1: { distance_to_pin: 150, shot_count: 2, lie_type: 'fairway' },
+            p2: { distance_to_pin: 200, shot_count: 2, lie_type: 'rough' }
+          }
+        }
+      };
+
+      render(
+        <TestWrapper>
+          <GamePage gameState={mockGameState} />
+        </TestWrapper>
+      );
+
+      // Should show ball position information
+      expect(screen.getByText(/150 yds • Shot #2/i)).toBeInTheDocument();
+      expect(screen.getByText(/200 yds • Shot #2/i)).toBeInTheDocument();
+    });
+
+    test('works across different game phases', () => {
+      const hoepfingerGameState = {
+        current_hole: 17,
+        game_phase: 'hoepfinger',
+        players: [
+          { id: 'p1', name: 'Bob', handicap: 10.5, points: 0 }
+        ],
+        hole_state: {
+          hole_number: 17,
+          hole_par: 4,
+          stroke_index: 17,
+          teams: { type: 'pending', captain: 'p1' },
+          betting: { base_wager: 1, current_wager: 1 },
+          stroke_advantages: {},
+          ball_positions: {}
+        }
+      };
+
+      render(
+        <TestWrapper>
+          <GamePage gameState={hoepfingerGameState} />
+        </TestWrapper>
+      );
+
+      // Should show Hoepfinger phase
+      expect(screen.getByText(/Hoepfinger/i)).toBeInTheDocument();
+      expect(screen.getByText(/👑/)).toBeInTheDocument();
+    });
+  });
 });
