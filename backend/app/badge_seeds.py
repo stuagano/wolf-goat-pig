@@ -281,17 +281,24 @@ def seed_badges(db: Session):
     # Games Played Tiers
     games_tiers = [
         {'tier': 0, 'name': 'Rookie', 'threshold': 10, 'rarity': 'common'},
-        {'tier': 1, 'name': 'Journeyman', 'threshold': 50, 'rarity': 'rare'},
-        {'tier': 2, 'name': 'Veteran', 'threshold': 200, 'rarity': 'epic'},
-        {'tier': 3, 'name': 'Legend', 'threshold': 500, 'rarity': 'legendary'},
-        {'tier': 4, 'name': 'Immortal', 'threshold': 1000, 'rarity': 'mythic'},
+        {'tier': 1, 'name': 'Banquet Eligible', 'threshold': 20, 'rarity': 'common'},
+        {'tier': 2, 'name': 'Journeyman', 'threshold': 50, 'rarity': 'rare'},
+        {'tier': 3, 'name': 'Veteran', 'threshold': 200, 'rarity': 'epic'},
+        {'tier': 4, 'name': 'Legend', 'threshold': 500, 'rarity': 'legendary'},
+        {'tier': 5, 'name': 'Immortal', 'threshold': 1000, 'rarity': 'mythic'},
     ]
 
     for tier_data in games_tiers:
+        # Special description for Banquet Eligible badge
+        if tier_data['name'] == 'Banquet Eligible':
+            description = f"Play {tier_data['threshold']} games - Earn voting rights at the Annual Banquet"
+        else:
+            description = f"Play {tier_data['threshold']} games"
+
         badge = Badge(
             badge_id=badge_id_counter,
             name=tier_data['name'],
-            description=f"Play {tier_data['threshold']} games",
+            description=description,
             category='progression',
             rarity=tier_data['rarity'],
             image_url=f"/badges/games-{tier_data['tier']}.png",
