@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useTheme } from '../theme/Provider';
 import Scorecard from '../components/simulation/visual/Scorecard';
 import LargeScoringButtons from '../components/game/LargeScoringButtons';
+import GameStateWidget from '../components/GameStateWidget';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -390,6 +391,14 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
         </div>
         <div style={{marginBottom:8,fontSize:15,color:theme.colors.textSecondary}}><strong>Game Phase:</strong> {gameState.game_phase}</div>
         {statusBox}
+
+        {/* Real-time Game State Tracking */}
+        <GameStateWidget
+          gameState={gameState}
+          holeState={gameState?.hole_state}
+          onAction={doAction}
+        />
+
         {teamStatus && <div style={{ margin: "10px 0", ...theme.cardStyle }}>{teamStatus}</div>}
 
         {/* Scorecard */}
