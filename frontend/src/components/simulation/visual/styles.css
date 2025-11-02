@@ -17,6 +17,12 @@
   flex: 0 0 auto;
   min-height: 300px;
   max-height: 400px;
+  max-width: 600px;
+  margin: 0 auto;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .cards-section {
@@ -56,6 +62,7 @@
     flex: 0 0 auto;
     min-height: 250px;
     max-height: 300px;
+    max-width: 500px;
   }
 
   .cards-section {
@@ -80,6 +87,7 @@
 
   .visualization-section {
     min-height: 200px;
+    max-width: 400px;
   }
 }
 
