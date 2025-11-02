@@ -940,8 +940,15 @@ def ghin_diagnostic():
 @app.get("/game/state")
 def get_game_state():
     """Get current game state (legacy endpoint)"""
+    global wgp_simulation
     try:
-        return game_state.get_state()
+        # Use new simulation system if available, otherwise fall back to legacy
+        if wgp_simulation:
+            logger.info("Returning state from wgp_simulation")
+            return wgp_simulation.get_game_state()
+        else:
+            logger.info("Returning state from legacy game_state")
+            return game_state.get_state()
     except Exception as e:
         logger.error(f"Error getting game state: {e}")
         raise HTTPException(status_code=500, detail="Failed to get game state")

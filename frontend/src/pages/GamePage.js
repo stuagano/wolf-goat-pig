@@ -99,19 +99,72 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
     return () => clearInterval(interval);
   }, [loading, rules]);
 
-  useEffect(() => {
-    fetch(`${API_URL}/game/state`)
-      .then(res => res.json())
-      .then(data => {
-        if (isBlankGameState(data)) {
-          setGameState(null);
-        } else {
-          setGameState(data);
-        }
-        setLoading(false);
+  const setupNewSimulation = async () => {
+    setLoading(true);
+    try {
+      // Initialize with default players using the simulation system
+      const setupData = {
+        players: [
+          { id: "p1", name: "Bob", handicap: 10.5 },
+          { id: "p2", name: "Scott", handicap: 15 },
+          { id: "p3", name: "Vince", handicap: 8 },
+          { id: "p4", name: "Mike", handicap: 20.5 }
+        ],
+        course_name: "Wing Point Golf & Country Club"
+      };
+
+      const res = await fetch(`${API_URL}/simulation/setup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(setupData)
       });
-    fetch(`${API_URL}/game/tips`).then(res => res.json()).then(data => setBettingTips(data.tips || []));
-    fetch(`${API_URL}/game/player_strokes`).then(res => res.json()).then(data => setPlayerStrokes(data));
+
+      const data = await res.json();
+
+      if (res.ok && data.game_state) {
+        setGameState(data.game_state);
+        return true;
+      } else {
+        console.error("Failed to setup game:", data);
+        setGameState(null);
+        return false;
+      }
+    } catch (error) {
+      console.error("Error setting up simulation:", error);
+      setGameState(null);
+      return false;
+    } finally {
+      setLoading(false);
+      setPartnerSelect("");
+    }
+  };
+
+  useEffect(() => {
+    const initializeGame = async () => {
+      try {
+        // Try to fetch existing game state
+        const stateRes = await fetch(`${API_URL}/game/state`);
+        const stateData = await stateRes.json();
+
+        if (isBlankGameState(stateData)) {
+          // No game exists, auto-initialize with simulation system
+          console.log("No existing game, initializing new game with simulation system...");
+          await setupNewSimulation();
+        } else {
+          setGameState(stateData);
+          setLoading(false);
+        }
+
+        // Fetch tips and strokes
+        fetch(`${API_URL}/game/tips`).then(res => res.json()).then(data => setBettingTips(data.tips || []));
+        fetch(`${API_URL}/game/player_strokes`).then(res => res.json()).then(data => setPlayerStrokes(data));
+      } catch (error) {
+        console.error("Error initializing game:", error);
+        setLoading(false);
+      }
+    };
+
+    initializeGame();
   }, [setGameState, setLoading]);
 
   const fetchAndSetGameState = async () => {
@@ -196,16 +249,9 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
     await doAction("calculate_hole_points");
   };
 
-  const createNewGame = () => {
+  const createNewGame = async () => {
     if (!window.confirm("Are you sure you want to start a new game? All progress will be lost.")) return;
-    setLoading(true);
-    fetch(`${API_URL}/game/start`, { method: "POST" })
-      .then(res => res.json())
-      .then(data => {
-        setGameState(null);
-        setLoading(false);
-        setPartnerSelect("");
-      });
+    await setupNewSimulation();
   };
 
   if (loading) {
