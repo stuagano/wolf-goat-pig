@@ -127,12 +127,14 @@ const LargeScoringButtons = ({
         }}>
           {commonScores.map(score => {
             const diff = score - holePar;
-            const getScoreEmoji = () => {
-              if (diff <= -2) return '🦅';
-              if (diff === -1) return '🐦';
-              if (diff === 0) return '📍';
-              if (diff === 1) return '🤏';
-              return '😬';
+            const getScoreLabel = () => {
+              if (diff <= -3) return 'Albatross';
+              if (diff === -2) return 'Eagle';
+              if (diff === -1) return 'Birdie';
+              if (diff === 0) return 'Par';
+              if (diff === 1) return 'Bogey';
+              if (diff === 2) return 'Double';
+              return `+${diff}`;
             };
 
             const getScoreColor = () => {
@@ -177,23 +179,21 @@ const LargeScoringButtons = ({
                   }
                 }}
               >
-                <span style={{ fontSize: '24px' }}>{getScoreEmoji()}</span>
                 <span style={{
-                  fontSize: '20px',
+                  fontSize: '24px',
                   fontWeight: 'bold',
                   color: getScoreColor()
                 }}>
                   {score}
                 </span>
-                {diff !== 0 && (
-                  <span style={{
-                    fontSize: '11px',
-                    color: getScoreColor(),
-                    fontWeight: 'bold'
-                  }}>
-                    {diff > 0 ? `+${diff}` : diff}
-                  </span>
-                )}
+                <span style={{
+                  fontSize: '11px',
+                  color: getScoreColor(),
+                  fontWeight: 'bold',
+                  textTransform: 'uppercase'
+                }}>
+                  {getScoreLabel()}
+                </span>
               </button>
             );
           })}
@@ -279,7 +279,7 @@ const LargeScoringButtons = ({
               color: theme.colors.primary,
               fontWeight: 'bold'
             }}>
-              📊 Enter Scores
+              Enter Scores
             </h2>
             <div style={{
               padding: '6px 12px',
@@ -298,7 +298,7 @@ const LargeScoringButtons = ({
           <div style={{ marginTop: '16px' }}>
             {renderLargeButton(
               'calculate',
-              '🏌️',
+              '✓',
               'Calculate Points',
               handleCalculatePoints,
               'success',
@@ -316,7 +316,7 @@ const LargeScoringButtons = ({
               fontSize: '14px',
               textAlign: 'center'
             }}>
-              ℹ️ Enter all player scores to continue
+              Enter all player scores to continue
             </div>
           )}
         </div>
@@ -334,7 +334,7 @@ const LargeScoringButtons = ({
             color: theme.colors.primary,
             fontWeight: 'bold'
           }}>
-            💰 Betting Actions
+            Betting Actions
           </h2>
 
           <div style={{
