@@ -31,6 +31,7 @@ class GameState:
         self.current_hole = getattr(self, 'current_hole', 1)
         self.betting_state = getattr(self, 'betting_state', BettingState())
         self.hole_scores = getattr(self, 'hole_scores', {p.id: None for p in self.player_manager.players})
+        self.gross_scores = getattr(self, 'gross_scores', {p.id: None for p in self.player_manager.players})
         self.game_status_message = getattr(self, 'game_status_message', "Time to toss the tees!")
         self.player_float_used = getattr(self, 'player_float_used', {p.id: False for p in self.player_manager.players})
         self.carry_over = getattr(self, 'carry_over', False)
@@ -44,6 +45,7 @@ class GameState:
         self.current_hole = 1
         self.betting_state = BettingState()
         self.hole_scores = {p.id: None for p in self.player_manager.players}
+        self.gross_scores = {p.id: None for p in self.player_manager.players}
         self.game_status_message = "Time to toss the tees!"
         self.player_float_used = {p.id: False for p in self.player_manager.players}
         self.carry_over = False
@@ -99,14 +101,20 @@ class GameState:
     def record_net_score(self, player_id, score):
         if player_id not in self.hole_scores:
             raise ValueError("Invalid player ID.")
+
+        # Record both gross and net scores
+        # For now, assuming the incoming score is the net score
+        # In the future, we may want to change this to record gross scores
+        # and calculate net scores automatically
         self.hole_scores[player_id] = score
-        
+        self.gross_scores[player_id] = score  # For now, record same as net
+
         # Also record the score in the Player object
         for player in self.player_manager.players:
             if player.id == player_id:
                 player.record_hole_score(self.current_hole, score)
                 break
-        
+
         self.game_status_message = f"Score recorded for {self._player_name(player_id)}."
         return "Score recorded."
 
@@ -117,10 +125,26 @@ class GameState:
         # Record hole history
         points_now = {p.id: p.points for p in self.player_manager.players}
         points_delta = {pid: points_now[pid] - self._last_points.get(pid, 0) for pid in points_now}
+
+        # Create player scores with names for better readability
+        player_scores = {}
+        for player in self.player_manager.players:
+            player_scores[player.id] = {
+                "name": player.name,
+                "gross_score": self.gross_scores.get(player.id),
+                "net_score": self.hole_scores.get(player.id),
+                "points_delta": points_delta.get(player.id, 0),
+                "total_points": points_now.get(player.id, 0)
+            }
+
         self.hole_history.append({
             "hole": self.current_hole,
+            "captain_id": self.player_manager.captain_id,
+            "captain_name": self._player_name(self.player_manager.captain_id),
             "hitting_order": list(self.player_manager.hitting_order),
             "net_scores": dict(self.hole_scores),
+            "gross_scores": dict(self.gross_scores),
+            "player_scores": player_scores,
             "points_delta": dict(points_delta),
             "teams": dict(self.betting_state.teams),
         })
@@ -136,17 +160,18 @@ class GameState:
         self.player_manager.rotate_captain()
         self.betting_state.reset_hole()
         self.hole_scores = {p.id: None for p in self.player_manager.players}
-        
+        self.gross_scores = {p.id: None for p in self.player_manager.players}
+
         # Reset shot state for new hole
         if hasattr(self, 'shot_state'):
             self.shot_state.reset_for_hole()
         else:
             self.shot_state = ShotState()
-        
+
         # Reset float usage for all players
         for player in self.player_manager.players:
             player.reset_float()
-        
+
         self.game_status_message = f"Hole {self.current_hole}. {self.player_manager.captain_id} is captain."
         self._save_to_db()
         return "Advanced to next hole."
@@ -174,6 +199,7 @@ class GameState:
             "current_hole": getattr(self, "current_hole", 1),
             "betting_state": betting_state_data,
             "hole_scores": getattr(self, "hole_scores", {}),
+            "gross_scores": getattr(self, "gross_scores", {}),
             "game_status_message": getattr(self, "game_status_message", "Time to toss the tees!"),
             "player_float_used": getattr(self, "player_float_used", {}),
             "carry_over": getattr(self, "carry_over", False),
@@ -222,6 +248,7 @@ class GameState:
             self.betting_state.game_phase = data.get("game_phase", 'Regular')
         
         self.hole_scores = data.get("hole_scores", {p.id: None for p in self.player_manager.players})
+        self.gross_scores = data.get("gross_scores", {p.id: None for p in self.player_manager.players})
         self.game_status_message = data.get("game_status_message", "Time to toss the tees!")
         self.player_float_used = data.get("player_float_used", {p.id: False for p in self.player_manager.players})
         self.carry_over = data.get("carry_over", False)
@@ -308,15 +335,22 @@ class GameState:
     def get_player_strokes(self):
         """
         Returns a dict: {player_id: {hole_number: stroke_type}}, where stroke_type is 1 (full stroke), 0.5 (half), or 0 (none)
+        Uses relative handicaps - strokes are calculated relative to the lowest handicap in the group.
         """
         n_holes = len(self.course_manager.hole_stroke_indexes)
         result = {}
+
+        # Find the lowest handicap in the group for relative handicap calculation
+        min_handicap = min(p.handicap for p in self.player_manager.players)
+
         for player in self.player_manager.players:
             pid = player.id
-            hcap = player.handicap
+            # Calculate relative handicap (difference from lowest handicap)
+            relative_hcap = player.handicap - min_handicap
             strokes = {i+1: 0 for i in range(n_holes)}
-            full_strokes = int(hcap)
-            half_stroke = (hcap - full_strokes) >= 0.5
+            full_strokes = int(relative_hcap)
+            half_stroke = (relative_hcap - full_strokes) >= 0.5
+
             # Full strokes
             for i, idx in enumerate(self.course_manager.hole_stroke_indexes):
                 if idx <= full_strokes:
@@ -362,6 +396,7 @@ class GameState:
         self.current_hole = 1
         self.betting_state.reset()
         self.hole_scores = {p.id: None for p in self.player_manager.players}
+        self.gross_scores = {p.id: None for p in self.player_manager.players}
         self.game_status_message = "Players set. Time to toss the tees!"
         self.player_float_used = {p.id: False for p in self.player_manager.players}
         self.carry_over = False
