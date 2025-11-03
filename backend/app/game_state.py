@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 from sqlalchemy.orm import Session
 from .database import SessionLocal
-from .models import GameStateModel, GameRecord, GamePlayerResult
+from .models import GameStateModel, GameRecord, GamePlayerResult, GamePlayer
 from .domain.player import Player
 from .state.betting_state import BettingState
 from .state.shot_state import ShotState
@@ -432,6 +432,14 @@ class GameState:
 
             # Create GamePlayerResult for each player
             for position, player in enumerate(sorted_players, start=1):
+                # Look up authenticated player profile if available
+                game_player = session.query(GamePlayer).filter(
+                    GamePlayer.game_id == self.game_id,
+                    GamePlayer.player_slot_id == player.id
+                ).first()
+
+                player_profile_id = game_player.player_profile_id if game_player else None
+
                 # Calculate player statistics
                 holes_won = sum(1 for hole in self.hole_history
                               if hole.get('points_delta', {}).get(player.id, 0) > 0)
@@ -523,7 +531,7 @@ class GameState:
                 # Create GamePlayerResult
                 player_result = GamePlayerResult(
                     game_record_id=game_record.id,
-                    player_profile_id=0,  # TODO: Link to actual player profile
+                    player_profile_id=player_profile_id or 0,  # Linked to authenticated player if available
                     player_name=player.name,
                     final_position=position,
                     total_earnings=player.points,
