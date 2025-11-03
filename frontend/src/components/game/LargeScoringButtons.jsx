@@ -359,7 +359,7 @@ const LargeScoringButtons = ({
       )}
 
       {/* Betting Actions */}
-      {["partners", "solo"].includes(gameState?.teams?.type) && !gameState?.doubled_status && (
+      {["partners", "solo"].includes(gameState?.teams?.type) && (
         <div style={{
           ...theme.cardStyle,
           marginBottom: '20px' // Increased spacing
@@ -373,43 +373,211 @@ const LargeScoringButtons = ({
             Betting Actions
           </h2>
 
+          {/* Show Accept/Decline buttons when a double has been offered */}
+          {gameState.doubled_status ? (
+            <div
+              className="touch-spacing-large"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: '16px'
+              }}>
+              <div style={{
+                gridColumn: '1 / -1',
+                padding: '16px',
+                background: '#fff3cd',
+                borderRadius: '12px',
+                border: '2px solid #ffc107',
+                textAlign: 'center',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                color: '#856404'
+              }}>
+                ⚠️ Double has been offered! Choose to Accept or Decline
+              </div>
+
+              {renderLargeButton(
+                'accept-double',
+                '✅',
+                'Accept Double',
+                () => {
+                  if (window.confirm('Accept the double? This will double the wager.')) {
+                    onAction("accept_double", {
+                      team_id: gameState.responding_team_id || "team2",
+                      accepted: true
+                    });
+                  }
+                },
+                'success'
+              )}
+
+              {renderLargeButton(
+                'decline-double',
+                '❌',
+                'Decline Double',
+                () => {
+                  if (window.confirm('Decline the double? Offering team wins the hole.')) {
+                    onAction("decline_double", {
+                      team_id: gameState.responding_team_id || "team2",
+                      accepted: false
+                    });
+                  }
+                },
+                'error'
+              )}
+            </div>
+          ) : (
+            // Show normal betting actions when no double is pending
+            <div
+              className="touch-spacing-large"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: '16px'
+              }}>
+              {renderLargeButton(
+                'offer-double',
+                '💰',
+                'Offer Double',
+                () => onAction("offer_double", {
+                  offering_team_id: "team1",
+                  target_team_id: "team2",
+                  player_id: gameState.captain_id
+                }),
+                'warning'
+              )}
+
+              {!gameState.player_float_used?.[gameState.captain_id] && renderLargeButton(
+                'invoke-float',
+                '🎈',
+                'Invoke Float',
+                () => onAction("invoke_float", { captain_id: gameState.captain_id }),
+                'primary'
+              )}
+
+              {renderLargeButton(
+                'toggle-option',
+                '🔄',
+                'Toggle Option',
+                () => onAction("toggle_option", { captain_id: gameState.captain_id }),
+                'primary'
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Go Solo / Partnership Decision - shown before teams are formed */}
+      {gameState?.teams?.type === "pending" && (
+        <div style={{
+          ...theme.cardStyle,
+          marginBottom: '20px',
+          background: '#e3f2fd',
+          border: '3px solid #2196f3'
+        }}>
+          <h2 style={{
+            margin: '0 0 12px 0',
+            fontSize: '22px',
+            color: '#1976d2',
+            fontWeight: 'bold'
+          }}>
+            Captain's Decision
+          </h2>
+          <p style={{
+            fontSize: '16px',
+            color: theme.colors.textSecondary,
+            marginBottom: '16px',
+            lineHeight: '1.5'
+          }}>
+            Captain can choose a partner or go solo (1 vs 3)
+          </p>
+
           <div
             className="touch-spacing-large"
             style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', // Slightly larger minimum
-            gap: '16px' // Increased from 12px
-          }}>
-            {!gameState.doubled_status && renderLargeButton(
-              'offer-double',
-              '💰',
-              'Offer Double',
-              () => onAction("offer_double", {
-                offering_team_id: "team1",
-                target_team_id: "team2",
-                player_id: gameState.captain_id
-              }),
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: '16px'
+            }}>
+            {renderLargeButton(
+              'go-solo',
+              '👤',
+              'Go Solo (1 vs 3)',
+              () => {
+                if (window.confirm('Captain goes solo? Wager will be doubled!')) {
+                  onAction("go_solo", { captain_id: gameState.captain_id });
+                }
+              },
               'warning'
             )}
 
-            {!gameState.player_float_used?.[gameState.captain_id] && renderLargeButton(
-              'invoke-float',
-              '🎈',
-              'Invoke Float',
-              () => onAction("invoke_float", { captain_id: gameState.captain_id }),
-              'primary'
-            )}
-
-            {renderLargeButton(
-              'toggle-option',
-              '🔄',
-              'Toggle Option',
-              () => onAction("toggle_option", { captain_id: gameState.captain_id }),
-              'primary'
+            {gameState.players?.filter(p => p.id !== gameState.captain_id).map(player =>
+              renderLargeButton(
+                `partner-${player.id}`,
+                '🤝',
+                `Partner with ${player.name}`,
+                () => onAction("request_partner", {
+                  captain_id: gameState.captain_id,
+                  partner_id: player.id
+                }),
+                'primary'
+              )
             )}
           </div>
         </div>
       )}
+
+      {/* Carry-Over Status Indicator */}
+      {gameState?.carry_over && (
+        <div style={{
+          ...theme.cardStyle,
+          marginBottom: '20px',
+          background: 'linear-gradient(135deg, #ffd700 0%, #ffed4e 100%)',
+          border: '4px solid #ffa000',
+          padding: '20px'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px'
+          }}>
+            <div style={{
+              fontSize: '48px',
+              lineHeight: 1
+            }}>
+              🔄
+            </div>
+            <div style={{ flex: 1 }}>
+              <h3 style={{
+                margin: '0 0 8px 0',
+                fontSize: '24px',
+                fontWeight: 'bold',
+                color: '#000'
+              }}>
+                CARRY OVER
+              </h3>
+              <p style={{
+                margin: 0,
+                fontSize: '18px',
+                color: '#000',
+                lineHeight: 1.4
+              }}>
+                Previous hole was tied! Wager has been doubled for this hole.
+              </p>
+            </div>
+            <div style={{
+              fontSize: '32px',
+              fontWeight: 'bold',
+              color: '#d32f2f',
+              textAlign: 'center',
+              minWidth: '100px'
+            }}>
+              ${gameState.current_wager || gameState.base_wager}
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {/* Concede/Fold Hole */}
       {["partners", "solo"].includes(gameState?.teams?.type) && (
