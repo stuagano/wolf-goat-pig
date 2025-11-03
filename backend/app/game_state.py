@@ -58,7 +58,7 @@ class GameState:
 
     def dispatch_action(self, action, payload):
         # Betting actions are delegated to BettingState
-        betting_actions = ["request_partner", "accept_partner", "decline_partner", "go_solo", 
+        betting_actions = ["request_partner", "accept_partner", "decline_partner", "go_solo",
                           "offer_double", "accept_double", "decline_double"]
         if action in betting_actions:
             result = self.betting_state.dispatch_action(action, payload, self.player_manager.players)
@@ -69,6 +69,8 @@ class GameState:
             return self.invoke_float(payload.get("captain_id"))
         elif action == "toggle_option":
             return self.toggle_option(payload.get("captain_id"))
+        elif action == "record_gross_score":
+            return self.record_gross_score(payload.get("player_id"), payload.get("score"))
         elif action == "record_net_score":
             return self.record_net_score(payload.get("player_id"), payload.get("score"))
         elif action == "calculate_hole_points":
@@ -98,16 +100,51 @@ class GameState:
         self.game_status_message = f"{self._player_name(captain_id)} toggled the option. Wager doubled."
         return "Option toggled."
 
-    def record_net_score(self, player_id, score):
+    def record_gross_score(self, player_id, gross_score):
+        """
+        Record a player's gross score (actual strokes) and automatically calculate net score.
+        Net score = gross score - handicap strokes for this hole.
+        """
         if player_id not in self.hole_scores:
             raise ValueError("Invalid player ID.")
 
-        # Record both gross and net scores
-        # For now, assuming the incoming score is the net score
-        # In the future, we may want to change this to record gross scores
-        # and calculate net scores automatically
+        # Record gross score
+        self.gross_scores[player_id] = gross_score
+
+        # Get handicap strokes for this hole
+        player_strokes = self.get_player_strokes()
+        strokes_for_hole = player_strokes.get(player_id, {}).get(self.current_hole, 0)
+
+        # Calculate net score: gross - strokes
+        net_score = gross_score - strokes_for_hole
+        self.hole_scores[player_id] = net_score
+
+        # Also record in the Player object (using net score)
+        for player in self.player_manager.players:
+            if player.id == player_id:
+                player.record_hole_score(self.current_hole, net_score)
+                break
+
+        player_name = self._player_name(player_id)
+        if strokes_for_hole > 0:
+            self.game_status_message = f"{player_name}: {gross_score} gross, {net_score} net ({strokes_for_hole} stroke{'s' if strokes_for_hole != 1 else ''})"
+        else:
+            self.game_status_message = f"{player_name}: {gross_score} (scratch)"
+
+        return f"Score recorded: {gross_score} gross → {net_score} net"
+
+    def record_net_score(self, player_id, score):
+        """
+        Legacy method - record net score directly (for backward compatibility).
+        This assumes the score is already adjusted for handicap.
+        """
+        if player_id not in self.hole_scores:
+            raise ValueError("Invalid player ID.")
+
+        # Record net score
         self.hole_scores[player_id] = score
-        self.gross_scores[player_id] = score  # For now, record same as net
+        # We don't know the gross score in this case
+        self.gross_scores[player_id] = score
 
         # Also record the score in the Player object
         for player in self.player_manager.players:
