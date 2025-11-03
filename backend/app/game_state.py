@@ -11,6 +11,7 @@ from .state.betting_state import BettingState
 from .state.shot_state import ShotState
 from .state.player_manager import PlayerManager
 from .state.course_manager import CourseManager, DEFAULT_COURSES
+from .badge_engine import BadgeEngine
 
 # Default player names for MVP
 DEFAULT_PLAYERS = [
@@ -552,11 +553,41 @@ class GameState:
             # Commit all records
             session.commit()
 
+            # Check achievements for authenticated players
+            badge_engine = BadgeEngine(session)
+            achievements_awarded = {}
+
+            for player in self.player_manager.players:
+                # Find the corresponding game player record
+                game_player = session.query(GamePlayer).filter(
+                    GamePlayer.game_id == self.game_id,
+                    GamePlayer.player_slot_id == player.id
+                ).first()
+
+                # Only check achievements for authenticated players
+                if game_player and game_player.player_profile_id:
+                    try:
+                        earned_badges = badge_engine.check_post_game_achievements(
+                            game_record.id,
+                            game_player.player_profile_id
+                        )
+
+                        if earned_badges:
+                            achievements_awarded[player.name] = [
+                                badge.badge_name for badge in earned_badges
+                            ]
+                    except Exception as e:
+                        print(f"⚠️ Error checking achievements for {player.name}: {e}")
+
             # Mark game as completed
             self._game_completed = True
             self._save_to_db()
 
-            return f"Game completed and saved. Game ID: {self.game_id}"
+            result_message = f"Game completed and saved. Game ID: {self.game_id}"
+            if achievements_awarded:
+                result_message += f"\n🏆 Achievements unlocked: {achievements_awarded}"
+
+            return result_message
 
         except Exception as e:
             print(f"⚠️ Error completing game: {e}")
