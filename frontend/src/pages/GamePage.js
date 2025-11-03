@@ -513,13 +513,19 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
               marginBottom: 12,
               textAlign: 'center'
             }}>
-              ⚠️ CAPTAIN: FORM TEAMS TO START HOLE ⚠️
+              🎯 FORM TEAMS FOR HOLE {gameState.current_hole}
             </div>
-            <div style={{marginBottom:8, fontSize: 14}}>
-              <strong>Captain {PLAYER_NAMES[gameState.captain_id] || 'Unknown'}:</strong> Choose your strategy for Hole {gameState.current_hole}
+            <div style={{marginBottom:8, fontSize: 14, textAlign: 'center'}}>
+              <strong>Captain this hole: {PLAYER_NAMES[gameState.captain_id] || 'Unknown'}</strong>
+            </div>
+            <div style={{marginBottom:12, fontSize: 13, color: theme.colors.textSecondary, textAlign: 'center'}}>
+              Choose partner or go solo to continue
+            </div>
+            <div style={{marginBottom: 8, fontSize: 14, fontWeight: 'bold'}}>
+              Option 1: Form Partnership (2v2)
             </div>
             <select value={partnerSelect} onChange={e => setPartnerSelect(e.target.value)} style={{...theme.inputStyle, width:'100%',marginBottom:8, fontSize: 16, padding: '12px'}}>
-              <option value="">Select Partner</option>
+              <option value="">Choose {PLAYER_NAMES[gameState.captain_id]}'s partner...</option>
               {availablePartners().map(p => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
@@ -528,7 +534,7 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
               style={{
                 ...theme.buttonStyle,
                 width:'100%',
-                marginBottom:6,
+                marginBottom:16,
                 background: theme.colors.success,
                 fontSize: 16,
                 padding: '14px',
@@ -537,8 +543,11 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
               disabled={!partnerSelect}
               onClick={() => doAction("request_partner", { captain_id: gameState.captain_id, partner_id: partnerSelect })}
             >
-              🤝 Request Partner
+              🤝 Form Partnership
             </button>
+            <div style={{marginBottom: 8, fontSize: 14, fontWeight: 'bold'}}>
+              Option 2: Go Solo (Captain vs Others)
+            </div>
             <button
               style={{
                 ...theme.buttonStyle,
@@ -550,7 +559,7 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
               }}
               onClick={() => doAction("go_solo", { captain_id: gameState.captain_id })}
             >
-              🐺 Go Solo (2x Wager!)
+              🐺 {PLAYER_NAMES[gameState.captain_id]} Goes Solo (2x Wager!)
             </button>
           </div>
         )}
@@ -570,13 +579,13 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
               marginBottom: 12,
               textAlign: 'center'
             }}>
-              🤝 PARTNERSHIP REQUEST 🤝
+              🤝 CONFIRM PARTNERSHIP
             </div>
-            <div style={{marginBottom:12, fontSize: 16, textAlign: 'center'}}>
-              <strong>Captain {PLAYER_NAMES[gameState.captain_id]}</strong> wants to partner with <strong>{PLAYER_NAMES[requestedPartnerId]}</strong>
+            <div style={{marginBottom:16, fontSize: 16, textAlign: 'center'}}>
+              <strong>{PLAYER_NAMES[gameState.captain_id]}</strong> wants <strong>{PLAYER_NAMES[requestedPartnerId]}</strong> as partner
             </div>
             <div style={{marginBottom:12, fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center'}}>
-              {PLAYER_NAMES[requestedPartnerId]}: Do you accept?
+              Does {PLAYER_NAMES[requestedPartnerId]} accept?
             </div>
             <button
               style={{
@@ -590,7 +599,7 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
               }}
               onClick={() => doAction("accept_partner", { partner_id: requestedPartnerId, accepted: true })}
             >
-              ✅ Accept Partnership
+              ✅ Yes - Accept Partnership
             </button>
             <button
               style={{
@@ -603,7 +612,7 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
               }}
               onClick={() => doAction("decline_partner", { partner_id: requestedPartnerId, accepted: false })}
             >
-              ❌ Decline (Captain Goes Solo)
+              ❌ No - Decline ({PLAYER_NAMES[gameState.captain_id]} Goes Solo)
             </button>
           </div>
         )}
