@@ -24,6 +24,7 @@ import AboutPage from "./pages/AboutPage";
 import RulesPage from "./pages/RulesPage";
 import AdminPage from "./pages/AdminPage";
 import Navigation from "./components/Navigation";
+import "./styles/mobile-touch.css"; // Import mobile touch optimization styles
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 

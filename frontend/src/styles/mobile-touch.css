@@ -1,0 +1,242 @@
+/*
+ * Mobile Touch Optimization for Glove-Friendly Interaction
+ *
+ * Purpose: Optimize the game manager interface for real-world phone use,
+ * specifically designed for scorekeepers managing games from their phones
+ * while potentially wearing gloves (golf gloves, cold weather, etc.)
+ *
+ * Key Features:
+ * - Large touch targets (100px+) optimized for glove interaction
+ * - Increased spacing between buttons to prevent accidental taps
+ * - Prevention of text selection and double-tap zoom
+ * - Touch-specific event handling for better mobile feedback
+ * - High contrast text for outdoor visibility
+ * - Responsive layouts optimized for single-handed phone use
+ * - Safe area support for modern devices with notches
+ *
+ * Use Case: Game manager/scorekeeper relaying information for 3 other players
+ * from their phone during an outdoor golf match.
+ */
+
+/* Prevent text selection and callouts on touch devices */
+.touch-optimized,
+.touch-optimized * {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Allow text selection only for input fields */
+.touch-optimized input,
+.touch-optimized textarea {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+/* Prevent double-tap zoom */
+.touch-optimized button,
+.touch-optimized a {
+  touch-action: manipulation;
+}
+
+/* Large touch targets for glove use - minimum 60x60px, recommended 80x80px+ */
+.touch-button-large {
+  min-height: 100px;
+  min-width: 100px;
+  padding: 20px;
+  font-size: 20px;
+  font-weight: bold;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Extra large for primary actions */
+.touch-button-xl {
+  min-height: 120px;
+  padding: 24px;
+  font-size: 24px;
+}
+
+/* Score selector buttons */
+.touch-button-score {
+  min-height: 90px;
+  min-width: 90px;
+  padding: 12px;
+  font-size: 18px;
+  border-radius: 10px;
+}
+
+/* Active/pressed state for touch feedback */
+.touch-button-large:active,
+.touch-button-score:active {
+  transform: scale(0.95);
+  opacity: 0.9;
+}
+
+/* Disabled state */
+.touch-button-large:disabled,
+.touch-button-score:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Large spacing between interactive elements for glove use */
+.touch-spacing-large {
+  gap: 16px;
+}
+
+.touch-spacing-xl {
+  gap: 24px;
+}
+
+/* Mobile viewport optimization */
+@media (max-width: 768px) {
+  .mobile-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .mobile-full-width {
+    width: 100%;
+  }
+
+  /* Larger touch targets on mobile */
+  .touch-button-large {
+    min-height: 110px;
+    font-size: 22px;
+  }
+
+  .touch-button-score {
+    min-height: 95px;
+    font-size: 20px;
+  }
+
+  /* Even larger spacing on mobile */
+  .touch-spacing-large {
+    gap: 20px;
+  }
+
+  .touch-spacing-xl {
+    gap: 28px;
+  }
+}
+
+/* Small phone screens - even more optimization */
+@media (max-width: 480px) {
+  .touch-button-large {
+    min-height: 100px;
+    padding: 18px;
+    font-size: 20px;
+  }
+
+  .touch-button-score {
+    min-height: 85px;
+    font-size: 18px;
+  }
+
+  /* Reduce columns for score grid on small screens */
+  .score-grid-mobile {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
+
+/* Landscape orientation on phones - special handling */
+@media (max-width: 768px) and (orientation: landscape) {
+  .touch-button-large {
+    min-height: 80px;
+    padding: 14px;
+  }
+
+  .touch-button-score {
+    min-height: 70px;
+  }
+}
+
+/* High contrast for outdoor visibility */
+.outdoor-visibility {
+  color: #000;
+  text-shadow: 0 1px 3px rgba(255, 255, 255, 0.3);
+}
+
+.outdoor-visibility-light {
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+/* Loading/processing state */
+.touch-button-loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.touch-button-loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.2);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Touch ripple effect (optional visual feedback) */
+.touch-ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.touch-ripple::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  transform: translate(-50%, -50%);
+  transition: width 0.3s, height 0.3s;
+}
+
+.touch-ripple:active::after {
+  width: 200px;
+  height: 200px;
+}
+
+/* Thumb-friendly bottom zone (easier to reach with one hand) */
+.thumb-zone {
+  position: sticky;
+  bottom: 0;
+  background: white;
+  padding: 16px;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+}
+
+/* Safe area for devices with notches/rounded corners */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .thumb-zone {
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+}
+
+/* Scrollable content area that doesn't overlap with thumb zone */
+.content-with-thumb-zone {
+  padding-bottom: 140px; /* Height of typical thumb zone + spacing */
+}
