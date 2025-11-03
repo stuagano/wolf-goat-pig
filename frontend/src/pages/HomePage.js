@@ -7,6 +7,32 @@ function HomePage() {
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth0();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [activeGameSession, setActiveGameSession] = useState(null);
+
+  // Check for active game session on mount
+  React.useEffect(() => {
+    const currentGameId = localStorage.getItem('wgp_current_game');
+    if (currentGameId) {
+      const sessionKey = `wgp_session_${currentGameId}`;
+      const sessionData = localStorage.getItem(sessionKey);
+      if (sessionData) {
+        try {
+          const session = JSON.parse(sessionData);
+          // Only show if session is recent (within 24 hours)
+          const isRecent = (Date.now() - session.timestamp) < 24 * 60 * 60 * 1000;
+          if (isRecent && session.status !== 'completed') {
+            setActiveGameSession(session);
+          } else {
+            // Clean up old session
+            localStorage.removeItem(sessionKey);
+            localStorage.removeItem('wgp_current_game');
+          }
+        } catch (err) {
+          console.error('Error parsing session data:', err);
+        }
+      }
+    }
+  }, []);
   
   // Add responsive styles
   React.useEffect(() => {
@@ -57,10 +83,10 @@ function HomePage() {
   const mainBoxes = [
     {
       icon: '⚔️',
-      title: 'Regular Game',
-      description: 'Play with real players and track your Wolf Goat Pig matches',
+      title: 'Multiplayer Game',
+      description: 'Create a game and share the join code with your friends',
       action: () => navigate('/game'),
-      buttonText: 'Start Game',
+      buttonText: 'Create Game',
       color: '#047857' // deep forest green
     },
     {
@@ -92,13 +118,15 @@ function HomePage() {
   const menuItems = [
     { icon: 'ℹ️', label: 'About Wolf Goat Pig', path: '/about' },
     { icon: '📖', label: 'Game Rules', path: '/rules' },
-    { icon: '⚔️', label: 'Regular Game', path: '/game' },
+    { icon: '⚔️', label: 'Start Multiplayer Game', path: '/game' },
+    { icon: '🔗', label: 'Join Game with Code', path: '/join' },
     { icon: '🎮', label: 'Practice Mode', path: '/simulation' },
     { icon: '📝', label: 'Sign Up Players', path: '/signup' },
     { icon: '🏆', label: 'Leaderboard', path: '/leaderboard' },
     { icon: '🎓', label: 'Tutorial', path: '/tutorial' },
     { icon: '📊', label: 'Analytics', path: '/analytics' },
     { icon: '🔄', label: 'Live Sync', path: '/live-sync' },
+    { icon: '🧪', label: 'Test Multiplayer (Dev)', path: '/test-multiplayer' },
   ];
   
   return (
@@ -293,6 +321,178 @@ function HomePage() {
           )}
         </div>
         
+        {/* Multiplayer Section - Always visible */}
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.95)',
+          borderRadius: '16px',
+          padding: '40px',
+          marginBottom: '40px',
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
+          backdropFilter: 'blur(10px)'
+        }}>
+          <h3 style={{
+            fontSize: '2rem',
+            fontWeight: 'bold',
+            color: '#1F2937',
+            marginBottom: '16px',
+            textAlign: 'center'
+          }}>
+            🌐 Multiplayer Games
+          </h3>
+          <p style={{
+            color: '#6B7280',
+            fontSize: '1.1rem',
+            textAlign: 'center',
+            marginBottom: '30px'
+          }}>
+            Create a game and share a join code with your friends!
+          </p>
+
+          {/* Resume Game Button - shown if active session exists */}
+          {activeGameSession && (
+            <div style={{
+              background: 'linear-gradient(135deg, #F59E0B, #D97706)',
+              borderRadius: '12px',
+              padding: '20px',
+              marginBottom: '20px',
+              boxShadow: '0 4px 6px rgba(245, 158, 11, 0.3)'
+            }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '16px'
+              }}>
+                <div style={{ flex: 1, minWidth: '200px' }}>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'white', marginBottom: '8px' }}>
+                    🎮 Active Game Found
+                  </div>
+                  <div style={{ color: 'rgba(255, 255, 255, 0.95)', fontSize: '1rem' }}>
+                    Playing as <strong>{activeGameSession.playerName}</strong>
+                  </div>
+                  <div style={{ color: 'rgba(255, 255, 255, 0.85)', fontSize: '0.9rem', marginTop: '4px' }}>
+                    Join Code: <strong>{activeGameSession.joinCode}</strong>
+                  </div>
+                </div>
+                <button
+                  onClick={() => navigate(`/game/${activeGameSession.gameId}`)}
+                  style={{
+                    padding: '16px 32px',
+                    background: 'white',
+                    color: '#D97706',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '16px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                  onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                >
+                  ↩️ Resume Game
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+            gap: '20px'
+          }}>
+            <button
+              onClick={() => navigate('/game')}
+              style={{
+                padding: '20px',
+                background: '#047857',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = '#065F46';
+                e.target.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = '#047857';
+                e.target.style.transform = 'translateY(0)';
+              }}
+            >
+              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🎮</div>
+              <div>Create New Game</div>
+              <div style={{ fontSize: '0.9rem', opacity: 0.9, marginTop: '8px' }}>
+                You manage, share join code
+              </div>
+            </button>
+            <button
+              onClick={() => navigate('/join')}
+              style={{
+                padding: '20px',
+                background: '#0369A1',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = '#075985';
+                e.target.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = '#0369A1';
+                e.target.style.transform = 'translateY(0)';
+              }}
+            >
+              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🔗</div>
+              <div>Join with Code</div>
+              <div style={{ fontSize: '0.9rem', opacity: 0.9, marginTop: '8px' }}>
+                Enter friend's join code
+              </div>
+            </button>
+            <button
+              onClick={() => navigate('/test-multiplayer')}
+              style={{
+                padding: '20px',
+                background: '#7C2D12',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = '#9A3412';
+                e.target.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = '#7C2D12';
+                e.target.style.transform = 'translateY(0)';
+              }}
+            >
+              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🧪</div>
+              <div>Test Mode</div>
+              <div style={{ fontSize: '0.9rem', opacity: 0.9, marginTop: '8px' }}>
+                Test without login
+              </div>
+            </button>
+          </div>
+        </div>
+
         {/* Main Game Boxes - Show only when authenticated */}
         {isAuthenticated && (
           <div className="wgp-main-grid" style={{

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { useTheme } from '../../theme/Provider';
 import { useGame } from '../../context';
 import { Button, Card, Select } from '../ui';
 import useOddsCalculation from '../../hooks/useOddsCalculation';
-
 // Import existing widgets
 import ShotResultWidget from '../ShotResultWidget';
 import BettingOpportunityWidget from '../BettingOpportunityWidget';
@@ -33,21 +33,117 @@ import GameSetupForm from './GameSetupForm';
 import LargeScoringButtons from './LargeScoringButtons';
 import MobileScorecard from './MobileScorecard';
 
+const API_URL = process.env.REACT_APP_API_URL || "";
+
 const UnifiedGameInterface = ({ mode = 'regular' }) => {
   const theme = useTheme();
-  const { 
-    gameState,
-    setGameState,
-    loading,
-    setLoading,
-    error,
-    clearError,
-    fetchGameState,
-    makeGameAction,
-    isGameActive,
-    startGame,
-    endGame
+  const { gameId } = useParams(); // Get gameId from URL for multiplayer games
+  const {
+    gameState: contextGameState,
+    setGameState: contextSetGameState,
+    loading: contextLoading,
+    setLoading: contextSetLoading,
+    error: contextError,
+    clearError: contextClearError,
+    fetchGameState: contextFetchGameState,
+    makeGameAction: contextMakeGameAction,
+    isGameActive: contextIsGameActive,
+    startGame: contextStartGame,
+    endGame: contextEndGame
   } = useGame();
+
+  // Local state management for multiplayer games
+  const [localGameState, setLocalGameState] = useState(null);
+  const [localLoading, setLocalLoading] = useState(false);
+  const [localError, setLocalError] = useState(null);
+  const [reconnecting, setReconnecting] = useState(false);
+  const [playerSession, setPlayerSession] = useState(null);
+
+  // Use local state for multiplayer, context state for single-player
+  const gameState = gameId ? localGameState : contextGameState;
+  const setGameState = gameId ? setLocalGameState : contextSetGameState;
+  const loading = gameId ? localLoading : contextLoading;
+  const setLoading = gameId ? setLocalLoading : contextSetLoading;
+  const error = gameId ? localError : contextError;
+  const clearError = gameId ? (() => setLocalError(null)) : contextClearError;
+  const isGameActive = gameId ? (gameState && gameState.game_status === 'in_progress') : contextIsGameActive;
+  const startGame = contextStartGame;
+  const endGame = contextEndGame;
+
+  // Fetch game state for multiplayer games
+  const fetchGameState = async () => {
+    if (!gameId) {
+      return contextFetchGameState();
+    }
+
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_URL}/games/${gameId}/state`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch game state');
+      }
+      const data = await response.json();
+      setGameState(data);
+      return data;
+    } catch (err) {
+      console.error('Error fetching game state:', err);
+      setLocalError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Make game action for multiplayer games
+  const makeGameAction = async (actionType, payload = {}) => {
+    if (!gameId) {
+      return contextMakeGameAction(actionType, payload);
+    }
+
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_URL}/games/${gameId}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action_type: actionType,
+          payload
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Action failed');
+      }
+
+      const data = await response.json();
+      setGameState(data.game_state);
+
+      // Update session timestamp when action succeeds
+      if (playerSession) {
+        const sessionKey = `wgp_session_${gameId}`;
+        const updatedSession = {
+          ...playerSession,
+          timestamp: Date.now(),
+          status: data.game_state?.game_status
+        };
+        localStorage.setItem(sessionKey, JSON.stringify(updatedSession));
+        setPlayerSession(updatedSession);
+
+        // Clear session if game completed
+        if (data.game_state?.game_status === 'completed') {
+          localStorage.removeItem('wgp_current_game');
+        }
+      }
+
+      return data;
+    } catch (err) {
+      console.error('Error performing action:', err);
+      setLocalError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Interface state
   const [currentView, setCurrentView] = useState('game');
@@ -107,11 +203,62 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
   const [suggestedOpponents, setSuggestedOpponents] = useState([]);
   const [feedback] = useState([]); // Passed to SimulationPlay component
 
+  // Reconnection and initial game state loading
   useEffect(() => {
-    if (mode === 'regular' || mode === 'enhanced') {
-      fetchGameState();
-    }
-  }, [mode, fetchGameState]);
+    const attemptReconnection = async () => {
+      // For multiplayer games, check if there's a session to restore
+      if (gameId) {
+        const sessionKey = `wgp_session_${gameId}`;
+        const sessionData = localStorage.getItem(sessionKey);
+
+        if (sessionData) {
+          try {
+            const session = JSON.parse(sessionData);
+            setPlayerSession(session);
+            setReconnecting(true);
+
+            // Fetch current game state
+            const state = await fetchGameState();
+
+            // Check if game is still active
+            if (state && (state.game_status === 'in_progress' || state.game_status === 'waiting')) {
+              // Successfully reconnected
+              console.log('Reconnected to game:', gameId);
+
+              // Update session timestamp
+              session.timestamp = Date.now();
+              session.status = state.game_status;
+              localStorage.setItem(sessionKey, JSON.stringify(session));
+            } else if (state && state.game_status === 'completed') {
+              // Game has ended, keep session for viewing results
+              console.log('Reconnected to completed game:', gameId);
+            } else {
+              // Game no longer exists or invalid state
+              console.warn('Game not found or invalid, clearing session');
+              localStorage.removeItem(sessionKey);
+              localStorage.removeItem('wgp_current_game');
+              setPlayerSession(null);
+            }
+
+            setReconnecting(false);
+          } catch (err) {
+            console.error('Reconnection failed:', err);
+            setReconnecting(false);
+            // Keep session in case of temporary network error
+          }
+        } else {
+          // No session found, just fetch game state normally
+          await fetchGameState();
+        }
+      } else if (mode === 'regular' || mode === 'enhanced') {
+        // Single-player mode, fetch from context
+        fetchGameState();
+      }
+    };
+
+    attemptReconnection();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, gameId]); // Include gameId to refetch when it changes, fetchGameState is stable
 
   const sendAction = async (actionType, payload = {}) => {
     setLoading(true);
@@ -261,22 +408,41 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
   }
 
   // Loading state
-  if (loading && !gameState) {
+  if ((loading && !gameState) || reconnecting) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '50vh' 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '50vh'
       }}>
         <Card>
           <div style={{ textAlign: 'center', padding: theme.spacing[6] }}>
             <h2 style={{ color: theme.colors.primary, marginBottom: theme.spacing[4] }}>
-              Loading Wolf Goat Pig...
+              {reconnecting ? '🔄 Reconnecting...' : 'Loading Wolf Goat Pig...'}
             </h2>
             <div style={{ color: theme.colors.textSecondary }}>
-              Please wait while we prepare your game
+              {reconnecting
+                ? `Restoring your session${playerSession ? ` as ${playerSession.playerName}` : ''}...`
+                : 'Please wait while we prepare your game'
+              }
             </div>
+            {reconnecting && playerSession && (
+              <div style={{
+                marginTop: theme.spacing[4],
+                padding: theme.spacing[3],
+                background: '#e3f2fd',
+                borderRadius: 8,
+                fontSize: 14
+              }}>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                  Player: {playerSession.playerName}
+                </div>
+                <div style={{ fontSize: 12, color: theme.colors.textSecondary }}>
+                  Handicap: {playerSession.handicap}
+                </div>
+              </div>
+            )}
           </div>
         </Card>
       </div>
@@ -715,6 +881,39 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
   // Regular mode - simple widget layout
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: theme.spacing[4] }}>
+      {/* Multiplayer Player Identity Banner */}
+      {gameId && gameState && (
+        <Card variant="info" style={{ marginBottom: theme.spacing[4] }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: theme.spacing[2]
+          }}>
+            <div>
+              <div style={{ fontSize: theme.typography.sm, color: theme.colors.textSecondary }}>
+                Multiplayer Game {playerSession && `• Playing as ${playerSession.playerName}`}
+              </div>
+              <div style={{
+                fontSize: theme.typography.lg,
+                fontWeight: theme.typography.bold,
+                color: theme.colors.primary
+              }}>
+                Game ID: {gameId.substring(0, 8)}...
+              </div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: theme.typography.sm, color: theme.colors.textSecondary }}>
+                Players: {gameState.players?.length || 0}
+              </div>
+              <div style={{ fontSize: theme.typography.sm, color: theme.colors.textSecondary }}>
+                Hole {gameState.current_hole || 1} of 18
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
       <Card>
         <div style={{
           display: 'flex',

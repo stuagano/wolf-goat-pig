@@ -23,6 +23,10 @@ import SignupPage from "./pages/SignupPage";
 import AboutPage from "./pages/AboutPage";
 import RulesPage from "./pages/RulesPage";
 import AdminPage from "./pages/AdminPage";
+import CreateGamePage from "./pages/CreateGamePage";
+import JoinGamePage from "./pages/JoinGamePage";
+import GameLobbyPage from "./pages/GameLobbyPage";
+import TestMultiplayerPage from "./pages/TestMultiplayerPage";
 import Navigation from "./components/Navigation";
 import "./styles/mobile-touch.css"; // Import mobile touch optimization styles
 
@@ -209,11 +213,8 @@ function App() {
         <Navigation />
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/game" element={
-            <ProtectedRoute>
-              <UnifiedGameInterface />
-            </ProtectedRoute>
-          } />
+          <Route path="/game" element={<CreateGamePage />} />
+          <Route path="/game/:gameId" element={<UnifiedGameInterface />} />
           <Route path="/simulation" element={<SimulationMode />} />
           <Route path="/monte-carlo" element={
             <ProtectedRoute>
@@ -259,6 +260,10 @@ function App() {
               <AdminPage />
             </ProtectedRoute>
           } />
+          <Route path="/join" element={<JoinGamePage />} />
+          <Route path="/join/:code" element={<JoinGamePage />} />
+          <Route path="/lobby/:gameId" element={<GameLobbyPage />} />
+          <Route path="/test-multiplayer" element={<TestMultiplayerPage />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </div>
