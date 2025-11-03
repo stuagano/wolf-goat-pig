@@ -8,7 +8,6 @@ import ProbabilityBar from './ProbabilityBar';
 import {
   getProbabilityColor,
   formatExpectedValue,
-  getRiskLevelColor,
   getProbabilityLabel
 } from './utils/oddsHelpers';
 

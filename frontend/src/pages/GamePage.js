@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useTheme } from '../theme/Provider';
 import Scorecard from '../components/simulation/visual/Scorecard';
@@ -100,7 +100,7 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
     return () => clearInterval(interval);
   }, [loading, rules]);
 
-  const setupNewSimulation = async () => {
+  const setupNewSimulation = useCallback(async () => {
     setLoading(true);
     try {
       // Initialize with default players using the simulation system
@@ -138,7 +138,7 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
       setLoading(false);
       setPartnerSelect("");
     }
-  };
+  }, [setLoading, setGameState, setPartnerSelect]);
 
   useEffect(() => {
     const initializeGame = async () => {
@@ -166,7 +166,7 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
     };
 
     initializeGame();
-  }, [setGameState, setLoading]);
+  }, [setGameState, setLoading, setupNewSimulation]);
 
   const fetchAndSetGameState = async () => {
     try {

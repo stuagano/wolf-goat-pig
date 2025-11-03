@@ -49,7 +49,6 @@ const EducationalTooltip = ({ title, content, type = 'info' }) => {
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         aria-label={title}
-        role="button"
         style={{
           background: 'transparent',
           border: 'none',

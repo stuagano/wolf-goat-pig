@@ -2,7 +2,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { Button } from '../../ui';
-import { formatExpectedValue, getProbabilityColor } from './utils/oddsHelpers';
+import { formatExpectedValue } from './utils/oddsHelpers';
 
 const DecisionButtons = ({
   interactionNeeded = null,
