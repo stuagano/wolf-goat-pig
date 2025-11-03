@@ -307,6 +307,97 @@ const LargeScoringButtons = ({
 
   return (
     <div className="touch-optimized" style={{ width: '100%' }}>
+      {/* Game Status Indicators */}
+      {(gameState?.player_float_used || gameState?.doubled_status || gameState?.option_active) && (
+        <div style={{
+          ...theme.cardStyle,
+          marginBottom: '20px',
+          background: theme.colors.background,
+          border: `2px solid ${theme.colors.border}`,
+          padding: '12px'
+        }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+            gap: '12px'
+          }}>
+            {/* Float Status */}
+            {gameState.player_float_used && Object.keys(gameState.player_float_used).some(id => gameState.player_float_used[id]) && (
+              <div style={{
+                padding: '10px',
+                background: '#fff3cd',
+                borderRadius: '8px',
+                border: '2px solid #ffc107',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '24px', marginBottom: '4px' }}>🎈</div>
+                <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#856404' }}>
+                  Float Active
+                </div>
+                <div style={{ fontSize: '12px', color: '#856404', marginTop: '2px' }}>
+                  2x Wager
+                </div>
+              </div>
+            )}
+
+            {/* Doubled Status */}
+            {gameState.doubled_status && (
+              <div style={{
+                padding: '10px',
+                background: '#f8d7da',
+                borderRadius: '8px',
+                border: '2px solid #f5c6cb',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '24px', marginBottom: '4px' }}>💰</div>
+                <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#721c24' }}>
+                  Doubled!
+                </div>
+                <div style={{ fontSize: '12px', color: '#721c24', marginTop: '2px' }}>
+                  Stakes Raised
+                </div>
+              </div>
+            )}
+
+            {/* Option Status */}
+            {gameState.option_active && (
+              <div style={{
+                padding: '10px',
+                background: '#d1ecf1',
+                borderRadius: '8px',
+                border: '2px solid #bee5eb',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '24px', marginBottom: '4px' }}>⚡</div>
+                <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#0c5460' }}>
+                  Option Active
+                </div>
+                <div style={{ fontSize: '12px', color: '#0c5460', marginTop: '2px' }}>
+                  Auto-Double
+                </div>
+              </div>
+            )}
+
+            {/* Current Wager Display */}
+            <div style={{
+              padding: '10px',
+              background: theme.colors.primary,
+              borderRadius: '8px',
+              border: `2px solid ${theme.colors.primary}`,
+              textAlign: 'center',
+              color: 'white'
+            }}>
+              <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '4px' }}>
+                {gameState.current_wager || gameState.base_wager || 1}q
+              </div>
+              <div style={{ fontSize: '12px', opacity: 0.9 }}>
+                Current Wager
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Score Entry Section */}
       {showScoreEntry && (
         <div style={{
@@ -497,7 +588,7 @@ const LargeScoringButtons = ({
       )}
 
       {/* Go Solo / Partnership Decision - shown before teams are formed */}
-      {gameState?.teams?.type === "pending" && (
+      {gameState?.teams?.type === "pending" && !gameState.teams?.requested && (
         <div style={{
           ...theme.cardStyle,
           marginBottom: '20px',
@@ -552,6 +643,181 @@ const LargeScoringButtons = ({
                 'primary'
               )
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Partnership Acceptance - shown when partner has been requested */}
+      {gameState?.teams?.type === "pending" && gameState.teams?.requested && (
+        <div style={{
+          ...theme.cardStyle,
+          marginBottom: '20px',
+          background: '#e8f5e9',
+          border: '3px solid #4caf50',
+          boxShadow: '0 4px 16px rgba(76, 175, 80, 0.3)'
+        }}>
+          <h2 style={{
+            margin: '0 0 12px 0',
+            fontSize: '24px',
+            color: theme.colors.success,
+            fontWeight: 'bold',
+            textAlign: 'center'
+          }}>
+            🤝 CONFIRM PARTNERSHIP
+          </h2>
+          <p style={{
+            fontSize: '18px',
+            textAlign: 'center',
+            marginBottom: '16px',
+            lineHeight: '1.5'
+          }}>
+            <strong>{gameState.players?.find(p => p.id === gameState.captain_id)?.name || 'Captain'}</strong> wants{' '}
+            <strong>{gameState.players?.find(p => p.id === gameState.teams.requested)?.name || 'you'}</strong> as partner
+          </p>
+          <p style={{
+            fontSize: '16px',
+            color: theme.colors.textSecondary,
+            marginBottom: '20px',
+            textAlign: 'center',
+            lineHeight: '1.5'
+          }}>
+            Does {gameState.players?.find(p => p.id === gameState.teams.requested)?.name || 'partner'} accept?
+          </p>
+
+          <div
+            className="touch-spacing-large"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr',
+              gap: '16px'
+            }}>
+            {renderLargeButton(
+              'accept-partnership',
+              '✅',
+              'Accept Partnership',
+              () => onAction("accept_partner", {
+                partner_id: gameState.teams.requested,
+                accepted: true
+              }),
+              'success'
+            )}
+
+            {renderLargeButton(
+              'decline-partnership',
+              '❌',
+              `Decline (${gameState.players?.find(p => p.id === gameState.captain_id)?.name || 'Captain'} Goes Solo)`,
+              () => {
+                if (window.confirm('Decline partnership? Captain will go solo and wager doubles!')) {
+                  onAction("decline_partner", {
+                    partner_id: gameState.teams.requested,
+                    accepted: false
+                  });
+                }
+              },
+              'error'
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Hoepfinger Phase - Joe's Special Wager Selection */}
+      {gameState?.game_phase === "hoepfinger" && gameState?.goat_id && !gameState?.joes_special_set && (
+        <div style={{
+          ...theme.cardStyle,
+          marginBottom: '20px',
+          background: 'linear-gradient(135deg, #ff6b6b 0%, #ffd93d 100%)',
+          border: '4px solid #d32f2f',
+          padding: '20px'
+        }}>
+          <h2 style={{
+            margin: '0 0 16px 0',
+            fontSize: '26px',
+            color: '#000',
+            fontWeight: 'bold',
+            textAlign: 'center'
+          }}>
+            🎯 HOEPFINGER PHASE - JOE'S SPECIAL
+          </h2>
+          <p style={{
+            fontSize: '18px',
+            textAlign: 'center',
+            marginBottom: '20px',
+            color: '#000',
+            lineHeight: '1.5'
+          }}>
+            <strong>{gameState.players?.find(p => p.id === gameState.goat_id)?.name || 'The Goat'}</strong> is the Goat!<br />
+            Choose the starting wager for this hole:
+          </p>
+
+          <div
+            className="touch-spacing-large"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: '16px'
+            }}>
+            {[2, 4, 8].map(value =>
+              renderLargeButton(
+                `joes-special-${value}`,
+                `${value}q`,
+                `${value} Quarters`,
+                () => {
+                  if (window.confirm(`Set hole value to ${value} quarters?`)) {
+                    onAction("invoke_joes_special", {
+                      goat_id: gameState.goat_id,
+                      selected_value: value
+                    });
+                  }
+                },
+                value === 8 ? 'error' : value === 4 ? 'warning' : 'primary'
+              )
+            )}
+          </div>
+
+          <p style={{
+            fontSize: '14px',
+            textAlign: 'center',
+            marginTop: '16px',
+            color: '#000',
+            fontStyle: 'italic'
+          }}>
+            Note: No doubling until all players have teed off
+          </p>
+        </div>
+      )}
+
+      {/* Hoepfinger Phase Indicator */}
+      {gameState?.game_phase === "hoepfinger" && (
+        <div style={{
+          ...theme.cardStyle,
+          marginBottom: '20px',
+          background: 'linear-gradient(135deg, #6a11cb 0%, #2575fc 100%)',
+          border: '3px solid #6a11cb',
+          padding: '16px',
+          color: 'white'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px'
+          }}>
+            <div style={{ fontSize: '36px' }}>🐐</div>
+            <div style={{ flex: 1 }}>
+              <h3 style={{
+                margin: '0 0 4px 0',
+                fontSize: '20px',
+                fontWeight: 'bold'
+              }}>
+                HOEPFINGER PHASE ACTIVE
+              </h3>
+              <p style={{
+                margin: 0,
+                fontSize: '15px',
+                opacity: 0.9
+              }}>
+                The Goat ({gameState.players?.find(p => p.id === gameState.goat_id)?.name}) chooses hitting position each hole
+              </p>
+            </div>
           </div>
         </div>
       )}
