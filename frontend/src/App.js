@@ -213,11 +213,8 @@ function App() {
         <Navigation />
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/game" element={
-            <ProtectedRoute>
-              <UnifiedGameInterface />
-            </ProtectedRoute>
-          } />
+          <Route path="/game" element={<CreateGamePage />} />
+          <Route path="/game/:gameId" element={<UnifiedGameInterface />} />
           <Route path="/simulation" element={<SimulationMode />} />
           <Route path="/monte-carlo" element={
             <ProtectedRoute>
@@ -263,7 +260,6 @@ function App() {
               <AdminPage />
             </ProtectedRoute>
           } />
-          <Route path="/create-game" element={<CreateGamePage />} />
           <Route path="/join" element={<JoinGamePage />} />
           <Route path="/join/:code" element={<JoinGamePage />} />
           <Route path="/lobby/:gameId" element={<GameLobbyPage />} />

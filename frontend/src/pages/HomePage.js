@@ -57,10 +57,10 @@ function HomePage() {
   const mainBoxes = [
     {
       icon: '⚔️',
-      title: 'Regular Game',
-      description: 'Play with real players and track your Wolf Goat Pig matches',
+      title: 'Multiplayer Game',
+      description: 'Create a game and share the join code with your friends',
       action: () => navigate('/game'),
-      buttonText: 'Start Game',
+      buttonText: 'Create Game',
       color: '#047857' // deep forest green
     },
     {
@@ -92,16 +92,15 @@ function HomePage() {
   const menuItems = [
     { icon: 'ℹ️', label: 'About Wolf Goat Pig', path: '/about' },
     { icon: '📖', label: 'Game Rules', path: '/rules' },
-    { icon: '🎮', label: 'Create Multiplayer Game', path: '/create-game' },
+    { icon: '⚔️', label: 'Start Multiplayer Game', path: '/game' },
     { icon: '🔗', label: 'Join Game with Code', path: '/join' },
-    { icon: '🧪', label: 'Test Multiplayer', path: '/test-multiplayer' },
-    { icon: '⚔️', label: 'Regular Game', path: '/game' },
     { icon: '🎮', label: 'Practice Mode', path: '/simulation' },
     { icon: '📝', label: 'Sign Up Players', path: '/signup' },
     { icon: '🏆', label: 'Leaderboard', path: '/leaderboard' },
     { icon: '🎓', label: 'Tutorial', path: '/tutorial' },
     { icon: '📊', label: 'Analytics', path: '/analytics' },
     { icon: '🔄', label: 'Live Sync', path: '/live-sync' },
+    { icon: '🧪', label: 'Test Multiplayer (Dev)', path: '/test-multiplayer' },
   ];
   
   return (
@@ -328,7 +327,7 @@ function HomePage() {
             gap: '20px'
           }}>
             <button
-              onClick={() => navigate('/create-game')}
+              onClick={() => navigate('/game')}
               style={{
                 padding: '20px',
                 background: '#047857',
@@ -353,7 +352,7 @@ function HomePage() {
               <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🎮</div>
               <div>Create New Game</div>
               <div style={{ fontSize: '0.9rem', opacity: 0.9, marginTop: '8px' }}>
-                Start a game & get join code
+                You manage, share join code
               </div>
             </button>
             <button
