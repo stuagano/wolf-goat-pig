@@ -30,6 +30,8 @@ import { GameSetup as SimulationSetup, GamePlay as SimulationPlay } from '../sim
 
 // Import game setup components
 import GameSetupForm from './GameSetupForm';
+import LargeScoringButtons from './LargeScoringButtons';
+import MobileScorecard from './MobileScorecard';
 
 const UnifiedGameInterface = ({ mode = 'regular' }) => {
   const theme = useTheme();
@@ -714,21 +716,21 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: theme.spacing[4] }}>
       <Card>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'center',
           marginBottom: theme.spacing[4]
         }}>
-          <h1 style={{ 
-            color: theme.colors.primary, 
+          <h1 style={{
+            color: theme.colors.primary,
             margin: 0,
             textAlign: 'center',
             flex: 1
           }}>
             🎯 Wolf Goat Pig Game
           </h1>
-          
+
           <Button
             onClick={handleShotAnalysisToggle}
             variant={showShotAnalysis ? "primary" : "secondary"}
@@ -739,18 +741,41 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
         </div>
       </Card>
 
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: showShotAnalysis ? 
-          'repeat(auto-fit, minmax(350px, 1fr))' : 
-          'repeat(auto-fit, minmax(400px, 1fr))', 
-        gap: theme.spacing[4] 
+      {/* Mobile Scorecard - replaces paper scorecard */}
+      <div style={{ marginBottom: theme.spacing[4] }}>
+        <MobileScorecard gameState={gameState} />
+      </div>
+
+      {/* Large Scoring Buttons - glove-friendly score entry */}
+      <LargeScoringButtons
+        gameState={gameState}
+        onScoreSubmit={async (scores) => {
+          // Submit scores for all players
+          try {
+            // Calculate points based on scores
+            await sendAction('submit_scores', { scores });
+          } catch (error) {
+            console.error('Error submitting scores:', error);
+          }
+        }}
+        onAction={sendAction}
+        loading={loading}
+      />
+
+      {/* Additional widgets in collapsible/secondary section */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: showShotAnalysis ?
+          'repeat(auto-fit, minmax(350px, 1fr))' :
+          'repeat(auto-fit, minmax(400px, 1fr))',
+        gap: theme.spacing[4],
+        marginTop: theme.spacing[4]
       }}>
         <GameStateWidget gameState={gameState} holeState={gameState?.hole_state} onAction={sendAction} />
         <BettingOpportunityWidget gameState={gameState} onAction={sendAction} />
         <ShotResultWidget gameState={gameState} />
         <StrategicAnalysisWidget gameState={gameState} />
-        
+
         {showShotAnalysis && (
           <ShotAnalysisWidget
             gameState={gameState}
