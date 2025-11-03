@@ -4038,6 +4038,212 @@ async def upload_gmail_credentials(file: UploadFile = File(...), x_admin_email: 
         logger.error(f"Error uploading credentials: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+## BANNER MANAGEMENT ROUTES ##
+
+@app.get("/banner")
+async def get_active_banner(db: Session = Depends(database.get_db)):
+    """Get the currently active banner for display on game pages (public route)"""
+    try:
+        banner = db.query(models.GameBanner).filter(
+            models.GameBanner.is_active == True
+        ).order_by(models.GameBanner.id.desc()).first()
+
+        if not banner:
+            return {"banner": None}
+
+        return {"banner": {
+            "id": banner.id,
+            "title": banner.title,
+            "message": banner.message,
+            "banner_type": banner.banner_type,
+            "background_color": banner.background_color,
+            "text_color": banner.text_color,
+            "show_icon": banner.show_icon,
+            "dismissible": banner.dismissible
+        }}
+    except Exception as e:
+        logger.error(f"Error fetching active banner: {e}")
+        return {"banner": None}
+
+@app.get("/admin/banner")
+async def get_banner_config(x_admin_email: str = Header(None), db: Session = Depends(database.get_db)):
+    """Get current banner configuration (admin only)"""
+    # Check admin access
+    admin_emails = ['stuagano@gmail.com', 'admin@wgp.com']
+    if not x_admin_email or x_admin_email not in admin_emails:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    try:
+        banner = db.query(models.GameBanner).order_by(models.GameBanner.id.desc()).first()
+
+        if not banner:
+            return {"banner": None}
+
+        return {
+            "banner": {
+                "id": banner.id,
+                "title": banner.title,
+                "message": banner.message,
+                "banner_type": banner.banner_type,
+                "is_active": banner.is_active,
+                "background_color": banner.background_color,
+                "text_color": banner.text_color,
+                "show_icon": banner.show_icon,
+                "dismissible": banner.dismissible,
+                "created_at": banner.created_at,
+                "updated_at": banner.updated_at
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error fetching banner config: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/admin/banner")
+async def create_or_update_banner(
+    banner_data: schemas.GameBannerCreate,
+    x_admin_email: str = Header(None),
+    db: Session = Depends(database.get_db)
+):
+    """Create or update the game banner (admin only)"""
+    # Check admin access
+    admin_emails = ['stuagano@gmail.com', 'admin@wgp.com']
+    if not x_admin_email or x_admin_email not in admin_emails:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    try:
+        # Deactivate all existing banners if creating a new active one
+        if banner_data.is_active:
+            db.query(models.GameBanner).update({"is_active": False})
+
+        # Create new banner
+        new_banner = models.GameBanner(
+            title=banner_data.title,
+            message=banner_data.message,
+            banner_type=banner_data.banner_type,
+            is_active=banner_data.is_active,
+            background_color=banner_data.background_color,
+            text_color=banner_data.text_color,
+            show_icon=banner_data.show_icon,
+            dismissible=banner_data.dismissible,
+            created_at=datetime.utcnow().isoformat(),
+            updated_at=datetime.utcnow().isoformat()
+        )
+
+        db.add(new_banner)
+        db.commit()
+        db.refresh(new_banner)
+
+        return {
+            "status": "success",
+            "message": "Banner created successfully",
+            "banner": {
+                "id": new_banner.id,
+                "title": new_banner.title,
+                "message": new_banner.message,
+                "banner_type": new_banner.banner_type,
+                "is_active": new_banner.is_active,
+                "background_color": new_banner.background_color,
+                "text_color": new_banner.text_color,
+                "show_icon": new_banner.show_icon,
+                "dismissible": new_banner.dismissible,
+                "created_at": new_banner.created_at,
+                "updated_at": new_banner.updated_at
+            }
+        }
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error creating banner: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/admin/banner/{banner_id}")
+async def update_banner(
+    banner_id: int,
+    banner_data: schemas.GameBannerUpdate,
+    x_admin_email: str = Header(None),
+    db: Session = Depends(database.get_db)
+):
+    """Update an existing banner (admin only)"""
+    # Check admin access
+    admin_emails = ['stuagano@gmail.com', 'admin@wgp.com']
+    if not x_admin_email or x_admin_email not in admin_emails:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    try:
+        banner = db.query(models.GameBanner).filter(models.GameBanner.id == banner_id).first()
+
+        if not banner:
+            raise HTTPException(status_code=404, detail="Banner not found")
+
+        # If activating this banner, deactivate all others
+        if banner_data.is_active and banner_data.is_active != banner.is_active:
+            db.query(models.GameBanner).filter(models.GameBanner.id != banner_id).update({"is_active": False})
+
+        # Update banner fields
+        update_data = banner_data.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(banner, field, value)
+
+        banner.updated_at = datetime.utcnow().isoformat()
+
+        db.commit()
+        db.refresh(banner)
+
+        return {
+            "status": "success",
+            "message": "Banner updated successfully",
+            "banner": {
+                "id": banner.id,
+                "title": banner.title,
+                "message": banner.message,
+                "banner_type": banner.banner_type,
+                "is_active": banner.is_active,
+                "background_color": banner.background_color,
+                "text_color": banner.text_color,
+                "show_icon": banner.show_icon,
+                "dismissible": banner.dismissible,
+                "created_at": banner.created_at,
+                "updated_at": banner.updated_at
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error updating banner: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/admin/banner/{banner_id}")
+async def delete_banner(
+    banner_id: int,
+    x_admin_email: str = Header(None),
+    db: Session = Depends(database.get_db)
+):
+    """Delete a banner (admin only)"""
+    # Check admin access
+    admin_emails = ['stuagano@gmail.com', 'admin@wgp.com']
+    if not x_admin_email or x_admin_email not in admin_emails:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    try:
+        banner = db.query(models.GameBanner).filter(models.GameBanner.id == banner_id).first()
+
+        if not banner:
+            raise HTTPException(status_code=404, detail="Banner not found")
+
+        db.delete(banner)
+        db.commit()
+
+        return {
+            "status": "success",
+            "message": "Banner deleted successfully"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error deleting banner: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/sheet-integration/fetch-google-sheet")
 async def fetch_google_sheet(request: Dict[str, str]):
     """Fetch data from a Google Sheets CSV URL."""

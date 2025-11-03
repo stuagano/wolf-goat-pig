@@ -4,6 +4,7 @@ import { useTheme } from '../theme/Provider';
 import Scorecard from '../components/simulation/visual/Scorecard';
 import LargeScoringButtons from '../components/game/LargeScoringButtons';
 import GameStateWidget from '../components/GameStateWidget';
+import GameBanner from '../components/GameBanner';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -428,6 +429,7 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
         Wolf Goat Pig MVP
       </header>
       <main style={{padding: "12px 8px 0 8px"}}>
+        <GameBanner />
         {gameState.selected_course && <div style={{marginBottom:8, fontWeight:600, color:theme.colors.primary}}>Course: {gameState.selected_course}</div>}
         {bettingTipsCard}
         {doubleAlert}

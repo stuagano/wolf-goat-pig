@@ -347,4 +347,19 @@ class SeasonalBadge(Base):
     is_active = Column(Boolean, default=True)
     max_earners = Column(Integer, nullable=True)  # Limited number of players who can earn
     current_earners = Column(Integer, default=0)
-    created_at = Column(String) 
+    created_at = Column(String)
+
+# Game Banner System
+class GameBanner(Base):
+    __tablename__ = "game_banners"
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=True)  # Optional banner title
+    message = Column(String)  # Banner message content
+    banner_type = Column(String, default="info")  # info, warning, announcement, rules
+    is_active = Column(Boolean, default=True)  # Whether banner is currently displayed
+    background_color = Column(String, default="#3B82F6")  # Hex color code
+    text_color = Column(String, default="#FFFFFF")  # Hex color code
+    show_icon = Column(Boolean, default=True)  # Show icon based on type
+    dismissible = Column(Boolean, default=False)  # Can users dismiss it
+    created_at = Column(String)
+    updated_at = Column(String, nullable=True) 
