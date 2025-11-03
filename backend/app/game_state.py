@@ -31,6 +31,7 @@ class GameState:
         self.current_hole = getattr(self, 'current_hole', 1)
         self.betting_state = getattr(self, 'betting_state', BettingState())
         self.hole_scores = getattr(self, 'hole_scores', {p.id: None for p in self.player_manager.players})
+        self.gross_scores = getattr(self, 'gross_scores', {p.id: None for p in self.player_manager.players})
         self.game_status_message = getattr(self, 'game_status_message', "Time to toss the tees!")
         self.player_float_used = getattr(self, 'player_float_used', {p.id: False for p in self.player_manager.players})
         self.carry_over = getattr(self, 'carry_over', False)
@@ -44,6 +45,7 @@ class GameState:
         self.current_hole = 1
         self.betting_state = BettingState()
         self.hole_scores = {p.id: None for p in self.player_manager.players}
+        self.gross_scores = {p.id: None for p in self.player_manager.players}
         self.game_status_message = "Time to toss the tees!"
         self.player_float_used = {p.id: False for p in self.player_manager.players}
         self.carry_over = False
@@ -56,7 +58,7 @@ class GameState:
 
     def dispatch_action(self, action, payload):
         # Betting actions are delegated to BettingState
-        betting_actions = ["request_partner", "accept_partner", "decline_partner", "go_solo", 
+        betting_actions = ["request_partner", "accept_partner", "decline_partner", "go_solo",
                           "offer_double", "accept_double", "decline_double"]
         if action in betting_actions:
             result = self.betting_state.dispatch_action(action, payload, self.player_manager.players)
@@ -67,6 +69,8 @@ class GameState:
             return self.invoke_float(payload.get("captain_id"))
         elif action == "toggle_option":
             return self.toggle_option(payload.get("captain_id"))
+        elif action == "record_gross_score":
+            return self.record_gross_score(payload.get("player_id"), payload.get("score"))
         elif action == "record_net_score":
             return self.record_net_score(payload.get("player_id"), payload.get("score"))
         elif action == "calculate_hole_points":
@@ -96,17 +100,58 @@ class GameState:
         self.game_status_message = f"{self._player_name(captain_id)} toggled the option. Wager doubled."
         return "Option toggled."
 
-    def record_net_score(self, player_id, score):
+    def record_gross_score(self, player_id, gross_score):
+        """
+        Record a player's gross score (actual strokes) and automatically calculate net score.
+        Net score = gross score - handicap strokes for this hole.
+        """
         if player_id not in self.hole_scores:
             raise ValueError("Invalid player ID.")
+
+        # Record gross score
+        self.gross_scores[player_id] = gross_score
+
+        # Get handicap strokes for this hole
+        player_strokes = self.get_player_strokes()
+        strokes_for_hole = player_strokes.get(player_id, {}).get(self.current_hole, 0)
+
+        # Calculate net score: gross - strokes
+        net_score = gross_score - strokes_for_hole
+        self.hole_scores[player_id] = net_score
+
+        # Also record in the Player object (using net score)
+        for player in self.player_manager.players:
+            if player.id == player_id:
+                player.record_hole_score(self.current_hole, net_score)
+                break
+
+        player_name = self._player_name(player_id)
+        if strokes_for_hole > 0:
+            self.game_status_message = f"{player_name}: {gross_score} gross, {net_score} net ({strokes_for_hole} stroke{'s' if strokes_for_hole != 1 else ''})"
+        else:
+            self.game_status_message = f"{player_name}: {gross_score} (scratch)"
+
+        return f"Score recorded: {gross_score} gross → {net_score} net"
+
+    def record_net_score(self, player_id, score):
+        """
+        Legacy method - record net score directly (for backward compatibility).
+        This assumes the score is already adjusted for handicap.
+        """
+        if player_id not in self.hole_scores:
+            raise ValueError("Invalid player ID.")
+
+        # Record net score
         self.hole_scores[player_id] = score
-        
+        # We don't know the gross score in this case
+        self.gross_scores[player_id] = score
+
         # Also record the score in the Player object
         for player in self.player_manager.players:
             if player.id == player_id:
                 player.record_hole_score(self.current_hole, score)
                 break
-        
+
         self.game_status_message = f"Score recorded for {self._player_name(player_id)}."
         return "Score recorded."
 
@@ -117,10 +162,26 @@ class GameState:
         # Record hole history
         points_now = {p.id: p.points for p in self.player_manager.players}
         points_delta = {pid: points_now[pid] - self._last_points.get(pid, 0) for pid in points_now}
+
+        # Create player scores with names for better readability
+        player_scores = {}
+        for player in self.player_manager.players:
+            player_scores[player.id] = {
+                "name": player.name,
+                "gross_score": self.gross_scores.get(player.id),
+                "net_score": self.hole_scores.get(player.id),
+                "points_delta": points_delta.get(player.id, 0),
+                "total_points": points_now.get(player.id, 0)
+            }
+
         self.hole_history.append({
             "hole": self.current_hole,
+            "captain_id": self.player_manager.captain_id,
+            "captain_name": self._player_name(self.player_manager.captain_id),
             "hitting_order": list(self.player_manager.hitting_order),
             "net_scores": dict(self.hole_scores),
+            "gross_scores": dict(self.gross_scores),
+            "player_scores": player_scores,
             "points_delta": dict(points_delta),
             "teams": dict(self.betting_state.teams),
         })
@@ -136,17 +197,18 @@ class GameState:
         self.player_manager.rotate_captain()
         self.betting_state.reset_hole()
         self.hole_scores = {p.id: None for p in self.player_manager.players}
-        
+        self.gross_scores = {p.id: None for p in self.player_manager.players}
+
         # Reset shot state for new hole
         if hasattr(self, 'shot_state'):
             self.shot_state.reset_for_hole()
         else:
             self.shot_state = ShotState()
-        
+
         # Reset float usage for all players
         for player in self.player_manager.players:
             player.reset_float()
-        
+
         self.game_status_message = f"Hole {self.current_hole}. {self.player_manager.captain_id} is captain."
         self._save_to_db()
         return "Advanced to next hole."
@@ -174,6 +236,7 @@ class GameState:
             "current_hole": getattr(self, "current_hole", 1),
             "betting_state": betting_state_data,
             "hole_scores": getattr(self, "hole_scores", {}),
+            "gross_scores": getattr(self, "gross_scores", {}),
             "game_status_message": getattr(self, "game_status_message", "Time to toss the tees!"),
             "player_float_used": getattr(self, "player_float_used", {}),
             "carry_over": getattr(self, "carry_over", False),
@@ -222,6 +285,7 @@ class GameState:
             self.betting_state.game_phase = data.get("game_phase", 'Regular')
         
         self.hole_scores = data.get("hole_scores", {p.id: None for p in self.player_manager.players})
+        self.gross_scores = data.get("gross_scores", {p.id: None for p in self.player_manager.players})
         self.game_status_message = data.get("game_status_message", "Time to toss the tees!")
         self.player_float_used = data.get("player_float_used", {p.id: False for p in self.player_manager.players})
         self.carry_over = data.get("carry_over", False)
@@ -308,15 +372,22 @@ class GameState:
     def get_player_strokes(self):
         """
         Returns a dict: {player_id: {hole_number: stroke_type}}, where stroke_type is 1 (full stroke), 0.5 (half), or 0 (none)
+        Uses relative handicaps - strokes are calculated relative to the lowest handicap in the group.
         """
         n_holes = len(self.course_manager.hole_stroke_indexes)
         result = {}
+
+        # Find the lowest handicap in the group for relative handicap calculation
+        min_handicap = min(p.handicap for p in self.player_manager.players)
+
         for player in self.player_manager.players:
             pid = player.id
-            hcap = player.handicap
+            # Calculate relative handicap (difference from lowest handicap)
+            relative_hcap = player.handicap - min_handicap
             strokes = {i+1: 0 for i in range(n_holes)}
-            full_strokes = int(hcap)
-            half_stroke = (hcap - full_strokes) >= 0.5
+            full_strokes = int(relative_hcap)
+            half_stroke = (relative_hcap - full_strokes) >= 0.5
+
             # Full strokes
             for i, idx in enumerate(self.course_manager.hole_stroke_indexes):
                 if idx <= full_strokes:
@@ -362,6 +433,7 @@ class GameState:
         self.current_hole = 1
         self.betting_state.reset()
         self.hole_scores = {p.id: None for p in self.player_manager.players}
+        self.gross_scores = {p.id: None for p in self.player_manager.players}
         self.game_status_message = "Players set. Time to toss the tees!"
         self.player_float_used = {p.id: False for p in self.player_manager.players}
         self.carry_over = False
