@@ -26,7 +26,7 @@ services:
     environment:
       DATABASE_URL: postgresql://wgp_user:wgp_pass_secure_123@postgres:5432/wolf_goat_pig
       ENVIRONMENT: production
-      FRONTEND_URL: http://localhost:3000
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       # Add your production environment variables here
       GHIN_API_USER: ${GHIN_API_USER:-}
       GHIN_API_PASS: ${GHIN_API_PASS:-}
@@ -49,7 +49,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.prod
       args:
-        REACT_APP_API_URL: http://localhost:8000
+        REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:8000}
     ports:
       - "3000:80"
     depends_on:
