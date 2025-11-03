@@ -986,6 +986,82 @@ def get_player_strokes():
         logger.error(f"Error getting player strokes: {e}")
         raise HTTPException(status_code=500, detail="Failed to get player strokes")
 
+@app.get("/games/history")
+async def get_game_history(limit: int = 10, offset: int = 0, db: Session = Depends(database.get_db)):
+    """Get list of completed games"""
+    try:
+        games = db.query(models.GameRecord).order_by(models.GameRecord.completed_at.desc()).offset(offset).limit(limit).all()
+        return {
+            "games": [
+                {
+                    "id": game.id,
+                    "game_id": game.game_id,
+                    "course_name": game.course_name,
+                    "player_count": game.player_count,
+                    "total_holes_played": game.total_holes_played,
+                    "game_duration_minutes": game.game_duration_minutes,
+                    "created_at": game.created_at,
+                    "completed_at": game.completed_at,
+                    "final_scores": game.final_scores
+                }
+                for game in games
+            ],
+            "total": db.query(models.GameRecord).count(),
+            "offset": offset,
+            "limit": limit
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving game history: {str(e)}")
+
+@app.get("/games/{game_id}/details")
+async def get_game_details(game_id: str, db: Session = Depends(database.get_db)):
+    """Get detailed game results including player performances and hole-by-hole scores"""
+    try:
+        # Get game record
+        game = db.query(models.GameRecord).filter(models.GameRecord.game_id == game_id).first()
+        if not game:
+            raise HTTPException(status_code=404, detail="Game not found")
+
+        # Get player results
+        player_results = db.query(models.GamePlayerResult).filter(
+            models.GamePlayerResult.game_record_id == game.id
+        ).order_by(models.GamePlayerResult.final_position).all()
+
+        return {
+            "game": {
+                "id": game.id,
+                "game_id": game.game_id,
+                "course_name": game.course_name,
+                "player_count": game.player_count,
+                "total_holes_played": game.total_holes_played,
+                "game_duration_minutes": game.game_duration_minutes,
+                "created_at": game.created_at,
+                "completed_at": game.completed_at,
+                "game_settings": game.game_settings,
+                "final_scores": game.final_scores
+            },
+            "player_results": [
+                {
+                    "player_name": result.player_name,
+                    "final_position": result.final_position,
+                    "total_earnings": result.total_earnings,
+                    "holes_won": result.holes_won,
+                    "partnerships_formed": result.partnerships_formed,
+                    "partnerships_won": result.partnerships_won,
+                    "solo_attempts": result.solo_attempts,
+                    "solo_wins": result.solo_wins,
+                    "hole_scores": result.hole_scores,
+                    "betting_history": result.betting_history,
+                    "performance_metrics": result.performance_metrics
+                }
+                for result in player_results
+            ]
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving game details: {str(e)}")
+
 def _get_current_captain_id() -> Optional[str]:
     """Best-effort lookup for the active captain id across legacy and unified state."""
     try:
@@ -1175,6 +1251,8 @@ async def unified_action(game_id: str, action: ActionRequest):
             return await handle_enter_hole_scores(payload)
         elif action_type == "GET_ADVANCED_ANALYTICS":
             return await handle_get_advanced_analytics(payload)
+        elif action_type == "COMPLETE_GAME":
+            return await handle_complete_game(payload)
         else:
             raise HTTPException(status_code=400, detail=f"Unknown action type: {action_type}")
             
@@ -2257,15 +2335,51 @@ async def handle_enter_hole_scores(payload: Dict[str, Any]) -> ActionResponse:
         logger.error(f"Error entering hole scores: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to enter hole scores: {str(e)}")
 
+async def handle_complete_game(payload: Dict[str, Any]) -> ActionResponse:
+    """Handle completing a game and saving results permanently"""
+    try:
+        # Get the game state instance
+        game_state = wgp_simulation.game_state if hasattr(wgp_simulation, 'game_state') else None
+
+        if not game_state:
+            raise HTTPException(status_code=400, detail="No active game to complete")
+
+        # Complete the game and save results
+        result_message = game_state.complete_game()
+
+        updated_state = wgp_simulation.get_game_state()
+        updated_state["game_completed"] = True
+        updated_state["completion_message"] = result_message
+
+        return ActionResponse(
+            game_state=updated_state,
+            log_message=f"🎉 Game completed! {result_message}",
+            available_actions=[],  # No more actions available
+            timeline_event={
+                "id": f"game_completed_{wgp_simulation.game_state.game_id}_{datetime.now().timestamp()}",
+                "timestamp": datetime.now().isoformat(),
+                "type": "game_completed",
+                "description": "Game completed and results saved",
+                "details": {
+                    "game_id": wgp_simulation.game_state.game_id,
+                    "holes_played": len(wgp_simulation.game_state.hole_history),
+                    "final_scores": {p.id: p.points for p in wgp_simulation.game_state.player_manager.players}
+                }
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error completing game: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to complete game: {str(e)}")
+
 async def handle_get_advanced_analytics(payload: Dict[str, Any]) -> ActionResponse:
     """Handle getting advanced analytics dashboard data"""
     try:
         analytics = wgp_simulation.get_advanced_analytics()
         updated_state = wgp_simulation.get_game_state()
-        
+
         # Include analytics data in the updated game state
         updated_state["analytics"] = analytics
-        
+
         return ActionResponse(
             game_state=updated_state,
             log_message="Advanced analytics data retrieved",

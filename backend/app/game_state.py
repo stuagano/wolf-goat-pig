@@ -1,9 +1,11 @@
 from typing import List, Dict
 import random
 import json
+import uuid
+from datetime import datetime
 from sqlalchemy.orm import Session
 from .database import SessionLocal
-from .models import GameStateModel
+from .models import GameStateModel, GameRecord, GamePlayerResult
 from .domain.player import Player
 from .state.betting_state import BettingState
 from .state.shot_state import ShotState
@@ -22,8 +24,11 @@ DEFAULT_PLAYERS = [
 
 
 class GameState:
-    def __init__(self):
+    def __init__(self, game_id=None):
         self._db_session = SessionLocal()
+        # Generate or use provided game_id
+        self.game_id = game_id or str(uuid.uuid4())
+        self._game_start_time = datetime.utcnow().isoformat()
         self._load_from_db()
         self.course_manager = getattr(self, 'course_manager', CourseManager())
         if not hasattr(self, 'player_manager') or self.player_manager is None:
@@ -39,6 +44,7 @@ class GameState:
         self._last_points = getattr(self, '_last_points', {p.id: 0 for p in self.player_manager.players})
         self.shot_state = getattr(self, 'shot_state', ShotState())
         self.tee_shot_results = getattr(self, 'tee_shot_results', None)
+        self._game_completed = getattr(self, '_game_completed', False)
 
     def reset(self):
         self.player_manager = PlayerManager(DEFAULT_PLAYERS.copy())
@@ -334,15 +340,24 @@ class GameState:
             self.betting_state = BettingState()
 
     def _save_to_db(self):
-        """Save the current state as JSON in the DB (id=1) with error handling"""
+        """Save the current state as JSON in the DB with unique game_id"""
         try:
             state_json = self._serialize()
             session = self._db_session
-            obj = session.query(GameStateModel).get(1)
+            # Try to find existing game by game_id
+            obj = session.query(GameStateModel).filter(GameStateModel.game_id == self.game_id).first()
+            current_time = datetime.utcnow().isoformat()
+
             if obj:
                 obj.state = state_json
+                obj.updated_at = current_time
             else:
-                obj = GameStateModel(id=1, state=state_json)
+                obj = GameStateModel(
+                    game_id=self.game_id,
+                    state=state_json,
+                    created_at=self._game_start_time,
+                    updated_at=current_time
+                )
                 session.add(obj)
             session.commit()
         except Exception as e:
@@ -351,21 +366,194 @@ class GameState:
             pass
 
     def _load_from_db(self):
-        """Load the state from DB if present with error handling"""
+        """Load the state from DB by game_id if present with error handling"""
         try:
             session = self._db_session
-            obj = session.query(GameStateModel).get(1)
+            # Try to load by game_id
+            obj = session.query(GameStateModel).filter(GameStateModel.game_id == self.game_id).first()
             if obj and obj.state:
                 self._deserialize(obj.state)
+                # Don't override the game_id from deserialization
+                self.game_id = obj.game_id
+                self._game_start_time = obj.created_at
             else:
-                self.reset()
+                # New game, don't reset - keep the generated game_id
+                pass
         except Exception as e:
             print(f"⚠️ Database load failed: {e}")
-            # Fall back to default state if DB is unavailable
-            self.reset()
+            # Fall back to new game state if DB is unavailable
+            pass
 
     def get_betting_tips(self):
         return self.betting_state.get_betting_tips(self.player_manager.players, self.current_hole, self.player_float_used, self.carry_over)
+
+    def complete_game(self):
+        """Mark game as completed and save permanent game results to database"""
+        if self._game_completed:
+            return "Game already completed"
+
+        try:
+            session = self._db_session
+            current_time = datetime.utcnow().isoformat()
+
+            # Calculate game duration
+            start_time = datetime.fromisoformat(self._game_start_time)
+            end_time = datetime.utcnow()
+            duration_minutes = int((end_time - start_time).total_seconds() / 60)
+
+            # Get final scores (player points/earnings)
+            final_scores = {p.id: p.points for p in self.player_manager.players}
+
+            # Create GameRecord
+            game_record = GameRecord(
+                game_id=self.game_id,
+                course_name=self.course_manager.course_name or "Unknown Course",
+                game_mode="wolf_goat_pig",
+                player_count=len(self.player_manager.players),
+                total_holes_played=len(self.hole_history),
+                game_duration_minutes=duration_minutes,
+                created_at=self._game_start_time,
+                completed_at=current_time,
+                game_settings={
+                    "base_wager": self.betting_state.base_wager,
+                    "game_phase": self.betting_state.game_phase
+                },
+                final_scores=final_scores
+            )
+            session.add(game_record)
+            session.flush()  # Get the game_record.id
+
+            # Sort players by final earnings (descending)
+            sorted_players = sorted(
+                self.player_manager.players,
+                key=lambda p: p.points,
+                reverse=True
+            )
+
+            # Create GamePlayerResult for each player
+            for position, player in enumerate(sorted_players, start=1):
+                # Calculate player statistics
+                holes_won = sum(1 for hole in self.hole_history
+                              if hole.get('points_delta', {}).get(player.id, 0) > 0)
+
+                # Count partnerships and solo attempts
+                partnerships_formed = 0
+                partnerships_won = 0
+                solo_attempts = 0
+                solo_wins = 0
+
+                for hole in self.hole_history:
+                    teams = hole.get('teams', {})
+                    points_delta = hole.get('points_delta', {})
+
+                    if teams.get('type') == 'partners':
+                        team1 = teams.get('team1', [])
+                        team2 = teams.get('team2', [])
+                        if player.id in team1 or player.id in team2:
+                            partnerships_formed += 1
+                            if points_delta.get(player.id, 0) > 0:
+                                partnerships_won += 1
+                    elif teams.get('type') == 'solo':
+                        if player.id == teams.get('solo_player') or player.id == teams.get('captain'):
+                            solo_attempts += 1
+                            if points_delta.get(player.id, 0) > 0:
+                                solo_wins += 1
+
+                # Build hole scores dict
+                hole_scores_dict = {}
+                for hole in self.hole_history:
+                    hole_num = hole.get('hole')
+                    net_score = hole.get('net_scores', {}).get(player.id)
+                    gross_score = hole.get('gross_scores', {}).get(player.id)
+                    points = hole.get('points_delta', {}).get(player.id, 0)
+
+                    if hole_num:
+                        hole_scores_dict[str(hole_num)] = {
+                            "net_score": net_score,
+                            "gross_score": gross_score,
+                            "points_won": points
+                        }
+
+                # Build betting history
+                betting_history = []
+                for hole in self.hole_history:
+                    hole_num = hole.get('hole')
+                    teams = hole.get('teams', {})
+                    betting_history.append({
+                        "hole": hole_num,
+                        "team_type": teams.get('type'),
+                        "was_captain": hole.get('captain_id') == player.id,
+                        "points_result": hole.get('points_delta', {}).get(player.id, 0)
+                    })
+
+                # Calculate performance metrics
+                score_performance = {"eagles": 0, "birdies": 0, "pars": 0,
+                                   "bogeys": 0, "double_bogeys": 0, "worse": 0}
+
+                for hole in self.hole_history:
+                    net_score = hole.get('net_scores', {}).get(player.id)
+                    hole_num = hole.get('hole')
+                    if net_score and hole_num:
+                        # Get par for this hole
+                        hole_par = self.course_manager.hole_pars.get(hole_num - 1, 4)
+                        diff = net_score - hole_par
+
+                        if diff <= -2:
+                            score_performance["eagles"] += 1
+                        elif diff == -1:
+                            score_performance["birdies"] += 1
+                        elif diff == 0:
+                            score_performance["pars"] += 1
+                        elif diff == 1:
+                            score_performance["bogeys"] += 1
+                        elif diff == 2:
+                            score_performance["double_bogeys"] += 1
+                        else:
+                            score_performance["worse"] += 1
+
+                performance_metrics = {
+                    "score_performance": score_performance,
+                    "average_points_per_hole": player.points / len(self.hole_history) if self.hole_history else 0,
+                    "best_hole": max(hole_scores_dict.items(),
+                                   key=lambda x: x[1].get('points_won', 0))[0] if hole_scores_dict else None,
+                    "worst_hole": min(hole_scores_dict.items(),
+                                    key=lambda x: x[1].get('points_won', 0))[0] if hole_scores_dict else None
+                }
+
+                # Create GamePlayerResult
+                player_result = GamePlayerResult(
+                    game_record_id=game_record.id,
+                    player_profile_id=0,  # TODO: Link to actual player profile
+                    player_name=player.name,
+                    final_position=position,
+                    total_earnings=player.points,
+                    holes_won=holes_won,
+                    successful_bets=holes_won,  # Simplified
+                    total_bets=len(self.hole_history),
+                    partnerships_formed=partnerships_formed,
+                    partnerships_won=partnerships_won,
+                    solo_attempts=solo_attempts,
+                    solo_wins=solo_wins,
+                    hole_scores=hole_scores_dict,
+                    betting_history=betting_history,
+                    performance_metrics=performance_metrics,
+                    created_at=current_time
+                )
+                session.add(player_result)
+
+            # Commit all records
+            session.commit()
+
+            # Mark game as completed
+            self._game_completed = True
+            self._save_to_db()
+
+            return f"Game completed and saved. Game ID: {self.game_id}"
+
+        except Exception as e:
+            print(f"⚠️ Error completing game: {e}")
+            session.rollback()
+            return f"Error completing game: {e}"
 
 
 
