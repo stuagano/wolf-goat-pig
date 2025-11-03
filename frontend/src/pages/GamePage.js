@@ -440,6 +440,33 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
         <div style={{marginBottom:8,fontSize:15,color:theme.colors.textSecondary}}><strong>Game Phase:</strong> {gameState.game_phase}</div>
         {statusBox}
 
+        {/* Running Totals - Always Visible */}
+        <div style={{ ...theme.cardStyle, marginBottom: 16, background: '#f0f7ff' }}>
+          <h3 style={{ margin: '0 0 12px 0', fontSize: 18, color: theme.colors.primary, fontWeight: 'bold' }}>
+            💰 Current Standings
+          </h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+            {gameState.players.map(player => (
+              <div key={player.id} style={{
+                padding: '12px',
+                background: 'white',
+                borderRadius: '8px',
+                border: `2px solid ${isCaptain(player.id) ? theme.colors.primary : theme.colors.border}`
+              }}>
+                <div style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 4 }}>
+                  {player.name} {isCaptain(player.id) && '⭐'}
+                </div>
+                <div style={{ fontSize: 24, fontWeight: 'bold', color: player.points >= 0 ? theme.colors.success : theme.colors.error }}>
+                  {player.points > 0 ? '+' : ''}{player.points}q
+                </div>
+                <div style={{ fontSize: 12, color: theme.colors.textSecondary }}>
+                  Hdcp: {player.handicap}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Real-time Game State Tracking */}
         <GameStateWidget
           gameState={gameState}
@@ -471,27 +498,145 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
         </div>
         {holeHistoryTable}
         {gameState.teams?.type === undefined && !doublePending && (
-          <div style={{ ...theme.cardStyle, opacity: doublePending ? 0.5 : 1, pointerEvents: doublePending ? 'none' : 'auto' }}>
-            <div style={{marginBottom:8}}><strong>Captain's Actions:</strong></div>
-            <select value={partnerSelect} onChange={e => setPartnerSelect(e.target.value)} style={{...theme.inputStyle, width:'100%',marginBottom:8}}>
-              <option value="">Select Partner</option>
+          <div style={{
+            ...theme.cardStyle,
+            opacity: doublePending ? 0.5 : 1,
+            pointerEvents: doublePending ? 'none' : 'auto',
+            background: '#fff9e6',
+            border: '3px solid #ff9800',
+            boxShadow: '0 4px 16px rgba(255, 152, 0, 0.3)'
+          }}>
+            <div style={{
+              fontSize: 18,
+              fontWeight: 'bold',
+              color: theme.colors.warning,
+              marginBottom: 12,
+              textAlign: 'center'
+            }}>
+              🎯 FORM TEAMS FOR HOLE {gameState.current_hole}
+            </div>
+            <div style={{marginBottom:8, fontSize: 14, textAlign: 'center'}}>
+              <strong>Captain this hole: {PLAYER_NAMES[gameState.captain_id] || 'Unknown'}</strong>
+            </div>
+            <div style={{marginBottom:12, fontSize: 13, color: theme.colors.textSecondary, textAlign: 'center'}}>
+              Choose partner or go solo to continue
+            </div>
+            <div style={{marginBottom: 8, fontSize: 14, fontWeight: 'bold'}}>
+              Option 1: Form Partnership (2v2)
+            </div>
+            <select value={partnerSelect} onChange={e => setPartnerSelect(e.target.value)} style={{...theme.inputStyle, width:'100%',marginBottom:8, fontSize: 16, padding: '12px'}}>
+              <option value="">Choose {PLAYER_NAMES[gameState.captain_id]}'s partner...</option>
               {availablePartners().map(p => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </select>
-            <button style={{...theme.buttonStyle, width:'100%',marginBottom:6}} disabled={!partnerSelect} onClick={() => doAction("request_partner", { captain_id: gameState.captain_id, partner_id: partnerSelect })}>Request Partner</button>
-            <button style={{...theme.buttonStyle, width:'100%'}} onClick={() => doAction("go_solo", { captain_id: gameState.captain_id })}>Go Solo</button>
+            <button
+              style={{
+                ...theme.buttonStyle,
+                width:'100%',
+                marginBottom:16,
+                background: theme.colors.success,
+                fontSize: 16,
+                padding: '14px',
+                fontWeight: 'bold'
+              }}
+              disabled={!partnerSelect}
+              onClick={() => doAction("request_partner", { captain_id: gameState.captain_id, partner_id: partnerSelect })}
+            >
+              🤝 Form Partnership
+            </button>
+            <div style={{marginBottom: 8, fontSize: 14, fontWeight: 'bold'}}>
+              Option 2: Go Solo (Captain vs Others)
+            </div>
+            <button
+              style={{
+                ...theme.buttonStyle,
+                width:'100%',
+                background: theme.colors.warning,
+                fontSize: 16,
+                padding: '14px',
+                fontWeight: 'bold'
+              }}
+              onClick={() => doAction("go_solo", { captain_id: gameState.captain_id })}
+            >
+              🐺 {PLAYER_NAMES[gameState.captain_id]} Goes Solo (2x Wager!)
+            </button>
           </div>
         )}
         {gameState.teams?.type === "pending" && requestedPartnerId && !doublePending && (
-          <div style={{ ...theme.cardStyle, opacity: doublePending ? 0.5 : 1, pointerEvents: doublePending ? 'none' : 'auto' }}>
-            <div style={{marginBottom:8}}><strong>{PLAYER_NAMES[requestedPartnerId]}'s Response:</strong></div>
-            <button style={{...theme.buttonStyle, width:'100%',marginBottom:6}} onClick={() => doAction("accept_partner", { partner_id: requestedPartnerId, accepted: true })}>Accept</button>
-            <button style={{...theme.buttonStyle, width:'100%'}} onClick={() => doAction("decline_partner", { partner_id: requestedPartnerId, accepted: false })}>Decline</button>
+          <div style={{
+            ...theme.cardStyle,
+            opacity: doublePending ? 0.5 : 1,
+            pointerEvents: doublePending ? 'none' : 'auto',
+            background: '#e8f5e9',
+            border: '3px solid #4caf50',
+            boxShadow: '0 4px 16px rgba(76, 175, 80, 0.3)'
+          }}>
+            <div style={{
+              fontSize: 18,
+              fontWeight: 'bold',
+              color: theme.colors.success,
+              marginBottom: 12,
+              textAlign: 'center'
+            }}>
+              🤝 CONFIRM PARTNERSHIP
+            </div>
+            <div style={{marginBottom:16, fontSize: 16, textAlign: 'center'}}>
+              <strong>{PLAYER_NAMES[gameState.captain_id]}</strong> wants <strong>{PLAYER_NAMES[requestedPartnerId]}</strong> as partner
+            </div>
+            <div style={{marginBottom:12, fontSize: 14, color: theme.colors.textSecondary, textAlign: 'center'}}>
+              Does {PLAYER_NAMES[requestedPartnerId]} accept?
+            </div>
+            <button
+              style={{
+                ...theme.buttonStyle,
+                width:'100%',
+                marginBottom:8,
+                background: theme.colors.success,
+                fontSize: 16,
+                padding: '14px',
+                fontWeight: 'bold'
+              }}
+              onClick={() => doAction("accept_partner", { partner_id: requestedPartnerId, accepted: true })}
+            >
+              ✅ Yes - Accept Partnership
+            </button>
+            <button
+              style={{
+                ...theme.buttonStyle,
+                width:'100%',
+                background: theme.colors.error,
+                fontSize: 16,
+                padding: '14px',
+                fontWeight: 'bold'
+              }}
+              onClick={() => doAction("decline_partner", { partner_id: requestedPartnerId, accepted: false })}
+            >
+              ❌ No - Decline ({PLAYER_NAMES[gameState.captain_id]} Goes Solo)
+            </button>
           </div>
         )}
         {(["partners", "solo"].includes(gameState.teams?.type)) && !doublePending && (
-          <div style={{ opacity: doublePending ? 0.5 : 1, pointerEvents: doublePending ? 'none' : 'auto' }}>
+          <div style={{
+            opacity: doublePending ? 0.5 : 1,
+            pointerEvents: doublePending ? 'none' : 'auto',
+            marginTop: 16
+          }}>
+            <div style={{
+              background: '#e3f2fd',
+              padding: '12px',
+              borderRadius: '8px',
+              marginBottom: '12px',
+              border: `2px solid ${theme.colors.primary}`,
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: 16, fontWeight: 'bold', color: theme.colors.primary }}>
+                ✅ Teams Formed - Ready to Score!
+              </div>
+              <div style={{ fontSize: 14, color: theme.colors.textSecondary, marginTop: 4 }}>
+                Enter scores below to calculate points
+              </div>
+            </div>
             <LargeScoringButtons
               gameState={gameState}
               onScoreSubmit={handleScoreSubmit}

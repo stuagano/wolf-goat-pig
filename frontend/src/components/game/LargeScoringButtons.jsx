@@ -373,6 +373,92 @@ const LargeScoringButtons = ({
         </div>
       )}
 
+      {/* Concede/Fold Hole */}
+      {["partners", "solo"].includes(gameState?.teams?.type) && (
+        <div style={{
+          ...theme.cardStyle,
+          marginBottom: '16px',
+          background: '#fff5f5',
+          border: '2px solid #d32f2f'
+        }}>
+          <h2 style={{
+            margin: '0 0 8px 0',
+            fontSize: '18px',
+            color: theme.colors.error,
+            fontWeight: 'bold'
+          }}>
+            Fold / Concede Hole
+          </h2>
+          <p style={{
+            fontSize: '13px',
+            color: theme.colors.textSecondary,
+            marginBottom: '12px'
+          }}>
+            Give up this hole and forfeit the wager
+          </p>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '12px'
+          }}>
+            {gameState.teams.type === "partners" && (
+              <>
+                {renderLargeButton(
+                  'concede-team1',
+                  '🏳️',
+                  'Team 1 Concedes',
+                  () => {
+                    if (window.confirm('Team 1 will forfeit the wager. Continue?')) {
+                      onAction("concede_hole", { conceding_team_id: "team1" });
+                    }
+                  },
+                  'error'
+                )}
+                {renderLargeButton(
+                  'concede-team2',
+                  '🏳️',
+                  'Team 2 Concedes',
+                  () => {
+                    if (window.confirm('Team 2 will forfeit the wager. Continue?')) {
+                      onAction("concede_hole", { conceding_team_id: "team2" });
+                    }
+                  },
+                  'error'
+                )}
+              </>
+            )}
+
+            {gameState.teams.type === "solo" && (
+              <>
+                {renderLargeButton(
+                  'concede-captain',
+                  '🏳️',
+                  'Captain Concedes',
+                  () => {
+                    if (window.confirm('Captain will forfeit the wager. Continue?')) {
+                      onAction("concede_hole", { conceding_team_id: "captain" });
+                    }
+                  },
+                  'error'
+                )}
+                {renderLargeButton(
+                  'concede-opponents',
+                  '🏳️',
+                  'Opponents Concede',
+                  () => {
+                    if (window.confirm('Opponents will forfeit the wager. Continue?')) {
+                      onAction("concede_hole", { conceding_team_id: "opponents" });
+                    }
+                  },
+                  'error'
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Next Hole Button */}
       <div style={{
         ...theme.cardStyle,
