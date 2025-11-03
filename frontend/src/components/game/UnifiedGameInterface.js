@@ -749,11 +749,29 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
       {/* Large Scoring Buttons - glove-friendly score entry */}
       <LargeScoringButtons
         gameState={gameState}
-        onScoreSubmit={async (scores) => {
-          // Submit scores for all players
+        onSaveScores={async (scores) => {
+          // Save scores without calculating points
           try {
-            // Calculate points based on scores
-            await sendAction('submit_scores', { scores });
+            for (const playerId of Object.keys(scores)) {
+              await sendAction('record_net_score', {
+                player_id: playerId,
+                score: Number(scores[playerId])
+              });
+            }
+          } catch (error) {
+            console.error('Error saving scores:', error);
+          }
+        }}
+        onScoreSubmit={async (scores) => {
+          // Submit all scores and calculate points
+          try {
+            for (const playerId of Object.keys(scores)) {
+              await sendAction('record_net_score', {
+                player_id: playerId,
+                score: Number(scores[playerId])
+              });
+            }
+            await sendAction('calculate_hole_points');
           } catch (error) {
             console.error('Error submitting scores:', error);
           }
