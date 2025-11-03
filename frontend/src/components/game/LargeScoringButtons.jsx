@@ -6,6 +6,7 @@ import '../../styles/mobile-touch.css';
 const LargeScoringButtons = ({
   gameState,
   onScoreSubmit,
+  onSaveScores,
   onAction,
   loading = false
 }) => {
@@ -18,12 +19,25 @@ const LargeScoringButtons = ({
     setScores(prev => ({ ...prev, [playerId]: value }));
   };
 
+  const canSave = () => {
+    if (!gameState?.players) return false;
+    // Check if at least one score is entered
+    return Object.keys(scores).some(pid => scores[pid] !== undefined && scores[pid] !== null);
+  };
+
   const canCalculate = () => {
     if (!gameState?.players) return false;
     if (!["partners", "solo"].includes(gameState.teams?.type)) return false;
 
     // Check all players have scores
     return gameState.players.every(p => scores[p.id] !== undefined && scores[p.id] !== null);
+  };
+
+  const handleSaveScores = async () => {
+    if (onSaveScores) {
+      await onSaveScores(scores);
+      // Don't clear scores after saving - user can continue editing
+    }
   };
 
   const handleCalculatePoints = async () => {
@@ -330,7 +344,20 @@ const LargeScoringButtons = ({
 
           {gameState?.players?.map(player => renderScoreSelector(player))}
 
-          <div style={{ marginTop: '16px' }}>
+          <div style={{
+            marginTop: '16px',
+            display: 'grid',
+            gridTemplateColumns: canSave() && onSaveScores ? '1fr 1fr' : '1fr',
+            gap: '12px'
+          }}>
+            {canSave() && onSaveScores && renderLargeButton(
+              'save',
+              '💾',
+              'Save Scores',
+              handleSaveScores,
+              'primary',
+              false
+            )}
             {renderLargeButton(
               'calculate',
               '✓',
@@ -448,12 +475,13 @@ const LargeScoringButtons = ({
                 'warning'
               )}
 
-              {!gameState.player_float_used?.[gameState.captain_id] && renderLargeButton(
+              {renderLargeButton(
                 'invoke-float',
                 '🎈',
-                'Invoke Float',
+                gameState.player_float_used?.[gameState.captain_id] ? 'Float Used' : 'Invoke Float',
                 () => onAction("invoke_float", { captain_id: gameState.captain_id }),
-                'primary'
+                'primary',
+                gameState.player_float_used?.[gameState.captain_id]
               )}
 
               {renderLargeButton(
