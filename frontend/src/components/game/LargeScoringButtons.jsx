@@ -35,7 +35,8 @@ const LargeScoringButtons = ({
   };
 
   const renderLargeButton = (key, icon, label, onClick, variant = 'primary', disabled = false) => {
-    const [isPressed, setIsPressed] = useState(false);
+    const buttonId = `large-btn-${key}`;
+    const isPressed = pressedButton === buttonId;
 
     const getButtonColor = () => {
       if (disabled) return theme.colors.textSecondary;
@@ -77,32 +78,32 @@ const LargeScoringButtons = ({
         }}
         onTouchStart={(e) => {
           if (!disabled && !loading) {
-            setIsPressed(true);
+            setPressedButton(buttonId);
           }
         }}
         onTouchEnd={(e) => {
           if (!disabled && !loading) {
-            setIsPressed(false);
+            setPressedButton(null);
           }
         }}
         onTouchCancel={(e) => {
           if (!disabled && !loading) {
-            setIsPressed(false);
+            setPressedButton(null);
           }
         }}
         onMouseDown={(e) => {
           if (!disabled && !loading) {
-            setIsPressed(true);
+            setPressedButton(buttonId);
           }
         }}
         onMouseUp={(e) => {
           if (!disabled && !loading) {
-            setIsPressed(false);
+            setPressedButton(null);
           }
         }}
         onMouseLeave={(e) => {
           if (!disabled && !loading) {
-            setIsPressed(false);
+            setPressedButton(null);
           }
         }}
       >
