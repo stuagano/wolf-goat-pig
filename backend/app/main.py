@@ -52,6 +52,10 @@ wgp_simulation = WolfGoatPigSimulation(player_count=4)
 # Initialize Post-Hole Analyzer
 post_hole_analyzer = PostHoleAnalyzer()
 
+# Multi-game management - track multiple concurrent games
+# Key: game_id (str), Value: WolfGoatPigSimulation instance
+active_games = {}
+
 # Response model classes for Action API
 class ActionRequest(BaseModel):
     """Unified action request for all game interactions"""
@@ -1184,7 +1188,9 @@ async def get_game_lobby(game_id: str, db: Session = Depends(database.get_db)):
 
 @app.post("/games/{game_id}/start")
 async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get_db)):
-    """Start a game from the lobby"""
+    """Start a game from the lobby - initializes WGP simulation"""
+    global active_games
+
     try:
         game = db.query(models.GameStateModel).filter(
             models.GameStateModel.game_id == game_id
@@ -1198,32 +1204,184 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
 
         players = db.query(models.GamePlayer).filter(
             models.GamePlayer.game_id == game_id
-        ).all()
+        ).order_by(models.GamePlayer.player_slot_id).all()
 
         if len(players) < 2:
             raise HTTPException(status_code=400, detail="Need at least 2 players to start")
 
-        # Update game status
+        # Create WGPPlayer objects from database players
+        wgp_players = []
+        for p in players:
+            wgp_player = WGPPlayer(
+                id=p.player_slot_id,
+                name=p.player_name,
+                handicap=p.handicap
+            )
+            wgp_players.append(wgp_player)
+
+        # Initialize WolfGoatPigSimulation for this game
+        logger.info(f"Initializing WGP simulation for game {game_id} with {len(wgp_players)} players")
+        simulation = WolfGoatPigSimulation(player_count=len(wgp_players))
+        simulation.players = wgp_players
+
+        # Get course name and initialize if specified
+        course_name = game.state.get("course_name", "Wing Point Golf & Country Club")
+
+        try:
+            # Initialize simulation
+            simulation.initialize_game(course_name=course_name)
+            logger.info(f"Simulation initialized for game {game_id}")
+        except Exception as init_error:
+            logger.error(f"Failed to initialize simulation: {init_error}")
+            raise HTTPException(status_code=500, detail=f"Failed to initialize game: {str(init_error)}")
+
+        # Store simulation in active_games dict
+        active_games[game_id] = simulation
+
+        # Get initial game state from simulation
+        initial_state = simulation.get_game_state()
+
+        # Update database game state
         game.game_status = "in_progress"
         game.updated_at = datetime.utcnow().isoformat()
-
-        # Initialize game state with joined players
+        game.state = initial_state
         game.state["game_status"] = "in_progress"
         game.state["started_at"] = game.updated_at
+        game.state["game_id"] = game_id  # Track game_id in state
 
         db.commit()
+
+        logger.info(f"Game {game_id} started successfully with {len(players)} players")
 
         return {
             "status": "started",
             "game_id": game_id,
             "message": f"Game started with {len(players)} players!",
-            "players": [p.player_name for p in players]
+            "players": [p.player_name for p in players],
+            "game_state": initial_state
         }
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
+        logger.error(f"Error starting game {game_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Error starting game: {str(e)}")
+
+@app.get("/games/{game_id}/state")
+async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_db)):
+    """Get current game state for a specific multiplayer game"""
+    global active_games
+
+    try:
+        # Check if game is in active games (in-progress)
+        if game_id in active_games:
+            simulation = active_games[game_id]
+            state = simulation.get_game_state()
+            state["game_id"] = game_id
+            return state
+
+        # Otherwise, fetch from database
+        game = db.query(models.GameStateModel).filter(
+            models.GameStateModel.game_id == game_id
+        ).first()
+
+        if not game:
+            raise HTTPException(status_code=404, detail="Game not found")
+
+        # If game is completed, just return the saved state
+        if game.game_status == "completed":
+            return game.state
+
+        # If game is in setup, return lobby info
+        if game.game_status == "setup":
+            players = db.query(models.GamePlayer).filter(
+                models.GamePlayer.game_id == game_id
+            ).order_by(models.GamePlayer.player_slot_id).all()
+
+            return {
+                "game_id": game_id,
+                "game_status": "setup",
+                "players": [
+                    {
+                        "id": p.player_slot_id,
+                        "name": p.player_name,
+                        "handicap": p.handicap
+                    }
+                    for p in players
+                ],
+                "message": "Game not started yet. Please start from lobby."
+            }
+
+        # Game is in_progress but not in active_games (server restart?)
+        # Try to restore from database
+        logger.warning(f"Game {game_id} is in_progress but not in active_games. Attempting to restore...")
+
+        # For now, return the saved state
+        # TODO: Implement full state restoration
+        return game.state
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting game state for {game_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving game state: {str(e)}")
+
+@app.post("/games/{game_id}/action")
+async def perform_game_action_by_id(
+    game_id: str,
+    action_request: ActionRequest,
+    db: Session = Depends(database.get_db)
+):
+    """Perform an action on a specific multiplayer game"""
+    global active_games
+
+    try:
+        # Check if game is active
+        if game_id not in active_games:
+            raise HTTPException(status_code=404, detail="Game not found or not started")
+
+        simulation = active_games[game_id]
+
+        # Use the existing unified action handler
+        # Temporarily set global wgp_simulation to this game's simulation
+        global wgp_simulation
+        original_simulation = wgp_simulation
+        wgp_simulation = simulation
+
+        try:
+            # Call the unified action endpoint logic
+            response = await handle_unified_action(action_request)
+
+            # Save state back to database after action
+            game = db.query(models.GameStateModel).filter(
+                models.GameStateModel.game_id == game_id
+            ).first()
+
+            if game:
+                game.state = simulation.get_game_state()
+                game.state["game_id"] = game_id
+                game.updated_at = datetime.utcnow().isoformat()
+
+                # Check if game is completed
+                if simulation.current_hole > 18:
+                    game.game_status = "completed"
+                    game.state["game_status"] = "completed"
+
+                db.commit()
+                logger.info(f"Saved state for game {game_id} after action {action_request.action_type}")
+
+            return response
+
+        finally:
+            # Restore original simulation
+            wgp_simulation = original_simulation
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error performing action on game {game_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error performing action: {str(e)}")
 
 @app.get("/games/history")
 async def get_game_history(limit: int = 10, offset: int = 0, db: Session = Depends(database.get_db)):

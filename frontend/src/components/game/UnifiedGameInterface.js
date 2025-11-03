@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { useTheme } from '../../theme/Provider';
 import { useGame } from '../../context';
 import { Button, Card, Select } from '../ui';
 import useOddsCalculation from '../../hooks/useOddsCalculation';
-
 // Import existing widgets
 import ShotResultWidget from '../ShotResultWidget';
 import BettingOpportunityWidget from '../BettingOpportunityWidget';
@@ -33,21 +33,97 @@ import GameSetupForm from './GameSetupForm';
 import LargeScoringButtons from './LargeScoringButtons';
 import MobileScorecard from './MobileScorecard';
 
+const API_URL = process.env.REACT_APP_API_URL || "";
+
 const UnifiedGameInterface = ({ mode = 'regular' }) => {
   const theme = useTheme();
-  const { 
-    gameState,
-    setGameState,
-    loading,
-    setLoading,
-    error,
-    clearError,
-    fetchGameState,
-    makeGameAction,
-    isGameActive,
-    startGame,
-    endGame
+  const { gameId } = useParams(); // Get gameId from URL for multiplayer games
+  const {
+    gameState: contextGameState,
+    setGameState: contextSetGameState,
+    loading: contextLoading,
+    setLoading: contextSetLoading,
+    error: contextError,
+    clearError: contextClearError,
+    fetchGameState: contextFetchGameState,
+    makeGameAction: contextMakeGameAction,
+    isGameActive: contextIsGameActive,
+    startGame: contextStartGame,
+    endGame: contextEndGame
   } = useGame();
+
+  // Local state management for multiplayer games
+  const [localGameState, setLocalGameState] = useState(null);
+  const [localLoading, setLocalLoading] = useState(false);
+  const [localError, setLocalError] = useState(null);
+
+  // Use local state for multiplayer, context state for single-player
+  const gameState = gameId ? localGameState : contextGameState;
+  const setGameState = gameId ? setLocalGameState : contextSetGameState;
+  const loading = gameId ? localLoading : contextLoading;
+  const setLoading = gameId ? setLocalLoading : contextSetLoading;
+  const error = gameId ? localError : contextError;
+  const clearError = gameId ? (() => setLocalError(null)) : contextClearError;
+  const isGameActive = gameId ? (gameState && gameState.game_status === 'in_progress') : contextIsGameActive;
+  const startGame = contextStartGame;
+  const endGame = contextEndGame;
+
+  // Fetch game state for multiplayer games
+  const fetchGameState = async () => {
+    if (!gameId) {
+      return contextFetchGameState();
+    }
+
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_URL}/games/${gameId}/state`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch game state');
+      }
+      const data = await response.json();
+      setGameState(data);
+      return data;
+    } catch (err) {
+      console.error('Error fetching game state:', err);
+      setLocalError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Make game action for multiplayer games
+  const makeGameAction = async (actionType, payload = {}) => {
+    if (!gameId) {
+      return contextMakeGameAction(actionType, payload);
+    }
+
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_URL}/games/${gameId}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action_type: actionType,
+          payload
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Action failed');
+      }
+
+      const data = await response.json();
+      setGameState(data.game_state);
+      return data;
+    } catch (err) {
+      console.error('Error performing action:', err);
+      setLocalError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Interface state
   const [currentView, setCurrentView] = useState('game');
@@ -111,7 +187,7 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
     if (mode === 'regular' || mode === 'enhanced') {
       fetchGameState();
     }
-  }, [mode, fetchGameState]);
+  }, [mode, gameId]); // Include gameId to refetch when it changes
 
   const sendAction = async (actionType, payload = {}) => {
     setLoading(true);
@@ -715,6 +791,39 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
   // Regular mode - simple widget layout
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: theme.spacing[4] }}>
+      {/* Multiplayer Player Identity Banner */}
+      {gameId && gameState && (
+        <Card variant="info" style={{ marginBottom: theme.spacing[4] }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: theme.spacing[2]
+          }}>
+            <div>
+              <div style={{ fontSize: theme.typography.sm, color: theme.colors.textSecondary }}>
+                Multiplayer Game
+              </div>
+              <div style={{
+                fontSize: theme.typography.lg,
+                fontWeight: theme.typography.bold,
+                color: theme.colors.primary
+              }}>
+                Game ID: {gameId.substring(0, 8)}...
+              </div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: theme.typography.sm, color: theme.colors.textSecondary }}>
+                Players: {gameState.players?.length || 0}
+              </div>
+              <div style={{ fontSize: theme.typography.sm, color: theme.colors.textSecondary }}>
+                Hole {gameState.current_hole || 1} of 18
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
       <Card>
         <div style={{
           display: 'flex',
