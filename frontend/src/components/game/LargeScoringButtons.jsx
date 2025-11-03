@@ -1,6 +1,7 @@
 // frontend/src/components/game/LargeScoringButtons.jsx
 import React, { useState } from 'react';
 import { useTheme } from '../../theme/Provider';
+import '../../styles/mobile-touch.css';
 
 const LargeScoringButtons = ({
   gameState,
@@ -11,6 +12,7 @@ const LargeScoringButtons = ({
   const theme = useTheme();
   const [scores, setScores] = useState({});
   const [showScoreEntry, setShowScoreEntry] = useState(true);
+  const [pressedButton, setPressedButton] = useState(null); // Track which button is pressed
 
   const updateScore = (playerId, value) => {
     setScores(prev => ({ ...prev, [playerId]: value }));
@@ -33,6 +35,8 @@ const LargeScoringButtons = ({
   };
 
   const renderLargeButton = (key, icon, label, onClick, variant = 'primary', disabled = false) => {
+    const [isPressed, setIsPressed] = useState(false);
+
     const getButtonColor = () => {
       if (disabled) return theme.colors.textSecondary;
       switch (variant) {
@@ -48,42 +52,62 @@ const LargeScoringButtons = ({
         key={key}
         onClick={onClick}
         disabled={disabled || loading}
+        className="touch-optimized"
         style={{
-          minHeight: '80px',
-          fontSize: '18px',
+          minHeight: '100px', // Increased from 80px for glove use
+          fontSize: '22px', // Increased from 18px for better visibility
           fontWeight: 'bold',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: '8px',
-          padding: '16px',
+          gap: '10px', // Increased from 8px
+          padding: '20px', // Increased from 16px
           border: 'none',
-          borderRadius: '12px',
+          borderRadius: '16px', // Increased from 12px
           background: disabled ? '#e0e0e0' : getButtonColor(),
           color: disabled ? '#9e9e9e' : 'white',
           cursor: disabled ? 'not-allowed' : 'pointer',
-          boxShadow: disabled ? 'none' : '0 4px 12px rgba(0,0,0,0.15)',
-          transition: 'all 0.2s ease',
+          boxShadow: disabled ? 'none' : isPressed ? '0 2px 6px rgba(0,0,0,0.2)' : '0 4px 12px rgba(0,0,0,0.15)',
+          transition: 'all 0.15s ease',
           width: '100%',
           opacity: disabled ? 0.6 : 1,
-          transform: loading ? 'scale(0.98)' : 'scale(1)'
+          transform: loading ? 'scale(0.98)' : isPressed ? 'scale(0.96)' : 'scale(1)',
+          touchAction: 'manipulation' // Prevent double-tap zoom
         }}
-        onMouseOver={(e) => {
+        onTouchStart={(e) => {
           if (!disabled && !loading) {
-            e.currentTarget.style.transform = 'scale(1.02)';
-            e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.2)';
+            setIsPressed(true);
           }
         }}
-        onMouseOut={(e) => {
+        onTouchEnd={(e) => {
           if (!disabled && !loading) {
-            e.currentTarget.style.transform = 'scale(1)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+            setIsPressed(false);
+          }
+        }}
+        onTouchCancel={(e) => {
+          if (!disabled && !loading) {
+            setIsPressed(false);
+          }
+        }}
+        onMouseDown={(e) => {
+          if (!disabled && !loading) {
+            setIsPressed(true);
+          }
+        }}
+        onMouseUp={(e) => {
+          if (!disabled && !loading) {
+            setIsPressed(false);
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!disabled && !loading) {
+            setIsPressed(false);
           }
         }}
       >
-        <span style={{ fontSize: '28px' }}>{icon}</span>
-        <span style={{ fontSize: '16px', textAlign: 'center' }}>{label}</span>
+        <span style={{ fontSize: '32px' }} className="outdoor-visibility-light">{icon}</span>
+        <span style={{ fontSize: '18px', textAlign: 'center' }} className="outdoor-visibility-light">{label}</span>
       </button>
     );
   };
@@ -95,35 +119,39 @@ const LargeScoringButtons = ({
     const commonScores = [holePar - 2, holePar - 1, holePar, holePar + 1, holePar + 2];
 
     return (
-      <div key={player.id} style={{
+      <div key={player.id}
+           className="touch-optimized"
+           style={{
         background: theme.colors.paper,
-        borderRadius: '12px',
-        padding: '16px',
-        marginBottom: '16px',
-        border: `2px solid ${playerScore !== undefined ? theme.colors.success : theme.colors.border}`
+        borderRadius: '16px',
+        padding: '20px', // Increased from 16px
+        marginBottom: '20px', // Increased from 16px
+        border: `3px solid ${playerScore !== undefined ? theme.colors.success : theme.colors.border}` // Thicker border
       }}>
         <h3 style={{
-          margin: '0 0 12px 0',
-          fontSize: '20px',
+          margin: '0 0 16px 0', // Increased spacing
+          fontSize: '24px', // Increased from 20px
           color: theme.colors.primary,
           fontWeight: 'bold'
         }}>
           {player.name}
           <span style={{
-            fontSize: '14px',
+            fontSize: '16px', // Increased from 14px
             color: theme.colors.textSecondary,
             fontWeight: 'normal',
-            marginLeft: '8px'
+            marginLeft: '10px'
           }}>
             (Hdcp {player.handicap})
           </span>
         </h3>
 
-        <div style={{
+        <div
+          className="score-grid-mobile"
+          style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(5, 1fr)',
-          gap: '8px',
-          marginBottom: '8px'
+          gap: '12px', // Increased from 8px for easier glove tapping
+          marginBottom: '12px'
         }}>
           {commonScores.map(score => {
             const diff = score - holePar;
@@ -146,48 +174,47 @@ const LargeScoringButtons = ({
             };
 
             const isSelected = playerScore === score;
+            const buttonId = `score-${player.id}-${score}`;
+            const isPressedScore = pressedButton === buttonId;
 
             return (
               <button
                 key={score}
                 onClick={() => updateScore(player.id, score)}
+                className="touch-optimized"
                 style={{
-                  minHeight: '70px',
+                  minHeight: '90px', // Increased from 70px for glove use
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '4px',
-                  padding: '8px',
-                  border: isSelected ? `3px solid ${getScoreColor()}` : '2px solid #e0e0e0',
-                  borderRadius: '8px',
-                  background: isSelected ? `${getScoreColor()}15` : 'white',
+                  gap: '6px', // Increased from 4px
+                  padding: '12px', // Increased from 8px
+                  border: isSelected ? `4px solid ${getScoreColor()}` : '3px solid #e0e0e0', // Thicker borders
+                  borderRadius: '12px', // Increased from 8px
+                  background: isSelected ? `${getScoreColor()}25` : 'white', // Stronger highlight
                   cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  fontWeight: isSelected ? 'bold' : 'normal'
+                  transition: 'all 0.15s ease',
+                  fontWeight: isSelected ? 'bold' : 'normal',
+                  transform: isPressedScore ? 'scale(0.95)' : 'scale(1)',
+                  touchAction: 'manipulation'
                 }}
-                onMouseOver={(e) => {
-                  if (!isSelected) {
-                    e.currentTarget.style.background = '#f5f5f5';
-                    e.currentTarget.style.borderColor = getScoreColor();
-                  }
-                }}
-                onMouseOut={(e) => {
-                  if (!isSelected) {
-                    e.currentTarget.style.background = 'white';
-                    e.currentTarget.style.borderColor = '#e0e0e0';
-                  }
-                }}
+                onTouchStart={() => setPressedButton(buttonId)}
+                onTouchEnd={() => setPressedButton(null)}
+                onTouchCancel={() => setPressedButton(null)}
+                onMouseDown={() => setPressedButton(buttonId)}
+                onMouseUp={() => setPressedButton(null)}
+                onMouseLeave={() => setPressedButton(null)}
               >
                 <span style={{
-                  fontSize: '24px',
+                  fontSize: '28px', // Increased from 24px
                   fontWeight: 'bold',
                   color: getScoreColor()
                 }}>
                   {score}
                 </span>
                 <span style={{
-                  fontSize: '11px',
+                  fontSize: '13px', // Increased from 11px
                   color: getScoreColor(),
                   fontWeight: 'bold',
                   textTransform: 'uppercase'
@@ -200,7 +227,7 @@ const LargeScoringButtons = ({
         </div>
 
         {/* Custom score input for unusual scores */}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           <input
             type="number"
             placeholder="Other score..."
@@ -211,11 +238,12 @@ const LargeScoringButtons = ({
             }}
             style={{
               flex: 1,
-              padding: '12px',
-              fontSize: '16px',
-              border: `2px solid ${theme.colors.border}`,
-              borderRadius: '8px',
-              background: theme.colors.background
+              padding: '16px', // Increased from 12px
+              fontSize: '20px', // Increased from 16px for better visibility
+              border: `3px solid ${theme.colors.border}`, // Thicker border
+              borderRadius: '12px', // Increased from 8px
+              background: theme.colors.background,
+              minHeight: '60px' // Ensure minimum touch target height
             }}
           />
           {playerScore !== undefined && (
@@ -225,15 +253,18 @@ const LargeScoringButtons = ({
                 delete newScores[player.id];
                 setScores(newScores);
               }}
+              className="touch-optimized"
               style={{
-                padding: '12px 16px',
-                fontSize: '16px',
+                padding: '16px 20px', // Increased padding
+                fontSize: '20px', // Increased from 16px
                 border: 'none',
-                borderRadius: '8px',
+                borderRadius: '12px',
                 background: theme.colors.error,
                 color: 'white',
                 cursor: 'pointer',
-                fontWeight: 'bold'
+                fontWeight: 'bold',
+                minHeight: '60px', // Match input height
+                touchAction: 'manipulation'
               }}
             >
               ✕ Clear
@@ -260,34 +291,37 @@ const LargeScoringButtons = ({
   };
 
   return (
-    <div style={{ width: '100%' }}>
+    <div className="touch-optimized" style={{ width: '100%' }}>
       {/* Score Entry Section */}
       {showScoreEntry && (
         <div style={{
           ...theme.cardStyle,
-          marginBottom: '16px'
+          marginBottom: '20px' // Increased spacing
         }}>
           <div style={{
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            marginBottom: '16px'
+            marginBottom: '20px' // Increased spacing
           }}>
             <h2 style={{
               margin: 0,
-              fontSize: '22px',
+              fontSize: '26px', // Increased from 22px
               color: theme.colors.primary,
               fontWeight: 'bold'
             }}>
               Enter Scores
             </h2>
             <div style={{
-              padding: '6px 12px',
+              padding: '10px 16px', // Increased padding
               background: theme.colors.accent,
               color: 'white',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontWeight: 'bold'
+              borderRadius: '12px', // Increased from 8px
+              fontSize: '18px', // Increased from 14px
+              fontWeight: 'bold',
+              minHeight: '50px', // Add minimum height for touch
+              display: 'flex',
+              alignItems: 'center'
             }}>
               Par {gameState.hole_par || 4}
             </div>
@@ -308,13 +342,15 @@ const LargeScoringButtons = ({
 
           {!canCalculate() && (
             <div style={{
-              marginTop: '12px',
-              padding: '12px',
+              marginTop: '16px', // Increased spacing
+              padding: '16px', // Increased padding
               background: '#fff3cd',
               color: '#856404',
-              borderRadius: '8px',
-              fontSize: '14px',
-              textAlign: 'center'
+              borderRadius: '12px', // Increased from 8px
+              fontSize: '18px', // Increased from 14px
+              textAlign: 'center',
+              fontWeight: 'bold', // Added for emphasis
+              border: '2px solid #ffc107' // Added border for visibility
             }}>
               Enter all player scores to continue
             </div>
@@ -323,84 +359,257 @@ const LargeScoringButtons = ({
       )}
 
       {/* Betting Actions */}
-      {["partners", "solo"].includes(gameState?.teams?.type) && !gameState?.doubled_status && (
+      {["partners", "solo"].includes(gameState?.teams?.type) && (
         <div style={{
           ...theme.cardStyle,
-          marginBottom: '16px'
+          marginBottom: '20px' // Increased spacing
         }}>
           <h2 style={{
-            margin: '0 0 16px 0',
-            fontSize: '22px',
+            margin: '0 0 20px 0', // Increased spacing
+            fontSize: '24px', // Increased from 22px
             color: theme.colors.primary,
             fontWeight: 'bold'
           }}>
             Betting Actions
           </h2>
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: '12px'
+          {/* Show Accept/Decline buttons when a double has been offered */}
+          {gameState.doubled_status ? (
+            <div
+              className="touch-spacing-large"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: '16px'
+              }}>
+              <div style={{
+                gridColumn: '1 / -1',
+                padding: '16px',
+                background: '#fff3cd',
+                borderRadius: '12px',
+                border: '2px solid #ffc107',
+                textAlign: 'center',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                color: '#856404'
+              }}>
+                ⚠️ Double has been offered! Choose to Accept or Decline
+              </div>
+
+              {renderLargeButton(
+                'accept-double',
+                '✅',
+                'Accept Double',
+                () => {
+                  if (window.confirm('Accept the double? This will double the wager.')) {
+                    onAction("accept_double", {
+                      team_id: gameState.responding_team_id || "team2",
+                      accepted: true
+                    });
+                  }
+                },
+                'success'
+              )}
+
+              {renderLargeButton(
+                'decline-double',
+                '❌',
+                'Decline Double',
+                () => {
+                  if (window.confirm('Decline the double? Offering team wins the hole.')) {
+                    onAction("decline_double", {
+                      team_id: gameState.responding_team_id || "team2",
+                      accepted: false
+                    });
+                  }
+                },
+                'error'
+              )}
+            </div>
+          ) : (
+            // Show normal betting actions when no double is pending
+            <div
+              className="touch-spacing-large"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: '16px'
+              }}>
+              {renderLargeButton(
+                'offer-double',
+                '💰',
+                'Offer Double',
+                () => onAction("offer_double", {
+                  offering_team_id: "team1",
+                  target_team_id: "team2",
+                  player_id: gameState.captain_id
+                }),
+                'warning'
+              )}
+
+              {!gameState.player_float_used?.[gameState.captain_id] && renderLargeButton(
+                'invoke-float',
+                '🎈',
+                'Invoke Float',
+                () => onAction("invoke_float", { captain_id: gameState.captain_id }),
+                'primary'
+              )}
+
+              {renderLargeButton(
+                'toggle-option',
+                '🔄',
+                'Toggle Option',
+                () => onAction("toggle_option", { captain_id: gameState.captain_id }),
+                'primary'
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Go Solo / Partnership Decision - shown before teams are formed */}
+      {gameState?.teams?.type === "pending" && (
+        <div style={{
+          ...theme.cardStyle,
+          marginBottom: '20px',
+          background: '#e3f2fd',
+          border: '3px solid #2196f3'
+        }}>
+          <h2 style={{
+            margin: '0 0 12px 0',
+            fontSize: '22px',
+            color: '#1976d2',
+            fontWeight: 'bold'
           }}>
-            {!gameState.doubled_status && renderLargeButton(
-              'offer-double',
-              '💰',
-              'Offer Double',
-              () => onAction("offer_double", {
-                offering_team_id: "team1",
-                target_team_id: "team2",
-                player_id: gameState.captain_id
-              }),
+            Captain's Decision
+          </h2>
+          <p style={{
+            fontSize: '16px',
+            color: theme.colors.textSecondary,
+            marginBottom: '16px',
+            lineHeight: '1.5'
+          }}>
+            Captain can choose a partner or go solo (1 vs 3)
+          </p>
+
+          <div
+            className="touch-spacing-large"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: '16px'
+            }}>
+            {renderLargeButton(
+              'go-solo',
+              '👤',
+              'Go Solo (1 vs 3)',
+              () => {
+                if (window.confirm('Captain goes solo? Wager will be doubled!')) {
+                  onAction("go_solo", { captain_id: gameState.captain_id });
+                }
+              },
               'warning'
             )}
 
-            {!gameState.player_float_used?.[gameState.captain_id] && renderLargeButton(
-              'invoke-float',
-              '🎈',
-              'Invoke Float',
-              () => onAction("invoke_float", { captain_id: gameState.captain_id }),
-              'primary'
-            )}
-
-            {renderLargeButton(
-              'toggle-option',
-              '🔄',
-              'Toggle Option',
-              () => onAction("toggle_option", { captain_id: gameState.captain_id }),
-              'primary'
+            {gameState.players?.filter(p => p.id !== gameState.captain_id).map(player =>
+              renderLargeButton(
+                `partner-${player.id}`,
+                '🤝',
+                `Partner with ${player.name}`,
+                () => onAction("request_partner", {
+                  captain_id: gameState.captain_id,
+                  partner_id: player.id
+                }),
+                'primary'
+              )
             )}
           </div>
         </div>
       )}
 
+      {/* Carry-Over Status Indicator */}
+      {gameState?.carry_over && (
+        <div style={{
+          ...theme.cardStyle,
+          marginBottom: '20px',
+          background: 'linear-gradient(135deg, #ffd700 0%, #ffed4e 100%)',
+          border: '4px solid #ffa000',
+          padding: '20px'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px'
+          }}>
+            <div style={{
+              fontSize: '48px',
+              lineHeight: 1
+            }}>
+              🔄
+            </div>
+            <div style={{ flex: 1 }}>
+              <h3 style={{
+                margin: '0 0 8px 0',
+                fontSize: '24px',
+                fontWeight: 'bold',
+                color: '#000'
+              }}>
+                CARRY OVER
+              </h3>
+              <p style={{
+                margin: 0,
+                fontSize: '18px',
+                color: '#000',
+                lineHeight: 1.4
+              }}>
+                Previous hole was tied! Wager has been doubled for this hole.
+              </p>
+            </div>
+            <div style={{
+              fontSize: '32px',
+              fontWeight: 'bold',
+              color: '#d32f2f',
+              textAlign: 'center',
+              minWidth: '100px'
+            }}>
+              ${gameState.current_wager || gameState.base_wager}
+            </div>
+          </div>
+        </div>
+      )}
+
+
       {/* Concede/Fold Hole */}
       {["partners", "solo"].includes(gameState?.teams?.type) && (
         <div style={{
           ...theme.cardStyle,
-          marginBottom: '16px',
+          marginBottom: '20px', // Increased spacing
           background: '#fff5f5',
-          border: '2px solid #d32f2f'
+          border: '3px solid #d32f2f' // Thicker border for emphasis
         }}>
           <h2 style={{
-            margin: '0 0 8px 0',
-            fontSize: '18px',
+            margin: '0 0 12px 0', // Increased spacing
+            fontSize: '22px', // Increased from 18px
             color: theme.colors.error,
             fontWeight: 'bold'
           }}>
             Fold / Concede Hole
           </h2>
           <p style={{
-            fontSize: '13px',
+            fontSize: '16px', // Increased from 13px
             color: theme.colors.textSecondary,
-            marginBottom: '12px'
+            marginBottom: '16px', // Increased spacing
+            lineHeight: '1.5'
           }}>
             Give up this hole and forfeit the wager
           </p>
 
-          <div style={{
+          <div
+            className="touch-spacing-large"
+            style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: '12px'
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', // Slightly larger minimum
+            gap: '16px' // Increased from 12px
           }}>
             {gameState.teams.type === "partners" && (
               <>
@@ -462,7 +671,7 @@ const LargeScoringButtons = ({
       {/* Next Hole Button */}
       <div style={{
         ...theme.cardStyle,
-        marginBottom: '16px'
+        marginBottom: '20px' // Increased spacing
       }}>
         {renderLargeButton(
           'next-hole',

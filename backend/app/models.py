@@ -34,10 +34,31 @@ class Hole(Base):
     tee_box = Column(String, default="regular")  # regular, championship, forward, etc.
 
 # For MVP: store the entire game state as a JSON blob
+# Updated to support multiple active games with unique game_id
 class GameStateModel(Base):
     __tablename__ = "game_state"
     id = Column(Integer, primary_key=True, index=True)
+    game_id = Column(String, unique=True, index=True)  # Unique identifier for each game
+    join_code = Column(String, unique=True, index=True, nullable=True)  # 6-char code for joining
+    creator_user_id = Column(String, nullable=True)  # Auth0 user ID of game creator
+    game_status = Column(String, default="setup")  # setup, in_progress, completed
     state = Column(JSON)
+    created_at = Column(String)
+    updated_at = Column(String)
+
+# Track authenticated players in games
+class GamePlayer(Base):
+    __tablename__ = "game_players"
+    id = Column(Integer, primary_key=True, index=True)
+    game_id = Column(String, index=True)  # References GameStateModel.game_id
+    player_slot_id = Column(String)  # e.g., "p1", "p2", "p3", "p4"
+    user_id = Column(String, nullable=True)  # Auth0 user ID
+    player_profile_id = Column(Integer, nullable=True)  # References PlayerProfile.id
+    player_name = Column(String)  # Display name
+    handicap = Column(Float)
+    join_status = Column(String, default="pending")  # pending, joined, ready
+    joined_at = Column(String, nullable=True)
+    created_at = Column(String)
 
 # Store simulation results for analysis
 class SimulationResult(Base):

@@ -986,6 +986,321 @@ def get_player_strokes():
         logger.error(f"Error getting player strokes: {e}")
         raise HTTPException(status_code=500, detail="Failed to get player strokes")
 
+@app.post("/games/create")
+async def create_game_with_join_code(
+    course_name: Optional[str] = None,
+    player_count: int = 4,
+    user_id: Optional[str] = None,
+    db: Session = Depends(database.get_db)
+):
+    """Create a new game with a join code for authenticated players"""
+    try:
+        import random
+        import string
+        import uuid
+
+        # Generate 6-character join code
+        join_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+        # Ensure uniqueness
+        while db.query(models.GameStateModel).filter(models.GameStateModel.join_code == join_code).first():
+            join_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+        # Create game with unique ID
+        game_id = str(uuid.uuid4())
+        current_time = datetime.utcnow().isoformat()
+
+        # Initial game state
+        initial_state = {
+            "current_hole": 1,
+            "game_status": "setup",
+            "player_count": player_count,
+            "course_name": course_name,
+            "players": [],
+            "hole_history": []
+        }
+
+        # Create GameStateModel
+        game_state_model = models.GameStateModel(
+            game_id=game_id,
+            join_code=join_code,
+            creator_user_id=user_id,
+            game_status="setup",
+            state=initial_state,
+            created_at=current_time,
+            updated_at=current_time
+        )
+        db.add(game_state_model)
+        db.commit()
+        db.refresh(game_state_model)
+
+        return {
+            "game_id": game_id,
+            "join_code": join_code,
+            "status": "setup",
+            "player_count": player_count,
+            "players_joined": 0,
+            "created_at": current_time,
+            "join_url": f"/join/{join_code}"
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error creating game: {str(e)}")
+
+@app.post("/games/join/{join_code}")
+async def join_game_with_code(
+    join_code: str,
+    player_name: str,
+    handicap: float = 18.0,
+    user_id: Optional[str] = None,
+    player_profile_id: Optional[int] = None,
+    db: Session = Depends(database.get_db)
+):
+    """Join a game using a join code"""
+    try:
+        # Find game by join code
+        game = db.query(models.GameStateModel).filter(
+            models.GameStateModel.join_code == join_code
+        ).first()
+
+        if not game:
+            raise HTTPException(status_code=404, detail="Game not found with that join code")
+
+        if game.game_status != "setup":
+            raise HTTPException(status_code=400, detail="Game has already started")
+
+        # Check if user already joined
+        if user_id:
+            existing = db.query(models.GamePlayer).filter(
+                models.GamePlayer.game_id == game.game_id,
+                models.GamePlayer.user_id == user_id
+            ).first()
+            if existing:
+                return {
+                    "status": "already_joined",
+                    "message": "You've already joined this game",
+                    "game_id": game.game_id,
+                    "player_slot_id": existing.player_slot_id
+                }
+
+        # Get current players
+        current_players = db.query(models.GamePlayer).filter(
+            models.GamePlayer.game_id == game.game_id
+        ).all()
+
+        # Check player limit
+        max_players = game.state.get("player_count", 4)
+        if len(current_players) >= max_players:
+            raise HTTPException(status_code=400, detail="Game is full")
+
+        # Assign player slot
+        player_slot_id = f"p{len(current_players) + 1}"
+        current_time = datetime.utcnow().isoformat()
+
+        # Create GamePlayer record
+        game_player = models.GamePlayer(
+            game_id=game.game_id,
+            player_slot_id=player_slot_id,
+            user_id=user_id,
+            player_profile_id=player_profile_id,
+            player_name=player_name,
+            handicap=handicap,
+            join_status="joined",
+            joined_at=current_time,
+            created_at=current_time
+        )
+        db.add(game_player)
+
+        # Update game state with new player
+        game.state["players"] = game.state.get("players", [])
+        game.state["players"].append({
+            "id": player_slot_id,
+            "name": player_name,
+            "handicap": handicap,
+            "user_id": user_id,
+            "player_profile_id": player_profile_id
+        })
+        game.updated_at = current_time
+
+        db.commit()
+        db.refresh(game_player)
+
+        return {
+            "status": "joined",
+            "game_id": game.game_id,
+            "player_slot_id": player_slot_id,
+            "players_joined": len(current_players) + 1,
+            "max_players": max_players,
+            "message": f"Welcome {player_name}! Waiting for {max_players - len(current_players) - 1} more player(s)"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error joining game: {str(e)}")
+
+@app.get("/games/{game_id}/lobby")
+async def get_game_lobby(game_id: str, db: Session = Depends(database.get_db)):
+    """Get game lobby information - who has joined"""
+    try:
+        game = db.query(models.GameStateModel).filter(
+            models.GameStateModel.game_id == game_id
+        ).first()
+
+        if not game:
+            raise HTTPException(status_code=404, detail="Game not found")
+
+        players = db.query(models.GamePlayer).filter(
+            models.GamePlayer.game_id == game_id
+        ).order_by(models.GamePlayer.player_slot_id).all()
+
+        max_players = game.state.get("player_count", 4)
+
+        return {
+            "game_id": game_id,
+            "join_code": game.join_code,
+            "status": game.game_status,
+            "course_name": game.state.get("course_name"),
+            "max_players": max_players,
+            "players_joined": len(players),
+            "ready_to_start": len(players) >= 2 and len(players) <= max_players,
+            "players": [
+                {
+                    "player_slot_id": p.player_slot_id,
+                    "player_name": p.player_name,
+                    "handicap": p.handicap,
+                    "is_authenticated": p.user_id is not None,
+                    "join_status": p.join_status,
+                    "joined_at": p.joined_at
+                }
+                for p in players
+            ],
+            "created_at": game.created_at
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving game lobby: {str(e)}")
+
+@app.post("/games/{game_id}/start")
+async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get_db)):
+    """Start a game from the lobby"""
+    try:
+        game = db.query(models.GameStateModel).filter(
+            models.GameStateModel.game_id == game_id
+        ).first()
+
+        if not game:
+            raise HTTPException(status_code=404, detail="Game not found")
+
+        if game.game_status != "setup":
+            raise HTTPException(status_code=400, detail="Game has already been started")
+
+        players = db.query(models.GamePlayer).filter(
+            models.GamePlayer.game_id == game_id
+        ).all()
+
+        if len(players) < 2:
+            raise HTTPException(status_code=400, detail="Need at least 2 players to start")
+
+        # Update game status
+        game.game_status = "in_progress"
+        game.updated_at = datetime.utcnow().isoformat()
+
+        # Initialize game state with joined players
+        game.state["game_status"] = "in_progress"
+        game.state["started_at"] = game.updated_at
+
+        db.commit()
+
+        return {
+            "status": "started",
+            "game_id": game_id,
+            "message": f"Game started with {len(players)} players!",
+            "players": [p.player_name for p in players]
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error starting game: {str(e)}")
+
+@app.get("/games/history")
+async def get_game_history(limit: int = 10, offset: int = 0, db: Session = Depends(database.get_db)):
+    """Get list of completed games"""
+    try:
+        games = db.query(models.GameRecord).order_by(models.GameRecord.completed_at.desc()).offset(offset).limit(limit).all()
+        return {
+            "games": [
+                {
+                    "id": game.id,
+                    "game_id": game.game_id,
+                    "course_name": game.course_name,
+                    "player_count": game.player_count,
+                    "total_holes_played": game.total_holes_played,
+                    "game_duration_minutes": game.game_duration_minutes,
+                    "created_at": game.created_at,
+                    "completed_at": game.completed_at,
+                    "final_scores": game.final_scores
+                }
+                for game in games
+            ],
+            "total": db.query(models.GameRecord).count(),
+            "offset": offset,
+            "limit": limit
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving game history: {str(e)}")
+
+@app.get("/games/{game_id}/details")
+async def get_game_details(game_id: str, db: Session = Depends(database.get_db)):
+    """Get detailed game results including player performances and hole-by-hole scores"""
+    try:
+        # Get game record
+        game = db.query(models.GameRecord).filter(models.GameRecord.game_id == game_id).first()
+        if not game:
+            raise HTTPException(status_code=404, detail="Game not found")
+
+        # Get player results
+        player_results = db.query(models.GamePlayerResult).filter(
+            models.GamePlayerResult.game_record_id == game.id
+        ).order_by(models.GamePlayerResult.final_position).all()
+
+        return {
+            "game": {
+                "id": game.id,
+                "game_id": game.game_id,
+                "course_name": game.course_name,
+                "player_count": game.player_count,
+                "total_holes_played": game.total_holes_played,
+                "game_duration_minutes": game.game_duration_minutes,
+                "created_at": game.created_at,
+                "completed_at": game.completed_at,
+                "game_settings": game.game_settings,
+                "final_scores": game.final_scores
+            },
+            "player_results": [
+                {
+                    "player_name": result.player_name,
+                    "final_position": result.final_position,
+                    "total_earnings": result.total_earnings,
+                    "holes_won": result.holes_won,
+                    "partnerships_formed": result.partnerships_formed,
+                    "partnerships_won": result.partnerships_won,
+                    "solo_attempts": result.solo_attempts,
+                    "solo_wins": result.solo_wins,
+                    "hole_scores": result.hole_scores,
+                    "betting_history": result.betting_history,
+                    "performance_metrics": result.performance_metrics
+                }
+                for result in player_results
+            ]
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving game details: {str(e)}")
+
 def _get_current_captain_id() -> Optional[str]:
     """Best-effort lookup for the active captain id across legacy and unified state."""
     try:
@@ -1175,6 +1490,8 @@ async def unified_action(game_id: str, action: ActionRequest):
             return await handle_enter_hole_scores(payload)
         elif action_type == "GET_ADVANCED_ANALYTICS":
             return await handle_get_advanced_analytics(payload)
+        elif action_type == "COMPLETE_GAME":
+            return await handle_complete_game(payload)
         else:
             raise HTTPException(status_code=400, detail=f"Unknown action type: {action_type}")
             
@@ -2257,15 +2574,51 @@ async def handle_enter_hole_scores(payload: Dict[str, Any]) -> ActionResponse:
         logger.error(f"Error entering hole scores: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to enter hole scores: {str(e)}")
 
+async def handle_complete_game(payload: Dict[str, Any]) -> ActionResponse:
+    """Handle completing a game and saving results permanently"""
+    try:
+        # Get the game state instance
+        game_state = wgp_simulation.game_state if hasattr(wgp_simulation, 'game_state') else None
+
+        if not game_state:
+            raise HTTPException(status_code=400, detail="No active game to complete")
+
+        # Complete the game and save results
+        result_message = game_state.complete_game()
+
+        updated_state = wgp_simulation.get_game_state()
+        updated_state["game_completed"] = True
+        updated_state["completion_message"] = result_message
+
+        return ActionResponse(
+            game_state=updated_state,
+            log_message=f"🎉 Game completed! {result_message}",
+            available_actions=[],  # No more actions available
+            timeline_event={
+                "id": f"game_completed_{wgp_simulation.game_state.game_id}_{datetime.now().timestamp()}",
+                "timestamp": datetime.now().isoformat(),
+                "type": "game_completed",
+                "description": "Game completed and results saved",
+                "details": {
+                    "game_id": wgp_simulation.game_state.game_id,
+                    "holes_played": len(wgp_simulation.game_state.hole_history),
+                    "final_scores": {p.id: p.points for p in wgp_simulation.game_state.player_manager.players}
+                }
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error completing game: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to complete game: {str(e)}")
+
 async def handle_get_advanced_analytics(payload: Dict[str, Any]) -> ActionResponse:
     """Handle getting advanced analytics dashboard data"""
     try:
         analytics = wgp_simulation.get_advanced_analytics()
         updated_state = wgp_simulation.get_game_state()
-        
+
         # Include analytics data in the updated game state
         updated_state["analytics"] = analytics
-        
+
         return ActionResponse(
             game_state=updated_state,
             log_message="Advanced analytics data retrieved",
