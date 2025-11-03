@@ -69,6 +69,18 @@ function JoinGamePage() {
       }
 
       if (data.status === 'joined' || data.status === 'already_joined') {
+        // Store session info in localStorage for reconnection
+        const sessionData = {
+          gameId: data.game_id,
+          playerName: playerName,
+          handicap: parseFloat(handicap),
+          joinCode: joinCode.toUpperCase(),
+          timestamp: Date.now(),
+          userId: isAuthenticated ? user?.sub : null
+        };
+        localStorage.setItem(`wgp_session_${data.game_id}`, JSON.stringify(sessionData));
+        localStorage.setItem('wgp_current_game', data.game_id);
+
         // Navigate to lobby
         navigate(`/lobby/${data.game_id}`);
       } else {

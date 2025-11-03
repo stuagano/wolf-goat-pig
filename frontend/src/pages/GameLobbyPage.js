@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTheme } from '../theme/Provider';
-import { useAuth0 } from '@auth0/auth0-react';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -9,7 +8,6 @@ function GameLobbyPage() {
   const theme = useTheme();
   const navigate = useNavigate();
   const { gameId } = useParams();
-  const { user, isAuthenticated } = useAuth0();
 
   const [lobby, setLobby] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -30,6 +28,15 @@ function GameLobbyPage() {
         const data = await response.json();
         setLobby(data);
         setError('');
+
+        // Update session in localStorage to keep it fresh
+        const currentSession = localStorage.getItem(`wgp_session_${gameId}`);
+        if (currentSession) {
+          const sessionData = JSON.parse(currentSession);
+          sessionData.timestamp = Date.now();
+          sessionData.status = data.status;
+          localStorage.setItem(`wgp_session_${gameId}`, JSON.stringify(sessionData));
+        }
 
         // If game has started, redirect to game page
         if (data.status === 'in_progress' || data.status === 'completed') {
@@ -134,7 +141,6 @@ function GameLobbyPage() {
     );
   }
 
-  const isCreator = isAuthenticated && user?.sub === lobby?.creator_user_id;
   const canStart = lobby?.players_joined >= 2 && lobby?.players_joined <= lobby?.max_players;
 
   return (

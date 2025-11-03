@@ -7,6 +7,32 @@ function HomePage() {
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth0();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [activeGameSession, setActiveGameSession] = useState(null);
+
+  // Check for active game session on mount
+  React.useEffect(() => {
+    const currentGameId = localStorage.getItem('wgp_current_game');
+    if (currentGameId) {
+      const sessionKey = `wgp_session_${currentGameId}`;
+      const sessionData = localStorage.getItem(sessionKey);
+      if (sessionData) {
+        try {
+          const session = JSON.parse(sessionData);
+          // Only show if session is recent (within 24 hours)
+          const isRecent = (Date.now() - session.timestamp) < 24 * 60 * 60 * 1000;
+          if (isRecent && session.status !== 'completed') {
+            setActiveGameSession(session);
+          } else {
+            // Clean up old session
+            localStorage.removeItem(sessionKey);
+            localStorage.removeItem('wgp_current_game');
+          }
+        } catch (err) {
+          console.error('Error parsing session data:', err);
+        }
+      }
+    }
+  }, []);
   
   // Add responsive styles
   React.useEffect(() => {
@@ -321,6 +347,57 @@ function HomePage() {
           }}>
             Create a game and share a join code with your friends!
           </p>
+
+          {/* Resume Game Button - shown if active session exists */}
+          {activeGameSession && (
+            <div style={{
+              background: 'linear-gradient(135deg, #F59E0B, #D97706)',
+              borderRadius: '12px',
+              padding: '20px',
+              marginBottom: '20px',
+              boxShadow: '0 4px 6px rgba(245, 158, 11, 0.3)'
+            }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '16px'
+              }}>
+                <div style={{ flex: 1, minWidth: '200px' }}>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'white', marginBottom: '8px' }}>
+                    🎮 Active Game Found
+                  </div>
+                  <div style={{ color: 'rgba(255, 255, 255, 0.95)', fontSize: '1rem' }}>
+                    Playing as <strong>{activeGameSession.playerName}</strong>
+                  </div>
+                  <div style={{ color: 'rgba(255, 255, 255, 0.85)', fontSize: '0.9rem', marginTop: '4px' }}>
+                    Join Code: <strong>{activeGameSession.joinCode}</strong>
+                  </div>
+                </div>
+                <button
+                  onClick={() => navigate(`/game/${activeGameSession.gameId}`)}
+                  style={{
+                    padding: '16px 32px',
+                    background: 'white',
+                    color: '#D97706',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '16px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                  onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                >
+                  ↩️ Resume Game
+                </button>
+              </div>
+            </div>
+          )}
+
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
