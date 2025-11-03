@@ -185,16 +185,22 @@ const GameSetup: React.FC<GameSetupProps> = ({
       });
   }, [setCourses, setPersonalities, setSuggestedOpponents, selectedCourse, setSelectedCourse]);
 
-  // Initialize computer players if empty
+  // Initialize computer players with suggested opponents if available
   useEffect(() => {
-    if (computerPlayers.length === 0) {
+    if (computerPlayers.length === 0 && suggestedOpponents.length >= 3) {
+      setComputerPlayers([
+        { id: "comp1", ...suggestedOpponents[0], is_human: false },
+        { id: "comp2", ...suggestedOpponents[1], is_human: false },
+        { id: "comp3", ...suggestedOpponents[2], is_human: false }
+      ]);
+    } else if (computerPlayers.length === 0) {
       setComputerPlayers([
         { id: "comp1", name: "", handicap: "", personality: "", is_human: false },
         { id: "comp2", name: "", handicap: "", personality: "", is_human: false },
         { id: "comp3", name: "", handicap: "", personality: "", is_human: false }
       ]);
     }
-  }, [computerPlayers, setComputerPlayers]);
+  }, [computerPlayers, setComputerPlayers, suggestedOpponents]);
 
   const openGhinLookup = (slot: string) => {
     setGhinLookupSlot(slot);
@@ -247,28 +253,38 @@ const GameSetup: React.FC<GameSetupProps> = ({
   };
 
   const loadSuggestedOpponent = (opponentData: SuggestedOpponent, index: number) => {
-    setComputerPlayers(players => players.map((p, i) => 
+    setComputerPlayers(players => players.map((p, i) =>
       i === index ? { ...p, ...opponentData, id: p.id } : p
     ));
   };
 
+  const loadAllSuggestedOpponents = () => {
+    if (suggestedOpponents.length >= 3) {
+      setComputerPlayers([
+        { id: "comp1", ...suggestedOpponents[0], is_human: false },
+        { id: "comp2", ...suggestedOpponents[1], is_human: false },
+        { id: "comp3", ...suggestedOpponents[2], is_human: false }
+      ]);
+    }
+  };
+
   const validateAndStartGame = () => {
     if (!humanPlayer.name.trim()) {
-      alert("Please enter your name");
+      alert("Please enter your name to start playing.");
       return;
     }
-    
+
     const invalidComputers = computerPlayers.filter(p => !p.name.trim() || !p.handicap);
     if (invalidComputers.length > 0) {
-      alert("Please fill in all computer player details");
+      alert("Wolf Goat Pig requires 4 players. Please click the 'Quick Start - Use Defaults' button to automatically set up computer opponents, or fill in their details manually.");
       return;
     }
-    
+
     if (!selectedCourse) {
       alert("Please select a course");
       return;
     }
-    
+
     onStartGame();
   };
 
@@ -283,6 +299,13 @@ const GameSetup: React.FC<GameSetupProps> = ({
           and get comfortable with the game mechanics. After each hole, you'll receive educational feedback
           about your decisions.
         </p>
+
+        <Card variant="info" style={{ marginBottom: 20 }}>
+          <p style={{ margin: 0, fontSize: 14 }}>
+            <strong>Note:</strong> Wolf Goat Pig requires 4 players to play. Don't worry - the computer opponents
+            are already set up for you! Just enter your name and click "Quick Start" or customize the opponents below.
+          </p>
+        </Card>
         
         {/* Human Player Setup */}
         <Card>
@@ -371,7 +394,16 @@ const GameSetup: React.FC<GameSetupProps> = ({
 
         {/* Computer Players Setup */}
         <Card>
-          <h3>Computer Opponents</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing }}>
+            <h3 style={{ margin: 0 }}>Computer Opponents</h3>
+            <Button
+              variant="primary"
+              size="small"
+              onClick={loadAllSuggestedOpponents}
+            >
+              🎲 Quick Start - Use Defaults
+            </Button>
+          </div>
           {computerPlayers.map((player, index) => (
             <Card key={index} variant="default" style={{ marginBottom: 16 }}>
               <h4>Computer Player {index + 1}</h4>
