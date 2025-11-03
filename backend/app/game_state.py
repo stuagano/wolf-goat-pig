@@ -59,7 +59,7 @@ class GameState:
     def dispatch_action(self, action, payload):
         # Betting actions are delegated to BettingState
         betting_actions = ["request_partner", "accept_partner", "decline_partner", "go_solo",
-                          "offer_double", "accept_double", "decline_double"]
+                          "offer_double", "accept_double", "decline_double", "concede_hole"]
         if action in betting_actions:
             result = self.betting_state.dispatch_action(action, payload, self.player_manager.players)
             self.game_status_message = f"Captain {self._player_name(payload.get('captain_id', ''))} {result.split('.')[0].lower()}." if 'captain_id' in payload else result

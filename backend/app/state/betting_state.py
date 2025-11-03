@@ -69,6 +69,44 @@ class BettingState:
         self.doubled_status = False
         return "Double declined. Offering team wins hole."
 
+    def concede_hole(self, conceding_team_id: str, players: List[Player]) -> str:
+        """A team concedes the hole, forfeiting the wager to the opposing team"""
+        if not self.teams or self.teams.get("type") not in ("partners", "solo"):
+            raise ValueError("Teams must be formed before conceding.")
+
+        # Determine winners and losers based on who conceded
+        if self.teams["type"] == "partners":
+            team1 = self.teams["team1"]
+            team2 = self.teams["team2"]
+
+            # Figure out which team conceded
+            if conceding_team_id == "team1":
+                losers = team1
+                winners = team2
+            elif conceding_team_id == "team2":
+                losers = team2
+                winners = team1
+            else:
+                raise ValueError(f"Invalid team_id: {conceding_team_id}")
+
+        elif self.teams["type"] == "solo":
+            captain = self.teams["captain"]
+            opponents = self.teams["opponents"]
+
+            if conceding_team_id == "captain":
+                losers = [captain]
+                winners = opponents
+            elif conceding_team_id == "opponents":
+                losers = opponents
+                winners = [captain]
+            else:
+                raise ValueError(f"Invalid team_id for solo: {conceding_team_id}")
+
+        # Award points to winners, deduct from losers
+        base = self.base_wager
+        msg = self._distribute_points_karl_marx(winners=winners, losers=losers, base=base, players=players)
+        return f"Hole conceded. {msg}"
+
     def calculate_hole_points(self, hole_scores: Dict[str, int], players: List[Player]) -> str:
         if any(v is None for v in hole_scores.values()):
             raise ValueError("Not all scores entered.")
@@ -152,6 +190,8 @@ class BettingState:
             return self.accept_double(payload.get("team_id"))
         elif action == "decline_double":
             return self.decline_double(payload.get("team_id"))
+        elif action == "concede_hole":
+            return self.concede_hole(payload.get("conceding_team_id"), players)
         else:
             raise ValueError(f"Unknown betting action: {action}")
 
