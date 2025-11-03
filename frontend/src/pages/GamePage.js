@@ -241,6 +241,13 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
     }
   };
 
+  const handleSaveScores = async (scores) => {
+    // Save scores without calculating points
+    for (const pid of Object.keys(scores)) {
+      await doAction("record_net_score", { player_id: pid, score: Number(scores[pid]) });
+    }
+  };
+
   const handleScoreSubmit = async (scores) => {
     // Submit all scores
     for (const pid of Object.keys(scores)) {
@@ -338,15 +345,6 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
   const requestedPartnerId = gameState.teams?.requested;
   const doublePending = gameState.doubled_status && (["partners", "solo"].includes(gameState.teams?.type));
 
-  const doubleAlert = doublePending && (
-    <div style={{background:'#fff3cd',color:'#856404',border:'2px solid #ffe082',padding:20,borderRadius:8,marginBottom:20,boxShadow:'0 2px 8px #ffe082'}}>
-      <div style={{fontWeight:700,fontSize:18,marginBottom:10}}>Double Offered!</div>
-      <div style={{marginBottom:12}}>A double has been offered. Do you accept or decline?</div>
-      <button style={{background:'#388e3c',color:'#fff',fontWeight:600,padding:'8px 18px',marginRight:10,border:'none',borderRadius:4,fontSize:16}} onClick={() => doAction("accept_double", { team_id: "team2", accepted: true })}>Accept Double</button>
-      <button style={{background:'#d32f2f',color:'#fff',fontWeight:600,padding:'8px 18px',border:'none',borderRadius:4,fontSize:16}} onClick={() => doAction("decline_double", { team_id: "team2", accepted: false })}>Decline Double</button>
-    </div>
-  );
-
   const holeHistoryTable = gameState.hole_history && gameState.hole_history.length > 0 && (
     <div style={{marginTop:24}}>
       <h3 style={{marginBottom:8, fontSize:18, color:theme.colors.primary}}>Per-Hole History</h3>
@@ -432,7 +430,6 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
         <GameBanner />
         {gameState.selected_course && <div style={{marginBottom:8, fontWeight:600, color:theme.colors.primary}}>Course: {gameState.selected_course}</div>}
         {bettingTipsCard}
-        {doubleAlert}
         <div style={{display:'flex',flexDirection:'row',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
           <h2 style={{margin:0,fontSize:22,color:theme.colors.primary}}>Hole {gameState.current_hole} (Par {gameState.hole_par})</h2>
           <span style={{fontSize:15,color:theme.colors.textSecondary}}><strong>Wager:</strong> {gameState.base_wager}q</span>
@@ -640,6 +637,7 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
             <LargeScoringButtons
               gameState={gameState}
               onScoreSubmit={handleScoreSubmit}
+              onSaveScores={handleSaveScores}
               onAction={doAction}
               loading={loading}
             />
