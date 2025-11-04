@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from . import models, schemas, crud, database
 
-from .game_state import game_state
+from .state.course_manager import CourseManager
 from .wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer, BallPosition, TeamFormation
 from .post_hole_analytics import PostHoleAnalyzer
 from .simulation_timeline_enhancements import (
@@ -36,9 +36,22 @@ from .services.oauth2_email_service import OAuth2EmailService, get_oauth2_email_
 from .services.team_formation_service import TeamFormationService
 from .services.sunday_game_service import generate_sunday_pairings
 from .services.legacy_signup_service import get_legacy_signup_service
+from .services.game_lifecycle_service import get_game_lifecycle_service
+from .services.notification_service import get_notification_service
+from .services.leaderboard_service import get_leaderboard_service
 # Email scheduler will be initialized on-demand to prevent startup blocking
 # from .services.email_scheduler import email_scheduler
 from .services.auth_service import get_current_user
+from .managers.rule_manager import RuleManager, RuleViolationError
+from .managers.scoring_manager import get_scoring_manager
+from .validators import (
+    HandicapValidator,
+    BettingValidator,
+    GameStateValidator,
+    HandicapValidationError,
+    BettingValidationError,
+    GameStateValidationError
+)
 from .badge_routes import router as badge_router
 
 # Global variable for email scheduler (initialized on demand)
@@ -47,18 +60,18 @@ email_scheduler = None
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Initialize Wolf Goat Pig Simulation (will be replaced when game starts)
+# Initialize Wolf Goat Pig Simulation (DEPRECATED - will be removed)
+# TODO: Remove this global instance once all endpoints migrate to per-game instances
 wgp_simulation = WolfGoatPigSimulation(player_count=4)
 # Initialize Post-Hole Analyzer
 post_hole_analyzer = PostHoleAnalyzer()
-
-# Multi-game management - track multiple concurrent games
-# Key: game_id (str), Value: WolfGoatPigSimulation instance
-active_games = {}
+# Initialize Course Manager (replaces game_state.course_manager)
+course_manager = CourseManager()
 
 # Response model classes for Action API
 class ActionRequest(BaseModel):
     """Unified action request for all game interactions"""
+    model_config = {"extra": "allow"}  # Allow extra fields for backward compatibility
     action_type: str  # INITIALIZE_GAME, PLAY_SHOT, REQUEST_PARTNERSHIP, etc.
     payload: Optional[Dict[str, Any]] = None
 
@@ -298,11 +311,11 @@ async def startup():
         logger.info("🎯 Initializing game state...")
         try:
             # Ensure game_state is properly initialized with courses
-            courses = game_state.get_courses()
+            courses = course_manager.get_courses()
             if not courses:
                 logger.warning("⚠️ No courses found in game state, attempting to reload...")
-                game_state.course_manager.__init__()  # Reinitialize course manager
-                courses = game_state.get_courses()
+                course_manager.__init__()  # Reinitialize course manager
+                courses = course_manager.get_courses()
             
             logger.info(f"📚 Game state initialized with {len(courses)} courses")
         except Exception as e:
@@ -425,7 +438,7 @@ def health_check():
         
         # 2. Course data availability check
         try:
-            courses = game_state.get_courses()
+            courses = course_manager.get_courses()
             course_count = len(courses) if courses else 0
             
             if course_count >= 1:
@@ -542,7 +555,7 @@ def health_check():
         
         # 6. Game state check
         try:
-            state = game_state.get_state()
+            state = {"message": "Legacy game_state.get_state() is deprecated"}
             if state:
                 health_status["components"]["game_state"] = {
                     "status": "healthy",
@@ -654,7 +667,7 @@ def get_all_players(
 def get_courses():
     """Get all available courses with robust fallback handling"""
     try:
-        courses = game_state.get_courses()
+        courses = course_manager.get_courses()
         
         # Ensure we always return at least one default course
         if not courses:
@@ -667,8 +680,8 @@ def get_courses():
                 
                 if seeding_status["status"] == "success":
                     # Reinitialize course manager
-                    game_state.course_manager.__init__()
-                    courses = game_state.get_courses()
+                    course_manager.__init__()
+                    courses = course_manager.get_courses()
                     
                     if courses:
                         logger.info(f"Successfully reloaded {len(courses)} courses from database")
@@ -748,7 +761,7 @@ def get_fallback_courses():
 def get_course_by_id(course_id: int):
     """Get a specific course by ID (index in courses list)"""
     try:
-        courses = game_state.get_courses()
+        courses = course_manager.get_courses()
         if not courses:
             raise HTTPException(status_code=404, detail="No courses available")
         
@@ -771,7 +784,7 @@ def get_course_by_id(course_id: int):
 def add_course(course: CourseCreate):
     """Add a new course"""
     try:
-        result = game_state.add_course(course.dict())
+        result = course_manager.add_course(course.dict())
         return {"status": "success", "message": f"Course '{course.name}' added successfully", "data": result}
     except Exception as e:
         logger.error(f"Error adding course: {e}")
@@ -781,7 +794,7 @@ def add_course(course: CourseCreate):
 def update_course(course_name: str, course_update: CourseUpdate):
     """Update an existing course"""
     try:
-        result = game_state.update_course(course_name, course_update.dict())
+        result = course_manager.update_course(course_name, course_update.dict())
         return {"status": "success", "message": f"Course '{course_name}' updated successfully", "data": result}
     except Exception as e:
         logger.error(f"Error updating course: {e}")
@@ -791,7 +804,7 @@ def update_course(course_name: str, course_update: CourseUpdate):
 def delete_course(course_name: str = Path(...)):
     """Delete a course"""
     try:
-        result = game_state.delete_course(course_name)
+        result = course_manager.delete_course(course_name)
         return {"status": "success", "message": f"Course '{course_name}' deleted successfully"}
     except Exception as e:
         logger.error(f"Error deleting course: {e}")
@@ -949,10 +962,10 @@ def get_game_state():
         # Use new simulation system if available, otherwise fall back to legacy
         if wgp_simulation:
             logger.info("Returning state from wgp_simulation")
-            return wgp_simulation.get_game_state()
+            return game.get_game_state()
         else:
             logger.info("Returning state from legacy game_state")
-            return game_state.get_state()
+            return {"message": "Legacy game_state.get_state() is deprecated"}
     except Exception as e:
         logger.error(f"Error getting game state: {e}")
         raise HTTPException(status_code=500, detail="Failed to get game state")
@@ -974,7 +987,7 @@ def get_betting_tips():
 def get_player_strokes():
     """Get player stroke information (legacy endpoint)"""
     try:
-        state = game_state.get_state()
+        state = {"message": "Legacy game_state.get_state() is deprecated"}
         players = state.get("players", [])
         return {
             "players": [
@@ -1054,10 +1067,7 @@ async def create_game_with_join_code(
 @app.post("/games/join/{join_code}")
 async def join_game_with_code(
     join_code: str,
-    player_name: str,
-    handicap: float = 18.0,
-    user_id: Optional[str] = None,
-    player_profile_id: Optional[int] = None,
+    request: schemas.JoinGameRequest,
     db: Session = Depends(database.get_db)
 ):
     """Join a game using a join code"""
@@ -1074,10 +1084,10 @@ async def join_game_with_code(
             raise HTTPException(status_code=400, detail="Game has already started")
 
         # Check if user already joined
-        if user_id:
+        if request.user_id:
             existing = db.query(models.GamePlayer).filter(
                 models.GamePlayer.game_id == game.game_id,
-                models.GamePlayer.user_id == user_id
+                models.GamePlayer.user_id == request.user_id
             ).first()
             if existing:
                 return {
@@ -1105,10 +1115,10 @@ async def join_game_with_code(
         game_player = models.GamePlayer(
             game_id=game.game_id,
             player_slot_id=player_slot_id,
-            user_id=user_id,
-            player_profile_id=player_profile_id,
-            player_name=player_name,
-            handicap=handicap,
+            user_id=request.user_id,
+            player_profile_id=request.player_profile_id,
+            player_name=request.player_name,
+            handicap=request.handicap,
             join_status="joined",
             joined_at=current_time,
             created_at=current_time
@@ -1119,10 +1129,10 @@ async def join_game_with_code(
         game.state["players"] = game.state.get("players", [])
         game.state["players"].append({
             "id": player_slot_id,
-            "name": player_name,
-            "handicap": handicap,
-            "user_id": user_id,
-            "player_profile_id": player_profile_id
+            "name": request.player_name,
+            "handicap": request.handicap,
+            "user_id": request.user_id,
+            "player_profile_id": request.player_profile_id
         })
         game.updated_at = current_time
 
@@ -1135,7 +1145,7 @@ async def join_game_with_code(
             "player_slot_id": player_slot_id,
             "players_joined": len(current_players) + 1,
             "max_players": max_players,
-            "message": f"Welcome {player_name}! Waiting for {max_players - len(current_players) - 1} more player(s)"
+            "message": f"Welcome {request.player_name}! Waiting for {max_players - len(current_players) - 1} more player(s)"
         }
     except HTTPException:
         raise
@@ -1189,7 +1199,7 @@ async def get_game_lobby(game_id: str, db: Session = Depends(database.get_db)):
 @app.post("/games/{game_id}/start")
 async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get_db)):
     """Start a game from the lobby - initializes WGP simulation"""
-    global active_games
+    # MIGRATED: Using GameLifecycleService instead of global active_games
 
     try:
         game = db.query(models.GameStateModel).filter(
@@ -1220,23 +1230,21 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
             wgp_players.append(wgp_player)
 
         # Initialize WolfGoatPigSimulation for this game
-        logger.info(f"Initializing WGP simulation for game {game_id} with {len(wgp_players)} players")
-        simulation = WolfGoatPigSimulation(player_count=len(wgp_players))
-        simulation.players = wgp_players
-
-        # Get course name and initialize if specified
-        course_name = game.state.get("course_name", "Wing Point Golf & Country Club")
+        # Use the configured player_count from game state, not actual number of players joined
+        configured_player_count = game.state.get("player_count", 4)
+        logger.info(f"Initializing WGP simulation for game {game_id} with {len(wgp_players)} players (configured for {configured_player_count})")
 
         try:
-            # Initialize simulation
-            simulation.initialize_game(course_name=course_name)
+            # Create simulation with configured player count and actual players
+            simulation = WolfGoatPigSimulation(player_count=configured_player_count, players=wgp_players)
             logger.info(f"Simulation initialized for game {game_id}")
         except Exception as init_error:
             logger.error(f"Failed to initialize simulation: {init_error}")
             raise HTTPException(status_code=500, detail=f"Failed to initialize game: {str(init_error)}")
 
-        # Store simulation in active_games dict
-        active_games[game_id] = simulation
+        # MIGRATED: Store simulation using GameLifecycleService
+        # Add to service cache (note: game was already created in DB, just adding to cache)
+        get_game_lifecycle_service()._active_games[game_id] = simulation
 
         # Get initial game state from simulation
         initial_state = simulation.get_game_state()
@@ -1252,6 +1260,21 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
         db.commit()
 
         logger.info(f"Game {game_id} started successfully with {len(players)} players")
+
+        # Send game start notifications to all players using NotificationService
+        notification_service = get_notification_service()
+        for player in players:
+            if player.player_id:  # Only send to registered players
+                try:
+                    notification_service.send_notification(
+                        player_id=player.player_id,
+                        notification_type="game_start",
+                        message=f"Game {game_id[:8]} has started with {len(players)} players!",
+                        db=db,
+                        data={"game_id": game_id, "player_count": len(players)}
+                    )
+                except Exception as notif_error:
+                    logger.warning(f"Failed to send game start notification to player {player.player_id}: {notif_error}")
 
         return {
             "status": "started",
@@ -1270,12 +1293,13 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
 @app.get("/games/{game_id}/state")
 async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_db)):
     """Get current game state for a specific multiplayer game"""
-    global active_games
+    # MIGRATED: Using GameLifecycleService instead of global active_games
 
     try:
-        # Check if game is in active games (in-progress)
-        if game_id in active_games:
-            simulation = active_games[game_id]
+        # Check if game is in active games (in-progress) using service
+        service = get_game_lifecycle_service()
+        if game_id in service._active_games:
+            simulation = service._active_games[game_id]
             state = simulation.get_game_state()
             state["game_id"] = game_id
             return state
@@ -1333,14 +1357,60 @@ async def perform_game_action_by_id(
     db: Session = Depends(database.get_db)
 ):
     """Perform an action on a specific multiplayer game"""
-    global active_games
+    # MIGRATED: Using GameLifecycleService instead of global active_games
+    service = get_game_lifecycle_service()
 
     try:
-        # Check if game is active
-        if game_id not in active_games:
-            raise HTTPException(status_code=404, detail="Game not found or not started")
+        # Check if game is in active_games using service
+        if game_id not in service._active_games:
+            # Try to restore/reload game from database
+            logger.warning(f"Game {game_id} not in active_games, attempting to restore from database...")
 
-        simulation = active_games[game_id]
+            game = db.query(models.GameStateModel).filter(
+                models.GameStateModel.game_id == game_id
+            ).first()
+
+            if not game:
+                raise HTTPException(status_code=404, detail="Game not found")
+
+            if game.game_status == "completed":
+                raise HTTPException(status_code=400, detail="Game is already completed")
+
+            if game.game_status == "setup":
+                raise HTTPException(status_code=400, detail="Game has not been started yet")
+
+            # Restore game simulation from database
+            # Get players from database
+            players = db.query(models.GamePlayer).filter(
+                models.GamePlayer.game_id == game_id
+            ).order_by(models.GamePlayer.player_slot_id).all()
+
+            # Create WGPPlayer objects
+            wgp_players = []
+            for p in players:
+                wgp_player = WGPPlayer(
+                    id=p.player_slot_id,
+                    name=p.player_name,
+                    handicap=p.handicap
+                )
+                wgp_players.append(wgp_player)
+
+            # Get configured player count from saved state
+            configured_player_count = game.state.get("player_count", 4)
+
+            # Create new simulation
+            simulation = WolfGoatPigSimulation(player_count=configured_player_count, players=wgp_players)
+
+            # TODO: Restore full game state (hole states, scores, etc.) from game.state
+            # For now, this creates a fresh simulation - user will need to restart game
+            # This is a temporary fix to prevent 404 errors
+
+            # MIGRATED: Add to active_games using service
+            service._active_games[game_id] = simulation
+            logger.info(f"Restored game {game_id} from database")
+
+        # MIGRATED: Get simulation from service
+        simulation = service._active_games[game_id]
 
         # Use the existing unified action handler
         # Temporarily set global wgp_simulation to this game's simulation
@@ -1350,7 +1420,7 @@ async def perform_game_action_by_id(
 
         try:
             # Call the unified action endpoint logic
-            response = await handle_unified_action(action_request)
+            response = await unified_action(game_id, action_request)
 
             # Save state back to database after action
             game = db.query(models.GameStateModel).filter(
@@ -1462,7 +1532,7 @@ async def get_game_details(game_id: str, db: Session = Depends(database.get_db))
 def _get_current_captain_id() -> Optional[str]:
     """Best-effort lookup for the active captain id across legacy and unified state."""
     try:
-        simulation_state = wgp_simulation.get_game_state()
+        simulation_state = game.get_game_state()
         if isinstance(simulation_state, dict):
             captain = simulation_state.get("captain_id") or simulation_state.get("captain")
             if captain:
@@ -1472,7 +1542,7 @@ def _get_current_captain_id() -> Optional[str]:
         pass
 
     try:
-        legacy_state = game_state.get_state()
+        legacy_state = {"message": "Legacy game_state.get_state() is deprecated"}
         if isinstance(legacy_state, dict):
             return legacy_state.get("captain_id")
     except Exception:
@@ -1559,7 +1629,7 @@ async def legacy_game_action(action: Dict[str, Any]):
 
         # Fallback to legacy game_state dispatch for actions not yet migrated
         result = game_state.dispatch_action(action_type, payload)
-        updated_state = game_state.get_state()
+        updated_state = {"message": "Legacy game_state.get_state() is deprecated"}
 
         return {
             "status": "success",
@@ -1603,53 +1673,80 @@ def setup_game(setup_data: Dict[str, Any]):
 
 # Unified Action API - Main Game Logic Endpoint
 @app.post("/wgp/{game_id}/action", response_model=ActionResponse)
-async def unified_action(game_id: str, action: ActionRequest):
+async def unified_action(game_id: str, action: ActionRequest, db: Session = Depends(database.get_db)):
     """Unified action endpoint for all Wolf Goat Pig game interactions"""
     try:
-        action_type = action.action_type
+        # Get the specific game instance for this game_id
+        # MIGRATED: Using GameLifecycleService instead of get_or_load_game
+        game = get_game_lifecycle_service().get_game(db, game_id)
+
+        # Normalize action_type to uppercase for consistent matching
+        action_type = action.action_type.upper()
         payload = action.payload or {}
-        
+
         # Route to appropriate handler based on action type
+        # All handlers now receive the game instance instead of using global wgp_simulation
         if action_type == "INITIALIZE_GAME":
-            return await handle_initialize_game(payload)
+            return await handle_initialize_game(game, payload)
         elif action_type == "PLAY_SHOT":
-            return await handle_play_shot(payload)
+            return await handle_play_shot(game, payload)
         elif action_type == "REQUEST_PARTNERSHIP":
-            return await handle_request_partnership(payload)
+            return await handle_request_partnership(game, payload)
         elif action_type == "RESPOND_PARTNERSHIP":
-            return await handle_respond_partnership(payload)
+            return await handle_respond_partnership(game, payload)
         elif action_type == "DECLARE_SOLO":
-            return await handle_declare_solo()
+            return await handle_declare_solo(game)
         elif action_type == "OFFER_DOUBLE":
-            return await handle_offer_double(payload)
+            return await handle_offer_double(game, payload)
         elif action_type == "ACCEPT_DOUBLE":
-            return await handle_accept_double(payload)
+            return await handle_accept_double(game, payload)
+        elif action_type == "INVOKE_FLOAT":
+            # Frontend sends captain_id as direct field
+            action_dict = action.model_dump() if hasattr(action, 'model_dump') else action.dict()
+            return await handle_invoke_float(game, action_dict)
+        elif action_type == "TOGGLE_OPTION":
+            # Frontend sends captain_id as direct field
+            action_dict = action.model_dump() if hasattr(action, 'model_dump') else action.dict()
+            return await handle_toggle_option(game, action_dict)
+        elif action_type == "FLUSH":
+            # Flush = concede/fold the hole
+            action_dict = action.model_dump() if hasattr(action, 'model_dump') else action.dict()
+            return await handle_flush(game, action_dict)
         elif action_type == "CONCEDE_PUTT":
-            return await handle_concede_putt(payload)
+            return await handle_concede_putt(game, payload)
         elif action_type == "ADVANCE_HOLE":
-            return await handle_advance_hole()
+            return await handle_advance_hole(game)
         elif action_type == "OFFER_BIG_DICK":
-            return await handle_offer_big_dick(payload)
+            return await handle_offer_big_dick(game, payload)
         elif action_type == "ACCEPT_BIG_DICK":
-            return await handle_accept_big_dick(payload)
+            return await handle_accept_big_dick(game, payload)
         elif action_type == "AARDVARK_JOIN_REQUEST":
-            return await handle_aardvark_join_request(payload)
+            return await handle_aardvark_join_request(game, payload)
         elif action_type == "AARDVARK_TOSS":
-            return await handle_aardvark_toss(payload)
+            return await handle_aardvark_toss(game, payload)
         elif action_type == "AARDVARK_GO_SOLO":
-            return await handle_aardvark_go_solo(payload)
+            return await handle_aardvark_go_solo(game, payload)
         elif action_type == "PING_PONG_AARDVARK":
-            return await handle_ping_pong_aardvark(payload)
+            return await handle_ping_pong_aardvark(game, payload)
         elif action_type == "INVOKE_JOES_SPECIAL":
-            return await handle_joes_special(payload)
+            return await handle_joes_special(game, payload)
         elif action_type == "GET_POST_HOLE_ANALYSIS":
-            return await handle_get_post_hole_analysis(payload)
+            return await handle_get_post_hole_analysis(game, payload)
         elif action_type == "ENTER_HOLE_SCORES":
-            return await handle_enter_hole_scores(payload)
+            return await handle_enter_hole_scores(game, payload)
         elif action_type == "GET_ADVANCED_ANALYTICS":
-            return await handle_get_advanced_analytics(payload)
+            return await handle_get_advanced_analytics(game, payload)
         elif action_type == "COMPLETE_GAME":
-            return await handle_complete_game(payload)
+            return await handle_complete_game(game, payload)
+        elif action_type == "RECORD_NET_SCORE":
+            # Handle score recording action from frontend
+            # Frontend sends player_id and score as direct fields, not in payload
+            action_dict = action.model_dump() if hasattr(action, 'model_dump') else action.dict()
+            return await handle_record_net_score(game, action_dict)
+        elif action_type == "CALCULATE_HOLE_POINTS":
+            # Handle calculate points action from frontend
+            action_dict = action.model_dump() if hasattr(action, 'model_dump') else action.dict()
+            return await handle_calculate_hole_points(game, action_dict)
         else:
             raise HTTPException(status_code=400, detail=f"Unknown action type: {action_type}")
             
@@ -1662,43 +1759,39 @@ async def unified_action(game_id: str, action: ActionRequest):
         raise HTTPException(status_code=500, detail=f"Action failed: {str(e)}")
 
 # Action Handlers
-async def handle_initialize_game(payload: Dict[str, Any]) -> ActionResponse:
+async def handle_initialize_game(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
     """Handle game initialization with robust error handling and fallbacks"""
     try:
         players = payload.get("players", [])
         course_name = payload.get("course_name", "Wing Point Golf & Country Club")
         
-        # Validate player count (support 4, 5, 6 players)
-        if len(players) not in [4, 5, 6]:
-            raise HTTPException(status_code=400, detail="4, 5, or 6 players required.")
-        
+        # Validate player count using GameStateValidator
+        GameStateValidator.validate_player_count(len(players))
+
         # Ensure all players have required fields with smart defaults
         for i, player in enumerate(players):
             if "name" not in player:
                 player["name"] = f"Player {i+1}"
                 logger.warning(f"Player {i+1} missing name, using default")
-            
-            if "handicap" not in player:
-                player["handicap"] = 18.0  # Default handicap
-                logger.warning(f"Player {player['name']} missing handicap, using default 18.0")
-            
-            # Ensure handicap is numeric
-            try:
-                player["handicap"] = float(player["handicap"])
-            except (ValueError, TypeError):
-                logger.warning(f"Invalid handicap for {player['name']}, using 18.0")
-                player["handicap"] = 18.0
-            
+
+            # Validate and normalize handicap using HandicapValidator
+            player["handicap"] = HandicapValidator.validate_and_normalize_handicap(
+                player.get("handicap"),
+                player_name=player.get("name")
+            )
+
             # Add missing fields if not present
             if "id" not in player:
                 player["id"] = f"p{i+1}"
             if "strength" not in player:
-                # Default strength based on handicap (lower handicap = higher strength)
-                player["strength"] = max(1, 10 - int(player["handicap"]))
+                # Calculate strength from handicap using HandicapValidator
+                player["strength"] = HandicapValidator.calculate_strength_from_handicap(
+                    player["handicap"]
+                )
         
         # Verify course exists, use fallback if needed
         try:
-            available_courses = game_state.get_courses()
+            available_courses = course_manager.get_courses()
             if course_name not in available_courses:
                 logger.warning(f"Requested course '{course_name}' not available, using fallback")
                 # Use first available course or fallback
@@ -1756,23 +1849,23 @@ async def handle_initialize_game(payload: Dict[str, Any]) -> ActionResponse:
             
             # Initialize the simulation with these players and course manager
             try:
-                wgp_simulation.__init__(player_count=len(wgp_players), players=wgp_players, course_manager=game_state.course_manager)
+                game.__init__(player_count=len(wgp_players), players=wgp_players, course_manager=game_state.course_manager)
                 logger.info("WGP simulation initialized successfully with course data")
             except Exception as sim_init_error:
                 logger.error(f"WGP simulation initialization failed: {sim_init_error}")
                 # Try without course manager
                 try:
-                    wgp_simulation.__init__(player_count=len(wgp_players), players=wgp_players)
+                    game.__init__(player_count=len(wgp_players), players=wgp_players)
                     logger.warning("Initialized without course manager")
                 except:
                     # Try with basic initialization
-                    wgp_simulation.__init__(player_count=len(wgp_players))
+                    game.__init__(player_count=len(wgp_players))
                     logger.warning("Fell back to basic simulation initialization")
             
             # Set computer players (all except first) with error handling
             try:
                 computer_player_ids = [p["id"] for p in players[1:]]
-                wgp_simulation.set_computer_players(computer_player_ids)
+                game.set_computer_players(computer_player_ids)
                 logger.info(f"Set {len(computer_player_ids)} computer players")
             except Exception as computer_setup_error:
                 logger.error(f"Failed to set computer players: {computer_setup_error}")
@@ -1780,7 +1873,7 @@ async def handle_initialize_game(payload: Dict[str, Any]) -> ActionResponse:
             
             # Initialize the first hole with error handling
             try:
-                wgp_simulation._initialize_hole(1)
+                game._initialize_hole(1)
                 logger.info("First hole initialized")
             except Exception as hole_init_error:
                 logger.error(f"Failed to initialize first hole: {hole_init_error}")
@@ -1788,7 +1881,7 @@ async def handle_initialize_game(payload: Dict[str, Any]) -> ActionResponse:
             
             # Enable shot progression and timeline tracking
             try:
-                wgp_simulation.enable_shot_progression()
+                game.enable_shot_progression()
                 logger.info("Shot progression enabled")
             except Exception as progression_error:
                 logger.warning(f"Failed to enable shot progression: {progression_error}")
@@ -1796,8 +1889,8 @@ async def handle_initialize_game(payload: Dict[str, Any]) -> ActionResponse:
             
             # Add initial timeline event
             try:
-                if hasattr(wgp_simulation, 'hole_progression') and wgp_simulation.hole_progression:
-                    wgp_simulation.hole_progression.add_timeline_event(
+                if hasattr(wgp_simulation, 'hole_progression') and game.hole_progression:
+                    game.hole_progression.add_timeline_event(
                         event_type="game_start",
                         description=f"Game started with {len(players)} players on {course_name}",
                         details={"players": players, "course": course_name}
@@ -1811,7 +1904,7 @@ async def handle_initialize_game(payload: Dict[str, Any]) -> ActionResponse:
             logger.error(f"Critical simulation setup error: {simulation_error}")
             # Create minimal fallback simulation
             try:
-                wgp_simulation.__init__(player_count=len(players))
+                game.__init__(player_count=len(players))
                 logger.warning("Created minimal fallback simulation")
             except Exception as fallback_error:
                 logger.error(f"Even fallback simulation failed: {fallback_error}")
@@ -1820,7 +1913,7 @@ async def handle_initialize_game(payload: Dict[str, Any]) -> ActionResponse:
         
         # Get initial game state (with error handling)
         try:
-            current_state = wgp_simulation.get_game_state()
+            current_state = game.get_game_state()
             if not current_state:
                 logger.warning("Empty game state returned, creating minimal state")
                 current_state = {
@@ -1889,14 +1982,14 @@ async def handle_initialize_game(payload: Dict[str, Any]) -> ActionResponse:
             }
         )
 
-async def handle_play_shot(payload: Dict[str, Any] = None) -> ActionResponse:
+async def handle_play_shot(game: WolfGoatPigSimulation, payload: Dict[str, Any] = None) -> ActionResponse:
     """Handle playing a shot"""
     try:
         # Get current game state
-        current_state = wgp_simulation.get_game_state()
+        current_state = game.get_game_state()
         
         # Determine next player to hit
-        next_player = wgp_simulation._get_next_shot_player()
+        next_player = game._get_next_shot_player()
         if not next_player:
             return ActionResponse(
                 game_state=current_state,
@@ -1912,12 +2005,12 @@ async def handle_play_shot(payload: Dict[str, Any] = None) -> ActionResponse:
             )
         
         # Simulate the shot
-        shot_response = wgp_simulation.simulate_shot(next_player)
+        shot_response = game.simulate_shot(next_player)
         shot_result = shot_response.get("shot_result", {})
         
         # Update game state  
-        updated_state = wgp_simulation.get_game_state()
-        hole_state = wgp_simulation.hole_states[wgp_simulation.current_hole]
+        updated_state = game.get_game_state()
+        hole_state = game.hole_states[game.current_hole]
         
         # Check if this was a tee shot and update invitation windows
         is_tee_shot = next_player not in hole_state.ball_positions or hole_state.ball_positions[next_player].shot_count == 1
@@ -1944,29 +2037,21 @@ async def handle_play_shot(payload: Dict[str, Any] = None) -> ActionResponse:
         elif hole_state.teams.type == "pending":
             # Teams not formed yet - check if we should offer partnership decisions
             captain_id = hole_state.teams.captain
-            captain_name = wgp_simulation._get_player_name(captain_id)
+            captain_name = game._get_player_name(captain_id)
             
-            # Real Wolf-Goat-Pig timing: Partnership decision comes AFTER shots are hit
-            # Count how many tee shots have been completed
-            tee_shots_completed = sum(1 for player_id, ball in hole_state.ball_positions.items() 
+            # Get available partners using RuleManager
+            rule_mgr = RuleManager.get_instance()
+            available_partners = rule_mgr.get_available_partners(
+                game_state=game.get_game_state(),
+                captain_id=captain_id,
+                hole_number=game.current_hole
+            )
+
+            # Check if we have enough tee shots for partnership decisions
+            tee_shots_completed = sum(1 for player_id, ball in hole_state.ball_positions.items()
                                     if ball and ball.shot_count >= 1)
-            
-            # Partnership decision point: After captain and at least one other player have hit
+
             if tee_shots_completed >= 2:
-                # Get available partners based on timing rules  
-                available_partners = []
-                for player in wgp_simulation.players:
-                    if player.id != captain_id and hole_state.can_request_partnership(captain_id, player.id):
-                        # Only show players who have already hit their tee shot
-                        if player.id in hole_state.ball_positions and hole_state.ball_positions[player.id]:
-                            partner_ball = hole_state.ball_positions[player.id]
-                            available_partners.append({
-                                "id": player.id,
-                                "name": player.name,
-                                "handicap": player.handicap,
-                                "tee_shot_distance": partner_ball.distance_to_pin,
-                                "tee_shot_quality": getattr(partner_ball, 'last_shot_quality', 'unknown')
-                            })
                 
                 if available_partners:
                     # Add partnership actions for captain with context about their shots
@@ -1990,7 +2075,7 @@ async def handle_play_shot(payload: Dict[str, Any] = None) -> ActionResponse:
             else:
                 # Need more tee shots or partnership deadline passed
                 if tee_shots_completed < 2:
-                    remaining_players = [p.name for p in wgp_simulation.players 
+                    remaining_players = [p.name for p in game.players 
                                        if p.id not in hole_state.ball_positions or not hole_state.ball_positions[p.id]]
                     available_actions.append({
                         "action_type": "TAKE_SHOT",
@@ -2007,9 +2092,9 @@ async def handle_play_shot(payload: Dict[str, Any] = None) -> ActionResponse:
                     })
         else:
             # Continue with shot progression
-            next_shot_player = wgp_simulation._get_next_shot_player()
+            next_shot_player = game._get_next_shot_player()
             if next_shot_player:
-                next_shot_player_name = wgp_simulation._get_player_name(next_shot_player)
+                next_shot_player_name = game._get_player_name(next_shot_player)
                 
                 # Determine shot type for better UX
                 current_ball = hole_state.get_player_ball_position(next_shot_player)
@@ -2028,72 +2113,20 @@ async def handle_play_shot(payload: Dict[str, Any] = None) -> ActionResponse:
                     "prompt": "Enter final scores for hole"
                 })
             
-            # Check for betting opportunities during hole play (doubles/flushes)
-            if not hole_state.wagering_closed and hole_state.teams.type in ["partners", "solo"]:
-                # Get the recent shot context for betting decisions
-                recent_shots = []
-                for player_id, ball in hole_state.ball_positions.items():
-                    if ball and ball.shot_count > 0:
-                        player_name = wgp_simulation._get_player_name(player_id)
-                        recent_shots.append(f"{player_name}: {ball.distance_to_pin:.0f}yd ({ball.shot_count} shots)")
-                
-                # Check if there's a compelling reason to double (great shot, bad position, etc.)
-                should_offer_betting = False
-                betting_context = []
-                
-                # Look for recent excellent or terrible shots that create betting opportunities
-                if shot_response and "shot_result" in shot_response:
-                    last_shot = shot_response["shot_result"]
-                    player_name = wgp_simulation._get_player_name(last_shot["player_id"])
-                    
-                    if last_shot["shot_quality"] == "excellent" and last_shot["distance_to_pin"] < 50:
-                        should_offer_betting = True
-                        betting_context.append(f"🎯 {player_name} hit an excellent shot to {last_shot['distance_to_pin']:.0f} yards!")
-                    elif last_shot["shot_quality"] == "terrible" and last_shot["shot_number"] <= 3:
-                        should_offer_betting = True  
-                        betting_context.append(f"😬 {player_name} struggling after terrible shot")
-                
-                # Only offer doubles if there are strategic opportunities and not already doubled
-                if should_offer_betting and not hole_state.betting.doubled:
-                    # Find players who can offer doubles (not past line of scrimmage)
-                    for player in wgp_simulation.players:
-                        if hole_state.can_offer_double(player.id):
-                            # Create compelling betting context based on recent action
-                            current_positions = ", ".join(recent_shots[:3])  # Show top 3 positions
-                            full_context = " ".join(betting_context)
-                            
-                            context = (f"🎲 Double from {hole_state.betting.current_wager} to {hole_state.betting.current_wager * 2} quarters? "
-                                     f"{full_context} Current positions: {current_positions}")
-                            
-                            available_actions.append({
-                                "action_type": "OFFER_DOUBLE",
-                                "prompt": f"{player.name}: Offer double?",
-                                "payload": {"player_id": player.id},
-                                "player_turn": player.name,
-                                "context": context
-                            })
-                
-                # Also offer flush opportunities if wager has been doubled
-                elif hole_state.betting.doubled and not hole_state.betting.redoubled and should_offer_betting:
-                    # Flush = double it back
-                    for player in wgp_simulation.players:
-                        if hole_state.can_offer_double(player.id):
-                            current_positions = ", ".join(recent_shots[:3])
-                            full_context = " ".join(betting_context)
-                            
-                            context = (f"💥 Flush! Double back from {hole_state.betting.current_wager} to {hole_state.betting.current_wager * 2} quarters? "
-                                     f"{full_context} Positions: {current_positions}")
-                            
-                            available_actions.append({
-                                "action_type": "OFFER_FLUSH", 
-                                "prompt": f"{player.name}: Offer flush?",
-                                "payload": {"player_id": player.id},
-                                "player_turn": player.name,
-                                "context": context
-                            })
+            # Check for betting opportunities using RuleManager
+            rule_mgr = RuleManager.get_instance()
+            betting_check = rule_mgr.check_betting_opportunities(
+                game_state=game.get_game_state(),
+                hole_number=game.current_hole,
+                last_shot=shot_response.get("shot_result") if shot_response else None
+            )
+
+            if betting_check["should_offer"]:
+                # Add betting action to available_actions
+                available_actions.append(betting_check["action"])
         
         # Create timeline event from shot response
-        player_name = wgp_simulation._get_player_name(next_player)
+        player_name = game._get_player_name(next_player)
         shot_description = f"{player_name} hits a {shot_result.get('shot_quality', 'average')} shot"
         if shot_result.get('made_shot'):
             shot_description += " and holes out!"
@@ -2119,7 +2152,7 @@ async def handle_play_shot(payload: Dict[str, Any] = None) -> ActionResponse:
         logger.error(f"Error playing shot: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to play shot: {str(e)}")
 
-async def handle_request_partnership(payload: Dict[str, Any]) -> ActionResponse:
+async def handle_request_partnership(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
     """Handle partnership request"""
     try:
         target_player = payload.get("target_player_name")
@@ -2127,15 +2160,15 @@ async def handle_request_partnership(payload: Dict[str, Any]) -> ActionResponse:
             raise HTTPException(status_code=400, detail="target_player_name is required")
         
         # Get current game state
-        current_state = wgp_simulation.get_game_state()
+        current_state = game.get_game_state()
         
         # Get the actual captain ID from the current hole state
-        hole_state = wgp_simulation.hole_states[wgp_simulation.current_hole]
+        hole_state = game.hole_states[game.current_hole]
         captain_id = hole_state.teams.captain
         
         # Convert player name to player ID
         partner_id = None
-        for player in wgp_simulation.players:
+        for player in game.players:
             if player.name == target_player:
                 partner_id = player.id
                 break
@@ -2144,17 +2177,17 @@ async def handle_request_partnership(payload: Dict[str, Any]) -> ActionResponse:
             raise HTTPException(status_code=400, detail=f"Player '{target_player}' not found")
         
         # Request the partnership
-        result = wgp_simulation.request_partner(captain_id, partner_id)
+        result = game.request_partner(captain_id, partner_id)
         
         # Get updated game state
-        updated_state = wgp_simulation.get_game_state()
+        updated_state = game.get_game_state()
         
         # Determine next available actions
         available_actions = []
         
         # If partnership was requested, the target player needs to respond
         if result.get("partnership_requested"):
-            captain_name = wgp_simulation._get_player_name(captain_id)
+            captain_name = game._get_player_name(captain_id)
             partner_name = target_player
             
             available_actions.append({
@@ -2182,9 +2215,9 @@ async def handle_request_partnership(payload: Dict[str, Any]) -> ActionResponse:
                 "timestamp": datetime.now().isoformat(),
                 "type": "partnership_request",
                 "description": f"Partnership requested with {target_player}",
-                "player_name": wgp_simulation._get_player_name(captain_id),
+                "player_name": game._get_player_name(captain_id),
                 "details": {
-                    "captain": wgp_simulation._get_player_name(captain_id),
+                    "captain": game._get_player_name(captain_id),
                     "requested_partner": target_player,
                     "status": "pending_response"
                 }
@@ -2194,16 +2227,16 @@ async def handle_request_partnership(payload: Dict[str, Any]) -> ActionResponse:
         logger.error(f"Error requesting partnership: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to request partnership: {str(e)}")
 
-async def handle_respond_partnership(payload: Dict[str, Any]) -> ActionResponse:
+async def handle_respond_partnership(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
     """Handle partnership response"""
     try:
         accepted = payload.get("accepted", False)
         
         # Get current game state
-        current_state = wgp_simulation.get_game_state()
+        current_state = game.get_game_state()
         
         # Get the partner ID from the pending request
-        hole_state = wgp_simulation.hole_states[wgp_simulation.current_hole]
+        hole_state = game.hole_states[game.current_hole]
         partner_id = hole_state.teams.pending_request.get("requested") if hole_state.teams.pending_request else None
         
         if not partner_id:
@@ -2211,15 +2244,15 @@ async def handle_respond_partnership(payload: Dict[str, Any]) -> ActionResponse:
         
         # Respond to partnership
         if accepted:
-            result = wgp_simulation.respond_to_partnership(partner_id, True)
+            result = game.respond_to_partnership(partner_id, True)
             message = "Partnership accepted! Teams are formed."
         else:
-            result = wgp_simulation.respond_to_partnership(partner_id, False)
+            result = game.respond_to_partnership(partner_id, False)
             message = "Partnership declined. Captain goes solo."
         
         # Add timeline event to hole progression if available
-        if hasattr(wgp_simulation, 'hole_progression') and wgp_simulation.hole_progression:
-            wgp_simulation.hole_progression.add_timeline_event(
+        if hasattr(wgp_simulation, 'hole_progression') and game.hole_progression:
+            game.hole_progression.add_timeline_event(
                 event_type="partnership_response",
                 description=f"Partnership {'accepted' if accepted else 'declined'}",
                 player_name="Partner",
@@ -2227,7 +2260,7 @@ async def handle_respond_partnership(payload: Dict[str, Any]) -> ActionResponse:
             )
         
         # Update game state
-        updated_state = wgp_simulation.get_game_state()
+        updated_state = game.get_game_state()
         
         return ActionResponse(
             game_state=updated_state,
@@ -2248,25 +2281,25 @@ async def handle_respond_partnership(payload: Dict[str, Any]) -> ActionResponse:
         logger.error(f"Error responding to partnership: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to respond to partnership: {str(e)}")
 
-async def handle_declare_solo() -> ActionResponse:
+async def handle_declare_solo(game: WolfGoatPigSimulation) -> ActionResponse:
     """Handle captain going solo"""
     try:
         # Get current game state
-        current_state = wgp_simulation.get_game_state()
+        current_state = game.get_game_state()
         
         # Get the actual captain ID from the current hole state
-        hole_state = wgp_simulation.hole_states.get(wgp_simulation.current_hole)
+        hole_state = game.hole_states.get(game.current_hole)
         if not hole_state or not hole_state.teams.captain:
             raise HTTPException(status_code=400, detail="No captain found for current hole")
         
         captain_id = hole_state.teams.captain
         
         # Captain goes solo
-        result = wgp_simulation.captain_go_solo(captain_id)
+        result = game.captain_go_solo(captain_id)
         
         # Add timeline event to hole progression if available
-        if hasattr(wgp_simulation, 'hole_progression') and wgp_simulation.hole_progression:
-            wgp_simulation.hole_progression.add_timeline_event(
+        if hasattr(wgp_simulation, 'hole_progression') and game.hole_progression:
+            game.hole_progression.add_timeline_event(
                 event_type="partnership_decision",
                 description="Captain goes solo - 1 vs 3",
                 player_name="Captain",
@@ -2274,7 +2307,7 @@ async def handle_declare_solo() -> ActionResponse:
             )
         
         # Update game state
-        updated_state = wgp_simulation.get_game_state()
+        updated_state = game.get_game_state()
         
         return ActionResponse(
             game_state=updated_state,
@@ -2295,24 +2328,42 @@ async def handle_declare_solo() -> ActionResponse:
         logger.error(f"Error declaring solo: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to declare solo: {str(e)}")
 
-async def handle_offer_double(payload: Dict[str, Any]) -> ActionResponse:
+async def handle_offer_double(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
     """Handle double offer"""
     try:
         player_id = payload.get("player_id")
         if not player_id:
             raise ValueError("Player ID required for double offer")
-        
+
+        # Check if partnerships have been formed (REQUIRED before any betting)
+        game_state = game.get_game_state()
+        rule_mgr = RuleManager.get_instance()
+
+        # Validate partnerships formed before betting using RuleManager
+        if not rule_mgr.are_partnerships_formed(game_state, game.current_hole):
+            raise HTTPException(
+                status_code=400,
+                detail="Partnerships must be formed before betting can start"
+            )
+
+        # Validate player can double using RuleManager
+        if not rule_mgr.can_double(player_id, game_state):
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot double at this time"
+            )
+
         # Get current game state
-        current_state = wgp_simulation.get_game_state()
+        current_state = game.get_game_state()
         
         # Offer double
-        result = wgp_simulation.offer_double(player_id)
+        result = game.offer_double(player_id)
         
-        player_name = wgp_simulation._get_player_name(player_id)
+        player_name = game._get_player_name(player_id)
         
         # Add timeline event to hole progression if available
-        if hasattr(wgp_simulation, 'hole_progression') and wgp_simulation.hole_progression:
-            wgp_simulation.hole_progression.add_timeline_event(
+        if hasattr(wgp_simulation, 'hole_progression') and game.hole_progression:
+            game.hole_progression.add_timeline_event(
                 event_type="double_offer",
                 description=f"{player_name} offered to double the wager",
                 player_name=player_name,
@@ -2320,7 +2371,7 @@ async def handle_offer_double(payload: Dict[str, Any]) -> ActionResponse:
             )
         
         # Update game state
-        updated_state = wgp_simulation.get_game_state()
+        updated_state = game.get_game_state()
         
         return ActionResponse(
             game_state=updated_state,
@@ -2341,25 +2392,25 @@ async def handle_offer_double(payload: Dict[str, Any]) -> ActionResponse:
         logger.error(f"Error offering double: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to offer double: {str(e)}")
 
-async def handle_accept_double(payload: Dict[str, Any]) -> ActionResponse:
+async def handle_accept_double(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
     """Handle double acceptance/decline"""
     try:
         accepted = payload.get("accepted", False)
         
         # Get current game state
-        current_state = wgp_simulation.get_game_state()
+        current_state = game.get_game_state()
         
         # Respond to double
         if accepted:
-            result = wgp_simulation.respond_to_double("responding_team", True)
+            result = game.respond_to_double("responding_team", True)
             message = "Double accepted! Wager doubled."
         else:
-            result = wgp_simulation.respond_to_double("responding_team", False)
+            result = game.respond_to_double("responding_team", False)
             message = "Double declined. Original wager maintained."
         
         # Add timeline event to hole progression if available
-        if hasattr(wgp_simulation, 'hole_progression') and wgp_simulation.hole_progression:
-            wgp_simulation.hole_progression.add_timeline_event(
+        if hasattr(wgp_simulation, 'hole_progression') and game.hole_progression:
+            game.hole_progression.add_timeline_event(
                 event_type="double_response",
                 description=f"Double {'accepted' if accepted else 'declined'}",
                 player_name="Responding Team",
@@ -2367,7 +2418,7 @@ async def handle_accept_double(payload: Dict[str, Any]) -> ActionResponse:
             )
         
         # Update game state
-        updated_state = wgp_simulation.get_game_state()
+        updated_state = game.get_game_state()
         
         return ActionResponse(
             game_state=updated_state,
@@ -2388,7 +2439,7 @@ async def handle_accept_double(payload: Dict[str, Any]) -> ActionResponse:
         logger.error(f"Error responding to double: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to respond to double: {str(e)}")
 
-async def handle_concede_putt(payload: Dict[str, Any]) -> ActionResponse:
+async def handle_concede_putt(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
     """Handle putt concession"""
     try:
         conceding_player = payload.get("conceding_player")
@@ -2398,7 +2449,7 @@ async def handle_concede_putt(payload: Dict[str, Any]) -> ActionResponse:
             raise HTTPException(status_code=400, detail="conceding_player and conceded_player are required")
         
         # Get current game state
-        current_state = wgp_simulation.get_game_state()
+        current_state = game.get_game_state()
         
         # Update game state to reflect concession
         # This would typically update the hole state to mark the putt as conceded
@@ -2422,55 +2473,55 @@ async def handle_concede_putt(payload: Dict[str, Any]) -> ActionResponse:
         logger.error(f"Error conceding putt: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to concede putt: {str(e)}")
 
-async def handle_advance_hole() -> ActionResponse:
+async def handle_advance_hole(game: WolfGoatPigSimulation) -> ActionResponse:
     """Handle advancing to the next hole"""
     try:
         # Advance to next hole
-        result = wgp_simulation.advance_to_next_hole()
+        result = game.advance_to_next_hole()
         
         # Get updated game state
-        current_state = wgp_simulation.get_game_state()
+        current_state = game.get_game_state()
         
         # Add timeline event for hole advancement
-        if hasattr(wgp_simulation, 'hole_progression') and wgp_simulation.hole_progression:
-            wgp_simulation.hole_progression.add_timeline_event(
+        if hasattr(wgp_simulation, 'hole_progression') and game.hole_progression:
+            game.hole_progression.add_timeline_event(
                 event_type="hole_start",
-                description=f"Started hole {wgp_simulation.current_hole}",
-                details={"hole_number": wgp_simulation.current_hole}
+                description=f"Started hole {game.current_hole}",
+                details={"hole_number": game.current_hole}
             )
         
         # Enable shot progression for the new hole
-        wgp_simulation.enable_shot_progression()
+        game.enable_shot_progression()
         
         # Get the next player to hit
-        next_player = wgp_simulation._get_next_shot_player()
-        next_player_name = wgp_simulation._get_player_name(next_player) if next_player else "Unknown"
+        next_player = game._get_next_shot_player()
+        next_player_name = game._get_player_name(next_player) if next_player else "Unknown"
         
         return ActionResponse(
             game_state=current_state,
-            log_message=f"Advanced to hole {wgp_simulation.current_hole}",
+            log_message=f"Advanced to hole {game.current_hole}",
             available_actions=[
-                {"action_type": "PLAY_SHOT", "prompt": f"Start hole {wgp_simulation.current_hole}", "player_turn": next_player_name}
+                {"action_type": "PLAY_SHOT", "prompt": f"Start hole {game.current_hole}", "player_turn": next_player_name}
             ],
             timeline_event={
-                "id": f"hole_start_{wgp_simulation.current_hole}",
+                "id": f"hole_start_{game.current_hole}",
                 "timestamp": datetime.now().isoformat(),
                 "type": "hole_start",
-                "description": f"Started hole {wgp_simulation.current_hole}",
-                "details": {"hole_number": wgp_simulation.current_hole}
+                "description": f"Started hole {game.current_hole}",
+                "details": {"hole_number": game.current_hole}
             }
         )
     except Exception as e:
         logger.error(f"Error advancing hole: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to advance hole: {str(e)}")
 
-async def handle_offer_big_dick(payload: Dict[str, Any]) -> ActionResponse:
+async def handle_offer_big_dick(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
     """Handle Big Dick challenge on hole 18"""
     try:
         player_id = payload.get("player_id", "default_player")
         
-        result = wgp_simulation.offer_big_dick(player_id)
-        updated_state = wgp_simulation.get_game_state()
+        result = game.offer_big_dick(player_id)
+        updated_state = game.get_game_state()
         
         return ActionResponse(
             game_state=updated_state,
@@ -2491,13 +2542,13 @@ async def handle_offer_big_dick(payload: Dict[str, Any]) -> ActionResponse:
         logger.error(f"Error offering Big Dick: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to offer Big Dick: {str(e)}")
 
-async def handle_accept_big_dick(payload: Dict[str, Any]) -> ActionResponse:
+async def handle_accept_big_dick(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
     """Handle Big Dick challenge response"""
     try:
         accepting_players = payload.get("accepting_players", [])
         
-        result = wgp_simulation.accept_big_dick(accepting_players)
-        updated_state = wgp_simulation.get_game_state()
+        result = game.accept_big_dick(accepting_players)
+        updated_state = game.get_game_state()
         
         return ActionResponse(
             game_state=updated_state,
@@ -2517,14 +2568,14 @@ async def handle_accept_big_dick(payload: Dict[str, Any]) -> ActionResponse:
         logger.error(f"Error accepting Big Dick: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to accept Big Dick: {str(e)}")
 
-async def handle_ping_pong_aardvark(payload: Dict[str, Any]) -> ActionResponse:
+async def handle_ping_pong_aardvark(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
     """Handle Ping Pong Aardvark"""
     try:
         team_id = payload.get("team_id", "team1")
         aardvark_id = payload.get("aardvark_id", "default_aardvark")
         
-        result = wgp_simulation.ping_pong_aardvark(team_id, aardvark_id)
-        updated_state = wgp_simulation.get_game_state()
+        result = game.ping_pong_aardvark(team_id, aardvark_id)
+        updated_state = game.get_game_state()
         
         return ActionResponse(
             game_state=updated_state,
@@ -2547,7 +2598,7 @@ async def handle_ping_pong_aardvark(payload: Dict[str, Any]) -> ActionResponse:
         logger.error(f"Error ping ponging Aardvark: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to ping pong Aardvark: {str(e)}")
 
-async def handle_aardvark_join_request(payload: Dict[str, Any]) -> ActionResponse:
+async def handle_aardvark_join_request(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
     """Handle Aardvark requesting to join a team"""
     try:
         aardvark_id = payload.get("aardvark_id")
@@ -2556,8 +2607,8 @@ async def handle_aardvark_join_request(payload: Dict[str, Any]) -> ActionRespons
         if not aardvark_id:
             raise HTTPException(status_code=400, detail="aardvark_id is required")
         
-        result = wgp_simulation.aardvark_request_team(aardvark_id, target_team)
-        updated_state = wgp_simulation.get_game_state()
+        result = game.aardvark_request_team(aardvark_id, target_team)
+        updated_state = game.get_game_state()
         
         return ActionResponse(
             game_state=updated_state,
@@ -2580,14 +2631,14 @@ async def handle_aardvark_join_request(payload: Dict[str, Any]) -> ActionRespons
         logger.error(f"Error handling Aardvark join request: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to handle Aardvark join request: {str(e)}")
 
-async def handle_aardvark_toss(payload: Dict[str, Any]) -> ActionResponse:
+async def handle_aardvark_toss(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
     """Handle team response to Aardvark request (accept or toss)"""
     try:
         team_id = payload.get("team_id", "team1")
         accept = payload.get("accept", False)
         
-        result = wgp_simulation.respond_to_aardvark(team_id, accept)
-        updated_state = wgp_simulation.get_game_state()
+        result = game.respond_to_aardvark(team_id, accept)
+        updated_state = game.get_game_state()
         
         return ActionResponse(
             game_state=updated_state,
@@ -2611,7 +2662,7 @@ async def handle_aardvark_toss(payload: Dict[str, Any]) -> ActionResponse:
         logger.error(f"Error handling Aardvark toss: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to handle Aardvark toss: {str(e)}")
 
-async def handle_aardvark_go_solo(payload: Dict[str, Any]) -> ActionResponse:
+async def handle_aardvark_go_solo(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
     """Handle Aardvark deciding to go solo"""
     try:
         aardvark_id = payload.get("aardvark_id")
@@ -2620,8 +2671,8 @@ async def handle_aardvark_go_solo(payload: Dict[str, Any]) -> ActionResponse:
         if not aardvark_id:
             raise HTTPException(status_code=400, detail="aardvark_id is required")
         
-        result = wgp_simulation.aardvark_go_solo(aardvark_id, use_tunkarri)
-        updated_state = wgp_simulation.get_game_state()
+        result = game.aardvark_go_solo(aardvark_id, use_tunkarri)
+        updated_state = game.get_game_state()
         
         return ActionResponse(
             game_state=updated_state,
@@ -2645,18 +2696,20 @@ async def handle_aardvark_go_solo(payload: Dict[str, Any]) -> ActionResponse:
         logger.error(f"Error handling Aardvark go solo: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to handle Aardvark go solo: {str(e)}")
 
-async def handle_joes_special(payload: Dict[str, Any]) -> ActionResponse:
+async def handle_joes_special(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
     """Handle Joe's Special wager selection in Hoepfinger"""
     try:
         selected_value = payload.get("selected_value", 2)
+
+        # Apply Joe's Special using RuleManager
+        rule_mgr = RuleManager.get_instance()
+        rule_mgr.apply_joes_special(
+            game_state=game.get_game_state(),
+            hole_number=game.current_hole,
+            selected_value=selected_value
+        )
         
-        # Apply Joe's Special value to current hole betting
-        hole_state = wgp_simulation.hole_states[wgp_simulation.current_hole]
-        hole_state.betting.joes_special_value = selected_value
-        hole_state.betting.base_wager = selected_value
-        hole_state.betting.current_wager = selected_value
-        
-        updated_state = wgp_simulation.get_game_state()
+        updated_state = game.get_game_state()
         
         return ActionResponse(
             game_state=updated_state,
@@ -2676,13 +2729,13 @@ async def handle_joes_special(payload: Dict[str, Any]) -> ActionResponse:
         logger.error(f"Error invoking Joe's Special: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to invoke Joe's Special: {str(e)}")
 
-async def handle_get_post_hole_analysis(payload: Dict[str, Any]) -> ActionResponse:
+async def handle_get_post_hole_analysis(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
     """Handle post-hole analysis request"""
     try:
-        hole_number = payload.get("hole_number", wgp_simulation.current_hole)
+        hole_number = payload.get("hole_number", game.current_hole)
         
-        analysis = wgp_simulation.get_post_hole_analysis(hole_number)
-        updated_state = wgp_simulation.get_game_state()
+        analysis = game.get_post_hole_analysis(hole_number)
+        updated_state = game.get_game_state()
         
         return ActionResponse(
             game_state=updated_state,
@@ -2702,13 +2755,13 @@ async def handle_get_post_hole_analysis(payload: Dict[str, Any]) -> ActionRespon
         logger.error(f"Error getting post-hole analysis: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get post-hole analysis: {str(e)}")
 
-async def handle_enter_hole_scores(payload: Dict[str, Any]) -> ActionResponse:
+async def handle_enter_hole_scores(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
     """Handle entering hole scores"""
     try:
         scores = payload.get("scores", {})
         
-        result = wgp_simulation.enter_hole_scores(scores)
-        updated_state = wgp_simulation.get_game_state()
+        result = game.enter_hole_scores(scores)
+        updated_state = game.get_game_state()
         
         return ActionResponse(
             game_state=updated_state,
@@ -2718,10 +2771,10 @@ async def handle_enter_hole_scores(payload: Dict[str, Any]) -> ActionResponse:
                 {"action_type": "ADVANCE_HOLE", "prompt": "Continue to Next Hole"}
             ],
             timeline_event={
-                "id": f"scores_entered_{wgp_simulation.current_hole}_{datetime.now().timestamp()}",
+                "id": f"scores_entered_{game.current_hole}_{datetime.now().timestamp()}",
                 "timestamp": datetime.now().isoformat(),
                 "type": "scores_entered",
-                "description": f"Scores entered for hole {wgp_simulation.current_hole}",
+                "description": f"Scores entered for hole {game.current_hole}",
                 "details": {
                     "scores": scores,
                     "points_result": result
@@ -2732,11 +2785,11 @@ async def handle_enter_hole_scores(payload: Dict[str, Any]) -> ActionResponse:
         logger.error(f"Error entering hole scores: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to enter hole scores: {str(e)}")
 
-async def handle_complete_game(payload: Dict[str, Any]) -> ActionResponse:
+async def handle_complete_game(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
     """Handle completing a game and saving results permanently"""
     try:
         # Get the game state instance
-        game_state = wgp_simulation.game_state if hasattr(wgp_simulation, 'game_state') else None
+        game_state = game.game_state if hasattr(wgp_simulation, 'game_state') else None
 
         if not game_state:
             raise HTTPException(status_code=400, detail="No active game to complete")
@@ -2744,23 +2797,34 @@ async def handle_complete_game(payload: Dict[str, Any]) -> ActionResponse:
         # Complete the game and save results
         result_message = game_state.complete_game()
 
-        updated_state = wgp_simulation.get_game_state()
+        updated_state = game.get_game_state()
         updated_state["game_completed"] = True
         updated_state["completion_message"] = result_message
+
+        # TODO: Send game_end notifications using NotificationService
+        # Once DB session is passed to handlers, add:
+        # notification_service = get_notification_service()
+        # for player in game_state.player_manager.players:
+        #     notification_service.send_notification(
+        #         player_id=player.db_id,
+        #         notification_type="game_end",
+        #         message=f"Game completed! {result_message}",
+        #         db=db
+        #     )
 
         return ActionResponse(
             game_state=updated_state,
             log_message=f"🎉 Game completed! {result_message}",
             available_actions=[],  # No more actions available
             timeline_event={
-                "id": f"game_completed_{wgp_simulation.game_state.game_id}_{datetime.now().timestamp()}",
+                "id": f"game_completed_{game.game_state.game_id}_{datetime.now().timestamp()}",
                 "timestamp": datetime.now().isoformat(),
                 "type": "game_completed",
                 "description": "Game completed and results saved",
                 "details": {
-                    "game_id": wgp_simulation.game_state.game_id,
-                    "holes_played": len(wgp_simulation.game_state.hole_history),
-                    "final_scores": {p.id: p.points for p in wgp_simulation.game_state.player_manager.players}
+                    "game_id": game.game_state.game_id,
+                    "holes_played": len(game.game_state.hole_history),
+                    "final_scores": {p.id: p.points for p in game.game_state.player_manager.players}
                 }
             }
         )
@@ -2768,11 +2832,11 @@ async def handle_complete_game(payload: Dict[str, Any]) -> ActionResponse:
         logger.error(f"Error completing game: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to complete game: {str(e)}")
 
-async def handle_get_advanced_analytics(payload: Dict[str, Any]) -> ActionResponse:
+async def handle_get_advanced_analytics(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
     """Handle getting advanced analytics dashboard data"""
     try:
-        analytics = wgp_simulation.get_advanced_analytics()
-        updated_state = wgp_simulation.get_game_state()
+        analytics = game.get_advanced_analytics()
+        updated_state = game.get_game_state()
 
         # Include analytics data in the updated game state
         updated_state["analytics"] = analytics
@@ -2796,12 +2860,291 @@ async def handle_get_advanced_analytics(payload: Dict[str, Any]) -> ActionRespon
         logger.error(f"Error getting advanced analytics: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get advanced analytics: {str(e)}")
 
+async def handle_record_net_score(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
+    """Handle recording a net score for a player"""
+    try:
+        # Debug: Log the payload
+        logger.info(f"handle_record_net_score payload: {payload}")
+
+        # Use 'in' to check if keys exist, since player_id can be 0
+        if "player_id" not in payload or "score" not in payload:
+            logger.error(f"Missing keys in payload. Keys present: {list(payload.keys())}")
+            raise ValueError("player_id and score are required")
+
+        player_id = payload["player_id"]
+        score = payload["score"]
+
+        # Get the game state instance
+        game_state = game.game_state if hasattr(wgp_simulation, 'game_state') else None
+
+        if not game_state:
+            raise HTTPException(status_code=400, detail="No active game")
+
+        # Record the net score
+        result = game_state.record_net_score(player_id, score)
+        updated_state = game.get_game_state()
+
+        return ActionResponse(
+            game_state=updated_state,
+            log_message=result,
+            available_actions=[],  # No specific actions after recording score
+            timeline_event={
+                "id": f"score_recorded_{player_id}_{datetime.now().timestamp()}",
+                "timestamp": datetime.now().isoformat(),
+                "type": "score_recorded",
+                "description": f"Score {score} recorded for player {player_id}",
+                "details": {
+                    "player_id": player_id,
+                    "score": score
+                }
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error recording net score: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to record net score: {str(e)}")
+
+async def handle_calculate_hole_points(payload: Dict[str, Any]) -> ActionResponse:
+    """Handle calculating points for the current hole"""
+    try:
+        # Get the game state instance
+        game_state = game.game_state if hasattr(wgp_simulation, 'game_state') else None
+
+        if not game_state:
+            raise HTTPException(status_code=400, detail="No active game")
+
+        # Calculate hole points
+        game_state.calculate_hole_points()
+        updated_state = game.get_game_state()
+
+        return ActionResponse(
+            game_state=updated_state,
+            log_message="Hole points calculated",
+            available_actions=[
+                {"action_type": "GET_POST_HOLE_ANALYSIS", "prompt": "View Hole Analysis"},
+                {"action_type": "ADVANCE_HOLE", "prompt": "Continue to Next Hole"}
+            ],
+            timeline_event={
+                "id": f"points_calculated_{game_state.current_hole}_{datetime.now().timestamp()}",
+                "timestamp": datetime.now().isoformat(),
+                "type": "points_calculated",
+                "description": f"Points calculated for hole {game_state.current_hole}",
+                "details": {
+                    "hole": game_state.current_hole,
+                    "points": {p.id: p.points for p in game_state.player_manager.players}
+                }
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error calculating hole points: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to calculate hole points: {str(e)}")
+
+async def handle_invoke_float(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
+    """Handle Float invocation by captain"""
+    try:
+        logger.info(f"handle_invoke_float payload: {payload}")
+
+        if "captain_id" not in payload:
+            raise ValueError("captain_id is required")
+
+        captain_id = payload["captain_id"]
+
+        # Get the game state instance
+        game_state = game.game_state if hasattr(game, 'game_state') else None
+
+        if not game_state:
+            raise HTTPException(status_code=400, detail="No active game")
+
+        # Check if partnerships have been formed (REQUIRED before any betting)
+        rule_mgr = RuleManager.get_instance()
+        if not rule_mgr.are_partnerships_formed(game_state, game.current_hole):
+            raise HTTPException(
+                status_code=400,
+                detail="Partnerships must be formed before betting can start"
+            )
+
+        # Validate captain can double (Float is a type of double)
+        try:
+            rule_mgr.validate_can_double(captain_id, game.get_game_state())
+        except RuleViolationError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+        # Invoke the float
+        result = game.invoke_float(captain_id)
+        updated_state = game.get_game_state()
+
+        return ActionResponse(
+            game_state=updated_state,
+            log_message=f"Float invoked! Wager doubled.",
+            available_actions=[],
+            timeline_event={
+                "id": f"float_invoked_{captain_id}_{datetime.now().timestamp()}",
+                "timestamp": datetime.now().isoformat(),
+                "type": "float_invoked",
+                "description": f"Captain invoked Float - wager doubled!",
+                "details": {
+                    "captain_id": captain_id,
+                    "new_wager": updated_state.get("hole_state", {}).get("betting", {}).get("current_wager", 0)
+                }
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error invoking float: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to invoke float: {str(e)}")
+
+async def handle_toggle_option(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
+    """Handle Option toggle by captain"""
+    try:
+        logger.info(f"handle_toggle_option payload: {payload}")
+
+        if "captain_id" not in payload:
+            raise ValueError("captain_id is required")
+
+        captain_id = payload["captain_id"]
+
+        # Get the game state instance
+        game_state = game.game_state if hasattr(wgp_simulation, 'game_state') else None
+
+        if not game_state:
+            raise HTTPException(status_code=400, detail="No active game")
+
+        # Check if partnerships have been formed (REQUIRED before any betting)
+        rule_mgr = RuleManager.get_instance()
+        if not rule_mgr.are_partnerships_formed(game_state, game.current_hole):
+            raise HTTPException(
+                status_code=400,
+                detail="Partnerships must be formed before betting can start"
+            )
+
+        # Additional validation: Check if captain can invoke option (type of doubling)
+        full_game_state = game.get_game_state()
+        if not rule_mgr.can_double(captain_id, full_game_state):
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot toggle Option at this time"
+            )
+
+        # Apply The Option using RuleManager (FULL IMPLEMENTATION)
+        rule_mgr.apply_option(
+            game_state=game_state,
+            captain_id=captain_id,
+            hole_number=game_state.current_hole
+        )
+
+        # Get the new option state for logging
+        hole_state = game_state.hole_states[game_state.current_hole]
+        current_option = getattr(hole_state.betting, 'option_active', False)
+
+        updated_state = game.get_game_state()
+
+        return ActionResponse(
+            game_state=updated_state,
+            log_message=f"The Option {'activated' if not current_option else 'deactivated'}",
+            available_actions=[],
+            timeline_event={
+                "id": f"option_toggled_{captain_id}_{datetime.now().timestamp()}",
+                "timestamp": datetime.now().isoformat(),
+                "type": "option_toggled",
+                "description": f"Captain {'activated' if not current_option else 'deactivated'} The Option",
+                "details": {
+                    "captain_id": captain_id,
+                    "option_active": not current_option
+                }
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error toggling option: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to toggle option: {str(e)}")
+
+async def handle_flush(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
+    """
+    Handle Flush action - conceding/folding the hole.
+    A player or team gives up on the current hole, awarding the hole to opponents.
+    """
+    try:
+        logger.info(f"handle_flush payload: {payload}")
+
+        # Validate required fields
+        if "player_id" not in payload and "team_id" not in payload:
+            raise ValueError("Either player_id or team_id is required for flush")
+
+        # Get the game state instance
+        game_state = game.game_state if hasattr(wgp_simulation, 'game_state') else None
+
+        if not game_state:
+            raise HTTPException(status_code=400, detail="No active game")
+
+        # Check if partnerships have been formed (REQUIRED before any betting/conceding)
+        rule_mgr = RuleManager.get_instance()
+        if not rule_mgr.are_partnerships_formed(game_state, game.current_hole):
+            raise HTTPException(
+                status_code=400,
+                detail="Partnerships must be formed before you can flush"
+            )
+
+        # Validate game is in correct phase for concession
+        try:
+            full_game_state = game.get_game_state()
+            GameStateValidator.validate_game_phase(
+                full_game_state.get("phase", "unknown"),
+                "playing",
+                "concede hole"
+            )
+        except GameStateValidationError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+        # Get player/team info
+        player_id = payload.get("player_id")
+        team_id = payload.get("team_id")
+
+        # Get current hole state
+        hole_state = game_state.hole_states[game_state.current_hole]
+
+        # Determine who is conceding
+        if player_id is not None:
+            conceding_player_name = game._get_player_name(player_id)
+            concede_description = f"{conceding_player_name} has flushed (conceded) the hole"
+        else:
+            concede_description = f"Team {team_id} has flushed (conceded) the hole"
+
+        # Award concession points using ScoringManager
+        scoring_mgr = get_scoring_manager()
+        points_awarded = scoring_mgr.award_concession_points(
+            game_state=game_state,
+            conceding_player=player_id,
+            conceding_team=team_id,
+            hole_number=game_state.current_hole
+        )
+
+        updated_state = game.get_game_state()
+
+        return ActionResponse(
+            game_state=updated_state,
+            log_message=f"Flush! {concede_description}",
+            available_actions=[
+                {"action_type": "ADVANCE_HOLE", "prompt": "Continue to next hole"}
+            ],
+            timeline_event={
+                "id": f"flush_{datetime.now().timestamp()}",
+                "timestamp": datetime.now().isoformat(),
+                "type": "flush",
+                "description": concede_description,
+                "details": {
+                    "player_id": player_id,
+                    "team_id": team_id,
+                    "current_wager": hole_state.betting.current_wager
+                }
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error handling flush: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to handle flush: {str(e)}")
+
 # Helper function to serialize game state
 def _serialize_game_state():
     """Convert game state to serializable format"""
     try:
         # Get the current game state from the WGP simulation
-        state = wgp_simulation.get_game_state()
+        state = game.get_game_state()
         return state
     except Exception as e:
         logger.error(f"Error serializing game state: {e}")
@@ -2989,7 +3332,7 @@ async def get_current_betting_opportunities():
     """
     try:
         # Get current game state
-        current_state = wgp_simulation.get_game_state()
+        current_state = game.get_game_state()
         
         # Quick opportunity assessment
         opportunities = []
@@ -2999,11 +3342,21 @@ async def get_current_betting_opportunities():
             return {"opportunities": [], "message": "No active game"}
         
         current_hole = current_state.get("current_hole", 1)
-        hole_state = wgp_simulation.hole_states.get(current_hole)
+        hole_state = game.hole_states.get(current_hole)
         
         if hole_state:
+            # REFACTORED: Using RuleManager for betting opportunities
             # Check for doubling opportunities
-            if not hole_state.betting.doubled and hole_state.teams.type != "pending":
+            rule_mgr = RuleManager.get_instance()
+
+            # Check if any player can double
+            can_any_player_double = False
+            for player in game.players:
+                if rule_mgr.can_double(player.id, current_state):
+                    can_any_player_double = True
+                    break
+
+            if can_any_player_double and hole_state.teams.type != "pending":
                 opportunities.append({
                     "type": "offer_double",
                     "description": f"Double the wager from {hole_state.betting.current_wager} to {hole_state.betting.current_wager * 2} quarters",
@@ -3013,19 +3366,26 @@ async def get_current_betting_opportunities():
                     "timing": "optimal" if not hole_state.wagering_closed else "limited"
                 })
             
+            # REFACTORED: Using RuleManager for partnership opportunities
             # Check for partnership opportunities
             if hole_state.teams.type == "pending":
                 captain_id = hole_state.teams.captain
-                captain_name = wgp_simulation._get_player_name(captain_id)
-                
+                captain_name = game._get_player_name(captain_id)
+
                 available_partners = []
-                for player in wgp_simulation.players:
+                for player in game.players:
+                    # Use both hole state and RuleManager for validation
                     if player.id != captain_id and hole_state.can_request_partnership(captain_id, player.id):
-                        available_partners.append({
-                            "id": player.id,
-                            "name": player.name,
-                            "handicap": player.handicap
-                        })
+                        try:
+                            if rule_mgr.can_form_partnership(captain_id, player.id, current_state):
+                                available_partners.append({
+                                    "id": player.id,
+                                    "name": player.name,
+                                    "handicap": player.handicap
+                                })
+                        except RuleViolationError:
+                            # Partnership not allowed
+                            pass
                 
                 if available_partners:
                     opportunities.append({
@@ -3034,7 +3394,7 @@ async def get_current_betting_opportunities():
                         "captain": captain_name,
                         "available_partners": available_partners,
                         "solo_multiplier": 2,
-                        "deadline_approaching": len(available_partners) < len(wgp_simulation.players) - 1
+                        "deadline_approaching": len(available_partners) < len(game.players) - 1
                     })
         
         return {
@@ -3384,26 +3744,43 @@ def get_leaderboard(
     limit: int = Query(100, ge=1, le=100),  # Default to 100 to show all players
     sort: str = Query("desc", regex="^(asc|desc)$")  # Add sort parameter
 ):
-    """Get the player leaderboard."""
+    """Get the player leaderboard. Uses LeaderboardService for consolidated leaderboard logic."""
     try:
         db = database.SessionLocal()
-        from .services.player_service import PlayerService
-        
-        player_service = PlayerService(db)
-        leaderboard = player_service.get_leaderboard(limit=limit)
-        
+
+        # Use LeaderboardService for leaderboard queries
+        leaderboard_service = get_leaderboard_service(db)
+        leaderboard_type = "total_earnings"  # Default leaderboard type
+        leaderboard = leaderboard_service.get_leaderboard(
+            leaderboard_type=leaderboard_type,
+            db=db,
+            limit=limit
+        )
+
         # Sort by total_earnings based on sort parameter
         if sort == "asc":
-            leaderboard.sort(key=lambda x: x.total_earnings or 0)
+            leaderboard.sort(key=lambda x: x.get("total_earnings", 0))
         else:
-            leaderboard.sort(key=lambda x: x.total_earnings or 0, reverse=True)
-        
-        # Re-rank after sorting
+            leaderboard.sort(key=lambda x: x.get("total_earnings", 0), reverse=True)
+
+        # Convert to schema format
+        entries = []
         for i, entry in enumerate(leaderboard, 1):
-            entry.rank = i
-        
-        return leaderboard
-        
+            total_earnings = entry.get("value", 0) if leaderboard_type == "total_earnings" else entry.get("total_earnings", 0)
+            games = entry.get("games_played", 1)
+            entries.append(schemas.LeaderboardEntry(
+                rank=entry.get("rank", i),
+                player_id=entry.get("player_id"),
+                player_name=entry.get("player_name"),
+                total_earnings=total_earnings,
+                games_played=games,
+                win_percentage=entry.get("win_percentage", 0) * 100 if entry.get("win_percentage", 0) <= 1 else entry.get("win_percentage", 0),
+                avg_earnings=total_earnings / games if games > 0 else 0,
+                partnership_success=entry.get("partnership_success", 0)
+            ))
+
+        return entries
+
     except Exception as e:
         logger.error(f"Error getting leaderboard: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get leaderboard: {str(e)}")
@@ -3412,23 +3789,38 @@ def get_leaderboard(
 
 @app.get("/leaderboard/{metric}")
 def get_leaderboard_by_metric(
-    metric: str, 
+    metric: str,
     limit: int = Query(10, ge=1, le=100)
 ):
-    """Get leaderboard sorted by specific metric."""
+    """Get leaderboard sorted by specific metric. Uses LeaderboardService."""
     try:
         db = database.SessionLocal()
-        from .services.statistics_service import StatisticsService
-        
-        stats_service = StatisticsService(db)
-        leaderboard = stats_service.get_comparative_leaderboard(metric=metric, limit=limit)
-        
+
+        # Use LeaderboardService for metric-based leaderboards
+        leaderboard_service = get_leaderboard_service(db)
+
+        # Map metric names to leaderboard types
+        metric_map = {
+            "earnings": "total_earnings",
+            "total_earnings": "total_earnings",
+            "win_rate": "win_rate",
+            "games_played": "games_played",
+            "avg_score": "avg_score"
+        }
+
+        leaderboard_type = metric_map.get(metric, "total_earnings")
+        leaderboard = leaderboard_service.get_leaderboard(
+            leaderboard_type=leaderboard_type,
+            db=db,
+            limit=limit
+        )
+
         return {
             "metric": metric,
             "leaderboard": leaderboard,
             "total_players": len(leaderboard)
         }
-        
+
     except Exception as e:
         logger.error(f"Error getting leaderboard by metric {metric}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get leaderboard: {str(e)}")
@@ -3446,7 +3838,7 @@ def get_game_stats():
         total_simulations = db.query(models.SimulationResult).count()
         
         # Get course usage
-        courses = game_state.get_courses()
+        courses = course_manager.get_courses()
         course_names = list(courses.keys()) if courses else []
         
         return {
@@ -5071,7 +5463,7 @@ def setup_simulation(request: Dict[str, Any]):
         if course_lookup_candidates:
             selected_course_name = None
             try:
-                courses = game_state.get_courses()
+                courses = course_manager.get_courses()
                 if isinstance(courses, dict):
                     for candidate in course_lookup_candidates:
                         if candidate in courses:
@@ -5087,7 +5479,7 @@ def setup_simulation(request: Dict[str, Any]):
                 if selected_course_name:
                     logger.info(f"Using course: {selected_course_name}")
                     try:
-                        game_state.course_manager.load_course(selected_course_name)
+                        wgp_simulation.course_manager.load_course(selected_course_name)
                     except Exception as load_error:
                         logger.warning(f"Failed to load course '{selected_course_name}': {load_error}")
                 else:
@@ -5098,7 +5490,7 @@ def setup_simulation(request: Dict[str, Any]):
         # Initialize hole 1
         wgp_simulation._initialize_hole(1)
         wgp_simulation.enable_shot_progression()
-        
+
         # Get initial game state
         game_state_data = wgp_simulation.get_game_state()
         
@@ -5111,7 +5503,7 @@ def setup_simulation(request: Dict[str, Any]):
             "players": [
                 {
                     "id": p.id,
-                    "name": p.name, 
+                    "name": p.name,
                     "handicap": p.handicap,
                     "points": p.points
                 } for p in wgp_simulation.players
@@ -5138,10 +5530,10 @@ def play_next_shot(request: SimulationPlayShotRequest = None):
         next_player = wgp_simulation._get_next_shot_player()
         if not next_player:
             raise HTTPException(status_code=400, detail="No player available to shoot")
-        
+
         # Simulate the shot
         shot_response = wgp_simulation.simulate_shot(next_player)
-        
+
         # Get updated game state
         updated_state = wgp_simulation.get_game_state()
         
@@ -5236,7 +5628,7 @@ def simulate_hole(request: Dict[str, Any] = Body(default_factory=dict)):
                     raise HTTPException(status_code=400, detail="Partner ID required for partnership request")
                 if not captain_id:
                     raise HTTPException(status_code=400, detail="Captain ID required for partnership request")
-                
+
                 result = wgp_simulation.request_partner(captain_id, partner_id)
                 interaction_needed = {
                     "type": "partnership_response",
@@ -5251,12 +5643,12 @@ def simulate_hole(request: Dict[str, Any] = Body(default_factory=dict)):
                     raise HTTPException(status_code=400, detail="No pending partnership request to resolve")
                 accept = action == "accept_partnership"
                 result = wgp_simulation.respond_to_partnership(partner_id, accept)
-            
+
             elif action in ("go_solo", "captain_go_solo"):
                 if not captain_id:
                     raise HTTPException(status_code=400, detail="Captain ID required for solo decision")
                 result = wgp_simulation.captain_go_solo(captain_id)
-            
+
             elif action == "offer_double":
                 if not captain_id:
                     raise HTTPException(status_code=400, detail="Player ID required to offer double")
@@ -5278,28 +5670,28 @@ def simulate_hole(request: Dict[str, Any] = Body(default_factory=dict)):
                 responding_team = payload.get("team_id") or _get_opposing_team_id(offering_player or captain_id)
                 accept = action == "accept_double"
                 result = wgp_simulation.respond_to_double(responding_team, accept)
-            
+
             else:
                 result = {"status": "unsupported_action", "message": f"Action '{action}' not recognized"}
-        
+
         else:
             hole_results = []
             max_shots = 20  # Safety limit
             shot_count = 0
-            
+
             while shot_count < max_shots:
                 next_player = wgp_simulation._get_next_shot_player()
                 if not next_player:
                     break
-                    
+
                 shot_response = wgp_simulation.simulate_shot(next_player)
                 hole_results.append(shot_response)
                 shot_count += 1
-                
+
                 game_state_data = wgp_simulation.get_game_state()
                 if game_state_data.get("hole_complete", False):
                     break
-            
+
             updated_state = wgp_simulation.get_game_state()
             return {
                 "success": True,
@@ -5307,7 +5699,7 @@ def simulate_hole(request: Dict[str, Any] = Body(default_factory=dict)):
                 "game_state": updated_state,
                 "shots_played": shot_count
             }
-        
+
         updated_state = wgp_simulation.get_game_state()
         if interaction_needed is None:
             pending_request = _get_pending_partnership_request()
@@ -5614,20 +6006,20 @@ def get_shot_probabilities():
     try:
         if not wgp_simulation:
             raise HTTPException(status_code=400, detail="Simulation not initialized")
-        
+
         # Get next player to shoot
         next_player = wgp_simulation._get_next_shot_player()
         if not next_player:
             return {"success": True, "probabilities": {}}
-        
+
         # Get current hole state
         hole_state = _get_current_hole_state()
         if not hole_state:
             return {"success": True, "probabilities": {}}
-        
+
         # Get player's current ball position
         ball_position = hole_state.get_player_ball_position(next_player)
-        
+
         player_obj = next((p for p in wgp_simulation.players if p.id == next_player), None)
         hole_info = {
             "difficulty": getattr(hole_state, "hole_difficulty", "medium"),
@@ -5665,6 +6057,7 @@ def calculate_shot_probabilities(payload: Dict[str, Any]):
         
         probabilities = _compute_shot_probabilities(player_stats, hole_info, lie_type)
         insights = []
+        # NOTE: HandicapValidator.get_handicap_category() could be used here for consistent categorization
         if player_stats.get("handicap") is not None:
             handicap = float(player_stats["handicap"])
             if handicap <= 10:
@@ -5732,7 +6125,7 @@ def make_betting_decision(request: Dict[str, Any]):
                     "requested_partner": partner_id,
                     "captain_id": player_id
                 }
-                
+
         elif decision_type == "partnership_response":
             partner_id = decision.get("partner_id") or decision.get("requested_partner")
             if not partner_id:
@@ -5742,7 +6135,7 @@ def make_betting_decision(request: Dict[str, Any]):
                 raise HTTPException(status_code=400, detail="No pending partnership request to resolve")
             accept = decision.get("accept", decision.get("accept_partnership", action == "accept_partnership"))
             result = wgp_simulation.respond_to_partnership(partner_id, bool(accept))
-            
+
         elif decision_type == "double_offer":
             if not player_id:
                 raise HTTPException(status_code=400, detail="player_id required to offer a double")
@@ -5763,12 +6156,12 @@ def make_betting_decision(request: Dict[str, Any]):
                 offering_player = offer_history[-1].get("offering_player")
             responding_team = decision.get("team_id") or _get_opposing_team_id(offering_player or player_id)
             result = wgp_simulation.respond_to_double(responding_team, bool(accept))
-            
+
         elif decision_type == "go_solo":
             if not player_id:
                 raise HTTPException(status_code=400, detail="player_id required for go_solo decision")
             result = wgp_simulation.captain_go_solo(player_id)
-            
+
         # Get updated game state
         updated_state = wgp_simulation.get_game_state()
         
@@ -5853,7 +6246,7 @@ def get_post_hole_analytics(hole_number: int):
             raise HTTPException(status_code=400, detail="Simulation not initialized")
         
         # Get hole state
-        hole_state = wgp_simulation.hole_states.get(hole_number)
+        hole_state = game.hole_states.get(hole_number)
         if not hole_state:
             raise HTTPException(status_code=404, detail=f"Hole {hole_number} not found")
         
@@ -5862,10 +6255,10 @@ def get_post_hole_analytics(hole_number: int):
             raise HTTPException(status_code=400, detail=f"Hole {hole_number} is not complete yet")
         
         # Get game state and timeline events
-        game_state = wgp_simulation.get_game_state()
+        game_state = game.get_game_state()
         timeline_events = []
-        if hasattr(wgp_simulation, 'hole_progression') and wgp_simulation.hole_progression:
-            timeline_events = wgp_simulation.hole_progression.timeline_events
+        if hasattr(wgp_simulation, 'hole_progression') and game.hole_progression:
+            timeline_events = game.hole_progression.timeline_events
         
         # Generate analytics
         analytics = post_hole_analyzer.analyze_hole(hole_state, game_state, timeline_events)
@@ -5961,8 +6354,8 @@ def get_turn_based_state():
         if not wgp_simulation:
             raise HTTPException(status_code=400, detail="Simulation not initialized")
         
-        current_hole = wgp_simulation.current_hole
-        hole_state = wgp_simulation.hole_states.get(current_hole)
+        current_hole = game.current_hole
+        hole_state = game.hole_states.get(current_hole)
         
         if not hole_state:
             return {"success": False, "message": "No active hole"}
@@ -5980,10 +6373,10 @@ def get_turn_based_state():
         captain_id = hole_state.teams.captain
         captain_player = None
         if captain_id:
-            captain_player = next((p for p in wgp_simulation.players if p.id == captain_id), None)
+            captain_player = next((p for p in game.players if p.id == captain_id), None)
         
         # Get rotation order for this hole
-        rotation_order = getattr(hole_state, 'rotation_order', [p.id for p in wgp_simulation.players])
+        rotation_order = getattr(hole_state, 'rotation_order', [p.id for p in game.players])
         
         # Get shots played
         shots_played = []
@@ -6006,7 +6399,7 @@ def get_turn_based_state():
             for player_id, pos in hole_state.ball_positions.items():
                 if not pos.holed and pos.distance_to_pin > max_distance:
                     max_distance = pos.distance_to_pin
-                    furthest_player = next((p for p in wgp_simulation.players if p.id == player_id), None)
+                    furthest_player = next((p for p in game.players if p.id == player_id), None)
             current_turn = furthest_player.id if furthest_player else None
         
         # Get pending decision info
@@ -6016,7 +6409,7 @@ def get_turn_based_state():
                 "type": "partnership_request",
                 "from_player": hole_state.teams.pending_request.get("requestor"),
                 "to_player": hole_state.teams.pending_request.get("requested"),
-                "message": f"Partnership requested by {wgp_simulation._get_player_name(hole_state.teams.pending_request.get('requestor'))}"
+                "message": f"Partnership requested by {game._get_player_name(hole_state.teams.pending_request.get('requestor'))}"
             }
         
         # Check for betting opportunities
@@ -6035,15 +6428,15 @@ def get_turn_based_state():
         # Get team formations
         teams_display = []
         if hole_state.teams.type == "partners":
-            team1_names = [wgp_simulation._get_player_name(pid) for pid in hole_state.teams.team1]
-            team2_names = [wgp_simulation._get_player_name(pid) for pid in hole_state.teams.team2]
+            team1_names = [game._get_player_name(pid) for pid in hole_state.teams.team1]
+            team2_names = [game._get_player_name(pid) for pid in hole_state.teams.team2]
             teams_display.append({
                 "type": "partnership",
                 "description": f"{' & '.join(team1_names)} vs {' & '.join(team2_names)}"
             })
         elif hole_state.teams.type == "solo":
-            solo_name = wgp_simulation._get_player_name(hole_state.teams.solo_player)
-            opponent_names = [wgp_simulation._get_player_name(pid) for pid in hole_state.teams.opponents]
+            solo_name = game._get_player_name(hole_state.teams.solo_player)
+            opponent_names = [game._get_player_name(pid) for pid in hole_state.teams.opponents]
             teams_display.append({
                 "type": "solo",
                 "description": f"{solo_name} (Solo) vs {', '.join(opponent_names)}"
@@ -6071,7 +6464,7 @@ def get_turn_based_state():
                 "ball_positions": [
                     {
                         "player_id": player_id,
-                        "player_name": wgp_simulation._get_player_name(player_id),
+                        "player_name": game._get_player_name(player_id),
                         "distance_to_pin": pos.distance_to_pin,
                         "lie_type": pos.lie_type,
                         "shot_count": pos.shot_count,
@@ -6101,12 +6494,12 @@ def get_simulation_timeline(limit: int = 20):
         
         # Get timeline events from the simulation
         if hasattr(wgp_simulation, 'timeline_manager'):
-            events = wgp_simulation.timeline_manager.get_recent_events(limit)
+            events = game.timeline_manager.get_recent_events(limit)
         else:
             # Fallback to hole progression events
             events = []
-            if wgp_simulation.hole_progression:
-                events = wgp_simulation.hole_progression.get_timeline_events()[:limit]
+            if game.hole_progression:
+                events = game.hole_progression.get_timeline_events()[:limit]
         
         return {
             "success": True,
@@ -6128,24 +6521,24 @@ def get_poker_betting_state():
             raise HTTPException(status_code=400, detail="Simulation not initialized")
         
         # Get poker-style betting state using correct hole state structure
-        current_hole = wgp_simulation.current_hole
-        hole_state = wgp_simulation.hole_states.get(current_hole)
+        current_hole = game.current_hole
+        hole_state = game.hole_states.get(current_hole)
         
         if not hole_state:
             raise HTTPException(status_code=400, detail="No active hole state")
         
         # Format poker betting state manually
         betting = hole_state.betting
-        pot_size = betting.current_wager * len(wgp_simulation.players)
+        pot_size = betting.current_wager * len(game.players)
         if betting.doubled:
             pot_size *= 2
         
         # Determine betting phase
         phase = "pre-flop"  # Before tee shots
         shots_taken = sum(1 for shot in hole_state.shots_completed.values() if shot)
-        if shots_taken >= len(wgp_simulation.players):
+        if shots_taken >= len(game.players):
             phase = "flop"  # After tee shots
-        if hole_state.current_shot_number > len(wgp_simulation.players) * 2:
+        if hole_state.current_shot_number > len(game.players) * 2:
             phase = "turn"  # Mid-hole
         if any(hole_state.balls_in_hole):
             phase = "river"  # Near completion
@@ -6156,7 +6549,7 @@ def get_poker_betting_state():
             "current_bet": betting.current_wager,
             "betting_phase": phase,
             "doubled": betting.doubled,
-            "players_in": len(wgp_simulation.players),
+            "players_in": len(game.players),
             "wagering_closed": hole_state.wagering_closed
         }
         

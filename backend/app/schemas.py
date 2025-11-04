@@ -624,4 +624,29 @@ class GameBannerResponse(BaseModel):
     updated_at: Optional[str]
 
     class Config:
-        from_attributes = True 
+        from_attributes = True
+
+# Join Game Schemas
+class JoinGameRequest(BaseModel):
+    player_name: str
+    handicap: float = 18.0
+    user_id: Optional[str] = None
+    player_profile_id: Optional[int] = None
+
+    @field_validator('player_name')
+    @classmethod
+    def validate_player_name(cls, v):
+        if not v or len(v.strip()) < 2:
+            raise ValueError('Player name must be at least 2 characters')
+        if len(v.strip()) > 50:
+            raise ValueError('Player name cannot exceed 50 characters')
+        return v.strip()
+
+    @field_validator('handicap')
+    @classmethod
+    def validate_handicap(cls, v):
+        if v < 0:
+            raise ValueError('Handicap cannot be negative')
+        if v > 54:
+            raise ValueError('Handicap cannot exceed 54')
+        return v 

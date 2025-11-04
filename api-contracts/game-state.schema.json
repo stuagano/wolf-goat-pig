@@ -1,0 +1,346 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://wolfgoatpig.com/schemas/game-state.json",
+  "title": "GameState",
+  "description": "Complete game state structure for Wolf Goat Pig game",
+  "type": "object",
+  "required": ["current_hole", "game_phase", "player_count", "players", "hole_state"],
+  "properties": {
+    "current_hole": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 18,
+      "description": "Current hole number (1-18)"
+    },
+    "game_phase": {
+      "type": "string",
+      "enum": ["regular", "vinnie_variation", "hoepfinger"],
+      "description": "Current phase of the game"
+    },
+    "player_count": {
+      "type": "integer",
+      "enum": [4, 5, 6],
+      "description": "Total number of players in the game"
+    },
+    "hole_par": {
+      "type": "integer",
+      "description": "Par for the current hole"
+    },
+    "hole_distance": {
+      "type": "integer",
+      "description": "Distance of the current hole in yards"
+    },
+    "hole_yardage": {
+      "type": "integer",
+      "description": "Yardage of the current hole"
+    },
+    "hole_stroke_index": {
+      "type": "integer",
+      "description": "Stroke index for handicap calculation"
+    },
+    "hole_handicap": {
+      "type": "integer",
+      "description": "Handicap value for the hole"
+    },
+    "hole_description": {
+      "type": "string",
+      "description": "Description of the hole"
+    },
+    "players": {
+      "type": "array",
+      "description": "List of all players in the game",
+      "items": {
+        "$ref": "#/definitions/Player"
+      }
+    },
+    "hole_state": {
+      "$ref": "#/definitions/HoleState",
+      "description": "Complete state for the current hole"
+    },
+    "hoepfinger_start": {
+      "type": "integer",
+      "description": "Hole number when Hoepfinger phase starts"
+    },
+    "settings": {
+      "$ref": "#/definitions/GameSettings"
+    },
+    "game_status": {
+      "type": "string",
+      "enum": ["setup", "in_progress", "completed"],
+      "description": "Overall game status"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when game started"
+    },
+    "game_id": {
+      "type": "string",
+      "description": "Unique game identifier"
+    }
+  },
+  "definitions": {
+    "Player": {
+      "type": "object",
+      "required": ["id", "name", "handicap", "points"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^p[1-6]$",
+          "description": "Player slot ID (p1-p6)"
+        },
+        "name": {
+          "type": "string",
+          "description": "Player name"
+        },
+        "handicap": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 54,
+          "description": "Player handicap"
+        },
+        "points": {
+          "type": "number",
+          "description": "Current points/quarters"
+        },
+        "float_used": {
+          "type": "boolean",
+          "description": "Whether player has used their float"
+        },
+        "solo_count": {
+          "type": "integer",
+          "description": "Number of times player has gone solo"
+        }
+      }
+    },
+    "HoleState": {
+      "type": "object",
+      "required": ["hole_number", "hitting_order", "current_shot_number", "hole_complete", "wagering_closed", "teams", "betting"],
+      "properties": {
+        "hole_number": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 18
+        },
+        "hitting_order": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^p[1-6]$"
+          },
+          "description": "Order players hit on this hole"
+        },
+        "current_shot_number": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Current shot being played"
+        },
+        "hole_complete": {
+          "type": "boolean",
+          "description": "Whether the hole is finished"
+        },
+        "wagering_closed": {
+          "type": "boolean",
+          "description": "Whether betting is closed for this hole"
+        },
+        "ball_positions": {
+          "type": "object",
+          "description": "Current position of each player's ball",
+          "additionalProperties": {
+            "oneOf": [
+              { "type": "null" },
+              { "type": "number" }
+            ]
+          }
+        },
+        "current_order_of_play": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "line_of_scrimmage": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "number" }
+          ]
+        },
+        "next_player_to_hit": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string" }
+          ]
+        },
+        "stroke_advantages": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/StrokeAdvantage"
+          }
+        },
+        "hole_par": {
+          "type": "integer"
+        },
+        "stroke_index": {
+          "type": "integer"
+        },
+        "teams": {
+          "$ref": "#/definitions/TeamFormation"
+        },
+        "betting": {
+          "$ref": "#/definitions/BettingState"
+        },
+        "scores": {
+          "type": "object",
+          "description": "Final scores for each player",
+          "additionalProperties": {
+            "oneOf": [
+              { "type": "null" },
+              { "type": "integer" }
+            ]
+          }
+        },
+        "balls_in_hole": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "concessions": {
+          "type": "object",
+          "additionalProperties": { "type": "boolean" }
+        }
+      }
+    },
+    "StrokeAdvantage": {
+      "type": "object",
+      "properties": {
+        "handicap": {
+          "type": "number"
+        },
+        "strokes_received": {
+          "type": "number"
+        },
+        "net_score": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer" }
+          ]
+        },
+        "stroke_index": {
+          "type": "integer"
+        }
+      }
+    },
+    "TeamFormation": {
+      "type": "object",
+      "required": ["type", "captain"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["pending", "partners", "solo"],
+          "description": "Type of team configuration"
+        },
+        "captain": {
+          "type": "string",
+          "pattern": "^p[1-6]$",
+          "description": "Player ID of the captain (first to hit)"
+        },
+        "team1": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "team2": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "team3": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "solo_player": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string" }
+          ]
+        },
+        "opponents": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "pending_request": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "object" }
+          ]
+        }
+      }
+    },
+    "BettingState": {
+      "type": "object",
+      "required": ["base_wager", "current_wager", "doubled", "redoubled", "carry_over", "special_rules"],
+      "properties": {
+        "base_wager": {
+          "type": "number",
+          "description": "Base wager for the hole (in quarters/points)"
+        },
+        "current_wager": {
+          "type": "number",
+          "description": "Current wager after doubles/special rules"
+        },
+        "doubled": {
+          "type": "boolean",
+          "description": "Whether the bet has been doubled"
+        },
+        "redoubled": {
+          "type": "boolean",
+          "description": "Whether the bet has been redoubled"
+        },
+        "carry_over": {
+          "type": "boolean",
+          "description": "Whether wager carries over from previous hole"
+        },
+        "special_rules": {
+          "$ref": "#/definitions/SpecialRules"
+        }
+      }
+    },
+    "SpecialRules": {
+      "type": "object",
+      "required": ["float_invoked", "option_invoked", "duncan_invoked", "tunkarri_invoked"],
+      "properties": {
+        "float_invoked": {
+          "type": "boolean",
+          "description": "Whether the float has been invoked this hole"
+        },
+        "option_invoked": {
+          "type": "boolean",
+          "description": "Whether the option has been invoked"
+        },
+        "duncan_invoked": {
+          "type": "boolean",
+          "description": "Whether Duncan's Revenge is active"
+        },
+        "tunkarri_invoked": {
+          "type": "boolean",
+          "description": "Whether Tunkarri is active"
+        },
+        "joes_special_value": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "number" }
+          ],
+          "description": "Custom wager from Joe's Special"
+        }
+      }
+    },
+    "GameSettings": {
+      "type": "object",
+      "properties": {
+        "double_points_round": {
+          "type": "boolean",
+          "description": "Whether this is a major championship (double points)"
+        },
+        "annual_banquet": {
+          "type": "boolean",
+          "description": "Whether this is the annual banquet game"
+        }
+      }
+    }
+  }
+}

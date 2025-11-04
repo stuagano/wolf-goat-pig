@@ -383,4 +383,15 @@ class GameBanner(Base):
     show_icon = Column(Boolean, default=True)  # Show icon based on type
     dismissible = Column(Boolean, default=False)  # Can users dismiss it
     created_at = Column(String)
-    updated_at = Column(String, nullable=True) 
+    updated_at = Column(String, nullable=True)
+
+# Notification System
+class Notification(Base):
+    __tablename__ = "notifications"
+    id = Column(Integer, primary_key=True, index=True)
+    player_profile_id = Column(Integer, index=True)  # References PlayerProfile.id
+    notification_type = Column(String, index=True)  # game_start, game_end, turn_notification, etc.
+    message = Column(String)  # Notification message content
+    data = Column(JSON, nullable=True)  # Optional additional data as JSON
+    is_read = Column(Boolean, default=False, index=True)  # Read status
+    created_at = Column(String, index=True)  # ISO timestamp when notification was created 

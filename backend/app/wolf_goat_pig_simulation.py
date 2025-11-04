@@ -1,11 +1,22 @@
 import random
 import math
+import uuid
 from typing import Dict, List, Tuple, Optional, Any, Union
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from enum import Enum
 import logging
 from copy import deepcopy
 from datetime import datetime
+from .mixins import PersistenceMixin
+from .validators import (
+    HandicapValidator,
+    BettingValidator,
+    GameStateValidator,
+    HandicapValidationError,
+    BettingValidationError,
+    GameStateValidationError,
+    ValidationError
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +46,7 @@ class TimelineEvent:
     player_name: Optional[str] = None
 
 @dataclass
-class WGPPlayer:
+class Player:
     """Wolf Goat Pig Player with all game-specific attributes"""
     id: str
     name: str
@@ -45,12 +56,15 @@ class WGPPlayer:
     solo_count: int = 0  # Number of times gone solo (4-man requirement)
     goat_position_history: List[int] = field(default_factory=list)  # Track Hoepfinger position choices
 
-    
+
     def __post_init__(self):
         """Ensure all attributes are properly initialized"""
         self.points = self.points or 0
         self.float_used = self.float_used or False
         self.solo_count = self.solo_count or 0
+
+# Backwards compatibility alias (temporary during transition)
+WGPPlayer = Player
 
 @dataclass
 class TeamFormation:
@@ -180,7 +194,7 @@ class HoleState:
         else:
             self.hole_difficulty = "Easy"
 
-    def calculate_stroke_advantages(self, players: List['WGPPlayer']):
+    def calculate_stroke_advantages(self, players: List['Player']):
         """Calculate stroke advantages for all players on this hole"""
         self.stroke_advantages = {}
         
@@ -196,42 +210,70 @@ class HoleState:
             )
     
     def _calculate_strokes_received(self, handicap: float, stroke_index: int) -> float:
-        """Calculate strokes received on this hole based on handicap and stroke index"""
-        # Use the proper Creecher Feature implementation from game_state.py
-        full_strokes = int(handicap)
-        half_stroke = (handicap - full_strokes) >= 0.5
-        
-        # Full strokes: assign to holes with stroke index <= full_strokes
-        if stroke_index <= full_strokes:
-            return 1.0
-        
-        # Half stroke: assign to next hardest hole not already getting a stroke
-        if half_stroke and stroke_index == full_strokes + 1:
-            return 0.5
-        
-        # Creecher Feature: Half strokes on easiest 6 holes (stroke indexes 13-18)
-        if stroke_index >= 13 and stroke_index <= 18:
-            # For players with handicap > 18, additional half strokes
-            if handicap > 18:
-                extra_half_strokes = int((handicap - 18) / 1.0)  # One extra half stroke per full stroke over 18
-                # Assign to easiest holes first
-                easiest_holes = [18, 17, 16, 15, 14, 13]
-                if stroke_index in easiest_holes[:extra_half_strokes]:
-                    return 0.5
-        
-        # No strokes for this hole
-        return 0.0
+        """
+        Calculate strokes received on this hole based on handicap and stroke index.
+
+        Now uses HandicapValidator for USGA-compliant calculation.
+        """
+        try:
+            # Use HandicapValidator for proper USGA stroke allocation
+            strokes = HandicapValidator.calculate_strokes_received(
+                handicap,
+                stroke_index,
+                validate=True
+            )
+            return float(strokes)
+        except HandicapValidationError as e:
+            logger.warning(f"Stroke calculation error: {e.message}, falling back to legacy calculation")
+            # Fallback to legacy calculation for backward compatibility
+            full_strokes = int(handicap)
+            half_stroke = (handicap - full_strokes) >= 0.5
+
+            # Full strokes: assign to holes with stroke index <= full_strokes
+            if stroke_index <= full_strokes:
+                return 1.0
+
+            # Half stroke: assign to next hardest hole not already getting a stroke
+            if half_stroke and stroke_index == full_strokes + 1:
+                return 0.5
+
+            # Creecher Feature: Half strokes on easiest 6 holes (stroke indexes 13-18)
+            if stroke_index >= 13 and stroke_index <= 18:
+                # For players with handicap > 18, additional half strokes
+                if handicap > 18:
+                    extra_half_strokes = int((handicap - 18) / 1.0)
+                    easiest_holes = [18, 17, 16, 15, 14, 13]
+                    if stroke_index in easiest_holes[:extra_half_strokes]:
+                        return 0.5
+
+            return 0.0
     
     def get_player_stroke_advantage(self, player_id: str) -> Optional[StrokeAdvantage]:
         """Get stroke advantage for a specific player"""
         return self.stroke_advantages.get(player_id)
     
     def calculate_net_score(self, player_id: str, gross_score: int) -> float:
-        """Calculate net score for a player"""
+        """
+        Calculate net score for a player.
+
+        Now uses HandicapValidator for validated net score calculation.
+        """
         stroke_adv = self.get_player_stroke_advantage(player_id)
         if stroke_adv:
-            stroke_adv.net_score = gross_score - stroke_adv.strokes_received
-            return stroke_adv.net_score
+            try:
+                # Use HandicapValidator for validated net score calculation
+                net_score = HandicapValidator.calculate_net_score(
+                    gross_score,
+                    int(stroke_adv.strokes_received),
+                    validate=True
+                )
+                stroke_adv.net_score = float(net_score)
+                return stroke_adv.net_score
+            except HandicapValidationError as e:
+                logger.warning(f"Net score calculation error: {e.message}, using fallback")
+                # Fallback calculation
+                stroke_adv.net_score = gross_score - stroke_adv.strokes_received
+                return stroke_adv.net_score
         return float(gross_score)
     
     def get_team_stroke_advantages(self) -> Dict[str, List[StrokeAdvantage]]:
@@ -598,38 +640,58 @@ class WGPHoleProgression:
             for event in self.timeline_events
         ]
 
-class WolfGoatPigSimulation:
+class WolfGoatPigSimulation(PersistenceMixin):
     """
-    Complete Wolf Goat Pig simulation implementing all rules from rules.txt
+    Complete Wolf Goat Pig simulation implementing all rules from rules.txt.
+    Now includes database persistence via PersistenceMixin.
     """
-    
-    def __init__(self, player_count: int = 4, players: Optional[List[WGPPlayer]] = None, course_manager=None):
+
+    def __init__(self, game_id: Optional[str] = None, player_count: int = 4, players: Optional[List[Player]] = None, course_manager=None):
+        # Initialize persistence FIRST (generates/loads game_id)
+        self.__init_persistence__(game_id)
+
+        # Check if we loaded from DB - if so, skip initialization
+        if hasattr(self, '_loaded_from_db') and self._loaded_from_db:
+            return
+
+        # New game initialization
         if player_count not in [4, 5, 6]:
             raise ValueError("Wolf Goat Pig supports 4, 5, or 6 players only")
-            
+
         self.player_count = player_count
         self.players = players or self._create_default_players()
+
+        # Validate all player handicaps using HandicapValidator
+        try:
+            for player in self.players:
+                HandicapValidator.validate_handicap(player.handicap, f"{player.name}_handicap")
+        except HandicapValidationError as e:
+            logger.error(f"Handicap validation failed: {e.message}")
+            raise ValueError(f"Invalid player handicap: {e.message}") from e
         self.current_hole = 1
         self.game_phase = GamePhase.REGULAR
         self.hole_states: Dict[int, HoleState] = {}
         self.double_points_round = False  # Major championship days
         self.annual_banquet = False  # Annual banquet day
         self.course_manager = course_manager  # Store course manager for hole info
-        
+
         # Computer players for AI decision making
         self.computer_players: Dict[str, Any] = {}
-        
+
         # Shot progression and betting analysis
         self.hole_progression: Optional[WGPHoleProgression] = None
         self.betting_analysis_enabled = True
         self.shot_simulation_mode = False  # Enable for shot-by-shot play
-        
+
         # Game progression tracking
         self.hoepfinger_start_hole = self._get_hoepfinger_start_hole()
         self.vinnie_variation_start = 13 if player_count == 4 else None
-        
+
         # Initialize first hole
         self._initialize_hole(1)
+
+        # Save initial state to DB
+        self._save_to_db()
     
     def set_computer_players(self, computer_player_ids: List[str], personalities: Optional[List[str]] = None):
         """Set which players are computer-controlled with their personalities"""
@@ -648,13 +710,13 @@ class WolfGoatPigSimulation:
             if player:
                 self.computer_players[player_id] = SimpleComputerPlayer(player, personality)
     
-    def _create_default_players(self) -> List[WGPPlayer]:
+    def _create_default_players(self) -> List[Player]:
         """Create default players based on the rules.txt character list"""
         names = ["Bob", "Scott", "Vince", "Mike", "Terry", "Bill"][:self.player_count]
         handicaps = [10.5, 15, 8, 20.5, 12, 18][:self.player_count]
         
         return [
-            WGPPlayer(id=f"p{i+1}", name=names[i], handicap=handicaps[i])
+            Player(id=f"p{i+1}", name=names[i], handicap=handicaps[i])
             for i in range(self.player_count)
         ]
     
@@ -664,6 +726,13 @@ class WolfGoatPigSimulation:
     
     def _initialize_hole(self, hole_number: int):
         """Initialize a new hole with proper state"""
+        # Validate hole number using GameStateValidator
+        try:
+            GameStateValidator.validate_hole_number(hole_number)
+        except GameStateValidationError as e:
+            logger.error(f"Hole initialization validation failed: {e.message}")
+            raise ValueError(f"Cannot initialize hole: {e.message}") from e
+
         # Determine hitting order
         if hole_number == 1:
             hitting_order = self._random_hitting_order()
@@ -775,11 +844,11 @@ class WolfGoatPigSimulation:
         # Rotate: second becomes first, third becomes second, etc.
         return previous_order[1:] + [previous_order[0]]
     
-    def _get_goat(self) -> WGPPlayer:
+    def _get_goat(self) -> Player:
         """Get the player who is furthest down (the Goat)"""
         return min(self.players, key=lambda p: p.points)
     
-    def _goat_chooses_position(self, goat: WGPPlayer, current_order: List[str]) -> List[str]:
+    def _goat_chooses_position(self, goat: Player, current_order: List[str]) -> List[str]:
         """
         In Hoepfinger phase, the Goat chooses hitting position
         Note: In 6-man game, can't choose same spot more than twice in a row
@@ -836,7 +905,7 @@ class WolfGoatPigSimulation:
         min_points = min(p.points for p in self.players)
         return captain.points == min_points and min_points < 0
     
-    def _prompt_joes_special(self, goat: WGPPlayer, natural_start: int) -> Optional[int]:
+    def _prompt_joes_special(self, goat: Player, natural_start: int) -> Optional[int]:
         """
         Joe's Special: Goat chooses starting value in Hoepfinger phase
         Returns chosen value or None if not invoked
@@ -854,16 +923,24 @@ class WolfGoatPigSimulation:
     def request_partner(self, captain_id: str, partner_id: str) -> Dict[str, Any]:
         """Captain requests a specific player as partner"""
         hole_state = self.hole_states[self.current_hole]
-        
+
+        # Validate partnership formation using GameStateValidator
+        try:
+            GameStateValidator.validate_partnership_formation(
+                captain_id=captain_id,
+                partner_id=partner_id,
+                tee_shots_complete=hole_state.partnership_deadline_passed
+            )
+        except GameStateValidationError as e:
+            logger.error(f"Partnership validation failed: {e.message}")
+            raise ValueError(f"Cannot request partnership: {e.message}") from e
+
         # Validate request
         if hole_state.teams.captain != captain_id:
             raise ValueError("Only the captain can request a partner")
-            
+
         if partner_id not in [p.id for p in self.players]:
             raise ValueError("Invalid partner ID")
-            
-        if partner_id == captain_id:
-            raise ValueError("Captain cannot partner with themselves")
             
         # Check eligibility based on hitting order and shots taken
         if not self._is_player_eligible_for_partnership(partner_id, hole_state):
@@ -922,16 +999,30 @@ class WolfGoatPigSimulation:
     def captain_go_solo(self, captain_id: str, use_duncan: bool = False) -> Dict[str, Any]:
         """Captain decides to go solo (Pig)"""
         hole_state = self.hole_states[self.current_hole]
-        
+
         if hole_state.teams.captain != captain_id:
             raise ValueError("Only the captain can go solo")
-            
+
+        # Validate Duncan using BettingValidator if requested
+        if use_duncan:
+            try:
+                is_captain = hole_state.teams.captain == captain_id
+                partnership_formed = hole_state.teams.type in ["partners", "solo"]
+                BettingValidator.validate_duncan(
+                    is_captain=is_captain,
+                    partnership_formed=partnership_formed,
+                    tee_shots_complete=hole_state.partnership_deadline_passed
+                )
+            except BettingValidationError as e:
+                logger.error(f"Duncan validation failed: {e.message}")
+                raise ValueError(f"Cannot invoke The Duncan: {e.message}") from e
+
         captain = next(p for p in self.players if p.id == captain_id)
-        
+
         # Track solo count for 4-man game requirement
         if self.player_count == 4:
             captain.solo_count += 1
-            
+
         # Set up solo play
         opponents = [p.id for p in self.players if p.id != captain_id]
         hole_state.teams = TeamFormation(
@@ -940,10 +1031,10 @@ class WolfGoatPigSimulation:
             solo_player=captain_id,
             opponents=opponents
         )
-        
+
         # Apply wager multipliers
         multiplier = 2  # Base "On Your Own" multiplier
-        
+
         if use_duncan:
             # The Duncan: 3 quarters for every 2 wagered
             hole_state.betting.duncan_invoked = True
@@ -1051,15 +1142,23 @@ class WolfGoatPigSimulation:
     def offer_double(self, offering_player_id: str, target_team: Optional[str] = None) -> Dict[str, Any]:
         """Offer a double to the opposing team"""
         hole_state = self.hole_states[self.current_hole]
-        
+
+        # Validate double using BettingValidator
+        try:
+            partnership_formed = hole_state.teams.type in ["partners", "solo"]
+            BettingValidator.validate_double(
+                already_doubled=hole_state.betting.doubled,
+                wagering_closed=hole_state.wagering_closed,
+                partnership_formed=partnership_formed
+            )
+        except BettingValidationError as e:
+            logger.error(f"Double validation failed: {e.message}")
+            raise ValueError(f"Cannot offer double: {e.message}") from e
+
         # Check Line of Scrimmage rule - use the proper can_offer_double method
         if not hole_state.can_offer_double(offering_player_id):
             raise ValueError("Cannot offer double - player has passed line of scrimmage or betting is closed")
-            
-        # Check if double already offered
-        if hole_state.betting.doubled:
-            raise ValueError("Double already offered on this hole")
-            
+
         # Check if any ball is in the hole
         if hole_state.balls_in_hole:
             raise ValueError("Cannot offer double - ball is in the hole")
@@ -2283,7 +2382,7 @@ class WolfGoatPigSimulation:
             hole_state.next_player_to_hit = hole_state.hitting_order[0]
             hole_state.current_order_of_play = hole_state.hitting_order.copy()
     
-    def _simulate_player_shot(self, player: WGPPlayer, shot_number: int) -> WGPShotResult:
+    def _simulate_player_shot(self, player: Player, shot_number: int) -> WGPShotResult:
         """Simulate a realistic shot based on handicap and golf statistics"""
         # Get current hole info
         current_hole = self.hole_states.get(self.current_hole)
@@ -3284,7 +3383,7 @@ class WolfGoatPigSimulation:
 
     # AI Decision Making Methods (moved from WGPComputerPlayer)
     
-    def should_accept_partnership(self, captain: WGPPlayer, game_state: Dict) -> bool:
+    def should_accept_partnership(self, captain: Player, game_state: Dict) -> bool:
         """Decide whether to accept partnership request"""
         # For simulation purposes, use a simple decision based on handicap difference
         # In a real implementation, this would be called on a specific player
@@ -3356,27 +3455,27 @@ class WolfGoatPigSimulation:
     # Compatibility methods for old simulation API
     def setup_simulation(self, human_player, computer_configs, course_name=None):
         """Compatibility method for old simulation API"""
-        # Convert human player to WGPPlayer (handle both dict and object)
+        # Convert human player to Player (handle both dict and object)
         if isinstance(human_player, dict):
-            wgp_human = WGPPlayer(
+            wgp_human = Player(
                 id=human_player["id"],
                 name=human_player["name"],
                 handicap=human_player["handicap"]
             )
         else:
-            wgp_human = WGPPlayer(
+            wgp_human = Player(
                 id=human_player.id,
                 name=human_player.name,
                 handicap=human_player.handicap
             )
         
-        # Convert computer configs to WGPPlayers
+        # Convert computer configs to Players
         wgp_players = [wgp_human]
         computer_player_ids = []
         personalities = []
         
         for config in computer_configs:
-            wgp_player = WGPPlayer(
+            wgp_player = Player(
                 id=config["id"],
                 name=config["name"],
                 handicap=config["handicap"]
@@ -3853,16 +3952,253 @@ class WolfGoatPigSimulation:
         else:
             return "Runaway leader"
     
-    def _get_key_factors(self, player: WGPPlayer) -> List[str]:
+    def _get_key_factors(self, player: Player) -> List[str]:
         """Get key factors affecting player's chances"""
         factors = []
-        
+
         if player.points > 0:
             factors.append("Currently ahead")
         elif player.points < -5:
             factors.append("Needs aggressive play")
-        
+
         # Add more sophisticated analysis based on game state
         factors.append("Consistent performer" if self._calculate_consistency([0, 1, -1, 2]) > 0.6 else "Variable performance")
-        
+
         return factors
+
+    # ========== PERSISTENCE METHODS (Required by PersistenceMixin) ==========
+
+    def _serialize(self) -> Dict[str, Any]:
+        """
+        Serialize complete game state to JSON-compatible dictionary.
+        Required by PersistenceMixin for database persistence.
+        """
+        try:
+            # Serialize players
+            players_data = [asdict(player) for player in self.players]
+
+            # Serialize hole states (complex nested structure)
+            hole_states_data = {}
+            for hole_num, hole_state in self.hole_states.items():
+                hole_states_data[str(hole_num)] = {
+                    'hitting_order': hole_state.hitting_order,
+                    'teams': asdict(hole_state.teams),
+                    'betting': asdict(hole_state.betting),
+                    'ball_positions': {
+                        player_id: asdict(pos) if pos else None
+                        for player_id, pos in (hole_state.ball_positions or {}).items()
+                    },
+                    'scores': hole_state.scores or {},
+                    'status': hole_state.status,
+                    'winner': hole_state.winner,
+                    'points_awarded': hole_state.points_awarded or {},
+                    'wagering_closed': hole_state.wagering_closed,
+                    'conceded': getattr(hole_state, 'conceded', False),
+                    'conceding_player': getattr(hole_state, 'conceding_player', None)
+                }
+
+            # Serialize hole progression if exists
+            hole_progression_data = None
+            if self.hole_progression:
+                hole_progression_data = {
+                    'timeline_events': [
+                        {
+                            'id': e.id,
+                            'timestamp': e.timestamp.isoformat() if isinstance(e.timestamp, datetime) else e.timestamp,
+                            'type': e.type,
+                            'description': e.description,
+                            'details': e.details,
+                            'player_id': e.player_id,
+                            'player_name': e.player_name
+                        }
+                        for e in self.hole_progression.timeline_events
+                    ],
+                    'betting_decisions': self.hole_progression.betting_decisions
+                }
+
+            return {
+                'game_id': self.game_id,
+                'player_count': self.player_count,
+                'players': players_data,
+                'current_hole': self.current_hole,
+                'game_phase': self.game_phase.value if isinstance(self.game_phase, GamePhase) else self.game_phase,
+                'hole_states': hole_states_data,
+                'double_points_round': self.double_points_round,
+                'annual_banquet': self.annual_banquet,
+                'hoepfinger_start_hole': self.hoepfinger_start_hole,
+                'vinnie_variation_start': self.vinnie_variation_start,
+                'betting_analysis_enabled': self.betting_analysis_enabled,
+                'shot_simulation_mode': self.shot_simulation_mode,
+                'hole_progression': hole_progression_data,
+                'course_name': self.course_manager.course_name if self.course_manager else None,
+                '_game_completed': self._game_completed
+            }
+
+        except Exception as e:
+            logger.error(f"Error serializing WolfGoatPigSimulation: {e}")
+            raise
+
+    def _deserialize(self, data: Dict[str, Any]):
+        """
+        Restore complete game state from dictionary.
+        Required by PersistenceMixin for database persistence.
+        """
+        try:
+            # Restore basic attributes
+            self.player_count = data.get('player_count', 4)
+            self.current_hole = data.get('current_hole', 1)
+            self.double_points_round = data.get('double_points_round', False)
+            self.annual_banquet = data.get('annual_banquet', False)
+            self.hoepfinger_start_hole = data.get('hoepfinger_start_hole', 17)
+            self.vinnie_variation_start = data.get('vinnie_variation_start')
+            self.betting_analysis_enabled = data.get('betting_analysis_enabled', True)
+            self.shot_simulation_mode = data.get('shot_simulation_mode', False)
+
+            # Restore game phase
+            phase_value = data.get('game_phase', 'regular')
+            if isinstance(phase_value, str):
+                self.game_phase = GamePhase(phase_value)
+            else:
+                self.game_phase = phase_value
+
+            # Restore players
+            players_data = data.get('players', [])
+            self.players = [
+                Player(
+                    id=p['id'],
+                    name=p['name'],
+                    handicap=p['handicap'],
+                    points=p.get('points', 0),
+                    float_used=p.get('float_used', False),
+                    solo_count=p.get('solo_count', 0),
+                    goat_position_history=p.get('goat_position_history', [])
+                )
+                for p in players_data
+            ]
+
+            # Restore hole states
+            self.hole_states = {}
+            hole_states_data = data.get('hole_states', {})
+            for hole_num_str, hs_data in hole_states_data.items():
+                hole_num = int(hole_num_str)
+
+                # Restore teams
+                teams_data = hs_data.get('teams', {})
+                teams = TeamFormation(
+                    type=teams_data.get('type', 'pending'),
+                    captain=teams_data.get('captain'),
+                    second_captain=teams_data.get('second_captain'),
+                    team1=teams_data.get('team1', []),
+                    team2=teams_data.get('team2', []),
+                    team3=teams_data.get('team3', []),
+                    solo_player=teams_data.get('solo_player'),
+                    opponents=teams_data.get('opponents', []),
+                    pending_request=teams_data.get('pending_request')
+                )
+
+                # Restore betting state
+                betting_data = hs_data.get('betting', {})
+                betting = BettingState(**betting_data)
+
+                # Restore ball positions
+                ball_positions_data = hs_data.get('ball_positions', {})
+                ball_positions = {}
+                for player_id, pos_data in ball_positions_data.items():
+                    if pos_data:
+                        ball_positions[player_id] = BallPosition(**pos_data)
+
+                # Create hole state
+                self.hole_states[hole_num] = HoleState(
+                    hitting_order=hs_data.get('hitting_order', []),
+                    teams=teams,
+                    betting=betting,
+                    ball_positions=ball_positions,
+                    scores=hs_data.get('scores', {}),
+                    status=hs_data.get('status', 'in_progress'),
+                    winner=hs_data.get('winner'),
+                    points_awarded=hs_data.get('points_awarded', {}),
+                    wagering_closed=hs_data.get('wagering_closed', False)
+                )
+
+                # Restore concession fields
+                self.hole_states[hole_num].conceded = hs_data.get('conceded', False)
+                self.hole_states[hole_num].conceding_player = hs_data.get('conceding_player')
+
+            # Restore hole progression
+            hole_prog_data = data.get('hole_progression')
+            if hole_prog_data:
+                # Reconstruct timeline events
+                timeline_events = []
+                for event_data in hole_prog_data.get('timeline_events', []):
+                    timeline_events.append(TimelineEvent(
+                        id=event_data['id'],
+                        timestamp=datetime.fromisoformat(event_data['timestamp']) if isinstance(event_data['timestamp'], str) else event_data['timestamp'],
+                        type=event_data['type'],
+                        description=event_data['description'],
+                        details=event_data.get('details', {}),
+                        player_id=event_data.get('player_id'),
+                        player_name=event_data.get('player_name')
+                    ))
+
+                self.hole_progression = WGPHoleProgression(
+                    hole_number=self.current_hole,
+                    betting_state=self.hole_states[self.current_hole].betting if self.current_hole in self.hole_states else BettingState()
+                )
+                self.hole_progression.timeline_events = timeline_events
+                self.hole_progression.betting_decisions = hole_prog_data.get('betting_decisions', [])
+
+            # Initialize course manager if needed
+            if hasattr(self, 'course_manager') and self.course_manager:
+                pass  # Already set
+            else:
+                from .state.course_manager import CourseManager
+                self.course_manager = CourseManager()
+                course_name = data.get('course_name')
+                if course_name:
+                    self.course_manager.course_name = course_name
+
+            # Initialize empty computer players dict
+            self.computer_players = {}
+
+            # Mark as loaded from DB
+            self._loaded_from_db = True
+
+            logger.info(f"Successfully deserialized game {self.game_id}")
+
+        except Exception as e:
+            logger.error(f"Error deserializing WolfGoatPigSimulation: {e}")
+            raise
+
+    def _get_final_scores(self) -> Dict[str, int]:
+        """Get final scores for game completion. Used by PersistenceMixin."""
+        return {player.id: player.points for player in self.players}
+
+    def _get_game_metadata(self) -> Dict[str, Any]:
+        """Get game metadata for completion record. Used by PersistenceMixin."""
+        return {
+            'course_name': self.course_manager.course_name if self.course_manager else 'Unknown',
+            'player_count': self.player_count,
+            'total_holes_played': len(self.hole_states),
+            'settings': {
+                'double_points_round': self.double_points_round,
+                'annual_banquet': self.annual_banquet,
+                'game_phase': self.game_phase.value if isinstance(self.game_phase, GamePhase) else str(self.game_phase)
+            }
+        }
+
+    def _get_player_results(self) -> List[Dict[str, Any]]:
+        """Get individual player results for completion record. Used by PersistenceMixin."""
+        results = []
+        for player in self.players:
+            results.append({
+                'player_name': player.name,
+                'handicap': player.handicap,
+                'final_score': player.points,
+                'holes_played': len(self.hole_states),
+                'stats': {
+                    'float_used': player.float_used,
+                    'solo_count': player.solo_count,
+                    'goat_positions': player.goat_position_history
+                }
+            })
+        return results

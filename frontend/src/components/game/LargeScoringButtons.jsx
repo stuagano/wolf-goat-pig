@@ -325,7 +325,7 @@ const LargeScoringButtons = ({
             borderRadius: '8px',
             border: '2px solid #ffc107',
             textAlign: 'center',
-            opacity: (gameState?.player_float_used && Object.keys(gameState.player_float_used || {}).some(id => gameState.player_float_used[id])) ? 1 : 0.3
+            opacity: gameState?.hole_state?.betting?.special_rules?.float_invoked ? 1 : 0.3
           }}>
             <div style={{ fontSize: '24px', marginBottom: '4px' }}>🎈</div>
             <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#856404' }}>
@@ -343,7 +343,7 @@ const LargeScoringButtons = ({
             borderRadius: '8px',
             border: '2px solid #f5c6cb',
             textAlign: 'center',
-            opacity: gameState?.doubled_status ? 1 : 0.3
+            opacity: gameState?.hole_state?.betting?.doubled ? 1 : 0.3
           }}>
             <div style={{ fontSize: '24px', marginBottom: '4px' }}>💰</div>
             <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#721c24' }}>
@@ -490,7 +490,7 @@ const LargeScoringButtons = ({
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
             gap: '16px',
-            opacity: gameState?.doubled_status ? 1 : 0.3,
+            opacity: gameState?.hole_state?.betting?.doubled ? 1 : 0.3,
             marginBottom: '16px'
           }}>
           <div style={{
@@ -520,7 +520,7 @@ const LargeScoringButtons = ({
               }
             },
             'success',
-            !gameState?.doubled_status
+            !gameState?.hole_state?.betting?.doubled
           )}
 
           {renderLargeButton(
@@ -536,7 +536,7 @@ const LargeScoringButtons = ({
               }
             },
             'error',
-            !gameState?.doubled_status
+            !gameState?.hole_state?.betting?.doubled
           )}
         </div>
 
@@ -547,7 +547,7 @@ const LargeScoringButtons = ({
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
             gap: '16px',
-            opacity: !gameState?.doubled_status ? 1 : 0.3
+            opacity: !gameState?.hole_state?.betting?.doubled ? 1 : 0.3
           }}>
           {renderLargeButton(
             'offer-double',
@@ -556,28 +556,28 @@ const LargeScoringButtons = ({
             () => onAction("offer_double", {
               offering_team_id: "team1",
               target_team_id: "team2",
-              player_id: gameState?.captain_id
+              player_id: gameState?.hole_state?.teams?.captain
             }),
             'warning',
-            gameState?.doubled_status
+            gameState?.hole_state?.betting?.doubled
           )}
 
           {renderLargeButton(
             'invoke-float',
             '🎈',
-            gameState?.player_float_used?.[gameState?.captain_id] ? 'Float Used' : 'Invoke Float',
-            () => onAction("invoke_float", { captain_id: gameState?.captain_id }),
+            gameState?.hole_state?.betting?.special_rules?.float_invoked ? 'Float Used' : 'Invoke Float',
+            () => onAction("invoke_float", { captain_id: gameState?.hole_state?.teams?.captain }),
             'primary',
-            gameState?.player_float_used?.[gameState?.captain_id] || gameState?.doubled_status
+            gameState?.hole_state?.betting?.special_rules?.float_invoked || gameState?.hole_state?.betting?.doubled
           )}
 
           {renderLargeButton(
             'toggle-option',
             '🔄',
             'Toggle Option',
-            () => onAction("toggle_option", { captain_id: gameState?.captain_id }),
+            () => onAction("toggle_option", { captain_id: gameState?.hole_state?.teams?.captain }),
             'primary',
-            gameState?.doubled_status
+            gameState?.hole_state?.betting?.doubled
           )}
         </div>
       </div>
@@ -620,20 +620,20 @@ const LargeScoringButtons = ({
             'Go Solo (1 vs 3)',
             () => {
               if (window.confirm('Captain goes solo? Wager will be doubled!')) {
-                onAction("go_solo", { captain_id: gameState?.captain_id });
+                onAction("go_solo", { captain_id: gameState?.hole_state?.teams?.captain });
               }
             },
             'warning',
             !(gameState?.teams?.type === "pending" && !gameState?.teams?.requested)
           )}
 
-          {(gameState?.players || []).filter(p => p.id !== gameState?.captain_id).map(player =>
+          {(gameState?.players || []).filter(p => p.id !== gameState?.hole_state?.teams?.captain).map(player =>
             renderLargeButton(
               `partner-${player.id}`,
               '🤝',
               `Partner with ${player.name}`,
               () => onAction("request_partner", {
-                captain_id: gameState?.captain_id,
+                captain_id: gameState?.hole_state?.teams?.captain,
                 partner_id: player.id
               }),
               'primary',
@@ -667,7 +667,7 @@ const LargeScoringButtons = ({
           marginBottom: '16px',
           lineHeight: '1.5'
         }}>
-          <strong>{gameState?.players?.find(p => p.id === gameState?.captain_id)?.name || 'Captain'}</strong> wants{' '}
+          <strong>{gameState?.players?.find(p => p.id === gameState?.hole_state?.teams?.captain)?.name || 'Captain'}</strong> wants{' '}
           <strong>{gameState?.players?.find(p => p.id === gameState?.teams?.requested)?.name || 'you'}</strong> as partner
         </p>
         <p style={{
@@ -702,7 +702,7 @@ const LargeScoringButtons = ({
           {renderLargeButton(
             'decline-partnership',
             '❌',
-            `Decline (${gameState?.players?.find(p => p.id === gameState?.captain_id)?.name || 'Captain'} Goes Solo)`,
+            `Decline (${gameState?.players?.find(p => p.id === gameState?.hole_state?.teams?.captain)?.name || 'Captain'} Goes Solo)`,
             () => {
               if (window.confirm('Decline partnership? Captain will go solo and wager doubles!')) {
                 onAction("decline_partner", {
