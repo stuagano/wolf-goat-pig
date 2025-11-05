@@ -5,6 +5,7 @@ import Scorecard from '../components/simulation/visual/Scorecard';
 import LargeScoringButtons from '../components/game/LargeScoringButtons';
 import GameStateWidget from '../components/GameStateWidget';
 import GameBanner from '../components/GameBanner';
+import BettingTracker from '../components/game/BettingTracker';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -417,6 +418,13 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
         <GameBanner />
         {gameState.selected_course && <div style={{marginBottom:8, fontWeight:600, color:theme.colors.primary}}>Course: {gameState.selected_course}</div>}
         {bettingTipsCard}
+
+        {/* Betting Action Tracker */}
+        <BettingTracker
+          gameState={gameState}
+          currentPlayer={gameState.players[0]?.name || 'Player1'}
+        />
+
         <div style={{display:'flex',flexDirection:'row',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
           <h2 style={{margin:0,fontSize:22,color:theme.colors.primary}}>Hole {gameState.current_hole} (Par {gameState.hole_par})</h2>
           <span style={{fontSize:15,color:theme.colors.textSecondary}}><strong>Wager:</strong> {gameState.base_wager}q</span>

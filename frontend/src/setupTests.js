@@ -3,6 +3,18 @@ import '@testing-library/jest-dom';
 
 // Note: react-router-dom mocking is handled in individual test files
 
+// Mock crypto.getRandomValues for uuid in tests
+if (typeof globalThis.crypto === 'undefined') {
+  globalThis.crypto = {
+    getRandomValues: (arr) => {
+      for (let i = 0; i < arr.length; i++) {
+        arr[i] = Math.floor(Math.random() * 256);
+      }
+      return arr;
+    }
+  };
+}
+
 // Mock environment variables
 process.env.REACT_APP_API_URL = 'http://test-api.com';
 process.env.REACT_APP_USE_MOCK_AUTH = 'true';
