@@ -52,6 +52,39 @@ const useBettingState = (gameId, holeNumber) => {
     }
   }, [unsyncedEvents, gameId, holeNumber]);
 
+  // Reset betting state when hole number changes
+  useEffect(() => {
+    setState(prevState => {
+      // Only reset if hole number actually changed
+      if (prevState.holeNumber !== holeNumber) {
+        // Reset state for new hole
+        return {
+          holeNumber,
+          currentMultiplier: 1,
+          baseAmount: 1.00,
+          currentBet: 1.00,
+          teams: [],
+          pendingAction: null,
+          presses: []
+        };
+      }
+      return prevState;
+    });
+
+    // Move current hole events to last hole (separate effect)
+    setEventHistory(prev => {
+      // Only move if we're actually on a new hole
+      if (prev.currentHole.length > 0 || prev.lastHole.length === 0) {
+        return {
+          ...prev,
+          lastHole: prev.currentHole,
+          currentHole: []
+        };
+      }
+      return prev;
+    });
+  }, [holeNumber]);
+
   /**
    * Offers a double bet to increase the multiplier.
    *
