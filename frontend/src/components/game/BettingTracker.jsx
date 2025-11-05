@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useTheme } from '../../theme/Provider';
 import useBettingState from '../../hooks/useBettingState';
+import CurrentBetStatus from './CurrentBetStatus';
 
 const BettingTracker = ({ gameState, hasPendingAction = false }) => {
   const theme = useTheme();
@@ -71,11 +72,7 @@ const BettingTracker = ({ gameState, hasPendingAction = false }) => {
         </button>
       </div>
 
-      <div style={{ width: '100%' }}>
-        <p>Multiplier: {state.currentMultiplier}x</p>
-        <p>Base Amount: ${state.baseAmount.toFixed(2)}</p>
-        <p>Current Bet: ${state.currentBet.toFixed(2)}</p>
-      </div>
+      <CurrentBetStatus state={state} />
     </div>
   );
 };
