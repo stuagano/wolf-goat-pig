@@ -1,6 +1,7 @@
 // frontend/src/hooks/useBettingState.js
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { BettingEventTypes, createBettingEvent } from '../constants/bettingEvents';
+import { syncBettingEvents } from '../api/bettingApi';
 
 /**
  * Custom hook for managing betting state and actions in a golf game hole.
@@ -28,6 +29,28 @@ const useBettingState = (gameId, holeNumber) => {
     lastHole: [],
     gameHistory: []
   });
+
+  // Track unsynced events and sync status
+  const [unsyncedEvents, setUnsyncedEvents] = useState([]);
+  const [syncStatus, setSyncStatus] = useState('synced'); // 'synced' | 'pending' | 'error'
+
+  // Auto-sync every 5 events
+  useEffect(() => {
+    if (unsyncedEvents.length >= 5) {
+      const performSync = async () => {
+        setSyncStatus('pending');
+        try {
+          await syncBettingEvents(gameId, holeNumber, unsyncedEvents);
+          setUnsyncedEvents([]);
+          setSyncStatus('synced');
+        } catch (error) {
+          console.error('Sync failed:', error);
+          setSyncStatus('error');
+        }
+      };
+      performSync();
+    }
+  }, [unsyncedEvents, gameId, holeNumber]);
 
   /**
    * Offers a double bet to increase the multiplier.
@@ -64,6 +87,9 @@ const useBettingState = (gameId, holeNumber) => {
         currentHole: [...prevHistory.currentHole, event],
         gameHistory: [...prevHistory.gameHistory, event]
       }));
+
+      // Track unsynced event
+      setUnsyncedEvents(prevUnsynced => [...prevUnsynced, event]);
 
       return {
         ...prev,
@@ -115,6 +141,9 @@ const useBettingState = (gameId, holeNumber) => {
         gameHistory: [...prevHistory.gameHistory, event]
       }));
 
+      // Track unsynced event
+      setUnsyncedEvents(prevUnsynced => [...prevUnsynced, event]);
+
       return {
         ...prev,
         currentMultiplier: newMultiplier,
@@ -160,6 +189,9 @@ const useBettingState = (gameId, holeNumber) => {
         gameHistory: [...prevHistory.gameHistory, event]
       }));
 
+      // Track unsynced event
+      setUnsyncedEvents(prevUnsynced => [...prevUnsynced, event]);
+
       return {
         ...prev,
         pendingAction: null
@@ -174,7 +206,8 @@ const useBettingState = (gameId, holeNumber) => {
       offerDouble,
       acceptDouble,
       declineDouble
-    }
+    },
+    syncStatus
   };
 };
 
