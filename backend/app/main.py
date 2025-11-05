@@ -53,6 +53,7 @@ from .validators import (
     GameStateValidationError
 )
 from .badge_routes import router as badge_router
+from .routes.betting_events import router as betting_events_router
 
 # Global variable for email scheduler (initialized on demand)
 email_scheduler = None
@@ -219,6 +220,9 @@ app.add_middleware(
 
 # Include badge system routes
 app.include_router(badge_router)
+
+# Include betting events routes
+app.include_router(betting_events_router)
 
 # Global exception handler
 @app.exception_handler(HTTPException)
