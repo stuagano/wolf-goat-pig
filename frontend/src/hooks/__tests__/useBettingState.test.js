@@ -274,4 +274,110 @@ describe('useBettingState', () => {
       expect(result.current.eventHistory.gameHistory[1]).toEqual(acceptEvent);
     });
   });
+
+  describe('Hole completion', () => {
+    // Mock fetch for sync testing
+    beforeEach(() => {
+      global.fetch = jest.fn(() =>
+        Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ success: true, confirmedEvents: [], corrections: [] })
+        })
+      );
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    test('should complete hole and sync events', async () => {
+      const { result } = renderHook(() => useBettingState('game-123', 1));
+
+      act(() => {
+        result.current.actions.offerDouble('Player1', 2);
+        result.current.actions.acceptDouble('Player2');
+      });
+
+      expect(result.current.eventHistory.currentHole.length).toBe(2);
+      expect(result.current.state.holeNumber).toBe(1);
+      expect(result.current.state.currentMultiplier).toBe(2);
+
+      await act(async () => {
+        await result.current.actions.completeHole();
+      });
+
+      // State should reset for next hole
+      expect(result.current.state.holeNumber).toBe(2);
+      expect(result.current.state.currentMultiplier).toBe(1);
+      expect(result.current.state.currentBet).toBe(1.00);
+      expect(result.current.state.pendingAction).toBeNull();
+
+      // Current hole events should be moved to lastHole
+      expect(result.current.eventHistory.currentHole).toEqual([]);
+      expect(result.current.eventHistory.lastHole.length).toBeGreaterThan(0);
+
+      // Game history should be preserved
+      expect(result.current.eventHistory.gameHistory.length).toBeGreaterThan(0);
+    });
+
+    test('should create HOLE_COMPLETE event', async () => {
+      const { result } = renderHook(() => useBettingState('game-123', 1));
+
+      act(() => {
+        result.current.actions.offerDouble('Player1', 2);
+        result.current.actions.acceptDouble('Player2');
+      });
+
+      await act(async () => {
+        await result.current.actions.completeHole();
+      });
+
+      // The last hole should include a HOLE_COMPLETE event
+      const events = result.current.eventHistory.lastHole;
+      const holeCompleteEvent = events.find(e => e.eventType === BettingEventTypes.HOLE_COMPLETE);
+
+      expect(holeCompleteEvent).toBeDefined();
+      expect(holeCompleteEvent.actor).toBe('system');
+      expect(holeCompleteEvent.data.finalMultiplier).toBe(2);
+      expect(holeCompleteEvent.data.finalBet).toBe(2.00);
+    });
+
+    test('should sync unsynced events on hole completion', async () => {
+      const { result } = renderHook(() => useBettingState('game-123', 1));
+
+      act(() => {
+        result.current.actions.offerDouble('Player1', 2);
+      });
+
+      await act(async () => {
+        await result.current.actions.completeHole();
+      });
+
+      // Verify fetch was called
+      expect(global.fetch).toHaveBeenCalled();
+      expect(result.current.syncStatus).toBe('synced');
+    });
+
+    test('should throw error if sync fails on hole completion', async () => {
+      global.fetch = jest.fn(() =>
+        Promise.resolve({
+          ok: false,
+          status: 500
+        })
+      );
+
+      const { result } = renderHook(() => useBettingState('game-123', 1));
+
+      act(() => {
+        result.current.actions.offerDouble('Player1', 2);
+      });
+
+      // Should throw error when sync fails
+      await expect(
+        act(async () => {
+          await result.current.actions.completeHole();
+        })
+      ).rejects.toThrow('Sync failed: 500');
+    });
+  });
 });

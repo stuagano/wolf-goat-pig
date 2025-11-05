@@ -199,13 +199,81 @@ const useBettingState = (gameId, holeNumber) => {
     });
   }, [gameId, holeNumber]);
 
+  /**
+   * Completes the current hole and prepares for the next hole.
+   * Creates a HOLE_COMPLETE event, forces sync of all unsynced events,
+   * moves current hole events to lastHole, and resets betting state.
+   *
+   * @throws {Error} If sync fails during hole completion
+   */
+  const completeHole = useCallback(async () => {
+    // Get current state values before any updates
+    const currentMultiplier = state.currentMultiplier;
+    const currentBet = state.currentBet;
+
+    // Create HOLE_COMPLETE event
+    const holeCompleteEvent = createBettingEvent({
+      gameId,
+      holeNumber,
+      eventType: BettingEventTypes.HOLE_COMPLETE,
+      actor: 'system',
+      data: {
+        finalMultiplier: currentMultiplier,
+        finalBet: currentBet
+      }
+    });
+
+    // Add the hole complete event to history
+    setEventHistory(prev => ({
+      ...prev,
+      currentHole: [...prev.currentHole, holeCompleteEvent],
+      gameHistory: [...prev.gameHistory, holeCompleteEvent]
+    }));
+
+    // Add hole complete event to unsynced events
+    const allUnsyncedEvents = [...unsyncedEvents, holeCompleteEvent];
+
+    // Force sync all unsynced events (including the HOLE_COMPLETE event)
+    if (allUnsyncedEvents.length > 0) {
+      setSyncStatus('pending');
+      try {
+        await syncBettingEvents(gameId, holeNumber, allUnsyncedEvents);
+        setUnsyncedEvents([]);
+        setSyncStatus('synced');
+      } catch (error) {
+        console.error('Hole completion sync failed:', error);
+        setSyncStatus('error');
+        throw error;
+      }
+    }
+
+    // Move current hole events to last hole (after successful sync)
+    setEventHistory(prev => ({
+      ...prev,
+      lastHole: [...prev.currentHole, holeCompleteEvent],
+      currentHole: []
+    }));
+
+    // Reset betting state for next hole
+    setState({
+      holeNumber: holeNumber + 1,
+      currentMultiplier: 1,
+      baseAmount: 1.00,
+      currentBet: 1.00,
+      teams: [],
+      pendingAction: null,
+      presses: []
+    });
+  }, [gameId, holeNumber, state.currentMultiplier, state.currentBet, unsyncedEvents]);
+
   return {
     state,
     eventHistory,
     actions: {
       offerDouble,
       acceptDouble,
-      declineDouble
+      declineDouble,
+      completeHole
     },
     syncStatus
   };
