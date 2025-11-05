@@ -3,14 +3,18 @@ import React, { useState } from 'react';
 import { useTheme } from '../../theme/Provider';
 import useBettingState from '../../hooks/useBettingState';
 import CurrentBetStatus from './CurrentBetStatus';
+import BettingControls from './BettingControls';
+import BettingHistory from './BettingHistory';
 
-const BettingTracker = ({ gameState, hasPendingAction = false }) => {
+const BettingTracker = ({ gameState, currentPlayer = 'Player1' }) => {
   const theme = useTheme();
   const [isExpanded, setIsExpanded] = useState(false);
   const { state, eventHistory, actions } = useBettingState(
     gameState.id,
     gameState.current_hole
   );
+
+  const hasPendingAction = state.pendingAction !== null;
 
   const collapsedStyle = {
     padding: theme.spacing[3],
@@ -27,7 +31,8 @@ const BettingTracker = ({ gameState, hasPendingAction = false }) => {
   const expandedContainerStyle = {
     ...collapsedStyle,
     flexDirection: 'column',
-    cursor: 'default'
+    cursor: 'default',
+    border: `2px solid ${theme.colors.primary}`
   };
 
   if (!isExpanded) {
@@ -44,7 +49,8 @@ const BettingTracker = ({ gameState, hasPendingAction = false }) => {
               color: 'white',
               borderRadius: theme.borderRadius.full,
               padding: `${theme.spacing[1]} ${theme.spacing[2]}`,
-              fontSize: theme.typography.xs
+              fontSize: theme.typography.xs,
+              animation: 'pulse 2s infinite'
             }}
           >
             Action Required
@@ -66,13 +72,20 @@ const BettingTracker = ({ gameState, hasPendingAction = false }) => {
         }}
         onClick={() => setIsExpanded(false)}
       >
-        <h3 style={{ margin: 0 }}>Current Bet Status</h3>
-        <button style={{ ...theme.buttonStyle, padding: theme.spacing[1] }}>
-          Collapse
+        <h3 style={{ margin: 0, fontSize: theme.typography.xl }}>Betting Tracker</h3>
+        <button style={{
+          ...theme.buttonStyle,
+          padding: theme.spacing[1],
+          background: 'transparent',
+          color: theme.colors.textSecondary
+        }}>
+          ▼ Collapse
         </button>
       </div>
 
       <CurrentBetStatus state={state} />
+      <BettingControls state={state} actions={actions} currentPlayer={currentPlayer} />
+      <BettingHistory eventHistory={eventHistory} />
     </div>
   );
 };

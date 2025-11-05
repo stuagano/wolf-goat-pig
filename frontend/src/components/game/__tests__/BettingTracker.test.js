@@ -17,7 +17,7 @@ describe('BettingTracker', () => {
     render(<BettingTracker gameState={mockGameState} />);
 
     expect(screen.getByText(/Bet:/)).toBeInTheDocument();
-    expect(screen.queryByText(/Current Bet Status/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Betting Tracker/)).not.toBeInTheDocument();
   });
 
   test('should expand when clicked', () => {
@@ -26,12 +26,25 @@ describe('BettingTracker', () => {
     const collapseBar = screen.getByText(/Bet:/);
     fireEvent.click(collapseBar);
 
-    expect(screen.getByText(/Current Bet Status/)).toBeInTheDocument();
+    expect(screen.getByText(/Betting Tracker/)).toBeInTheDocument();
   });
 
-  test('should show pending action indicator', () => {
-    render(<BettingTracker gameState={mockGameState} hasPendingAction={true} />);
+  test('should show all components when expanded', () => {
+    render(<BettingTracker gameState={mockGameState} currentPlayer="Player1" />);
 
-    expect(screen.getByTestId('pending-indicator')).toBeInTheDocument();
+    const collapseBar = screen.getByText(/Bet:/);
+    fireEvent.click(collapseBar);
+
+    // Should show CurrentBetStatus
+    expect(screen.getByText(/1x/)).toBeInTheDocument();
+
+    // Should show BettingControls
+    expect(screen.getByText(/Offer Double/)).toBeInTheDocument();
+    expect(screen.getByText(/Offer Press/)).toBeInTheDocument();
+
+    // Should show BettingHistory
+    expect(screen.getByText(/Current Hole/)).toBeInTheDocument();
+    expect(screen.getByText(/Last Hole/)).toBeInTheDocument();
+    expect(screen.getByText(/Game History/)).toBeInTheDocument();
   });
 });
