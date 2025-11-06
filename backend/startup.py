@@ -357,23 +357,118 @@ def check_dependencies() -> Dict[str, Any]:
     return dep_status
 
 
+async def run_migrations() -> Dict[str, Any]:
+    """Run database migrations to ensure schema is up-to-date."""
+    migration_result = {
+        "success": False,
+        "message": "",
+        "migrations_applied": []
+    }
+
+    try:
+        import os
+        from app.database import SessionLocal, engine
+        from sqlalchemy import text, inspect
+
+        database_url = os.getenv('DATABASE_URL', '')
+        is_postgresql = 'postgresql://' in database_url or 'postgres://' in database_url
+
+        db = SessionLocal()
+        try:
+            # Check if game_state table exists
+            inspector = inspect(engine)
+            if 'game_state' not in inspector.get_table_names():
+                migration_result["success"] = True
+                migration_result["message"] = "game_state table does not exist yet, will be created by init_db"
+                return migration_result
+
+            # Get existing columns
+            columns = [col['name'] for col in inspector.get_columns('game_state')]
+            logging.debug(f"Existing game_state columns: {columns}")
+
+            migrations_applied = []
+
+            # Migration 1: Add game_id column if missing
+            if 'game_id' not in columns:
+                logging.info("  Adding game_id column to game_state...")
+                if is_postgresql:
+                    db.execute(text("ALTER TABLE game_state ADD COLUMN game_id VARCHAR"))
+                    db.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_game_state_game_id ON game_state(game_id)"))
+                    db.execute(text("UPDATE game_state SET game_id = 'legacy-game-' || id WHERE game_id IS NULL"))
+                else:
+                    db.execute(text("ALTER TABLE game_state ADD COLUMN game_id VARCHAR"))
+                    db.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_game_state_game_id ON game_state(game_id)"))
+                    db.execute(text("UPDATE game_state SET game_id = 'legacy-game-' || id WHERE game_id IS NULL"))
+                migrations_applied.append("game_id column")
+                logging.info("  ✅ Added game_id column")
+
+            # Migration 2: Add created_at column if missing
+            if 'created_at' not in columns:
+                logging.info("  Adding created_at column to game_state...")
+                if is_postgresql:
+                    db.execute(text("ALTER TABLE game_state ADD COLUMN created_at VARCHAR"))
+                    db.execute(text("UPDATE game_state SET created_at = NOW()::text WHERE created_at IS NULL"))
+                else:
+                    db.execute(text("ALTER TABLE game_state ADD COLUMN created_at VARCHAR"))
+                    db.execute(text("UPDATE game_state SET created_at = datetime('now') WHERE created_at IS NULL"))
+                migrations_applied.append("created_at column")
+                logging.info("  ✅ Added created_at column")
+
+            # Migration 3: Add updated_at column if missing
+            if 'updated_at' not in columns:
+                logging.info("  Adding updated_at column to game_state...")
+                if is_postgresql:
+                    db.execute(text("ALTER TABLE game_state ADD COLUMN updated_at VARCHAR"))
+                    db.execute(text("UPDATE game_state SET updated_at = NOW()::text WHERE updated_at IS NULL"))
+                else:
+                    db.execute(text("ALTER TABLE game_state ADD COLUMN updated_at VARCHAR"))
+                    db.execute(text("UPDATE game_state SET updated_at = datetime('now') WHERE updated_at IS NULL"))
+                migrations_applied.append("updated_at column")
+                logging.info("  ✅ Added updated_at column")
+
+            db.commit()
+
+            if migrations_applied:
+                migration_result["success"] = True
+                migration_result["message"] = f"Applied {len(migrations_applied)} migration(s): {', '.join(migrations_applied)}"
+                migration_result["migrations_applied"] = migrations_applied
+            else:
+                migration_result["success"] = True
+                migration_result["message"] = "No migrations needed - schema is up-to-date"
+
+        except Exception as e:
+            db.rollback()
+            migration_result["message"] = f"Migration failed: {str(e)}"
+            logging.error(f"  ❌ Migration error: {e}")
+            raise
+        finally:
+            db.close()
+
+    except Exception as e:
+        migration_result["message"] = f"Migration setup failed: {str(e)}"
+        logging.error(f"  ❌ Migration setup error: {e}")
+
+    return migration_result
+
+
 async def initialize_database() -> Dict[str, Any]:
     """Initialize the database and verify connection."""
     db_status = {
         "initialized": False,
         "connected": False,
+        "migrated": False,
         "error": None
     }
-    
+
     try:
         from app.database import init_db, SessionLocal
         from sqlalchemy import text
-        
+
         # Initialize database tables
         init_db()
         db_status["initialized"] = True
         logging.info("✅ Database tables initialized")
-        
+
         # Test connection
         db = SessionLocal()
         try:
@@ -386,11 +481,25 @@ async def initialize_database() -> Dict[str, Any]:
             logging.error(f"❌ Database connection test failed: {e}")
         finally:
             db.close()
-            
+
+        # Run migrations to ensure schema is up-to-date
+        if db_status["connected"]:
+            try:
+                logging.info("🔄 Applying database migrations...")
+                migration_result = await run_migrations()
+                db_status["migrated"] = migration_result["success"]
+                if migration_result["success"]:
+                    logging.info("✅ Database migrations completed")
+                else:
+                    logging.warning(f"⚠️ Database migrations completed with warnings: {migration_result.get('message', '')}")
+            except Exception as e:
+                logging.warning(f"⚠️ Database migrations failed (continuing anyway): {e}")
+                db_status["migrated"] = False
+
     except Exception as e:
         db_status["error"] = str(e)
         logging.error(f"❌ Database initialization failed: {e}")
-    
+
     return db_status
 
 
