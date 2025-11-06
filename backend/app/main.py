@@ -165,9 +165,11 @@ class CompleteHoleRequest(BaseModel):
     hole_number: int = Field(..., ge=1, le=18)
     teams: HoleTeams
     final_wager: float = Field(..., gt=0)
-    winner: str  # 'team1', 'team2', 'captain', 'opponents', or 'push'
+    winner: str  # 'team1', 'team2', 'captain', 'opponents', or 'push' for completed holes; 'team1_flush' (Team2 conceded), 'team2_flush' (Team1 conceded), 'captain_flush' (Opponents conceded), 'opponents_flush' (Captain conceded) for folded holes
     scores: Dict[str, int] = Field(..., description="Player ID to strokes mapping")
     hole_par: Optional[int] = Field(4, ge=3, le=5)
+    float_invoked_by: Optional[str] = Field(None, description="Player ID who invoked float on this hole")
+    option_invoked_by: Optional[str] = Field(None, description="Player ID who triggered option on this hole")
 
 
 app = FastAPI(
@@ -1344,6 +1346,18 @@ async def complete_hole(
                     points_delta[player_id] = -request.final_wager
                 for player_id in request.teams.team2:
                     points_delta[player_id] = request.final_wager
+            elif request.winner == "team1_flush":
+                # Flush: Team2 concedes/folds - Team1 wins current wager
+                for player_id in request.teams.team1:
+                    points_delta[player_id] = request.final_wager
+                for player_id in request.teams.team2:
+                    points_delta[player_id] = -request.final_wager
+            elif request.winner == "team2_flush":
+                # Flush: Team1 concedes/folds - Team2 wins current wager
+                for player_id in request.teams.team1:
+                    points_delta[player_id] = -request.final_wager
+                for player_id in request.teams.team2:
+                    points_delta[player_id] = request.final_wager
             else:  # push
                 for player_id in request.teams.team1 + request.teams.team2:
                     points_delta[player_id] = 0
@@ -1353,6 +1367,16 @@ async def complete_hole(
                 for opp_id in request.teams.opponents:
                     points_delta[opp_id] = -request.final_wager
             elif request.winner == "opponents":
+                points_delta[request.teams.captain] = -request.final_wager * len(request.teams.opponents)
+                for opp_id in request.teams.opponents:
+                    points_delta[opp_id] = request.final_wager
+            elif request.winner == "captain_flush":
+                # Flush: Opponents concede/fold - Captain wins current wager
+                points_delta[request.teams.captain] = request.final_wager * len(request.teams.opponents)
+                for opp_id in request.teams.opponents:
+                    points_delta[opp_id] = -request.final_wager
+            elif request.winner == "opponents_flush":
+                # Flush: Captain concedes/folds - Opponents win current wager
                 points_delta[request.teams.captain] = -request.final_wager * len(request.teams.opponents)
                 for opp_id in request.teams.opponents:
                     points_delta[opp_id] = request.final_wager
@@ -1369,7 +1393,9 @@ async def complete_hole(
             "winner": request.winner,
             "gross_scores": request.scores,
             "hole_par": request.hole_par,
-            "points_delta": points_delta
+            "points_delta": points_delta,
+            "float_invoked_by": request.float_invoked_by,
+            "option_invoked_by": request.option_invoked_by
         }
 
         # Add or update hole in history

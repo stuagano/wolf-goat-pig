@@ -131,14 +131,18 @@ const SimpleScorekeeperPage = () => {
     );
   }
 
-  const baseWager = gameData.base_wager || 0.25;
+  const baseWager = gameData.base_wager || 1;
   const players = gameData.players || [];
+  const holeHistory = gameData.hole_history || [];
+  const currentHoleNumber = gameData.current_hole || 1;
 
   return (
     <SimpleScorekeeper
       gameId={gameId}
       players={players}
       baseWager={baseWager}
+      initialHoleHistory={holeHistory}
+      initialCurrentHole={currentHoleNumber}
     />
   );
 };

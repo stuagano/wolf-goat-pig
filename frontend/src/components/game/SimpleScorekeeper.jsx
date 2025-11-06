@@ -10,11 +10,17 @@ const API_URL = process.env.REACT_APP_API_URL || '';
  * Simplified scorekeeper component - no game engine, just direct data entry
  * Client-side betting UI, single API call to complete each hole
  */
-const SimpleScorekeeper = ({ gameId, players, baseWager = 0.25 }) => {
+const SimpleScorekeeper = ({
+  gameId,
+  players,
+  baseWager = 1,
+  initialHoleHistory = [],
+  initialCurrentHole = 1
+}) => {
   const theme = useTheme();
 
   // Current hole state (all client-side until submit)
-  const [currentHole, setCurrentHole] = useState(1);
+  const [currentHole, setCurrentHole] = useState(initialCurrentHole);
   const [teamMode, setTeamMode] = useState('partners'); // 'partners' or 'solo'
   const [team1, setTeam1] = useState([]);
   const [team2, setTeam2] = useState([]);
@@ -24,9 +30,11 @@ const SimpleScorekeeper = ({ gameId, players, baseWager = 0.25 }) => {
   const [scores, setScores] = useState({});
   const [winner, setWinner] = useState(null);
   const [holePar, setHolePar] = useState(4);
+  const [floatInvokedBy, setFloatInvokedBy] = useState(null); // Player ID who invoked float
+  const [optionInvokedBy, setOptionInvokedBy] = useState(null); // Player ID who triggered option
 
   // Game history and standings
-  const [holeHistory, setHoleHistory] = useState([]);
+  const [holeHistory, setHoleHistory] = useState(initialHoleHistory);
   const [playerStandings, setPlayerStandings] = useState({});
 
   // UI state
@@ -34,14 +42,50 @@ const SimpleScorekeeper = ({ gameId, players, baseWager = 0.25 }) => {
   const [error, setError] = useState(null);
   const [editingHole, setEditingHole] = useState(null); // Track which hole is being edited
 
-  // Initialize player standings
+  // Initialize player standings from hole history
   useEffect(() => {
     const standings = {};
     players.forEach(player => {
-      standings[player.id] = { quarters: 0, name: player.name };
+      standings[player.id] = {
+        quarters: 0,
+        name: player.name,
+        soloCount: 0,
+        floatCount: 0,
+        optionCount: 0
+      };
     });
+
+    // Recalculate quarters and usage stats from hole history
+    holeHistory.forEach(hole => {
+      // Track quarters
+      if (hole.points_delta) {
+        Object.entries(hole.points_delta).forEach(([playerId, points]) => {
+          if (standings[playerId]) {
+            standings[playerId].quarters += points;
+          }
+        });
+      }
+
+      // Track solo usage
+      if (hole.teams?.type === 'solo' && hole.teams?.captain) {
+        if (standings[hole.teams.captain]) {
+          standings[hole.teams.captain].soloCount += 1;
+        }
+      }
+
+      // Track float usage
+      if (hole.float_invoked_by && standings[hole.float_invoked_by]) {
+        standings[hole.float_invoked_by].floatCount += 1;
+      }
+
+      // Track option usage
+      if (hole.option_invoked_by && standings[hole.option_invoked_by]) {
+        standings[hole.option_invoked_by].optionCount += 1;
+      }
+    });
+
     setPlayerStandings(standings);
-  }, [players]);
+  }, [players, holeHistory]);
 
   // Reset hole state for new hole
   const resetHole = () => {
@@ -53,6 +97,8 @@ const SimpleScorekeeper = ({ gameId, players, baseWager = 0.25 }) => {
     setScores({});
     setWinner(null);
     setHolePar(4);
+    setFloatInvokedBy(null);
+    setOptionInvokedBy(null);
     setError(null);
     setEditingHole(null);
   };
@@ -65,6 +111,8 @@ const SimpleScorekeeper = ({ gameId, players, baseWager = 0.25 }) => {
     setScores(hole.gross_scores || {});
     setCurrentWager(hole.wager || baseWager);
     setWinner(hole.winner);
+    setFloatInvokedBy(hole.float_invoked_by || null);
+    setOptionInvokedBy(hole.option_invoked_by || null);
 
     // Set team mode and teams based on hole data
     if (hole.teams.type === 'partners') {
@@ -86,14 +134,16 @@ const SimpleScorekeeper = ({ gameId, players, baseWager = 0.25 }) => {
   };
 
   // Handle team selection for partners mode
+  // First 2 clicks are teammates (team1), next clicks are team2
   const togglePlayerTeam = (playerId) => {
     if (team1.includes(playerId)) {
       setTeam1(team1.filter(id => id !== playerId));
     } else if (team2.includes(playerId)) {
       setTeam2(team2.filter(id => id !== playerId));
     } else {
-      // Add to team with fewer players
-      if (team1.length <= team2.length) {
+      // First 2 players go to team1, rest go to team2
+      const totalSelected = team1.length + team2.length;
+      if (totalSelected < 2) {
         setTeam1([...team1, playerId]);
       } else {
         setTeam2([...team2, playerId]);
@@ -195,7 +245,9 @@ const SimpleScorekeeper = ({ gameId, players, baseWager = 0.25 }) => {
           final_wager: currentWager,
           winner: winner,
           scores: scores,
-          hole_par: holePar
+          hole_par: holePar,
+          float_invoked_by: floatInvokedBy,
+          option_invoked_by: optionInvokedBy
         })
       });
 
@@ -297,6 +349,524 @@ const SimpleScorekeeper = ({ gameId, players, baseWager = 0.25 }) => {
         </div>
       )}
 
+      {/* Golf-Style Scorecard at Top */}
+      <div style={{
+        background: theme.colors.paper,
+        padding: '16px',
+        borderRadius: '12px',
+        marginBottom: '20px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        overflowX: 'auto',
+        position: 'sticky',
+        top: '0',
+        zIndex: 10
+      }}>
+          <h3 style={{ margin: '0 0 12px', fontSize: '18px', fontWeight: 'bold', color: theme.colors.textPrimary }}>
+            📊 SCORECARD
+          </h3>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              fontSize: '13px',
+              minWidth: '600px'
+            }}>
+              <thead>
+                <tr style={{ background: theme.colors.backgroundSecondary }}>
+                  <th style={{
+                    padding: '8px 6px',
+                    textAlign: 'left',
+                    fontWeight: 'bold',
+                    borderBottom: `2px solid ${theme.colors.border}`,
+                    position: 'sticky',
+                    left: 0,
+                    background: theme.colors.backgroundSecondary,
+                    zIndex: 2
+                  }}>
+                    HOLE
+                  </th>
+                  {[...Array(9)].map((_, i) => (
+                    <th key={i} style={{
+                      padding: '8px 4px',
+                      textAlign: 'center',
+                      fontWeight: 'bold',
+                      borderBottom: `2px solid ${theme.colors.border}`,
+                      background: theme.colors.backgroundSecondary
+                    }}>
+                      {i + 1}
+                    </th>
+                  ))}
+                  <th style={{
+                    padding: '8px 6px',
+                    textAlign: 'center',
+                    fontWeight: 'bold',
+                    borderBottom: `2px solid ${theme.colors.border}`,
+                    borderLeft: `2px solid ${theme.colors.border}`,
+                    background: 'rgba(76, 175, 80, 0.1)'
+                  }}>
+                    OUT
+                  </th>
+                  {[...Array(9)].map((_, i) => (
+                    <th key={i + 9} style={{
+                      padding: '8px 4px',
+                      textAlign: 'center',
+                      fontWeight: 'bold',
+                      borderBottom: `2px solid ${theme.colors.border}`,
+                      background: theme.colors.backgroundSecondary
+                    }}>
+                      {i + 10}
+                    </th>
+                  ))}
+                  <th style={{
+                    padding: '8px 6px',
+                    textAlign: 'center',
+                    fontWeight: 'bold',
+                    borderBottom: `2px solid ${theme.colors.border}`,
+                    borderLeft: `2px solid ${theme.colors.border}`,
+                    background: 'rgba(76, 175, 80, 0.1)'
+                  }}>
+                    IN
+                  </th>
+                  <th style={{
+                    padding: '8px 6px',
+                    textAlign: 'center',
+                    fontWeight: 'bold',
+                    borderBottom: `2px solid ${theme.colors.border}`,
+                    borderLeft: `2px solid ${theme.colors.border}`,
+                    background: 'rgba(33, 150, 243, 0.1)'
+                  }}>
+                    TOT
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {/* Par Row */}
+                <tr style={{ background: 'rgba(255, 193, 7, 0.1)', borderBottom: `2px solid ${theme.colors.border}` }}>
+                  <td style={{
+                    padding: '6px',
+                    fontWeight: 'bold',
+                    fontSize: '11px',
+                    position: 'sticky',
+                    left: 0,
+                    background: 'rgba(255, 193, 7, 0.1)',
+                    borderRight: `2px solid ${theme.colors.border}`,
+                    zIndex: 1
+                  }}>
+                    PAR
+                  </td>
+                  {[...Array(18)].map((_, i) => {
+                    const hole = holeHistory.find(h => h.hole === (i + 1));
+                    const par = hole?.hole_par || (i + 1 <= 9 ? 4 : 4); // Default to 4 if not available
+                    const showDivider = i === 8; // After hole 9
+                    return (
+                      <td key={i} style={{
+                        padding: '6px 4px',
+                        textAlign: 'center',
+                        fontSize: '11px',
+                        fontWeight: 'bold',
+                        borderLeft: showDivider ? `2px solid ${theme.colors.border}` : 'none'
+                      }}>
+                        {par}
+                      </td>
+                    );
+                  })}
+                  <td style={{ padding: '6px', textAlign: 'center', fontSize: '11px', fontWeight: 'bold', borderLeft: `2px solid ${theme.colors.border}`, background: 'rgba(76, 175, 80, 0.05)' }}>36</td>
+                  <td style={{ padding: '6px', textAlign: 'center', fontSize: '11px', fontWeight: 'bold', borderLeft: `2px solid ${theme.colors.border}`, background: 'rgba(76, 175, 80, 0.05)' }}>36</td>
+                  <td style={{ padding: '6px', textAlign: 'center', fontSize: '11px', fontWeight: 'bold', borderLeft: `2px solid ${theme.colors.border}`, background: 'rgba(33, 150, 243, 0.05)' }}>72</td>
+                </tr>
+
+                {players.map((player, playerIdx) => {
+                  // Calculate stroke totals
+                  let outStroke = 0, inStroke = 0;
+                  let outQuarters = 0, inQuarters = 0;
+
+                  holeHistory.forEach(hole => {
+                    const score = hole.gross_scores?.[player.id] || 0;
+                    const quarters = hole.points_delta?.[player.id] || 0;
+                    if (hole.hole <= 9) {
+                      outStroke += score;
+                      outQuarters += quarters;
+                    } else {
+                      inStroke += score;
+                      inQuarters += quarters;
+                    }
+                  });
+
+                  return (
+                    <React.Fragment key={player.id}>
+                      {/* Stroke Row */}
+                      <tr style={{
+                        background: playerIdx % 2 === 0 ? 'white' : theme.colors.background,
+                        borderTop: playerIdx === 0 ? `2px solid ${theme.colors.border}` : 'none'
+                      }}>
+                        <td style={{
+                          padding: '8px 6px',
+                          fontWeight: 'bold',
+                          position: 'sticky',
+                          left: 0,
+                          background: playerIdx % 2 === 0 ? 'white' : theme.colors.background,
+                          borderRight: `2px solid ${theme.colors.border}`,
+                          fontSize: '12px',
+                          maxWidth: '80px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          zIndex: 1
+                        }}>
+                          {player.name}
+                        </td>
+                        {/* Front 9 Strokes */}
+                        {[...Array(9)].map((_, i) => {
+                          const hole = holeHistory.find(h => h.hole === (i + 1));
+                          const score = hole?.gross_scores?.[player.id];
+                          const par = hole?.hole_par || 4;
+                          const diff = score ? score - par : null;
+
+                          // Determine indicator style based on score relative to par
+                          let indicatorStyle = {};
+                          if (diff === -1) {
+                            // Birdie - Circle
+                            indicatorStyle = {
+                              display: 'inline-block',
+                              width: '24px',
+                              height: '24px',
+                              lineHeight: '20px',
+                              borderRadius: '50%',
+                              border: '2px solid #4CAF50'
+                            };
+                          } else if (diff === 1) {
+                            // Bogey - Square
+                            indicatorStyle = {
+                              display: 'inline-block',
+                              width: '24px',
+                              height: '24px',
+                              lineHeight: '20px',
+                              border: '2px solid #f44336'
+                            };
+                          } else if (diff >= 2) {
+                            // Double bogey or worse - Double square (thicker border)
+                            indicatorStyle = {
+                              display: 'inline-block',
+                              width: '24px',
+                              height: '24px',
+                              lineHeight: '20px',
+                              border: '3px double #f44336'
+                            };
+                          }
+
+                          return (
+                            <td key={i} style={{
+                              padding: '8px 4px',
+                              textAlign: 'center',
+                              fontWeight: score ? 'bold' : 'normal',
+                              color: score ? theme.colors.textPrimary : theme.colors.textSecondary
+                            }}>
+                              {score ? (
+                                diff !== null && diff !== 0 ? (
+                                  <span style={indicatorStyle}>{score}</span>
+                                ) : score
+                              ) : '-'}
+                            </td>
+                          );
+                        })}
+                        <td style={{
+                          padding: '8px 6px',
+                          textAlign: 'center',
+                          fontWeight: 'bold',
+                          borderLeft: `2px solid ${theme.colors.border}`,
+                          background: 'rgba(76, 175, 80, 0.05)'
+                        }}>
+                          {outStroke || '-'}
+                        </td>
+                        {/* Back 9 Strokes */}
+                        {[...Array(9)].map((_, i) => {
+                          const hole = holeHistory.find(h => h.hole === (i + 10));
+                          const score = hole?.gross_scores?.[player.id];
+                          const par = hole?.hole_par || 4;
+                          const diff = score ? score - par : null;
+
+                          // Determine indicator style based on score relative to par
+                          let indicatorStyle = {};
+                          if (diff === -1) {
+                            // Birdie - Circle
+                            indicatorStyle = {
+                              display: 'inline-block',
+                              width: '24px',
+                              height: '24px',
+                              lineHeight: '20px',
+                              borderRadius: '50%',
+                              border: '2px solid #4CAF50'
+                            };
+                          } else if (diff === 1) {
+                            // Bogey - Square
+                            indicatorStyle = {
+                              display: 'inline-block',
+                              width: '24px',
+                              height: '24px',
+                              lineHeight: '20px',
+                              border: '2px solid #f44336'
+                            };
+                          } else if (diff >= 2) {
+                            // Double bogey or worse - Double square (thicker border)
+                            indicatorStyle = {
+                              display: 'inline-block',
+                              width: '24px',
+                              height: '24px',
+                              lineHeight: '20px',
+                              border: '3px double #f44336'
+                            };
+                          }
+
+                          return (
+                            <td key={i + 9} style={{
+                              padding: '8px 4px',
+                              textAlign: 'center',
+                              fontWeight: score ? 'bold' : 'normal',
+                              color: score ? theme.colors.textPrimary : theme.colors.textSecondary
+                            }}>
+                              {score ? (
+                                diff !== null && diff !== 0 ? (
+                                  <span style={indicatorStyle}>{score}</span>
+                                ) : score
+                              ) : '-'}
+                            </td>
+                          );
+                        })}
+                        <td style={{
+                          padding: '8px 6px',
+                          textAlign: 'center',
+                          fontWeight: 'bold',
+                          borderLeft: `2px solid ${theme.colors.border}`,
+                          background: 'rgba(76, 175, 80, 0.05)'
+                        }}>
+                          {inStroke || '-'}
+                        </td>
+                        <td style={{
+                          padding: '8px 6px',
+                          textAlign: 'center',
+                          fontWeight: 'bold',
+                          fontSize: '14px',
+                          borderLeft: `2px solid ${theme.colors.border}`,
+                          background: 'rgba(33, 150, 243, 0.05)'
+                        }}>
+                          {(outStroke + inStroke) || '-'}
+                        </td>
+                      </tr>
+
+                      {/* Quarters Row */}
+                      <tr style={{
+                        background: playerIdx % 2 === 0 ? 'white' : theme.colors.background,
+                        borderBottom: `1px solid ${theme.colors.border}`
+                      }}>
+                        <td style={{
+                          padding: '6px',
+                          fontSize: '11px',
+                          fontStyle: 'italic',
+                          color: theme.colors.textSecondary,
+                          position: 'sticky',
+                          left: 0,
+                          background: playerIdx % 2 === 0 ? 'white' : theme.colors.background,
+                          borderRight: `2px solid ${theme.colors.border}`,
+                          zIndex: 1
+                        }}>
+                          Quarters
+                        </td>
+                        {/* Front 9 Quarters */}
+                        {[...Array(9)].map((_, i) => {
+                          const hole = holeHistory.find(h => h.hole === (i + 1));
+                          const quarters = hole?.points_delta?.[player.id];
+                          const hasValue = quarters !== undefined && quarters !== null;
+
+                          // Check for special actions
+                          const wasSolo = hole?.teams?.type === 'solo' && hole?.teams?.captain === player.id;
+                          const usedFloat = hole?.float_invoked_by === player.id;
+                          const usedOption = hole?.option_invoked_by === player.id;
+
+                          return (
+                            <td key={i} style={{
+                              padding: '6px 4px',
+                              textAlign: 'center',
+                              fontSize: '11px',
+                              fontWeight: hasValue ? 'bold' : 'normal',
+                              color: hasValue ? (quarters > 0 ? '#4CAF50' : quarters < 0 ? '#f44336' : theme.colors.textSecondary) : theme.colors.textSecondary,
+                              position: 'relative'
+                            }}>
+                              <div>
+                                {hasValue ? (quarters > 0 ? `+${quarters}` : quarters) : '·'}
+                              </div>
+                              {(wasSolo || usedFloat || usedOption) && (
+                                <div style={{
+                                  display: 'flex',
+                                  gap: '2px',
+                                  justifyContent: 'center',
+                                  marginTop: '2px',
+                                  fontSize: '9px'
+                                }}>
+                                  {wasSolo && (
+                                    <span style={{
+                                      background: theme.colors.primary,
+                                      color: 'white',
+                                      padding: '1px 3px',
+                                      borderRadius: '3px',
+                                      fontWeight: 'bold'
+                                    }}>S</span>
+                                  )}
+                                  {usedFloat && (
+                                    <span style={{
+                                      background: '#2196F3',
+                                      color: 'white',
+                                      padding: '1px 3px',
+                                      borderRadius: '3px',
+                                      fontWeight: 'bold'
+                                    }}>F</span>
+                                  )}
+                                  {usedOption && (
+                                    <span style={{
+                                      background: theme.colors.warning,
+                                      color: 'white',
+                                      padding: '1px 3px',
+                                      borderRadius: '3px',
+                                      fontWeight: 'bold'
+                                    }}>O</span>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                          );
+                        })}
+                        <td style={{
+                          padding: '6px',
+                          textAlign: 'center',
+                          fontSize: '11px',
+                          fontWeight: 'bold',
+                          borderLeft: `2px solid ${theme.colors.border}`,
+                          background: 'rgba(76, 175, 80, 0.05)',
+                          color: outQuarters > 0 ? '#4CAF50' : outQuarters < 0 ? '#f44336' : theme.colors.textSecondary
+                        }}>
+                          {outQuarters !== 0 ? (outQuarters > 0 ? `+${outQuarters}` : outQuarters) : '-'}
+                        </td>
+                        {/* Back 9 Quarters */}
+                        {[...Array(9)].map((_, i) => {
+                          const hole = holeHistory.find(h => h.hole === (i + 10));
+                          const quarters = hole?.points_delta?.[player.id];
+                          const hasValue = quarters !== undefined && quarters !== null;
+
+                          // Check for special actions
+                          const wasSolo = hole?.teams?.type === 'solo' && hole?.teams?.captain === player.id;
+                          const usedFloat = hole?.float_invoked_by === player.id;
+                          const usedOption = hole?.option_invoked_by === player.id;
+
+                          return (
+                            <td key={i + 9} style={{
+                              padding: '6px 4px',
+                              textAlign: 'center',
+                              fontSize: '11px',
+                              fontWeight: hasValue ? 'bold' : 'normal',
+                              color: hasValue ? (quarters > 0 ? '#4CAF50' : quarters < 0 ? '#f44336' : theme.colors.textSecondary) : theme.colors.textSecondary,
+                              position: 'relative'
+                            }}>
+                              <div>
+                                {hasValue ? (quarters > 0 ? `+${quarters}` : quarters) : '·'}
+                              </div>
+                              {(wasSolo || usedFloat || usedOption) && (
+                                <div style={{
+                                  display: 'flex',
+                                  gap: '2px',
+                                  justifyContent: 'center',
+                                  marginTop: '2px',
+                                  fontSize: '9px'
+                                }}>
+                                  {wasSolo && (
+                                    <span style={{
+                                      background: theme.colors.primary,
+                                      color: 'white',
+                                      padding: '1px 3px',
+                                      borderRadius: '3px',
+                                      fontWeight: 'bold'
+                                    }}>S</span>
+                                  )}
+                                  {usedFloat && (
+                                    <span style={{
+                                      background: '#2196F3',
+                                      color: 'white',
+                                      padding: '1px 3px',
+                                      borderRadius: '3px',
+                                      fontWeight: 'bold'
+                                    }}>F</span>
+                                  )}
+                                  {usedOption && (
+                                    <span style={{
+                                      background: theme.colors.warning,
+                                      color: 'white',
+                                      padding: '1px 3px',
+                                      borderRadius: '3px',
+                                      fontWeight: 'bold'
+                                    }}>O</span>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                          );
+                        })}
+                        <td style={{
+                          padding: '6px',
+                          textAlign: 'center',
+                          fontSize: '11px',
+                          fontWeight: 'bold',
+                          borderLeft: `2px solid ${theme.colors.border}`,
+                          background: 'rgba(76, 175, 80, 0.05)',
+                          color: inQuarters > 0 ? '#4CAF50' : inQuarters < 0 ? '#f44336' : theme.colors.textSecondary
+                        }}>
+                          {inQuarters !== 0 ? (inQuarters > 0 ? `+${inQuarters}` : inQuarters) : '-'}
+                        </td>
+                        <td style={{
+                          padding: '6px',
+                          textAlign: 'center',
+                          fontSize: '12px',
+                          fontWeight: 'bold',
+                          borderLeft: `2px solid ${theme.colors.border}`,
+                          background: 'rgba(33, 150, 243, 0.05)',
+                          color: (outQuarters + inQuarters) > 0 ? '#4CAF50' : (outQuarters + inQuarters) < 0 ? '#f44336' : theme.colors.textSecondary
+                        }}>
+                          {(outQuarters + inQuarters) !== 0 ? ((outQuarters + inQuarters) > 0 ? `+${outQuarters + inQuarters}` : (outQuarters + inQuarters)) : '-'}
+                        </td>
+                      </tr>
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Quick Actions for Last Hole */}
+          {holeHistory.length > 0 && (
+            <div style={{
+              marginTop: '12px',
+              paddingTop: '12px',
+              borderTop: `1px solid ${theme.colors.border}`,
+              fontSize: '12px',
+              color: theme.colors.textSecondary
+            }}>
+              <button
+                onClick={() => loadHoleForEdit(holeHistory[holeHistory.length - 1])}
+                className="touch-optimized"
+                style={{
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  border: `1px solid ${theme.colors.primary}`,
+                  borderRadius: '6px',
+                  background: 'white',
+                  color: theme.colors.primary,
+                  cursor: 'pointer'
+                }}
+              >
+                ✏️ Edit Last Hole
+              </button>
+            </div>
+          )}
+        </div>
+
       {/* Header - Beautiful Gradient Banner */}
       <div style={{
         background: `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.accent})`,
@@ -396,12 +966,84 @@ const SimpleScorekeeper = ({ gameId, players, baseWager = 0.25 }) => {
                            player.quarters < 0 ? 'rgba(244, 67, 54, 0.1)' :
                            theme.colors.backgroundSecondary
               }}>
-                {player.quarters > 0 ? '+' : ''}{player.quarters}q
+                {player.quarters > 0 ? '+' : ''}{player.quarters}Q
               </div>
             </div>
           );
         })}
       </div>
+
+      {/* Usage Statistics */}
+      {holeHistory.length > 0 && (
+        <div style={{
+          background: theme.colors.paper,
+          borderRadius: '16px',
+          overflow: 'hidden',
+          marginBottom: '20px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}>
+          <div style={{
+            padding: '16px 20px',
+            background: theme.colors.backgroundSecondary,
+            borderBottom: `3px solid ${theme.colors.border}`,
+            fontSize: '18px',
+            fontWeight: 'bold',
+            color: theme.colors.textPrimary
+          }}>
+            Usage Statistics
+          </div>
+
+          <div style={{ padding: '16px' }}>
+            {Object.values(playerStandings).map((player, idx) => (
+              <div
+                key={idx}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '12px',
+                  borderBottom: idx < Object.values(playerStandings).length - 1 ? `1px solid ${theme.colors.border}` : 'none',
+                  background: idx % 2 === 0 ? 'white' : theme.colors.background
+                }}
+              >
+                <div style={{
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  color: theme.colors.textPrimary,
+                  flex: 1
+                }}>
+                  {player.name}
+                </div>
+                <div style={{
+                  display: 'flex',
+                  gap: '16px',
+                  fontSize: '14px',
+                  color: theme.colors.textSecondary
+                }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '20px', fontWeight: 'bold', color: theme.colors.primary }}>
+                      {player.soloCount || 0}
+                    </div>
+                    <div style={{ fontSize: '11px' }}>Solo</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '20px', fontWeight: 'bold', color: theme.colors.primary }}>
+                      {player.floatCount || 0}
+                    </div>
+                    <div style={{ fontSize: '11px' }}>Float</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '20px', fontWeight: 'bold', color: theme.colors.warning }}>
+                      {player.optionCount || 0}
+                    </div>
+                    <div style={{ fontSize: '11px' }}>Option</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Team Mode Selection - Enhanced Style */}
       <div style={{
@@ -525,7 +1167,7 @@ const SimpleScorekeeper = ({ gameId, players, baseWager = 0.25 }) => {
         <h3 style={{ margin: '0 0 12px' }}>Wager</h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{ fontSize: '32px', fontWeight: 'bold', color: theme.colors.primary }}>
-            ${currentWager.toFixed(2)}
+            {currentWager}Q
           </div>
           <button
             onClick={handleDouble}
@@ -650,6 +1292,38 @@ const SimpleScorekeeper = ({ gameId, players, baseWager = 0.25 }) => {
               >
                 Push
               </button>
+              <button
+                onClick={() => setWinner('team1_flush')}
+                style={{
+                  flex: 1,
+                  minWidth: '120px',
+                  padding: '12px',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  border: winner === 'team1_flush' ? `3px solid #e91e63` : `2px solid ${theme.colors.border}`,
+                  borderRadius: '8px',
+                  background: winner === 'team1_flush' ? 'rgba(233, 30, 99, 0.2)' : 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                Team 1 Flush
+              </button>
+              <button
+                onClick={() => setWinner('team2_flush')}
+                style={{
+                  flex: 1,
+                  minWidth: '120px',
+                  padding: '12px',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  border: winner === 'team2_flush' ? `3px solid #e91e63` : `2px solid ${theme.colors.border}`,
+                  borderRadius: '8px',
+                  background: winner === 'team2_flush' ? 'rgba(233, 30, 99, 0.2)' : 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                Team 2 Flush
+              </button>
             </>
           ) : (
             <>
@@ -701,8 +1375,134 @@ const SimpleScorekeeper = ({ gameId, players, baseWager = 0.25 }) => {
               >
                 Push
               </button>
+              <button
+                onClick={() => setWinner('captain_flush')}
+                style={{
+                  flex: 1,
+                  minWidth: '120px',
+                  padding: '12px',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  border: winner === 'captain_flush' ? `3px solid #e91e63` : `2px solid ${theme.colors.border}`,
+                  borderRadius: '8px',
+                  background: winner === 'captain_flush' ? 'rgba(233, 30, 99, 0.2)' : 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                Captain Flush
+              </button>
+              <button
+                onClick={() => setWinner('opponents_flush')}
+                style={{
+                  flex: 1,
+                  minWidth: '120px',
+                  padding: '12px',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  border: winner === 'opponents_flush' ? `3px solid #e91e63` : `2px solid ${theme.colors.border}`,
+                  borderRadius: '8px',
+                  background: winner === 'opponents_flush' ? 'rgba(233, 30, 99, 0.2)' : 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                Opponents Flush
+              </button>
             </>
           )}
+        </div>
+      </div>
+
+      {/* Float & Option Tracking */}
+      <div style={{
+        background: theme.colors.paper,
+        padding: '16px',
+        borderRadius: '8px',
+        marginBottom: '20px'
+      }}>
+        <h3 style={{ margin: '0 0 12px' }}>Special Actions (Optional)</h3>
+
+        {/* Float Selection */}
+        <div style={{ marginBottom: '16px' }}>
+          <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '8px' }}>
+            Float Invoked By:
+          </div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {players.map(player => (
+              <button
+                key={player.id}
+                onClick={() => setFloatInvokedBy(floatInvokedBy === player.id ? null : player.id)}
+                className="touch-optimized"
+                style={{
+                  padding: '8px 16px',
+                  fontSize: '14px',
+                  border: `2px solid ${floatInvokedBy === player.id ? theme.colors.primary : theme.colors.border}`,
+                  borderRadius: '6px',
+                  background: floatInvokedBy === player.id ? theme.colors.primary : 'white',
+                  color: floatInvokedBy === player.id ? 'white' : theme.colors.text,
+                  cursor: 'pointer'
+                }}
+              >
+                {player.name}
+              </button>
+            ))}
+            <button
+              onClick={() => setFloatInvokedBy(null)}
+              className="touch-optimized"
+              style={{
+                padding: '8px 16px',
+                fontSize: '14px',
+                border: `2px solid ${theme.colors.border}`,
+                borderRadius: '6px',
+                background: 'white',
+                color: theme.colors.textSecondary,
+                cursor: 'pointer'
+              }}
+            >
+              None
+            </button>
+          </div>
+        </div>
+
+        {/* Option Selection */}
+        <div>
+          <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '8px' }}>
+            Option Triggered For:
+          </div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {players.map(player => (
+              <button
+                key={player.id}
+                onClick={() => setOptionInvokedBy(optionInvokedBy === player.id ? null : player.id)}
+                className="touch-optimized"
+                style={{
+                  padding: '8px 16px',
+                  fontSize: '14px',
+                  border: `2px solid ${optionInvokedBy === player.id ? theme.colors.warning : theme.colors.border}`,
+                  borderRadius: '6px',
+                  background: optionInvokedBy === player.id ? theme.colors.warning : 'white',
+                  color: optionInvokedBy === player.id ? 'white' : theme.colors.text,
+                  cursor: 'pointer'
+                }}
+              >
+                {player.name}
+              </button>
+            ))}
+            <button
+              onClick={() => setOptionInvokedBy(null)}
+              className="touch-optimized"
+              style={{
+                padding: '8px 16px',
+                fontSize: '14px',
+                border: `2px solid ${theme.colors.border}`,
+                borderRadius: '6px',
+                background: 'white',
+                color: theme.colors.textSecondary,
+                cursor: 'pointer'
+              }}
+            >
+              None
+            </button>
+          </div>
         </div>
       </div>
 
@@ -744,173 +1544,7 @@ const SimpleScorekeeper = ({ gameId, players, baseWager = 0.25 }) => {
             : `Complete Hole ${currentHole}`}
       </button>
 
-      {/* Comprehensive Scorecard Table */}
-      {holeHistory.length > 0 && (
-        <div style={{
-          background: theme.colors.paper,
-          padding: '20px',
-          borderRadius: '16px',
-          marginTop: '20px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          overflowX: 'auto'
-        }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '16px'
-          }}>
-            <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 'bold', color: theme.colors.textPrimary }}>
-              📊 Scorecard
-            </h3>
-            <div style={{ fontSize: '14px', color: theme.colors.textSecondary }}>
-              {holeHistory.length} hole{holeHistory.length !== 1 ? 's' : ''} completed
-            </div>
-          </div>
-
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              fontSize: '14px'
-            }}>
-              <thead>
-                <tr style={{ background: theme.colors.backgroundSecondary }}>
-                  <th style={{
-                    padding: '12px 8px',
-                    textAlign: 'left',
-                    fontWeight: 'bold',
-                    borderBottom: `3px solid ${theme.colors.border}`,
-                    position: 'sticky',
-                    left: 0,
-                    background: theme.colors.backgroundSecondary,
-                    zIndex: 1
-                  }}>
-                    Hole
-                  </th>
-                  {players.map(player => (
-                    <th key={player.id} style={{
-                      padding: '12px 8px',
-                      textAlign: 'center',
-                      fontWeight: 'bold',
-                      borderBottom: `3px solid ${theme.colors.border}`
-                    }}>
-                      {player.name}
-                    </th>
-                  ))}
-                  <th style={{
-                    padding: '12px 8px',
-                    textAlign: 'center',
-                    fontWeight: 'bold',
-                    borderBottom: `3px solid ${theme.colors.border}`
-                  }}>
-                    Wager
-                  </th>
-                  <th style={{
-                    padding: '12px 8px',
-                    textAlign: 'center',
-                    fontWeight: 'bold',
-                    borderBottom: `3px solid ${theme.colors.border}`
-                  }}>
-                    Winner
-                  </th>
-                  <th style={{
-                    padding: '12px 8px',
-                    textAlign: 'center',
-                    fontWeight: 'bold',
-                    borderBottom: `3px solid ${theme.colors.border}`
-                  }}>
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {holeHistory.map((hole, holeIndex) => (
-                  <tr key={holeIndex} style={{
-                    background: holeIndex % 2 === 0 ? 'white' : theme.colors.background,
-                    borderBottom: `1px solid ${theme.colors.border}`
-                  }}>
-                    <td style={{
-                      padding: '12px 8px',
-                      fontWeight: 'bold',
-                      position: 'sticky',
-                      left: 0,
-                      background: holeIndex % 2 === 0 ? 'white' : theme.colors.background,
-                      borderRight: `2px solid ${theme.colors.border}`
-                    }}>
-                      {hole.hole}
-                    </td>
-                    {players.map(player => {
-                      const playerScore = hole.gross_scores?.[player.id];
-                      const isWinner = (
-                        (hole.winner === 'team1' && hole.teams?.team1?.includes(player.id)) ||
-                        (hole.winner === 'team2' && hole.teams?.team2?.includes(player.id)) ||
-                        (hole.winner === 'captain' && hole.teams?.captain === player.id) ||
-                        (hole.winner === 'opponents' && hole.teams?.opponents?.includes(player.id))
-                      );
-
-                      return (
-                        <td key={player.id} style={{
-                          padding: '12px 8px',
-                          textAlign: 'center',
-                          fontWeight: isWinner ? 'bold' : 'normal',
-                          background: isWinner ? 'rgba(76, 175, 80, 0.15)' : 'transparent',
-                          color: isWinner ? '#4CAF50' : theme.colors.textPrimary
-                        }}>
-                          {playerScore !== undefined ? playerScore : '-'}
-                          {isWinner && ' ✓'}
-                        </td>
-                      );
-                    })}
-                    <td style={{
-                      padding: '12px 8px',
-                      textAlign: 'center',
-                      fontWeight: 'bold',
-                      color: theme.colors.primary
-                    }}>
-                      ${hole.wager?.toFixed(2) || '0.00'}
-                    </td>
-                    <td style={{
-                      padding: '12px 8px',
-                      textAlign: 'center',
-                      fontSize: '12px',
-                      color: theme.colors.textSecondary
-                    }}>
-                      {hole.winner === 'push' ? 'Push' :
-                       hole.winner === 'team1' ? 'Team 1' :
-                       hole.winner === 'team2' ? 'Team 2' :
-                       hole.winner === 'captain' ? 'Captain' :
-                       hole.winner === 'opponents' ? 'Opponents' :
-                       hole.winner}
-                    </td>
-                    <td style={{
-                      padding: '12px 8px',
-                      textAlign: 'center'
-                    }}>
-                      <button
-                        onClick={() => loadHoleForEdit(hole)}
-                        className="touch-optimized"
-                        style={{
-                          padding: '6px 12px',
-                          fontSize: '12px',
-                          border: `1px solid ${theme.colors.primary}`,
-                          borderRadius: '6px',
-                          background: 'white',
-                          color: theme.colors.primary,
-                          cursor: 'pointer',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        ✏️ Edit
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      {/* Old scorecard removed - now showing golf-style scorecard at top */}
     </div>
   );
 };
