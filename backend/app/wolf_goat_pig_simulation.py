@@ -145,7 +145,8 @@ class HoleState:
     shots_completed: Dict[str, bool] = field(default_factory=dict)
     balls_in_hole: List[str] = field(default_factory=list)  # Players who holed out
     concessions: Dict[str, str] = field(default_factory=dict)  # "good but not in"
-    
+    points_awarded: Dict[str, int] = field(default_factory=dict)  # Quarters won/lost per player
+
     # Shot progression state
     current_shot_number: int = 1
     hole_complete: bool = False
@@ -1256,26 +1257,29 @@ class WolfGoatPigSimulation(PersistenceMixin):
     def enter_hole_scores(self, scores: Dict[str, int]) -> Dict[str, Any]:
         """Enter scores for the hole and calculate points"""
         hole_state = self.hole_states[self.current_hole]
-        
+
         # Validate all scores are provided
         for player_id in [p.id for p in self.players]:
             if player_id not in scores:
                 raise ValueError(f"Score missing for player {self._get_player_name(player_id)}")
-                
+
         hole_state.scores = scores
-        
+
         # Calculate and distribute points
         points_result = self._calculate_hole_points(hole_state)
-        
+
+        # Store points awarded in hole state for hole_history
+        hole_state.points_awarded = points_result["points_changes"].copy()
+
         # Update player points
         for player_id, points_change in points_result["points_changes"].items():
             player = next(p for p in self.players if p.id == player_id)
             player.points += points_change
-            
+
         # Check for carry-over
         if points_result["halved"]:
             hole_state.betting.carry_over = True
-            
+
         return points_result
     
     def get_post_hole_analysis(self, hole_number: int) -> Dict[str, Any]:
@@ -1603,6 +1607,7 @@ class WolfGoatPigSimulation(PersistenceMixin):
                 for p in self.players
             ],
             "hole_state": self._get_hole_state_summary() if hole_state else None,
+            "hole_history": self._get_hole_history(),
             "hoepfinger_start": self.hoepfinger_start_hole,
             "settings": {
                 "double_points_round": self.double_points_round,
@@ -1610,6 +1615,26 @@ class WolfGoatPigSimulation(PersistenceMixin):
             }
         }
     
+    def _get_hole_history(self) -> List[Dict[str, Any]]:
+        """Build hole history with scores and points for completed holes"""
+        history = []
+
+        for hole_num in sorted(self.hole_states.keys()):
+            hole_state = self.hole_states[hole_num]
+
+            # Only include holes that have been completed with scores
+            if hole_state.hole_complete and hole_state.scores:
+                history.append({
+                    "hole": hole_num,
+                    "gross_scores": hole_state.scores.copy(),
+                    "points_delta": hole_state.points_awarded.copy() if hole_state.points_awarded else {},
+                    "wager": hole_state.betting.current_wager,
+                    "team_type": hole_state.teams.type,
+                    "halved": not bool(hole_state.points_awarded) or all(v == 0 for v in hole_state.points_awarded.values())
+                })
+
+        return history
+
     def _get_hole_state_summary(self) -> Dict[str, Any]:
         """Get summary of current hole state"""
         hole_state = self.hole_states.get(self.current_hole)
@@ -3989,8 +4014,8 @@ class WolfGoatPigSimulation(PersistenceMixin):
                         for player_id, pos in (hole_state.ball_positions or {}).items()
                     },
                     'scores': hole_state.scores or {},
-                    'status': hole_state.status,
-                    'winner': hole_state.winner,
+                    'status': getattr(hole_state, 'status', 'complete' if hole_state.hole_complete else 'in_progress'),
+                    'winner': getattr(hole_state, 'winner', None),
                     'points_awarded': hole_state.points_awarded or {},
                     'wagering_closed': hole_state.wagering_closed,
                     'conceded': getattr(hole_state, 'conceded', False),
@@ -4013,7 +4038,7 @@ class WolfGoatPigSimulation(PersistenceMixin):
                         }
                         for e in self.hole_progression.timeline_events
                     ],
-                    'betting_decisions': self.hole_progression.betting_decisions
+                    'betting_decisions': getattr(self.hole_progression, 'betting_decisions', [])
                 }
 
             return {
