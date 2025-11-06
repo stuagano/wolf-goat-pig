@@ -279,7 +279,7 @@ async def startup():
         from . import models
         database.init_db()
         logger.info("Database initialized successfully")
-        
+
         # Verify game_state table exists
         db = database.SessionLocal()
         try:
@@ -292,7 +292,80 @@ async def startup():
             logger.info("Tables recreated")
         finally:
             db.close()
-            
+
+        # Run database migrations to add any missing columns
+        logger.info("🔄 Running database migrations...")
+        try:
+            from sqlalchemy import text, inspect
+            migration_db = database.SessionLocal()
+            try:
+                inspector = inspect(database.engine)
+                if 'game_state' in inspector.get_table_names():
+                    columns = [col['name'] for col in inspector.get_columns('game_state')]
+                    migrations_needed = []
+
+                    # Check for missing columns
+                    if 'game_id' not in columns:
+                        migrations_needed.append('game_id')
+                    if 'created_at' not in columns:
+                        migrations_needed.append('created_at')
+                    if 'updated_at' not in columns:
+                        migrations_needed.append('updated_at')
+
+                    if migrations_needed:
+                        logger.info(f"  Missing columns detected: {', '.join(migrations_needed)}")
+
+                        # Determine database type
+                        database_url = os.getenv('DATABASE_URL', '')
+                        is_postgresql = 'postgresql://' in database_url or 'postgres://' in database_url
+
+                        # Add game_id column
+                        if 'game_id' not in columns:
+                            logger.info("  Adding game_id column...")
+                            migration_db.execute(text("ALTER TABLE game_state ADD COLUMN game_id VARCHAR"))
+                            migration_db.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_game_state_game_id ON game_state(game_id)"))
+                            migration_db.execute(text("UPDATE game_state SET game_id = 'legacy-game-' || CAST(id AS VARCHAR) WHERE game_id IS NULL"))
+                            logger.info("  ✅ Added game_id column")
+
+                        # Add created_at column
+                        if 'created_at' not in columns:
+                            logger.info("  Adding created_at column...")
+                            migration_db.execute(text("ALTER TABLE game_state ADD COLUMN created_at VARCHAR"))
+                            if is_postgresql:
+                                migration_db.execute(text("UPDATE game_state SET created_at = NOW()::text WHERE created_at IS NULL"))
+                            else:
+                                migration_db.execute(text("UPDATE game_state SET created_at = datetime('now') WHERE created_at IS NULL"))
+                            logger.info("  ✅ Added created_at column")
+
+                        # Add updated_at column
+                        if 'updated_at' not in columns:
+                            logger.info("  Adding updated_at column...")
+                            migration_db.execute(text("ALTER TABLE game_state ADD COLUMN updated_at VARCHAR"))
+                            if is_postgresql:
+                                migration_db.execute(text("UPDATE game_state SET updated_at = NOW()::text WHERE updated_at IS NULL"))
+                            else:
+                                migration_db.execute(text("UPDATE game_state SET updated_at = datetime('now') WHERE updated_at IS NULL"))
+                            logger.info("  ✅ Added updated_at column")
+
+                        migration_db.commit()
+                        logger.info(f"✅ Successfully applied {len(migrations_needed)} migration(s)")
+                    else:
+                        logger.info("  ✅ Schema is up-to-date - no migrations needed")
+                else:
+                    logger.info("  game_state table will be created by init_db")
+            except Exception as migration_error:
+                migration_db.rollback()
+                logger.error(f"  ❌ Migration failed: {migration_error}")
+                logger.error(f"  Traceback: {traceback.format_exc()}")
+                raise
+            finally:
+                migration_db.close()
+        except Exception as e:
+            logger.error(f"❌ Failed to run migrations: {e}")
+            # Don't fail startup if migrations fail in development
+            if os.getenv("ENVIRONMENT") == "production":
+                raise
+
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
         logger.error(f"Traceback: {traceback.format_exc()}")
