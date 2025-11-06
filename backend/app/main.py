@@ -279,7 +279,7 @@ async def startup():
         from . import models
         database.init_db()
         logger.info("Database initialized successfully")
-        
+
         # Verify game_state table exists
         db = database.SessionLocal()
         try:
@@ -292,7 +292,80 @@ async def startup():
             logger.info("Tables recreated")
         finally:
             db.close()
-            
+
+        # Run database migrations to add any missing columns
+        logger.info("🔄 Running database migrations...")
+        try:
+            from sqlalchemy import text, inspect
+            migration_db = database.SessionLocal()
+            try:
+                inspector = inspect(database.engine)
+                if 'game_state' in inspector.get_table_names():
+                    columns = [col['name'] for col in inspector.get_columns('game_state')]
+                    migrations_needed = []
+
+                    # Check for missing columns
+                    if 'game_id' not in columns:
+                        migrations_needed.append('game_id')
+                    if 'created_at' not in columns:
+                        migrations_needed.append('created_at')
+                    if 'updated_at' not in columns:
+                        migrations_needed.append('updated_at')
+
+                    if migrations_needed:
+                        logger.info(f"  Missing columns detected: {', '.join(migrations_needed)}")
+
+                        # Determine database type
+                        database_url = os.getenv('DATABASE_URL', '')
+                        is_postgresql = 'postgresql://' in database_url or 'postgres://' in database_url
+
+                        # Add game_id column
+                        if 'game_id' not in columns:
+                            logger.info("  Adding game_id column...")
+                            migration_db.execute(text("ALTER TABLE game_state ADD COLUMN game_id VARCHAR"))
+                            migration_db.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_game_state_game_id ON game_state(game_id)"))
+                            migration_db.execute(text("UPDATE game_state SET game_id = 'legacy-game-' || CAST(id AS VARCHAR) WHERE game_id IS NULL"))
+                            logger.info("  ✅ Added game_id column")
+
+                        # Add created_at column
+                        if 'created_at' not in columns:
+                            logger.info("  Adding created_at column...")
+                            migration_db.execute(text("ALTER TABLE game_state ADD COLUMN created_at VARCHAR"))
+                            if is_postgresql:
+                                migration_db.execute(text("UPDATE game_state SET created_at = NOW()::text WHERE created_at IS NULL"))
+                            else:
+                                migration_db.execute(text("UPDATE game_state SET created_at = datetime('now') WHERE created_at IS NULL"))
+                            logger.info("  ✅ Added created_at column")
+
+                        # Add updated_at column
+                        if 'updated_at' not in columns:
+                            logger.info("  Adding updated_at column...")
+                            migration_db.execute(text("ALTER TABLE game_state ADD COLUMN updated_at VARCHAR"))
+                            if is_postgresql:
+                                migration_db.execute(text("UPDATE game_state SET updated_at = NOW()::text WHERE updated_at IS NULL"))
+                            else:
+                                migration_db.execute(text("UPDATE game_state SET updated_at = datetime('now') WHERE updated_at IS NULL"))
+                            logger.info("  ✅ Added updated_at column")
+
+                        migration_db.commit()
+                        logger.info(f"✅ Successfully applied {len(migrations_needed)} migration(s)")
+                    else:
+                        logger.info("  ✅ Schema is up-to-date - no migrations needed")
+                else:
+                    logger.info("  game_state table will be created by init_db")
+            except Exception as migration_error:
+                migration_db.rollback()
+                logger.error(f"  ❌ Migration failed: {migration_error}")
+                logger.error(f"  Traceback: {traceback.format_exc()}")
+                raise
+            finally:
+                migration_db.close()
+        except Exception as e:
+            logger.error(f"❌ Failed to run migrations: {e}")
+            # Don't fail startup if migrations fail in development
+            if os.getenv("ENVIRONMENT") == "production":
+                raise
+
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
         logger.error(f"Traceback: {traceback.format_exc()}")
@@ -1096,48 +1169,58 @@ async def create_test_game(
     player_count: int = 4,
     db: Session = Depends(database.get_db)
 ):
-    """Create a test game with mock players and immediately start it - for single-device testing"""
+    """
+    Create a test game with mock players and immediately start it - for single-device testing
+
+    Supports fallback mode: if database operations fail, the game is created in memory only.
+    """
+    import random
+    import string
+    import uuid
+    from .fallback_game_manager import get_fallback_manager
+
+    # Generate 6-character join code
+    join_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    game_id = str(uuid.uuid4())
+    current_time = datetime.utcnow().isoformat()
+
+    # Create mock players
+    mock_players = [
+        {"id": "test-player-1", "name": "Test Player 1", "handicap": 18, "is_human": True},
+        {"id": "test-player-2", "name": "Test Player 2", "handicap": 15, "is_human": False},
+        {"id": "test-player-3", "name": "Test Player 3", "handicap": 12, "is_human": False},
+        {"id": "test-player-4", "name": "Test Player 4", "handicap": 20, "is_human": False}
+    ][:player_count]
+
+    # Initialize WolfGoatPigSimulation for this game
+    wgp_players = [
+        WGPPlayer(
+            id=p["id"],
+            name=p["name"],
+            handicap=p["handicap"]
+        )
+        for p in mock_players
+    ]
+
+    simulation = WolfGoatPigSimulation(player_count=player_count, players=wgp_players)
+
+    # Get the game state (game is already started in __init__)
+    game_state = simulation.get_game_state()
+    game_state["game_status"] = "in_progress"
+    game_state["test_mode"] = True
+
+    # Try to save to database first
+    database_saved = False
+    fallback_mode = False
+
     try:
-        import random
-        import string
-        import uuid
+        # Ensure uniqueness of join code
+        existing = db.query(models.GameStateModel).filter(
+            models.GameStateModel.join_code == join_code
+        ).first()
 
-        # Generate 6-character join code
-        join_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-
-        # Ensure uniqueness
-        while db.query(models.GameStateModel).filter(models.GameStateModel.join_code == join_code).first():
+        if existing:
             join_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-
-        # Create game with unique ID
-        game_id = str(uuid.uuid4())
-        current_time = datetime.utcnow().isoformat()
-
-        # Create mock players
-        mock_players = [
-            {"id": "test-player-1", "name": "Test Player 1", "handicap": 18, "is_human": True},
-            {"id": "test-player-2", "name": "Test Player 2", "handicap": 15, "is_human": False},
-            {"id": "test-player-3", "name": "Test Player 3", "handicap": 12, "is_human": False},
-            {"id": "test-player-4", "name": "Test Player 4", "handicap": 20, "is_human": False}
-        ][:player_count]
-
-        # Initialize WolfGoatPigSimulation for this game
-        wgp_players = [
-            WGPPlayer(
-                id=p["id"],
-                name=p["name"],
-                handicap=p["handicap"]
-            )
-            for p in mock_players
-        ]
-
-        simulation = WolfGoatPigSimulation(player_count=player_count, players=wgp_players)
-
-        # Get the game state (game is already started in __init__)
-        # The simulation initializes the first hole automatically
-        game_state = simulation.get_game_state()
-        game_state["game_status"] = "in_progress"
-        game_state["test_mode"] = True
 
         # Create GameStateModel
         game_state_model = models.GameStateModel(
@@ -1167,23 +1250,59 @@ async def create_test_game(
 
         db.commit()
         db.refresh(game_state_model)
+        database_saved = True
 
-        logger.info(f"Created test game {game_id} with {player_count} mock players")
+        logger.info(f"✅ Created test game {game_id} in database with {player_count} mock players")
 
-        return {
-            "game_id": game_id,
-            "join_code": join_code,
-            "status": "in_progress",
-            "player_count": player_count,
-            "players": mock_players,
-            "test_mode": True,
-            "created_at": current_time,
-            "message": "Test game created and started successfully"
-        }
-    except Exception as e:
+    except Exception as db_error:
         db.rollback()
-        logger.error(f"Error creating test game: {e}")
-        raise HTTPException(status_code=500, detail=f"Error creating test game: {str(e)}")
+        logger.warning(f"⚠️ Database save failed: {db_error}")
+        logger.info("🔄 Attempting fallback mode...")
+
+        # Try fallback mode
+        try:
+            fallback = get_fallback_manager()
+            fallback.enable()
+
+            fallback.create_game(
+                game_id=game_id,
+                join_code=join_code,
+                creator_user_id="test-user",
+                game_status="in_progress",
+                state=game_state
+            )
+
+            fallback_mode = True
+            logger.warning(f"⚠️ Created test game {game_id} in FALLBACK MODE (memory only)")
+
+        except Exception as fallback_error:
+            logger.error(f"❌ Both database and fallback mode failed: {fallback_error}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to create game. Database error: {str(db_error)}. Fallback error: {str(fallback_error)}"
+            )
+
+    # Build response
+    response = {
+        "game_id": game_id,
+        "join_code": join_code,
+        "status": "in_progress",
+        "player_count": player_count,
+        "players": mock_players,
+        "test_mode": True,
+        "created_at": current_time,
+        "message": "Test game created and started successfully"
+    }
+
+    # Add warnings if in fallback mode
+    if fallback_mode:
+        response["warning"] = "Game created in memory only - will be lost on server restart"
+        response["fallback_mode"] = True
+        response["persistence"] = "memory"
+    else:
+        response["persistence"] = "database"
+
+    return response
 
 
 @app.post("/games/{game_id}/holes/complete")

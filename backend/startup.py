@@ -394,11 +394,11 @@ async def run_migrations() -> Dict[str, Any]:
                 if is_postgresql:
                     db.execute(text("ALTER TABLE game_state ADD COLUMN game_id VARCHAR"))
                     db.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_game_state_game_id ON game_state(game_id)"))
-                    db.execute(text("UPDATE game_state SET game_id = 'legacy-game-' || id WHERE game_id IS NULL"))
+                    db.execute(text("UPDATE game_state SET game_id = 'legacy-game-' || CAST(id AS VARCHAR) WHERE game_id IS NULL"))
                 else:
                     db.execute(text("ALTER TABLE game_state ADD COLUMN game_id VARCHAR"))
                     db.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_game_state_game_id ON game_state(game_id)"))
-                    db.execute(text("UPDATE game_state SET game_id = 'legacy-game-' || id WHERE game_id IS NULL"))
+                    db.execute(text("UPDATE game_state SET game_id = 'legacy-game-' || CAST(id AS VARCHAR) WHERE game_id IS NULL"))
                 migrations_applied.append("game_id column")
                 logging.info("  ✅ Added game_id column")
 
