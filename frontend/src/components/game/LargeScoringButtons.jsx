@@ -580,6 +580,90 @@ const LargeScoringButtons = ({
             gameState?.hole_state?.betting?.doubled
           )}
         </div>
+
+        {/* Fold/Concede Section */}
+        <div style={{
+          marginTop: '24px',
+          paddingTop: '24px',
+          borderTop: `2px solid ${theme.colors.border}`
+        }}>
+          <h3 style={{
+            margin: '0 0 12px 0',
+            fontSize: '18px',
+            color: theme.colors.error,
+            fontWeight: 'bold'
+          }}>
+            Fold / Concede Hole
+          </h3>
+          <p style={{
+            fontSize: '14px',
+            color: theme.colors.textSecondary,
+            marginBottom: '16px',
+            lineHeight: '1.5'
+          }}>
+            Give up this hole and forfeit the wager
+          </p>
+
+          <div
+            className="touch-spacing-large"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: '16px'
+            }}>
+            {/* Partners buttons */}
+            {renderLargeButton(
+              'concede-team1',
+              '🏳️',
+              'Team 1 Concedes',
+              () => {
+                if (window.confirm('Team 1 will forfeit the wager. Continue?')) {
+                  onAction("concede_hole", { conceding_team_id: "team1" });
+                }
+              },
+              'error',
+              gameState?.teams?.type !== "partners"
+            )}
+            {renderLargeButton(
+              'concede-team2',
+              '🏳️',
+              'Team 2 Concedes',
+              () => {
+                if (window.confirm('Team 2 will forfeit the wager. Continue?')) {
+                  onAction("concede_hole", { conceding_team_id: "team2" });
+                }
+              },
+              'error',
+              gameState?.teams?.type !== "partners"
+            )}
+
+            {/* Solo buttons */}
+            {renderLargeButton(
+              'concede-captain',
+              '🏳️',
+              'Captain Concedes',
+              () => {
+                if (window.confirm('Captain will forfeit the wager. Continue?')) {
+                  onAction("concede_hole", { conceding_team_id: "captain" });
+                }
+              },
+              'error',
+              gameState?.teams?.type !== "solo"
+            )}
+            {renderLargeButton(
+              'concede-opponents',
+              '🏳️',
+              'Opponents Concede',
+              () => {
+                if (window.confirm('Opponents will forfeit the wager. Continue?')) {
+                  onAction("concede_hole", { conceding_team_id: "opponents" });
+                }
+              },
+              'error',
+              gameState?.teams?.type !== "solo"
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Go Solo / Partnership Decision - ALWAYS VISIBLE */}
@@ -588,7 +672,7 @@ const LargeScoringButtons = ({
         marginBottom: '20px',
         background: '#e3f2fd',
         border: '3px solid #2196f3',
-        opacity: (gameState?.teams?.type === "pending" && !gameState?.teams?.requested) ? 1 : 0.3
+        opacity: (gameState?.hole_state?.teams?.type === "pending" && !gameState?.hole_state?.teams?.pending_request) ? 1 : 0.3
       }}>
         <h2 style={{
           margin: '0 0 12px 0',
@@ -596,7 +680,7 @@ const LargeScoringButtons = ({
           color: '#1976d2',
           fontWeight: 'bold'
         }}>
-          Captain's Decision {!(gameState?.teams?.type === "pending" && !gameState?.teams?.requested) && '(Not Active)'}
+          Captain's Decision {!(gameState?.hole_state?.teams?.type === "pending" && !gameState?.hole_state?.teams?.pending_request) && '(Not Active)'}
         </h2>
         <p style={{
           fontSize: '16px',
@@ -624,7 +708,7 @@ const LargeScoringButtons = ({
               }
             },
             'warning',
-            !(gameState?.teams?.type === "pending" && !gameState?.teams?.requested)
+            !(gameState?.hole_state?.teams?.type === "pending" && !gameState?.hole_state?.teams?.pending_request)
           )}
 
           {(gameState?.players || []).filter(p => p.id !== gameState?.hole_state?.teams?.captain).map(player =>
@@ -637,7 +721,7 @@ const LargeScoringButtons = ({
                 partner_id: player.id
               }),
               'primary',
-              !(gameState?.teams?.type === "pending" && !gameState?.teams?.requested)
+              !(gameState?.hole_state?.teams?.type === "pending" && !gameState?.hole_state?.teams?.pending_request)
             )
           )}
         </div>
@@ -865,93 +949,6 @@ const LargeScoringButtons = ({
           }}>
             ${gameState?.current_wager || gameState?.base_wager || 0}
           </div>
-        </div>
-      </div>
-
-
-      {/* Concede/Fold Hole - ALWAYS VISIBLE */}
-      <div style={{
-        ...theme.cardStyle,
-        marginBottom: '20px', // Increased spacing
-        background: '#fff5f5',
-        border: '3px solid #d32f2f', // Thicker border for emphasis
-        opacity: ["partners", "solo"].includes(gameState?.teams?.type) ? 1 : 0.3
-      }}>
-        <h2 style={{
-          margin: '0 0 12px 0', // Increased spacing
-          fontSize: '22px', // Increased from 18px
-          color: theme.colors.error,
-          fontWeight: 'bold'
-        }}>
-          Fold / Concede Hole {!["partners", "solo"].includes(gameState?.teams?.type) && '(Not Available)'}
-        </h2>
-        <p style={{
-          fontSize: '16px', // Increased from 13px
-          color: theme.colors.textSecondary,
-          marginBottom: '16px', // Increased spacing
-          lineHeight: '1.5'
-        }}>
-          Give up this hole and forfeit the wager
-        </p>
-
-        <div
-          className="touch-spacing-large"
-          style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', // Slightly larger minimum
-          gap: '16px' // Increased from 12px
-        }}>
-          {/* Partners buttons - ALWAYS VISIBLE */}
-          {renderLargeButton(
-            'concede-team1',
-            '🏳️',
-            'Team 1 Concedes',
-            () => {
-              if (window.confirm('Team 1 will forfeit the wager. Continue?')) {
-                onAction("concede_hole", { conceding_team_id: "team1" });
-              }
-            },
-            'error',
-            gameState?.teams?.type !== "partners"
-          )}
-          {renderLargeButton(
-            'concede-team2',
-            '🏳️',
-            'Team 2 Concedes',
-            () => {
-              if (window.confirm('Team 2 will forfeit the wager. Continue?')) {
-                onAction("concede_hole", { conceding_team_id: "team2" });
-              }
-            },
-            'error',
-            gameState?.teams?.type !== "partners"
-          )}
-
-          {/* Solo buttons - ALWAYS VISIBLE */}
-          {renderLargeButton(
-            'concede-captain',
-            '🏳️',
-            'Captain Concedes',
-            () => {
-              if (window.confirm('Captain will forfeit the wager. Continue?')) {
-                onAction("concede_hole", { conceding_team_id: "captain" });
-              }
-            },
-            'error',
-            gameState?.teams?.type !== "solo"
-          )}
-          {renderLargeButton(
-            'concede-opponents',
-            '🏳️',
-            'Opponents Concede',
-            () => {
-              if (window.confirm('Opponents will forfeit the wager. Continue?')) {
-                onAction("concede_hole", { conceding_team_id: "opponents" });
-              }
-            },
-            'error',
-            gameState?.teams?.type !== "solo"
-          )}
         </div>
       </div>
 

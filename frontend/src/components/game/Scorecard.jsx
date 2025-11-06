@@ -1,16 +1,19 @@
-// frontend/src/components/simulation/visual/Scorecard.jsx
+// frontend/src/components/game/Scorecard.jsx
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
-import { Card, Button } from '../../ui';
-import { useTheme } from '../../../theme/Provider';
+import { Card, Button } from '../ui';
+import { useTheme } from '../../theme/Provider';
 
-const Scorecard = ({ players = [], holeHistory = [], currentHole = 1, onEditHole, captainId }) => {
+/**
+ * Scorecard component for real game mode
+ * Displays all 18 holes with strokes and quarters, with click-to-edit functionality
+ */
+const Scorecard = ({ players = [], holeHistory = [], currentHole = 1, onEditHole }) => {
   const theme = useTheme();
   const [editingHole, setEditingHole] = useState(null);
   const [editingPlayer, setEditingPlayer] = useState(null);
   const [editStrokes, setEditStrokes] = useState('');
   const [editQuarters, setEditQuarters] = useState('');
-  const [viewMode, setViewMode] = useState('scorecard'); // 'scorecard' or 'standings'
 
   // Create a scorecard data structure
   const holes = Array.from({ length: 18 }, (_, i) => i + 1);
@@ -84,65 +87,13 @@ const Scorecard = ({ players = [], holeHistory = [], currentHole = 1, onEditHole
     setEditQuarters('');
   };
 
-  // Standings View Component
-  const StandingsView = () => (
-    <div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
-        {players.map(player => {
-          const totals = calculateTotals(player.id);
-          const isCaptain = player.id === captainId;
-          const isHuman = player.is_human || player.id === 'human';
-
-          return (
-            <div key={player.id} style={{
-              padding: '12px',
-              background: 'white',
-              borderRadius: '8px',
-              border: `2px solid ${isCaptain ? theme.colors.primary : theme.colors.border}`
-            }}>
-              <div style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 4 }}>
-                {isHuman ? '👤 ' : '🤖 '}
-                {player.name} {isCaptain && '⭐'}
-              </div>
-              <div style={{ fontSize: 24, fontWeight: 'bold', color: totals.total >= 0 ? theme.colors.success : theme.colors.error }}>
-                {totals.total > 0 ? '+' : ''}{totals.total}q
-              </div>
-              <div style={{ fontSize: 12, color: theme.colors.textSecondary }}>
-                Hdcp: {player.handicap}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-
   return (
     <Card style={{ height: '100%', overflow: 'auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-        <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold' }}>
-          {viewMode === 'scorecard' ? '📊 SCORECARD' : '💰 STANDINGS'}
-        </h3>
-        <button
-          onClick={() => setViewMode(mode => mode === 'scorecard' ? 'standings' : 'scorecard')}
-          style={{
-            padding: '6px 12px',
-            fontSize: '12px',
-            border: `1px solid ${theme.colors.border}`,
-            borderRadius: '4px',
-            background: theme.colors.background,
-            cursor: 'pointer',
-            fontWeight: 'bold'
-          }}
-        >
-          {viewMode === 'scorecard' ? 'Show Standings' : 'Show Scorecard'}
-        </button>
-      </div>
+      <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: 'bold' }}>
+        📊 SCORECARD
+      </h3>
 
-      {viewMode === 'standings' ? (
-        <StandingsView />
-      ) : (
-        <div style={{ overflowX: 'auto' }}>
+      <div style={{ overflowX: 'auto' }}>
         <table style={{
           width: '100%',
           borderCollapse: 'collapse',
@@ -239,7 +190,6 @@ const Scorecard = ({ players = [], holeHistory = [], currentHole = 1, onEditHole
           </tbody>
         </table>
       </div>
-      )}
 
       {/* Edit Modal */}
       {editingHole && editingPlayer && (
@@ -348,16 +298,15 @@ Scorecard.propTypes = {
     id: PropTypes.string.isRequired,
     name: PropTypes.string.isRequired,
     points: PropTypes.number,
-    handicap: PropTypes.number,
     is_human: PropTypes.bool
   })),
   holeHistory: PropTypes.arrayOf(PropTypes.shape({
     hole: PropTypes.number.isRequired,
-    points_delta: PropTypes.object
+    points_delta: PropTypes.object,
+    gross_scores: PropTypes.object
   })),
   currentHole: PropTypes.number,
-  onEditHole: PropTypes.func,
-  captainId: PropTypes.string
+  onEditHole: PropTypes.func
 };
 
 export default Scorecard;

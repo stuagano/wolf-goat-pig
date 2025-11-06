@@ -1,11 +1,57 @@
 // frontend/src/components/simulation/RoundSummary.jsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Card, Button } from '../ui';
 import { useTheme } from '../../theme/Provider';
+import { simulationConfig } from '../../config/environment';
+
+const { apiUrl: SIMULATION_API_URL } = simulationConfig;
 
 const RoundSummary = ({ gameState, onPlayAgain, onExit }) => {
   const theme = useTheme();
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+
+  // Auto-save game results when component mounts
+  useEffect(() => {
+    const saveGameResults = async () => {
+      if (saved || saving) return; // Don't save multiple times
+
+      setSaving(true);
+      try {
+        const response = await fetch(`${SIMULATION_API_URL}/simulation/save-results`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            game_state: gameState,
+            final_scores: gameState?.players?.map(p => ({
+              player_id: p.id,
+              player_name: p.name,
+              points: p.points || 0,
+              handicap: p.handicap
+            }))
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Game results saved:', data);
+          setSaved(true);
+        } else {
+          console.warn('Failed to save game results:', response.statusText);
+          setSaveError('Failed to save results to database');
+        }
+      } catch (error) {
+        console.error('Error saving game results:', error);
+        setSaveError('Error saving results');
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    saveGameResults();
+  }, [gameState, saved, saving]);
 
   const players = gameState?.players || [];
 
@@ -179,6 +225,23 @@ const RoundSummary = ({ gameState, onPlayAgain, onExit }) => {
           </div>
         </div>
       </Card>
+
+      {/* Save Status */}
+      {saving && (
+        <Card variant="info" style={{ marginTop: '24px', textAlign: 'center' }}>
+          💾 Saving results to database...
+        </Card>
+      )}
+      {saved && (
+        <Card variant="success" style={{ marginTop: '24px', textAlign: 'center' }}>
+          ✅ Results saved successfully!
+        </Card>
+      )}
+      {saveError && (
+        <Card variant="error" style={{ marginTop: '24px', textAlign: 'center' }}>
+          ⚠️ {saveError}
+        </Card>
+      )}
 
       {/* Action Buttons */}
       <div style={{

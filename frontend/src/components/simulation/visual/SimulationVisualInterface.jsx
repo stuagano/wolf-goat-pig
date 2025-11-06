@@ -23,10 +23,28 @@ const SimulationVisualInterface = ({
   feedback = [],
   onMakeDecision = () => {},
   onNextShot = () => {},
-  onNextHole = () => {}
+  onNextHole = () => {},
+  onEditHole = () => {}
 }) => {
   return (
     <div className="simulation-visual-interface">
+      {/* Fixed Scorecard at the very top */}
+      <div style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+        backgroundColor: '#fff',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        marginBottom: '16px'
+      }}>
+        <Scorecard
+          players={gameState?.players || []}
+          holeHistory={gameState?.hole_history || []}
+          currentHole={gameState?.current_hole || 1}
+          onEditHole={onEditHole}
+        />
+      </div>
+
       {/* Left-Right Layout Container */}
       <div className="simulation-main-container">
         {/* Left Side - Visualization */}
@@ -71,13 +89,6 @@ const SimulationVisualInterface = ({
 
         {/* Right Side - Cards and Information */}
         <div className="simulation-right-section">
-          {/* Scorecard at the top */}
-          <Scorecard
-            players={gameState?.players || []}
-            holeHistory={gameState?.hole_history || []}
-            currentHole={gameState?.current_hole || 1}
-          />
-
           {/* Game State Cards */}
           <div className="cards-section">
             <PlayersCard
@@ -89,11 +100,6 @@ const SimulationVisualInterface = ({
               baseWager={gameState?.base_wager || 1}
               pokerState={pokerState}
               shotProbabilities={shotProbabilities}
-            />
-            <ShotContextCard
-              shotState={shotState}
-              holeState={gameState?.hole_state}
-              probabilities={shotProbabilities}
             />
           </div>
         </div>
@@ -125,7 +131,8 @@ SimulationVisualInterface.propTypes = {
   feedback: PropTypes.array,
   onMakeDecision: PropTypes.func,
   onNextShot: PropTypes.func,
-  onNextHole: PropTypes.func
+  onNextHole: PropTypes.func,
+  onEditHole: PropTypes.func
 };
 
 export default SimulationVisualInterface;

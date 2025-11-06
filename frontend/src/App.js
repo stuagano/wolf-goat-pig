@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { Routes, Route, useNavigate, Navigate, useLocation } from "react-router-dom";
 import { useAuth0 } from "@auth0/auth0-react";
-import { UnifiedGameInterface } from "./components/game";
-import { SimulationMode, MonteCarloSimulation } from "./components/simulation";
+import { UnifiedGameInterface, SimpleScorekeeper } from "./components/game";
+import { SimulationMode, ScorerMode, MonteCarloSimulation } from "./components/simulation";
 import FeedAnalyzer from "./components/simulation/FeedAnalyzer";
 import ShotRangeAnalyzer from "./components/ShotRangeAnalyzer";
 import ColdStartHandler from "./components/ColdStartHandler";
@@ -18,7 +18,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { TutorialProvider } from "./context/TutorialContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import LoginButton from "./components/auth/LoginButton";
-import { HomePage } from "./pages";
+import { HomePage, GameScorerPage, SimpleScorekeeperPage } from "./pages";
 import SignupPage from "./pages/SignupPage";
 import AboutPage from "./pages/AboutPage";
 import RulesPage from "./pages/RulesPage";
@@ -214,8 +214,11 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/game" element={<CreateGamePage />} />
-          <Route path="/game/:gameId" element={<UnifiedGameInterface />} />
-          <Route path="/simulation" element={<SimulationMode />} />
+          <Route path="/game/:gameId" element={<SimpleScorekeeperPage />} />
+          <Route path="/game-scorer" element={<GameScorerPage />} />
+          {/* Temporarily disabled - will revisit simulation mode later */}
+          {/* <Route path="/simulation" element={<SimulationMode />} /> */}
+          {/* <Route path="/scorer" element={<ScorerMode />} /> */}
           <Route path="/monte-carlo" element={
             <ProtectedRoute>
               <MonteCarloSimulation />

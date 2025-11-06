@@ -32,6 +32,7 @@ import { GameSetup as SimulationSetup, GamePlay as SimulationPlay } from '../sim
 import GameSetupForm from './GameSetupForm';
 import LargeScoringButtons from './LargeScoringButtons';
 import MobileScorecard from './MobileScorecard';
+import Scorecard from './Scorecard';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -913,6 +914,36 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
           </div>
         </Card>
       )}
+
+      {/* Sticky Scorecard - shows all 18 holes */}
+      <div style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+        marginBottom: theme.spacing[4]
+      }}>
+        <Scorecard
+          players={gameState.players || []}
+          holeHistory={gameState.hole_history || []}
+          currentHole={gameState.current_hole || 1}
+          captainId={gameState.captain_id}
+          onEditHole={async (editData) => {
+            // Handle editing hole scores
+            try {
+              await makeGameAction('update_hole_score', {
+                hole: editData.hole,
+                player_id: editData.playerId,
+                strokes: editData.strokes,
+                quarters: editData.quarters
+              });
+              // Refresh game state after edit
+              await fetchGameState();
+            } catch (error) {
+              console.error('Error updating hole score:', error);
+            }
+          }}
+        />
+      </div>
 
       <Card>
         <div style={{

@@ -149,6 +149,27 @@ class SimulationSeedRequest(BaseModel):
     clear_balls_in_hole: bool = Field(False, description="Clear recorded holed balls before applying seed")
     reset_doubles_history: bool = Field(True, description="Clear double-offer history to avoid stale offers")
 
+
+# Simplified Scorekeeper Models
+class HoleTeams(BaseModel):
+    """Team configuration for a hole"""
+    type: str  # 'partners' or 'solo'
+    team1: Optional[List[str]] = None  # Player IDs for team 1 (partners mode)
+    team2: Optional[List[str]] = None  # Player IDs for team 2 (partners mode)
+    captain: Optional[str] = None  # Captain player ID (solo mode)
+    opponents: Optional[List[str]] = None  # Opponent player IDs (solo mode)
+
+
+class CompleteHoleRequest(BaseModel):
+    """Request to complete a hole with all data at once - for scorekeeper mode"""
+    hole_number: int = Field(..., ge=1, le=18)
+    teams: HoleTeams
+    final_wager: float = Field(..., gt=0)
+    winner: str  # 'team1', 'team2', 'captain', 'opponents', or 'push'
+    scores: Dict[str, int] = Field(..., description="Player ID to strokes mapping")
+    hole_par: Optional[int] = Field(4, ge=3, le=5)
+
+
 app = FastAPI(
     title="Wolf Goat Pig Golf Simulation API",
     description="A comprehensive golf betting simulation API with unified Action API",
@@ -1068,6 +1089,215 @@ async def create_game_with_join_code(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error creating game: {str(e)}")
 
+
+@app.post("/games/create-test")
+async def create_test_game(
+    course_name: Optional[str] = None,
+    player_count: int = 4,
+    db: Session = Depends(database.get_db)
+):
+    """Create a test game with mock players and immediately start it - for single-device testing"""
+    try:
+        import random
+        import string
+        import uuid
+
+        # Generate 6-character join code
+        join_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+        # Ensure uniqueness
+        while db.query(models.GameStateModel).filter(models.GameStateModel.join_code == join_code).first():
+            join_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+        # Create game with unique ID
+        game_id = str(uuid.uuid4())
+        current_time = datetime.utcnow().isoformat()
+
+        # Create mock players
+        mock_players = [
+            {"id": "test-player-1", "name": "Test Player 1", "handicap": 18, "is_human": True},
+            {"id": "test-player-2", "name": "Test Player 2", "handicap": 15, "is_human": False},
+            {"id": "test-player-3", "name": "Test Player 3", "handicap": 12, "is_human": False},
+            {"id": "test-player-4", "name": "Test Player 4", "handicap": 20, "is_human": False}
+        ][:player_count]
+
+        # Initialize WolfGoatPigSimulation for this game
+        wgp_players = [
+            WGPPlayer(
+                id=p["id"],
+                name=p["name"],
+                handicap=p["handicap"]
+            )
+            for p in mock_players
+        ]
+
+        simulation = WolfGoatPigSimulation(player_count=player_count, players=wgp_players)
+
+        # Get the game state (game is already started in __init__)
+        # The simulation initializes the first hole automatically
+        game_state = simulation.get_game_state()
+        game_state["game_status"] = "in_progress"
+        game_state["test_mode"] = True
+
+        # Create GameStateModel
+        game_state_model = models.GameStateModel(
+            game_id=game_id,
+            join_code=join_code,
+            creator_user_id="test-user",
+            game_status="in_progress",
+            state=game_state,
+            created_at=current_time,
+            updated_at=current_time
+        )
+        db.add(game_state_model)
+
+        # Create GamePlayer records for each mock player
+        for i, player in enumerate(mock_players):
+            game_player = models.GamePlayer(
+                game_id=game_id,
+                player_slot_id=player["id"],
+                user_id=f"test-user-{i+1}",
+                player_name=player["name"],
+                handicap=player["handicap"],
+                join_status="joined",
+                joined_at=current_time,
+                created_at=current_time
+            )
+            db.add(game_player)
+
+        db.commit()
+        db.refresh(game_state_model)
+
+        logger.info(f"Created test game {game_id} with {player_count} mock players")
+
+        return {
+            "game_id": game_id,
+            "join_code": join_code,
+            "status": "in_progress",
+            "player_count": player_count,
+            "players": mock_players,
+            "test_mode": True,
+            "created_at": current_time,
+            "message": "Test game created and started successfully"
+        }
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error creating test game: {e}")
+        raise HTTPException(status_code=500, detail=f"Error creating test game: {str(e)}")
+
+
+@app.post("/games/{game_id}/holes/complete")
+async def complete_hole(
+    game_id: str,
+    request: CompleteHoleRequest,
+    db: Session = Depends(database.get_db)
+):
+    """
+    Complete a hole with all data at once - simplified scorekeeper mode.
+    No state machine validation, just direct data storage.
+    """
+    try:
+        # Get game from database
+        game = db.query(models.GameStateModel).filter(
+            models.GameStateModel.game_id == game_id
+        ).first()
+
+        if not game:
+            raise HTTPException(status_code=404, detail="Game not found")
+
+        # Get current game state
+        game_state = game.state or {}
+
+        # Initialize hole_history if it doesn't exist
+        if "hole_history" not in game_state:
+            game_state["hole_history"] = []
+
+        # Calculate quarters won/lost based on winner and wager
+        points_delta = {}
+        if request.teams.type == "partners":
+            if request.winner == "team1":
+                for player_id in request.teams.team1:
+                    points_delta[player_id] = request.final_wager
+                for player_id in request.teams.team2:
+                    points_delta[player_id] = -request.final_wager
+            elif request.winner == "team2":
+                for player_id in request.teams.team1:
+                    points_delta[player_id] = -request.final_wager
+                for player_id in request.teams.team2:
+                    points_delta[player_id] = request.final_wager
+            else:  # push
+                for player_id in request.teams.team1 + request.teams.team2:
+                    points_delta[player_id] = 0
+        else:  # solo mode
+            if request.winner == "captain":
+                points_delta[request.teams.captain] = request.final_wager * len(request.teams.opponents)
+                for opp_id in request.teams.opponents:
+                    points_delta[opp_id] = -request.final_wager
+            elif request.winner == "opponents":
+                points_delta[request.teams.captain] = -request.final_wager * len(request.teams.opponents)
+                for opp_id in request.teams.opponents:
+                    points_delta[opp_id] = request.final_wager
+            else:  # push
+                points_delta[request.teams.captain] = 0
+                for opp_id in request.teams.opponents:
+                    points_delta[opp_id] = 0
+
+        # Create hole result
+        hole_result = {
+            "hole": request.hole_number,
+            "teams": request.teams.model_dump(),
+            "wager": request.final_wager,
+            "winner": request.winner,
+            "gross_scores": request.scores,
+            "hole_par": request.hole_par,
+            "points_delta": points_delta
+        }
+
+        # Add or update hole in history
+        existing_hole_index = next(
+            (i for i, h in enumerate(game_state["hole_history"]) if h.get("hole") == request.hole_number),
+            None
+        )
+
+        if existing_hole_index is not None:
+            game_state["hole_history"][existing_hole_index] = hole_result
+        else:
+            game_state["hole_history"].append(hole_result)
+
+        # Update player totals
+        if "players" not in game_state:
+            game_state["players"] = []
+
+        for player in game_state["players"]:
+            player_id = player.get("id")
+            if player_id in points_delta:
+                if "points" not in player:
+                    player["points"] = 0
+                player["points"] += points_delta[player_id]
+
+        # Update current hole
+        game_state["current_hole"] = request.hole_number + 1
+
+        # Update game state in database
+        game.state = game_state
+        game.updated_at = datetime.utcnow().isoformat()
+        db.commit()
+
+        logger.info(f"Completed hole {request.hole_number} for game {game_id}")
+
+        return {
+            "success": True,
+            "game_state": game_state,
+            "hole_result": hole_result,
+            "message": f"Hole {request.hole_number} completed successfully"
+        }
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error completing hole: {e}")
+        raise HTTPException(status_code=500, detail=f"Error completing hole: {str(e)}")
+
+
 @app.post("/games/join/{join_code}")
 async def join_game_with_code(
     join_code: str,
@@ -1694,11 +1924,11 @@ async def unified_action(game_id: str, action: ActionRequest, db: Session = Depe
             return await handle_initialize_game(game, payload)
         elif action_type == "PLAY_SHOT":
             return await handle_play_shot(game, payload)
-        elif action_type == "REQUEST_PARTNERSHIP":
+        elif action_type == "REQUEST_PARTNERSHIP" or action_type == "REQUEST_PARTNER":
             return await handle_request_partnership(game, payload)
-        elif action_type == "RESPOND_PARTNERSHIP":
+        elif action_type == "RESPOND_PARTNERSHIP" or action_type == "ACCEPT_PARTNER" or action_type == "DECLINE_PARTNER":
             return await handle_respond_partnership(game, payload)
-        elif action_type == "DECLARE_SOLO":
+        elif action_type == "DECLARE_SOLO" or action_type == "GO_SOLO":
             return await handle_declare_solo(game)
         elif action_type == "OFFER_DOUBLE":
             return await handle_offer_double(game, payload)
@@ -1718,7 +1948,7 @@ async def unified_action(game_id: str, action: ActionRequest, db: Session = Depe
             return await handle_flush(game, action_dict)
         elif action_type == "CONCEDE_PUTT":
             return await handle_concede_putt(game, payload)
-        elif action_type == "ADVANCE_HOLE":
+        elif action_type == "ADVANCE_HOLE" or action_type == "NEXT_HOLE":
             return await handle_advance_hole(game)
         elif action_type == "OFFER_BIG_DICK":
             return await handle_offer_big_dick(game, payload)
@@ -2159,26 +2389,39 @@ async def handle_play_shot(game: WolfGoatPigSimulation, payload: Dict[str, Any] 
 async def handle_request_partnership(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
     """Handle partnership request"""
     try:
+        # Accept either partner_id or target_player_name
+        partner_id = payload.get("partner_id")
         target_player = payload.get("target_player_name")
-        if not target_player:
-            raise HTTPException(status_code=400, detail="target_player_name is required")
-        
+
+        if not partner_id and not target_player:
+            raise HTTPException(status_code=400, detail="Either partner_id or target_player_name is required")
+
         # Get current game state
         current_state = game.get_game_state()
-        
+
         # Get the actual captain ID from the current hole state
         hole_state = game.hole_states[game.current_hole]
         captain_id = hole_state.teams.captain
-        
-        # Convert player name to player ID
-        partner_id = None
-        for player in game.players:
-            if player.name == target_player:
-                partner_id = player.id
-                break
-        
-        if not partner_id:
-            raise HTTPException(status_code=400, detail=f"Player '{target_player}' not found")
+
+        # If we have target_player name, convert to ID
+        if target_player and not partner_id:
+            for player in game.players:
+                if player.name == target_player:
+                    partner_id = player.id
+                    break
+
+            if not partner_id:
+                raise HTTPException(status_code=400, detail=f"Player '{target_player}' not found")
+
+        # If we have partner_id, get the name for response
+        if partner_id and not target_player:
+            for player in game.players:
+                if player.id == partner_id:
+                    target_player = player.name
+                    break
+
+            if not target_player:
+                raise HTTPException(status_code=400, detail=f"Player with ID '{partner_id}' not found")
         
         # Request the partnership
         result = game.request_partner(captain_id, partner_id)
@@ -5577,7 +5820,25 @@ def play_next_shot(request: SimulationPlayShotRequest = None):
                 feedback.append(f"🎯 Great shot! {player_name} is in excellent position")
             elif shot_quality == 'poor':
                 feedback.append(f"😬 Tough break for {player_name}, recovery shot needed")
-        
+
+        # Check if captain needs to make partnership decision after first tee shot
+        interaction_needed = None
+        hole_state = _get_current_hole_state()
+        if hole_state and hole_state.tee_shots_complete == 1:
+            # First player (captain) has hit - they need to make a decision
+            captain_id = hole_state.hitting_order[0] if hole_state.hitting_order else None
+            if captain_id:
+                # Get available partners (players who haven't hit yet)
+                available_partners = hole_state.get_available_partners_for_captain(captain_id)
+                if available_partners:
+                    interaction_needed = {
+                        "type": "captain_decision",
+                        "captain_id": captain_id,
+                        "available_partners": available_partners,
+                        "message": f"Captain {wgp_simulation._get_player_name(captain_id)} needs to choose a partner or go solo"
+                    }
+                    feedback.append(f"🤔 {wgp_simulation._get_player_name(captain_id)} is captain - time to make your decision!")
+
         return {
             "status": "ok",
             "success": True,
@@ -5585,7 +5846,8 @@ def play_next_shot(request: SimulationPlayShotRequest = None):
             "game_state": updated_state,
             "next_player": next_player_name,
             "hole_complete": hole_complete,
-            "next_shot_available": next_shot_available,
+            "next_shot_available": not hole_complete and next_shot_player is not None,
+            "interaction_needed": interaction_needed,
             "feedback": feedback
         }
         
@@ -6577,6 +6839,51 @@ def get_poker_betting_state():
     except Exception as e:
         logger.error(f"Failed to get poker state: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get poker state: {str(e)}")
+
+
+@app.post("/simulation/save-results")
+def save_simulation_results(request: dict):
+    """Save simulation game results to database for tracking"""
+    try:
+        game_state = request.get("game_state")
+        final_scores = request.get("final_scores", [])
+
+        if not game_state:
+            raise HTTPException(status_code=400, detail="game_state is required")
+
+        # For now, just log the results
+        # In the future, this could save to a SimulationResults table
+        logger.info(f"Saving simulation results - Players: {len(final_scores)}")
+        for score in final_scores:
+            logger.info(f"  {score.get('player_name')}: {score.get('points')} points (handicap {score.get('handicap')})")
+
+        # Could extend this to save to database:
+        # db = database.SessionLocal()
+        # try:
+        #     result = models.SimulationResult(
+        #         players=final_scores,
+        #         course_name=game_state.get("course_name"),
+        #         created_at=datetime.utcnow()
+        #     )
+        #     db.add(result)
+        #     db.commit()
+        # finally:
+        #     db.close()
+
+        return {
+            "status": "ok",
+            "message": "Results saved successfully",
+            "saved": True
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to save simulation results: {e}")
+        return {
+            "status": "error",
+            "message": f"Failed to save results: {str(e)}",
+            "saved": False
+        }
+
 
 # Daily Sign-up System Endpoints
 

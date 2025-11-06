@@ -414,6 +414,25 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
       <header style={stickyHeaderStyle}>
         Wolf Goat Pig MVP
       </header>
+
+      {/* Fixed Scorecard at the top */}
+      <div style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+        backgroundColor: theme.colors.background,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        padding: '8px',
+        marginBottom: '8px'
+      }}>
+        <Scorecard
+          players={gameState.players}
+          holeHistory={gameState.hole_history || []}
+          currentHole={gameState.current_hole}
+          captainId={gameState.captain_id}
+        />
+      </div>
+
       <main style={{padding: "12px 8px 0 8px"}}>
         <GameBanner />
         {gameState.selected_course && <div style={{marginBottom:8, fontWeight:600, color:theme.colors.primary}}>Course: {gameState.selected_course}</div>}
@@ -432,33 +451,6 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
         <div style={{marginBottom:8,fontSize:15,color:theme.colors.textSecondary}}><strong>Game Phase:</strong> {gameState.game_phase}</div>
         {statusBox}
 
-        {/* Running Totals - Always Visible */}
-        <div style={{ ...theme.cardStyle, marginBottom: 16, background: '#f0f7ff' }}>
-          <h3 style={{ margin: '0 0 12px 0', fontSize: 18, color: theme.colors.primary, fontWeight: 'bold' }}>
-            💰 Current Standings
-          </h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
-            {gameState.players.map(player => (
-              <div key={player.id} style={{
-                padding: '12px',
-                background: 'white',
-                borderRadius: '8px',
-                border: `2px solid ${isCaptain(player.id) ? theme.colors.primary : theme.colors.border}`
-              }}>
-                <div style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 4 }}>
-                  {player.name} {isCaptain(player.id) && '⭐'}
-                </div>
-                <div style={{ fontSize: 24, fontWeight: 'bold', color: player.points >= 0 ? theme.colors.success : theme.colors.error }}>
-                  {player.points > 0 ? '+' : ''}{player.points}q
-                </div>
-                <div style={{ fontSize: 12, color: theme.colors.textSecondary }}>
-                  Hdcp: {player.handicap}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* Real-time Game State Tracking */}
         <GameStateWidget
           gameState={gameState}
@@ -467,15 +459,6 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
         />
 
         {teamStatus && <div style={{ margin: "10px 0", ...theme.cardStyle }}>{teamStatus}</div>}
-
-        {/* Scorecard */}
-        <div style={{ marginBottom: 16 }}>
-          <Scorecard
-            players={gameState.players}
-            holeHistory={gameState.hole_history || []}
-            currentHole={gameState.current_hole}
-          />
-        </div>
         <div style={theme.cardStyle}>
           <h3 style={{marginTop:0,marginBottom:8,fontSize:17,color:theme.colors.primary}}>Players</h3>
           {playersTable}

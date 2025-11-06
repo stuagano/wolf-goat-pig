@@ -1,5 +1,5 @@
 // frontend/src/components/game/MobileScorecard.jsx
-import React, { useState } from 'react';
+import React from 'react';
 import { useTheme } from '../../theme/Provider';
 import '../../styles/mobile-touch.css';
 
@@ -10,7 +10,6 @@ import '../../styles/mobile-touch.css';
  */
 const MobileScorecard = ({ gameState }) => {
   const theme = useTheme();
-  const [viewMode, setViewMode] = useState('standings'); // 'standings' or 'detailed'
 
   if (!gameState || !gameState.players) return null;
 
@@ -55,6 +54,132 @@ const MobileScorecard = ({ gameState }) => {
           Par {gameState.hole_par || 4}
         </div>
       </div>
+
+      {/* Current Hole Partnerships/Teams */}
+      {gameState.teams && gameState.teams.type && gameState.teams.type !== 'pending' && (
+        <div style={{
+          background: theme.colors.paper,
+          padding: '20px',
+          borderBottom: `3px solid ${theme.colors.border}`,
+          marginBottom: '2px'
+        }}>
+          <div style={{
+            fontSize: '16px',
+            fontWeight: 'bold',
+            color: theme.colors.textPrimary,
+            marginBottom: '12px',
+            textAlign: 'center'
+          }}>
+            Current Hole Teams
+          </div>
+
+          {gameState.teams.type === 'partners' && (
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              {/* Team 1 */}
+              <div style={{
+                flex: 1,
+                padding: '16px',
+                background: 'rgba(0, 188, 212, 0.1)',
+                border: '2px solid #00bcd4',
+                borderRadius: '12px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '14px', color: '#00bcd4', fontWeight: 'bold', marginBottom: '8px' }}>
+                  TEAM 1
+                </div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: theme.colors.textPrimary }}>
+                  {gameState.players?.find(p => p.id === gameState.teams.team1[0])?.name}
+                </div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: theme.colors.textPrimary }}>
+                  {gameState.players?.find(p => p.id === gameState.teams.team1[1])?.name}
+                </div>
+              </div>
+
+              {/* VS */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                fontSize: '20px',
+                fontWeight: 'bold',
+                color: theme.colors.textSecondary
+              }}>
+                VS
+              </div>
+
+              {/* Team 2 */}
+              <div style={{
+                flex: 1,
+                padding: '16px',
+                background: 'rgba(255, 152, 0, 0.1)',
+                border: '2px solid #ff9800',
+                borderRadius: '12px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '14px', color: '#ff9800', fontWeight: 'bold', marginBottom: '8px' }}>
+                  TEAM 2
+                </div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: theme.colors.textPrimary }}>
+                  {gameState.players?.find(p => p.id === gameState.teams.team2[0])?.name}
+                </div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: theme.colors.textPrimary }}>
+                  {gameState.players?.find(p => p.id === gameState.teams.team2[1])?.name}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {gameState.teams.type === 'solo' && (
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              {/* Solo Captain */}
+              <div style={{
+                flex: 1,
+                padding: '16px',
+                background: 'rgba(255, 193, 7, 0.1)',
+                border: '2px solid #ffc107',
+                borderRadius: '12px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '14px', color: '#ffc107', fontWeight: 'bold', marginBottom: '8px' }}>
+                  CAPTAIN (SOLO)
+                </div>
+                <div style={{ fontSize: '20px', fontWeight: 'bold', color: theme.colors.textPrimary }}>
+                  ⭐ {gameState.players?.find(p => p.id === gameState.teams.captain)?.name}
+                </div>
+              </div>
+
+              {/* VS */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                fontSize: '20px',
+                fontWeight: 'bold',
+                color: theme.colors.textSecondary
+              }}>
+                VS
+              </div>
+
+              {/* Opponents */}
+              <div style={{
+                flex: 1,
+                padding: '16px',
+                background: 'rgba(156, 39, 176, 0.1)',
+                border: '2px solid #9c27b0',
+                borderRadius: '12px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '14px', color: '#9c27b0', fontWeight: 'bold', marginBottom: '8px' }}>
+                  OPPONENTS
+                </div>
+                {gameState.teams.opponents?.map(oppId => (
+                  <div key={oppId} style={{ fontSize: '18px', fontWeight: 'bold', color: theme.colors.textPrimary }}>
+                    {gameState.players?.find(p => p.id === oppId)?.name}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Player Standings */}
       <div style={{
@@ -196,210 +321,14 @@ const MobileScorecard = ({ gameState }) => {
     </div>
   );
 
-  // Render detailed hole-by-hole view
-  const renderDetailedView = () => {
-    const holes = Array.from({ length: Math.max(currentHole, 9) }, (_, i) => i + 1);
-
-    return (
-      <div style={{
-        background: theme.colors.paper,
-        borderRadius: '16px',
-        overflow: 'hidden'
-      }}>
-        <div style={{
-          padding: '16px 20px',
-          background: theme.colors.backgroundSecondary,
-          borderBottom: `3px solid ${theme.colors.border}`,
-          fontSize: '18px',
-          fontWeight: 'bold',
-          color: theme.colors.textPrimary
-        }}>
-          Hole-by-Hole Scorecard
-        </div>
-
-        <div style={{ overflowX: 'auto', padding: '16px' }}>
-          <table style={{
-            width: '100%',
-            borderCollapse: 'collapse',
-            fontSize: '16px',
-            minWidth: '600px'
-          }}>
-            <thead>
-              <tr style={{ backgroundColor: theme.colors.backgroundSecondary }}>
-                <th style={{
-                  padding: '12px 8px',
-                  textAlign: 'left',
-                  borderBottom: `2px solid ${theme.colors.border}`,
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  position: 'sticky',
-                  left: 0,
-                  background: theme.colors.backgroundSecondary,
-                  zIndex: 1
-                }}>
-                  PLAYER
-                </th>
-                {holes.map(hole => (
-                  <th
-                    key={hole}
-                    style={{
-                      padding: '12px 8px',
-                      textAlign: 'center',
-                      borderBottom: `2px solid ${theme.colors.border}`,
-                      fontSize: '14px',
-                      fontWeight: hole === currentHole ? 'bold' : 'normal',
-                      background: hole === currentHole ? 'rgba(255, 215, 0, 0.2)' : 'transparent',
-                      color: hole === currentHole ? '#FFD700' : 'inherit'
-                    }}
-                  >
-                    {hole}
-                  </th>
-                ))}
-                <th style={{
-                  padding: '12px 8px',
-                  textAlign: 'center',
-                  borderBottom: `2px solid ${theme.colors.border}`,
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  borderLeft: `2px solid ${theme.colors.border}`
-                }}>
-                  TOTAL
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {standings.map((player, idx) => {
-                return (
-                  <tr
-                    key={player.id}
-                    style={{
-                      backgroundColor: idx % 2 === 0 ? 'rgba(0, 0, 0, 0.02)' : 'transparent'
-                    }}
-                  >
-                    <td style={{
-                      padding: '12px 8px',
-                      fontWeight: 'bold',
-                      borderBottom: `1px solid ${theme.colors.border}`,
-                      position: 'sticky',
-                      left: 0,
-                      background: idx % 2 === 0 ? 'rgba(0, 0, 0, 0.02)' : 'white',
-                      zIndex: 1,
-                      fontSize: '16px'
-                    }}>
-                      {player.name}
-                    </td>
-                    {holes.map(hole => {
-                      const holeData = holeHistory.find(h => h.hole === hole);
-                      const playerHoleData = holeData?.points_delta?.[player.id];
-                      const isCurrentHole = hole === currentHole;
-
-                      return (
-                        <td
-                          key={hole}
-                          style={{
-                            padding: '12px 8px',
-                            textAlign: 'center',
-                            borderBottom: `1px solid ${theme.colors.border}`,
-                            background: isCurrentHole ? 'rgba(255, 215, 0, 0.1)' : 'transparent',
-                            fontWeight: playerHoleData && playerHoleData !== 0 ? 'bold' : 'normal',
-                            color: playerHoleData > 0 ? '#4CAF50' :
-                                   playerHoleData < 0 ? '#f44336' :
-                                   theme.colors.textSecondary,
-                            fontSize: '16px'
-                          }}
-                        >
-                          {holeData ? (
-                            playerHoleData && playerHoleData !== 0 ? (
-                              playerHoleData > 0 ? `+${playerHoleData}` : playerHoleData
-                            ) : '-'
-                          ) : ''}
-                        </td>
-                      );
-                    })}
-                    <td style={{
-                      padding: '12px 8px',
-                      textAlign: 'center',
-                      borderBottom: `1px solid ${theme.colors.border}`,
-                      borderLeft: `2px solid ${theme.colors.border}`,
-                      fontWeight: 'bold',
-                      fontSize: '18px',
-                      color: player.quarters > 0 ? '#4CAF50' :
-                             player.quarters < 0 ? '#f44336' :
-                             theme.colors.textSecondary
-                    }}>
-                      {player.quarters > 0 ? `+${player.quarters}` : player.quarters || '-'}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="touch-optimized" style={{
       background: theme.colors.background,
       borderRadius: '16px',
       overflow: 'hidden'
     }}>
-      {/* View Toggle Buttons */}
-      <div
-        className="touch-spacing-large"
-        style={{
-        display: 'flex',
-        gap: '12px',
-        marginBottom: '16px',
-        padding: '16px',
-        background: theme.colors.paper,
-        borderRadius: '16px'
-      }}>
-        <button
-          onClick={() => setViewMode('standings')}
-          className="touch-optimized"
-          style={{
-            flex: 1,
-            minHeight: '60px',
-            padding: '16px',
-            fontSize: '18px',
-            fontWeight: 'bold',
-            border: viewMode === 'standings' ? `3px solid ${theme.colors.primary}` : `2px solid ${theme.colors.border}`,
-            borderRadius: '12px',
-            background: viewMode === 'standings' ? theme.colors.primary : 'white',
-            color: viewMode === 'standings' ? 'white' : theme.colors.textPrimary,
-            cursor: 'pointer',
-            transition: 'all 0.15s ease',
-            touchAction: 'manipulation'
-          }}
-        >
-          📊 Standings
-        </button>
-        <button
-          onClick={() => setViewMode('detailed')}
-          className="touch-optimized"
-          style={{
-            flex: 1,
-            minHeight: '60px',
-            padding: '16px',
-            fontSize: '18px',
-            fontWeight: 'bold',
-            border: viewMode === 'detailed' ? `3px solid ${theme.colors.primary}` : `2px solid ${theme.colors.border}`,
-            borderRadius: '12px',
-            background: viewMode === 'detailed' ? theme.colors.primary : 'white',
-            color: viewMode === 'detailed' ? 'white' : theme.colors.textPrimary,
-            cursor: 'pointer',
-            transition: 'all 0.15s ease',
-            touchAction: 'manipulation'
-          }}
-        >
-          📋 Scorecard
-        </button>
-      </div>
-
-      {/* Content based on view mode */}
-      {viewMode === 'standings' ? renderStandingsView() : renderDetailedView()}
+      {/* Always show standings view - toggle functionality is in the sticky Scorecard at top */}
+      {renderStandingsView()}
     </div>
   );
 };
