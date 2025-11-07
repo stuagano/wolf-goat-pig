@@ -165,6 +165,8 @@ class CompleteHoleRequest(BaseModel):
     hole_number: int = Field(..., ge=1, le=18)
     rotation_order: List[str] = Field(..., description="Hitting order for this hole")
     captain_index: int = Field(0, ge=0, description="Index in rotation_order who is captain")
+    phase: Optional[str] = Field("normal", description="Game phase: 'normal' or 'hoepfinger'")
+    joes_special_wager: Optional[int] = Field(None, description="Wager set by Goat (2, 4, or 8) during Hoepfinger")
     teams: HoleTeams
     final_wager: float = Field(..., gt=0)
     winner: str  # 'team1', 'team2', 'captain', 'opponents', or 'push' for completed holes; 'team1_flush' (Team2 conceded), 'team2_flush' (Team1 conceded), 'captain_flush' (Opponents conceded), 'opponents_flush' (Captain conceded) for folded holes
@@ -1328,6 +1330,15 @@ async def complete_hole(
         if not game:
             raise HTTPException(status_code=404, detail="Game not found")
 
+        # Validate Joe's Special
+        if request.phase == "hoepfinger" and request.joes_special_wager:
+            valid_wagers = [2, 4, 8]
+            if request.joes_special_wager not in valid_wagers:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Joe's Special must be 2, 4, or 8 quarters. Got: {request.joes_special_wager}. Joe's Special maximum is 8 quarters."
+                )
+
         # Get current game state
         game_state = game.state or {}
 
@@ -1392,6 +1403,8 @@ async def complete_hole(
             "hole": request.hole_number,
             "rotation_order": request.rotation_order,
             "captain_index": request.captain_index,
+            "phase": request.phase,
+            "joes_special_wager": request.joes_special_wager,
             "teams": request.teams.model_dump(),
             "wager": request.final_wager,
             "winner": request.winner,
@@ -1441,6 +1454,9 @@ async def complete_hole(
             "message": f"Hole {request.hole_number} completed successfully"
         }
 
+    except HTTPException:
+        # Re-raise HTTPException without wrapping
+        raise
     except Exception as e:
         db.rollback()
         logger.error(f"Error completing hole: {e}")
