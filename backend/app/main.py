@@ -168,6 +168,7 @@ class CompleteHoleRequest(BaseModel):
     phase: Optional[str] = Field("normal", description="Game phase: 'normal' or 'hoepfinger'")
     joes_special_wager: Optional[int] = Field(None, description="Wager set by Goat (2, 4, or 8) during Hoepfinger")
     option_turned_off: Optional[bool] = Field(False, description="Captain proactively turned off The Option")
+    duncan_invoked: Optional[bool] = Field(False, description="Captain went solo before hitting (3-for-2 payout)")
     teams: HoleTeams
     final_wager: float = Field(..., gt=0)
     winner: str  # 'team1', 'team2', 'captain', 'opponents', or 'push' for completed holes; 'team1_flush' (Team2 conceded), 'team2_flush' (Team1 conceded), 'captain_flush' (Opponents conceded), 'opponents_flush' (Captain conceded) for folded holes
@@ -1377,11 +1378,26 @@ async def complete_hole(
                 for player_id in request.teams.team1 + request.teams.team2:
                     points_delta[player_id] = 0
         else:  # solo mode
-            if request.winner == "captain":
+            if request.duncan_invoked and request.winner == "captain":
+                # The Duncan: Captain wins 3Q for every 2Q wagered
+                total_payout = (request.final_wager * 3) / 2
+                points_delta[request.teams.captain] = total_payout
+                loss_per_opponent = total_payout / len(request.teams.opponents)
+                for opp_id in request.teams.opponents:
+                    points_delta[opp_id] = -loss_per_opponent
+            elif request.duncan_invoked and request.winner == "opponents":
+                # The Duncan failed: Opponents win normal, Captain loses normal
+                total_loss = request.final_wager * len(request.teams.opponents)
+                points_delta[request.teams.captain] = -total_loss
+                for opp_id in request.teams.opponents:
+                    points_delta[opp_id] = request.final_wager
+            elif request.winner == "captain":
+                # Normal solo win
                 points_delta[request.teams.captain] = request.final_wager * len(request.teams.opponents)
                 for opp_id in request.teams.opponents:
                     points_delta[opp_id] = -request.final_wager
             elif request.winner == "opponents":
+                # Normal solo loss
                 points_delta[request.teams.captain] = -request.final_wager * len(request.teams.opponents)
                 for opp_id in request.teams.opponents:
                     points_delta[opp_id] = request.final_wager
@@ -1408,6 +1424,7 @@ async def complete_hole(
             "phase": request.phase,
             "joes_special_wager": request.joes_special_wager,
             "option_turned_off": request.option_turned_off,
+            "duncan_invoked": request.duncan_invoked,
             "teams": request.teams.model_dump(),
             "wager": request.final_wager,
             "winner": request.winner,
