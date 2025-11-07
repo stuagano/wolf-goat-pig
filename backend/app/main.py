@@ -174,6 +174,7 @@ class CompleteHoleRequest(BaseModel):
     hole_par: Optional[int] = Field(4, ge=3, le=5)
     float_invoked_by: Optional[str] = Field(None, description="Player ID who invoked float on this hole")
     option_invoked_by: Optional[str] = Field(None, description="Player ID who triggered option on this hole")
+    carry_over_applied: Optional[bool] = Field(False, description="Whether carry-over was applied to this hole")
 
 
 app = FastAPI(
@@ -1412,7 +1413,8 @@ async def complete_hole(
             "hole_par": request.hole_par,
             "points_delta": points_delta,
             "float_invoked_by": request.float_invoked_by,
-            "option_invoked_by": request.option_invoked_by
+            "option_invoked_by": request.option_invoked_by,
+            "carry_over_applied": request.carry_over_applied
         }
 
         # Add or update hole in history
@@ -1425,6 +1427,28 @@ async def complete_hole(
             game_state["hole_history"][existing_hole_index] = hole_result
         else:
             game_state["hole_history"].append(hole_result)
+
+        # Track carry-over state
+        if request.winner == "push":
+            # Check if last hole was also a push (consecutive block)
+            last_push_hole = game_state.get("last_push_hole")
+            if last_push_hole == request.hole_number - 1:
+                # Consecutive push - don't trigger new carry-over
+                game_state["consecutive_push_block"] = True
+                game_state["last_push_hole"] = request.hole_number
+            else:
+                # Trigger carry-over for next hole
+                game_state["carry_over_wager"] = request.final_wager * 2
+                game_state["carry_over_from_hole"] = request.hole_number
+                game_state["last_push_hole"] = request.hole_number
+                game_state["consecutive_push_block"] = False
+        else:
+            # Hole was decided - reset carry-over tracking
+            if "carry_over_wager" in game_state:
+                del game_state["carry_over_wager"]
+            if "carry_over_from_hole" in game_state:
+                del game_state["carry_over_from_hole"]
+            game_state["consecutive_push_block"] = False
 
         # Update player totals
         if "players" not in game_state:
@@ -1444,6 +1468,7 @@ async def complete_hole(
         game.state = game_state
         game.updated_at = datetime.utcnow().isoformat()
         db.commit()
+        db.refresh(game)
 
         logger.info(f"Completed hole {request.hole_number} for game {game_id}")
 
@@ -1532,6 +1557,73 @@ async def get_next_rotation(
 
     except Exception as e:
         logger.error(f"Error calculating next rotation: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/games/{game_id}/next-hole-wager")
+async def get_next_hole_wager(
+    game_id: str,
+    current_hole: Optional[int] = None,
+    db: Session = Depends(database.get_db)
+):
+    """
+    Calculate the base wager for the next hole.
+    Accounts for carry-over, Vinnie's Variation, and Hoepfinger rules.
+    """
+    try:
+        game = db.query(models.GameStateModel).filter(
+            models.GameStateModel.game_id == game_id
+        ).first()
+
+        if not game:
+            raise HTTPException(status_code=404, detail="Game not found")
+
+        game_state = game.state or {}
+        player_count = len(game_state.get("players", []))
+
+        # Use provided current_hole or get from game state
+        if current_hole is None:
+            current_hole = game_state.get("current_hole", 1)
+
+        base_wager = game_state.get("base_wager", 1)
+
+        # Check for carry-over
+        if game_state.get("carry_over_wager"):
+            carry_over_wager = game_state["carry_over_wager"]
+            from_hole = game_state.get("carry_over_from_hole", current_hole - 1)
+
+            if game_state.get("consecutive_push_block"):
+                return {
+                    "base_wager": carry_over_wager,
+                    "carry_over": False,
+                    "message": f"Consecutive carry-over blocked. Base wager remains {carry_over_wager}Q from hole {from_hole}"
+                }
+            else:
+                return {
+                    "base_wager": carry_over_wager,
+                    "carry_over": True,
+                    "message": f"Carry-over from hole {from_hole} push"
+                }
+
+        # Check for Vinnie's Variation (holes 13-16 in 4-player)
+        if player_count == 4 and 13 <= current_hole <= 16:
+            return {
+                "base_wager": base_wager * 2,
+                "vinnies_variation": True,
+                "carry_over": False,
+                "message": f"Vinnie's Variation: holes 13-16 doubled (hole {current_hole})"
+            }
+
+        # Normal base wager
+        return {
+            "base_wager": base_wager,
+            "carry_over": False,
+            "vinnies_variation": False,
+            "message": "Normal base wager"
+        }
+
+    except Exception as e:
+        logger.error(f"Error calculating next hole wager: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
