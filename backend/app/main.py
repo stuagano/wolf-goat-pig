@@ -167,6 +167,7 @@ class CompleteHoleRequest(BaseModel):
     captain_index: int = Field(0, ge=0, description="Index in rotation_order who is captain")
     phase: Optional[str] = Field("normal", description="Game phase: 'normal' or 'hoepfinger'")
     joes_special_wager: Optional[int] = Field(None, description="Wager set by Goat (2, 4, or 8) during Hoepfinger")
+    option_turned_off: Optional[bool] = Field(False, description="Captain proactively turned off The Option")
     teams: HoleTeams
     final_wager: float = Field(..., gt=0)
     winner: str  # 'team1', 'team2', 'captain', 'opponents', or 'push' for completed holes; 'team1_flush' (Team2 conceded), 'team2_flush' (Team1 conceded), 'captain_flush' (Opponents conceded), 'opponents_flush' (Captain conceded) for folded holes
@@ -1406,6 +1407,7 @@ async def complete_hole(
             "captain_index": request.captain_index,
             "phase": request.phase,
             "joes_special_wager": request.joes_special_wager,
+            "option_turned_off": request.option_turned_off,
             "teams": request.teams.model_dump(),
             "wager": request.final_wager,
             "winner": request.winner,
@@ -1604,6 +1606,36 @@ async def get_next_hole_wager(
                     "carry_over": True,
                     "message": f"Carry-over from hole {from_hole} push"
                 }
+
+        # Check for The Option (Captain is Goat)
+        if not game_state.get("carry_over_wager"):  # Option doesn't stack with carry-over
+            # Calculate current standings to find Goat
+            standings = {}
+            for player in game_state.get("players", []):
+                standings[player["id"]] = player.get("points", 0)
+
+            if standings:
+                goat_id = min(standings, key=standings.get)
+                goat_points = standings[goat_id]
+
+                # Option applies if Captain (first in rotation) is the Goat AND has negative points
+                hole_history = game_state.get("hole_history", [])
+                if hole_history:
+                    last_hole = hole_history[-1]
+                    next_rotation_order = last_hole.get("rotation_order", [])[1:] + [last_hole.get("rotation_order", [])[0]]
+                    next_captain_id = next_rotation_order[0] if next_rotation_order else None
+
+                    if next_captain_id == goat_id and goat_points < 0:
+                        # Check if last hole turned off Option
+                        if not last_hole.get("option_turned_off", False):
+                            return {
+                                "base_wager": base_wager * 2,
+                                "option_active": True,
+                                "goat_id": goat_id,
+                                "carry_over": False,
+                                "vinnies_variation": False,
+                                "message": f"The Option: Captain is Goat ({goat_points}Q), wager doubled"
+                            }
 
         # Check for Vinnie's Variation (holes 13-16 in 4-player)
         if player_count == 4 and 13 <= current_hole <= 16:
