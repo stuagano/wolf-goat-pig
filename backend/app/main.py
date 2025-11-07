@@ -163,6 +163,8 @@ class HoleTeams(BaseModel):
 class CompleteHoleRequest(BaseModel):
     """Request to complete a hole with all data at once - for scorekeeper mode"""
     hole_number: int = Field(..., ge=1, le=18)
+    rotation_order: List[str] = Field(..., description="Hitting order for this hole")
+    captain_index: int = Field(0, ge=0, description="Index in rotation_order who is captain")
     teams: HoleTeams
     final_wager: float = Field(..., gt=0)
     winner: str  # 'team1', 'team2', 'captain', 'opponents', or 'push' for completed holes; 'team1_flush' (Team2 conceded), 'team2_flush' (Team1 conceded), 'captain_flush' (Opponents conceded), 'opponents_flush' (Captain conceded) for folded holes
@@ -1388,6 +1390,8 @@ async def complete_hole(
         # Create hole result
         hole_result = {
             "hole": request.hole_number,
+            "rotation_order": request.rotation_order,
+            "captain_index": request.captain_index,
             "teams": request.teams.model_dump(),
             "wager": request.final_wager,
             "winner": request.winner,
@@ -1441,6 +1445,78 @@ async def complete_hole(
         db.rollback()
         logger.error(f"Error completing hole: {e}")
         raise HTTPException(status_code=500, detail=f"Error completing hole: {str(e)}")
+
+
+@app.get("/games/{game_id}/next-rotation")
+async def get_next_rotation(
+    game_id: str,
+    db: Session = Depends(database.get_db)
+):
+    """
+    Calculate the next rotation order based on current hole.
+    Handles normal rotation and Hoepfinger special selection.
+    """
+    try:
+        game = db.query(models.GameStateModel).filter(
+            models.GameStateModel.game_id == game_id
+        ).first()
+
+        if not game:
+            raise HTTPException(status_code=404, detail="Game not found")
+
+        game_state = game.state or {}
+        player_count = len(game_state.get("players", []))
+        current_hole = game_state.get("current_hole", 1)
+
+        # Determine Hoepfinger start based on player count
+        hoepfinger_start = {
+            4: 17,
+            5: 16,
+            6: 13
+        }.get(player_count, 17)
+
+        is_hoepfinger = current_hole >= hoepfinger_start
+
+        # Get last hole's rotation
+        hole_history = game_state.get("hole_history", [])
+        if hole_history:
+            last_hole = hole_history[-1]
+            last_rotation = last_hole.get("rotation_order", [p["id"] for p in game_state["players"]])
+        else:
+            # First hole - use player order
+            last_rotation = [p["id"] for p in game_state["players"]]
+
+        if is_hoepfinger:
+            # Hoepfinger: Goat (furthest down) selects position
+            # Calculate current standings
+            standings = {}
+            for player in game_state["players"]:
+                standings[player["id"]] = player.get("points", 0)
+
+            goat_id = min(standings, key=standings.get)
+
+            return {
+                "is_hoepfinger": True,
+                "goat_id": goat_id,
+                "goat_selects_position": True,
+                "available_positions": list(range(player_count)),
+                "current_rotation": last_rotation,
+                "message": "Goat selects hitting position"
+            }
+        else:
+            # Normal rotation: shift left by 1
+            new_rotation = last_rotation[1:] + [last_rotation[0]]
+
+            return {
+                "is_hoepfinger": False,
+                "rotation_order": new_rotation,
+                "captain_index": 0,
+                "captain_id": new_rotation[0]
+            }
+
+    except Exception as e:
+        logger.error(f"Error calculating next rotation: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/games/join/{join_code}")
