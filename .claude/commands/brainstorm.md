@@ -1,0 +1,1 @@
+/Users/stuartgano/Documents/wolf-goat-pig/.claude/.claude/plugins/superpowers/commands/brainstorm.md

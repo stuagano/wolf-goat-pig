@@ -11,8 +11,8 @@ export const SheetSyncProvider = ({ children }) => {
   const [sheetUrl, setSheetUrl] = useState('https://docs.google.com/spreadsheets/d/1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM/edit?pli=1&gid=0#gid=0');
   const [syncStatus, setSyncStatus] = useState('idle'); // idle, connecting, syncing, error, success
   const [lastSync, setLastSync] = useState(null);
-  const [syncInterval, setSyncInterval] = useState(30); // seconds
-  const [autoSync, setAutoSync] = useState(true); // Enable auto sync by default
+  const [syncInterval, setSyncInterval] = useState(300); // seconds (5 minutes default)
+  const [autoSync, setAutoSync] = useState(false); // Disable auto sync by default to reduce API calls
   const [syncData, setSyncData] = useState([]);
   const [error, setError] = useState(null);
 
@@ -176,12 +176,13 @@ export const SheetSyncProvider = ({ children }) => {
     }
   }, [parseSheetUrl, sheetUrl]);
 
-  // Initial sync on load
-  useEffect(() => {
-    if (sheetUrl) {
-      performLiveSync();
-    }
-  }, [performLiveSync, sheetUrl]);
+  // Initial sync on load - removed to prevent excessive API calls
+  // Users can manually trigger sync when needed
+  // useEffect(() => {
+  //   if (sheetUrl) {
+  //     performLiveSync();
+  //   }
+  // }, [performLiveSync, sheetUrl]);
 
   // Auto sync interval
   useEffect(() => {

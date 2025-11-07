@@ -37,12 +37,16 @@ const CurrentBetStatus = ({ state }) => {
     border: `2px solid ${theme.colors.border}`
   };
 
+  // Display quarters (Q) instead of dollars
+  // Backend stores base_wager as integer quarters (1 = 1 quarter)
+  // Only convert to dollars in final summary (quarters * $0.25)
+
   return (
     <div style={containerStyle}>
       <div style={{ marginBottom: theme.spacing[3] }}>
         <span style={multiplierBadgeStyle}>{state.currentMultiplier}x</span>
         <span style={{ fontSize: theme.typography.lg }}>
-          Base: ${state.baseAmount.toFixed(2)} = Total: ${state.currentBet.toFixed(2)}
+          Base: {state.baseAmount}Q = Total: {state.currentBet}Q
         </span>
       </div>
 
@@ -59,7 +63,7 @@ const CurrentBetStatus = ({ state }) => {
                 ))}
               </div>
               <div style={{ marginTop: theme.spacing[2], fontSize: theme.typography.sm, color: theme.colors.textSecondary }}>
-                Bet: ${team.betAmount.toFixed(2)}
+                Bet: {team.betAmount}Q
               </div>
             </div>
           ))}

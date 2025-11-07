@@ -296,7 +296,7 @@ const MobileScorecard = ({ gameState }) => {
               fontWeight: 'bold',
               color: theme.colors.primary
             }}>
-              ${gameState.base_wager || 0.25}
+              {gameState.base_wager || 1}Q
             </div>
           </div>
           <div>
@@ -313,7 +313,7 @@ const MobileScorecard = ({ gameState }) => {
               color: gameState.current_wager > gameState.base_wager ?
                 theme.colors.warning : theme.colors.primary
             }}>
-              ${gameState.current_wager || gameState.base_wager || 0.25}
+              {gameState.current_wager || gameState.base_wager || 1}Q
             </div>
           </div>
         </div>
