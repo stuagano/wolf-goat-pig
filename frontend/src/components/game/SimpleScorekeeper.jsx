@@ -45,6 +45,11 @@ const SimpleScorekeeper = ({
   const [vinniesVariation, setVinniesVariation] = useState(false);
   const [carryOverApplied, setCarryOverApplied] = useState(false);
 
+  // Phase 2: Betting mechanics
+  const [optionActive, setOptionActive] = useState(false);
+  const [optionTurnedOff, setOptionTurnedOff] = useState(false);
+  const [duncanInvoked, setDuncanInvoked] = useState(false);
+
   // Game history and standings
   const [holeHistory, setHoleHistory] = useState(initialHoleHistory);
   const [playerStandings, setPlayerStandings] = useState({});
@@ -131,6 +136,10 @@ const SimpleScorekeeper = ({
           setCurrentWager(wagerData.base_wager);
           setCarryOver(wagerData.carry_over || false);
           setVinniesVariation(wagerData.vinnies_variation || false);
+          setOptionActive(wagerData.option_active || false);
+          if (wagerData.option_active) {
+            setGoatId(wagerData.goat_id);
+          }
         }
       } catch (err) {
         console.error('Error fetching rotation/wager:', err);
@@ -158,6 +167,8 @@ const SimpleScorekeeper = ({
     setEditingHole(null);
     setCarryOverApplied(carryOver); // Set to true if carry-over was active
     setJoesSpecialWager(null); // Reset Joe's Special for next hole
+    setOptionTurnedOff(false); // Reset Option for next hole
+    setDuncanInvoked(false); // Reset Duncan for next hole
   };
 
   // Load hole data for editing
@@ -302,6 +313,8 @@ const SimpleScorekeeper = ({
           captain_index: captainIndex,
           phase: phase,
           joes_special_wager: joesSpecialWager,
+          option_turned_off: optionTurnedOff,
+          duncan_invoked: duncanInvoked,
           teams: teams,
           final_wager: currentWager,
           winner: winner,
@@ -1087,7 +1100,7 @@ const SimpleScorekeeper = ({
       )}
 
       {/* Wager Indicators */}
-      {(carryOver || vinniesVariation) && (
+      {(carryOver || vinniesVariation || optionActive) && (
         <div style={{
           background: theme.colors.paper,
           borderRadius: '12px',
@@ -1122,9 +1135,60 @@ const SimpleScorekeeper = ({
               ⚡ VINNIE'S VARIATION
             </div>
           )}
+          {optionActive && (
+            <div style={{
+              padding: '6px 12px',
+              borderRadius: '6px',
+              background: '#2196F3',
+              color: 'white',
+              fontSize: '12px',
+              fontWeight: 'bold'
+            }}>
+              🎲 THE OPTION (2x)
+            </div>
+          )}
           <div style={{ fontSize: '14px', fontWeight: 'bold', color: theme.colors.textPrimary }}>
             Base Wager: {nextHoleWager}Q
           </div>
+        </div>
+      )}
+
+      {/* The Option Card - Captain can turn it off */}
+      {optionActive && !optionTurnedOff && goatId && (
+        <div style={{
+          background: '#E3F2FD',
+          borderRadius: '12px',
+          padding: '16px',
+          marginBottom: '16px',
+          border: '2px solid #2196F3',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}>
+          <div style={{
+            fontSize: '16px',
+            fontWeight: 'bold',
+            marginBottom: '8px',
+            color: '#1976D2'
+          }}>
+            🎲 THE OPTION ACTIVE
+          </div>
+          <div style={{ marginBottom: '12px', color: '#424242', fontSize: '14px' }}>
+            {players.find(p => p.id === goatId)?.name} (Captain & Goat) - Wager automatically doubled!
+          </div>
+          <button
+            onClick={() => setOptionTurnedOff(true)}
+            style={{
+              padding: '10px 16px',
+              borderRadius: '8px',
+              background: '#FF5722',
+              color: 'white',
+              border: 'none',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              cursor: 'pointer'
+            }}
+          >
+            Turn Off Option (1x wager)
+          </button>
         </div>
       )}
 
@@ -1402,6 +1466,35 @@ const SimpleScorekeeper = ({
             Solo
           </button>
         </div>
+
+        {/* The Duncan checkbox - only shown in Solo mode */}
+        {teamMode === 'solo' && (
+          <div style={{
+            marginTop: '12px',
+            padding: '12px',
+            background: '#F3E5F5',
+            borderRadius: '8px',
+            border: '2px solid #9C27B0'
+          }}>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              color: '#6A1B9A'
+            }}>
+              <input
+                type="checkbox"
+                checked={duncanInvoked}
+                onChange={(e) => setDuncanInvoked(e.target.checked)}
+                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+              />
+              <span>🏆 The Duncan (Captain goes solo before hitting - 3-for-2 payout)</span>
+            </label>
+          </div>
+        )}
       </div>
 
       {/* Team Selection */}
