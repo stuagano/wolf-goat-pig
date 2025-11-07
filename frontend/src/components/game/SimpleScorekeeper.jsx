@@ -990,57 +990,125 @@ const SimpleScorekeeper = ({
             fontWeight: 'bold',
             color: theme.colors.textPrimary
           }}>
-            Usage Statistics
+            Rule Compliance & Usage
           </div>
 
           <div style={{ padding: '16px' }}>
-            {Object.values(playerStandings).map((player, idx) => (
-              <div
-                key={idx}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '12px',
-                  borderBottom: idx < Object.values(playerStandings).length - 1 ? `1px solid ${theme.colors.border}` : 'none',
-                  background: idx % 2 === 0 ? 'white' : theme.colors.background
-                }}
-              >
-                <div style={{
-                  fontSize: '16px',
-                  fontWeight: 'bold',
-                  color: theme.colors.textPrimary,
-                  flex: 1
-                }}>
-                  {player.name}
+            {Object.values(playerStandings).map((player, idx) => {
+              const soloCount = player.soloCount || 0;
+              const floatCount = player.floatCount || 0;
+              const optionCount = player.optionCount || 0;
+
+              // Rule requirements
+              const soloRequired = 1; // Everyone must go solo at least once
+              const floatAvailable = 1; // One float per player per round
+              const soloMet = soloCount >= soloRequired;
+              const floatUsed = floatCount >= floatAvailable;
+
+              return (
+                <div
+                  key={idx}
+                  style={{
+                    padding: '12px',
+                    borderBottom: idx < Object.values(playerStandings).length - 1 ? `1px solid ${theme.colors.border}` : 'none',
+                    background: idx % 2 === 0 ? 'white' : theme.colors.background
+                  }}
+                >
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '8px'
+                  }}>
+                    <div style={{
+                      fontSize: '16px',
+                      fontWeight: 'bold',
+                      color: theme.colors.textPrimary,
+                      flex: 1
+                    }}>
+                      {player.name}
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      gap: '16px',
+                      fontSize: '14px',
+                      color: theme.colors.textSecondary
+                    }}>
+                      {/* Solo Count */}
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{
+                          fontSize: '20px',
+                          fontWeight: 'bold',
+                          color: soloMet ? '#4CAF50' : '#f44336'
+                        }}>
+                          {soloCount}/{soloRequired}
+                        </div>
+                        <div style={{ fontSize: '11px' }}>Solo</div>
+                        {!soloMet && (
+                          <div style={{
+                            fontSize: '9px',
+                            color: '#f44336',
+                            fontWeight: 'bold',
+                            marginTop: '2px'
+                          }}>
+                            Required
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Float Count */}
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{
+                          fontSize: '20px',
+                          fontWeight: 'bold',
+                          color: floatUsed ? '#9E9E9E' : theme.colors.primary
+                        }}>
+                          {floatCount}/{floatAvailable}
+                        </div>
+                        <div style={{ fontSize: '11px' }}>Float</div>
+                        {floatUsed && (
+                          <div style={{
+                            fontSize: '9px',
+                            color: '#9E9E9E',
+                            marginTop: '2px'
+                          }}>
+                            Used
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Option Count (informational) */}
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{
+                          fontSize: '20px',
+                          fontWeight: 'bold',
+                          color: theme.colors.warning
+                        }}>
+                          {optionCount}
+                        </div>
+                        <div style={{ fontSize: '11px' }}>Option</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div style={{
-                  display: 'flex',
-                  gap: '16px',
-                  fontSize: '14px',
-                  color: theme.colors.textSecondary
-                }}>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '20px', fontWeight: 'bold', color: theme.colors.primary }}>
-                      {player.soloCount || 0}
-                    </div>
-                    <div style={{ fontSize: '11px' }}>Solo</div>
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '20px', fontWeight: 'bold', color: theme.colors.primary }}>
-                      {player.floatCount || 0}
-                    </div>
-                    <div style={{ fontSize: '11px' }}>Float</div>
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '20px', fontWeight: 'bold', color: theme.colors.warning }}>
-                      {player.optionCount || 0}
-                    </div>
-                    <div style={{ fontSize: '11px' }}>Option</div>
-                  </div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
+          </div>
+
+          {/* Rule Summary */}
+          <div style={{
+            padding: '12px 16px',
+            background: '#f9fafb',
+            borderTop: `1px solid ${theme.colors.border}`,
+            fontSize: '11px',
+            color: theme.colors.textSecondary
+          }}>
+            <div style={{ marginBottom: '4px' }}>
+              <strong>Rules:</strong>
+            </div>
+            <div>• Solo: Each player must go solo at least once (by hole 16)</div>
+            <div>• Float: One-time use per player per round</div>
+            <div>• Option: Auto-triggered when captain is furthest down (Goat)</div>
           </div>
         </div>
       )}
@@ -1424,27 +1492,41 @@ const SimpleScorekeeper = ({
         {/* Float Selection */}
         <div style={{ marginBottom: '16px' }}>
           <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '8px' }}>
-            Float Invoked By:
+            Float Invoked By: <span style={{ fontSize: '12px', fontWeight: 'normal', color: theme.colors.textSecondary }}>(one-time use per player)</span>
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {players.map(player => (
-              <button
-                key={player.id}
-                onClick={() => setFloatInvokedBy(floatInvokedBy === player.id ? null : player.id)}
-                className="touch-optimized"
-                style={{
-                  padding: '8px 16px',
-                  fontSize: '14px',
-                  border: `2px solid ${floatInvokedBy === player.id ? theme.colors.primary : theme.colors.border}`,
-                  borderRadius: '6px',
-                  background: floatInvokedBy === player.id ? theme.colors.primary : 'white',
-                  color: floatInvokedBy === player.id ? 'white' : theme.colors.text,
-                  cursor: 'pointer'
-                }}
-              >
-                {player.name}
-              </button>
-            ))}
+            {players.map(player => {
+              const hasUsedFloat = playerStandings[player.id]?.floatCount >= 1;
+              return (
+                <button
+                  key={player.id}
+                  onClick={() => setFloatInvokedBy(floatInvokedBy === player.id ? null : player.id)}
+                  className="touch-optimized"
+                  disabled={hasUsedFloat}
+                  style={{
+                    padding: '8px 16px',
+                    fontSize: '14px',
+                    border: `2px solid ${floatInvokedBy === player.id ? theme.colors.primary : hasUsedFloat ? '#ccc' : theme.colors.border}`,
+                    borderRadius: '6px',
+                    background: floatInvokedBy === player.id ? theme.colors.primary : hasUsedFloat ? '#f5f5f5' : 'white',
+                    color: floatInvokedBy === player.id ? 'white' : hasUsedFloat ? '#999' : theme.colors.text,
+                    cursor: hasUsedFloat ? 'not-allowed' : 'pointer',
+                    opacity: hasUsedFloat ? 0.6 : 1,
+                    position: 'relative'
+                  }}
+                  title={hasUsedFloat ? `${player.name} has already used their float` : ''}
+                >
+                  {player.name}
+                  {hasUsedFloat && (
+                    <span style={{
+                      fontSize: '10px',
+                      marginLeft: '4px',
+                      color: '#666'
+                    }}>✓</span>
+                  )}
+                </button>
+              );
+            })}
             <button
               onClick={() => setFloatInvokedBy(null)}
               className="touch-optimized"
