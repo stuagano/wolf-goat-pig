@@ -1345,6 +1345,22 @@ async def complete_hole(
         # Get current game state
         game_state = game.state or {}
 
+        # Validate Float usage (once per round per player)
+        if request.float_invoked_by:
+            # Check if player has already used float
+            for player in game_state.get("players", []):
+                if player["id"] == request.float_invoked_by:
+                    float_count = player.get("float_used", 0)
+                    # Handle boolean False or numeric values
+                    if isinstance(float_count, bool):
+                        float_count = 0
+                    if float_count >= 1:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Player {request.float_invoked_by} has already used float this round"
+                        )
+                    break
+
         # Initialize hole_history if it doesn't exist
         if "hole_history" not in game_state:
             game_state["hole_history"] = []
@@ -1473,12 +1489,26 @@ async def complete_hole(
         if "players" not in game_state:
             game_state["players"] = []
 
+        # Ensure all players from rotation_order are in game_state["players"]
+        existing_player_ids = {p.get("id") for p in game_state["players"]}
+        for player_id in request.rotation_order:
+            if player_id not in existing_player_ids:
+                game_state["players"].append({"id": player_id, "points": 0, "float_used": 0})
+
         for player in game_state["players"]:
             player_id = player.get("id")
             if player_id in points_delta:
                 if "points" not in player:
                     player["points"] = 0
                 player["points"] += points_delta[player_id]
+
+            # Track float usage
+            if request.float_invoked_by == player_id:
+                current_float_count = player.get("float_used", 0)
+                # Handle boolean False
+                if isinstance(current_float_count, bool):
+                    current_float_count = 0
+                player["float_used"] = current_float_count + 1
 
         # Update current hole
         game_state["current_hole"] = request.hole_number + 1
@@ -1488,6 +1518,12 @@ async def complete_hole(
         game.updated_at = datetime.utcnow().isoformat()
         db.commit()
         db.refresh(game)
+
+        # Also update simulation if game is in active_games (for test mode)
+        service = get_game_lifecycle_service()
+        if game_id in service._active_games:
+            simulation = service._active_games[game_id]
+            simulation._game_state = game_state
 
         logger.info(f"Completed hole {request.hole_number} for game {game_id}")
 
