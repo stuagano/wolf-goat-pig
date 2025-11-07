@@ -33,6 +33,18 @@ const SimpleScorekeeper = ({
   const [floatInvokedBy, setFloatInvokedBy] = useState(null); // Player ID who invoked float
   const [optionInvokedBy, setOptionInvokedBy] = useState(null); // Player ID who triggered option
 
+  // Rotation tracking (Phase 1)
+  const [rotationOrder, setRotationOrder] = useState(players.map(p => p.id));
+  const [captainIndex, setCaptainIndex] = useState(0);
+  const [isHoepfinger, setIsHoepfinger] = useState(false);
+  const [goatId, setGoatId] = useState(null);
+  const [phase, setPhase] = useState('normal');
+  const [joesSpecialWager, setJoesSpecialWager] = useState(null);
+  const [nextHoleWager, setNextHoleWager] = useState(baseWager);
+  const [carryOver, setCarryOver] = useState(false);
+  const [vinniesVariation, setVinniesVariation] = useState(false);
+  const [carryOverApplied, setCarryOverApplied] = useState(false);
+
   // Game history and standings
   const [holeHistory, setHoleHistory] = useState(initialHoleHistory);
   const [playerStandings, setPlayerStandings] = useState({});
@@ -87,6 +99,49 @@ const SimpleScorekeeper = ({
     setPlayerStandings(standings);
   }, [players, holeHistory]);
 
+  // Fetch rotation and wager info when hole changes
+  useEffect(() => {
+    const fetchRotationAndWager = async () => {
+      try {
+        // Fetch next rotation
+        const rotationRes = await fetch(`${API_URL}/games/${gameId}/next-rotation`);
+        if (rotationRes.ok) {
+          const rotationData = await rotationRes.json();
+
+          if (rotationData.is_hoepfinger) {
+            setIsHoepfinger(true);
+            setGoatId(rotationData.goat_id);
+            setPhase('hoepfinger');
+            // Don't set rotation yet - Goat will select position
+          } else {
+            setIsHoepfinger(false);
+            setRotationOrder(rotationData.rotation_order);
+            setCaptainIndex(rotationData.captain_index);
+            setPhase('normal');
+            setGoatId(null);
+            setJoesSpecialWager(null);
+          }
+        }
+
+        // Fetch next hole wager
+        const wagerRes = await fetch(`${API_URL}/games/${gameId}/next-hole-wager`);
+        if (wagerRes.ok) {
+          const wagerData = await wagerRes.json();
+          setNextHoleWager(wagerData.base_wager);
+          setCurrentWager(wagerData.base_wager);
+          setCarryOver(wagerData.carry_over || false);
+          setVinniesVariation(wagerData.vinnies_variation || false);
+        }
+      } catch (err) {
+        console.error('Error fetching rotation/wager:', err);
+      }
+    };
+
+    if (gameId) {
+      fetchRotationAndWager();
+    }
+  }, [gameId, currentHole, holeHistory]);
+
   // Reset hole state for new hole
   const resetHole = () => {
     setTeam1([]);
@@ -101,6 +156,8 @@ const SimpleScorekeeper = ({
     setOptionInvokedBy(null);
     setError(null);
     setEditingHole(null);
+    setCarryOverApplied(carryOver); // Set to true if carry-over was active
+    setJoesSpecialWager(null); // Reset Joe's Special for next hole
   };
 
   // Load hole data for editing
@@ -241,13 +298,18 @@ const SimpleScorekeeper = ({
         },
         body: JSON.stringify({
           hole_number: currentHole,
+          rotation_order: rotationOrder,
+          captain_index: captainIndex,
+          phase: phase,
+          joes_special_wager: joesSpecialWager,
           teams: teams,
           final_wager: currentWager,
           winner: winner,
           scores: scores,
           hole_par: holePar,
           float_invoked_by: floatInvokedBy,
-          option_invoked_by: optionInvokedBy
+          option_invoked_by: optionInvokedBy,
+          carry_over_applied: carryOverApplied
         })
       });
 
@@ -887,6 +949,184 @@ const SimpleScorekeeper = ({
           Par {holePar}
         </div>
       </div>
+
+      {/* Rotation Order Display */}
+      {!isHoepfinger && rotationOrder.length > 0 && (
+        <div style={{
+          background: theme.colors.paper,
+          borderRadius: '12px',
+          padding: '16px',
+          marginBottom: '16px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}>
+          <div style={{
+            fontSize: '14px',
+            fontWeight: 'bold',
+            marginBottom: '12px',
+            color: theme.colors.textSecondary,
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px'
+          }}>
+            Hitting Order
+          </div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {rotationOrder.map((playerId, index) => {
+              const player = players.find(p => p.id === playerId);
+              const isCaptain = index === captainIndex;
+              return (
+                <div
+                  key={playerId}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    background: isCaptain ? '#2196F3' : theme.colors.backgroundSecondary,
+                    color: isCaptain ? 'white' : theme.colors.textPrimary,
+                    fontWeight: isCaptain ? 'bold' : 'normal',
+                    fontSize: '14px',
+                    border: isCaptain ? '2px solid #1976D2' : 'none'
+                  }}
+                >
+                  {index + 1}. {player?.name || playerId}
+                  {isCaptain && ' 👑'}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Hoepfinger Phase UI */}
+      {isHoepfinger && goatId && (
+        <div style={{
+          background: '#FFF8E1',
+          borderRadius: '12px',
+          padding: '16px',
+          marginBottom: '16px',
+          border: '2px solid #FFD54F',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}>
+          <div style={{
+            fontSize: '16px',
+            fontWeight: 'bold',
+            marginBottom: '12px',
+            color: '#F57C00',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            🎯 HOEPFINGER PHASE
+          </div>
+          <div style={{ marginBottom: '12px', color: '#5D4037' }}>
+            <strong>{players.find(p => p.id === goatId)?.name}</strong> (Goat) selects hitting position
+          </div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
+            {players.map((player, index) => (
+              <button
+                key={index}
+                onClick={() => {
+                  // Goat selects their position
+                  const newRotation = [...players.map(p => p.id)];
+                  // Move goat to selected position
+                  const goatIndex = newRotation.indexOf(goatId);
+                  const temp = newRotation[goatIndex];
+                  newRotation[goatIndex] = newRotation[index];
+                  newRotation[index] = temp;
+                  setRotationOrder(newRotation);
+                  setCaptainIndex(0); // First player hits first
+                }}
+                style={{
+                  padding: '12px 20px',
+                  borderRadius: '8px',
+                  background: theme.colors.primary,
+                  color: 'white',
+                  border: 'none',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                Position {index + 1}
+              </button>
+            ))}
+          </div>
+
+          {/* Joe's Special Wager Selector */}
+          <div style={{
+            marginTop: '16px',
+            paddingTop: '16px',
+            borderTop: '1px solid #FFD54F'
+          }}>
+            <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '8px', color: '#5D4037' }}>
+              Joe's Special - Set Wager:
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {[2, 4, 8].map(wager => (
+                <button
+                  key={wager}
+                  onClick={() => {
+                    setJoesSpecialWager(wager);
+                    setCurrentWager(wager);
+                  }}
+                  style={{
+                    padding: '12px 24px',
+                    borderRadius: '8px',
+                    background: joesSpecialWager === wager ? '#4CAF50' : theme.colors.backgroundSecondary,
+                    color: joesSpecialWager === wager ? 'white' : theme.colors.textPrimary,
+                    border: joesSpecialWager === wager ? '2px solid #388E3C' : 'none',
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {wager}Q
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Wager Indicators */}
+      {(carryOver || vinniesVariation) && (
+        <div style={{
+          background: theme.colors.paper,
+          borderRadius: '12px',
+          padding: '12px 16px',
+          marginBottom: '16px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+          display: 'flex',
+          gap: '12px',
+          alignItems: 'center'
+        }}>
+          {carryOver && (
+            <div style={{
+              padding: '6px 12px',
+              borderRadius: '6px',
+              background: '#FF5722',
+              color: 'white',
+              fontSize: '12px',
+              fontWeight: 'bold'
+            }}>
+              🔄 CARRY-OVER
+            </div>
+          )}
+          {vinniesVariation && (
+            <div style={{
+              padding: '6px 12px',
+              borderRadius: '6px',
+              background: '#9C27B0',
+              color: 'white',
+              fontSize: '12px',
+              fontWeight: 'bold'
+            }}>
+              ⚡ VINNIE'S VARIATION
+            </div>
+          )}
+          <div style={{ fontSize: '14px', fontWeight: 'bold', color: theme.colors.textPrimary }}>
+            Base Wager: {nextHoleWager}Q
+          </div>
+        </div>
+      )}
 
       {/* Betting Action Tracker */}
       <BettingTracker
