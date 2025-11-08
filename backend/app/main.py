@@ -177,6 +177,7 @@ class CompleteHoleRequest(BaseModel):
     float_invoked_by: Optional[str] = Field(None, description="Player ID who invoked float on this hole")
     option_invoked_by: Optional[str] = Field(None, description="Player ID who triggered option on this hole")
     carry_over_applied: Optional[bool] = Field(False, description="Whether carry-over was applied to this hole")
+    doubles_history: Optional[List[Dict]] = Field(None, description="Pre-hole doubles offered and accepted")
 
 
 app = FastAPI(
@@ -1648,6 +1649,7 @@ async def complete_hole(
         # Create hole result
         hole_result = {
             "hole": request.hole_number,
+            "hole_number": request.hole_number,  # Alias for consistency
             "rotation_order": request.rotation_order,
             "captain_index": request.captain_index,
             "phase": request.phase,
@@ -1656,13 +1658,15 @@ async def complete_hole(
             "duncan_invoked": request.duncan_invoked,
             "teams": request.teams.model_dump(),
             "wager": request.final_wager,
+            "final_wager": request.final_wager,  # Phase 4: Add final_wager field
             "winner": request.winner,
             "gross_scores": request.scores,
             "hole_par": request.hole_par,
             "points_delta": points_delta,
             "float_invoked_by": request.float_invoked_by,
             "option_invoked_by": request.option_invoked_by,
-            "carry_over_applied": request.carry_over_applied
+            "carry_over_applied": request.carry_over_applied,
+            "doubles_history": request.doubles_history or []  # Phase 4: Add doubles history
         }
 
         # Add or update hole in history
