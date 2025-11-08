@@ -822,8 +822,7 @@ class TestGameStateValidator:
 
     def test_validate_player_count_valid(self):
         """Test player count validation with valid counts."""
-        GameStateValidator.validate_player_count(2)
-        GameStateValidator.validate_player_count(3)
+        # Wolf-Goat-Pig requires 4, 5, or 6 players
         GameStateValidator.validate_player_count(4)
         GameStateValidator.validate_player_count(5)
         GameStateValidator.validate_player_count(6)
@@ -833,14 +832,14 @@ class TestGameStateValidator:
         with pytest.raises(GameStateValidationError) as exc_info:
             GameStateValidator.validate_player_count(1)
 
-        assert "Player count must be between 2 and 6" in str(exc_info.value)
+        assert "4, 5, or 6 players required" in str(exc_info.value)
 
     def test_validate_player_count_too_many(self):
         """Test player count validation rejects too many players."""
         with pytest.raises(GameStateValidationError) as exc_info:
             GameStateValidator.validate_player_count(7)
 
-        assert "Player count must be between 2 and 6" in str(exc_info.value)
+        assert "4, 5, or 6 players required" in str(exc_info.value)
 
     # ========================================================================
     # validate_hole_number tests
@@ -1013,7 +1012,7 @@ class TestGameStateValidator:
                 all_players_ready=True
             )
 
-        assert "Player count must be between 2 and 6" in str(exc_info.value)
+        assert "4, 5, or 6 players required" in str(exc_info.value)
 
     # ========================================================================
     # validate_hole_completion tests

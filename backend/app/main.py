@@ -1234,6 +1234,10 @@ async def create_test_game(
     game_state["game_status"] = "in_progress"
     game_state["test_mode"] = True
 
+    # Add simulation to active_games for test mode
+    service = get_game_lifecycle_service()
+    service._active_games[game_id] = simulation
+
     # Try to save to database first
     database_saved = False
     fallback_mode = False
@@ -1841,6 +1845,11 @@ async def complete_hole(
         # Update game state in database
         game.state = game_state
         game.updated_at = datetime.utcnow().isoformat()
+
+        # Mark state as modified for SQLAlchemy to detect changes in JSON field
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(game, "state")
+
         db.commit()
         db.refresh(game)
 
@@ -1848,7 +1857,25 @@ async def complete_hole(
         service = get_game_lifecycle_service()
         if game_id in service._active_games:
             simulation = service._active_games[game_id]
-            simulation._game_state = game_state
+            # Store tracking fields as direct simulation attributes
+            simulation.carry_over_wager = game_state.get("carry_over_wager")
+            simulation.carry_over_from_hole = game_state.get("carry_over_from_hole")
+            simulation.consecutive_push_block = game_state.get("consecutive_push_block", False)
+            simulation.last_push_hole = game_state.get("last_push_hole")
+            simulation.base_wager = game_state.get("base_wager")
+            simulation.scorekeeper_hole_history = game_state.get("hole_history", [])
+
+            # Update player float/solo counts in simulation
+            if request.float_invoked_by:
+                float_player = next((p for p in simulation.players if p.id == request.float_invoked_by), None)
+                if float_player:
+                    float_player.float_used += 1
+
+            # Sync player points from database game state to simulation
+            for db_player in game_state.get("players", []):
+                sim_player = next((p for p in simulation.players if p.id == db_player["id"]), None)
+                if sim_player:
+                    sim_player.points = db_player.get("points", 0)
 
         logger.info(f"Completed hole {request.hole_number} for game {game_id}")
 
@@ -2098,8 +2125,8 @@ async def select_rotation(
     if not players:
         raise HTTPException(status_code=404, detail="No players found in game")
 
-    # Find player with lowest total_points
-    goat_player = min(players, key=lambda p: p.get("total_points", 0))
+    # Find player with lowest points
+    goat_player = min(players, key=lambda p: p.get("points", 0))
     actual_goat_id = goat_player["id"]
 
     # Validate: Request must be from actual Goat

@@ -32,10 +32,10 @@ def test_goat_selects_position_hole_16_5man():
         })
 
     # Get game state to verify Goat
-    game_state = client.get(f"/games/{game_id}").json()
+    game_state = client.get(f"/games/{game_id}/state").json()
 
     # Find player with lowest total points
-    player_totals = {p["id"]: p["total_points"] for p in game_state["players"]}
+    player_totals = {p["id"]: p["points"] for p in game_state["players"]}
     goat_id = min(player_totals, key=player_totals.get)
 
     # Goat should be on team2 (one of the losing players)
@@ -92,7 +92,7 @@ def test_goat_selects_position_hole_18_5man():
 
     response = client.post(f"/games/{game_id}/select-rotation", json={
         "hole_number": 18,
-        "goat_player_id": player_ids[2],
+        "goat_player_id": player_ids[0],  # First player is goat when all have 0 points
         "selected_position": 5
     })
 
@@ -107,15 +107,17 @@ def test_rotation_selection_only_holes_16_17_18():
     players = game_response.json()["players"]
     player_ids = [p["id"] for p in players]
 
-    # Try on hole 15 (should fail)
+    # Try on hole 15 (should fail with 422 from Pydantic validation)
     response = client.post(f"/games/{game_id}/select-rotation", json={
         "hole_number": 15,
         "goat_player_id": player_ids[0],
         "selected_position": 1
     })
 
-    assert response.status_code == 400
-    assert "16" in response.json()["detail"] or "17" in response.json()["detail"] or "18" in response.json()["detail"]
+    assert response.status_code == 422  # Pydantic validation error
+    # Pydantic returns validation error details as a list
+    detail_str = str(response.json())
+    assert "16" in detail_str  # Error message should mention valid hole numbers
 
 
 def test_rotation_selection_only_5man():
@@ -161,8 +163,8 @@ def test_non_goat_cannot_select_rotation():
         })
 
     # Get game state to find Goat
-    game_state = client.get(f"/games/{game_id}").json()
-    player_totals = {p["id"]: p["total_points"] for p in game_state["players"]}
+    game_state = client.get(f"/games/{game_id}/state").json()
+    player_totals = {p["id"]: p["points"] for p in game_state["players"]}
     goat_id = min(player_totals, key=player_totals.get)
 
     # Find a non-Goat player

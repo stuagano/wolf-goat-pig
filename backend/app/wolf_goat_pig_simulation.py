@@ -52,7 +52,7 @@ class Player:
     name: str
     handicap: float
     points: int = 0  # Current points (quarters)
-    float_used: bool = False  # Has used their float
+    float_used: int = 0  # Number of times float has been used
     solo_count: int = 0  # Number of times gone solo (4-man requirement)
     goat_position_history: List[int] = field(default_factory=list)  # Track Hoepfinger position choices
 
@@ -60,7 +60,7 @@ class Player:
     def __post_init__(self):
         """Ensure all attributes are properly initialized"""
         self.points = self.points or 0
-        self.float_used = self.float_used or False
+        self.float_used = self.float_used or 0
         self.solo_count = self.solo_count or 0
 
 # Backwards compatibility alias (temporary during transition)
@@ -1590,7 +1590,7 @@ class WolfGoatPigSimulation(PersistenceMixin):
                 "hole_description": ""
             }
         
-        return {
+        state = {
             "current_hole": self.current_hole,
             "game_phase": self.game_phase.value,
             "player_count": self.player_count,
@@ -1607,13 +1607,26 @@ class WolfGoatPigSimulation(PersistenceMixin):
                 for p in self.players
             ],
             "hole_state": self._get_hole_state_summary() if hole_state else None,
-            "hole_history": self._get_hole_history(),
+            "hole_history": getattr(self, 'scorekeeper_hole_history', None) or self._get_hole_history(),
             "hoepfinger_start": self.hoepfinger_start_hole,
             "settings": {
                 "double_points_round": self.double_points_round,
                 "annual_banquet": self.annual_banquet
             }
         }
+
+        # Include tracking fields if they exist as simulation attributes
+        tracking_fields = [
+            'carry_over_wager', 'carry_over_from_hole', 'consecutive_push_block',
+            'last_push_hole', 'base_wager', 'current_rotation_order'
+        ]
+        for field in tracking_fields:
+            if hasattr(self, field):
+                value = getattr(self, field)
+                if value is not None:  # Only include if not None
+                    state[field] = value
+
+        return state
     
     def _get_hole_history(self) -> List[Dict[str, Any]]:
         """Build hole history with scores and points for completed holes"""
