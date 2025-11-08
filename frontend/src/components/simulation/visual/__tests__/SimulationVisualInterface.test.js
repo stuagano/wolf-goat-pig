@@ -42,10 +42,13 @@ describe('SimulationVisualInterface', () => {
     const svg = container.querySelector('svg'); // Hole visualization
     expect(svg).toBeInTheDocument();
 
-    // Check for cards
+    // Check for cards (using getAllByText since "BETTING" appears in multiple places)
     expect(screen.getByText(/PLAYERS/i)).toBeInTheDocument();
-    expect(screen.getByText(/BETTING/i)).toBeInTheDocument();
-    expect(screen.getByText(/SHOT CONTEXT/i)).toBeInTheDocument();
+    const bettingElements = screen.getAllByText(/BETTING/i);
+    expect(bettingElements.length).toBeGreaterThan(0);
+
+    // Check for scorecard
+    expect(screen.getByText(/SCORECARD/i)).toBeInTheDocument();
 
     // Check for buttons section
     expect(screen.getByText(/Play Next Shot/i)).toBeInTheDocument();
