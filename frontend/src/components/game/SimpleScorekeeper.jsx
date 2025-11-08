@@ -1254,9 +1254,38 @@ const SimpleScorekeeper = ({
                 }}>
                   {index + 1}
                 </div>
-                <span style={{ fontSize: '20px', fontWeight: 'bold', color: theme.colors.textPrimary }}>
-                  {player.name}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '20px', fontWeight: 'bold', color: theme.colors.textPrimary }}>
+                    {player.name}
+                  </span>
+                  {/* Solo status indicator - Phase 3 */}
+                  {players.length === 4 && currentHole <= 16 && (
+                    player.soloCount > 0 ? (
+                      <span style={{
+                        fontSize: '12px',
+                        padding: '2px 8px',
+                        borderRadius: '12px',
+                        background: '#4CAF50',
+                        color: 'white',
+                        fontWeight: 'bold'
+                      }}>
+                        ✓ Solo
+                      </span>
+                    ) : (
+                      <span style={{
+                        fontSize: '12px',
+                        padding: '2px 8px',
+                        borderRadius: '12px',
+                        background: currentHole >= 13 ? '#FF4757' : '#FFC107',
+                        color: 'white',
+                        fontWeight: 'bold',
+                        animation: currentHole >= 15 ? 'pulse 1.5s infinite' : 'none'
+                      }}>
+                        ⚠ Need Solo
+                      </span>
+                    )
+                  )}
+                </div>
               </div>
 
               {/* Quarters */}
@@ -1416,6 +1445,91 @@ const SimpleScorekeeper = ({
           </div>
         </div>
       )}
+
+      {/* Solo Requirement Warning Banner - Phase 3 */}
+      {players.length === 4 && currentHole >= 13 && currentHole <= 16 && (() => {
+        const playersNeedingSolo = Object.values(playerStandings).filter(p => (p.soloCount || 0) === 0);
+        if (playersNeedingSolo.length > 0) {
+          return (
+            <div style={{
+              background: 'linear-gradient(135deg, #FF6B6B 0%, #FFB347 100%)',
+              padding: '20px',
+              borderRadius: '16px',
+              marginBottom: '20px',
+              boxShadow: '0 4px 12px rgba(255, 107, 107, 0.3)',
+              border: '3px solid #FF4757'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                marginBottom: '12px'
+              }}>
+                <div style={{ fontSize: '32px' }}>⚠️</div>
+                <div>
+                  <div style={{
+                    fontSize: '20px',
+                    fontWeight: 'bold',
+                    color: 'white',
+                    marginBottom: '4px'
+                  }}>
+                    Solo Requirement Alert!
+                  </div>
+                  <div style={{
+                    fontSize: '14px',
+                    color: 'rgba(255, 255, 255, 0.95)'
+                  }}>
+                    {currentHole === 16
+                      ? '🚨 LAST CHANCE - Hoepfinger starts next hole!'
+                      : `Only ${17 - currentHole} hole${17 - currentHole === 1 ? '' : 's'} until Hoepfinger`}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{
+                background: 'rgba(255, 255, 255, 0.95)',
+                padding: '12px',
+                borderRadius: '8px',
+                marginBottom: '8px'
+              }}>
+                <div style={{
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  color: '#d32f2f',
+                  marginBottom: '8px'
+                }}>
+                  Players who MUST go solo:
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {playersNeedingSolo.map((player, idx) => (
+                    <div key={idx} style={{
+                      background: '#FF4757',
+                      color: 'white',
+                      padding: '6px 12px',
+                      borderRadius: '20px',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                    }}>
+                      {player.name}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{
+                fontSize: '12px',
+                color: 'white',
+                fontWeight: 'bold',
+                opacity: 0.9
+              }}>
+                📖 Rule: Each player must go solo at least once in the first 16 holes
+              </div>
+            </div>
+          );
+        }
+        return null;
+      })()}
 
       {/* Team Mode Selection - Enhanced Style */}
       <div style={{
