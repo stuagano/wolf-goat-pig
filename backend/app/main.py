@@ -178,6 +178,7 @@ class CompleteHoleRequest(BaseModel):
     option_invoked_by: Optional[str] = Field(None, description="Player ID who triggered option on this hole")
     carry_over_applied: Optional[bool] = Field(False, description="Whether carry-over was applied to this hole")
     doubles_history: Optional[List[Dict]] = Field(None, description="Pre-hole doubles offered and accepted")
+    big_dick_invoked_by: Optional[str] = Field(None, description="Player ID who invoked The Big Dick on hole 18")
 
 
 app = FastAPI(
@@ -1344,6 +1345,14 @@ async def complete_hole(
                     detail=f"Joe's Special must be 2, 4, or 8 quarters. Got: {request.joes_special_wager}. Joe's Special maximum is 8 quarters."
                 )
 
+        # Phase 4: The Big Dick validation
+        if request.big_dick_invoked_by:
+            if request.hole_number != 18:
+                raise HTTPException(
+                    status_code=400,
+                    detail="The Big Dick can only be invoked on hole 18"
+                )
+
         # Phase 4: Enhanced Error Handling & Validation
         rotation_player_ids = set(request.rotation_order)
 
@@ -1390,12 +1399,14 @@ async def complete_hole(
                     detail=f"Solo must be 1 vs {expected_opponent_count}. Got {len(opponents)} opponents"
                 )
 
-            # Check captain matches rotation
+            # Check captain matches rotation (unless Big Dick is invoked)
             if captain and captain != request.rotation_order[request.captain_index]:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Captain {captain} does not match rotation_order[{request.captain_index}]"
-                )
+                # Allow any player to be captain if Big Dick is invoked on hole 18
+                if not (request.big_dick_invoked_by and request.hole_number == 18):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Captain {captain} does not match rotation_order[{request.captain_index}]"
+                    )
 
             # Check for duplicates in opponents
             if len(opponents) != len(set(opponents)):
@@ -1666,7 +1677,8 @@ async def complete_hole(
             "float_invoked_by": request.float_invoked_by,
             "option_invoked_by": request.option_invoked_by,
             "carry_over_applied": request.carry_over_applied,
-            "doubles_history": request.doubles_history or []  # Phase 4: Add doubles history
+            "doubles_history": request.doubles_history or [],  # Phase 4: Add doubles history
+            "big_dick_invoked_by": request.big_dick_invoked_by  # Phase 4: The Big Dick
         }
 
         # Add or update hole in history
