@@ -179,6 +179,10 @@ class CompleteHoleRequest(BaseModel):
     carry_over_applied: Optional[bool] = Field(False, description="Whether carry-over was applied to this hole")
     doubles_history: Optional[List[Dict]] = Field(None, description="Pre-hole doubles offered and accepted")
     big_dick_invoked_by: Optional[str] = Field(None, description="Player ID who invoked The Big Dick on hole 18")
+    # Phase 5: The Aardvark (5-man game mechanics)
+    aardvark_requested_team: Optional[str] = Field(None, description="Team Aardvark requested to join ('team1' or 'team2')")
+    aardvark_tossed: Optional[bool] = Field(False, description="Whether Aardvark was tossed by requested team")
+    aardvark_solo: Optional[bool] = Field(False, description="Whether Aardvark went solo (1v4)")
 
 
 app = FastAPI(
@@ -1353,6 +1357,30 @@ async def complete_hole(
                     detail="The Big Dick can only be invoked on hole 18"
                 )
 
+        # Phase 5: The Aardvark validation (5-man games only)
+        player_count = len(request.rotation_order)
+        if player_count == 5:
+            # Aardvark is player in position 5 (index 4)
+            aardvark_id = request.rotation_order[4]
+            captain_id = request.rotation_order[request.captain_index]
+
+            # Validate: Captain cannot DIRECTLY partner with Aardvark (meaning 2-person team)
+            if request.teams.type == "partners":
+                team1 = request.teams.team1 or []
+                team2 = request.teams.team2 or []
+
+                # Check if it's a 2-person team with ONLY Captain and Aardvark
+                if len(team1) == 2 and set(team1) == {captain_id, aardvark_id}:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Captain cannot directly partner with the Aardvark (player #5). Aardvark must request to join teams after Captain forms partnership."
+                    )
+                if len(team2) == 2 and set(team2) == {captain_id, aardvark_id}:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Captain cannot directly partner with the Aardvark (player #5). Aardvark must request to join teams after Captain forms partnership."
+                    )
+
         # Phase 4: Enhanced Error Handling & Validation
         rotation_player_ids = set(request.rotation_order)
 
@@ -1643,6 +1671,15 @@ async def complete_hole(
             for player_id in points_delta:
                 points_delta[player_id] *= 2
 
+        # Phase 5: Aardvark toss doubling (5-man games only)
+        # When Aardvark is tossed, the wager is effectively doubled for ALL players to maintain balance
+        if player_count == 5 and request.aardvark_tossed and request.aardvark_requested_team:
+            if request.teams.type == "partners":
+                # Double all players' points to maintain zero-sum balance
+                # The team that tossed has doubled risk, and the team with Aardvark gets doubled reward
+                for player_id in points_delta:
+                    points_delta[player_id] *= 2
+
         # Phase 4: Scorekeeping Validation - verify points balance to zero
         points_total = sum(points_delta.values())
         if abs(points_total) > 0.01:  # Allow for floating point precision
@@ -1678,7 +1715,11 @@ async def complete_hole(
             "option_invoked_by": request.option_invoked_by,
             "carry_over_applied": request.carry_over_applied,
             "doubles_history": request.doubles_history or [],  # Phase 4: Add doubles history
-            "big_dick_invoked_by": request.big_dick_invoked_by  # Phase 4: The Big Dick
+            "big_dick_invoked_by": request.big_dick_invoked_by,  # Phase 4: The Big Dick
+            # Phase 5: The Aardvark (5-man games only)
+            "aardvark_requested_team": request.aardvark_requested_team if player_count == 5 else None,
+            "aardvark_tossed": request.aardvark_tossed if player_count == 5 else False,
+            "aardvark_solo": request.aardvark_solo if player_count == 5 else False
         }
 
         # Add or update hole in history
