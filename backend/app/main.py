@@ -1198,7 +1198,8 @@ async def create_test_game(
         {"id": "test-player-1", "name": "Test Player 1", "handicap": 18, "is_human": True},
         {"id": "test-player-2", "name": "Test Player 2", "handicap": 15, "is_human": False},
         {"id": "test-player-3", "name": "Test Player 3", "handicap": 12, "is_human": False},
-        {"id": "test-player-4", "name": "Test Player 4", "handicap": 20, "is_human": False}
+        {"id": "test-player-4", "name": "Test Player 4", "handicap": 20, "is_human": False},
+        {"id": "test-player-5", "name": "Test Player 5", "handicap": 16, "is_human": False}
     ][:player_count]
 
     # Initialize WolfGoatPigSimulation for this game
@@ -1365,31 +1366,111 @@ async def complete_hole(
         if "hole_history" not in game_state:
             game_state["hole_history"] = []
 
+        # Helper function for Karl Marx distribution
+        def apply_karl_marx(team_players, total_amount, game_state):
+            """
+            Distribute quarters unevenly according to Karl Marx rule:
+            Player furthest down (Goat) gets smaller loss or larger win.
+
+            Args:
+                team_players: List of player IDs on the team
+                total_amount: Total quarters to distribute (positive for win, negative for loss)
+                game_state: Current game state with player points
+
+            Returns:
+                Dict mapping player_id -> amount
+            """
+            if len(team_players) == 0:
+                return {}
+
+            num_players = len(team_players)
+            result = {}
+
+            # Work with absolute value for easier math
+            abs_total = abs(total_amount)
+            is_loss = total_amount < 0
+
+            # Check if distribution is uneven
+            if abs_total % num_players != 0:
+                # Karl Marx applies!
+                base_share = abs_total // num_players
+                remainder = abs_total % num_players
+
+                # Calculate current standings for these players
+                player_points = {}
+                for player in game_state.get("players", []):
+                    if player["id"] in team_players:
+                        player_points[player["id"]] = player.get("points", 0)
+
+                # Find Goat (player with lowest points)
+                goat_id = min(player_points, key=player_points.get) if player_points else team_players[0]
+
+                # Distribute remainder among non-Goat players (for losses) or to Goat (for wins)
+                non_goat_count = num_players - 1
+                extra_per_non_goat = remainder // non_goat_count if non_goat_count > 0 else 0
+                leftover_after_even_split = remainder % non_goat_count if non_goat_count > 0 else remainder
+
+                # Assign shares
+                if is_loss:
+                    # LOSING: Goat loses LESS (base), non-Goat players split the remainder
+                    leftover_counter = leftover_after_even_split
+                    for player_id in team_players:
+                        if player_id == goat_id:
+                            result[player_id] = -base_share
+                        else:
+                            share = base_share + extra_per_non_goat
+                            if leftover_counter > 0:
+                                share += 1
+                                leftover_counter -= 1
+                            result[player_id] = -share
+                else:
+                    # WINNING: Goat wins MORE (gets all the remainder), non-Goat gets base
+                    for player_id in team_players:
+                        if player_id == goat_id:
+                            result[player_id] = base_share + remainder
+                        else:
+                            result[player_id] = base_share
+            else:
+                # Even split, no Karl Marx needed
+                even_amount = total_amount / num_players
+                for player_id in team_players:
+                    result[player_id] = even_amount
+
+            return result
+
         # Calculate quarters won/lost based on winner and wager
         points_delta = {}
         if request.teams.type == "partners":
+            # Calculate total amounts based on team sizes
+            team1_size = len(request.teams.team1)
+            team2_size = len(request.teams.team2)
+
             if request.winner == "team1":
-                for player_id in request.teams.team1:
-                    points_delta[player_id] = request.final_wager
-                for player_id in request.teams.team2:
-                    points_delta[player_id] = -request.final_wager
+                # Team1 wins: total = losing_team_size * wager
+                # Each player on losing team2 owes wager, total won by team1
+                total_won_by_team1 = request.final_wager * team2_size
+                total_lost_by_team2 = -request.final_wager * team2_size
+                points_delta.update(apply_karl_marx(request.teams.team1, total_won_by_team1, game_state))
+                points_delta.update(apply_karl_marx(request.teams.team2, total_lost_by_team2, game_state))
             elif request.winner == "team2":
-                for player_id in request.teams.team1:
-                    points_delta[player_id] = -request.final_wager
-                for player_id in request.teams.team2:
-                    points_delta[player_id] = request.final_wager
+                # Team2 wins: total = losing_team_size * wager
+                # Each player on losing team1 owes wager, total won by team2
+                total_won_by_team2 = request.final_wager * team1_size
+                total_lost_by_team1 = -request.final_wager * team1_size
+                points_delta.update(apply_karl_marx(request.teams.team2, total_won_by_team2, game_state))
+                points_delta.update(apply_karl_marx(request.teams.team1, total_lost_by_team1, game_state))
             elif request.winner == "team1_flush":
                 # Flush: Team2 concedes/folds - Team1 wins current wager
-                for player_id in request.teams.team1:
-                    points_delta[player_id] = request.final_wager
-                for player_id in request.teams.team2:
-                    points_delta[player_id] = -request.final_wager
+                total_won = request.final_wager * team2_size
+                total_lost = -request.final_wager * team2_size
+                points_delta.update(apply_karl_marx(request.teams.team1, total_won, game_state))
+                points_delta.update(apply_karl_marx(request.teams.team2, total_lost, game_state))
             elif request.winner == "team2_flush":
                 # Flush: Team1 concedes/folds - Team2 wins current wager
-                for player_id in request.teams.team1:
-                    points_delta[player_id] = -request.final_wager
-                for player_id in request.teams.team2:
-                    points_delta[player_id] = request.final_wager
+                total_won = request.final_wager * team1_size
+                total_lost = -request.final_wager * team1_size
+                points_delta.update(apply_karl_marx(request.teams.team2, total_won, game_state))
+                points_delta.update(apply_karl_marx(request.teams.team1, total_lost, game_state))
             else:  # push
                 for player_id in request.teams.team1 + request.teams.team2:
                     points_delta[player_id] = 0
