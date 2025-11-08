@@ -1432,6 +1432,11 @@ async def complete_hole(
                 for opp_id in request.teams.opponents:
                     points_delta[opp_id] = 0
 
+        # Apply double points for holes 17-18 (except during Hoepfinger which has Joe's Special)
+        if request.hole_number in [17, 18] and request.phase != "hoepfinger":
+            for player_id in points_delta:
+                points_delta[player_id] *= 2
+
         # Create hole result
         hole_result = {
             "hole": request.hole_number,
