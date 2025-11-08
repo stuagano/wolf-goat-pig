@@ -1560,7 +1560,7 @@ async def complete_hole(
                 player_points = {}
                 for player in game_state.get("players", []):
                     if player["id"] in team_players:
-                        player_points[player["id"]] = player.get("points", 0)
+                        player_points[player["id"]] = player.get("total_points", 0)
 
                 # Find Goat (player with lowest points)
                 goat_id = min(player_points, key=player_points.get) if player_points else team_players[0]
@@ -1606,17 +1606,17 @@ async def complete_hole(
             team2_size = len(request.teams.team2)
 
             if request.winner == "team1":
-                # Team1 wins: total = losing_team_size * wager
-                # Each player on losing team2 owes wager, total won by team1
-                total_won_by_team1 = request.final_wager * team2_size
-                total_lost_by_team2 = -request.final_wager * team2_size
+                # Team1 wins: each winner gets wager, total = winning_team_size * wager
+                # Losing team2 pays out that total
+                total_won_by_team1 = request.final_wager * team1_size
+                total_lost_by_team2 = -request.final_wager * team1_size
                 points_delta.update(apply_karl_marx(request.teams.team1, total_won_by_team1, game_state))
                 points_delta.update(apply_karl_marx(request.teams.team2, total_lost_by_team2, game_state))
             elif request.winner == "team2":
-                # Team2 wins: total = losing_team_size * wager
-                # Each player on losing team1 owes wager, total won by team2
-                total_won_by_team2 = request.final_wager * team1_size
-                total_lost_by_team1 = -request.final_wager * team1_size
+                # Team2 wins: each winner gets wager, total = winning_team_size * wager
+                # Losing team1 pays out that total
+                total_won_by_team2 = request.final_wager * team2_size
+                total_lost_by_team1 = -request.final_wager * team2_size
                 points_delta.update(apply_karl_marx(request.teams.team2, total_won_by_team2, game_state))
                 points_delta.update(apply_karl_marx(request.teams.team1, total_lost_by_team1, game_state))
             elif request.winner == "team1_flush":

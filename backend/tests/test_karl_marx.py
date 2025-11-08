@@ -48,14 +48,15 @@ def test_karl_marx_5man_uneven_loss():
     # So we need another hole to create a Goat
 
     # Hole 2: Make p3 go further down
+    # Rotation: [p3, p4, p5, p1, p2] so p3 is captain (index 0)
     client.post(f"/games/{game_id}/holes/complete", json={
         "hole_number": 2,
-        "rotation_order": player_ids[1:] + [player_ids[0]],
-        "captain_index": 0,
-        "teams": {"type": "solo", "captain": player_ids[2], "opponents": [player_ids[1], player_ids[0], player_ids[3], player_ids[4]]},
+        "rotation_order": player_ids[2:] + player_ids[:2],  # [p3, p4, p5, p1, p2]
+        "captain_index": 0,  # p3 is captain
+        "teams": {"type": "solo", "captain": player_ids[2], "opponents": [player_ids[3], player_ids[4], player_ids[0], player_ids[1]]},
         "final_wager": 1,
         "winner": "opponents",
-        "scores": {player_ids[2]: 8, player_ids[1]: 4, player_ids[0]: 4, player_ids[3]: 5, player_ids[4]: 5},
+        "scores": {player_ids[2]: 8, player_ids[3]: 5, player_ids[4]: 5, player_ids[0]: 4, player_ids[1]: 4},
         "hole_par": 4
     })
 
@@ -109,11 +110,14 @@ def test_karl_marx_5man_uneven_win():
     # Now p1 is Goat at -8Q, others are at +2Q each
 
     # Hole 2: p1 & p2 win on 2v3 team (uneven split)
+    # Rotation: [p1, p2, p3, p4, p5] so p1 is captain, p5 is Aardvark
     response = client.post(f"/games/{game_id}/holes/complete", json={
         "hole_number": 2,
-        "rotation_order": player_ids[1:] + [player_ids[0]],
-        "captain_index": 0,
+        "rotation_order": player_ids,  # [p1, p2, p3, p4, p5]
+        "captain_index": 0,  # p1 is captain
         "teams": {"type": "partners", "team1": [player_ids[0], player_ids[1]], "team2": [player_ids[2], player_ids[3], player_ids[4]]},
+        "aardvark_requested_team": "team2",  # Aardvark joins team2
+        "aardvark_tossed": False,
         "final_wager": 1,
         "winner": "team1",
         "scores": {player_ids[0]: 4, player_ids[1]: 4, player_ids[2]: 5, player_ids[3]: 6, player_ids[4]: 6},
@@ -123,10 +127,11 @@ def test_karl_marx_5man_uneven_win():
     assert response.status_code == 200
     result = response.json()["hole_result"]
 
-    # Team1 wins: 2 players win 3Q total (team2 has 3 players at 1Q each)
-    # With Karl Marx: p1 (Goat) should win MORE (2Q), p2 should win less (1Q)
-    assert result["points_delta"][player_ids[0]] == 2  # p1 (Goat) wins more
-    assert result["points_delta"][player_ids[1]] == 1  # p2 wins less
+    # Team1 wins: 2 players win 2Q total (each winner gets the wager)
+    # With 2Q split evenly among 2 players, no Karl Marx applies (2 % 2 = 0)
+    # Each winner gets exactly 1Q
+    assert result["points_delta"][player_ids[0]] == 1  # p1 gets 1Q
+    assert result["points_delta"][player_ids[1]] == 1  # p2 gets 1Q
 
 
 def test_karl_marx_hanging_chad():
