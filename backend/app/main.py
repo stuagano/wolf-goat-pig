@@ -1343,6 +1343,119 @@ async def complete_hole(
                     detail=f"Joe's Special must be 2, 4, or 8 quarters. Got: {request.joes_special_wager}. Joe's Special maximum is 8 quarters."
                 )
 
+        # Phase 4: Enhanced Error Handling & Validation
+        rotation_player_ids = set(request.rotation_order)
+
+        # Validate team formations FIRST (before scores)
+        all_team_players = []
+
+        if request.teams.type == "partners":
+            team1 = request.teams.team1 or []
+            team2 = request.teams.team2 or []
+            all_team_players = team1 + team2
+
+            # Check for duplicates within teams
+            if len(team1) != len(set(team1)):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Duplicate players found in team1"
+                )
+            if len(team2) != len(set(team2)):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Duplicate players found in team2"
+                )
+
+            # Check for players on both teams
+            team1_set = set(team1)
+            team2_set = set(team2)
+            overlap = team1_set.intersection(team2_set)
+            if overlap:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Players cannot be on both teams: {overlap}"
+                )
+
+        elif request.teams.type == "solo":
+            captain = request.teams.captain
+            opponents = request.teams.opponents or []
+            all_team_players = [captain] + opponents if captain else opponents
+
+            # Validate solo formation: 1 captain vs N-1 opponents
+            expected_opponent_count = len(rotation_player_ids) - 1
+            if len(opponents) != expected_opponent_count:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Solo must be 1 vs {expected_opponent_count}. Got {len(opponents)} opponents"
+                )
+
+            # Check captain matches rotation
+            if captain and captain != request.rotation_order[request.captain_index]:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Captain {captain} does not match rotation_order[{request.captain_index}]"
+                )
+
+            # Check for duplicates in opponents
+            if len(opponents) != len(set(opponents)):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Duplicate players found in opponents"
+                )
+
+            # Check captain not in opponents
+            if captain and captain in opponents:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Captain cannot be in opponents list"
+                )
+
+        # Validate all rotation players are on teams
+        all_team_players_set = set(all_team_players)
+        if all_team_players_set != rotation_player_ids:
+            missing = rotation_player_ids - all_team_players_set
+            extra = all_team_players_set - rotation_player_ids
+            if missing:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Players in rotation but not on teams: {missing}"
+                )
+            if extra:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Players on teams but not in rotation: {extra}"
+                )
+
+        # Validate scores (after team validation)
+        # Check all scores are for players in rotation
+        for player_id in request.scores.keys():
+            if player_id not in rotation_player_ids:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Score provided for player {player_id} not in rotation order"
+                )
+
+        # Check all rotation players have scores
+        for player_id in rotation_player_ids:
+            if player_id not in request.scores:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Missing score for player {player_id} in rotation"
+                )
+
+        # Validate score values
+        for player_id, score in request.scores.items():
+            if score < 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Score cannot be negative. Player {player_id} has score {score}"
+                )
+            if score > 15:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Score unreasonably high (max 15). Player {player_id} has score {score}"
+                )
+
         # Get current game state
         game_state = game.state or {}
 
