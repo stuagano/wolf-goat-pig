@@ -169,6 +169,7 @@ class CompleteHoleRequest(BaseModel):
     joes_special_wager: Optional[int] = Field(None, description="Wager set by Goat (2, 4, or 8) during Hoepfinger")
     option_turned_off: Optional[bool] = Field(False, description="Captain proactively turned off The Option")
     duncan_invoked: Optional[bool] = Field(False, description="Captain went solo before hitting (3-for-2 payout)")
+    tunkarri_invoked: Optional[bool] = Field(False, description="Aardvark went solo before Captain hit (3-for-2 payout)")
     teams: HoleTeams
     final_wager: float = Field(..., gt=0)
     winner: str  # 'team1', 'team2', 'captain', 'opponents', or 'push' for completed holes; 'team1_flush' (Team2 conceded), 'team2_flush' (Team1 conceded), 'captain_flush' (Opponents conceded), 'opponents_flush' (Captain conceded) for folded holes
@@ -182,6 +183,7 @@ class CompleteHoleRequest(BaseModel):
     # Phase 5: The Aardvark (5-man game mechanics)
     aardvark_requested_team: Optional[str] = Field(None, description="Team Aardvark requested to join ('team1' or 'team2')")
     aardvark_tossed: Optional[bool] = Field(False, description="Whether Aardvark was tossed by requested team")
+    aardvark_ping_ponged: Optional[bool] = Field(False, description="Whether Aardvark was re-tossed (ping-ponged) by second team")
     aardvark_solo: Optional[bool] = Field(False, description="Whether Aardvark went solo (1v4)")
 
 
@@ -1388,6 +1390,34 @@ async def complete_hole(
                         detail="Captain cannot directly partner with the Aardvark (player #5). Aardvark must request to join teams after Captain forms partnership."
                     )
 
+            # Validate: Ping Pong can only happen if Aardvark was tossed
+            if request.aardvark_ping_ponged and not request.aardvark_tossed:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Aardvark cannot be ping-ponged unless initially tossed. Set aardvark_tossed=True."
+                )
+
+            # Validate: The Tunkarri (Aardvark solo with 3-for-2 payout)
+            if request.tunkarri_invoked:
+                if request.teams.type != "solo":
+                    raise HTTPException(
+                        status_code=400,
+                        detail="The Tunkarri can only be invoked in solo mode (Aardvark vs all others)."
+                    )
+                # In solo mode, captain field contains the solo player
+                if request.teams.captain != aardvark_id:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="The Tunkarri can only be invoked by the Aardvark (player #5)."
+                    )
+
+        # Validate: Tunkarri only in 5-man/6-man games
+        if request.tunkarri_invoked and player_count < 5:
+            raise HTTPException(
+                status_code=400,
+                detail="The Tunkarri is only available in 5-man or 6-man games."
+            )
+
         # Phase 4: Enhanced Error Handling & Validation
         rotation_player_ids = set(request.rotation_order)
 
@@ -1648,6 +1678,19 @@ async def complete_hole(
                 points_delta[request.teams.captain] = -total_loss
                 for opp_id in request.teams.opponents:
                     points_delta[opp_id] = request.final_wager
+            elif request.tunkarri_invoked and request.winner == "captain":
+                # The Tunkarri: Aardvark wins 3Q for every 2Q wagered (5-man/6-man only)
+                total_payout = (request.final_wager * 3) / 2
+                points_delta[request.teams.captain] = total_payout  # Aardvark is "captain" in solo mode
+                loss_per_opponent = total_payout / len(request.teams.opponents)
+                for opp_id in request.teams.opponents:
+                    points_delta[opp_id] = -loss_per_opponent
+            elif request.tunkarri_invoked and request.winner == "opponents":
+                # The Tunkarri failed: Opponents win normal, Aardvark loses normal
+                total_loss = request.final_wager * len(request.teams.opponents)
+                points_delta[request.teams.captain] = -total_loss  # Aardvark is "captain" in solo mode
+                for opp_id in request.teams.opponents:
+                    points_delta[opp_id] = request.final_wager
             elif request.winner == "captain":
                 # Normal solo win
                 points_delta[request.teams.captain] = request.final_wager * len(request.teams.opponents)
@@ -1680,12 +1723,15 @@ async def complete_hole(
 
         # Phase 5: Aardvark toss doubling (5-man games only)
         # When Aardvark is tossed, the wager is effectively doubled for ALL players to maintain balance
+        # Ping Pong: If tossed AGAIN by second team, quadruple the points (2x for toss, 2x for ping pong)
         if player_count == 5 and request.aardvark_tossed and request.aardvark_requested_team:
             if request.teams.type == "partners":
-                # Double all players' points to maintain zero-sum balance
-                # The team that tossed has doubled risk, and the team with Aardvark gets doubled reward
+                # Calculate multiplier: 2x for toss, 4x if ping-ponged
+                multiplier = 4 if request.aardvark_ping_ponged else 2
+
+                # Apply multiplier to all players' points to maintain zero-sum balance
                 for player_id in points_delta:
-                    points_delta[player_id] *= 2
+                    points_delta[player_id] *= multiplier
 
         # Phase 4: Scorekeeping Validation - verify points balance to zero
         points_total = sum(points_delta.values())
@@ -1711,6 +1757,7 @@ async def complete_hole(
             "joes_special_wager": request.joes_special_wager,
             "option_turned_off": request.option_turned_off,
             "duncan_invoked": request.duncan_invoked,
+            "tunkarri_invoked": request.tunkarri_invoked if player_count >= 5 else False,
             "teams": request.teams.model_dump(),
             "wager": request.final_wager,
             "final_wager": request.final_wager,  # Phase 4: Add final_wager field
@@ -1726,6 +1773,7 @@ async def complete_hole(
             # Phase 5: The Aardvark (5-man games only)
             "aardvark_requested_team": request.aardvark_requested_team if player_count == 5 else None,
             "aardvark_tossed": request.aardvark_tossed if player_count == 5 else False,
+            "aardvark_ping_ponged": request.aardvark_ping_ponged if player_count == 5 else False,
             "aardvark_solo": request.aardvark_solo if player_count == 5 else False
         }
 
