@@ -185,6 +185,13 @@ class CompleteHoleRequest(BaseModel):
     aardvark_solo: Optional[bool] = Field(False, description="Whether Aardvark went solo (1v4)")
 
 
+class RotationSelectionRequest(BaseModel):
+    """Request to select rotation position - for 5-man games on holes 16-18"""
+    hole_number: int = Field(..., ge=16, le=18, description="Hole number (16, 17, or 18)")
+    goat_player_id: str = Field(..., description="Player ID of the Goat (lowest points)")
+    selected_position: int = Field(..., ge=1, le=5, description="Desired position in rotation (1-5)")
+
+
 app = FastAPI(
     title="Wolf Goat Pig Golf Simulation API",
     description="A comprehensive golf betting simulation API with unified Action API",
@@ -1980,6 +1987,111 @@ async def get_next_hole_wager(
     except Exception as e:
         logger.error(f"Error calculating next hole wager: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/games/{game_id}/select-rotation")
+async def select_rotation(
+    game_id: str,
+    request: RotationSelectionRequest,
+    db: Session = Depends(database.get_db)
+):
+    """
+    Phase 5: Dynamic rotation selection for 5-man games on holes 16-18.
+    The Goat (lowest points player) selects their position in the rotation.
+    """
+    # Get game state (follow same pattern as get_game_state_by_id)
+    service = get_game_lifecycle_service()
+    simulation = None
+    game = None
+    game_state = None
+
+    if game_id in service._active_games:
+        simulation = service._active_games[game_id]
+        game_state = simulation.get_game_state()
+    else:
+        # Fetch from database
+        game = db.query(models.GameStateModel).filter(
+            models.GameStateModel.game_id == game_id
+        ).first()
+
+        if not game:
+            raise HTTPException(status_code=404, detail="Game not found")
+
+        game_state = game.state
+
+    if not game_state:
+        raise HTTPException(status_code=404, detail="Game state not found")
+
+    player_count = len(game_state.get("players", []))
+
+    # Validate: Only 5-man games
+    if player_count != 5:
+        raise HTTPException(
+            status_code=400,
+            detail="Dynamic rotation selection only applies to 5-player games"
+        )
+
+    # Validate: Only holes 16, 17, 18
+    if request.hole_number not in [16, 17, 18]:
+        raise HTTPException(
+            status_code=400,
+            detail="Rotation selection only allowed on holes 16, 17, and 18"
+        )
+
+    # Validate: Position must be 1-5 for 5-man game
+    if request.selected_position < 1 or request.selected_position > 5:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid position {request.selected_position}. Must be 1-5 for 5-player games"
+        )
+
+    # Identify current Goat (player with lowest total points)
+    players = game_state.get("players", [])
+    if not players:
+        raise HTTPException(status_code=404, detail="No players found in game")
+
+    # Find player with lowest total_points
+    goat_player = min(players, key=lambda p: p.get("total_points", 0))
+    actual_goat_id = goat_player["id"]
+
+    # Validate: Request must be from actual Goat
+    if request.goat_player_id != actual_goat_id:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Only the Goat (player with lowest points) can select rotation. Current Goat is {actual_goat_id}, not {request.goat_player_id}"
+        )
+
+    # Get current rotation order (or use default player order)
+    current_rotation = game_state.get("current_rotation_order") or [p["id"] for p in players]
+
+    # Reorder rotation: Goat at selected position, others maintain relative order
+    goat_id = request.goat_player_id
+    selected_index = request.selected_position - 1  # Convert to 0-indexed
+
+    # Remove Goat from current rotation
+    rotation_without_goat = [pid for pid in current_rotation if pid != goat_id]
+
+    # Insert Goat at selected position
+    new_rotation = rotation_without_goat[:selected_index] + [goat_id] + rotation_without_goat[selected_index:]
+
+    # Store new rotation in game state
+    game_state["current_rotation_order"] = new_rotation
+
+    # Save updated rotation
+    if simulation:
+        # Update simulation state for in-progress games
+        simulation._game_state = game_state
+    else:
+        # Update database for stored games
+        game.state = game_state
+        db.commit()
+
+    return {
+        "message": f"Rotation updated for hole {request.hole_number}",
+        "rotation_order": new_rotation,
+        "goat_id": goat_id,
+        "selected_position": request.selected_position
+    }
 
 
 @app.post("/games/join/{join_code}")
