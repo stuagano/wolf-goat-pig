@@ -140,20 +140,21 @@ def test_aardvark_tossed_doubles_risk():
     points_delta = result["points_delta"]
 
     # Team1 (tossed Aardvark) should have doubled losses
-    # Normal: each loses 2 points (wager 2, 2 vs 3)
-    # Doubled: each loses 4 points
-    assert points_delta[player_ids[0]] == -4  # Team1 doubled loss
-    assert points_delta[player_ids[1]] == -4  # Team1 doubled loss
+    # Correct formula: pot = wager × winning_team_size
+    # Normal: pot = 2Q × 3 winners = 6Q, each loser pays 3Q
+    # Doubled: pot = 12Q, each loser pays 6Q
+    assert points_delta[player_ids[0]] == -6  # Team1 doubled loss
+    assert points_delta[player_ids[1]] == -6  # Team1 doubled loss
 
     # Team2 (with Aardvark) should win points
-    # Total won: 8 (4+4 from team1), split among 3 players
-    # But uneven distribution (Karl Marx if applicable)
+    # Total won: 12Q (6+6 from team1), split among 3 players
+    # Evenly distributed: 4Q each (12Q % 3 = 0, no Karl Marx)
     total_team2_win = (
         points_delta[player_ids[2]] +
         points_delta[player_ids[3]] +
         points_delta[player_ids[4]]
     )
-    assert total_team2_win == 8  # Total winnings from doubled risk
+    assert total_team2_win == 12  # Total winnings from doubled risk
 
 
 def test_aardvark_solo():
