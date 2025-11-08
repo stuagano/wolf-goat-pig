@@ -1518,6 +1518,20 @@ async def complete_hole(
             for player_id in points_delta:
                 points_delta[player_id] *= 2
 
+        # Phase 4: Scorekeeping Validation - verify points balance to zero
+        points_total = sum(points_delta.values())
+        if abs(points_total) > 0.01:  # Allow for floating point precision
+            logger.error(
+                f"SCOREKEEPING ERROR: Points do not balance to zero! "
+                f"Hole {request.hole_number}, Total: {points_total}, "
+                f"Points: {points_delta}"
+            )
+            # Return error to prevent saving invalid data
+            raise HTTPException(
+                status_code=500,
+                detail=f"Scorekeeping error: points total {points_total} instead of 0. Please report this bug."
+            )
+
         # Create hole result
         hole_result = {
             "hole": request.hole_number,
