@@ -4,9 +4,9 @@
 
 **Goal**: Implement remaining essential rules to reach 85%+ rule coverage
 
-**Status**: ✅ **COMPLETE** - 3 of 3 core tasks delivered
+**Status**: ✅ **COMPLETE** - 4 of 4 tasks delivered
 
-**Commits**: 3 commits (d1063950, cb0a36e5, 7608788d)
+**Commits**: 5 commits (d1063950, cb0a36e5, 7608788d, 58ed9692, 66541fcd)
 
 **Date Completed**: January 7, 2025
 
@@ -104,6 +104,60 @@ if request.hole_number in [17, 18] and request.phase != "hoepfinger":
 
 **Files Modified**:
 - `backend/app/main.py`: +67 lines (Karl Marx distribution logic)
+
+---
+
+### Frontend (Task 4)
+
+#### ✅ Task 4: Solo Requirement Warning UI
+**Commit**: 66541fcd
+
+**Features Implemented**:
+
+**1. Solo Requirement Warning Banner** (Holes 13-16)
+- Appears on holes 13-16 when players haven't gone solo
+- Prominent orange/red gradient design with warning emoji
+- Shows countdown to Hoepfinger (hole 17)
+- Special "🚨 LAST CHANCE" message on hole 16
+- Lists all players needing solo in red badges
+- Includes rule reference at bottom
+
+**2. Standings Solo Status Badges**
+- Green "✓ Solo" badge if requirement met
+- Yellow/red "⚠ Need Solo" badge if not met
+- Badge turns red on holes 13+
+- Badge pulses animation on holes 15-16 for urgency
+
+**3. Rule Compliance Display** (Already Existing)
+- Shows solo count as "0/1" or "1/1"
+- Color-coded: green if met, red if not met
+- "Required" label for unmet requirements
+
+**UI Components**:
+```jsx
+// Warning Banner (shows holes 13-16 if players need solo)
+{players.length === 4 && currentHole >= 13 && currentHole <= 16 &&
+  playersNeedingSolo.length > 0 && (
+    <WarningBanner>
+      ⚠️ Solo Requirement Alert!
+      {currentHole === 16
+        ? '🚨 LAST CHANCE - Hoepfinger starts next hole!'
+        : `Only ${17 - currentHole} holes until Hoepfinger`}
+
+      Players who MUST go solo: [Player badges]
+    </WarningBanner>
+  )
+}
+
+// Standings Badge (next to player name)
+{player.soloCount > 0
+  ? <Badge color="green">✓ Solo</Badge>
+  : <Badge color={currentHole >= 13 ? 'red' : 'yellow'}>⚠ Need Solo</Badge>
+}
+```
+
+**Files Modified**:
+- `frontend/src/components/game/SimpleScorekeeper.jsx`: +117 lines
 
 ---
 
@@ -210,6 +264,14 @@ backend/app/main.py                        (+71 lines)
   - Added Karl Marx distribution function (67 lines)
 ```
 
+### Frontend Files Modified
+```
+frontend/src/components/game/SimpleScorekeeper.jsx  (+117 lines)
+  - Added Solo Requirement Warning Banner
+  - Added solo status badges in standings
+  - Added visual indicators and countdown logic
+```
+
 ### Documentation Files Created
 ```
 docs/plans/2025-01-07-phase-3-final-rules.md  (NEW, plan document)
@@ -220,11 +282,12 @@ docs/PHASE_3_IMPLEMENTATION_SUMMARY.md         (NEW, this file)
 
 ## Success Metrics
 
-✅ **3 of 3 Phase 3 core tasks completed**
-✅ **3 commits with clear atomic changes**
+✅ **4 of 4 Phase 3 tasks completed**
+✅ **5 commits with clear atomic changes**
 ✅ **3 major rules implemented**
 ✅ **~500 lines of test code added**
 ✅ **~71 backend logic lines added**
+✅ **~117 frontend UI lines added**
 ✅ **Rule coverage increased 70% → 85-90%**
 
 ---
@@ -236,12 +299,21 @@ Phase 3 successfully implements the final core rules for Wolf Goat Pig. The impl
 1. **Solo Requirement Tracking** - Passive tracking via hole_history (4-man)
 2. **Double Points** - Holes 17-18 worth 2x (all game modes)
 3. **Karl Marx Rule** - Uneven distribution favors Goat (5-man/6-man)
+4. **Solo Warning UI** - Visual indicators and warnings in frontend
 
-The codebase has now reached **85-90% rule coverage** and is production-ready for 4-man games. Future work could include:
+The codebase has now reached **85-90% rule coverage** and is production-ready for 4-man games with full UI support.
+
+**User Experience Enhancements**:
+- Visual warning banner on holes 13-16 for players needing solo
+- Color-coded badges in standings (green ✓ Solo / red ⚠ Need Solo)
+- Countdown timer to Hoepfinger phase
+- Pulsing animation on holes 15-16 for urgency
+
+Future work could include:
 - Advanced 5-man/6-man features (Aardvark, etc.)
-- Frontend UI for solo tracking warnings
 - Real-time doubling mechanics
 - The Big Dick (18th hole only)
+- Enhanced Karl Marx edge case handling
 
 ---
 
