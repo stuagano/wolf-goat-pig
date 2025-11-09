@@ -4,13 +4,15 @@ import PropTypes from 'prop-types';
 import { Card, Button } from '../../ui';
 import { useTheme } from '../../../theme/Provider';
 
-const Scorecard = ({ players = [], holeHistory = [], currentHole = 1, onEditHole, captainId }) => {
+const Scorecard = ({ players = [], holeHistory = [], currentHole = 1, onEditHole, captainId, gameId, onPlayerNameChange }) => {
   const theme = useTheme();
   const [editingHole, setEditingHole] = useState(null);
   const [editingPlayer, setEditingPlayer] = useState(null);
   const [editStrokes, setEditStrokes] = useState('');
   const [editQuarters, setEditQuarters] = useState('');
   const [viewMode, setViewMode] = useState('scorecard'); // 'scorecard' or 'standings'
+  const [editingPlayerName, setEditingPlayerName] = useState(null);
+  const [editPlayerNameValue, setEditPlayerNameValue] = useState('');
 
   // Create a scorecard data structure
   const holes = Array.from({ length: 18 }, (_, i) => i + 1);
@@ -82,6 +84,32 @@ const Scorecard = ({ players = [], holeHistory = [], currentHole = 1, onEditHole
     setEditingPlayer(null);
     setEditStrokes('');
     setEditQuarters('');
+  };
+
+  // Handle clicking on a player name to edit it
+  const handlePlayerNameClick = (playerId, currentName) => {
+    setEditingPlayerName(playerId);
+    setEditPlayerNameValue(currentName);
+  };
+
+  // Handle saving the player name edit
+  const handleSavePlayerName = async () => {
+    if (editingPlayerName && editPlayerNameValue.trim() && onPlayerNameChange) {
+      try {
+        await onPlayerNameChange(editingPlayerName, editPlayerNameValue.trim());
+      } catch (error) {
+        console.error('Failed to update player name:', error);
+        alert('Failed to update player name. Please try again.');
+      }
+    }
+    setEditingPlayerName(null);
+    setEditPlayerNameValue('');
+  };
+
+  // Handle canceling the player name edit
+  const handleCancelPlayerNameEdit = () => {
+    setEditingPlayerName(null);
+    setEditPlayerNameValue('');
   };
 
   // Standings View Component
@@ -180,16 +208,23 @@ const Scorecard = ({ players = [], holeHistory = [], currentHole = 1, onEditHole
                   backgroundColor: idx % 2 === 0 ? 'rgba(0, 0, 0, 0.02)' : 'transparent',
                   borderLeft: isHuman ? '3px solid rgba(33, 150, 243, 0.5)' : 'none'
                 }}>
-                  <td style={{
-                    ...cellStyle,
-                    fontWeight: 'bold',
-                    maxWidth: '100px',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
-                  }}>
+                  <td
+                    style={{
+                      ...cellStyle,
+                      fontWeight: 'bold',
+                      maxWidth: '100px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      cursor: onPlayerNameChange ? 'pointer' : 'default',
+                      position: 'relative'
+                    }}
+                    onClick={() => onPlayerNameChange && handlePlayerNameClick(player.id, player.name)}
+                    title={onPlayerNameChange ? 'Click to edit name' : ''}
+                  >
                     {isHuman ? '👤 ' : '🤖 '}
                     {player.name}
+                    {onPlayerNameChange && <span style={{ fontSize: '10px', marginLeft: '4px', opacity: 0.5 }}>✏️</span>}
                   </td>
                   {holes.map(hole => {
                     const { quarters, strokes } = getHoleData(hole, player.id);
@@ -241,7 +276,7 @@ const Scorecard = ({ players = [], holeHistory = [], currentHole = 1, onEditHole
       </div>
       )}
 
-      {/* Edit Modal */}
+      {/* Edit Hole Modal */}
       {editingHole && editingPlayer && (
         <div style={{
           position: 'fixed',
@@ -318,6 +353,70 @@ const Scorecard = ({ players = [], holeHistory = [], currentHole = 1, onEditHole
           </Card>
         </div>
       )}
+
+      {/* Edit Player Name Modal */}
+      {editingPlayerName && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1001
+        }}>
+          <Card style={{
+            maxWidth: '400px',
+            width: '90%',
+            padding: '24px'
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: '16px' }}>
+              Edit Player Name
+            </h3>
+
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
+                Player Name:
+              </label>
+              <input
+                type="text"
+                value={editPlayerNameValue}
+                onChange={(e) => setEditPlayerNameValue(e.target.value)}
+                placeholder="Enter player name"
+                maxLength="50"
+                autoFocus
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSavePlayerName();
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  fontSize: '16px',
+                  border: `1px solid ${theme.colors.border}`,
+                  borderRadius: '4px'
+                }}
+              />
+              <p style={{ fontSize: '12px', color: theme.colors.textSecondary, marginTop: '4px' }}>
+                Press Enter to save, or click Save button
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <Button variant="secondary" onClick={handleCancelPlayerNameEdit}>
+                Cancel
+              </Button>
+              <Button variant="primary" onClick={handleSavePlayerName}>
+                Save
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </Card>
   );
 };
@@ -357,7 +456,9 @@ Scorecard.propTypes = {
   })),
   currentHole: PropTypes.number,
   onEditHole: PropTypes.func,
-  captainId: PropTypes.string
+  captainId: PropTypes.string,
+  gameId: PropTypes.string,
+  onPlayerNameChange: PropTypes.func
 };
 
 export default Scorecard;
