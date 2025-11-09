@@ -82,18 +82,18 @@ class TestCompleteGameIntegration:
         """Test complete game flow in regular mode"""
         
         # 1. Setup game with players and course
-        setup_response = client.post("/api/game/setup", json={
+        setup_response = client.post("/game/setup", json={
             "players": sample_players,
             "course": test_course["name"]
         })
         assert setup_response.status_code == 200
         
         # 2. Start the game
-        start_response = client.post("/api/game/start")
+        start_response = client.post("/game/start")
         assert start_response.status_code == 200
         
         # 3. Get initial game state
-        state_response = client.get("/api/game/state")
+        state_response = client.get("/game/state")
         assert state_response.status_code == 200
         game_state = state_response.json()
         
@@ -105,14 +105,14 @@ class TestCompleteGameIntegration:
         self._play_complete_hole(client, hole_number=1)
         
         # 5. Advance to next hole
-        next_hole_response = client.post("/api/game/action", json={
+        next_hole_response = client.post("/game/action", json={
             "action": "next_hole",
             "payload": {}
         })
         assert next_hole_response.status_code == 200
         
         # 6. Verify hole advancement
-        state_response = client.get("/api/game/state")
+        state_response = client.get("/game/state")
         game_state = state_response.json()
         assert game_state["current_hole"] == 2
         
@@ -120,13 +120,13 @@ class TestCompleteGameIntegration:
         for hole in range(2, 6):  # Play holes 2-5
             self._play_complete_hole(client, hole_number=hole)
             if hole < 5:  # Don't advance after last hole
-                client.post("/api/game/action", json={
+                client.post("/game/action", json={
                     "action": "next_hole",
                     "payload": {}
                 })
         
         # 8. Check final state
-        final_state_response = client.get("/api/game/state")
+        final_state_response = client.get("/game/state")
         final_state = final_state_response.json()
         assert final_state["current_hole"] == 5
         
@@ -138,25 +138,25 @@ class TestCompleteGameIntegration:
         """Test complete partnership betting workflow"""
         
         # Setup game
-        client.post("/api/game/setup", json={"players": sample_players})
-        client.post("/api/game/start")
+        client.post("/game/setup", json={"players": sample_players})
+        client.post("/game/start")
         
         # 1. Captain requests partner
-        partner_request = client.post("/api/game/action", json={
+        partner_request = client.post("/game/action", json={
             "action": "request_partner",
             "payload": {"captain_id": "p1", "partner_id": "p2"}
         })
         assert partner_request.status_code == 200
         
         # 2. Partner accepts
-        partner_accept = client.post("/api/game/action", json={
+        partner_accept = client.post("/game/action", json={
             "action": "accept_partner",
             "payload": {"partner_id": "p2"}
         })
         assert partner_accept.status_code == 200
         
         # 3. Check teams are formed
-        state_response = client.get("/api/game/state")
+        state_response = client.get("/game/state")
         game_state = state_response.json()
         teams = game_state["teams"]
         assert teams["type"] == "partners"
@@ -169,14 +169,14 @@ class TestCompleteGameIntegration:
         self._record_hole_scores(client, {"p1": 4, "p2": 5, "p3": 6, "p4": 7})
         
         # 5. Calculate points
-        points_response = client.post("/api/game/action", json={
+        points_response = client.post("/game/action", json={
             "action": "calculate_hole_points",
             "payload": {}
         })
         assert points_response.status_code == 200
         
         # 6. Verify point distribution
-        final_state = client.get("/api/game/state").json()
+        final_state = client.get("/game/state").json()
         players = {p["id"]: p for p in final_state["players"]}
         
         # Team1 should have positive points, team2 negative
@@ -189,18 +189,18 @@ class TestCompleteGameIntegration:
         """Test solo betting workflow"""
         
         # Setup game
-        client.post("/api/game/setup", json={"players": sample_players})
-        client.post("/api/game/start")
+        client.post("/game/setup", json={"players": sample_players})
+        client.post("/game/start")
         
         # 1. Captain goes solo
-        solo_response = client.post("/api/game/action", json={
+        solo_response = client.post("/game/action", json={
             "action": "go_solo",
             "payload": {"captain_id": "p1"}
         })
         assert solo_response.status_code == 200
         
         # 2. Check teams and wager
-        state_response = client.get("/api/game/state")
+        state_response = client.get("/game/state")
         game_state = state_response.json()
         teams = game_state["teams"]
         assert teams["type"] == "solo"
@@ -211,13 +211,13 @@ class TestCompleteGameIntegration:
         self._record_hole_scores(client, {"p1": 3, "p2": 4, "p3": 5, "p4": 6})
         
         # 4. Calculate points
-        client.post("/api/game/action", json={
+        client.post("/game/action", json={
             "action": "calculate_hole_points",
             "payload": {}
         })
         
         # 5. Verify captain gets points from all three opponents
-        final_state = client.get("/api/game/state").json()
+        final_state = client.get("/game/state").json()
         players = {p["id"]: p for p in final_state["players"]}
         
         assert players["p1"]["points"] == 6  # 2 points from each of 3 opponents
@@ -229,40 +229,40 @@ class TestCompleteGameIntegration:
         """Test double offer and acceptance workflow"""
         
         # Setup game with partnership
-        client.post("/api/game/setup", json={"players": sample_players})
-        client.post("/api/game/start")
+        client.post("/game/setup", json={"players": sample_players})
+        client.post("/game/start")
         
         # Form partnership
-        client.post("/api/game/action", json={
+        client.post("/game/action", json={
             "action": "request_partner",
             "payload": {"captain_id": "p1", "partner_id": "p2"}
         })
-        client.post("/api/game/action", json={
+        client.post("/game/action", json={
             "action": "accept_partner",
             "payload": {"partner_id": "p2"}
         })
         
         # 1. Offer double
-        double_offer = client.post("/api/game/action", json={
+        double_offer = client.post("/game/action", json={
             "action": "offer_double",
             "payload": {"offering_team_id": "team1", "target_team_id": "team2"}
         })
         assert double_offer.status_code == 200
         
         # 2. Check double status
-        state_response = client.get("/api/game/state")
+        state_response = client.get("/game/state")
         game_state = state_response.json()
         assert game_state["doubled_status"] == True
         
         # 3. Accept double
-        double_accept = client.post("/api/game/action", json={
+        double_accept = client.post("/game/action", json={
             "action": "accept_double",
             "payload": {"team_id": "team2"}
         })
         assert double_accept.status_code == 200
         
         # 4. Verify wager doubled
-        final_state = client.get("/api/game/state").json()
+        final_state = client.get("/game/state").json()
         assert final_state["base_wager"] == 2
         assert final_state["doubled_status"] == False
 
@@ -270,24 +270,24 @@ class TestCompleteGameIntegration:
         """Test float invocation workflow"""
         
         # Setup game
-        client.post("/api/game/setup", json={"players": sample_players})
-        client.post("/api/game/start")
+        client.post("/game/setup", json={"players": sample_players})
+        client.post("/game/start")
         
         # 1. Captain invokes float
-        float_response = client.post("/api/game/action", json={
+        float_response = client.post("/game/action", json={
             "action": "invoke_float",
             "payload": {"captain_id": "p1"}
         })
         assert float_response.status_code == 200
         
         # 2. Verify wager doubled and float used
-        state_response = client.get("/api/game/state")
+        state_response = client.get("/game/state")
         game_state = state_response.json()
         assert game_state["base_wager"] == 2
         assert game_state["player_float_used"]["p1"] == True
         
         # 3. Try to use float again (should fail)
-        float_retry = client.post("/api/game/action", json={
+        float_retry = client.post("/game/action", json={
             "action": "invoke_float",
             "payload": {"captain_id": "p1"}
         })
@@ -295,13 +295,13 @@ class TestCompleteGameIntegration:
         
         # 4. Next hole should reset float
         self._complete_hole_scoring(client)
-        client.post("/api/game/action", json={
+        client.post("/game/action", json={
             "action": "next_hole",
             "payload": {}
         })
         
         # Float should be available again for new captain
-        final_state = client.get("/api/game/state").json()
+        final_state = client.get("/game/state").json()
         # All float usage should be reset
         assert all(not used for used in final_state["player_float_used"].values())
 
@@ -309,8 +309,8 @@ class TestCompleteGameIntegration:
         """Test Karl Marx rule for odd quarter distribution"""
         
         # Setup game
-        client.post("/api/game/setup", json={"players": sample_players})
-        client.post("/api/game/start")
+        client.post("/game/setup", json={"players": sample_players})
+        client.post("/game/start")
         
         # Set up scenario where Karl Marx rule applies
         # 3 base wager, 1 winner, 2 losers = 6 total quarters, 6/1 = 6 each, no remainder
@@ -319,13 +319,13 @@ class TestCompleteGameIntegration:
         # Try: 1 base wager, solo captain wins vs 3 = 3 total, captain gets all 3
         
         # Captain goes solo
-        client.post("/api/game/action", json={
+        client.post("/game/action", json={
             "action": "go_solo",
             "payload": {"captain_id": "p1"}
         })
         
         # Set different point totals for players to test Karl Marx
-        state_response = client.get("/api/game/state")
+        state_response = client.get("/game/state")
         game_state = state_response.json()
         
         # Modify player points manually for testing
@@ -335,14 +335,14 @@ class TestCompleteGameIntegration:
         self._record_hole_scores(client, {"p1": 6, "p2": 3, "p3": 4, "p4": 5})
         
         # Calculate points
-        points_response = client.post("/api/game/action", json={
+        points_response = client.post("/game/action", json={
             "action": "calculate_hole_points",
             "payload": {}
         })
         
         # Check that points were distributed correctly
         result_message = points_response.json().get("message", "")
-        final_state = client.get("/api/game/state").json()
+        final_state = client.get("/game/state").json()
         
         # Verify the calculation worked
         players = {p["id"]: p for p in final_state["players"]}
@@ -355,48 +355,48 @@ class TestCompleteGameIntegration:
         """Test that game history is properly tracked"""
         
         # Setup and play multiple holes
-        client.post("/api/game/setup", json={"players": sample_players})
-        client.post("/api/game/start")
+        client.post("/game/setup", json={"players": sample_players})
+        client.post("/game/start")
         
         # Play 3 holes with different scenarios
         holes_data = []
         
         # Hole 1: Partnership
-        client.post("/api/game/action", json={
+        client.post("/game/action", json={
             "action": "request_partner",
             "payload": {"captain_id": "p1", "partner_id": "p2"}
         })
-        client.post("/api/game/action", json={
+        client.post("/game/action", json={
             "action": "accept_partner",
             "payload": {"partner_id": "p2"}
         })
         self._record_hole_scores(client, {"p1": 4, "p2": 5, "p3": 6, "p4": 7})
-        client.post("/api/game/action", json={
+        client.post("/game/action", json={
             "action": "calculate_hole_points",
             "payload": {}
         })
-        client.post("/api/game/action", json={
+        client.post("/game/action", json={
             "action": "next_hole",
             "payload": {}
         })
         
         # Hole 2: Solo
-        client.post("/api/game/action", json={
+        client.post("/game/action", json={
             "action": "go_solo",
             "payload": {"captain_id": "p2"}  # New captain
         })
         self._record_hole_scores(client, {"p1": 5, "p2": 3, "p3": 4, "p4": 6})
-        client.post("/api/game/action", json={
+        client.post("/game/action", json={
             "action": "calculate_hole_points",
             "payload": {}
         })
-        client.post("/api/game/action", json={
+        client.post("/game/action", json={
             "action": "next_hole",
             "payload": {}
         })
         
         # Check game history
-        history_response = client.get("/api/game/history")
+        history_response = client.get("/game/history")
         assert history_response.status_code == 200
         history = history_response.json()
         
@@ -414,25 +414,25 @@ class TestCompleteGameIntegration:
         """Test error handling and recovery scenarios"""
         
         # Setup game
-        client.post("/api/game/setup", json={"players": sample_players})
-        client.post("/api/game/start")
+        client.post("/game/setup", json={"players": sample_players})
+        client.post("/game/start")
         
         # 1. Test invalid action
-        invalid_response = client.post("/api/game/action", json={
+        invalid_response = client.post("/game/action", json={
             "action": "invalid_action",
             "payload": {}
         })
         assert invalid_response.status_code == 400
         
         # 2. Test action without required payload
-        missing_payload = client.post("/api/game/action", json={
+        missing_payload = client.post("/game/action", json={
             "action": "request_partner",
             "payload": {}  # Missing required fields
         })
         assert missing_payload.status_code == 400
         
         # 3. Test recording incomplete scores
-        incomplete_scores = client.post("/api/game/action", json={
+        incomplete_scores = client.post("/game/action", json={
             "action": "record_net_score",
             "payload": {"player_id": "p1", "score": 4}
         })
@@ -440,14 +440,14 @@ class TestCompleteGameIntegration:
         assert incomplete_scores.status_code == 200
         
         # Try to calculate points with incomplete scores
-        points_response = client.post("/api/game/action", json={
+        points_response = client.post("/game/action", json={
             "action": "calculate_hole_points",
             "payload": {}
         })
         assert points_response.status_code == 400  # Should fail with incomplete scores
         
         # 4. Game state should still be consistent
-        state_response = client.get("/api/game/state")
+        state_response = client.get("/game/state")
         assert state_response.status_code == 200
         game_state = state_response.json()
         assert game_state["current_hole"] == 1  # Still on first hole
@@ -456,19 +456,19 @@ class TestCompleteGameIntegration:
         """Test performance with rapid API calls"""
         
         # Setup game
-        client.post("/api/game/setup", json={"players": sample_players})
-        client.post("/api/game/start")
+        client.post("/game/setup", json={"players": sample_players})
+        client.post("/game/start")
         
         start_time = time.time()
         
         # Make many rapid API calls
         for i in range(50):
-            state_response = client.get("/api/game/state")
+            state_response = client.get("/game/state")
             assert state_response.status_code == 200
             
             # Occasionally make game actions
             if i % 10 == 0:
-                client.post("/api/game/action", json={
+                client.post("/game/action", json={
                     "action": "record_net_score",
                     "payload": {"player_id": f"p{(i % 4) + 1}", "score": 4}
                 })
@@ -480,7 +480,7 @@ class TestCompleteGameIntegration:
         assert total_time < 10.0  # 50 API calls in under 10 seconds
         
         # Game state should still be consistent
-        final_state = client.get("/api/game/state").json()
+        final_state = client.get("/game/state").json()
         assert final_state["current_hole"] == 1
 
     def test_player_profile_integration(self, client, db_session):
@@ -515,8 +515,8 @@ class TestCompleteGameIntegration:
         ]
         
         # Setup and play game
-        client.post("/api/game/setup", json={"players": players_with_profiles})
-        client.post("/api/game/start")
+        client.post("/game/setup", json={"players": players_with_profiles})
+        client.post("/game/start")
         
         # Complete a hole
         self._play_complete_hole(client, hole_number=1)
@@ -532,7 +532,7 @@ class TestCompleteGameIntegration:
         """Play a complete hole with betting and scoring"""
         
         # Get current captain
-        state_response = client.get("/api/game/state")
+        state_response = client.get("/game/state")
         game_state = state_response.json()
         captain_id = game_state["captain_id"]
         
@@ -541,16 +541,16 @@ class TestCompleteGameIntegration:
             other_players = [p["id"] for p in game_state["players"] if p["id"] != captain_id]
             partner_id = other_players[0]
             
-            client.post("/api/game/action", json={
+            client.post("/game/action", json={
                 "action": "request_partner",
                 "payload": {"captain_id": captain_id, "partner_id": partner_id}
             })
-            client.post("/api/game/action", json={
+            client.post("/game/action", json={
                 "action": "accept_partner",
                 "payload": {"partner_id": partner_id}
             })
         else:  # Odd holes: solo
-            client.post("/api/game/action", json={
+            client.post("/game/action", json={
                 "action": "go_solo",
                 "payload": {"captain_id": captain_id}
             })
@@ -564,7 +564,7 @@ class TestCompleteGameIntegration:
         self._record_hole_scores(client, scores)
         
         # Calculate points
-        client.post("/api/game/action", json={
+        client.post("/game/action", json={
             "action": "calculate_hole_points",
             "payload": {}
         })
@@ -572,7 +572,7 @@ class TestCompleteGameIntegration:
     def _record_hole_scores(self, client, scores):
         """Record hole scores for all players"""
         for player_id, score in scores.items():
-            client.post("/api/game/action", json={
+            client.post("/game/action", json={
                 "action": "record_net_score",
                 "payload": {"player_id": player_id, "score": score}
             })
@@ -580,7 +580,7 @@ class TestCompleteGameIntegration:
     def _complete_hole_scoring(self, client):
         """Complete scoring for current hole with default scores"""
         self._record_hole_scores(client, {"p1": 4, "p2": 5, "p3": 6, "p4": 7})
-        client.post("/api/game/action", json={
+        client.post("/game/action", json={
             "action": "calculate_hole_points",
             "payload": {}
         })
@@ -604,15 +604,15 @@ class TestConcurrentGameOperations:
             {"id": "p4", "name": "Dave", "handicap": 20.0, "strength": "Weak"}
         ]
         
-        client.post("/api/game/setup", json={"players": sample_players})
-        client.post("/api/game/start")
+        client.post("/game/setup", json={"players": sample_players})
+        client.post("/game/start")
         
         # Set up partnership
-        client.post("/api/game/action", json={
+        client.post("/game/action", json={
             "action": "request_partner",
             "payload": {"captain_id": "p1", "partner_id": "p2"}
         })
-        client.post("/api/game/action", json={
+        client.post("/game/action", json={
             "action": "accept_partner",
             "payload": {"partner_id": "p2"}
         })
@@ -625,7 +625,7 @@ class TestConcurrentGameOperations:
         
         def record_score(player_id, score):
             try:
-                response = client.post("/api/game/action", json={
+                response = client.post("/game/action", json={
                     "action": "record_net_score",
                     "payload": {"player_id": player_id, "score": score}
                 })
@@ -658,7 +658,7 @@ class TestConcurrentGameOperations:
             assert status_code == 200
         
         # Verify final state is consistent
-        final_state = client.get("/api/game/state").json()
+        final_state = client.get("/game/state").json()
         hole_scores = final_state["hole_scores"]
         assert len(hole_scores) == 4
         assert all(score is not None for score in hole_scores.values())
