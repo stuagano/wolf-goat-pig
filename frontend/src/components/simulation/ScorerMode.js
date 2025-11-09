@@ -26,7 +26,6 @@ function ScorerMode() {
     addFeedback,
     clearFeedback,
     shotState,
-    setShotState,
     interactionNeeded,
     setInteractionNeeded,
     pendingDecision,
@@ -95,7 +94,7 @@ function ScorerMode() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
 
-  const fetchPokerState = async () => {
+  const fetchPokerState = useCallback(async () => {
     if (!isGameActive) return;
 
     try {
@@ -115,7 +114,7 @@ function ScorerMode() {
     } catch (error) {
       console.error("Error fetching poker state:", error);
     }
-  };
+  }, [isGameActive]);
 
   useEffect(() => {
     if (isGameActive) {
@@ -125,7 +124,7 @@ function ScorerMode() {
       }, 3000);
       return () => clearInterval(interval);
     }
-  }, [isGameActive, gameState?.current_hole]);
+  }, [isGameActive, gameState?.current_hole, fetchPokerState]);
 
   const makeDecision = async (decision) => {
     setLoading(true);

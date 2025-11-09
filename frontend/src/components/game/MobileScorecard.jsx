@@ -30,7 +30,6 @@ const MobileScorecard = ({ gameState }) => {
 
   const standings = getCurrentStandings();
   const currentHole = gameState.current_hole || 1;
-  const holeHistory = getHoleHistory();
 
   // Render compact standings view (default for game manager)
   const renderStandingsView = () => (
