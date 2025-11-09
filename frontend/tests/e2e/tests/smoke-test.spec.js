@@ -33,19 +33,14 @@ test.describe('Smoke Tests - API Health', () => {
     const response = await request.get(`${API_BASE}/`);
     expect(response.ok()).toBeTruthy();
 
-    const data = await response.json();
-    expect(data).toHaveProperty('status');
-    expect(data.status).toBe('healthy');
+    // Backend root returns HTML, not JSON - just verify it's responding
+    const text = await response.text();
+    expect(text.length).toBeGreaterThan(0);
   });
 
   test('create test game via API', async ({ request }) => {
-    // Create a 4-player test game
-    const response = await request.post(`${API_BASE}/games/test`, {
-      data: {
-        player_count: 4,
-        course_name: 'Wing Point'
-      }
-    });
+    // Create a 4-player test game using query parameters
+    const response = await request.post(`${API_BASE}/games/create-test?player_count=4&course_name=Wing%20Point`);
 
     expect(response.ok()).toBeTruthy();
 
@@ -57,18 +52,15 @@ test.describe('Smoke Tests - API Health', () => {
     testGameId = data.game_id;
 
     // Verify game state
-    expect(data).toHaveProperty('current_hole');
-    expect(data.current_hole).toBe(1);
+    expect(data).toHaveProperty('status');
+    expect(data.status).toBe('in_progress');
+    expect(data).toHaveProperty('test_mode');
+    expect(data.test_mode).toBe(true);
   });
 
   test('complete hole via API', async ({ request }) => {
-    // Create game first
-    const createResponse = await request.post(`${API_BASE}/games/test`, {
-      data: {
-        player_count: 4,
-        course_name: 'Wing Point'
-      }
-    });
+    // Create game first using query parameters
+    const createResponse = await request.post(`${API_BASE}/games/create-test?player_count=4&course_name=Wing%20Point`);
 
     const gameData = await createResponse.json();
     testGameId = gameData.game_id;
@@ -105,13 +97,8 @@ test.describe('Smoke Tests - API Health', () => {
   });
 
   test('game state persistence', async ({ request }) => {
-    // Create game
-    const createResponse = await request.post(`${API_BASE}/games/test`, {
-      data: {
-        player_count: 4,
-        course_name: 'Wing Point'
-      }
-    });
+    // Create game using query parameters
+    const createResponse = await request.post(`${API_BASE}/games/create-test?player_count=4&course_name=Wing%20Point`);
 
     const gameData = await createResponse.json();
     testGameId = gameData.game_id;
