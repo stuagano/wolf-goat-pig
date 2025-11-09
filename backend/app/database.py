@@ -17,8 +17,9 @@ if DATABASE_URL:
     
     engine = create_engine(
         DATABASE_URL,
-        pool_pre_ping=True,  # Verify connections before use
-        pool_recycle=300,    # Recycle connections every 5 minutes
+        pool_pre_ping=True,       # Verify connections before use
+        pool_recycle=300,         # Recycle connections every 5 minutes
+        pool_reset_on_return='rollback',  # Always rollback on connection return to reset transaction state
         echo=os.getenv("ENVIRONMENT") == "development"
     )
 else:
