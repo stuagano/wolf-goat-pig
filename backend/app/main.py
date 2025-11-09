@@ -1334,6 +1334,107 @@ async def create_test_game(
     return response
 
 
+@app.patch("/games/{game_id}/players/{player_id}/name")
+async def update_player_name(
+    game_id: str,
+    player_id: str,
+    name_update: dict,
+    db: Session = Depends(database.get_db)
+):
+    """
+    Update a player's name in an active game.
+    Allows editing player names in the game scorer without requiring PlayerProfile records.
+
+    Args:
+        game_id: The game ID
+        player_id: The player's ID (e.g., "test-player-1")
+        name_update: Dict with "name" key containing the new name
+    """
+    try:
+        new_name = name_update.get("name")
+        if not new_name or not isinstance(new_name, str) or not new_name.strip():
+            raise HTTPException(status_code=400, detail="Invalid name provided")
+
+        new_name = new_name.strip()
+
+        # Try to get game from lifecycle service (active games in memory)
+        service = get_game_lifecycle_service()
+        simulation = service._active_games.get(game_id)
+
+        if simulation:
+            # Update player name in simulation
+            player_found = False
+            for player in simulation.players:
+                if player.id == player_id:
+                    player.name = new_name
+                    player_found = True
+                    break
+
+            if not player_found:
+                raise HTTPException(status_code=404, detail=f"Player {player_id} not found in game")
+
+            # Update player name in game state
+            game_state = simulation.get_game_state()
+            for player in game_state.get("players", []):
+                if player.get("id") == player_id:
+                    player["name"] = new_name
+                    break
+
+            logger.info(f"Updated player {player_id} name to '{new_name}' in game {game_id}")
+
+        # Try to update in database as well (if game exists in DB)
+        try:
+            # Update GameStateModel
+            game = db.query(models.GameStateModel).filter(
+                models.GameStateModel.game_id == game_id
+            ).first()
+
+            if game:
+                state = game.state or {}
+                players = state.get("players", [])
+                for player in players:
+                    if player.get("id") == player_id:
+                        player["name"] = new_name
+                        break
+
+                game.state = state
+                game.updated_at = datetime.utcnow().isoformat()
+
+                # Also update GamePlayer record
+                game_player = db.query(models.GamePlayer).filter(
+                    models.GamePlayer.game_id == game_id,
+                    models.GamePlayer.player_slot_id == player_id
+                ).first()
+
+                if game_player:
+                    game_player.player_name = new_name
+
+                db.commit()
+                logger.info(f"Updated player {player_id} name to '{new_name}' in database for game {game_id}")
+
+        except Exception as db_error:
+            # Log but don't fail - game can continue in memory
+            logger.warning(f"Failed to update player name in database: {db_error}")
+            try:
+                db.rollback()
+            except:
+                pass
+
+        return {
+            "success": True,
+            "game_id": game_id,
+            "player_id": player_id,
+            "name": new_name,
+            "message": f"Player name updated to '{new_name}'"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating player name: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update player name: {str(e)}")
+
+
 @app.post("/games/{game_id}/holes/complete")
 async def complete_hole(
     game_id: str,

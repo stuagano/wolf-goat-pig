@@ -283,26 +283,31 @@ def seed_sample_games(db: Session) -> int:
             
             # Add player results for this game
             for player_name, results in scenario["final_scores"].items():
-                # Find the player profile
-                player_profile = db.query(PlayerProfile).filter_by(name=player_name).first()
-                if not player_profile:
-                    logger.warning(f"Player '{player_name}' not found for sample game, skipping...")
+                try:
+                    # Find the player profile
+                    player_profile = db.query(PlayerProfile).filter_by(name=player_name).first()
+                    if not player_profile:
+                        logger.warning(f"Player '{player_name}' not found for sample game, skipping...")
+                        continue
+
+                    player_result = GamePlayerResult(
+                        game_record_id=game_record.id,
+                        player_profile_id=player_profile.id,
+                        final_score=results["quarters"],
+                        holes_won=results["holes_won"],
+                        holes_played=scenario["total_holes"],
+                        partnerships_formed=max(1, results["holes_won"] // 4),  # Estimate
+                        solo_attempts=max(0, results["holes_won"] // 8),  # Estimate
+                        successful_bets=results["holes_won"],
+                        total_bets=scenario["total_holes"],
+                        created_at=game_date
+                    )
+
+                    db.add(player_result)
+                except Exception as player_error:
+                    logger.warning(f"Failed to add player result for '{player_name}': {player_error}")
+                    # Continue with next player instead of aborting entire transaction
                     continue
-                
-                player_result = GamePlayerResult(
-                    game_record_id=game_record.id,
-                    player_profile_id=player_profile.id,
-                    final_score=results["quarters"],
-                    holes_won=results["holes_won"],
-                    holes_played=scenario["total_holes"],
-                    partnerships_formed=max(1, results["holes_won"] // 4),  # Estimate
-                    solo_attempts=max(0, results["holes_won"] // 8),  # Estimate
-                    successful_bets=results["holes_won"],
-                    total_bets=scenario["total_holes"],
-                    created_at=game_date
-                )
-                
-                db.add(player_result)
             
             games_added += 1
             logger.info(f"Added sample game: {scenario['scenario_name']}")

@@ -59,6 +59,9 @@ const SimpleScorekeeper = ({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [editingHole, setEditingHole] = useState(null); // Track which hole is being edited
+  const [editingPlayerName, setEditingPlayerName] = useState(null); // Track which player name is being edited
+  const [editPlayerNameValue, setEditPlayerNameValue] = useState(''); // Player name input value
+  const [localPlayers, setLocalPlayers] = useState(players); // Local copy of players for immediate UI updates
 
   // Initialize player standings from hole history
   useEffect(() => {
@@ -379,6 +382,61 @@ const SimpleScorekeeper = ({
     }
   };
 
+  // Handle player name editing
+  const handlePlayerNameClick = (playerId, currentName) => {
+    setEditingPlayerName(playerId);
+    setEditPlayerNameValue(currentName);
+  };
+
+  const handleSavePlayerName = async () => {
+    if (!editingPlayerName || !editPlayerNameValue.trim()) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/games/${gameId}/players/${editingPlayerName}/name`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: editPlayerNameValue.trim() })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update player name');
+      }
+
+      // Update local players state immediately for better UX
+      const updatedPlayers = localPlayers.map(p =>
+        p.id === editingPlayerName ? { ...p, name: editPlayerNameValue.trim() } : p
+      );
+      setLocalPlayers(updatedPlayers);
+
+      // Also update player standings
+      if (playerStandings[editingPlayerName]) {
+        setPlayerStandings({
+          ...playerStandings,
+          [editingPlayerName]: {
+            ...playerStandings[editingPlayerName],
+            name: editPlayerNameValue.trim()
+          }
+        });
+      }
+
+      // Close the edit modal
+      setEditingPlayerName(null);
+      setEditPlayerNameValue('');
+    } catch (err) {
+      console.error('Failed to update player name:', err);
+      alert('Failed to update player name. Please try again.');
+    }
+  };
+
+  const handleCancelPlayerNameEdit = () => {
+    setEditingPlayerName(null);
+    setEditPlayerNameValue('');
+  };
+
   // Check if game is complete (all 18 holes played)
   const isGameComplete = currentHole > 18 && holeHistory.length === 18;
 
@@ -570,7 +628,7 @@ const SimpleScorekeeper = ({
                   <td style={{ padding: '6px', textAlign: 'center', fontSize: '11px', fontWeight: 'bold', borderLeft: `2px solid ${theme.colors.border}`, background: 'rgba(33, 150, 243, 0.05)' }}>72</td>
                 </tr>
 
-                {players.map((player, playerIdx) => {
+                {localPlayers.map((player, playerIdx) => {
                   // Calculate stroke totals
                   let outStroke = 0, inStroke = 0;
                   let outQuarters = 0, inQuarters = 0;
@@ -594,21 +652,27 @@ const SimpleScorekeeper = ({
                         background: playerIdx % 2 === 0 ? 'white' : theme.colors.background,
                         borderTop: playerIdx === 0 ? `2px solid ${theme.colors.border}` : 'none'
                       }}>
-                        <td style={{
-                          padding: '8px 6px',
-                          fontWeight: 'bold',
-                          position: 'sticky',
-                          left: 0,
-                          background: playerIdx % 2 === 0 ? 'white' : theme.colors.background,
-                          borderRight: `2px solid ${theme.colors.border}`,
-                          fontSize: '12px',
-                          maxWidth: '80px',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          zIndex: 1
-                        }}>
+                        <td
+                          style={{
+                            padding: '8px 6px',
+                            fontWeight: 'bold',
+                            position: 'sticky',
+                            left: 0,
+                            background: playerIdx % 2 === 0 ? 'white' : theme.colors.background,
+                            borderRight: `2px solid ${theme.colors.border}`,
+                            fontSize: '12px',
+                            maxWidth: '80px',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            zIndex: 1,
+                            cursor: 'pointer'
+                          }}
+                          onClick={() => handlePlayerNameClick(player.id, player.name)}
+                          title="Click to edit player name"
+                        >
                           {player.name}
+                          <span style={{ fontSize: '10px', marginLeft: '4px', opacity: 0.5 }}>✏️</span>
                         </td>
                         {/* Front 9 Strokes */}
                         {[...Array(9)].map((_, i) => {
@@ -2103,6 +2167,103 @@ const SimpleScorekeeper = ({
       </button>
 
       {/* Old scorecard removed - now showing golf-style scorecard at top */}
+
+      {/* Edit Player Name Modal */}
+      {editingPlayerName && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1001,
+          padding: '20px'
+        }}>
+          <div style={{
+            background: 'white',
+            padding: '24px',
+            borderRadius: '12px',
+            maxWidth: '400px',
+            width: '100%',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: '16px', color: theme.colors.primary }}>
+              Edit Player Name
+            </h3>
+
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: theme.colors.textPrimary }}>
+                Player Name:
+              </label>
+              <input
+                type="text"
+                value={editPlayerNameValue}
+                onChange={(e) => setEditPlayerNameValue(e.target.value)}
+                placeholder="Enter player name"
+                maxLength="50"
+                autoFocus
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSavePlayerName();
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  fontSize: '16px',
+                  border: `2px solid ${theme.colors.border}`,
+                  borderRadius: '8px',
+                  outline: 'none',
+                  transition: 'border-color 0.2s',
+                  boxSizing: 'border-box'
+                }}
+                onFocus={(e) => e.target.style.borderColor = theme.colors.primary}
+                onBlur={(e) => e.target.style.borderColor = theme.colors.border}
+              />
+              <p style={{ fontSize: '12px', color: theme.colors.textSecondary, marginTop: '8px', marginBottom: 0 }}>
+                Press Enter to save, or click Save button
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={handleCancelPlayerNameEdit}
+                style={{
+                  padding: '10px 20px',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  border: `2px solid ${theme.colors.border}`,
+                  borderRadius: '8px',
+                  background: 'white',
+                  color: theme.colors.textPrimary,
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSavePlayerName}
+                style={{
+                  padding: '10px 20px',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  border: 'none',
+                  borderRadius: '8px',
+                  background: theme.colors.primary,
+                  color: 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -388,23 +388,40 @@ class GHINService:
             
         except Exception as e:
             logger.error(f"Failed to get enhanced leaderboard: {e}")
+            # Rollback the transaction to clear any error state
+            try:
+                self.db.rollback()
+            except Exception as rollback_error:
+                logger.warning(f"Failed to rollback transaction: {rollback_error}")
+
             # Even on error, try to return basic leaderboard structure with stored handicaps
             try:
                 from .player_service import PlayerService
                 player_service = PlayerService(self.db)
                 basic_leaderboard = player_service.get_leaderboard(limit=limit)
-                
+
                 # Add stored handicap data to basic leaderboard
+                # Wrap each query in try-except to prevent cascading failures
                 for player in basic_leaderboard:
-                    profile = self.db.query(PlayerProfile).filter(PlayerProfile.name == player.player_name).first()
-                    if profile:
-                        player.handicap = profile.handicap
-                        player.ghin_id = profile.ghin_id
-                        player.ghin_last_updated = profile.ghin_last_updated
-                
+                    try:
+                        profile = self.db.query(PlayerProfile).filter(PlayerProfile.name == player.player_name).first()
+                        if profile:
+                            player.handicap = profile.handicap
+                            player.ghin_id = profile.ghin_id
+                            player.ghin_last_updated = profile.ghin_last_updated
+                    except Exception as query_error:
+                        logger.warning(f"Failed to query profile for player {player.player_name}: {query_error}")
+                        # Continue with next player even if this one fails
+                        continue
+
                 return [vars(player) for player in basic_leaderboard]
             except Exception as fallback_error:
                 logger.error(f"Failed to get fallback leaderboard: {fallback_error}")
+                # Ensure transaction is rolled back before returning
+                try:
+                    self.db.rollback()
+                except:
+                    pass
                 return []
     
     # GHIN API Integration - Now supports real API calls
