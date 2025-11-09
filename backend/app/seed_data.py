@@ -306,6 +306,11 @@ def seed_sample_games(db: Session) -> int:
                     db.add(player_result)
                 except Exception as player_error:
                     logger.warning(f"Failed to add player result for '{player_name}': {player_error}")
+                    # Rollback transaction to clear error state before continuing
+                    try:
+                        db.rollback()
+                    except Exception as rollback_error:
+                        logger.warning(f"Failed to rollback after player result error: {rollback_error}")
                     # Continue with next player instead of aborting entire transaction
                     continue
             
