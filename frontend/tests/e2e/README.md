@@ -111,8 +111,9 @@ This E2E testing suite provides comprehensive testing for the Wolf Goat Pig appl
 ### ⚠️ Current Blockers
 
 1. **Chromium Permissions**: Browser automation blocked on Mac OS
-   - **Impact**: Can't run full E2E tests in headed or headless mode
-   - **Workaround**: Smoke tests use minimal browser interaction
+   - **Impact**: Can't run full E2E tests in headed or headless mode locally
+   - **Solution**: Use Podman container (see "Running with Podman" below)
+   - **Alternative**: Smoke tests use minimal browser interaction
 
 2. **API Endpoint Mismatches**: Smoke tests assume endpoints that may not exist
    - `/` returns HTML not JSON (expected)
@@ -202,6 +203,42 @@ The Playwright config auto-starts:
 - **Frontend**: `http://localhost:3000` (React)
 
 Ensure no other services are using these ports.
+
+### Running with Podman (Recommended for Mac OS)
+
+If Chromium is blocked on your system, use Podman to run tests in a container:
+
+**Prerequisites**:
+```bash
+# Start backend and frontend manually first
+cd backend && uvicorn app.main:app --reload  # Terminal 1
+cd frontend && npm start                      # Terminal 2
+```
+
+**Run tests in Podman**:
+```bash
+cd frontend/tests/e2e
+
+# Run all tests
+./run-in-podman.sh
+
+# Run specific test
+./run-in-podman.sh smoke-test.spec.js
+./run-in-podman.sh test-game-4-man.spec.js
+```
+
+**How it works**:
+- Uses official Playwright Docker image (`mcr.microsoft.com/playwright:v1.48.1-jammy`)
+- Mounts frontend directory into container
+- Uses `--network=host` to access localhost:8000 and localhost:3000
+- Runs tests inside container, outputs results to your terminal
+- Test reports saved to `frontend/playwright-report/`
+
+**Benefits**:
+- ✅ Bypasses local Chromium permission issues
+- ✅ Consistent environment across all machines
+- ✅ Same Playwright version as CI/CD
+- ✅ No local browser installation needed
 
 ---
 
