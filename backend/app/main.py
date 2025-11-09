@@ -9335,6 +9335,113 @@ else:
         "Frontend static assets not found. Expected %s", static_assets_dir
     )
 
+# ========== SIMPLIFIED SCORING ENDPOINTS ==========
+
+from .simplified_scoring import SimplifiedScoring
+
+# Global simplified scoring instances (keyed by game_id)
+simplified_games: Dict[str, SimplifiedScoring] = {}
+
+@app.post("/wgp/simplified/start-game")
+async def start_simplified_game(payload: Dict[str, Any]):
+    """Start a new game with simplified scoring system"""
+    try:
+        game_id = payload.get("game_id", str(uuid.uuid4()))
+        players = payload.get("players", [])
+        
+        if not players:
+            raise HTTPException(status_code=400, detail="Players required")
+        
+        # Create simplified scoring instance
+        simplified_games[game_id] = SimplifiedScoring(players)
+        
+        return {
+            "success": True,
+            "game_id": game_id,
+            "message": f"Simplified game started with {len(players)} players",
+            "players": simplified_games[game_id].players
+        }
+        
+    except Exception as e:
+        logger.error(f"Error starting simplified game: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to start game: {str(e)}")
+
+@app.post("/wgp/simplified/score-hole")
+async def score_hole_simplified(payload: Dict[str, Any]):
+    """Score a hole using the simplified scoring system"""
+    try:
+        game_id = payload.get("game_id")
+        if not game_id or game_id not in simplified_games:
+            raise HTTPException(status_code=404, detail="Game not found")
+        
+        hole_number = payload.get("hole_number")
+        scores = payload.get("scores", {})
+        teams = payload.get("teams", {})
+        wager = payload.get("wager", 1)
+        
+        if not hole_number or not scores:
+            raise HTTPException(status_code=400, detail="Hole number and scores required")
+        
+        # Score the hole
+        game = simplified_games[game_id]
+        result = game.enter_hole_scores(hole_number, scores, teams, wager)
+        
+        if "error" in result:
+            raise HTTPException(status_code=400, detail=result["error"])
+        
+        return {
+            "success": True,
+            "hole_result": result,
+            "game_summary": game.get_game_summary()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error scoring hole: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to score hole: {str(e)}")
+
+@app.get("/wgp/simplified/{game_id}/status")
+async def get_simplified_game_status(game_id: str):
+    """Get current status of a simplified scoring game"""
+    try:
+        if game_id not in simplified_games:
+            raise HTTPException(status_code=404, detail="Game not found")
+        
+        game = simplified_games[game_id]
+        
+        return {
+            "game_id": game_id,
+            "game_summary": game.get_game_summary(),
+            "hole_history": game.get_hole_history()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting game status: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get status: {str(e)}")
+
+@app.get("/wgp/simplified/{game_id}/hole-history")
+async def get_simplified_hole_history(game_id: str):
+    """Get hole-by-hole history for a simplified scoring game"""
+    try:
+        if game_id not in simplified_games:
+            raise HTTPException(status_code=404, detail="Game not found")
+        
+        game = simplified_games[game_id]
+        
+        return {
+            "game_id": game_id,
+            "hole_history": game.get_hole_history()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting hole history: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get history: {str(e)}")
+
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_homepage():
