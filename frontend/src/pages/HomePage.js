@@ -464,7 +464,7 @@ function HomePage() {
               </div>
             </button>
             <button
-              onClick={() => navigate('/test-multiplayer')}
+              onClick={() => navigate('/game-scorer')}
               style={{
                 padding: '20px',
                 background: '#7C2D12',
@@ -483,6 +483,35 @@ function HomePage() {
               }}
               onMouseLeave={(e) => {
                 e.target.style.background = '#7C2D12';
+                e.target.style.transform = 'translateY(0)';
+              }}
+            >
+              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⚽</div>
+              <div>Score Rounds</div>
+              <div style={{ fontSize: '0.9rem', opacity: 0.9, marginTop: '8px' }}>
+                Access active games or start new
+              </div>
+            </button>
+            <button
+              onClick={() => navigate('/test-multiplayer')}
+              style={{
+                padding: '20px',
+                background: '#65A30D',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = '#84CC16';
+                e.target.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = '#65A30D';
                 e.target.style.transform = 'translateY(0)';
               }}
             >
