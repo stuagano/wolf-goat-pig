@@ -188,7 +188,7 @@ deploy_docker() {
 # Prepare for Render.com deployment
 deploy_render() {
     log_info "Preparing for Render.com deployment..."
-    
+
     # Create/update render.yaml if needed
     if [ ! -f "render.yaml" ]; then
         log_info "Creating render.yaml..."
@@ -197,7 +197,7 @@ services:
   - type: web
     name: wolf-goat-pig-api
     env: python
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && python run_migrations.py
     startCommand: python startup.py --environment=production --no-reload
     envVars:
       - key: ENVIRONMENT
