@@ -20,8 +20,21 @@ const GameScorerPage = () => {
       setError(null);
 
       try {
-        const response = await fetch(`${API_URL}/games/create-test?player_count=4&course_name=Wing%20Point`, {
-          method: 'POST'
+        const payload = {
+          players: [
+            { name: 'Player 1', id: 'player1' },
+            { name: 'Player 2', id: 'player2' },
+            { name: 'Player 3', id: 'player3' },
+            { name: 'Player 4', id: 'player4' }
+          ]
+        };
+
+        const response = await fetch(`${API_URL}/wgp/simplified/start-game`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
         });
 
         if (!response.ok) {
@@ -31,12 +44,12 @@ const GameScorerPage = () => {
 
         const data = await response.json();
 
-        if (data.game_id) {
+        if (data.success && data.game_id) {
           // Successfully created test game, navigate to it
           console.log('Test game created:', data);
           navigate(`/game/${data.game_id}`);
         } else {
-          throw new Error('No game_id returned from server');
+          throw new Error('Failed to create game or no game_id returned');
         }
       } catch (err) {
         console.error('Error creating test game:', err);
