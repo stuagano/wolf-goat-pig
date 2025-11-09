@@ -1,6 +1,19 @@
 from sqlalchemy import Column, Integer, String, Float, Boolean
 from .database import Base
 from sqlalchemy.types import JSON
+from sqlalchemy.dialects.postgresql import UUID
+import uuid
+import os
+
+# Helper function to get correct UUID column type based on database
+def get_uuid_column():
+    """Return appropriate UUID column type for the current database."""
+    database_url = os.getenv("DATABASE_URL", "")
+    if 'postgresql' in database_url or 'postgres' in database_url:
+        return UUID(as_uuid=True)
+    else:
+        # For SQLite, use String to store UUID as text
+        return String
 
 class Rule(Base):
     __tablename__ = "rules"
@@ -38,7 +51,7 @@ class Hole(Base):
 class GameStateModel(Base):
     __tablename__ = "game_state"
     id = Column(Integer, primary_key=True, index=True)
-    game_id = Column(String, unique=True, index=True)  # Unique identifier for each game
+    game_id = Column(get_uuid_column(), unique=True, index=True)  # Unique identifier for each game
     join_code = Column(String, unique=True, index=True, nullable=True)  # 6-char code for joining
     creator_user_id = Column(String, nullable=True)  # Auth0 user ID of game creator
     game_status = Column(String, default="setup")  # setup, in_progress, completed
@@ -50,7 +63,7 @@ class GameStateModel(Base):
 class GamePlayer(Base):
     __tablename__ = "game_players"
     id = Column(Integer, primary_key=True, index=True)
-    game_id = Column(String, index=True)  # References GameStateModel.game_id
+    game_id = Column(get_uuid_column(), index=True)  # References GameStateModel.game_id
     player_slot_id = Column(String)  # e.g., "p1", "p2", "p3", "p4"
     user_id = Column(String, nullable=True)  # Auth0 user ID
     player_profile_id = Column(Integer, nullable=True)  # References PlayerProfile.id
@@ -133,7 +146,7 @@ class PlayerStatistics(Base):
 class GameRecord(Base):
     __tablename__ = "game_records"
     id = Column(Integer, primary_key=True, index=True)
-    game_id = Column(String, unique=True, index=True)
+    game_id = Column(get_uuid_column(), unique=True, index=True)
     course_name = Column(String)
     game_mode = Column(String, default="wolf_goat_pig")
     player_count = Column(Integer)

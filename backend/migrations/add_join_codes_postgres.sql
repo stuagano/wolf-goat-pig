@@ -13,15 +13,15 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_game_state_join_code ON game_state(join_co
 -- Create game_players table to track authenticated players in games (PostgreSQL syntax)
 CREATE TABLE IF NOT EXISTS game_players (
     id SERIAL PRIMARY KEY,
-    game_id VARCHAR NOT NULL,
+    game_id UUID NOT NULL,
     player_slot_id VARCHAR NOT NULL,
     user_id VARCHAR,
     player_profile_id INTEGER,
     player_name VARCHAR NOT NULL,
     handicap REAL NOT NULL,
     join_status VARCHAR DEFAULT 'pending',
-    joined_at VARCHAR,
-    created_at VARCHAR NOT NULL
+    joined_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create indexes for game_players
