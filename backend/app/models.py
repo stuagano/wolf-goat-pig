@@ -7,10 +7,16 @@ import os
 
 # Helper function to get correct UUID column type based on database
 def get_uuid_column():
-    """Return appropriate UUID column type for the current database."""
+    """Return appropriate UUID column type for the current database.
+
+    Note: We use as_uuid=False for PostgreSQL to store UUIDs as strings,
+    which is compatible with the application code that generates UUIDs
+    using str(uuid.uuid4()). Using as_uuid=True would require changing
+    all UUID generation to use uuid.uuid4() without str().
+    """
     database_url = os.getenv("DATABASE_URL", "")
     if 'postgresql' in database_url or 'postgres' in database_url:
-        return UUID(as_uuid=True)
+        return UUID(as_uuid=False)
     else:
         # For SQLite, use String to store UUID as text
         return String
