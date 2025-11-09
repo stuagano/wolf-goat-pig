@@ -24,8 +24,9 @@ export class ScorekeeperPage {
     });
 
     const currentHole = await this.page.locator('[data-testid="current-hole"]').textContent();
-    if (parseInt(currentHole) !== holeNumber) {
-      throw new Error(`Expected hole ${holeNumber}, but on hole ${currentHole}`);
+    const holeNum = parseInt(currentHole.replace(/[^0-9]/g, ''));
+    if (holeNum !== holeNumber) {
+      throw new Error(`Expected hole ${holeNumber}, but on hole ${holeNum}`);
     }
 
     // Enter scores for all players
@@ -86,14 +87,15 @@ export class ScorekeeperPage {
     });
 
     const currentHole = await this.page.locator('[data-testid="current-hole"]').textContent();
-    if (parseInt(currentHole) !== nextHole) {
-      throw new Error(`Expected to advance to hole ${nextHole}, but on hole ${currentHole}`);
+    const holeNum = parseInt(currentHole.replace(/[^0-9]/g, ''));
+    if (holeNum !== nextHole) {
+      throw new Error(`Expected to advance to hole ${nextHole}, but on hole ${holeNum}`);
     }
   }
 
   async getCurrentHole() {
     const holeText = await this.page.locator('[data-testid="current-hole"]').textContent();
-    return parseInt(holeText);
+    return parseInt(holeText.replace(/[^0-9]/g, ''));
   }
 
   async getPlayerPoints(playerId) {
