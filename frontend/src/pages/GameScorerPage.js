@@ -22,13 +22,8 @@ const GameScorerPage = () => {
       setError(null);
 
       try {
-        const response = await fetch(`${API_URL}/games/create-test`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            player_count: 4,
-            course_name: null
-          })
+        const response = await fetch(`${API_URL}/games/create-test?player_count=4&course_name=Wing%20Point`, {
+          method: 'POST'
         });
 
         if (!response.ok) {
