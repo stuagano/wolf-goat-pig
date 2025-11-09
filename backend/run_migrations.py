@@ -35,7 +35,8 @@ def run_migrations():
     # Determine which migration files to run
     if db_type == 'postgresql':
         migration_files = [
-            'add_game_id_to_game_state.sql',
+            'enable_uuid_extension_postgres.sql',
+            'add_game_id_to_game_state_postgres.sql',
             'add_join_codes_postgres.sql'
         ]
     elif db_type == 'sqlite':
