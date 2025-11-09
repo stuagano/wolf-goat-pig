@@ -82,33 +82,40 @@ function HomePage() {
   
   const mainBoxes = [
     {
-      icon: '⚔️',
-      title: 'Multiplayer Game',
-      description: 'Create a game and share the join code with your friends',
+      icon: '🎮',
+      title: 'Create New Game',
+      description: 'Start a game as the host - set up and share join code with friends',
       action: () => navigate('/game'),
       buttonText: 'Create Game',
       color: '#047857' // deep forest green
     },
     {
-      icon: '🎮',
-      title: 'Practice Mode',
-      description: 'Practice against computer opponents to learn strategies',
-      action: () => navigate('/simulation'),
-      buttonText: 'Start Practice',
+      icon: '🔗',
+      title: 'Join Game',
+      description: 'Join a friend\'s game using their join code',
+      action: () => navigate('/join'),
+      buttonText: 'Join with Code',
       color: '#0369A1' // deep water blue
     },
     {
-      icon: '📝',
-      title: 'Sign Up Players',
-      description: 'Organize games and manage player availability',
-      action: () => navigate('/signup'),
-      buttonText: 'Sign Up',
+      icon: '🏌️',
+      title: 'Score Rounds',
+      description: 'Access ongoing games to score holes and track betting',
+      action: () => {
+        const currentGameId = localStorage.getItem('wgp_current_game');
+        if (currentGameId) {
+          navigate(`/game/${currentGameId}`);
+        } else {
+          navigate('/game');
+        }
+      },
+      buttonText: 'Score Game',
       color: '#7C2D12' // warm brown
     },
     {
       icon: '🎓',
-      title: 'Tutorial',
-      description: 'Learn the rules and strategies of Wolf Goat Pig',
+      title: 'Learn to Play',
+      description: 'Tutorial and rules for Wolf Goat Pig betting strategies',
       action: () => navigate('/tutorial'),
       buttonText: 'Start Tutorial',
       color: '#065F46' // pine green
@@ -323,7 +330,7 @@ function HomePage() {
           )}
         </div>
         
-        {/* Multiplayer Section - Always visible */}
+        {/* Quick Start Section - Always visible */}
         <div style={{
           background: 'rgba(255, 255, 255, 0.95)',
           borderRadius: '16px',
@@ -339,7 +346,7 @@ function HomePage() {
             marginBottom: '16px',
             textAlign: 'center'
           }}>
-            🌐 Multiplayer Games
+            🚀 Quick Start
           </h3>
           <p style={{
             color: '#6B7280',
@@ -347,7 +354,7 @@ function HomePage() {
             textAlign: 'center',
             marginBottom: '30px'
           }}>
-            Create a game and share a join code with your friends!
+            Get started with Wolf Goat Pig in seconds!
           </p>
 
           {/* Resume Game Button - shown if active session exists */}
@@ -402,108 +409,82 @@ function HomePage() {
 
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
             gap: '20px'
           }}>
             <button
               onClick={() => navigate('/game')}
               style={{
-                padding: '20px',
+                padding: '24px',
                 background: '#047857',
                 color: 'white',
                 border: 'none',
                 borderRadius: '12px',
-                fontSize: '16px',
-                fontWeight: '600',
+                fontSize: '18px',
+                fontWeight: '700',
                 cursor: 'pointer',
                 transition: 'all 0.3s ease',
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+                boxShadow: '0 6px 20px rgba(4, 120, 87, 0.3)'
               }}
               onMouseEnter={(e) => {
                 e.target.style.background = '#065F46';
-                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.transform = 'translateY(-3px)';
+                e.target.style.boxShadow = '0 8px 25px rgba(4, 120, 87, 0.4)';
               }}
               onMouseLeave={(e) => {
                 e.target.style.background = '#047857';
                 e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 6px 20px rgba(4, 120, 87, 0.3)';
               }}
             >
-              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🎮</div>
-              <div>Create New Game</div>
-              <div style={{ fontSize: '0.9rem', opacity: 0.9, marginTop: '8px' }}>
-                You manage, share join code
+              <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🎮</div>
+              <div style={{ fontSize: '1.2rem', marginBottom: '8px' }}>CREATE GAME</div>
+              <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>
+                Host a new Wolf Goat Pig game
               </div>
             </button>
             <button
               onClick={() => navigate('/join')}
               style={{
-                padding: '20px',
+                padding: '24px',
                 background: '#0369A1',
                 color: 'white',
                 border: 'none',
                 borderRadius: '12px',
-                fontSize: '16px',
-                fontWeight: '600',
+                fontSize: '18px',
+                fontWeight: '700',
                 cursor: 'pointer',
                 transition: 'all 0.3s ease',
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+                boxShadow: '0 6px 20px rgba(3, 105, 161, 0.3)'
               }}
               onMouseEnter={(e) => {
                 e.target.style.background = '#075985';
-                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.transform = 'translateY(-3px)';
+                e.target.style.boxShadow = '0 8px 25px rgba(3, 105, 161, 0.4)';
               }}
               onMouseLeave={(e) => {
                 e.target.style.background = '#0369A1';
                 e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 6px 20px rgba(3, 105, 161, 0.3)';
               }}
             >
-              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🔗</div>
-              <div>Join with Code</div>
-              <div style={{ fontSize: '0.9rem', opacity: 0.9, marginTop: '8px' }}>
-                Enter friend's join code
-              </div>
-            </button>
-            <button
-              onClick={() => navigate('/test-multiplayer')}
-              style={{
-                padding: '20px',
-                background: '#7C2D12',
-                color: 'white',
-                border: 'none',
-                borderRadius: '12px',
-                fontSize: '16px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.background = '#9A3412';
-                e.target.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.background = '#7C2D12';
-                e.target.style.transform = 'translateY(0)';
-              }}
-            >
-              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🧪</div>
-              <div>Test Mode</div>
-              <div style={{ fontSize: '0.9rem', opacity: 0.9, marginTop: '8px' }}>
-                Test without login
+              <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🔗</div>
+              <div style={{ fontSize: '1.2rem', marginBottom: '8px' }}>JOIN GAME</div>
+              <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>
+                Use a friend's join code
               </div>
             </button>
           </div>
         </div>
 
-        {/* Main Game Boxes - Show only when authenticated */}
-        {isAuthenticated && (
-          <div className="wgp-main-grid" style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: '30px',
-            marginBottom: '60px'
-          }}>
-            {mainBoxes.map((box, index) => (
+        {/* Main Game Boxes - Always visible for better discoverability */}
+        <div className="wgp-main-grid" style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: '30px',
+          marginBottom: '60px'
+        }}>
+          {mainBoxes.map((box, index) => (
             <div
               key={index}
               style={{
@@ -570,8 +551,7 @@ function HomePage() {
               </button>
             </div>
           ))}
-          </div>
-        )}
+        </div>
         
         {/* Show game options only after authentication */}
         {!isAuthenticated && (

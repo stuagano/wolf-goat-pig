@@ -32,8 +32,8 @@ const Navigation = () => {
 
   const navLinks = [
     { path: '/', label: '🏠 Home', primary: true },
-    { path: '/game', label: '⚔️ Regular Game', primary: true },
-    { path: '/simulation', label: '🎮 Practice Mode', primary: true },
+    { path: '/game', label: '🎮 Create Game', primary: true },
+    { path: '/join', label: '🔗 Join Game', primary: true },
     { path: '/signup', label: '📝 Sign Up Players', primary: true },
     { path: '/leaderboard', label: '🏆 Leaderboard', primary: true },
     { path: '/tutorial', label: '🎓 Tutorial', primary: false },

@@ -83,7 +83,7 @@ function CreateGamePage() {
           🎮 Create New Game
         </h1>
         <p style={{ color: theme.colors.textSecondary, marginBottom: 24 }}>
-          Set up a game and share the join code with your friends!
+          Set up your Wolf Goat Pig game! After creating, you'll get a join code to share with friends and can start scoring rounds immediately.
         </p>
 
         {/* Course Selection */}
@@ -156,10 +156,10 @@ function CreateGamePage() {
             <strong>How it works:</strong>
           </p>
           <ol style={{ margin: '8px 0 0 0', paddingLeft: 20, fontSize: 14 }}>
-            <li>Create the game to get a join code</li>
-            <li>Share the code with your friends</li>
-            <li>They visit this site and enter the code</li>
-            <li>Start the game when everyone has joined!</li>
+            <li>Create the game to get a unique join code</li>
+            <li>Share the code with your friends so they can join</li>
+            <li>Once everyone joins, you can start scoring rounds</li>
+            <li>Track betting and scores hole by hole!</li>
           </ol>
         </div>
 
