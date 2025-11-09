@@ -2369,17 +2369,17 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
         # Send game start notifications to all players using NotificationService
         notification_service = get_notification_service()
         for player in players:
-            if player.player_id:  # Only send to registered players
+            if player.player_profile_id:  # Only send to registered players
                 try:
                     notification_service.send_notification(
-                        player_id=player.player_id,
+                        player_id=player.player_profile_id,
                         notification_type="game_start",
                         message=f"Game {game_id[:8]} has started with {len(players)} players!",
                         db=db,
                         data={"game_id": game_id, "player_count": len(players)}
                     )
                 except Exception as notif_error:
-                    logger.warning(f"Failed to send game start notification to player {player.player_id}: {notif_error}")
+                    logger.warning(f"Failed to send game start notification to player {player.player_profile_id}: {notif_error}")
 
         return {
             "status": "started",
