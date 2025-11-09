@@ -162,6 +162,81 @@ for player in players:
 
 ---
 
+### DB003: Rollback in Loop After Flush (Manual Check)
+
+**Severity:** ERROR (requires manual code review)
+
+**Pattern:**
+```python
+# ❌ DANGEROUS - Rollback discards flushed objects
+game_record = GameRecord(...)
+db.add(game_record)
+db.flush()  # Gets game_record.id
+
+for player in players:
+    try:
+        result = GamePlayerResult(game_record_id=game_record.id)
+        db.add(result)
+    except Exception as e:
+        db.rollback()  # ⚠️ Discards game_record!
+        continue  # ⚠️ But loop continues with stale game_record.id
+```
+
+**The Problem:**
+1. Object is added and flushed to get its ID (e.g., `game_record.id = 123`)
+2. Loop uses that ID for related objects (`game_record_id=123`)
+3. Exception occurs → rollback discards the flushed object
+4. Loop continues → subsequent iterations use stale ID (123) that no longer exists
+5. Commit fails with foreign key constraint violation
+
+**Correct Pattern (Skip Failed Batch):**
+```python
+# ✅ CORRECT - Skip entire batch after rollback
+game_record = GameRecord(...)
+db.add(game_record)
+db.flush()
+
+batch_failed = False
+for player in players:
+    try:
+        result = GamePlayerResult(game_record_id=game_record.id)
+        db.add(result)
+    except Exception as e:
+        db.rollback()  # Discards game_record
+        batch_failed = True
+        break  # ✅ Exit loop - can't continue with rolled-back parent
+
+if not batch_failed:
+    db.commit()  # Only commit if all succeeded
+```
+
+**Alternative Pattern (Recreate Parent):**
+```python
+# ✅ ALTERNATIVE - Recreate parent after rollback
+for player in players:
+    try:
+        # Recreate parent if it was rolled back
+        if not hasattr(game_record, 'id'):
+            game_record = GameRecord(...)
+            db.add(game_record)
+            db.flush()
+
+        result = GamePlayerResult(game_record_id=game_record.id)
+        db.add(result)
+    except Exception as e:
+        db.rollback()
+        game_record = None  # Mark as needing recreation
+        continue
+```
+
+**Why This Is Critical:**
+- Foreign key constraints will fail on commit
+- Creates orphaned records
+- Data integrity violations
+- Silent data loss (partial batches)
+
+---
+
 ## Best Practices
 
 ### 1. Always Use `.isoformat()` for Timestamps

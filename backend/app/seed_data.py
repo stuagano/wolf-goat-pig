@@ -282,6 +282,9 @@ def seed_sample_games(db: Session) -> int:
             db.flush()  # Get the game_record_id
             
             # Add player results for this game
+            # Track if scenario should be skipped due to errors
+            scenario_failed = False
+
             for player_name, results in scenario["final_scores"].items():
                 try:
                     # Find the player profile
@@ -306,16 +309,21 @@ def seed_sample_games(db: Session) -> int:
                     db.add(player_result)
                 except Exception as player_error:
                     logger.warning(f"Failed to add player result for '{player_name}': {player_error}")
-                    # Rollback transaction to clear error state before continuing
+                    # Rollback transaction - this discards the flushed GameRecord
                     try:
                         db.rollback()
                     except Exception as rollback_error:
                         logger.warning(f"Failed to rollback after player result error: {rollback_error}")
-                    # Continue with next player instead of aborting entire transaction
-                    continue
-            
-            games_added += 1
-            logger.info(f"Added sample game: {scenario['scenario_name']}")
+                    # Must skip entire scenario since GameRecord was rolled back
+                    # Cannot continue adding player results with stale game_record.id
+                    scenario_failed = True
+                    logger.warning(f"Skipping scenario '{scenario['scenario_name']}' due to player result error")
+                    break
+
+            # Only count game as added if all player results succeeded
+            if not scenario_failed:
+                games_added += 1
+                logger.info(f"Added sample game: {scenario['scenario_name']}")
         
         db.commit()
         logger.info(f"Successfully seeded {games_added} sample games!")
