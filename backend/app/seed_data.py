@@ -241,8 +241,8 @@ def seed_ai_personalities(db: Session) -> int:
                 personality_traits=personality["personality_traits"],
                 strengths=personality["strengths"],
                 weaknesses=personality["weaknesses"],
-                created_at=datetime.now(),
-                updated_at=datetime.now()
+                created_at=datetime.now().isoformat(),
+                updated_at=datetime.now().isoformat()
             )
             
             db.add(player)
@@ -349,8 +349,8 @@ def create_default_human_player(db: Session) -> Optional[PlayerProfile]:
             is_ai=0,
             is_active=1,
             description="Default human player profile",
-            created_at=datetime.now(),
-            updated_at=datetime.now()
+            created_at=datetime.now().isoformat(),
+            updated_at=datetime.now().isoformat()
         )
         
         db.add(default_human)
