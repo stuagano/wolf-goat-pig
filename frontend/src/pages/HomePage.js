@@ -148,6 +148,7 @@ function HomePage() {
         zIndex: 1000
       }}>
         <button
+          data-testid="hamburger-menu-button"
           onClick={() => setMenuOpen(!menuOpen)}
           style={{
             background: 'white',
@@ -180,6 +181,7 @@ function HomePage() {
             {menuItems.map((item, index) => (
               <button
                 key={index}
+                data-testid={item.path === '/test-multiplayer' ? 'test-multiplayer-menu-item' : undefined}
                 onClick={() => {
                   navigate(item.path);
                   setMenuOpen(false);

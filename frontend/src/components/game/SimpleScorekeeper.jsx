@@ -379,7 +379,7 @@ const SimpleScorekeeper = ({
   };
 
   return (
-    <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
+    <div data-testid="scorekeeper-container" style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
       {/* Edit Mode Banner */}
       {editingHole && (
         <div style={{
@@ -955,8 +955,8 @@ const SimpleScorekeeper = ({
         <div style={{ fontSize: '18px', marginBottom: '8px', opacity: 0.9 }}>
           Current Hole
         </div>
-        <div style={{ fontSize: '48px', fontWeight: 'bold', lineHeight: 1 }}>
-          {currentHole}
+        <div data-testid="current-hole" style={{ fontSize: '48px', fontWeight: 'bold', lineHeight: 1 }}>
+          Hole {currentHole}
         </div>
         <div style={{ fontSize: '16px', marginTop: '8px', opacity: 0.9 }}>
           Par {holePar}
@@ -1220,6 +1220,8 @@ const SimpleScorekeeper = ({
         {Object.values(playerStandings).sort((a, b) => b.quarters - a.quarters).map((player, index) => {
           const isLeader = index === 0 && player.quarters > 0;
           const isLast = index === Object.values(playerStandings).length - 1 && player.quarters < 0;
+          // Find the player ID from the players array to use in data-testid
+          const playerId = players.find(p => p.name === player.name)?.id;
 
           return (
             <div
@@ -1289,16 +1291,19 @@ const SimpleScorekeeper = ({
               </div>
 
               {/* Quarters */}
-              <div style={{
-                fontSize: '24px',
-                fontWeight: 'bold',
-                color: player.quarters > 0 ? '#4CAF50' : player.quarters < 0 ? '#f44336' : theme.colors.textSecondary,
-                padding: '8px 16px',
-                borderRadius: '8px',
-                background: player.quarters > 0 ? 'rgba(76, 175, 80, 0.1)' :
-                           player.quarters < 0 ? 'rgba(244, 67, 54, 0.1)' :
-                           theme.colors.backgroundSecondary
-              }}>
+              <div
+                data-testid={`player-${playerId}-points`}
+                style={{
+                  fontSize: '24px',
+                  fontWeight: 'bold',
+                  color: player.quarters > 0 ? '#4CAF50' : player.quarters < 0 ? '#f44336' : theme.colors.textSecondary,
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  background: player.quarters > 0 ? 'rgba(76, 175, 80, 0.1)' :
+                             player.quarters < 0 ? 'rgba(244, 67, 54, 0.1)' :
+                             theme.colors.backgroundSecondary
+                }}
+              >
                 {player.quarters > 0 ? '+' : ''}{player.quarters}Q
               </div>
             </div>
@@ -1561,6 +1566,7 @@ const SimpleScorekeeper = ({
             Partners
           </button>
           <button
+            data-testid="go-solo-button"
             onClick={() => setTeamMode('solo')}
             className="touch-optimized"
             style={{
@@ -1630,6 +1636,7 @@ const SimpleScorekeeper = ({
               return (
                 <button
                   key={player.id}
+                  data-testid={`partner-${player.id}`}
                   onClick={() => togglePlayerTeam(player.id)}
                   style={{
                     padding: '12px',
@@ -1654,6 +1661,7 @@ const SimpleScorekeeper = ({
               return (
                 <button
                   key={player.id}
+                  data-testid={`partner-${player.id}`}
                   onClick={() => toggleCaptain(player.id)}
                   style={{
                     padding: '12px',
@@ -1729,6 +1737,7 @@ const SimpleScorekeeper = ({
             <div key={player.id} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <label style={{ flex: 1, fontWeight: 'bold' }}>{player.name}:</label>
               <input
+                data-testid={`score-input-${player.id}`}
                 type="number"
                 min="0"
                 max="15"
@@ -2051,6 +2060,7 @@ const SimpleScorekeeper = ({
 
       {/* Submit Button */}
       <button
+        data-testid="complete-hole-button"
         onClick={handleSubmitHole}
         disabled={submitting}
         style={{
