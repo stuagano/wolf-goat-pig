@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../theme/Provider';
 import BettingTracker from './BettingTracker';
+import GameCompletionView from './GameCompletionView';
 import '../../styles/mobile-touch.css';
 
 const API_URL = process.env.REACT_APP_API_URL || '';
@@ -377,6 +378,24 @@ const SimpleScorekeeper = ({
       setSubmitting(false);
     }
   };
+
+  // Check if game is complete (all 18 holes played)
+  const isGameComplete = currentHole > 18 && holeHistory.length === 18;
+
+  // Show completion view if game is complete
+  if (isGameComplete) {
+    return (
+      <GameCompletionView
+        players={players}
+        playerStandings={playerStandings}
+        holeHistory={holeHistory}
+        onNewGame={() => {
+          // Reset to start a new game
+          window.location.reload();
+        }}
+      />
+    );
+  }
 
   return (
     <div data-testid="scorekeeper-container" style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
