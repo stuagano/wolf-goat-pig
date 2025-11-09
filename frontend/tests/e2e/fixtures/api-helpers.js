@@ -8,7 +8,7 @@ export class APIHelpers {
       const holeData = holesData[hole];
       if (!holeData) continue;
 
-      const response = await fetch(`${this.baseURL}/games/${gameId}/complete-hole`, {
+      const response = await fetch(`${this.baseURL}/games/${gameId}/holes/complete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -25,15 +25,22 @@ export class APIHelpers {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to complete hole ${hole}: ${response.statusText}`);
+        const errorBody = await response.text();
+        throw new Error(`Failed to complete hole ${hole}: ${response.statusText}. Response: ${errorBody}`);
       }
     }
   }
 
   async deleteGame(gameId) {
-    await fetch(`${this.baseURL}/games/${gameId}`, {
+    const response = await fetch(`${this.baseURL}/games/${gameId}`, {
       method: 'DELETE'
     });
+
+    // Handle 404 gracefully on cleanup - game may already be deleted
+    if (!response.ok && response.status !== 404) {
+      const errorBody = await response.text();
+      throw new Error(`Failed to delete game ${gameId}: ${response.statusText}. Response: ${errorBody}`);
+    }
   }
 
   async createTestGame(playerCount = 4, courseName = 'Wing Point') {
