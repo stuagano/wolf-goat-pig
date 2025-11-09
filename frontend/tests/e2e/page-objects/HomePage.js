@@ -6,6 +6,14 @@ export class HomePage {
   async goto() {
     await this.page.goto('/');
     await this.page.waitForLoadState('networkidle');
+
+    // Click "Browse Without Login" to dismiss splash screen and access main app
+    try {
+      await this.page.click('text=/Browse Without Login/i', { timeout: 5000 });
+      await this.page.waitForLoadState('networkidle');
+    } catch (e) {
+      // Splash screen may not appear, continue
+    }
   }
 
   async clickMultiplayerGame() {
@@ -25,7 +33,9 @@ export class HomePage {
   }
 
   async verifyHomepageLoaded() {
-    await this.page.waitForSelector('text=/Wolf Goat Pig/i');
-    await this.page.waitForSelector('text=/Multiplayer Game/i');
+    // Wait for the navigation bar to be visible (indicates main app has loaded)
+    await this.page.waitForSelector('button:has-text("Home")', { state: 'visible' });
+    // Wait for the homepage welcome message
+    await this.page.waitForSelector('text=/Welcome to Wolf Goat Pig/i', { state: 'visible' });
   }
 }
