@@ -6,7 +6,6 @@ import {
   HoleVisualization,
   PlayersCard,
   BettingCard,
-  ShotContextCard,
   Scorecard
 } from './index';
 import SimulationDecisionPanel from '../SimulationDecisionPanel';

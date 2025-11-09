@@ -13,12 +13,10 @@ const API_URL = process.env.REACT_APP_API_URL || "";
 const GameScorerPage = () => {
   const navigate = useNavigate();
   const theme = useTheme();
-  const [creating, setCreating] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     const createTestGame = async () => {
-      setCreating(true);
       setError(null);
 
       try {
@@ -43,7 +41,6 @@ const GameScorerPage = () => {
       } catch (err) {
         console.error('Error creating test game:', err);
         setError(err.message);
-        setCreating(false);
       }
     };
 

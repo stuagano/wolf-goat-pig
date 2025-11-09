@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import { Routes, Route, useNavigate, Navigate, useLocation } from "react-router-dom";
 import { useAuth0 } from "@auth0/auth0-react";
-import { UnifiedGameInterface, SimpleScorekeeper } from "./components/game";
-import { SimulationMode, ScorerMode, MonteCarloSimulation } from "./components/simulation";
+import { MonteCarloSimulation } from "./components/simulation";
 import FeedAnalyzer from "./components/simulation/FeedAnalyzer";
 import ShotRangeAnalyzer from "./components/ShotRangeAnalyzer";
 import ColdStartHandler from "./components/ColdStartHandler";
