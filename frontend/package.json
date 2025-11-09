@@ -20,7 +20,12 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "vercel-build": "react-scripts build",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:report": "playwright show-report"
   },
   "jest": {
     "transformIgnorePatterns": [

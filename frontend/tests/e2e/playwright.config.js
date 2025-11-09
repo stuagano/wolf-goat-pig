@@ -1,16 +1,16 @@
-const { defineConfig, devices } = require('@playwright/test');
+import { defineConfig, devices } from '@playwright/test';
 
-module.exports = defineConfig({
+export default defineConfig({
   testDir: './tests',
-  fullyParallel: false,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: 1,
-  reporter: 'html',
+  timeout: 120000, // 2 minutes per test
+  retries: 2,
+  workers: 1, // Run serially to avoid port conflicts
+
   use: {
-    baseURL: 'http://localhost:3001',
-    trace: 'on-first-retry',
+    baseURL: 'http://localhost:3000',
     screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
+    trace: 'retain-on-failure',
   },
 
   projects: [
@@ -20,10 +20,24 @@ module.exports = defineConfig({
     },
   ],
 
-  webServer: {
-    command: 'npm start',
-    url: 'http://localhost:3001',
-    reuseExistingServer: true,
-    timeout: 120 * 1000,
-  },
+  webServer: [
+    {
+      command: 'cd ../../backend && uvicorn app.main:app --reload',
+      port: 8000,
+      timeout: 120000,
+      reuseExistingServer: !process.env.CI,
+    },
+    {
+      command: 'cd .. && npm start',
+      port: 3000,
+      timeout: 120000,
+      reuseExistingServer: !process.env.CI,
+    },
+  ],
+
+  reporter: [
+    ['html', { outputFolder: 'playwright-report' }],
+    ['junit', { outputFile: 'test-results/junit.xml' }],
+    ['list'],
+  ],
 });
