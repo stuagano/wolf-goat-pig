@@ -1,0 +1,30 @@
+# Pre-commit hooks for Wolf-Goat-Pig
+# Install: pip install pre-commit && pre-commit install
+# Run manually: pre-commit run --all-files
+
+repos:
+  # Standard Python linters
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-json
+      - id: check-merge-conflict
+      - id: debug-statements
+
+  # Custom database transaction linter
+  - repo: local
+    hooks:
+      - id: lint-db-transactions
+        name: Database Transaction Linter
+        entry: backend/lint_db_transactions.py
+        language: python
+        types: [python]
+        files: ^backend/app/.*\.py$
+        pass_filenames: false
+        args: ['backend/app/']
+        verbose: true
