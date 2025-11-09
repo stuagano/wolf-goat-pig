@@ -23,11 +23,6 @@ const MobileScorecard = ({ gameState }) => {
       .sort((a, b) => b.quarters - a.quarters);
   };
 
-  // Get hole history if available
-  const getHoleHistory = () => {
-    return gameState.hole_history || [];
-  };
-
   const standings = getCurrentStandings();
   const currentHole = gameState.current_hole || 1;
 
