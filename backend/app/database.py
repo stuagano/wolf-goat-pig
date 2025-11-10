@@ -1,6 +1,8 @@
 from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
+from contextlib import contextmanager
+from typing import Generator
 import os
 import logging
 
@@ -35,6 +37,10 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 def get_db():
+    """
+    FastAPI dependency for database sessions.
+    Use this for endpoint dependencies: db: Session = Depends(get_db)
+    """
     db = SessionLocal()
     try:
         yield db
@@ -44,6 +50,40 @@ def get_db():
         raise
     finally:
         db.close()
+
+@contextmanager
+def get_isolated_session() -> Generator[Session, None, None]:
+    """
+    Context manager for isolated database sessions.
+
+    Use this for independent operations that should not share transaction state:
+    - Background tasks
+    - Batch operations
+    - Operations that might fail but shouldn't affect other operations
+
+    Example:
+        with get_isolated_session() as db:
+            # Do database operations
+            db.commit()  # Explicitly commit
+
+    Benefits:
+    - Each operation gets its own connection from the pool
+    - Transaction failures are isolated
+    - Automatic rollback on exception
+    - Automatic session cleanup
+    """
+    session = SessionLocal()
+    try:
+        logger.debug("Created isolated database session")
+        yield session
+        # Note: Caller must explicitly commit() if they want changes persisted
+    except Exception as e:
+        logger.error(f"Error in isolated session: {e}")
+        session.rollback()
+        raise
+    finally:
+        session.close()
+        logger.debug("Closed isolated database session")
 
 def init_db():
     """Initialize database tables"""

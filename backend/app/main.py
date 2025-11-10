@@ -5459,9 +5459,13 @@ def export_current_data_for_sheet(sheet_headers: List[str] = Query(...)):
 
 @app.post("/sheet-integration/sync-wgp-sheet")
 async def sync_wgp_sheet_data(request: Dict[str, str]):
-    """Sync Wolf Goat Pig specific sheet data format."""
+    """
+    Sync Wolf Goat Pig specific sheet data format.
+
+    Uses isolated sessions per player to ensure failures are isolated and
+    don't cascade to other players' data.
+    """
     try:
-        db = database.SessionLocal()
         from .services.player_service import PlayerService
         from collections import defaultdict
         import httpx

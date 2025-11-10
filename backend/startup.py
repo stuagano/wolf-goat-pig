@@ -426,6 +426,37 @@ async def run_migrations() -> Dict[str, Any]:
                 migrations_applied.append("updated_at column")
                 logging.info("  ✅ Added updated_at column")
 
+            # Migration 4: Add join_code column if missing
+            if 'join_code' not in columns:
+                logging.info("  Adding join_code column to game_state...")
+                if is_postgresql:
+                    db.execute(text("ALTER TABLE game_state ADD COLUMN join_code VARCHAR"))
+                    db.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_game_state_join_code ON game_state(join_code)"))
+                else:
+                    db.execute(text("ALTER TABLE game_state ADD COLUMN join_code VARCHAR"))
+                    db.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_game_state_join_code ON game_state(join_code)"))
+                migrations_applied.append("join_code column")
+                logging.info("  ✅ Added join_code column")
+
+            # Migration 5: Add creator_user_id column if missing
+            if 'creator_user_id' not in columns:
+                logging.info("  Adding creator_user_id column to game_state...")
+                db.execute(text("ALTER TABLE game_state ADD COLUMN creator_user_id VARCHAR"))
+                migrations_applied.append("creator_user_id column")
+                logging.info("  ✅ Added creator_user_id column")
+
+            # Migration 6: Add game_status column if missing
+            if 'game_status' not in columns:
+                logging.info("  Adding game_status column to game_state...")
+                if is_postgresql:
+                    db.execute(text("ALTER TABLE game_state ADD COLUMN game_status VARCHAR DEFAULT 'setup'"))
+                    db.execute(text("UPDATE game_state SET game_status = 'setup' WHERE game_status IS NULL"))
+                else:
+                    db.execute(text("ALTER TABLE game_state ADD COLUMN game_status VARCHAR DEFAULT 'setup'"))
+                    db.execute(text("UPDATE game_state SET game_status = 'setup' WHERE game_status IS NULL"))
+                migrations_applied.append("game_status column")
+                logging.info("  ✅ Added game_status column")
+
             db.commit()
 
             if migrations_applied:
