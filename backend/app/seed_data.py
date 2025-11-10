@@ -104,35 +104,9 @@ DEFAULT_AI_PERSONALITIES = [
     }
 ]
 
-# Sample game data for testing and demonstration
-SAMPLE_GAME_SCENARIOS = [
-    {
-        "scenario_name": "Close Championship Finish",
-        "description": "Tight competition with multiple lead changes",
-        "player_count": 4,
-        "course_name": "Wing Point Golf & Country Club",
-        "total_holes": 18,
-        "final_scores": {
-            "Bob": {"quarters": 2.5, "holes_won": 5},
-            "Scott": {"quarters": 1.0, "holes_won": 3},
-            "Vince": {"quarters": -1.5, "holes_won": 4},
-            "Mike": {"quarters": -2.0, "holes_won": 6}
-        }
-    },
-    {
-        "scenario_name": "Dominant Performance",
-        "description": "One player runs away with the competition",
-        "player_count": 4,
-        "course_name": "Championship Links",
-        "total_holes": 18,
-        "final_scores": {
-            "Bob": {"quarters": 8.5, "holes_won": 12},
-            "Scott": {"quarters": -2.5, "holes_won": 2},
-            "Vince": {"quarters": -3.0, "holes_won": 3},
-            "Mike": {"quarters": -3.0, "holes_won": 1}
-        }
-    }
-]
+# Sample game scenarios - DEPRECATED (not used)
+# Sample games disabled - real game data created through gameplay
+SAMPLE_GAME_SCENARIOS = []
 
 def verify_database_connection(db: Session) -> bool:
     """Verify database connection is working."""
@@ -260,80 +234,21 @@ def seed_ai_personalities(db: Session) -> int:
     return personalities_added
 
 def seed_sample_games(db: Session) -> int:
-    """Seed database with sample game data for testing."""
-    games_added = 0
-    
-    try:
-        for scenario in SAMPLE_GAME_SCENARIOS:
-            # Create sample game record
-            game_date = datetime.now() - timedelta(days=games_added * 7)  # Space games a week apart
-            
-            game_record = GameRecord(
-                game_date=game_date,
-                course_name=scenario["course_name"],
-                player_count=scenario["player_count"],
-                total_holes=scenario["total_holes"],
-                game_mode="wolf_goat_pig",
-                notes=scenario["description"],
-                created_at=game_date
-            )
-            
-            db.add(game_record)
-            db.flush()  # Get the game_record_id
-            
-            # Add player results for this game
-            # Track if scenario should be skipped due to errors
-            scenario_failed = False
+    """
+    DEPRECATED: Sample game seeding disabled.
 
-            for player_name, results in scenario["final_scores"].items():
-                try:
-                    # Find the player profile
-                    player_profile = db.query(PlayerProfile).filter_by(name=player_name).first()
-                    if not player_profile:
-                        logger.warning(f"Player '{player_name}' not found for sample game, skipping...")
-                        continue
+    Sample games are not needed for the application to function.
+    Real game data is created naturally through gameplay using the
+    simple commit-per-hole pattern in main.py.
 
-                    player_result = GamePlayerResult(
-                        game_record_id=game_record.id,
-                        player_profile_id=player_profile.id,
-                        final_score=results["quarters"],
-                        holes_won=results["holes_won"],
-                        holes_played=scenario["total_holes"],
-                        partnerships_formed=max(1, results["holes_won"] // 4),  # Estimate
-                        solo_attempts=max(0, results["holes_won"] // 8),  # Estimate
-                        successful_bets=results["holes_won"],
-                        total_bets=scenario["total_holes"],
-                        created_at=game_date
-                    )
+    This function previously attempted complex batch operations with
+    flush/rollback logic that caused foreign key violations and added
+    unnecessary complexity.
 
-                    db.add(player_result)
-                except Exception as player_error:
-                    logger.warning(f"Failed to add player result for '{player_name}': {player_error}")
-                    # Rollback transaction - this discards the flushed GameRecord
-                    try:
-                        db.rollback()
-                    except Exception as rollback_error:
-                        logger.warning(f"Failed to rollback after player result error: {rollback_error}")
-                    # Must skip entire scenario since GameRecord was rolled back
-                    # Cannot continue adding player results with stale game_record.id
-                    scenario_failed = True
-                    logger.warning(f"Skipping scenario '{scenario['scenario_name']}' due to player result error")
-                    break
-
-            # Only count game as added if all player results succeeded
-            if not scenario_failed:
-                games_added += 1
-                logger.info(f"Added sample game: {scenario['scenario_name']}")
-        
-        db.commit()
-        logger.info(f"Successfully seeded {games_added} sample games!")
-        
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Error seeding sample games: {e}")
-        raise
-    
-    return games_added
+    If you need test data, use actual game simulation endpoints instead.
+    """
+    logger.info("Sample game seeding is disabled - not needed for app functionality")
+    return 0
 
 def create_default_human_player(db: Session) -> Optional[PlayerProfile]:
     """Create a default human player profile if none exists."""
@@ -417,17 +332,16 @@ def verify_seeded_data(db: Session) -> dict:
             "message": f"Found {human_player_count} human players" if human_player_count >= 1 else "No human players found (will use default)"
         }
         
-        # Check sample games
-        game_count = db.query(GameRecord).count()
+        # Sample games check (disabled)
         verification_results["sample_games"] = {
-            "count": game_count,
-            "status": "success" if game_count >= 1 else "info",
-            "message": f"Found {game_count} sample games" if game_count >= 1 else "No sample games found"
+            "count": 0,
+            "status": "skipped",
+            "message": "Sample games disabled - use real gameplay for data"
         }
         
-        # Overall status
+        # Overall status (only check critical components)
         all_critical_success = all(
-            result["status"] in ["success", "info"] 
+            result["status"] in ["success", "info", "skipped"]
             for key, result in verification_results.items()
             if key in ["courses", "rules", "ai_personalities"]
         )
@@ -511,21 +425,13 @@ def seed_all_data(force_reseed: bool = False) -> dict:
             "status": "success"
         }
         
-        # Seed sample games (optional)
-        logger.info("Seeding sample games...")
-        try:
-            games_added = seed_sample_games(db)
-            seeding_results["results"]["sample_games"] = {
-                "added": games_added,
-                "status": "success"
-            }
-        except Exception as e:
-            logger.warning(f"Failed to seed sample games (non-critical): {e}")
-            seeding_results["results"]["sample_games"] = {
-                "added": 0,
-                "status": "warning",
-                "error": str(e)
-            }
+        # Sample games seeding disabled (not needed)
+        logger.info("Skipping sample games (disabled - not needed for app)")
+        seeding_results["results"]["sample_games"] = {
+            "added": 0,
+            "status": "skipped",
+            "message": "Sample games disabled - use real gameplay for test data"
+        }
         
         # Verify all seeded data
         logger.info("Verifying seeded data...")
