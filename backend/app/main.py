@@ -5713,9 +5713,11 @@ async def sync_wgp_sheet_data(request: Dict[str, str]):
                 db.commit()
                 
                 sync_results["players_processed"] += 1
-                
+
             except Exception as e:
+                db.rollback()  # CRITICAL: Roll back the failed transaction
                 sync_results["errors"].append(f"Error processing {player_name}: {str(e)}")
+                logger.error(f"Failed to process {player_name}, rolled back transaction: {e}")
                 continue
         
         # Log summary of synced data
