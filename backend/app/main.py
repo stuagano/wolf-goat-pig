@@ -5462,17 +5462,33 @@ async def sync_wgp_sheet_data(request: Dict[str, str], db: Session = Depends(dat
     """
     Sync Wolf Goat Pig specific sheet data format.
 
+    Rate limited to once per hour to prevent excessive API calls.
+    Results are cached for 1 hour.
+
     Uses isolated sessions per player to ensure failures are isolated and
     don't cascade to other players' data.
     """
+    from .middleware.rate_limiting import rate_limiter
+    from .middleware.caching import sheet_sync_cache
+
     try:
-        from .services.player_service import PlayerService
-        from collections import defaultdict
-        import httpx
-        
+        # Rate limit: max once per hour
+        rate_limiter.check_limit("sheet_sync", min_interval_seconds=3600)
+
         csv_url = request.get("csv_url")
         if not csv_url:
             raise HTTPException(status_code=400, detail="CSV URL is required")
+
+        # Check cache first
+        cache_key = f"sheet_sync:{csv_url}"
+        cached_result = sheet_sync_cache.get(cache_key)
+        if cached_result:
+            logger.info(f"Returning cached sheet sync data (CSV: {csv_url[:50]}...)")
+            return cached_result
+
+        from .services.player_service import PlayerService
+        from collections import defaultdict
+        import httpx
         
         # Fetch the CSV data (follow redirects for Google Sheets export URLs)
         async with httpx.AsyncClient(follow_redirects=True) as client:
@@ -5729,7 +5745,7 @@ async def sync_wgp_sheet_data(request: Dict[str, str], db: Session = Depends(dat
         logger.info(f"Sync results: {sync_results}")
         
         # Return detailed sync information including the data that was synced
-        return {
+        result = {
             "sync_results": sync_results,
             "player_count": len(player_stats),
             "synced_at": datetime.now().isoformat(),
@@ -5739,7 +5755,13 @@ async def sync_wgp_sheet_data(request: Dict[str, str], db: Session = Depends(dat
             "ghin_data": ghin_data_collection,  # GHIN scores and handicap data
             "ghin_players_count": len(ghin_data_collection)
         }
-        
+
+        # Cache the result for 1 hour
+        sheet_sync_cache.set(cache_key, result)
+        logger.info(f"Sheet sync data cached for 1 hour (key: {cache_key})")
+
+        return result
+
     except httpx.RequestError as e:
         logger.error(f"Error fetching Google Sheet: {e}")
         raise HTTPException(status_code=400, detail=f"Failed to fetch sheet: {str(e)}")
