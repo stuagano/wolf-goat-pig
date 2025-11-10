@@ -181,7 +181,7 @@ class TestCompleteGameFlow(E2ETestBase):
                 "handicap": participant.handicap
             }
             
-            response = self.api_client.post("/api/players", json=profile_data)
+            response = self.api_client.post("/players", json=profile_data)
             assert response.status_code == 201
             
             profile = response.json()
@@ -203,7 +203,7 @@ class TestCompleteGameFlow(E2ETestBase):
             "stakes": 2.0
         }
         
-        response = self.api_client.post("/api/games", json=game_setup)
+        response = self.api_client.post("/games", json=game_setup)
         assert response.status_code == 201
         
         game_data = response.json()
@@ -251,7 +251,7 @@ class TestCompleteGameFlow(E2ETestBase):
             }
             
             response = self.api_client.post(
-                f"/api/games/{game_state.game_id}/update",
+                f"/games/{game_state.game_id}/update",
                 json=update_data
             )
             assert response.status_code == 200
@@ -278,7 +278,7 @@ class TestCompleteGameFlow(E2ETestBase):
         }
         
         response = self.api_client.post(
-            f"/api/games/{game_state.game_id}/complete",
+            f"/games/{game_state.game_id}/complete",
             json=completion_data
         )
         assert response.status_code == 200
@@ -286,7 +286,7 @@ class TestCompleteGameFlow(E2ETestBase):
         game_state.completion_time = datetime.now()
         
         # Step 6: Verify final game state
-        response = self.api_client.get(f"/api/games/{game_state.game_id}")
+        response = self.api_client.get(f"/games/{game_state.game_id}")
         assert response.status_code == 200
         
         final_game_data = response.json()
@@ -348,7 +348,7 @@ class TestCompleteGameFlow(E2ETestBase):
             }
         }
         
-        response = self.api_client.post("/api/odds/calculate", json=odds_request)
+        response = self.api_client.post("/odds/calculate", json=odds_request)
         assert response.status_code == 200
         initial_odds = response.json()
         
@@ -521,7 +521,7 @@ class TestShotProgressionMode(E2ETestBase):
                     }
                 }
                 
-                response = self.api_client.post("/api/analysis/shot", json=analysis_request)
+                response = self.api_client.post("/analysis/shot", json=analysis_request)
                 assert response.status_code == 200
                 
                 analysis = response.json()
@@ -569,7 +569,7 @@ class TestShotProgressionMode(E2ETestBase):
             "hole": {"number": 10, "par": 4, "difficulty": 3.5}
         }
         
-        response = self.api_client.post("/api/odds/calculate", json=initial_request)
+        response = self.api_client.post("/odds/calculate", json=initial_request)
         initial_odds = response.json()["overall_odds"]
         
         # Simulate player 1 hitting a great shot (much closer)
@@ -577,7 +577,7 @@ class TestShotProgressionMode(E2ETestBase):
         updated_request["players"][0]["distance_to_pin"] = 20  # Much closer
         updated_request["players"][0]["lie_type"] = "green"
         
-        response = self.api_client.post("/api/odds/calculate", json=updated_request)
+        response = self.api_client.post("/odds/calculate", json=updated_request)
         updated_odds = response.json()["overall_odds"]
         
         # Player 1's odds should have improved significantly
@@ -615,7 +615,7 @@ class TestShotProgressionMode(E2ETestBase):
             "scenarios": ["current", "double_stakes", "go_solo"]
         }
         
-        response = self.api_client.post("/api/simulation/monte-carlo", json=simulation_request)
+        response = self.api_client.post("/simulation/monte-carlo", json=simulation_request)
         assert response.status_code == 200
         
         simulation_data = response.json()
@@ -678,7 +678,7 @@ class TestBettingIntegration(E2ETestBase):
                 "hole": {"number": 10, "par": 4}
             }
             
-            response = self.api_client.post("/api/odds/calculate", json=odds_request)
+            response = self.api_client.post("/odds/calculate", json=odds_request)
             assert response.status_code == 200
             
             odds_data = response.json()
@@ -868,7 +868,7 @@ class TestErrorHandlingAndRecovery(E2ETestBase):
             "players": [{"name": p.name, "handicap": p.handicap} for p in participants]
         }
         
-        response = self.api_client.post("/api/games", json=game_setup)
+        response = self.api_client.post("/games", json=game_setup)
         assert response.status_code == 201
         game_id = response.json()["game_id"]
         
@@ -880,7 +880,7 @@ class TestErrorHandlingAndRecovery(E2ETestBase):
             update_data = {"hole": 1, "scores": [{"player_id": participants[0].id, "strokes": 4}]}
             
             try:
-                response = self.api_client.post(f"/api/games/{game_id}/update", json=update_data)
+                response = self.api_client.post(f"/games/{game_id}/update", json=update_data)
                 # Should either succeed or fail gracefully
                 assert response.status_code in [200, 503, 408]
             except:
@@ -888,7 +888,7 @@ class TestErrorHandlingAndRecovery(E2ETestBase):
                 pass
         
         # Verify game state can be recovered
-        response = self.api_client.get(f"/api/games/{game_id}")
+        response = self.api_client.get(f"/games/{game_id}")
         assert response.status_code == 200
     
     def test_invalid_data_handling(self):
@@ -912,7 +912,7 @@ class TestErrorHandlingAndRecovery(E2ETestBase):
         ]
         
         for scenario in invalid_scenarios:
-            response = self.api_client.post("/api/games", json=scenario["setup"])
+            response = self.api_client.post("/games", json=scenario["setup"])
             assert response.status_code == scenario["expected_status"]
             
             # Should provide meaningful error message
@@ -928,7 +928,7 @@ class TestErrorHandlingAndRecovery(E2ETestBase):
         participants = self.create_test_participants(3)
         
         # Create game with valid setup
-        response = self.api_client.post("/api/games", json={
+        response = self.api_client.post("/games", json={
             "players": [{"name": p.name, "handicap": p.handicap} for p in participants]
         })
         game_id = response.json()["game_id"]
@@ -946,12 +946,12 @@ class TestErrorHandlingAndRecovery(E2ETestBase):
         ]
         
         for update in inconsistent_updates:
-            response = self.api_client.post(f"/api/games/{game_id}/update", json=update)
+            response = self.api_client.post(f"/games/{game_id}/update", json=update)
             # Should reject invalid updates
             assert response.status_code in [400, 422]
         
         # Game should still be accessible with valid state
-        response = self.api_client.get(f"/api/games/{game_id}")
+        response = self.api_client.get(f"/games/{game_id}")
         assert response.status_code == 200
 
 
