@@ -5458,7 +5458,7 @@ def export_current_data_for_sheet(sheet_headers: List[str] = Query(...)):
         db.close()
 
 @app.post("/sheet-integration/sync-wgp-sheet")
-async def sync_wgp_sheet_data(request: Dict[str, str]):
+async def sync_wgp_sheet_data(request: Dict[str, str], db: Session = Depends(database.get_db)):
     """
     Sync Wolf Goat Pig specific sheet data format.
 
@@ -5746,8 +5746,6 @@ async def sync_wgp_sheet_data(request: Dict[str, str]):
     except Exception as e:
         logger.error(f"Error syncing WGP sheet data: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to sync data: {str(e)}")
-    finally:
-        db.close()
 
 # Admin endpoints for email configuration
 @app.get("/admin/email-config")
