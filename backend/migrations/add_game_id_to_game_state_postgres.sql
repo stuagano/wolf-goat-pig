@@ -7,6 +7,9 @@
 ALTER TABLE game_state ADD COLUMN IF NOT EXISTS game_id UUID;
 ALTER TABLE game_state ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 ALTER TABLE game_state ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE game_state ADD COLUMN IF NOT EXISTS game_id UUID;
+ALTER TABLE game_state ADD COLUMN IF NOT EXISTS created_at VARCHAR;
+ALTER TABLE game_state ADD COLUMN IF NOT EXISTS updated_at VARCHAR;
 
 -- Create unique index on game_id
 CREATE UNIQUE INDEX IF NOT EXISTS idx_game_state_game_id ON game_state(game_id);
@@ -25,6 +28,7 @@ BEGIN
 END $$;
 UPDATE game_state SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL;
 UPDATE game_state SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL;
+-- Note: Application code will set these values when creating new games
 
 -- Note: The game_records and game_player_results tables should already exist
 -- from previous migrations. If not, they will be created automatically by

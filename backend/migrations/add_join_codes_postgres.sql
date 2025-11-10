@@ -20,8 +20,8 @@ CREATE TABLE IF NOT EXISTS game_players (
     player_name VARCHAR NOT NULL,
     handicap REAL NOT NULL,
     join_status VARCHAR DEFAULT 'pending',
-    joined_at TIMESTAMP,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    joined_at VARCHAR,
+    created_at VARCHAR NOT NULL
 );
 
 -- Create indexes for game_players
