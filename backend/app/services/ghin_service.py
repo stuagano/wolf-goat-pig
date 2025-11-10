@@ -411,6 +411,11 @@ class GHINService:
                             player.ghin_last_updated = profile.ghin_last_updated
                     except Exception as query_error:
                         logger.warning(f"Failed to query profile for player {player.player_name}: {query_error}")
+                        # Rollback transaction to clear error state before continuing
+                        try:
+                            self.db.rollback()
+                        except Exception as rollback_error:
+                            logger.warning(f"Failed to rollback after query error: {rollback_error}")
                         # Continue with next player even if this one fails
                         continue
 
