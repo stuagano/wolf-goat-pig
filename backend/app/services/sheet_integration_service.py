@@ -221,7 +221,7 @@ class SheetIntegrationService:
         
         return validated_rows
     
-    def sync_sheet_data_to_database(self, sheet_data: List[Dict[str, Any]], 
+    def sync_sheet_data_to_database(self, sheet_data: List[Dict[str, Any]],
                                    mappings: List[SheetColumnMapping]) -> Dict[str, Any]:
         """Sync sheet data to the database (create/update player profiles and statistics)."""
         results = {
@@ -230,69 +230,89 @@ class SheetIntegrationService:
             "players_updated": 0,
             "errors": []
         }
-        
+
         try:
             for row in sheet_data:
-                validated_row = self.validate_sheet_row(row, mappings)
-                
-                if validated_row.validation_errors:
+                # Use savepoint for each player to isolate errors
+                savepoint = self.db.begin_nested()
+
+                try:
+                    validated_row = self.validate_sheet_row(row, mappings)
+
+                    if validated_row.validation_errors:
+                        results["errors"].append({
+                            "row": row,
+                            "errors": validated_row.validation_errors
+                        })
+                        savepoint.rollback()
+                        continue
+
+                    data = validated_row.mapped_data
+                    player_name = data.get("player_name")
+
+                    if not player_name:
+                        results["errors"].append({"row": row, "errors": ["Missing player name"]})
+                        savepoint.rollback()
+                        continue
+
+                    # Find or create player profile
+                    player = self.db.query(PlayerProfile).filter(
+                        PlayerProfile.name == player_name
+                    ).first()
+
+                    if not player:
+                        # Create new player profile
+                        player = PlayerProfile(
+                            name=player_name,
+                            handicap=data.get("handicap", 18.0),
+                            created_date=datetime.now().isoformat(),
+                            is_active=1
+                        )
+                        self.db.add(player)
+                        self.db.flush()  # Get the ID
+                        results["players_created"] += 1
+
+                    # Find or create player statistics
+                    stats = self.db.query(PlayerStatistics).filter(
+                        PlayerStatistics.player_id == player.id
+                    ).first()
+
+                    if not stats:
+                        stats = PlayerStatistics(player_id=player.id)
+                        self.db.add(stats)
+                        self.db.flush()
+
+                    # Update statistics from sheet data
+                    for field, value in data.items():
+                        if field != "player_name" and hasattr(stats, field) and value is not None:
+                            setattr(stats, field, value)
+
+                    stats.last_updated = datetime.now().isoformat()
+                    results["players_updated"] += 1
+                    results["players_processed"] += 1
+
+                    # Commit this player's changes
+                    savepoint.commit()
+
+                except Exception as e:
+                    # Rollback just this player's changes and continue with others
+                    savepoint.rollback()
+                    logger.error(f"Error processing player from row {row}: {e}")
                     results["errors"].append({
                         "row": row,
-                        "errors": validated_row.validation_errors
+                        "errors": [f"Database error: {str(e)}"]
                     })
                     continue
-                
-                data = validated_row.mapped_data
-                player_name = data.get("player_name")
-                
-                if not player_name:
-                    results["errors"].append({"row": row, "errors": ["Missing player name"]})
-                    continue
-                
-                # Find or create player profile
-                player = self.db.query(PlayerProfile).filter(
-                    PlayerProfile.name == player_name
-                ).first()
-                
-                if not player:
-                    # Create new player profile
-                    player = PlayerProfile(
-                        name=player_name,
-                        handicap=data.get("handicap", 18.0),
-                        created_date=datetime.now().isoformat(),
-                        is_active=1
-                    )
-                    self.db.add(player)
-                    self.db.flush()  # Get the ID
-                    results["players_created"] += 1
-                
-                # Find or create player statistics
-                stats = self.db.query(PlayerStatistics).filter(
-                    PlayerStatistics.player_id == player.id
-                ).first()
-                
-                if not stats:
-                    stats = PlayerStatistics(player_id=player.id)
-                    self.db.add(stats)
-                    self.db.flush()
-                
-                # Update statistics from sheet data
-                for field, value in data.items():
-                    if field != "player_name" and hasattr(stats, field) and value is not None:
-                        setattr(stats, field, value)
-                
-                stats.last_updated = datetime.now().isoformat()
-                results["players_updated"] += 1
-                results["players_processed"] += 1
-            
+
+            # Final commit for the entire transaction
             self.db.commit()
             logger.info(f"Sheet sync completed: {results}")
-            
+
         except Exception as e:
             self.db.rollback()
             logger.error(f"Error syncing sheet data: {e}")
             results["errors"].append({"general_error": str(e)})
-        
+
         return results
     
     def export_current_data_to_sheet_format(self, mappings: List[SheetColumnMapping]) -> List[Dict[str, Any]]:
