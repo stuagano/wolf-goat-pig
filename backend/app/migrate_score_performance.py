@@ -18,13 +18,28 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def check_column_exists(engine, table_name, column_name):
-    """Check if a column exists in a table."""
+    """Check if a column exists in a table (supports both SQLite and PostgreSQL)."""
     try:
         with engine.connect() as conn:
-            # SQLite-specific query to check column existence
-            result = conn.execute(text(f"PRAGMA table_info({table_name})"))
-            columns = [row[1] for row in result.fetchall()]
-            return column_name in columns
+            # Detect database type from connection
+            dialect_name = conn.dialect.name
+
+            if dialect_name == 'sqlite':
+                # SQLite-specific query
+                result = conn.execute(text(f"PRAGMA table_info({table_name})"))
+                columns = [row[1] for row in result.fetchall()]
+                return column_name in columns
+            elif dialect_name == 'postgresql':
+                # PostgreSQL-specific query
+                result = conn.execute(text("""
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_name = :table_name AND column_name = :column_name
+                """), {"table_name": table_name, "column_name": column_name})
+                return result.fetchone() is not None
+            else:
+                logger.warning(f"Unknown database dialect: {dialect_name}")
+                return False
     except Exception as e:
         logger.error(f"Error checking if column {column_name} exists: {e}")
         return False

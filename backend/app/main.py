@@ -390,6 +390,21 @@ async def startup():
             if os.getenv("ENVIRONMENT") == "production":
                 raise
 
+        # Run score performance metrics migration
+        logger.info("🔄 Running score performance metrics migration...")
+        try:
+            from .migrate_score_performance import add_score_performance_columns
+            success = add_score_performance_columns()
+            if success:
+                logger.info("✅ Score performance metrics migration completed")
+            else:
+                logger.warning("⚠️ Score performance metrics migration had issues")
+        except Exception as migration_error:
+            logger.error(f"❌ Score performance migration failed: {migration_error}")
+            # Don't fail startup if migration fails in development
+            if os.getenv("ENVIRONMENT") == "production":
+                raise
+
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
         logger.error(f"Traceback: {traceback.format_exc()}")
