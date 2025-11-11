@@ -2251,6 +2251,74 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
         logger.error(f"Error starting game {game_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Error starting game: {str(e)}")
 
+@app.get("/games")
+async def get_games(
+    status: Optional[str] = Query(None, description="Filter by game status: setup, in_progress, completed"),
+    creator_user_id: Optional[str] = Query(None, description="Filter by creator user ID"),
+    limit: int = Query(20, ge=1, le=100, description="Maximum number of games to return"),
+    offset: int = Query(0, ge=0, description="Number of games to skip"),
+    db: Session = Depends(database.get_db)
+):
+    """
+    Get list of all games with optional filters.
+
+    Filters:
+    - status: Filter by game_status (setup, in_progress, completed)
+    - creator_user_id: Filter by game creator
+    - limit: Maximum results (1-100, default 20)
+    - offset: Pagination offset (default 0)
+    """
+    try:
+        # Build query
+        query = db.query(models.GameStateModel)
+
+        # Apply filters
+        if status:
+            query = query.filter(models.GameStateModel.game_status == status)
+
+        if creator_user_id:
+            query = query.filter(models.GameStateModel.creator_user_id == creator_user_id)
+
+        # Order by created_at descending (newest first)
+        query = query.order_by(models.GameStateModel.created_at.desc())
+
+        # Get total count before pagination
+        total_count = query.count()
+
+        # Apply pagination
+        games = query.offset(offset).limit(limit).all()
+
+        # Format response
+        games_list = []
+        for game in games:
+            # Get player count
+            player_count = db.query(models.GamePlayer).filter(
+                models.GamePlayer.game_id == game.game_id
+            ).count()
+
+            games_list.append({
+                "game_id": game.game_id,
+                "join_code": game.join_code,
+                "game_status": game.game_status,
+                "creator_user_id": game.creator_user_id,
+                "player_count": player_count,
+                "created_at": game.created_at,
+                "updated_at": game.updated_at
+            })
+
+        return {
+            "games": games_list,
+            "total_count": total_count,
+            "limit": limit,
+            "offset": offset,
+            "has_more": (offset + limit) < total_count
+        }
+
+    except Exception as e:
+        logger.error(f"Error retrieving games: {e}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving games: {str(e)}")
+
+
 @app.get("/games/{game_id}/state")
 async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_db)):
     """Get current game state for a specific multiplayer game"""

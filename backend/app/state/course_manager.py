@@ -2,7 +2,11 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any
 import sys
 import os
+import logging
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+logger = logging.getLogger(__name__)
 
 try:
     from data.wing_point_course_data import WING_POINT_COURSE_DATA
@@ -83,9 +87,44 @@ class CourseManager:
     course_data: Dict[str, Any] = field(default_factory=lambda: DEFAULT_COURSES.copy())
 
     def __post_init__(self):
-        """Ensure at least one default course is always available"""
+        """Load courses from database, fallback to default courses if needed"""
+        self.load_courses_from_database()
         self.ensure_default_courses()
     
+    def load_courses_from_database(self):
+        """Load courses from database on initialization"""
+        try:
+            # Avoid circular import by importing here
+            from ..database import SessionLocal
+            from ..models import Course
+
+            db = SessionLocal()
+            try:
+                # Query all courses from database
+                db_courses = db.query(Course).all()
+
+                if db_courses:
+                    logger.info(f"Loading {len(db_courses)} courses from database")
+                    self.course_data = {}
+
+                    for db_course in db_courses:
+                        # Convert database Course model to in-memory format
+                        self.course_data[db_course.name] = db_course.holes_data
+
+                    logger.info(f"Loaded courses: {list(self.course_data.keys())}")
+                else:
+                    logger.warning("No courses found in database, will use defaults")
+
+            except Exception as db_error:
+                logger.error(f"Error loading courses from database: {db_error}")
+                logger.info("Will fall back to default courses")
+            finally:
+                db.close()
+
+        except Exception as e:
+            logger.error(f"Failed to connect to database for course loading: {e}")
+            logger.info("Will use default courses")
+
     def ensure_default_courses(self):
         """Ensure at least one default course is available, adding if necessary"""
         # Check if we have any valid courses
@@ -97,7 +136,7 @@ class CourseManager:
                     if all(isinstance(hole, dict) and "hole_number" in hole for hole in holes[:3]):
                         has_valid_courses = True
                         break
-        
+
         if not has_valid_courses:
             # Replace with default courses or create fallback
             if DEFAULT_COURSES:
@@ -105,12 +144,12 @@ class CourseManager:
             else:
                 self.course_data = {
                     "Fallback Course": [
-                        {"hole_number": i, "par": 4, "yards": 400, "stroke_index": i, 
+                        {"hole_number": i, "par": 4, "yards": 400, "stroke_index": i,
                          "description": f"Fallback hole {i}"}
                         for i in range(1, 19)
                     ]
                 }
-        
+
         # Auto-select first course if none selected or selected course is invalid
         if not self.selected_course or self.selected_course not in self.course_data:
             if self.course_data:

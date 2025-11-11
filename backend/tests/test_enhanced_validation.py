@@ -53,26 +53,27 @@ def test_duplicate_players_on_different_teams():
 
 
 def test_captain_not_in_rotation_order():
-    """Test that captain must be in rotation order"""
+    """Test that solo player must be in rotation order (but can be ANY player in rotation)"""
     game_response = client.post("/games/create-test?player_count=4")
     game_id = game_response.json()["game_id"]
     players = game_response.json()["players"]
     player_ids = [p["id"] for p in players]
 
-    # Captain index 0 should be rotation_order[0]
+    # Try to use a player NOT in rotation as solo player - should fail
+    fake_player_id = "fake_player_not_in_rotation"
     response = client.post(f"/games/{game_id}/holes/complete", json={
         "hole_number": 1,
         "rotation_order": player_ids,
         "captain_index": 0,
-        "teams": {"type": "solo", "captain": player_ids[1], "opponents": [player_ids[0], player_ids[2], player_ids[3]]},
+        "teams": {"type": "solo", "captain": fake_player_id, "opponents": player_ids},
         "final_wager": 2,
         "winner": "captain",
-        "scores": {player_ids[0]: 5, player_ids[1]: 4, player_ids[2]: 5, player_ids[3]: 6},
+        "scores": {player_ids[0]: 5, player_ids[1]: 4, player_ids[2]: 5, player_ids[3]: 6, fake_player_id: 3},
         "hole_par": 4
     })
 
     assert response.status_code == 400
-    assert "captain" in response.json()["detail"].lower()
+    assert "rotation" in response.json()["detail"].lower() or "solo" in response.json()["detail"].lower()
 
 
 def test_negative_score_rejected():
