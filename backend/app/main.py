@@ -413,6 +413,23 @@ async def startup():
 
                         migration_db.commit()
                         logger.info(f"✅ Successfully applied {len(migrations_needed)} migration(s)")
+
+                    # Fix PostgreSQL sequence for game_state.id after migrations
+                    if is_postgresql:
+                        try:
+                            logger.info("🔄 Checking game_state id sequence...")
+                            result = migration_db.execute(text("SELECT MAX(id) FROM game_state"))
+                            max_id = result.scalar()
+
+                            if max_id is not None:
+                                migration_db.execute(text(f"SELECT setval('game_state_id_seq', {max_id})"))
+                                migration_db.commit()
+                                logger.info(f"  ✅ Reset sequence to {max_id} (next ID will be {max_id + 1})")
+                            else:
+                                logger.info("  ✅ Table empty, sequence OK")
+                        except Exception as seq_error:
+                            logger.warning(f"  ⚠️ Could not fix sequence: {seq_error}")
+                            # Don't fail startup for sequence issues
                     else:
                         logger.info("  ✅ Schema is up-to-date - no migrations needed")
                 else:
