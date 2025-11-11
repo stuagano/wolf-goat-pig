@@ -26,6 +26,8 @@ import CreateGamePage from "./pages/CreateGamePage";
 import JoinGamePage from "./pages/JoinGamePage";
 import GameLobbyPage from "./pages/GameLobbyPage";
 import TestMultiplayerPage from "./pages/TestMultiplayerPage";
+import ActiveGamesPage from "./pages/ActiveGamesPage";
+import CompletedGamesPage from "./pages/CompletedGamesPage";
 import Navigation from "./components/Navigation";
 import "./styles/mobile-touch.css"; // Import mobile touch optimization styles
 
@@ -265,6 +267,8 @@ function App() {
           <Route path="/join" element={<JoinGamePage />} />
           <Route path="/join/:code" element={<JoinGamePage />} />
           <Route path="/lobby/:gameId" element={<GameLobbyPage />} />
+          <Route path="/games/active" element={<ActiveGamesPage />} />
+          <Route path="/games/completed" element={<CompletedGamesPage />} />
           <Route path="/test-multiplayer" element={<TestMultiplayerPage />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>

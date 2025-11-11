@@ -91,10 +91,18 @@ function HomePage() {
     },
     {
       icon: '🎮',
-      title: 'Practice Mode',
-      description: 'Practice against computer opponents to learn strategies',
-      action: () => navigate('/simulation'),
-      buttonText: 'Start Practice',
+      title: 'Active Games',
+      description: 'View and resume your in-progress games',
+      action: () => navigate('/games/active'),
+      buttonText: 'View Games',
+      color: '#10B981' // bright green
+    },
+    {
+      icon: '🏆',
+      title: 'Game History',
+      description: 'Review your completed games and results',
+      action: () => navigate('/games/completed'),
+      buttonText: 'View History',
       color: '#0369A1' // deep water blue
     },
     {
