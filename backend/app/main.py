@@ -56,7 +56,7 @@ from .badge_routes import router as badge_router
 from .routes.betting_events import router as betting_events_router
 
 # Import routers
-from .routers import health, sheet_integration, players
+from .routers import health, sheet_integration, players, courses
 
 # Global variable for email scheduler (initialized on demand)
 email_scheduler = None
@@ -85,20 +85,6 @@ class ActionResponse(BaseModel):
     log_message: str
     available_actions: List[Dict[str, Any]]
     timeline_event: Optional[Dict[str, Any]] = None
-
-# Course management models
-class CourseCreate(BaseModel):
-    name: str
-    holes: List[Dict[str, Any]]
-
-class CourseUpdate(BaseModel):
-    holes: List[Dict[str, Any]]
-
-class CourseImportRequest(BaseModel):
-    course_name: str
-    state: Optional[str] = None
-    city: Optional[str] = None
-
 
 class BallSeed(BaseModel):
     """Testing helper payload for manually positioning a ball."""
@@ -276,6 +262,7 @@ app.include_router(betting_events_router)
 app.include_router(health.router)
 app.include_router(sheet_integration.router)
 app.include_router(players.router)
+app.include_router(courses.router)
 
 logger.info("✅ All routers registered")
 
@@ -608,227 +595,6 @@ def get_rules():
         raise HTTPException(status_code=500, detail="Failed to get rules")
     finally:
         db.close()
-
-# Course Management Endpoints
-
-@app.get("/courses")
-def get_courses():
-    """Get all available courses with robust fallback handling"""
-    try:
-        courses = course_manager.get_courses()
-        
-        # Ensure we always return at least one default course
-        if not courses:
-            logger.warning("No courses found in game state, attempting to reload from database")
-            
-            # Try to reload from database
-            try:
-                from .seed_data import get_seeding_status
-                seeding_status = get_seeding_status()
-                
-                if seeding_status["status"] == "success":
-                    # Reinitialize course manager
-                    course_manager.__init__()
-                    courses = course_manager.get_courses()
-                    
-                    if courses:
-                        logger.info(f"Successfully reloaded {len(courses)} courses from database")
-                    else:
-                        logger.warning("Course manager reinitialization failed, using fallback")
-                        courses = get_fallback_courses()
-                else:
-                    logger.warning("Database seeding incomplete, using fallback courses")
-                    courses = get_fallback_courses()
-                    
-            except Exception as reload_error:
-                logger.error(f"Failed to reload courses from database: {reload_error}")
-                courses = get_fallback_courses()
-        
-        logger.info(f"Retrieved {len(courses)} courses: {list(courses.keys())}")
-        return courses
-        
-    except Exception as e:
-        logger.error(f"Critical error getting courses: {e}")
-        logger.error(traceback.format_exc())
-        
-        # Always return fallback course to prevent frontend failure
-        courses = get_fallback_courses()
-        logger.warning("Returning fallback courses due to critical error")
-        return courses
-
-def get_fallback_courses():
-    """Provide fallback course data when database/seeding fails"""
-    return {
-        "Emergency Course": {
-            "name": "Emergency Course",
-            "description": "Fallback course for system resilience",
-            "holes": [
-                {
-                    "hole_number": i,
-                    "par": 4 if i not in [4, 8, 12, 17] else 3 if i in [4, 8, 17] else 5,
-                    "yards": 400 if i not in [4, 8, 12, 17] else 160 if i in [4, 8, 17] else 520,
-                    "stroke_index": ((i - 1) % 18) + 1,
-                    "description": f"Emergency hole {i} - Par {4 if i not in [4, 8, 12, 17] else 3 if i in [4, 8, 17] else 5}"
-                }
-                for i in range(1, 19)
-            ],
-            "total_par": 72,
-            "total_yards": 6800,
-            "hole_count": 18
-        },
-        "Wing Point Golf & Country Club": {
-            "name": "Wing Point Golf & Country Club",
-            "description": "Classic parkland course (fallback data)",
-            "holes": [
-                {"hole_number": 1, "par": 4, "yards": 420, "stroke_index": 5, "description": "Opening hole with water hazard"},
-                {"hole_number": 2, "par": 4, "yards": 385, "stroke_index": 13, "description": "Straightaway par 4"},
-                {"hole_number": 3, "par": 5, "yards": 580, "stroke_index": 1, "description": "Long par 5 with fairway bunkers"},
-                {"hole_number": 4, "par": 3, "yards": 165, "stroke_index": 17, "description": "Short par 3 over water"},
-                {"hole_number": 5, "par": 4, "yards": 445, "stroke_index": 7, "description": "Long par 4 with OB left"},
-                {"hole_number": 6, "par": 4, "yards": 395, "stroke_index": 11, "description": "Slight dogleg left"},
-                {"hole_number": 7, "par": 5, "yards": 520, "stroke_index": 15, "description": "Reachable par 5"},
-                {"hole_number": 8, "par": 3, "yards": 185, "stroke_index": 3, "description": "Long par 3"},
-                {"hole_number": 9, "par": 4, "yards": 410, "stroke_index": 9, "description": "Finishing hole front nine"},
-                {"hole_number": 10, "par": 4, "yards": 455, "stroke_index": 2, "description": "Championship hole"},
-                {"hole_number": 11, "par": 5, "yards": 545, "stroke_index": 16, "description": "Three-shot par 5"},
-                {"hole_number": 12, "par": 3, "yards": 175, "stroke_index": 8, "description": "Elevated tee"},
-                {"hole_number": 13, "par": 4, "yards": 375, "stroke_index": 14, "description": "Short par 4"},
-                {"hole_number": 14, "par": 4, "yards": 435, "stroke_index": 4, "description": "Narrow fairway"},
-                {"hole_number": 15, "par": 5, "yards": 565, "stroke_index": 18, "description": "Longest hole"},
-                {"hole_number": 16, "par": 4, "yards": 425, "stroke_index": 10, "description": "Risk/reward hole"},
-                {"hole_number": 17, "par": 3, "yards": 155, "stroke_index": 12, "description": "Island green"},
-                {"hole_number": 18, "par": 4, "yards": 415, "stroke_index": 6, "description": "Dramatic finishing hole"}
-            ],
-            "total_par": 72,
-            "total_yards": 7050,
-            "hole_count": 18
-        }
-    }
-
-@app.get("/courses/{course_id}")
-def get_course_by_id(course_id: int):
-    """Get a specific course by ID (index in courses list)"""
-    try:
-        courses = course_manager.get_courses()
-        if not courses:
-            raise HTTPException(status_code=404, detail="No courses available")
-        
-        # Convert courses dict to list and get by index
-        course_list = list(courses.values())
-        if course_id >= len(course_list) or course_id < 0:
-            raise HTTPException(status_code=404, detail="Course not found")
-        
-        # Return the course at the specified index
-        course = course_list[course_id]
-        return course
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting course by ID {course_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get course: {str(e)}")
-
-@app.post("/courses", response_model=dict)
-def add_course(course: CourseCreate):
-    """Add a new course"""
-    try:
-        result = course_manager.add_course(course.dict())
-        return {"status": "success", "message": f"Course '{course.name}' added successfully", "data": result}
-    except Exception as e:
-        logger.error(f"Error adding course: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to add course: {str(e)}")
-
-@app.put("/courses/{course_name}")
-def update_course(course_name: str, course_update: CourseUpdate):
-    """Update an existing course"""
-    try:
-        result = course_manager.update_course(course_name, course_update.dict())
-        return {"status": "success", "message": f"Course '{course_name}' updated successfully", "data": result}
-    except Exception as e:
-        logger.error(f"Error updating course: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to update course: {str(e)}")
-
-@app.delete("/courses/{course_name}")
-def delete_course(course_name: str = Path(...)):
-    """Delete a course"""
-    try:
-        result = course_manager.delete_course(course_name)
-        return {"status": "success", "message": f"Course '{course_name}' deleted successfully"}
-    except Exception as e:
-        logger.error(f"Error deleting course: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to delete course: {str(e)}")
-
-# Course Import Endpoints
-@app.post("/courses/import/search")
-async def import_course_by_search(request: CourseImportRequest):
-    """Search and import a course by name"""
-    try:
-        result = await import_course_by_name(request.course_name, request.state, request.city)
-        return result
-    except Exception as e:
-        logger.error(f"Error importing course by search: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to import course: {str(e)}")
-
-@app.post("/courses/import/file")
-async def import_course_from_file(file: UploadFile = File(...)):
-    """Import a course from uploaded JSON file"""
-    try:
-        if not file.filename.endswith('.json'):
-            raise HTTPException(status_code=400, detail="File must be a JSON file")
-        
-        content = await file.read()
-        course_data = json.loads(content.decode('utf-8'))
-        
-        result = await import_course_from_json(course_data)
-        return result
-    except Exception as e:
-        logger.error(f"Error importing course from file: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to import course: {str(e)}")
-
-@app.get("/courses/import/sources")
-def get_import_sources():
-    """Get available course import sources"""
-    try:
-        return {
-            "sources": [
-                {
-                    "name": "USGA Course Database",
-                    "description": "Official USGA course database with ratings and slopes",
-                    "endpoint": "/courses/import/search"
-                },
-                {
-                    "name": "JSON File Upload",
-                    "description": "Upload custom course data in JSON format",
-                    "endpoint": "/courses/import/file"
-                }
-            ]
-        }
-    except Exception as e:
-        logger.error(f"Error getting import sources: {e}")
-        raise HTTPException(status_code=500, detail="Failed to get import sources")
-
-@app.post("/courses/import/preview")
-async def preview_course_import(request: CourseImportRequest):
-    """Preview course data before importing"""
-    try:
-        # This would typically search the external database and return preview data
-        # For now, return a mock preview
-        return {
-            "course_name": request.course_name,
-            "preview_data": {
-                "holes": 18,
-                "par": 72,
-                "rating": 72.5,
-                "slope": 135,
-                "sample_holes": [
-                    {"hole": 1, "par": 4, "yards": 400, "stroke_index": 7},
-                    {"hole": 2, "par": 3, "yards": 175, "stroke_index": 15}
-                ]
-            }
-        }
-    except Exception as e:
-        logger.error(f"Error previewing course import: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to preview course: {str(e)}")
 
 # GHIN Integration Endpoints
 @app.get("/ghin/lookup")

@@ -5,6 +5,6 @@ This package contains router modules that break up the monolithic main.py
 into logical, maintainable components.
 """
 
-from . import sheet_integration, health, players
+from . import sheet_integration, health, players, courses
 
-__all__ = ['sheet_integration', 'health', 'players']
+__all__ = ['sheet_integration', 'health', 'players', 'courses']

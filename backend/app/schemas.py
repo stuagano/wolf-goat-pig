@@ -137,8 +137,11 @@ class CourseComparison(BaseModel):
     course2: CourseResponse
     stats1: CourseStats
     stats2: CourseStats
-    difficulty_difference: float
-    yard_difference: int
+
+class CourseImportRequest(BaseModel):
+    course_name: str
+    state: Optional[str] = None
+    city: Optional[str] = None
 
 class SimulationCourseData(BaseModel):
     course_name: str
