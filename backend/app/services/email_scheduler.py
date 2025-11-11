@@ -28,21 +28,14 @@ class EmailScheduler:
         
     def _setup_schedules(self):
         """Set up the email scheduling jobs"""
-        # Schedule daily signup reminders at different times based on user preferences
-        schedule.every().day.at("06:00").do(self._send_daily_reminders, time_slot="6:00 AM")
-        schedule.every().day.at("07:00").do(self._send_daily_reminders, time_slot="7:00 AM")
-        schedule.every().day.at("08:00").do(self._send_daily_reminders, time_slot="8:00 AM")
-        schedule.every().day.at("09:00").do(self._send_daily_reminders, time_slot="9:00 AM")
-        schedule.every().day.at("10:00").do(self._send_daily_reminders, time_slot="10:00 AM")
-        schedule.every().day.at("12:00").do(self._send_daily_reminders, time_slot="12:00 PM")
-        schedule.every().day.at("13:00").do(self._send_daily_reminders, time_slot="1:00 PM")
-        schedule.every().day.at("17:00").do(self._send_daily_reminders, time_slot="5:00 PM")
-        schedule.every().day.at("18:00").do(self._send_daily_reminders, time_slot="6:00 PM")
-        schedule.every().day.at("19:00").do(self._send_daily_reminders, time_slot="7:00 PM")
-        
+        # Schedule daily signup reminders - send once per day at 9 AM
+        # Users who have opted in will receive reminders at their preferred time
+        # (or all at 9 AM if we want to simplify)
+        schedule.every().day.at("09:00").do(self._send_daily_reminders_all)
+
         # Schedule weekly summaries on Sunday at 9 AM
         schedule.every().sunday.at("09:00").do(self._send_weekly_summaries)
-        
+
         # Schedule daily matchmaking at 10 AM
         schedule.every().day.at("10:00").do(self._run_matchmaking)
 
@@ -54,7 +47,58 @@ class EmailScheduler:
     def _get_db(self) -> Session:
         """Get a database session"""
         return SessionLocal()
-    
+
+    def _send_daily_reminders_all(self):
+        """
+        Send daily signup reminders to all users who have opted in.
+        Simplified version that sends all reminders at once (9 AM).
+        """
+        db = self._get_db()
+
+        try:
+            # Get all players with daily reminders enabled
+            players_with_prefs = db.query(
+                PlayerProfile, EmailPreferences
+            ).join(
+                EmailPreferences,
+                PlayerProfile.id == EmailPreferences.player_profile_id
+            ).filter(
+                EmailPreferences.daily_signups_enabled == 1,
+                EmailPreferences.email_frequency != 'never',
+                PlayerProfile.email.isnot(None)
+            ).all()
+
+            logger.info(f"Found {len(players_with_prefs)} players for daily reminders")
+
+            # Get available signup dates
+            available_dates = self._get_available_signup_dates()
+
+            sent_count = 0
+            for player, prefs in players_with_prefs:
+                try:
+                    if player.email:
+                        success = email_service.send_daily_signup_reminder(
+                            to_email=player.email,
+                            player_name=player.name,
+                            available_dates=available_dates
+                        )
+
+                        if success:
+                            sent_count += 1
+                            logger.info(f"Daily reminder sent to {player.name} ({player.email})")
+                        else:
+                            logger.error(f"Failed to send daily reminder to {player.name}")
+
+                except Exception as e:
+                    logger.error(f"Error sending daily reminder to {player.name}: {str(e)}")
+
+            logger.info(f"Daily reminders completed: {sent_count}/{len(players_with_prefs)} sent successfully")
+
+        except Exception as e:
+            logger.error(f"Error in daily reminder job: {str(e)}")
+        finally:
+            db.close()
+
     def _send_daily_reminders(self, time_slot: str):
         """Send daily signup reminders to users who have opted in"""
         db = self._get_db()
