@@ -18,6 +18,20 @@
       "REACT_APP_DEPLOY_PLATFORM": "vercel"
     }
   },
+  "routes": [
+    {
+      "src": "/static/(.*)",
+      "dest": "/static/$1"
+    },
+    {
+      "src": "/(manifest\\.json|favicon\\.ico|robots\\.txt|.*\\.(png|jpg|jpeg|svg|gif|ico|woff|woff2|ttf|eot))",
+      "dest": "/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ],
   "headers": [
     {
       "source": "/static/(.*)",
