@@ -9,17 +9,13 @@ import os
 def get_uuid_column():
     """Return appropriate UUID column type for the current database.
 
-    Note: We use as_uuid=False for PostgreSQL to store UUIDs as strings,
-    which is compatible with the application code that generates UUIDs
-    using str(uuid.uuid4()). Using as_uuid=True would require changing
-    all UUID generation to use uuid.uuid4() without str().
+    Note: We use String for all databases to store UUIDs as VARCHAR strings.
+    This is compatible with the application code that generates UUIDs using
+    str(uuid.uuid4()) and prevents SQLAlchemy from adding ::UUID casts in
+    PostgreSQL queries which would cause type mismatch errors.
     """
-    database_url = os.getenv("DATABASE_URL", "")
-    if 'postgresql' in database_url or 'postgres' in database_url:
-        return UUID(as_uuid=False)
-    else:
-        # For SQLite, use String to store UUID as text
-        return String
+    # Always use String to avoid UUID type casting issues in PostgreSQL
+    return String
 
 class Rule(Base):
     __tablename__ = "rules"
