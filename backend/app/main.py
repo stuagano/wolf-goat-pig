@@ -338,6 +338,10 @@ async def startup():
                     columns = [col['name'] for col in inspector.get_columns('game_state')]
                     migrations_needed = []
 
+                    # Determine database type (needed for migrations and sequence check)
+                    database_url = os.getenv('DATABASE_URL', '')
+                    is_postgresql = 'postgresql://' in database_url or 'postgres://' in database_url
+
                     # Check for missing columns
                     if 'game_id' not in columns:
                         migrations_needed.append('game_id')
@@ -354,10 +358,6 @@ async def startup():
 
                     if migrations_needed:
                         logger.info(f"  Missing columns detected: {', '.join(migrations_needed)}")
-
-                        # Determine database type
-                        database_url = os.getenv('DATABASE_URL', '')
-                        is_postgresql = 'postgresql://' in database_url or 'postgres://' in database_url
 
                         # Add game_id column
                         if 'game_id' not in columns:
