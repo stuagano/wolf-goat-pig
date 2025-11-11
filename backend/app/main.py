@@ -1261,6 +1261,167 @@ async def update_player_name(
         raise HTTPException(status_code=500, detail=f"Failed to update player name: {str(e)}")
 
 
+@app.delete("/games/{game_id}/players/{player_slot_id}")
+async def remove_player(
+    game_id: str,
+    player_slot_id: str,
+    db: Session = Depends(database.get_db)
+):
+    """
+    Remove a player from a game in setup/lobby status.
+    Only allowed before game starts.
+
+    Args:
+        game_id: The game ID
+        player_slot_id: The player's slot ID (e.g., "p1", "p2")
+    """
+    try:
+        # Get game from database
+        game = db.query(models.GameStateModel).filter(
+            models.GameStateModel.game_id == game_id
+        ).first()
+
+        if not game:
+            raise HTTPException(status_code=404, detail="Game not found")
+
+        # Only allow removing players if game hasn't started
+        if game.status not in ['setup', 'lobby']:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot remove players from a game that has already started"
+            )
+
+        # Remove from game_players table
+        game_player = db.query(models.GamePlayer).filter(
+            models.GamePlayer.game_id == game_id,
+            models.GamePlayer.player_slot_id == player_slot_id
+        ).first()
+
+        if not game_player:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Player {player_slot_id} not found in game"
+            )
+
+        player_name = game_player.player_name
+        db.delete(game_player)
+
+        # Remove from game state players array
+        state = game.state or {}
+        players = state.get("players", [])
+        state["players"] = [p for p in players if p.get("id") != player_slot_id]
+        game.state = state
+        game.updated_at = datetime.utcnow().isoformat()
+
+        db.commit()
+
+        logger.info(f"Removed player {player_slot_id} ({player_name}) from game {game_id}")
+
+        return {
+            "success": True,
+            "game_id": game_id,
+            "player_slot_id": player_slot_id,
+            "message": f"Player {player_name} removed from game",
+            "players_remaining": len(state["players"])
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error removing player: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to remove player: {str(e)}")
+
+
+@app.patch("/games/{game_id}/players/{player_slot_id}/handicap")
+async def update_player_handicap(
+    game_id: str,
+    player_slot_id: str,
+    handicap_update: dict,
+    db: Session = Depends(database.get_db)
+):
+    """
+    Update a player's handicap in a game in setup/lobby status.
+    Only allowed before game starts.
+
+    Args:
+        game_id: The game ID
+        player_slot_id: The player's slot ID (e.g., "p1", "p2")
+        handicap_update: Dict with "handicap" key containing the new handicap
+    """
+    try:
+        new_handicap = handicap_update.get("handicap")
+        if new_handicap is None:
+            raise HTTPException(status_code=400, detail="Handicap not provided")
+
+        try:
+            new_handicap = float(new_handicap)
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=400, detail="Invalid handicap value")
+
+        if new_handicap < 0 or new_handicap > 54:
+            raise HTTPException(status_code=400, detail="Handicap must be between 0 and 54")
+
+        # Get game from database
+        game = db.query(models.GameStateModel).filter(
+            models.GameStateModel.game_id == game_id
+        ).first()
+
+        if not game:
+            raise HTTPException(status_code=404, detail="Game not found")
+
+        # Only allow updating handicap if game hasn't started
+        if game.status not in ['setup', 'lobby']:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot update handicap after game has started"
+            )
+
+        # Update in game_players table
+        game_player = db.query(models.GamePlayer).filter(
+            models.GamePlayer.game_id == game_id,
+            models.GamePlayer.player_slot_id == player_slot_id
+        ).first()
+
+        if not game_player:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Player {player_slot_id} not found in game"
+            )
+
+        game_player.handicap = new_handicap
+
+        # Update in game state players array
+        state = game.state or {}
+        players = state.get("players", [])
+        for player in players:
+            if player.get("id") == player_slot_id:
+                player["handicap"] = new_handicap
+                break
+
+        game.state = state
+        game.updated_at = datetime.utcnow().isoformat()
+
+        db.commit()
+
+        logger.info(f"Updated player {player_slot_id} handicap to {new_handicap} in game {game_id}")
+
+        return {
+            "success": True,
+            "game_id": game_id,
+            "player_slot_id": player_slot_id,
+            "handicap": new_handicap,
+            "message": f"Handicap updated to {new_handicap}"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating player handicap: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update handicap: {str(e)}")
+
+
 @app.post("/games/{game_id}/holes/complete")
 async def complete_hole(
     game_id: str,
