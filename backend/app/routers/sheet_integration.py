@@ -6,7 +6,7 @@ Google Sheets integration endpoints for syncing player data and leaderboards.
 Rate limited to prevent excessive API calls.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from sqlalchemy.orm import Session
 from typing import List, Dict, Optional
 from datetime import datetime
@@ -161,19 +161,29 @@ def export_current_data_for_sheet(
 
 
 @router.post("/sync-wgp-sheet")
-async def sync_wgp_sheet_data(request: Dict[str, str], db: Session = Depends(get_db)):
+async def sync_wgp_sheet_data(
+    request: Dict[str, str],
+    db: Session = Depends(get_db),
+    x_scheduled_job: Optional[str] = Header(None)
+):
     """
     Sync Wolf Goat Pig specific sheet data format.
 
-    Rate limited to once per hour to prevent excessive API calls.
+    Rate limited to once per hour to prevent excessive API calls from external sources.
     Results are cached for 1 hour.
+
+    Scheduled jobs (with X-Scheduled-Job header) bypass rate limiting.
 
     Uses isolated sessions per player to ensure failures are isolated and
     don't cascade to other players' data.
     """
     try:
-        # Rate limit: max once per hour
-        rate_limiter.check_limit("sheet_sync", min_interval_seconds=3600)
+        # Rate limit: max once per hour (but bypass for scheduled jobs)
+        is_scheduled_job = x_scheduled_job == "true"
+        if not is_scheduled_job:
+            rate_limiter.check_limit("sheet_sync", min_interval_seconds=3600)
+        else:
+            logger.info("Scheduled job detected - bypassing rate limit")
 
         csv_url = request.get("csv_url")
         if not csv_url:

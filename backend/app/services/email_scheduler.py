@@ -45,7 +45,10 @@ class EmailScheduler:
         
         # Schedule daily matchmaking at 10 AM
         schedule.every().day.at("10:00").do(self._run_matchmaking)
-        
+
+        # Schedule daily Google Sheets sync at 2 AM (for historical data)
+        schedule.every().day.at("02:00").do(self._sync_google_sheets)
+
         logger.info("Email schedules set up successfully")
     
     def _get_db(self) -> Session:
@@ -230,6 +233,46 @@ class EmailScheduler:
                 
         except Exception as e:
             logger.error(f"Error running scheduled matchmaking: {str(e)}")
+
+    def _sync_google_sheets(self):
+        """
+        Sync historical player data from Google Sheets once daily.
+
+        This is a background process that fetches historical data from the
+        Wolf-Goat-Pig Google Sheets leaderboard and updates the database.
+        Runs at 2 AM daily to avoid peak usage times.
+        """
+        logger.info("Running scheduled Google Sheets sync...")
+
+        try:
+            import httpx
+
+            # Hardcoded sheet URL (same as in SheetSyncContext)
+            sheet_id = "1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM"
+            gid = "0"
+            csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
+
+            # Call the sync endpoint directly (internal call, no rate limiting for scheduled jobs)
+            # Use a special header to bypass rate limiting for scheduled jobs
+            import requests
+            response = requests.post(
+                "http://localhost:10000/sheet-integration/sync-wgp-sheet",
+                json={"csv_url": csv_url},
+                headers={"X-Scheduled-Job": "true"},
+                timeout=60
+            )
+
+            if response.status_code == 200:
+                result = response.json()
+                players_synced = result.get('player_count', 0)
+                logger.info(f"✅ Google Sheets sync completed successfully: {players_synced} players synced")
+            elif response.status_code == 429:
+                logger.warning("⚠️ Sheet sync rate limited - will retry tomorrow")
+            else:
+                logger.error(f"❌ Sheet sync failed with status {response.status_code}: {response.text[:200]}")
+
+        except Exception as e:
+            logger.error(f"❌ Error running scheduled Google Sheets sync: {str(e)}")
 
 # Global email scheduler instance
 email_scheduler = EmailScheduler()
