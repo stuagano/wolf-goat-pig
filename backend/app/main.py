@@ -345,6 +345,12 @@ async def startup():
                         migrations_needed.append('created_at')
                     if 'updated_at' not in columns:
                         migrations_needed.append('updated_at')
+                    if 'join_code' not in columns:
+                        migrations_needed.append('join_code')
+                    if 'creator_user_id' not in columns:
+                        migrations_needed.append('creator_user_id')
+                    if 'game_status' not in columns:
+                        migrations_needed.append('game_status')
 
                     if migrations_needed:
                         logger.info(f"  Missing columns detected: {', '.join(migrations_needed)}")
@@ -380,6 +386,30 @@ async def startup():
                             else:
                                 migration_db.execute(text("UPDATE game_state SET updated_at = datetime('now') WHERE updated_at IS NULL"))
                             logger.info("  ✅ Added updated_at column")
+
+                        # Add join_code column
+                        if 'join_code' not in columns:
+                            logger.info("  Adding join_code column...")
+                            migration_db.execute(text("ALTER TABLE game_state ADD COLUMN join_code VARCHAR"))
+                            migration_db.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_game_state_join_code ON game_state(join_code)"))
+                            logger.info("  ✅ Added join_code column")
+
+                        # Add creator_user_id column
+                        if 'creator_user_id' not in columns:
+                            logger.info("  Adding creator_user_id column...")
+                            migration_db.execute(text("ALTER TABLE game_state ADD COLUMN creator_user_id VARCHAR"))
+                            logger.info("  ✅ Added creator_user_id column")
+
+                        # Add game_status column
+                        if 'game_status' not in columns:
+                            logger.info("  Adding game_status column...")
+                            if is_postgresql:
+                                migration_db.execute(text("ALTER TABLE game_state ADD COLUMN game_status VARCHAR DEFAULT 'setup'"))
+                                migration_db.execute(text("UPDATE game_state SET game_status = 'setup' WHERE game_status IS NULL"))
+                            else:
+                                migration_db.execute(text("ALTER TABLE game_state ADD COLUMN game_status VARCHAR DEFAULT 'setup'"))
+                                migration_db.execute(text("UPDATE game_state SET game_status = 'setup' WHERE game_status IS NULL"))
+                            logger.info("  ✅ Added game_status column")
 
                         migration_db.commit()
                         logger.info(f"✅ Successfully applied {len(migrations_needed)} migration(s)")
