@@ -1322,14 +1322,16 @@ async def complete_hole(
                     detail=f"Solo must be 1 vs {expected_opponent_count}. Got {len(opponents)} opponents"
                 )
 
-            # Check captain matches rotation (unless Big Dick is invoked)
-            if captain and captain != request.rotation_order[request.captain_index]:
-                # Allow any player to be captain if Big Dick is invoked on hole 18
-                if not (request.big_dick_invoked_by and request.hole_number == 18):
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Captain {captain} does not match rotation_order[{request.captain_index}]"
-                    )
+            # Validate: Solo player must be in rotation
+            # Note: Solo player can be ANY player in rotation, not just the Captain
+            # - Captain can go solo (choosing not to pick a partner)
+            # - Any other player can go solo (by rejecting Captain's partnership offer)
+            # - On hole 18, Big Dick allows the points leader to go solo
+            if captain and captain not in rotation_player_ids:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Solo player {captain} is not in rotation_order"
+                )
 
             # Check for duplicates in opponents
             if len(opponents) != len(set(opponents)):
