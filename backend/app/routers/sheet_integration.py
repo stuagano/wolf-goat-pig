@@ -460,6 +460,9 @@ async def sync_wgp_sheet_data(request: Dict[str, str], db: Session = Depends(get
 
         return result
 
+    except HTTPException:
+        # Re-raise HTTPExceptions (like 429 from rate limiter) without modifying them
+        raise
     except httpx.RequestError as e:
         logger.error(f"Error fetching Google Sheet: {e}")
         raise HTTPException(status_code=400, detail=f"Failed to fetch sheet: {str(e)}")

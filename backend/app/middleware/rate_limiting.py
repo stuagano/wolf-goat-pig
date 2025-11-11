@@ -68,6 +68,12 @@ class RateLimiter:
                         "retry_after_seconds": remaining_seconds,
                         "last_request": self.last_request[rate_key].isoformat(),
                         "next_allowed": (now + remaining).isoformat()
+                    },
+                    headers={
+                        "Retry-After": str(remaining_seconds),
+                        "X-RateLimit-Limit": "1",
+                        "X-RateLimit-Remaining": "0",
+                        "X-RateLimit-Reset": str(int((now + remaining).timestamp()))
                     }
                 )
 
