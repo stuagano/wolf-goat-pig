@@ -8,7 +8,17 @@
 
 ## Completed ✅
 
-### 1. Sheet Integration Router
+### 1. Health Router
+- **File**: `app/routers/health.py` (262 lines)
+- **Endpoints**: 2 endpoints
+  - GET `/health` - Comprehensive health check with 7 system component diagnostics
+  - GET `/healthz` - Simplified health endpoint for Render monitoring
+- **Features**:
+  - Component-based logging: `logger = logging.getLogger("app.routers.health")`
+  - Tagged for API docs: `tags=["health"]`
+  - System checks: database, courses, rules, AI players, simulation, game state, data seeding
+
+### 2. Sheet Integration Router
 - **File**: `app/routers/sheet_integration.py` (690 lines)
 - **Endpoints**: 7 endpoints
   - POST `/sheet-integration/analyze-structure`
@@ -23,6 +33,30 @@
   - Rate limiting and caching already applied
   - Clean imports and dependencies
   - Tagged for API docs: `tags=["sheet_integration"]`
+
+### 3. Players Router
+- **File**: `app/routers/players.py`
+- **Endpoints**: 23 endpoints
+- **Status**: Completed via PR #139 (Nov 11, 2025)
+
+### 4. Courses Router
+- **File**: `app/routers/courses.py` (258 lines)
+- **Endpoints**: 9 endpoints
+  - GET `/courses` - List all courses with fallback handling
+  - GET `/courses/{course_id}` - Get course by ID
+  - POST `/courses` - Add new course
+  - PUT `/courses/{course_name}` - Update course
+  - DELETE `/courses/{course_name}` - Delete course
+  - POST `/courses/import/search` - Import course by search
+  - POST `/courses/import/file` - Import course from JSON file
+  - GET `/courses/import/sources` - List import sources
+  - POST `/courses/import/preview` - Preview course import
+- **Features**:
+  - Component-based logging: `logger = logging.getLogger("app.routers.courses")`
+  - Multi-level fallback handling for resilience
+  - Schema migration to schemas.py (CourseImportRequest)
+  - Tagged for API docs: `tags=["courses"]`
+  - All 21 course tests passing
 
 ## Remaining Work
 
@@ -43,15 +77,15 @@
 
 ### Priority Order
 
-**Phase 1 (Do Next)**:
-1. ✅ sheet_integration (7) - DONE
-2. health (2) - Simple, good practice
-3. players (23) - Core, used by many others
+**Phase 1 (Completed)**:
+1. ✅ health (2) - DONE (Nov 10, 2025)
+2. ✅ sheet_integration (7) - DONE
+3. ✅ players (23) - DONE (PR #139, Nov 11, 2025)
 
-**Phase 2 (After testing Phase 1)**:
-4. game_flow (31) - Biggest, most complex
-5. courses (9) - Reference data
-6. analytics (6) - Uses players
+**Phase 2 (In Progress)**:
+4. ✅ courses (9) - DONE (Nov 11, 2025 - commit 86d97e9)
+5. analytics (6) - Next, uses players
+6. game_flow (31) - Biggest, most complex
 
 **Phase 3 (Lower priority)**:
 7. simulation (16)
