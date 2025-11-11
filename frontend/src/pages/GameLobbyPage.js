@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTheme } from '../theme/Provider';
+import CommissionerChat from '../components/CommissionerChat';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -712,6 +713,7 @@ function GameLobbyPage() {
           multiple browser windows (or incognito) to simulate different players joining!
         </div>
       </div>
+      <CommissionerChat gameState={null} />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import LargeScoringButtons from '../components/game/LargeScoringButtons';
 import GameStateWidget from '../components/GameStateWidget';
 import GameBanner from '../components/GameBanner';
 import BettingTracker from '../components/game/BettingTracker';
+import CommissionerChat from '../components/CommissionerChat';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -488,6 +489,7 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
         )}
       </main>
       {mobileNav}
+      <CommissionerChat gameState={gameState} />
     </div>
   );
 }

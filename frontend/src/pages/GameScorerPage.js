@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui';
 import { useTheme } from '../theme/Provider';
+import CommissionerChat from '../components/CommissionerChat';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -370,6 +371,7 @@ const GameScorerPage = () => {
           </div>
         </Card>
       </div>
+      <CommissionerChat gameState={null} />
     </div>
   );
 };
