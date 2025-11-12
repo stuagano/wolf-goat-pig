@@ -1650,50 +1650,6 @@ const SimpleScorekeeper = ({
         )}
       </div>
 
-      {/* Betting */}
-      <div style={{
-        background: theme.colors.paper,
-        padding: '16px',
-        borderRadius: '8px',
-        marginBottom: '20px'
-      }}>
-        <h3 style={{ margin: '0 0 12px' }}>Wager</h3>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ fontSize: '32px', fontWeight: 'bold', color: theme.colors.primary }}>
-            {currentWager}Q
-          </div>
-          <button
-            onClick={handleDouble}
-            style={{
-              padding: '12px 24px',
-              fontSize: '16px',
-              fontWeight: 'bold',
-              border: `2px solid ${theme.colors.primary}`,
-              borderRadius: '8px',
-              background: theme.colors.primary,
-              color: 'white',
-              cursor: 'pointer'
-            }}
-          >
-            Double
-          </button>
-          <button
-            onClick={() => setCurrentWager(baseWager)}
-            style={{
-              padding: '12px 24px',
-              fontSize: '14px',
-              border: `2px solid ${theme.colors.border}`,
-              borderRadius: '8px',
-              background: 'white',
-              color: theme.colors.textPrimary,
-              cursor: 'pointer'
-            }}
-          >
-            Reset
-          </button>
-        </div>
-      </div>
-
       {/* Scores */}
       <div style={{
         background: theme.colors.paper,
