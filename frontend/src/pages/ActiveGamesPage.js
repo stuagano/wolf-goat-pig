@@ -10,6 +10,7 @@ const API_URL = process.env.REACT_APP_API_URL || "";
 /**
  * ActiveGamesPage - List all in-progress games
  * Allows users to view and rejoin active games
+ * Production deployment: 2025-11-12
  */
 const ActiveGamesPage = () => {
   const navigate = useNavigate();
