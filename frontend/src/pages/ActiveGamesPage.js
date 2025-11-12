@@ -1,5 +1,5 @@
 // frontend/src/pages/ActiveGamesPage.js
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui';
 import { useTheme } from '../theme/Provider';
@@ -24,12 +24,7 @@ const ActiveGamesPage = () => {
   const [hasMore, setHasMore] = useState(false);
   const LIMIT = 10;
 
-  // Load games
-  useEffect(() => {
-    loadGames();
-  }, [filter, currentPage]);
-
-  const loadGames = async () => {
+  const loadGames = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -59,7 +54,12 @@ const ActiveGamesPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter, currentPage, LIMIT]);
+
+  // Load games when filter or page changes
+  useEffect(() => {
+    loadGames();
+  }, [loadGames]);
 
   const handleJoinGame = (gameId, joinCode) => {
     // Navigate to join page with pre-filled code

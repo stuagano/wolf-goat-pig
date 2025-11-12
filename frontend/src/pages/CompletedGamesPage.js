@@ -1,5 +1,5 @@
 // frontend/src/pages/CompletedGamesPage.js
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui';
 import { useTheme } from '../theme/Provider';
@@ -22,12 +22,7 @@ const CompletedGamesPage = () => {
   const [hasMore, setHasMore] = useState(false);
   const LIMIT = 10;
 
-  // Load completed games
-  useEffect(() => {
-    loadGames();
-  }, [currentPage]);
-
-  const loadGames = async () => {
+  const loadGames = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -54,7 +49,12 @@ const CompletedGamesPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, LIMIT]);
+
+  // Load completed games when page changes
+  useEffect(() => {
+    loadGames();
+  }, [loadGames]);
 
   const handleViewGame = (gameId) => {
     navigate(`/game/${gameId}`);
