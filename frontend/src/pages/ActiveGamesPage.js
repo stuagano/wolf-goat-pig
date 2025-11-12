@@ -71,6 +71,34 @@ const ActiveGamesPage = () => {
     navigate(`/game/${gameId}`);
   };
 
+  const handleDeleteGame = async (gameId, event) => {
+    // Prevent event bubbling
+    event?.stopPropagation();
+
+    // Confirm deletion
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this game? This action cannot be undone.'
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(`${API_URL}/games/${gameId}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete game');
+      }
+
+      // Refresh the games list
+      await loadGames();
+    } catch (err) {
+      console.error('Error deleting game:', err);
+      setError(`Failed to delete game: ${err.message}`);
+    }
+  };
+
   const formatDate = (isoString) => {
     if (!isoString) return 'Unknown';
     try {
@@ -359,6 +387,19 @@ const ActiveGamesPage = () => {
                       }}
                     >
                       👁️ View
+                    </button>
+                    <button
+                      onClick={(e) => handleDeleteGame(game.game_id, e)}
+                      style={{
+                        ...theme.buttonStyle,
+                        background: '#DC2626',
+                        padding: '10px 20px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      🗑️ Delete
                     </button>
                   </div>
                 </div>

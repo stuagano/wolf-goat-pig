@@ -2319,6 +2319,82 @@ async def get_games(
         raise HTTPException(status_code=500, detail=f"Error retrieving games: {str(e)}")
 
 
+@app.delete("/games/{game_id}")
+async def delete_game(
+    game_id: str,
+    db: Session = Depends(database.get_db)
+):
+    """
+    Delete a game and all associated data.
+
+    This will remove:
+    - The game state record
+    - All player records for this game
+    - Any game records and player results
+    - The game from active games if it's currently running
+
+    Args:
+        game_id: The game ID to delete
+
+    Returns:
+        Success message with deletion details
+    """
+    try:
+        # Check if game exists
+        game = db.query(models.GameStateModel).filter(
+            models.GameStateModel.game_id == game_id
+        ).first()
+
+        if not game:
+            raise HTTPException(status_code=404, detail="Game not found")
+
+        # Remove from active games service if it's running
+        service = get_game_lifecycle_service()
+        if game_id in service._active_games:
+            del service._active_games[game_id]
+            logger.info(f"Removed game {game_id} from active games")
+
+        # Delete all related game players
+        players_deleted = db.query(models.GamePlayer).filter(
+            models.GamePlayer.game_id == game_id
+        ).delete()
+
+        # Delete game record if it exists
+        game_record = db.query(models.GameRecord).filter(
+            models.GameRecord.game_id == game_id
+        ).first()
+
+        if game_record:
+            # Delete player results for this game record
+            db.query(models.GamePlayerResult).filter(
+                models.GamePlayerResult.game_record_id == game_record.id
+            ).delete()
+
+            # Delete the game record
+            db.delete(game_record)
+
+        # Delete the game state itself
+        db.delete(game)
+        db.commit()
+
+        logger.info(f"Successfully deleted game {game_id} and {players_deleted} associated players")
+
+        return {
+            "success": True,
+            "message": "Game deleted successfully",
+            "game_id": game_id,
+            "players_deleted": players_deleted
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error deleting game {game_id}: {e}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error deleting game: {str(e)}")
+
+
 @app.get("/games/{game_id}/state")
 async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_db)):
     """Get current game state for a specific multiplayer game"""
