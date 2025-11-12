@@ -200,15 +200,15 @@ const GameScorerPage = () => {
           {/* Create New Game */}
           <Card style={{ textAlign: 'center', padding: '30px' }}>
             <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🎮</div>
-            <h3 style={{ 
-              color: theme.colors.primary, 
-              marginBottom: '12px', 
-              fontSize: '1.3rem' 
+            <h3 style={{
+              color: theme.colors.primary,
+              marginBottom: '12px',
+              fontSize: '1.3rem'
             }}>
               Create New Game
             </h3>
-            <p style={{ 
-              color: theme.colors.textSecondary, 
+            <p style={{
+              color: theme.colors.textSecondary,
               marginBottom: '20px',
               minHeight: '48px'
             }}>
@@ -229,18 +229,50 @@ const GameScorerPage = () => {
             </button>
           </Card>
 
+          {/* Active Games */}
+          <Card style={{ textAlign: 'center', padding: '30px' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🎯</div>
+            <h3 style={{
+              color: theme.colors.primary,
+              marginBottom: '12px',
+              fontSize: '1.3rem'
+            }}>
+              Active Games
+            </h3>
+            <p style={{
+              color: theme.colors.textSecondary,
+              marginBottom: '20px',
+              minHeight: '48px'
+            }}>
+              View and resume your in-progress games
+            </p>
+            <button
+              onClick={() => navigate('/games/active')}
+              style={{
+                ...theme.buttonStyle,
+                background: '#10B981',
+                width: '100%',
+                padding: '14px',
+                fontSize: '16px',
+                fontWeight: '600'
+              }}
+            >
+              View Active Games
+            </button>
+          </Card>
+
           {/* Join Existing Game */}
           <Card style={{ textAlign: 'center', padding: '30px' }}>
             <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🔗</div>
-            <h3 style={{ 
-              color: theme.colors.primary, 
-              marginBottom: '12px', 
-              fontSize: '1.3rem' 
+            <h3 style={{
+              color: theme.colors.primary,
+              marginBottom: '12px',
+              fontSize: '1.3rem'
             }}>
               Join Game
             </h3>
-            <p style={{ 
-              color: theme.colors.textSecondary, 
+            <p style={{
+              color: theme.colors.textSecondary,
               marginBottom: '20px',
               minHeight: '48px'
             }}>
@@ -261,18 +293,50 @@ const GameScorerPage = () => {
             </button>
           </Card>
 
+          {/* Game History */}
+          <Card style={{ textAlign: 'center', padding: '30px' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🏆</div>
+            <h3 style={{
+              color: theme.colors.primary,
+              marginBottom: '12px',
+              fontSize: '1.3rem'
+            }}>
+              Game History
+            </h3>
+            <p style={{
+              color: theme.colors.textSecondary,
+              marginBottom: '20px',
+              minHeight: '48px'
+            }}>
+              Review completed games and see who won
+            </p>
+            <button
+              onClick={() => navigate('/games/completed')}
+              style={{
+                ...theme.buttonStyle,
+                background: '#8B5CF6',
+                width: '100%',
+                padding: '14px',
+                fontSize: '16px',
+                fontWeight: '600'
+              }}
+            >
+              View History
+            </button>
+          </Card>
+
           {/* Test Game */}
           <Card style={{ textAlign: 'center', padding: '30px' }}>
             <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🧪</div>
-            <h3 style={{ 
-              color: theme.colors.primary, 
-              marginBottom: '12px', 
-              fontSize: '1.3rem' 
+            <h3 style={{
+              color: theme.colors.primary,
+              marginBottom: '12px',
+              fontSize: '1.3rem'
             }}>
               Test Scoring
             </h3>
-            <p style={{ 
-              color: theme.colors.textSecondary, 
+            <p style={{
+              color: theme.colors.textSecondary,
               marginBottom: '20px',
               minHeight: '48px'
             }}>

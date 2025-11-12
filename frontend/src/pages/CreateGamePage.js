@@ -191,21 +191,80 @@ function CreateGamePage() {
           {loading ? 'Creating Game...' : '🚀 Create Game & Get Join Code'}
         </button>
 
-        {/* Back Button */}
-        <button
-          onClick={() => navigate('/')}
-          style={{
-            ...theme.buttonStyle,
-            width: '100%',
-            fontSize: 16,
-            marginTop: 12,
-            background: 'transparent',
+        {/* Quick Links Section */}
+        <div style={{
+          marginTop: 24,
+          paddingTop: 20,
+          borderTop: `1px solid ${theme.colors.border}`
+        }}>
+          <p style={{
+            fontSize: 14,
+            fontWeight: 600,
             color: theme.colors.textSecondary,
-            border: `1px solid ${theme.colors.border}`
-          }}
-        >
-          ← Back to Home
-        </button>
+            marginBottom: 12,
+            textAlign: 'center'
+          }}>
+            Quick Links
+          </p>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '10px'
+          }}>
+            <button
+              onClick={() => navigate('/games/active')}
+              style={{
+                ...theme.buttonStyle,
+                fontSize: 14,
+                padding: '10px 16px',
+                background: 'transparent',
+                color: theme.colors.primary,
+                border: `2px solid ${theme.colors.primary}`
+              }}
+            >
+              🎯 Active Games
+            </button>
+            <button
+              onClick={() => navigate('/games/completed')}
+              style={{
+                ...theme.buttonStyle,
+                fontSize: 14,
+                padding: '10px 16px',
+                background: 'transparent',
+                color: theme.colors.primary,
+                border: `2px solid ${theme.colors.primary}`
+              }}
+            >
+              🏆 History
+            </button>
+            <button
+              onClick={() => navigate('/join')}
+              style={{
+                ...theme.buttonStyle,
+                fontSize: 14,
+                padding: '10px 16px',
+                background: 'transparent',
+                color: theme.colors.primary,
+                border: `2px solid ${theme.colors.primary}`
+              }}
+            >
+              🔗 Join Game
+            </button>
+            <button
+              onClick={() => navigate('/')}
+              style={{
+                ...theme.buttonStyle,
+                fontSize: 14,
+                padding: '10px 16px',
+                background: 'transparent',
+                color: theme.colors.textSecondary,
+                border: `1px solid ${theme.colors.border}`
+              }}
+            >
+              🏠 Home
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
