@@ -7,6 +7,16 @@ import '../../styles/mobile-touch.css';
 const API_URL = process.env.REACT_APP_API_URL || '';
 
 /**
+ * Helper component to display player name with authentication indicator
+ */
+const PlayerName = ({ name, isAuthenticated }) => (
+  <>
+    {name}
+    {isAuthenticated && <span style={{ marginLeft: '4px', fontSize: '12px' }}>🔒</span>}
+  </>
+);
+
+/**
  * Simplified scorekeeper component - no game engine, just direct data entry
  * Client-side betting UI, single API call to complete each hole
  */
@@ -205,20 +215,14 @@ const SimpleScorekeeper = ({
   };
 
   // Handle team selection for partners mode
-  // First 2 clicks are teammates (team1), next clicks are team2
+  // Toggle players in/out of Team 1. Team 2 is automatically all other players.
   const togglePlayerTeam = (playerId) => {
     if (team1.includes(playerId)) {
+      // Remove from team1 (they'll go to team2 automatically)
       setTeam1(team1.filter(id => id !== playerId));
-    } else if (team2.includes(playerId)) {
-      setTeam2(team2.filter(id => id !== playerId));
     } else {
-      // First 2 players go to team1, rest go to team2
-      const totalSelected = team1.length + team2.length;
-      if (totalSelected < 2) {
-        setTeam1([...team1, playerId]);
-      } else {
-        setTeam2([...team2, playerId]);
-      }
+      // Add to team1
+      setTeam1([...team1, playerId]);
     }
   };
 
@@ -254,14 +258,14 @@ const SimpleScorekeeper = ({
         return 'Please select at least one player for Team 1';
       }
       if (team1.length === players.length) {
-        return 'Cannot put all players on Team 1 - teams must have equal players';
+        return 'Cannot select all players for Team 1. Select half for Team 1, the rest will automatically be Team 2.';
       }
 
       // Calculate implicit team2 (players not in team1)
       const implicitTeam2 = players.filter(p => !team1.includes(p.id)).map(p => p.id);
 
       if (team1.length !== implicitTeam2.length) {
-        return 'Teams must have equal players';
+        return `Select exactly ${Math.floor(players.length / 2)} players for Team 1. Currently selected: ${team1.length}`;
       }
     } else {
       if (!captain) {
@@ -305,16 +309,12 @@ const SimpleScorekeeper = ({
     setError(null);
 
     try {
-      // Calculate implicit team2 for partners mode
-      const finalTeam2 = teamMode === 'partners' && team2.length === 0
-        ? players.filter(p => !team1.includes(p.id)).map(p => p.id)
-        : team2;
-
+      // For partners mode, Team 2 is always calculated as players not in Team 1
       const teams = teamMode === 'partners'
         ? {
             type: 'partners',
             team1: team1,
-            team2: finalTeam2
+            team2: players.filter(p => !team1.includes(p.id)).map(p => p.id)
           }
         : {
             type: 'solo',
@@ -687,8 +687,7 @@ const SimpleScorekeeper = ({
                           onClick={() => handlePlayerNameClick(player.id, player.name)}
                           title="Click to edit player name"
                         >
-                          {player.name}
-                          {player.is_authenticated && <span style={{ marginLeft: '4px', fontSize: '12px' }}>🔒</span>}
+                          <PlayerName name={player.name} isAuthenticated={player.is_authenticated} />
                           <span style={{ fontSize: '10px', marginLeft: '4px', opacity: 0.5 }}>✏️</span>
                         </td>
                         {/* Front 9 Strokes */}
@@ -1524,8 +1523,7 @@ const SimpleScorekeeper = ({
                   }}
                   title={hasUsedFloat ? `${player.name} has already used their float` : ''}
                 >
-                  {player.name}
-                  {player.is_authenticated && <span style={{ marginLeft: '4px', fontSize: '12px' }}>🔒</span>}
+                  <PlayerName name={player.name} isAuthenticated={player.is_authenticated} />
                   {hasUsedFloat && (
                     <span style={{
                       fontSize: '10px',
@@ -1576,8 +1574,7 @@ const SimpleScorekeeper = ({
                 }}
               >
                 {player.name}
-                {player.is_authenticated && <span style={{ marginLeft: '4px', fontSize: '12px' }}>🔒</span>}
-              </button>
+                              </button>
             ))}
             <button
               onClick={() => setOptionInvokedBy(null)}
@@ -1652,8 +1649,7 @@ const SimpleScorekeeper = ({
                       flex: 1
                     }}>
                       {player.name}
-                      {player.is_authenticated && <span style={{ marginLeft: '4px', fontSize: '12px' }}>🔒</span>}
-                    </div>
+                                          </div>
                     <div style={{
                       display: 'flex',
                       gap: '16px',
@@ -1805,8 +1801,7 @@ const SimpleScorekeeper = ({
                       boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                     }}>
                       {player.name}
-                      {player.is_authenticated && <span style={{ marginLeft: '4px', fontSize: '12px' }}>🔒</span>}
-                    </div>
+                                          </div>
                   ))}
                 </div>
               </div>
@@ -1913,37 +1908,49 @@ const SimpleScorekeeper = ({
         borderRadius: '8px',
         marginBottom: '20px'
       }}>
-        <h3 style={{ margin: '0 0 12px' }}>
-          {teamMode === 'partners' ? 'Select Teams' : 'Select Captain'}
+        <h3 style={{ margin: '0 0 8px' }}>
+          {teamMode === 'partners' ? 'Select Team 1' : 'Select Captain'}
         </h3>
+        {teamMode === 'partners' && (
+          <p style={{
+            margin: '0 0 12px',
+            fontSize: '14px',
+            color: theme.colors.textSecondary,
+            fontStyle: 'italic'
+          }}>
+            Click players to add them to Team 1. Remaining players will automatically be Team 2.
+          </p>
+        )}
 
         {teamMode === 'partners' ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
-            {players.map(player => {
-              const inTeam1 = team1.includes(player.id);
-              const inTeam2 = team2.includes(player.id);
-              return (
-                <button
-                  key={player.id}
-                  data-testid={`partner-${player.id}`}
-                  onClick={() => togglePlayerTeam(player.id)}
-                  style={{
-                    padding: '12px',
-                    fontSize: '16px',
-                    border: inTeam1 || inTeam2 ? `3px solid ${inTeam1 ? '#00bcd4' : '#ff9800'}` : `2px solid ${theme.colors.border}`,
-                    borderRadius: '8px',
-                    background: inTeam1 ? 'rgba(0, 188, 212, 0.1)' : inTeam2 ? 'rgba(255, 152, 0, 0.1)' : 'white',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {player.name}
-                  {player.is_authenticated && <span style={{ marginLeft: '4px', fontSize: '12px' }}>🔒</span>}
-                  {inTeam1 && ' (Team 1)'}
-                  {inTeam2 && ' (Team 2)'}
-                </button>
-              );
-            })}
-          </div>
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+              {players.map(player => {
+                const inTeam1 = team1.includes(player.id);
+                const inTeam2 = !inTeam1; // Implicit team 2
+                return (
+                  <button
+                    key={player.id}
+                    data-testid={`partner-${player.id}`}
+                    onClick={() => togglePlayerTeam(player.id)}
+                    style={{
+                      padding: '12px',
+                      fontSize: '16px',
+                      border: inTeam1 ? `3px solid #00bcd4` : `2px solid ${theme.colors.border}`,
+                      borderRadius: '8px',
+                      background: inTeam1 ? 'rgba(0, 188, 212, 0.1)' : inTeam2 ? 'rgba(255, 152, 0, 0.05)' : 'white',
+                      cursor: 'pointer',
+                      opacity: inTeam2 ? 0.8 : 1
+                    }}
+                  >
+                    <PlayerName name={player.name} isAuthenticated={player.is_authenticated} />
+                    {inTeam1 && ' (Team 1)'}
+                    {inTeam2 && ' (Team 2 ↺)'}
+                  </button>
+                );
+              })}
+            </div>
+          </>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
             {players.map(player => {
@@ -1963,8 +1970,7 @@ const SimpleScorekeeper = ({
                   }}
                 >
                   {isCaptain && '⭐ '}{player.name}
-                  {player.is_authenticated && <span style={{ marginLeft: '4px', fontSize: '12px' }}>🔒</span>}
-                </button>
+                                  </button>
               );
             })}
           </div>
@@ -1984,8 +1990,7 @@ const SimpleScorekeeper = ({
             <div key={player.id} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <label style={{ flex: 1, fontWeight: 'bold' }}>
                 {player.name}
-                {player.is_authenticated && <span style={{ marginLeft: '4px', fontSize: '12px' }}>🔒</span>}
-                :
+                                :
               </label>
               <input
                 data-testid={`score-input-${player.id}`}
