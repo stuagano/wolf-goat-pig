@@ -324,3 +324,15 @@ pytest backend/tests/ -v
 - Edge cases → Invalid inputs handled gracefully
 
 **REMEMBER: The simulation engine is complex. Always test before committing to prevent regressions and ensure functional correctness.**
+
+# Agent Q&A Section
+
+This section contains frequently asked questions and clarifications for AI agents and new players learning the game.
+
+## Q: How do you do the Tunkarri in the four-man game?
+
+**A: The Tunkarri is not applicable to the 4-man game.** The Tunkarri is only available in the 5-man and 6-man games, where either Aardvark may declare before the Captain hits his tee shot that he intends to go on his own, earning 3 quarters for every 2 quarters wagered if he achieves the best net score on the hole.
+
+In the 4-man game, there is no real Aardvark (only an "Invisible Aardvark"), so the Tunkarri option does not exist. Players in the 4-man game can still go solo by either:
+1. The Captain choosing not to request a partner
+2. A player declining the Captain's invitation to partner (which invokes "The Duncan" if done before hitting)
