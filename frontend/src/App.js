@@ -25,7 +25,8 @@ import AdminPage from "./pages/AdminPage";
 import CreateGamePage from "./pages/CreateGamePage";
 import JoinGamePage from "./pages/JoinGamePage";
 import GameLobbyPage from "./pages/GameLobbyPage";
-import TestMultiplayerPage from "./pages/demo/TestMultiplayerPage";
+// Demo pages removed from build - kept in repo for reference only
+// import TestMultiplayerPage from "./pages/demo/TestMultiplayerPage";
 import ActiveGamesPage from "./pages/ActiveGamesPage";
 import CompletedGamesPage from "./pages/CompletedGamesPage";
 import Navigation from "./components/Navigation";
@@ -269,7 +270,8 @@ function App() {
           <Route path="/lobby/:gameId" element={<GameLobbyPage />} />
           <Route path="/games/active" element={<ActiveGamesPage />} />
           <Route path="/games/completed" element={<CompletedGamesPage />} />
-          <Route path="/test-multiplayer" element={<TestMultiplayerPage />} />
+          {/* Demo route removed from build */}
+          {/* <Route path="/test-multiplayer" element={<TestMultiplayerPage />} /> */}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </div>
