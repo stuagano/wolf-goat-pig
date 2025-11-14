@@ -25,7 +25,7 @@ import AdminPage from "./pages/AdminPage";
 import CreateGamePage from "./pages/CreateGamePage";
 import JoinGamePage from "./pages/JoinGamePage";
 import GameLobbyPage from "./pages/GameLobbyPage";
-import TestMultiplayerPage from "./pages/TestMultiplayerPage";
+import TestMultiplayerPage from "./pages/demo/TestMultiplayerPage";
 import ActiveGamesPage from "./pages/ActiveGamesPage";
 import CompletedGamesPage from "./pages/CompletedGamesPage";
 import Navigation from "./components/Navigation";
