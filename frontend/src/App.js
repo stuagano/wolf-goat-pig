@@ -30,6 +30,7 @@ import GameLobbyPage from "./pages/GameLobbyPage";
 import ActiveGamesPage from "./pages/ActiveGamesPage";
 import CompletedGamesPage from "./pages/CompletedGamesPage";
 import Navigation from "./components/Navigation";
+import { BadgeNotificationManager } from "./components/BadgeNotification";
 import "./styles/mobile-touch.css"; // Import mobile touch optimization styles
 
 const API_URL = process.env.REACT_APP_API_URL || "";
@@ -213,6 +214,7 @@ function App() {
     <ThemeProvider>
       <div>
         <Navigation />
+        <BadgeNotificationManager />
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/game" element={<CreateGamePage />} />
