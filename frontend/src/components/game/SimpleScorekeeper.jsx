@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../theme/Provider';
 import GameCompletionView from './GameCompletionView';
+import { triggerBadgeNotification } from '../BadgeNotification';
 import '../../styles/mobile-touch.css';
 
 const API_URL = process.env.REACT_APP_API_URL || '';
@@ -386,10 +387,42 @@ const SimpleScorekeeper = ({
         resetHole();
       }
 
+      // Check for achievement unlocks for all players
+      await checkAchievements();
+
     } catch (err) {
       setError(err.message);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Check achievements for all players and trigger notifications
+  const checkAchievements = async () => {
+    try {
+      // Check achievements for each player
+      for (const player of players) {
+        const response = await fetch(`${API_URL}/api/badges/admin/check-achievements/${player.id}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+
+          // Trigger badge notification for each newly earned badge
+          if (data.badges_earned && data.badges_earned.length > 0) {
+            data.badges_earned.forEach(badge => {
+              triggerBadgeNotification(badge);
+            });
+          }
+        }
+      }
+    } catch (err) {
+      // Silently fail - achievements are nice-to-have, not critical
+      console.warn('Failed to check achievements:', err);
     }
   };
 
