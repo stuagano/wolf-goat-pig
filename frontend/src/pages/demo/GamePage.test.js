@@ -6,7 +6,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter, __setNavigateMock, __resetRouterMocks } from 'react-router-dom';
-import GamePage from '../GamePage';
+import GamePage from './GamePage';
 import { ThemeProvider } from '../../theme/Provider';
 import { GameProvider } from '../../context/GameProvider';
 import { AuthProvider } from '../../context/AuthContext';
