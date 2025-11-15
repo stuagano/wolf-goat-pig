@@ -1668,25 +1668,97 @@ const SimpleScorekeeper = ({
           {/* Step 3: The Option */}
           {optionActive && !optionTurnedOff && (
             <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '8px 12px',
               background: '#e3f2fd',
               borderRadius: '8px',
-              borderLeft: '4px solid #2196F3'
+              borderLeft: '4px solid #2196F3',
+              padding: '12px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px'
             }}>
-              <div style={{ fontSize: '20px', fontWeight: 'bold', minWidth: '50px', textAlign: 'right', color: '#2196F3' }}>
-                ×2
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#2196F3' }}>+ THE OPTION</div>
-                <div style={{ fontSize: '12px', color: theme.colors.textSecondary }}>
-                  Captain {goatId && players.find(p => p.id === goatId)?.name} is the Goat
+              {/* Option Info */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px'
+              }}>
+                <div style={{ fontSize: '20px', fontWeight: 'bold', minWidth: '50px', textAlign: 'right', color: '#2196F3' }}>
+                  ×2
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#2196F3' }}>+ THE OPTION</div>
+                  <div style={{ fontSize: '12px', color: theme.colors.textSecondary }}>
+                    Captain {goatId && players.find(p => p.id === goatId)?.name} is the Goat
+                  </div>
+                </div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#2196F3' }}>
+                  = {(carryOver ? baseWager * 4 : baseWager * 2)}Q
                 </div>
               </div>
-              <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#2196F3' }}>
-                = {(carryOver ? baseWager * 4 : baseWager * 2)}Q
+
+              {/* Action Buttons */}
+              <div style={{
+                display: 'flex',
+                gap: '8px',
+                paddingTop: '8px',
+                borderTop: '1px solid rgba(33, 150, 243, 0.2)'
+              }}>
+                <button
+                  onClick={() => {
+                    // Accept THE OPTION - do nothing, keep it active
+                  }}
+                  className="touch-optimized"
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    borderRadius: '6px',
+                    background: 'linear-gradient(135deg, #4CAF50, #45a049)',
+                    color: 'white',
+                    border: 'none',
+                    fontSize: '13px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 6px rgba(76, 175, 80, 0.3)',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = '0 3px 8px rgba(76, 175, 80, 0.4)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 2px 6px rgba(76, 175, 80, 0.3)';
+                  }}
+                >
+                  ✓ Accept Double (2x)
+                </button>
+                <button
+                  onClick={() => setOptionTurnedOff(true)}
+                  className="touch-optimized"
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    borderRadius: '6px',
+                    background: 'linear-gradient(135deg, #FF5722, #E64A19)',
+                    color: 'white',
+                    border: 'none',
+                    fontSize: '13px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 6px rgba(255, 87, 34, 0.3)',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = '0 3px 8px rgba(255, 87, 34, 0.4)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 2px 6px rgba(255, 87, 34, 0.3)';
+                  }}
+                >
+                  ✗ Decline (1x)
+                </button>
               </div>
             </div>
           )}
