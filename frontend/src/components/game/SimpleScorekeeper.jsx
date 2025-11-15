@@ -1668,97 +1668,25 @@ const SimpleScorekeeper = ({
           {/* Step 3: The Option */}
           {optionActive && !optionTurnedOff && (
             <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '8px 12px',
               background: '#e3f2fd',
               borderRadius: '8px',
-              borderLeft: '4px solid #2196F3',
-              padding: '12px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px'
+              borderLeft: '4px solid #2196F3'
             }}>
-              {/* Option Info */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px'
-              }}>
-                <div style={{ fontSize: '20px', fontWeight: 'bold', minWidth: '50px', textAlign: 'right', color: '#2196F3' }}>
-                  ×2
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#2196F3' }}>+ THE OPTION</div>
-                  <div style={{ fontSize: '12px', color: theme.colors.textSecondary }}>
-                    Captain {goatId && players.find(p => p.id === goatId)?.name} is the Goat
-                  </div>
-                </div>
-                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#2196F3' }}>
-                  = {(carryOver ? baseWager * 4 : baseWager * 2)}Q
+              <div style={{ fontSize: '20px', fontWeight: 'bold', minWidth: '50px', textAlign: 'right', color: '#2196F3' }}>
+                ×2
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#2196F3' }}>+ THE OPTION</div>
+                <div style={{ fontSize: '12px', color: theme.colors.textSecondary }}>
+                  Captain {goatId && players.find(p => p.id === goatId)?.name} is the Goat
                 </div>
               </div>
-
-              {/* Action Buttons */}
-              <div style={{
-                display: 'flex',
-                gap: '8px',
-                paddingTop: '8px',
-                borderTop: '1px solid rgba(33, 150, 243, 0.2)'
-              }}>
-                <button
-                  onClick={() => {
-                    // Accept THE OPTION - do nothing, keep it active
-                  }}
-                  className="touch-optimized"
-                  style={{
-                    flex: 1,
-                    padding: '10px',
-                    borderRadius: '6px',
-                    background: 'linear-gradient(135deg, #4CAF50, #45a049)',
-                    color: 'white',
-                    border: 'none',
-                    fontSize: '13px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    boxShadow: '0 2px 6px rgba(76, 175, 80, 0.3)',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                    e.currentTarget.style.boxShadow = '0 3px 8px rgba(76, 175, 80, 0.4)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 2px 6px rgba(76, 175, 80, 0.3)';
-                  }}
-                >
-                  ✓ Accept Double (2x)
-                </button>
-                <button
-                  onClick={() => setOptionTurnedOff(true)}
-                  className="touch-optimized"
-                  style={{
-                    flex: 1,
-                    padding: '10px',
-                    borderRadius: '6px',
-                    background: 'linear-gradient(135deg, #FF5722, #E64A19)',
-                    color: 'white',
-                    border: 'none',
-                    fontSize: '13px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    boxShadow: '0 2px 6px rgba(255, 87, 34, 0.3)',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                    e.currentTarget.style.boxShadow = '0 3px 8px rgba(255, 87, 34, 0.4)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 2px 6px rgba(255, 87, 34, 0.3)';
-                  }}
-                >
-                  ✗ Decline (1x)
-                </button>
+              <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#2196F3' }}>
+                = {(carryOver ? baseWager * 4 : baseWager * 2)}Q
               </div>
             </div>
           )}
@@ -1866,6 +1794,86 @@ const SimpleScorekeeper = ({
           }}>
             Mode: <strong>{teamMode === 'partners' ? '👥 Partners' : '🎯 Solo'}</strong>
             {teamMode === 'partners' && ' (Best Ball Scoring)'}
+          </div>
+
+          {/* Betting Adjustment Buttons */}
+          <div style={{
+            marginTop: '16px',
+            paddingTop: '16px',
+            borderTop: `2px solid ${theme.colors.border}`,
+            display: 'flex',
+            gap: '12px',
+            justifyContent: 'center'
+          }}>
+            <button
+              onClick={() => setCurrentWager(Math.max(1, currentWager / 2))}
+              className="touch-optimized"
+              style={{
+                flex: 1,
+                maxWidth: '160px',
+                padding: '14px 20px',
+                borderRadius: '10px',
+                background: 'linear-gradient(135deg, #FF9800, #F57C00)',
+                color: 'white',
+                border: 'none',
+                fontSize: '15px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                boxShadow: '0 3px 8px rgba(255, 152, 0, 0.3)',
+                transition: 'all 0.2s',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 5px 12px rgba(255, 152, 0, 0.4)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 3px 8px rgba(255, 152, 0, 0.3)';
+              }}
+            >
+              <div style={{ fontSize: '20px' }}>÷2</div>
+              <div style={{ fontSize: '11px', opacity: 0.9 }}>Half</div>
+              <div style={{ fontSize: '13px', fontWeight: 'bold' }}>{Math.max(1, currentWager / 2)}Q</div>
+            </button>
+
+            <button
+              onClick={() => setCurrentWager(currentWager * 2)}
+              className="touch-optimized"
+              style={{
+                flex: 1,
+                maxWidth: '160px',
+                padding: '14px 20px',
+                borderRadius: '10px',
+                background: 'linear-gradient(135deg, #4CAF50, #45a049)',
+                color: 'white',
+                border: 'none',
+                fontSize: '15px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                boxShadow: '0 3px 8px rgba(76, 175, 80, 0.3)',
+                transition: 'all 0.2s',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 5px 12px rgba(76, 175, 80, 0.4)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 3px 8px rgba(76, 175, 80, 0.3)';
+              }}
+            >
+              <div style={{ fontSize: '20px' }}>×2</div>
+              <div style={{ fontSize: '11px', opacity: 0.9 }}>Double</div>
+              <div style={{ fontSize: '13px', fontWeight: 'bold' }}>{currentWager * 2}Q</div>
+            </button>
           </div>
         </div>
       </div>
