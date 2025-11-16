@@ -72,6 +72,7 @@ const SimpleScorekeeper = ({
   const [editingPlayerName, setEditingPlayerName] = useState(null); // Track which player name is being edited
   const [editPlayerNameValue, setEditPlayerNameValue] = useState(''); // Player name input value
   const [localPlayers, setLocalPlayers] = useState(players); // Local copy of players for immediate UI updates
+  const [showUsageStats, setShowUsageStats] = useState(false); // Toggle for usage statistics section
 
   // Initialize player standings from hole history
   useEffect(() => {
@@ -1135,11 +1136,10 @@ const SimpleScorekeeper = ({
         </div>
       )}
 
-      {/* Betting Options - Front and Center */}
+      {/* Simplified Betting Actions */}
       {!isHoepfinger && rotationOrder.length > 0 && !editingHole && (() => {
         // Determine who can make betting decisions
         let eligiblePlayerId = null;
-        let reason = '';
 
         // If scores are entered, find the player with the lowest score in the hole
         const playersWithScores = Object.entries(scores).filter(([_, score]) => score > 0);
@@ -1148,23 +1148,16 @@ const SimpleScorekeeper = ({
             current[1] < lowest[1] ? current : lowest
           );
           eligiblePlayerId = lowestScoreEntry[0];
-          const player = players.find(p => p.id === eligiblePlayerId);
-          reason = `${player?.name} has the lowest score (${lowestScoreEntry[1]}) on this hole`;
         } else {
           // No scores yet - check if captain is furthest behind
           const captainPlayerId = rotationOrder[captainIndex];
           const captainStanding = playerStandings[captainPlayerId];
-
           if (captainStanding) {
-            // Check if captain is furthest behind (lowest quarters)
             const isCaptainFurthestBehind = Object.values(playerStandings).every(standing =>
               standing === captainStanding || captainStanding.quarters <= standing.quarters
             );
-
             if (isCaptainFurthestBehind) {
               eligiblePlayerId = captainPlayerId;
-              const player = players.find(p => p.id === captainPlayerId);
-              reason = `${player?.name} is the captain and furthest behind (${captainStanding.quarters} quarters)`;
             }
           }
         }
@@ -1175,284 +1168,101 @@ const SimpleScorekeeper = ({
 
         return (
           <div style={{
-            background: 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)',
-            borderRadius: '16px',
-            padding: '20px',
-            marginBottom: '16px',
-            boxShadow: '0 8px 24px rgba(255, 107, 53, 0.3)',
-            border: '3px solid #FF6B35'
+            background: theme.colors.paper,
+            borderRadius: '8px',
+            padding: '12px',
+            marginBottom: '12px',
+            border: `1px solid ${theme.colors.border}`
           }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              marginBottom: '16px'
-            }}>
-              <div style={{
-                background: 'rgba(255, 255, 255, 0.2)',
-                borderRadius: '50%',
-                width: '56px',
-                height: '56px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '32px'
-              }}>
-                💰
-              </div>
-              <div style={{ flex: 1 }}>
-                <h3 style={{
-                  margin: 0,
-                  fontSize: '22px',
-                  fontWeight: 'bold',
-                  color: 'white',
-                  marginBottom: '4px'
-                }}>
-                  Betting Action Available
-                </h3>
-                <div style={{
-                  fontSize: '14px',
-                  color: 'rgba(255, 255, 255, 0.9)',
-                  lineHeight: 1.4
-                }}>
-                  {reason}
-                </div>
-              </div>
+            <div style={{ fontSize: '12px', color: theme.colors.textSecondary, marginBottom: '8px' }}>
+              Betting by: <strong>{eligiblePlayer?.name}</strong>
             </div>
-
-            {/* Current Wager Display */}
-            <div style={{
-              background: 'rgba(255, 255, 255, 0.15)',
-              borderRadius: '12px',
-              padding: '16px',
-              marginBottom: '16px',
-              border: '2px solid rgba(255, 255, 255, 0.3)'
-            }}>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <div>
-                  <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.8)', marginBottom: '4px' }}>
-                    Current Wager
-                  </div>
-                  <div style={{ fontSize: '36px', fontWeight: 'bold', color: 'white', lineHeight: 1 }}>
-                    {currentWager}Q
-                  </div>
-                </div>
-                <div style={{
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  borderRadius: '8px',
-                  padding: '8px 12px',
-                  fontSize: '14px',
-                  color: 'white',
-                  fontWeight: 'bold'
-                }}>
-                  {eligiblePlayer?.name}
-                </div>
-              </div>
-            </div>
-
-            {/* Betting Action Buttons */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
-              gap: '12px',
-              marginBottom: '12px'
-            }}>
-              {/* Double Button */}
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
               <button
                 onClick={() => setCurrentWager(currentWager * 2)}
-                className="touch-optimized"
                 style={{
-                  background: 'linear-gradient(135deg, #4CAF50, #45a049)',
+                  flex: 1,
+                  padding: '8px',
+                  borderRadius: '6px',
+                  background: '#4CAF50',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '12px',
-                  padding: '16px 12px',
-                  fontSize: '16px',
+                  fontSize: '13px',
                   fontWeight: 'bold',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(76, 175, 80, 0.4)',
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(76, 175, 80, 0.5)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(76, 175, 80, 0.4)';
+                  cursor: 'pointer'
                 }}
               >
-                <div style={{ fontSize: '24px' }}>×2</div>
-                <div style={{ fontSize: '11px', opacity: 0.9 }}>Double</div>
-                <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{currentWager * 2}Q</div>
+                ×2
               </button>
-
-              {/* 4x Button */}
               <button
                 onClick={() => setCurrentWager(nextHoleWager * 4)}
-                className="touch-optimized"
                 style={{
-                  background: 'linear-gradient(135deg, #FF9800, #F57C00)',
+                  flex: 1,
+                  padding: '8px',
+                  borderRadius: '6px',
+                  background: '#FF9800',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '12px',
-                  padding: '16px 12px',
-                  fontSize: '16px',
+                  fontSize: '13px',
                   fontWeight: 'bold',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(255, 152, 0, 0.4)',
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(255, 152, 0, 0.5)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 152, 0, 0.4)';
+                  cursor: 'pointer'
                 }}
               >
-                <div style={{ fontSize: '24px' }}>×4</div>
-                <div style={{ fontSize: '11px', opacity: 0.9 }}>Quadruple</div>
-                <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{nextHoleWager * 4}Q</div>
+                ×4
               </button>
-
-              {/* 8x Button */}
               <button
                 onClick={() => setCurrentWager(nextHoleWager * 8)}
-                className="touch-optimized"
                 style={{
-                  background: 'linear-gradient(135deg, #F44336, #D32F2F)',
+                  flex: 1,
+                  padding: '8px',
+                  borderRadius: '6px',
+                  background: '#F44336',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '12px',
-                  padding: '16px 12px',
-                  fontSize: '16px',
+                  fontSize: '13px',
                   fontWeight: 'bold',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(244, 67, 54, 0.4)',
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(244, 67, 54, 0.5)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(244, 67, 54, 0.4)';
+                  cursor: 'pointer'
                 }}
               >
-                <div style={{ fontSize: '24px' }}>×8</div>
-                <div style={{ fontSize: '11px', opacity: 0.9 }}>Max</div>
-                <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{nextHoleWager * 8}Q</div>
+                ×8
               </button>
-
-              {/* Reset Button */}
               <button
                 onClick={() => setCurrentWager(nextHoleWager)}
-                className="touch-optimized"
                 style={{
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  color: 'white',
-                  border: '2px solid rgba(255, 255, 255, 0.5)',
-                  borderRadius: '12px',
-                  padding: '16px 12px',
-                  fontSize: '16px',
+                  flex: 1,
+                  padding: '8px',
+                  borderRadius: '6px',
+                  background: theme.colors.backgroundSecondary,
+                  border: `1px solid ${theme.colors.border}`,
+                  fontSize: '13px',
                   fontWeight: 'bold',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-                  e.currentTarget.style.transform = 'translateY(0)';
+                  cursor: 'pointer'
                 }}
               >
-                <div style={{ fontSize: '24px' }}>↻</div>
-                <div style={{ fontSize: '11px', opacity: 0.9 }}>Reset</div>
-                <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{nextHoleWager}Q</div>
+                Reset
               </button>
             </div>
-
-            {/* Custom Amount Input */}
-            <div style={{
-              background: 'rgba(255, 255, 255, 0.15)',
-              borderRadius: '12px',
-              padding: '12px',
-              border: '2px solid rgba(255, 255, 255, 0.3)'
-            }}>
-              <div style={{
-                fontSize: '12px',
-                color: 'rgba(255, 255, 255, 0.9)',
-                marginBottom: '8px',
-                fontWeight: 'bold'
-              }}>
-                Or set custom wager:
-              </div>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <input
-                  type="number"
-                  min={nextHoleWager}
-                  step={nextHoleWager}
-                  value={currentWager}
-                  onChange={(e) => {
-                    const value = parseInt(e.target.value, 10);
-                    if (value >= nextHoleWager) {
-                      setCurrentWager(value);
-                    }
-                  }}
-                  style={{
-                    flex: 1,
-                    padding: '12px',
-                    fontSize: '18px',
-                    fontWeight: 'bold',
-                    border: '2px solid rgba(255, 255, 255, 0.5)',
-                    borderRadius: '8px',
-                    background: 'rgba(255, 255, 255, 0.9)',
-                    color: '#333',
-                    textAlign: 'center'
-                  }}
-                />
-                <span style={{
-                  fontSize: '18px',
-                  fontWeight: 'bold',
-                  color: 'white'
-                }}>
-                  Quarters
-                </span>
-              </div>
-              <div style={{
-                fontSize: '11px',
-                color: 'rgba(255, 255, 255, 0.7)',
-                marginTop: '8px',
-                fontStyle: 'italic'
-              }}>
-                Minimum wager: {nextHoleWager}Q (base wager)
-              </div>
-            </div>
+            <input
+              type="number"
+              min={nextHoleWager}
+              step={nextHoleWager}
+              value={currentWager}
+              onChange={(e) => {
+                const value = parseInt(e.target.value, 10);
+                if (value >= nextHoleWager) {
+                  setCurrentWager(value);
+                }
+              }}
+              style={{
+                width: '100%',
+                padding: '8px',
+                fontSize: '14px',
+                border: `1px solid ${theme.colors.border}`,
+                borderRadius: '6px',
+                textAlign: 'center'
+              }}
+              placeholder="Custom wager"
+            />
           </div>
         );
       })()}
@@ -1602,320 +1412,84 @@ const SimpleScorekeeper = ({
         </div>
       )}
 
-      {/* Betting Progression Display */}
+      {/* Simplified Wager Display */}
       <div style={{
         background: theme.colors.paper,
-        borderRadius: '12px',
-        padding: '16px',
-        marginBottom: '16px',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        borderRadius: '8px',
+        padding: '12px',
+        marginBottom: '12px',
+        border: `1px solid ${theme.colors.border}`
       }}>
-        <h3 style={{
-          margin: '0 0 16px 0',
-          fontSize: '16px',
-          fontWeight: 'bold',
-          color: theme.colors.textPrimary,
-          borderBottom: `2px solid ${theme.colors.border}`,
-          paddingBottom: '8px'
-        }}>
-          💰 Betting Progression for This Hole
-        </h3>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {/* Step 1: Base Wager */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            padding: '8px 12px',
-            background: '#f0f7ff',
-            borderRadius: '8px',
-            borderLeft: `4px solid ${theme.colors.primary}`
-          }}>
-            <div style={{ fontSize: '20px', fontWeight: 'bold', minWidth: '50px', textAlign: 'right' }}>
-              {baseWager}Q
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 'bold', fontSize: '14px' }}>Base Wager</div>
-              <div style={{ fontSize: '12px', color: theme.colors.textSecondary }}>Starting amount</div>
-            </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <div style={{ fontSize: '13px', fontWeight: 'bold', color: theme.colors.textPrimary }}>
+            Current Wager
           </div>
-
-          {/* Step 2: Carry-Over */}
-          {carryOver && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '8px 12px',
-              background: '#fff3e0',
-              borderRadius: '8px',
-              borderLeft: '4px solid #FF5722'
-            }}>
-              <div style={{ fontSize: '20px', fontWeight: 'bold', minWidth: '50px', textAlign: 'right', color: '#FF5722' }}>
-                ×2
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#FF5722' }}>+ Carry-Over</div>
-                <div style={{ fontSize: '12px', color: theme.colors.textSecondary }}>Previous hole was a push</div>
-              </div>
-              <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#FF5722' }}>
-                = {baseWager * 2}Q
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: The Option */}
-          {optionActive && !optionTurnedOff && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '8px 12px',
-              background: '#e3f2fd',
-              borderRadius: '8px',
-              borderLeft: '4px solid #2196F3'
-            }}>
-              <div style={{ fontSize: '20px', fontWeight: 'bold', minWidth: '50px', textAlign: 'right', color: '#2196F3' }}>
-                ×2
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#2196F3' }}>+ THE OPTION</div>
-                <div style={{ fontSize: '12px', color: theme.colors.textSecondary }}>
-                  Captain {goatId && players.find(p => p.id === goatId)?.name} is the Goat
-                </div>
-              </div>
-              <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#2196F3' }}>
-                = {(carryOver ? baseWager * 4 : baseWager * 2)}Q
-              </div>
-            </div>
-          )}
-
-          {/* Step 4: Vinnie's Variation */}
-          {vinniesVariation && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '8px 12px',
-              background: '#f3e5f5',
-              borderRadius: '8px',
-              borderLeft: '4px solid #9C27B0'
-            }}>
-              <div style={{ fontSize: '20px', fontWeight: 'bold', minWidth: '50px', textAlign: 'right', color: '#9C27B0' }}>
-                ×2
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#9C27B0' }}>+ Vinnie's Variation</div>
-                <div style={{ fontSize: '12px', color: theme.colors.textSecondary }}>Special game variant active</div>
-              </div>
-              <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#9C27B0' }}>
-                = {nextHoleWager * 2}Q
-              </div>
-            </div>
-          )}
-
-          {/* Step 5: Joe's Special (Hoepfinger) */}
-          {joesSpecialWager && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '8px 12px',
-              background: '#fff3e0',
-              borderRadius: '8px',
-              borderLeft: '4px solid #F57C00'
-            }}>
-              <div style={{ fontSize: '20px', fontWeight: 'bold', minWidth: '50px', textAlign: 'right', color: '#F57C00' }}>
-                {joesSpecialWager}Q
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#F57C00' }}>Joe's Special</div>
-                <div style={{ fontSize: '12px', color: theme.colors.textSecondary }}>Goat set custom wager</div>
-              </div>
-              <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#F57C00' }}>
-                = {joesSpecialWager}Q
-              </div>
-            </div>
-          )}
-
-          {/* Step 6: Current Manual Adjustments */}
-          {currentWager !== nextHoleWager && !joesSpecialWager && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '8px 12px',
-              background: '#e8f5e9',
-              borderRadius: '8px',
-              borderLeft: '4px solid #4CAF50'
-            }}>
-              <div style={{ fontSize: '20px', fontWeight: 'bold', minWidth: '50px', textAlign: 'right', color: '#4CAF50' }}>
-                {currentWager > nextHoleWager ? '×' + (currentWager / nextHoleWager) : '÷' + (nextHoleWager / currentWager)}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#4CAF50' }}>Manual Double/Half</div>
-                <div style={{ fontSize: '12px', color: theme.colors.textSecondary }}>Adjusted by players</div>
-              </div>
-              <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#4CAF50' }}>
-                = {currentWager}Q
-              </div>
-            </div>
-          )}
-
-          {/* Final Wager Display */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '12px',
-            background: `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.accent})`,
-            borderRadius: '8px',
-            color: 'white',
-            marginTop: '8px'
-          }}>
-            <div style={{ fontSize: '16px', fontWeight: 'bold' }}>
-              🎯 FINAL WAGER FOR THIS HOLE
-            </div>
-            <div style={{ fontSize: '28px', fontWeight: 'bold' }}>
-              {currentWager}Q
-            </div>
-          </div>
-
-          {/* Team Mode Indicator */}
-          <div style={{
-            fontSize: '12px',
-            color: theme.colors.textSecondary,
-            textAlign: 'center',
-            marginTop: '8px',
-            padding: '8px',
-            background: theme.colors.backgroundSecondary,
-            borderRadius: '6px'
-          }}>
-            Mode: <strong>{teamMode === 'partners' ? '👥 Partners' : '🎯 Solo'}</strong>
-            {teamMode === 'partners' && ' (Best Ball Scoring)'}
-          </div>
-
-          {/* Betting Adjustment Buttons */}
-          <div style={{
-            marginTop: '16px',
-            paddingTop: '16px',
-            borderTop: `2px solid ${theme.colors.border}`,
-            display: 'flex',
-            gap: '12px',
-            justifyContent: 'center'
-          }}>
-            <button
-              onClick={() => setCurrentWager(Math.max(1, currentWager / 2))}
-              className="touch-optimized"
-              style={{
-                flex: 1,
-                maxWidth: '160px',
-                padding: '14px 20px',
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, #FF9800, #F57C00)',
-                color: 'white',
-                border: 'none',
-                fontSize: '15px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                boxShadow: '0 3px 8px rgba(255, 152, 0, 0.3)',
-                transition: 'all 0.2s',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 5px 12px rgba(255, 152, 0, 0.4)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 3px 8px rgba(255, 152, 0, 0.3)';
-              }}
-            >
-              <div style={{ fontSize: '20px' }}>÷2</div>
-              <div style={{ fontSize: '11px', opacity: 0.9 }}>Half</div>
-              <div style={{ fontSize: '13px', fontWeight: 'bold' }}>{Math.max(1, currentWager / 2)}Q</div>
-            </button>
-
-            <button
-              onClick={() => setCurrentWager(currentWager * 2)}
-              className="touch-optimized"
-              style={{
-                flex: 1,
-                maxWidth: '160px',
-                padding: '14px 20px',
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, #4CAF50, #45a049)',
-                color: 'white',
-                border: 'none',
-                fontSize: '15px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                boxShadow: '0 3px 8px rgba(76, 175, 80, 0.3)',
-                transition: 'all 0.2s',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 5px 12px rgba(76, 175, 80, 0.4)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 3px 8px rgba(76, 175, 80, 0.3)';
-              }}
-            >
-              <div style={{ fontSize: '20px' }}>×2</div>
-              <div style={{ fontSize: '11px', opacity: 0.9 }}>Double</div>
-              <div style={{ fontSize: '13px', fontWeight: 'bold' }}>{currentWager * 2}Q</div>
-            </button>
+          <div style={{ fontSize: '24px', fontWeight: 'bold', color: theme.colors.primary }}>
+            {currentWager}Q
           </div>
         </div>
-      </div>
 
-      {/* The Option Card - Captain can turn it off */}
-      {optionActive && !optionTurnedOff && goatId && (
-        <div style={{
-          background: '#E3F2FD',
-          borderRadius: '12px',
-          padding: '16px',
-          marginBottom: '16px',
-          border: '2px solid #2196F3',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-        }}>
-          <div style={{
-            fontSize: '16px',
-            fontWeight: 'bold',
-            marginBottom: '8px',
-            color: '#1976D2'
-          }}>
-            🎲 THE OPTION ACTIVE
+        {/* Active Modifiers */}
+        {(carryOver || (optionActive && !optionTurnedOff) || vinniesVariation || joesSpecialWager) && (
+          <div style={{ fontSize: '11px', color: theme.colors.textSecondary, display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {carryOver && <span style={{ padding: '2px 6px', background: '#fff3e0', borderRadius: '4px', color: '#FF5722' }}>Carry-Over ×2</span>}
+            {optionActive && !optionTurnedOff && <span style={{ padding: '2px 6px', background: '#e3f2fd', borderRadius: '4px', color: '#2196F3' }}>Option ×2</span>}
+            {vinniesVariation && <span style={{ padding: '2px 6px', background: '#f3e5f5', borderRadius: '4px', color: '#9C27B0' }}>Vinnie's ×2</span>}
+            {joesSpecialWager && <span style={{ padding: '2px 6px', background: '#fff3e0', borderRadius: '4px', color: '#F57C00' }}>Joe's Special</span>}
           </div>
-          <div style={{ marginBottom: '12px', color: '#424242', fontSize: '14px' }}>
-            {players.find(p => p.id === goatId)?.name} (Captain & Goat) - Wager automatically doubled!
+        )}
+
+        {/* Mode & Betting Controls */}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '8px', paddingTop: '8px', borderTop: `1px solid ${theme.colors.border}` }}>
+          <div style={{ fontSize: '11px', color: theme.colors.textSecondary, flex: 1 }}>
+            {teamMode === 'partners' ? '👥 Partners' : '🎯 Solo'}
           </div>
           <button
-            onClick={() => setOptionTurnedOff(true)}
+            onClick={() => setCurrentWager(Math.max(1, currentWager / 2))}
             style={{
-              padding: '10px 16px',
-              borderRadius: '8px',
-              background: '#FF5722',
-              color: 'white',
-              border: 'none',
-              fontSize: '14px',
-              fontWeight: 'bold',
+              padding: '6px 12px',
+              borderRadius: '6px',
+              background: theme.colors.backgroundSecondary,
+              border: `1px solid ${theme.colors.border}`,
+              fontSize: '12px',
               cursor: 'pointer'
             }}
           >
-            Turn Off Option (1x wager)
+            ÷2
           </button>
+          <button
+            onClick={() => setCurrentWager(currentWager * 2)}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '6px',
+              background: theme.colors.backgroundSecondary,
+              border: `1px solid ${theme.colors.border}`,
+              fontSize: '12px',
+              cursor: 'pointer'
+            }}
+          >
+            ×2
+          </button>
+          {optionActive && !optionTurnedOff && goatId && (
+            <button
+              onClick={() => setOptionTurnedOff(true)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '6px',
+                background: '#ffebee',
+                border: '1px solid #f44336',
+                fontSize: '11px',
+                color: '#d32f2f',
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              Turn Off Option
+            </button>
+          )}
         </div>
-      )}
+      </div>
+
 
       {/* Float & Option Tracking */}
       <div style={{
@@ -2025,27 +1599,33 @@ const SimpleScorekeeper = ({
         </div>
       </div>
 
-      {/* Usage Statistics */}
+      {/* Usage Statistics - Collapsible */}
       {holeHistory.length > 0 && (
         <div style={{
           background: theme.colors.paper,
-          borderRadius: '16px',
+          borderRadius: '8px',
           overflow: 'hidden',
-          marginBottom: '20px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+          marginBottom: '12px',
+          border: `1px solid ${theme.colors.border}`
         }}>
-          <div style={{
-            padding: '16px 20px',
-            background: theme.colors.backgroundSecondary,
-            borderBottom: `3px solid ${theme.colors.border}`,
-            fontSize: '18px',
-            fontWeight: 'bold',
-            color: theme.colors.textPrimary
-          }}>
-            Rule Compliance & Usage
+          <div
+            onClick={() => setShowUsageStats(!showUsageStats)}
+            style={{
+              padding: '10px 12px',
+              background: theme.colors.backgroundSecondary,
+              fontSize: '13px',
+              fontWeight: 'bold',
+              color: theme.colors.textPrimary,
+              cursor: 'pointer',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+            <span>Rule Compliance & Usage</span>
+            <span style={{ fontSize: '16px' }}>{showUsageStats ? '▼' : '▶'}</span>
           </div>
 
-          <div style={{ padding: '16px' }}>
+          {showUsageStats && <div style={{ padding: '12px' }}>
             {Object.values(playerStandings).map((player, idx) => {
               const soloCount = player.soloCount || 0;
               const floatCount = player.floatCount || 0;
@@ -2149,19 +1729,17 @@ const SimpleScorekeeper = ({
 
           {/* Rule Summary */}
           <div style={{
-            padding: '12px 16px',
+            padding: '8px 12px',
             background: '#f9fafb',
             borderTop: `1px solid ${theme.colors.border}`,
-            fontSize: '11px',
+            fontSize: '10px',
             color: theme.colors.textSecondary
           }}>
-            <div style={{ marginBottom: '4px' }}>
-              <strong>Rules:</strong>
-            </div>
-            <div>• Solo: Each player must go solo at least once (by hole 16)</div>
-            <div>• Float: One-time use per player per round</div>
-            <div>• Option: Auto-triggered when captain is furthest down (Goat)</div>
+            <div>• Solo: Must go solo once (by hole 16)</div>
+            <div>• Float: One-time use per player</div>
+            <div>• Option: Auto when captain furthest down</div>
           </div>
+          </div>}
         </div>
       )}
 
