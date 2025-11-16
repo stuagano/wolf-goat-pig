@@ -10,6 +10,7 @@ import '../../styles/mobile-touch.css';
  */
 const MobileScorecard = ({ gameState }) => {
   const theme = useTheme();
+  const [isMinimized, setIsMinimized] = React.useState(false);
 
   if (!gameState || !gameState.players) return null;
 
@@ -319,10 +320,35 @@ const MobileScorecard = ({ gameState }) => {
     <div className="touch-optimized" style={{
       background: theme.colors.background,
       borderRadius: '16px',
-      overflow: 'hidden'
+      overflow: 'hidden',
+      marginBottom: '8px'
     }}>
-      {/* Always show standings view - toggle functionality is in the sticky Scorecard at top */}
-      {renderStandingsView()}
+      {/* Minimize/Expand Toggle Button */}
+      <button
+        onClick={() => setIsMinimized(!isMinimized)}
+        style={{
+          width: '100%',
+          padding: '12px 20px',
+          background: `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.accent})`,
+          color: 'white',
+          border: 'none',
+          borderRadius: isMinimized ? '16px' : '16px 16px 0 0',
+          fontSize: '16px',
+          fontWeight: 'bold',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          cursor: 'pointer',
+          touchAction: 'manipulation'
+        }}
+        className="touch-optimized"
+      >
+        <span>📊 Scorecard</span>
+        <span style={{ fontSize: '20px' }}>{isMinimized ? '▼' : '▲'}</span>
+      </button>
+
+      {/* Scorecard Content - only show when not minimized */}
+      {!isMinimized && renderStandingsView()}
     </div>
   );
 };

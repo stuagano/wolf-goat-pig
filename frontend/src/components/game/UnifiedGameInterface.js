@@ -33,6 +33,7 @@ import GameSetupForm from './GameSetupForm';
 import LargeScoringButtons from './LargeScoringButtons';
 import MobileScorecard from './MobileScorecard';
 import Scorecard from './Scorecard';
+import CommissionerChat from '../CommissionerChat';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -875,6 +876,9 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
             )}
           </div>
         )}
+
+        {/* Commissioner Chat - Floating Action Button */}
+        <CommissionerChat gameState={gameState} />
       </div>
     );
   }
@@ -1034,6 +1038,9 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
           />
         )}
       </div>
+
+      {/* Commissioner Chat - Floating Action Button */}
+      <CommissionerChat gameState={gameState} />
     </div>
   );
 };
