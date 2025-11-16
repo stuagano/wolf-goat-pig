@@ -1725,7 +1725,6 @@ const SimpleScorekeeper = ({
                 </div>
               );
             })}
-          </div>
 
           {/* Rule Summary */}
           <div style={{
