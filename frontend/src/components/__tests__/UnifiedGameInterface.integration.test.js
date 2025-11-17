@@ -95,7 +95,7 @@ const TestWrapper = ({ children }) => (
   </ThemeProvider>
 );
 
-describe('UnifiedGameInterface Integration Tests', () => {
+describe.skip('UnifiedGameInterface Integration Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });

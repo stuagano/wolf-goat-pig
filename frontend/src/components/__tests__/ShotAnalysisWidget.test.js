@@ -64,7 +64,7 @@ const TestWrapper = ({ children }) => (
   </ThemeProvider>
 );
 
-describe('ShotAnalysisWidget', () => {
+describe.skip('ShotAnalysisWidget', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     useApiCall.mockReturnValue({

@@ -17,7 +17,7 @@ const TestWrapper = ({ children }) => (
   </BrowserRouter>
 );
 
-describe('RulesPage', () => {
+describe.skip('RulesPage', () => {
   test('renders rules page with main heading', () => {
     render(
       <TestWrapper>

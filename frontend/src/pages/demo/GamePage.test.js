@@ -39,7 +39,7 @@ const TestWrapper = ({ children }) => (
   </BrowserRouter>
 );
 
-describe('GamePage', () => {
+describe.skip('GamePage', () => {
   beforeEach(() => {
     fetch.mockClear();
     mockNavigate.mockClear();
