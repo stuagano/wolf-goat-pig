@@ -89,9 +89,10 @@ jest.mock('../../ShotVisualizationOverlay', () => ({ children, ...props }) => (
 //   )
 // }));
 
-import UnifiedGameInterface from '../UnifiedGameInterface';
-import { useGame } from '../../context';
-import useOddsCalculation from '../../hooks/useOddsCalculation';
+// Commented out - test suite is skipped
+// import UnifiedGameInterface from '../UnifiedGameInterface';
+// import { useGame } from '../../../context';
+// import useOddsCalculation from '../../../hooks/useOddsCalculation';
 
 describe.skip('UnifiedGameInterface', () => {
   let mockUseGame;
