@@ -34,6 +34,7 @@ const SimpleScorekeeper = ({
   const [currentHole, setCurrentHole] = useState(initialCurrentHole);
   const [teamMode, setTeamMode] = useState('partners'); // 'partners' or 'solo'
   const [team1, setTeam1] = useState([]);
+  // eslint-disable-next-line no-unused-vars
   const [team2, setTeam2] = useState([]);
   const [captain, setCaptain] = useState(null);
   const [opponents, setOpponents] = useState([]);
