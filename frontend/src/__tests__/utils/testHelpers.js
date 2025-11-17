@@ -1,10 +1,11 @@
 /**
  * Test utilities and helpers for Wolf Goat Pig testing
- * 
+ *
  * Provides common testing utilities, mock factories, and helper functions
  * to reduce test boilerplate and ensure consistent test patterns.
  */
 
+import React from 'react';
 import { render } from '@testing-library/react';
 import { ThemeProvider } from '../../theme/Provider';
 import { GameProvider } from '../../context/GameProvider';
