@@ -33,11 +33,11 @@ jest.mock('../../../theme/Provider', () => ({
   })
 }));
 
-jest.mock('../../context', () => ({
+jest.mock('../../../context', () => ({
   useGame: jest.fn()
 }));
 
-jest.mock('../../hooks/useOddsCalculation', () => ({
+jest.mock('../../../hooks/useOddsCalculation', () => ({
   __esModule: true,
   default: jest.fn()
 }));
