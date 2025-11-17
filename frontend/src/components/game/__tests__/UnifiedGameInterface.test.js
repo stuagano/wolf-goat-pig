@@ -79,14 +79,15 @@ jest.mock('../../ShotVisualizationOverlay', () => ({ children, ...props }) => (
   <div data-testid="shot-visualization-overlay" {...props}>{children}</div>
 ));
 
-jest.mock('../simulation', () => ({
-  GameSetup: ({ children, ...props }) => (
-    <div data-testid="simulation-setup" {...props}>{children}</div>
-  ),
-  GamePlay: ({ children, ...props }) => (
-    <div data-testid="simulation-play" {...props}>{children}</div>
-  )
-}));
+// Commented out - simulation module doesn't exist
+// jest.mock('../simulation', () => ({
+//   GameSetup: ({ children, ...props }) => (
+//     <div data-testid="simulation-setup" {...props}>{children}</div>
+//   ),
+//   GamePlay: ({ children, ...props }) => (
+//     <div data-testid="simulation-play" {...props}>{children}</div>
+//   )
+// }));
 
 import UnifiedGameInterface from '../UnifiedGameInterface';
 import { useGame } from '../../context';
