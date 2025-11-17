@@ -43,39 +43,39 @@ jest.mock('../../../hooks/useOddsCalculation', () => ({
 }));
 
 // Mock sub-components
-jest.mock('../ShotResultWidget', () => ({ children, ...props }) => (
+jest.mock('../../ShotResultWidget', () => ({ children, ...props }) => (
   <div data-testid="shot-result-widget" {...props}>{children}</div>
 ));
 
-jest.mock('../BettingOpportunityWidget', () => ({ children, ...props }) => (
+jest.mock('../../BettingOpportunityWidget', () => ({ children, ...props }) => (
   <div data-testid="betting-opportunity-widget" {...props}>{children}</div>
 ));
 
-jest.mock('../BettingOddsPanel', () => ({ children, ...props }) => (
+jest.mock('../../BettingOddsPanel', () => ({ children, ...props }) => (
   <div data-testid="betting-odds-panel" {...props}>{children}</div>
 ));
 
-jest.mock('../GameStateWidget', () => ({ children, ...props }) => (
+jest.mock('../../GameStateWidget', () => ({ children, ...props }) => (
   <div data-testid="game-state-widget" {...props}>{children}</div>
 ));
 
-jest.mock('../StrategicAnalysisWidget', () => ({ children, ...props }) => (
+jest.mock('../../StrategicAnalysisWidget', () => ({ children, ...props }) => (
   <div data-testid="strategic-analysis-widget" {...props}>{children}</div>
 ));
 
-jest.mock('../AnalyticsDashboard', () => ({ children, ...props }) => (
+jest.mock('../../AnalyticsDashboard', () => ({ children, ...props }) => (
   <div data-testid="analytics-dashboard" {...props}>{children}</div>
 ));
 
-jest.mock('../HoleVisualization', () => ({ children, ...props }) => (
+jest.mock('../../HoleVisualization', () => ({ children, ...props }) => (
   <div data-testid="hole-visualization" {...props}>{children}</div>
 ));
 
-jest.mock('../ShotAnalysisWidget', () => ({ children, ...props }) => (
+jest.mock('../../ShotAnalysisWidget', () => ({ children, ...props }) => (
   <div data-testid="shot-analysis-widget" {...props}>{children}</div>
 ));
 
-jest.mock('../ShotVisualizationOverlay', () => ({ children, ...props }) => (
+jest.mock('../../ShotVisualizationOverlay', () => ({ children, ...props }) => (
   <div data-testid="shot-visualization-overlay" {...props}>{children}</div>
 ));
 
