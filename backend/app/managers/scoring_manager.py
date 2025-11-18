@@ -11,13 +11,14 @@ This manager centralizes all scoring logic including:
 - Concession point awards (partners and solo modes)
 - Game totals and summaries
 
-Integrates with HandicapValidator for handicap calculations and
-works with game state from WolfGoatPigSimulation.
+Integrates with HandicapValidator for handicap calculations.
 """
 
 import logging
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, field
+
+from ..wolf_goat_pig import WolfGoatPigGame, Player
 
 from ..validators import HandicapValidator, HandicapValidationError
 
@@ -105,7 +106,7 @@ class ScoringManager:
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self):
+    def __init__(self, game_engine: Optional[WolfGoatPigGame] = None):
         """Initialize the scoring manager."""
         if self._initialized:
             return

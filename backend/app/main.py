@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from . import models, schemas, crud, database
 
 from .state.course_manager import CourseManager
-from .wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer, BallPosition, TeamFormation
+from .wolf_goat_pig import WolfGoatPigGame, Player, GamePhase
 from .post_hole_analytics import PostHoleAnalyzer
 from .simulation_timeline_enhancements import (
     enhance_simulation_with_timeline, 
@@ -511,7 +511,7 @@ async def startup():
                 {"id": "p3", "name": "Test3", "handicap": 8},
                 {"id": "p4", "name": "Test4", "handicap": 20}
             ]
-            test_simulation = WolfGoatPigSimulation(player_count=4)
+            test_simulation = WolfGoatPigGame(player_count=4)
             logger.info("✅ Simulation initialization verified")
         except Exception as e:
             logger.warning(f"⚠️ Simulation test failed (non-critical): {e}")
@@ -758,7 +758,7 @@ async def create_test_game(
         {"id": "test-player-5", "name": "Test Player 5", "handicap": 16, "is_human": False}
     ][:player_count]
 
-    # Initialize WolfGoatPigSimulation for this game
+    # Initialize WolfGoatPigGame for this game
     wgp_players = [
         WGPPlayer(
             id=p["id"],
@@ -768,7 +768,7 @@ async def create_test_game(
         for p in mock_players
     ]
 
-    simulation = WolfGoatPigSimulation(player_count=player_count, players=wgp_players)
+    simulation = WolfGoatPigGame(player_count=player_count, players=wgp_players)
 
     # Get the game state (game is already started in __init__)
     game_state = simulation.get_game_state()
@@ -2430,14 +2430,14 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
             )
             wgp_players.append(wgp_player)
 
-        # Initialize WolfGoatPigSimulation for this game
+        # Initialize WolfGoatPigGame for this game
         # Use the configured player_count from game state, not actual number of players joined
         configured_player_count = game.state.get("player_count", 4)
         logger.info(f"Initializing WGP simulation for game {game_id} with {len(wgp_players)} players (configured for {configured_player_count})")
 
         try:
             # Create simulation with configured player count and actual players
-            simulation = WolfGoatPigSimulation(player_count=configured_player_count, players=wgp_players)
+            simulation = WolfGoatPigGame(player_count=configured_player_count, players=wgp_players)
             logger.info(f"Simulation initialized for game {game_id}")
         except Exception as init_error:
             logger.error(f"Failed to initialize simulation: {init_error}")
@@ -2744,7 +2744,7 @@ async def perform_game_action_by_id(
             configured_player_count = game.state.get("player_count", 4)
 
             # Create new simulation
-            simulation = WolfGoatPigSimulation(player_count=configured_player_count, players=wgp_players)
+            simulation = WolfGoatPigGame(player_count=configured_player_count, players=wgp_players)
 
             # TODO: Restore full game state (hole states, scores, etc.) from game.state
             # For now, this creates a fresh simulation - user will need to restart game
@@ -3098,13 +3098,12 @@ async def unified_action(game_id: str, action: ActionRequest, db: Session = Depe
     except HTTPException:
         # Re-raise HTTPExceptions to preserve their status codes
         raise
-    except Exception as e:
-        logger.error(f"Error in unified action: {e}")
-        logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Action failed: {str(e)}")
 
+# Global game instance (per-game instances are preferred)
+game: Optional[WolfGoatPigGame] = None
 # Action Handlers
-async def handle_initialize_game(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_initialize_game(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
     """Handle game initialization with robust error handling and fallbacks"""
     try:
         players = payload.get("players", [])
@@ -3327,7 +3326,7 @@ async def handle_initialize_game(game: WolfGoatPigSimulation, payload: Dict[str,
             }
         )
 
-async def handle_play_shot(game: WolfGoatPigSimulation, payload: Dict[str, Any] = None) -> ActionResponse:
+async def handle_play_shot(game: WolfGoatPigGame, payload: Dict[str, Any] = None) -> ActionResponse:
     """Handle playing a shot"""
     try:
         # Get current game state
@@ -3497,7 +3496,7 @@ async def handle_play_shot(game: WolfGoatPigSimulation, payload: Dict[str, Any] 
         logger.error(f"Error playing shot: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to play shot: {str(e)}")
 
-async def handle_request_partnership(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_request_partnership(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
     """Handle partnership request"""
     try:
         # Accept either partner_id or target_player_name
@@ -3585,7 +3584,7 @@ async def handle_request_partnership(game: WolfGoatPigSimulation, payload: Dict[
         logger.error(f"Error requesting partnership: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to request partnership: {str(e)}")
 
-async def handle_respond_partnership(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_respond_partnership(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
     """Handle partnership response"""
     try:
         accepted = payload.get("accepted", False)
@@ -3639,7 +3638,7 @@ async def handle_respond_partnership(game: WolfGoatPigSimulation, payload: Dict[
         logger.error(f"Error responding to partnership: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to respond to partnership: {str(e)}")
 
-async def handle_declare_solo(game: WolfGoatPigSimulation) -> ActionResponse:
+async def handle_declare_solo(game: WolfGoatPigGame) -> ActionResponse:
     """Handle captain going solo"""
     try:
         # Get current game state
@@ -3686,7 +3685,7 @@ async def handle_declare_solo(game: WolfGoatPigSimulation) -> ActionResponse:
         logger.error(f"Error declaring solo: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to declare solo: {str(e)}")
 
-async def handle_offer_double(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_offer_double(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
     """Handle double offer"""
     try:
         player_id = payload.get("player_id")
@@ -3750,7 +3749,7 @@ async def handle_offer_double(game: WolfGoatPigSimulation, payload: Dict[str, An
         logger.error(f"Error offering double: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to offer double: {str(e)}")
 
-async def handle_accept_double(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_accept_double(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
     """Handle double acceptance/decline"""
     try:
         accepted = payload.get("accepted", False)
@@ -3797,7 +3796,7 @@ async def handle_accept_double(game: WolfGoatPigSimulation, payload: Dict[str, A
         logger.error(f"Error responding to double: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to respond to double: {str(e)}")
 
-async def handle_concede_putt(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_concede_putt(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
     """Handle putt concession"""
     try:
         conceding_player = payload.get("conceding_player")
@@ -3831,7 +3830,7 @@ async def handle_concede_putt(game: WolfGoatPigSimulation, payload: Dict[str, An
         logger.error(f"Error conceding putt: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to concede putt: {str(e)}")
 
-async def handle_advance_hole(game: WolfGoatPigSimulation) -> ActionResponse:
+async def handle_advance_hole(game: WolfGoatPigGame) -> ActionResponse:
     """Handle advancing to the next hole"""
     try:
         # Advance to next hole
@@ -3873,7 +3872,7 @@ async def handle_advance_hole(game: WolfGoatPigSimulation) -> ActionResponse:
         logger.error(f"Error advancing hole: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to advance hole: {str(e)}")
 
-async def handle_offer_big_dick(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_offer_big_dick(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
     """Handle Big Dick challenge on hole 18"""
     try:
         player_id = payload.get("player_id", "default_player")
@@ -3900,7 +3899,7 @@ async def handle_offer_big_dick(game: WolfGoatPigSimulation, payload: Dict[str, 
         logger.error(f"Error offering Big Dick: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to offer Big Dick: {str(e)}")
 
-async def handle_accept_big_dick(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_accept_big_dick(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
     """Handle Big Dick challenge response"""
     try:
         accepting_players = payload.get("accepting_players", [])
@@ -3926,7 +3925,7 @@ async def handle_accept_big_dick(game: WolfGoatPigSimulation, payload: Dict[str,
         logger.error(f"Error accepting Big Dick: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to accept Big Dick: {str(e)}")
 
-async def handle_ping_pong_aardvark(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_ping_pong_aardvark(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
     """Handle Ping Pong Aardvark"""
     try:
         team_id = payload.get("team_id", "team1")
@@ -3956,7 +3955,7 @@ async def handle_ping_pong_aardvark(game: WolfGoatPigSimulation, payload: Dict[s
         logger.error(f"Error ping ponging Aardvark: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to ping pong Aardvark: {str(e)}")
 
-async def handle_aardvark_join_request(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_aardvark_join_request(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
     """Handle Aardvark requesting to join a team"""
     try:
         aardvark_id = payload.get("aardvark_id")
@@ -3989,7 +3988,7 @@ async def handle_aardvark_join_request(game: WolfGoatPigSimulation, payload: Dic
         logger.error(f"Error handling Aardvark join request: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to handle Aardvark join request: {str(e)}")
 
-async def handle_aardvark_toss(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_aardvark_toss(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
     """Handle team response to Aardvark request (accept or toss)"""
     try:
         team_id = payload.get("team_id", "team1")
@@ -4020,7 +4019,7 @@ async def handle_aardvark_toss(game: WolfGoatPigSimulation, payload: Dict[str, A
         logger.error(f"Error handling Aardvark toss: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to handle Aardvark toss: {str(e)}")
 
-async def handle_aardvark_go_solo(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_aardvark_go_solo(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
     """Handle Aardvark deciding to go solo"""
     try:
         aardvark_id = payload.get("aardvark_id")
@@ -4054,7 +4053,7 @@ async def handle_aardvark_go_solo(game: WolfGoatPigSimulation, payload: Dict[str
         logger.error(f"Error handling Aardvark go solo: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to handle Aardvark go solo: {str(e)}")
 
-async def handle_joes_special(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_joes_special(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
     """Handle Joe's Special wager selection in Hoepfinger"""
     try:
         selected_value = payload.get("selected_value", 2)
@@ -4087,7 +4086,7 @@ async def handle_joes_special(game: WolfGoatPigSimulation, payload: Dict[str, An
         logger.error(f"Error invoking Joe's Special: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to invoke Joe's Special: {str(e)}")
 
-async def handle_get_post_hole_analysis(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_get_post_hole_analysis(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
     """Handle post-hole analysis request"""
     try:
         hole_number = payload.get("hole_number", game.current_hole)
@@ -4113,7 +4112,7 @@ async def handle_get_post_hole_analysis(game: WolfGoatPigSimulation, payload: Di
         logger.error(f"Error getting post-hole analysis: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get post-hole analysis: {str(e)}")
 
-async def handle_enter_hole_scores(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_enter_hole_scores(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
     """Handle entering hole scores"""
     try:
         scores = payload.get("scores", {})
@@ -4143,7 +4142,7 @@ async def handle_enter_hole_scores(game: WolfGoatPigSimulation, payload: Dict[st
         logger.error(f"Error entering hole scores: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to enter hole scores: {str(e)}")
 
-async def handle_complete_game(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_complete_game(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
     """Handle completing a game and saving results permanently"""
     try:
         # Get the game state instance
@@ -4190,7 +4189,7 @@ async def handle_complete_game(game: WolfGoatPigSimulation, payload: Dict[str, A
         logger.error(f"Error completing game: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to complete game: {str(e)}")
 
-async def handle_get_advanced_analytics(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_get_advanced_analytics(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
     """Handle getting advanced analytics dashboard data"""
     try:
         analytics = game.get_advanced_analytics()
@@ -4218,7 +4217,7 @@ async def handle_get_advanced_analytics(game: WolfGoatPigSimulation, payload: Di
         logger.error(f"Error getting advanced analytics: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get advanced analytics: {str(e)}")
 
-async def handle_record_net_score(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_record_net_score(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
     """Handle recording a net score for a player"""
     try:
         # Debug: Log the payload
@@ -4296,7 +4295,7 @@ async def handle_calculate_hole_points(payload: Dict[str, Any]) -> ActionRespons
         logger.error(f"Error calculating hole points: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to calculate hole points: {str(e)}")
 
-async def handle_invoke_float(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_invoke_float(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
     """Handle Float invocation by captain"""
     try:
         logger.info(f"handle_invoke_float payload: {payload}")
@@ -4349,7 +4348,7 @@ async def handle_invoke_float(game: WolfGoatPigSimulation, payload: Dict[str, An
         logger.error(f"Error invoking float: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to invoke float: {str(e)}")
 
-async def handle_toggle_option(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_toggle_option(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
     """Handle Option toggle by captain"""
     try:
         logger.info(f"handle_toggle_option payload: {payload}")
@@ -4413,7 +4412,7 @@ async def handle_toggle_option(game: WolfGoatPigSimulation, payload: Dict[str, A
         logger.error(f"Error toggling option: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to toggle option: {str(e)}")
 
-async def handle_flush(game: WolfGoatPigSimulation, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_flush(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
     """
     Handle Flush action - conceding/folding the hole.
     A player or team gives up on the current hole, awarding the hole to opponents.
@@ -6499,7 +6498,7 @@ def setup_simulation(request: Dict[str, Any]):
             wgp_players.append(wgp_player)
         
         # Initialize simulation with players
-        wgp_simulation = WolfGoatPigSimulation(
+        wgp_simulation = WolfGoatPigGame(
             player_count=len(wgp_players),
             players=wgp_players
         )

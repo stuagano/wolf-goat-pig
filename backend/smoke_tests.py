@@ -7,7 +7,7 @@ import json
 import traceback
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from app.wolf_goat_pig_simulation import WolfGoatPigSimulation, WGPPlayer
+from app.wolf_goat_pig import WolfGoatPigGame
 
 class SmokeTestRunner:
     def __init__(self):
@@ -62,6 +62,8 @@ def test_basic_simulation_creation():
         WGPPlayer(id="p4", name="Player 4", handicap=8)
     ]
     
+    # Initialize game
+    game = WolfGoatPigGame(player_count=4)
     sim = WolfGoatPigSimulation(player_count=4, players=players)
     sim.enable_shot_progression()
     

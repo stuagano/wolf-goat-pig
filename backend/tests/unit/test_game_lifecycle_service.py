@@ -44,10 +44,11 @@ def mock_db():
     db.query = Mock()
     return db
 
+from backend.app.wolf_goat_pig import WolfGoatPigGame
 
 @pytest.fixture
 def mock_simulation():
-    """Mock WolfGoatPigSimulation instance."""
+    """Mock WolfGoatPigGame instance."""
     sim = Mock()
     sim.current_hole = 5
     sim.players = []
@@ -107,7 +108,7 @@ def service():
 class TestCreateGame:
     """Test create_game method."""
 
-    @patch('app.services.game_lifecycle_service.WolfGoatPigSimulation')
+    @patch('app.services.game_lifecycle_service.WolfGoatPigGame')
     @patch('app.services.game_lifecycle_service.uuid.uuid4')
     @patch('app.services.game_lifecycle_service.datetime')
     def test_create_game_success(self, mock_datetime, mock_uuid, mock_sim_class,
@@ -140,7 +141,7 @@ class TestCreateGame:
         mock_db.refresh.assert_called_once()
         assert game_id in service._active_games
 
-    @patch('app.services.game_lifecycle_service.WolfGoatPigSimulation')
+    @patch('app.services.game_lifecycle_service.WolfGoatPigGame')
     @patch('app.services.game_lifecycle_service.uuid.uuid4')
     @patch('app.services.game_lifecycle_service.datetime')
     def test_create_game_minimum_parameters(self, mock_datetime, mock_uuid,
@@ -204,7 +205,7 @@ class TestCreateGame:
         assert exc_info.value.status_code == 400
         assert "Expected 4 players, got 2" in str(exc_info.value.detail)
 
-    @patch('app.services.game_lifecycle_service.WolfGoatPigSimulation')
+    @patch('app.services.game_lifecycle_service.WolfGoatPigGame')
     @patch('app.services.game_lifecycle_service.uuid.uuid4')
     def test_create_game_database_error(self, mock_uuid, mock_sim_class,
                                        service, mock_db, sample_players, mock_simulation):
@@ -227,7 +228,7 @@ class TestCreateGame:
         assert "Failed to create game" in str(exc_info.value.detail)
         mock_db.rollback.assert_called_once()
 
-    @patch('app.services.game_lifecycle_service.WolfGoatPigSimulation')
+    @patch('app.services.game_lifecycle_service.WolfGoatPigGame')
     @patch('app.services.game_lifecycle_service.uuid.uuid4')
     @patch('app.services.game_lifecycle_service.datetime')
     def test_create_game_with_custom_base_wager(self, mock_datetime, mock_uuid,
@@ -252,7 +253,7 @@ class TestCreateGame:
         assert mock_simulation.betting_state.base_wager == 5
         assert mock_simulation.betting_state.current_wager == 5
 
-    @patch('app.services.game_lifecycle_service.WolfGoatPigSimulation')
+    @patch('app.services.game_lifecycle_service.WolfGoatPigGame')
     @patch('app.services.game_lifecycle_service.uuid.uuid4')
     @patch('app.services.game_lifecycle_service.datetime')
     def test_create_game_six_players(self, mock_datetime, mock_uuid, mock_sim_class,
@@ -275,7 +276,7 @@ class TestCreateGame:
 
         # Assert
         assert game_id == "test-game-id"
-        mock_sim_class.assert_called_once_with(player_count=6, players=players)
+        mock_sim_class.assert_called_once_with(game_id="test-game-id", player_count=6, players=players)
 
 
 # ============================================================================
@@ -298,7 +299,7 @@ class TestGetGame:
         assert result == mock_simulation
         mock_db.query.assert_not_called()
 
-    @patch('app.services.game_lifecycle_service.WolfGoatPigSimulation')
+    @patch('app.services.game_lifecycle_service.WolfGoatPigGame')
     def test_get_game_from_database(self, mock_sim_class, service, mock_db,
                                    mock_game_record, mock_simulation):
         """Test loading game from database when not in cache."""
@@ -328,7 +329,7 @@ class TestGetGame:
         assert exc_info.value.status_code == 404
         assert f"Game {game_id} not found" in str(exc_info.value.detail)
 
-    @patch('app.services.game_lifecycle_service.WolfGoatPigSimulation')
+    @patch('app.services.game_lifecycle_service.WolfGoatPigGame')
     def test_get_game_failed_to_load(self, mock_sim_class, service, mock_db,
                                     mock_game_record):
         """Test error when game fails to load from database."""
@@ -359,7 +360,7 @@ class TestGetGame:
         assert exc_info.value.status_code == 500
         assert "Error loading game" in str(exc_info.value.detail)
 
-    @patch('app.services.game_lifecycle_service.WolfGoatPigSimulation')
+    @patch('app.services.game_lifecycle_service.WolfGoatPigGame')
     def test_get_game_caches_after_db_load(self, mock_sim_class, service, mock_db,
                                           mock_game_record, mock_simulation):
         """Test that game is cached after loading from database."""
@@ -1030,7 +1031,7 @@ class TestSingletonPattern:
 class TestIntegration:
     """Test multiple methods working together."""
 
-    @patch('app.services.game_lifecycle_service.WolfGoatPigSimulation')
+    @patch('app.services.game_lifecycle_service.WolfGoatPigGame')
     @patch('app.services.game_lifecycle_service.uuid.uuid4')
     @patch('app.services.game_lifecycle_service.datetime')
     def test_full_game_lifecycle(self, mock_datetime, mock_uuid, mock_sim_class,
@@ -1075,7 +1076,7 @@ class TestIntegration:
         assert result["status"] == "completed"
         assert game_id in service._active_games
 
-    @patch('app.services.game_lifecycle_service.WolfGoatPigSimulation')
+    @patch('app.services.game_lifecycle_service.WolfGoatPigGame')
     @patch('app.services.game_lifecycle_service.uuid.uuid4')
     @patch('app.services.game_lifecycle_service.datetime')
     def test_multiple_games_management(self, mock_datetime, mock_uuid, mock_sim_class,

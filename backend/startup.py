@@ -772,7 +772,7 @@ def verify_health() -> Dict[str, Any]:
         try:
             from app.database import SessionLocal
             from app.game_state import game_state
-            from app.wolf_goat_pig_simulation import WolfGoatPigSimulation
+            from app.wolf_goat_pig import WolfGoatPigGame
             from app.seed_data import get_seeding_status
             from sqlalchemy import text
             

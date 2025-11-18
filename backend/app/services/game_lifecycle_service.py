@@ -16,8 +16,7 @@ import uuid
 import logging
 from datetime import datetime
 
-from ..wolf_goat_pig_simulation import WolfGoatPigSimulation
-from ..domain.player import Player
+from ..wolf_goat_pig import WolfGoatPigGame, Player
 from ..models import GameStateModel
 
 logger = logging.getLogger(__name__)
@@ -50,7 +49,7 @@ class GameLifecycleService:
         if self._initialized:
             return
 
-        self._active_games: Dict[str, WolfGoatPigSimulation] = {}
+        self._active_games: Dict[str, WolfGoatPigGame] = {}
         self._initialized = True
         logger.info("GameLifecycleService initialized")
 
@@ -63,7 +62,7 @@ class GameLifecycleService:
         base_wager: Optional[float] = None,
         join_code: Optional[str] = None,
         creator_user_id: Optional[str] = None
-    ) -> Tuple[str, WolfGoatPigSimulation]:
+    ) -> Tuple[str, WolfGoatPigGame]:
         """
         Create a new Wolf Goat Pig game.
 
@@ -101,16 +100,17 @@ class GameLifecycleService:
 
             logger.info(f"Creating new game {game_id} with {player_count} players")
 
-            # Initialize the simulation
-            simulation = WolfGoatPigSimulation(
-                player_count=player_count,
+            # Initialize game engine
+            game = WolfGoatPigGame(
+                game_id=game_id,
+                player_count=len(players),
                 players=players
             )
 
             # Set optional parameters
             if base_wager is not None:
-                simulation.betting_state.base_wager = base_wager
-                simulation.betting_state.current_wager = base_wager
+                game.betting_state.base_wager = base_wager # Changed from simulation to game
+                game.betting_state.current_wager = base_wager # Changed from simulation to game
 
             # Prepare initial game state for database
             initial_state = {
@@ -146,10 +146,10 @@ class GameLifecycleService:
             db.refresh(game_record)
 
             # Add to active games cache
-            self._active_games[game_id] = simulation
+            self._active_games[game_id] = game
 
             logger.info(f"Successfully created game {game_id}")
-            return game_id, simulation
+            return game_id, game
 
         except ValueError as e:
             logger.error(f"Validation error creating game: {e}")
@@ -162,7 +162,7 @@ class GameLifecycleService:
                 detail=f"Failed to create game: {str(e)}"
             )
 
-    def get_game(self, db: Session, game_id: str) -> WolfGoatPigSimulation:
+    def get_game(self, db: Session, game_id: str) -> WolfGoatPigGame:
         """
         Get a game simulation instance by game ID.
 
@@ -175,7 +175,7 @@ class GameLifecycleService:
             game_id: Unique game identifier
 
         Returns:
-            WolfGoatPigSimulation instance for the game
+            WolfGoatPigGame instance for the game
 
         Raises:
             HTTPException: If game not found or loading fails
@@ -201,11 +201,11 @@ class GameLifecycleService:
                 )
 
             # Reconstruct simulation from database state
-            # The WolfGoatPigSimulation class handles loading from game_id
-            simulation = WolfGoatPigSimulation(game_id=game_id)
-
+            # Initialize game engine (will load state from DB via PersistenceMixin)
+            game = WolfGoatPigGame(game_id=game_id)
+            
             # Verify the game was loaded successfully
-            if not hasattr(simulation, '_loaded_from_db') or not simulation._loaded_from_db:
+            if not hasattr(game, '_loaded_from_db') or not game._loaded_from_db:
                 logger.error(f"Failed to load game {game_id} from database")
                 raise HTTPException(
                     status_code=500,
@@ -213,10 +213,10 @@ class GameLifecycleService:
                 )
 
             # Add to cache
-            self._active_games[game_id] = simulation
+            self._active_games[game_id] = game
             logger.info(f"Successfully loaded game {game_id} from database")
 
-            return simulation
+            return game
 
         except HTTPException:
             raise
@@ -227,7 +227,7 @@ class GameLifecycleService:
                 detail=f"Error loading game: {str(e)}"
             )
 
-    def start_game(self, db: Session, game_id: str) -> WolfGoatPigSimulation:
+    def start_game(self, db: Session, game_id: str) -> WolfGoatPigGame:
         """
         Start a game that is in setup state.
 
@@ -240,14 +240,14 @@ class GameLifecycleService:
             game_id: Unique game identifier
 
         Returns:
-            Updated WolfGoatPigSimulation instance
+            Updated WolfGoatPigGame instance
 
         Raises:
             HTTPException: If game not found or already started
         """
         try:
             # Get the game
-            simulation = self.get_game(db, game_id)
+            game = self.get_game(db, game_id)
 
             # Get the database record
             game_record = db.query(GameStateModel).filter(
@@ -272,7 +272,7 @@ class GameLifecycleService:
             db.commit()
 
             logger.info(f"Started game {game_id}")
-            return simulation
+            return game
 
         except HTTPException:
             raise
@@ -284,7 +284,7 @@ class GameLifecycleService:
                 detail=f"Failed to start game: {str(e)}"
             )
 
-    def pause_game(self, db: Session, game_id: str) -> WolfGoatPigSimulation:
+    def pause_game(self, db: Session, game_id: str) -> WolfGoatPigGame:
         """
         Pause an active game.
 
@@ -296,14 +296,14 @@ class GameLifecycleService:
             game_id: Unique game identifier
 
         Returns:
-            Updated WolfGoatPigSimulation instance
+            Updated WolfGoatPigGame instance
 
         Raises:
             HTTPException: If game not found or not in progress
         """
         try:
             # Get the game
-            simulation = self.get_game(db, game_id)
+            game = self.get_game(db, game_id)
 
             # Get the database record
             game_record = db.query(GameStateModel).filter(
@@ -328,7 +328,7 @@ class GameLifecycleService:
             db.commit()
 
             logger.info(f"Paused game {game_id}")
-            return simulation
+            return game
 
         except HTTPException:
             raise
@@ -340,7 +340,7 @@ class GameLifecycleService:
                 detail=f"Failed to pause game: {str(e)}"
             )
 
-    def resume_game(self, db: Session, game_id: str) -> WolfGoatPigSimulation:
+    def resume_game(self, db: Session, game_id: str) -> WolfGoatPigGame:
         """
         Resume a paused game.
 
@@ -352,14 +352,14 @@ class GameLifecycleService:
             game_id: Unique game identifier
 
         Returns:
-            Updated WolfGoatPigSimulation instance
+            Updated WolfGoatPigGame instance
 
         Raises:
             HTTPException: If game not found or not paused
         """
         try:
             # Get the game
-            simulation = self.get_game(db, game_id)
+            game = self.get_game(db, game_id)
 
             # Get the database record
             game_record = db.query(GameStateModel).filter(
@@ -384,7 +384,7 @@ class GameLifecycleService:
             db.commit()
 
             logger.info(f"Resumed game {game_id}")
-            return simulation
+            return game
 
         except HTTPException:
             raise
@@ -416,7 +416,7 @@ class GameLifecycleService:
         """
         try:
             # Get the game
-            simulation = self.get_game(db, game_id)
+            game = self.get_game(db, game_id)
 
             # Get the database record
             game_record = db.query(GameStateModel).filter(
@@ -437,14 +437,14 @@ class GameLifecycleService:
                 "status": "completed",
                 "completed_at": datetime.utcnow().isoformat(),
                 "final_scores": {},
-                "total_holes_played": simulation.current_hole - 1 if hasattr(simulation, 'current_hole') else 0,
+                "total_holes_played": game.current_hole - 1 if hasattr(game, 'current_hole') else 0,
                 "course_name": game_record.state.get("course_name"),
                 "base_wager": game_record.state.get("base_wager", 1)
             }
 
             # Extract player results
-            if hasattr(simulation, 'players'):
-                for player in simulation.players:
+            if hasattr(game, 'players'):
+                for player in game.players:
                     final_stats["final_scores"][player.id] = {
                         "name": player.name,
                         "points": player.points,

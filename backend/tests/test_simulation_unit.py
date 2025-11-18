@@ -13,9 +13,9 @@ from unittest.mock import Mock, patch, MagicMock
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 try:
-    from app.wolf_goat_pig_simulation import WolfGoatPigSimulation
+    from app.wolf_goat_pig import WolfGoatPigGame, Player, TeamFormation, BettingState
     from app.game_state import GameState
-    from app.models import Player, Course
+    from app.models import Course
     from app.services.monte_carlo import MonteCarloService
     from app.services.odds_calculator import OddsCalculator
     IMPORTS_AVAILABLE = True
@@ -24,7 +24,7 @@ except ImportError as e:
     IMPORTS_AVAILABLE = False
 
 @pytest.mark.skipif(not IMPORTS_AVAILABLE, reason="Required imports not available")
-class TestWolfGoatPigSimulation:
+class TestWolfGoatPigGame:
     """Test the main simulation class"""
     
     def setup_method(self):
@@ -40,14 +40,14 @@ class TestWolfGoatPigSimulation:
         
     def test_simulation_initialization(self):
         """Test simulation can be initialized"""
-        sim = WolfGoatPigSimulation()
+        sim = WolfGoatPigGame()
         assert sim is not None
         assert hasattr(sim, 'players')
         assert hasattr(sim, 'game_state')
         
     def test_add_players(self):
         """Test adding players to simulation"""
-        sim = WolfGoatPigSimulation()
+        sim = WolfGoatPigGame()
         sim.add_players(self.mock_players)
         
         assert len(sim.players) == 4
@@ -55,7 +55,7 @@ class TestWolfGoatPigSimulation:
         
     def test_set_course(self):
         """Test setting course for simulation"""
-        sim = WolfGoatPigSimulation()
+        sim = WolfGoatPigGame()
         sim.set_course(self.mock_course)
         
         assert sim.course == self.mock_course
@@ -63,7 +63,7 @@ class TestWolfGoatPigSimulation:
         
     def test_start_game(self):
         """Test starting a game"""
-        sim = WolfGoatPigSimulation()
+        sim = WolfGoatPigGame()
         sim.add_players(self.mock_players)
         sim.set_course(self.mock_course)
         
@@ -74,7 +74,7 @@ class TestWolfGoatPigSimulation:
         
     def test_get_current_captain(self):
         """Test captain rotation logic"""
-        sim = WolfGoatPigSimulation()
+        sim = WolfGoatPigGame()
         sim.add_players(self.mock_players)
         sim.current_hole = 1
         
@@ -85,7 +85,7 @@ class TestWolfGoatPigSimulation:
         
     def test_captain_rotation(self):
         """Test that captain rotates each hole"""
-        sim = WolfGoatPigSimulation()
+        sim = WolfGoatPigGame()
         sim.add_players(self.mock_players)
         
         sim.current_hole = 1
@@ -98,7 +98,7 @@ class TestWolfGoatPigSimulation:
         
     def test_partnership_request(self):
         """Test partnership request functionality"""
-        sim = WolfGoatPigSimulation()
+        sim = WolfGoatPigGame()
         sim.add_players(self.mock_players)
         
         captain = self.mock_players[0]
@@ -111,7 +111,7 @@ class TestWolfGoatPigSimulation:
         
     def test_partnership_response(self):
         """Test partnership response functionality"""
-        sim = WolfGoatPigSimulation()
+        sim = WolfGoatPigGame()
         sim.add_players(self.mock_players)
         
         # First request a partnership
@@ -126,7 +126,7 @@ class TestWolfGoatPigSimulation:
         
     def test_shot_simulation(self):
         """Test shot simulation functionality"""
-        sim = WolfGoatPigSimulation()
+        sim = WolfGoatPigGame()
         sim.add_players(self.mock_players)
         sim.set_course(self.mock_course)
         
@@ -140,7 +140,7 @@ class TestWolfGoatPigSimulation:
         
     def test_short_game_progression(self):
         """Test short game logic for shots within 100 yards"""
-        sim = WolfGoatPigSimulation()
+        sim = WolfGoatPigGame()
         
         # Test _simulate_short_game_shot for different distances
         # Very short putts (under 3 yards)
@@ -163,7 +163,7 @@ class TestWolfGoatPigSimulation:
         """Test that lie type considers distance to pin"""
         from app.wolf_goat_pig_simulation import WGPShotResult
         
-        sim = WolfGoatPigSimulation()
+        sim = WolfGoatPigGame()
         
         # Create a mock shot result within putting range
         close_shot = WGPShotResult(
@@ -194,7 +194,7 @@ class TestWolfGoatPigSimulation:
         
     def test_game_state_serialization(self):
         """Test that game state can be serialized"""
-        sim = WolfGoatPigSimulation()
+        sim = WolfGoatPigGame()
         sim.add_players(self.mock_players)
         
         state = sim.get_game_state()
@@ -381,17 +381,17 @@ class TestSimulationErrorHandling:
     def test_invalid_player_count(self):
         """Test handling of invalid player count"""
         with pytest.raises(ValueError):
-            WolfGoatPigSimulation(player_count=3)
+            WolfGoatPigGame(player_count=3)
             
     def test_missing_course(self):
         """Test handling of responding to non-existent partnership request"""
-        sim = WolfGoatPigSimulation()
+        sim = WolfGoatPigGame()
         with pytest.raises(ValueError):
             sim.respond_to_partnership("comp1", True)
             
     def test_invalid_partnership_request(self):
         """Test handling of invalid partnership requests"""
-        sim = WolfGoatPigSimulation()
+        sim = WolfGoatPigGame()
         
         with pytest.raises((ValueError, KeyError)):
             sim.request_partner("invalid_player", "another_invalid")
@@ -408,7 +408,7 @@ def main():
     
     # Run tests manually for demonstration
     test_classes = [
-        TestWolfGoatPigSimulation,
+        TestWolfGoatPigGame,
         TestGameState,
         TestMonteCarloService,
         TestOddsCalculator,

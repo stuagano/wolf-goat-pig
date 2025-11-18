@@ -3,6 +3,7 @@ Comprehensive test suite for Wolf Goat Pig simulation scenarios.
 Tests real playing scenarios to ensure game logic works correctly.
 """
 
+from backend.app.wolf_goat_pig import WolfGoatPigGame, Player, GamePhase
 import pytest
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
@@ -353,7 +354,7 @@ class TestSimulationMode:
     
     def test_karl_marx_rule(self, tester):
         """Test Karl Marx scoring rule"""
-        tester = WolfGoatPigSimulationTester()
+        self.simulation = WolfGoatPigGame(player_count=4)
         scenario = SimulationScenarios.partnership_acceptance()
         results = tester.run_scenario(scenario)
         

@@ -11,7 +11,7 @@ import logging
 import os
 
 from .. import database, models
-from ..wolf_goat_pig_simulation import WolfGoatPigSimulation
+from ..wolf_goat_pig import WolfGoatPigGame
 from ..state.course_manager import CourseManager
 
 logger = logging.getLogger("app.routers.health")
@@ -158,8 +158,8 @@ def health_check():
 
         # 5. Simulation initialization test
         try:
-            # Test basic simulation creation
-            test_simulation = WolfGoatPigSimulation(player_count=4)
+            # Check if we can instantiate the game engine
+            game = WolfGoatPigGame(player_count=4)
             health_status["components"]["simulation"] = {
                 "status": "healthy",
                 "message": "Simulation engine operational"

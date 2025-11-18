@@ -2,10 +2,11 @@
 Simplified scoring system for Wolf Goat Pig game.
 
 This module provides a streamlined alternative to the complex scoring logic
-in the main WolfGoatPigSimulation class. It focuses on essential scoring
+in the main WolfGoatPigGame class. It focuses on essential scoring
 mechanics while reducing the serialization overhead.
 """
 
+from .wolf_goat_pig import WolfGoatPigGame, Player
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 import logging
