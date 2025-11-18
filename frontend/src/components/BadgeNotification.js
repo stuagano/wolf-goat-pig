@@ -1,13 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './BadgeNotification.css';
-
-const RARITY_COLORS = {
-  common: '#9CA3AF',
-  rare: '#3B82F6',
-  epic: '#A855F7',
-  legendary: '#F59E0B',
-  mythic: '#EC4899'
-};
 
 /**
  * BadgeNotification - Celebratory popup when player earns a badge
@@ -16,6 +8,13 @@ const RARITY_COLORS = {
 const BadgeNotification = ({ badge, onClose }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+
+  const handleClose = useCallback(() => {
+    setIsVisible(false);
+    setTimeout(() => {
+      if (onClose) onClose();
+    }, 300);
+  }, [onClose]);
 
   useEffect(() => {
     // Trigger entrance animation
@@ -32,14 +31,7 @@ const BadgeNotification = ({ badge, onClose }) => {
     }, 5000);
 
     return () => clearTimeout(timer);
-  }, [badge]);
-
-  const handleClose = () => {
-    setIsVisible(false);
-    setTimeout(() => {
-      if (onClose) onClose();
-    }, 300);
-  };
+  }, [badge, handleClose]);
 
   const getRarityEmoji = (rarity) => {
     const emojis = {
