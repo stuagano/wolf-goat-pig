@@ -6,13 +6,13 @@ test.describe('Wolf Goat Pig Game - Full Round Simulation', () => {
 
   test('should create a game, join lobby, start game, and advance through holes', async ({ page, context }) => {
     // Step 1: Navigate to home page
-    await page.goto('http://localhost:3001');
+    await page.goto('http://localhost:3000');
 
     // Wait for page to load
     await page.waitForLoadState('networkidle');
 
     // Step 2: Navigate to create game page
-    await page.goto('http://localhost:3001/game');
+    await page.goto('http://localhost:3000/game');
 
     // Wait for the create game page to load - look for the actual heading
     await expect(page.getByRole('heading', { name: /Create New Game/i })).toBeVisible({ timeout: 10000 });
@@ -48,7 +48,7 @@ test.describe('Wolf Goat Pig Game - Full Round Simulation', () => {
     const player2Page = await context.newPage();
 
     // Player 1 joins
-    await player1Page.goto(`http://localhost:3001/join/${joinCode}`);
+    await player1Page.goto(`http://localhost:3000/join/${joinCode}`);
     await player1Page.getByPlaceholder(/Enter your name/i).fill('Player 1');
     // Handicap field is pre-filled with 18, so we can skip filling it
     await player1Page.getByRole('button', { name: /Join Game/i }).click();
@@ -56,7 +56,7 @@ test.describe('Wolf Goat Pig Game - Full Round Simulation', () => {
     console.log('Player 1 joined');
 
     // Player 2 joins
-    await player2Page.goto(`http://localhost:3001/join/${joinCode}`);
+    await player2Page.goto(`http://localhost:3000/join/${joinCode}`);
     await player2Page.getByPlaceholder(/Enter your name/i).fill('Player 2');
     // Handicap field is pre-filled with 18, so we can skip filling it
     await player2Page.getByRole('button', { name: /Join Game/i }).click();
@@ -163,7 +163,7 @@ test.describe('Wolf Goat Pig Game - Full Round Simulation', () => {
     // where saving a hole after server restart would give 404
 
     // Create and start a game
-    await page.goto('http://localhost:3001/game');
+    await page.goto('http://localhost:3000/game');
     await page.waitForLoadState('networkidle');
 
     const courseSelect = page.locator('select').first();
@@ -180,13 +180,13 @@ test.describe('Wolf Goat Pig Game - Full Round Simulation', () => {
 
     // Join as 2 players
     const player1Page = await context.newPage();
-    await player1Page.goto(`http://localhost:3001/join/${joinCode}`);
+    await player1Page.goto(`http://localhost:3000/join/${joinCode}`);
     await player1Page.getByPlaceholder(/Enter your name/i).fill('Player 1');
     await player1Page.getByRole('button', { name: /Join Game/i }).click();
     await player1Page.waitForURL(/\/lobby\//, { timeout: 10000 });
 
     const player2Page = await context.newPage();
-    await player2Page.goto(`http://localhost:3001/join/${joinCode}`);
+    await player2Page.goto(`http://localhost:3000/join/${joinCode}`);
     await player2Page.getByPlaceholder(/Enter your name/i).fill('Player 2');
     await player2Page.getByRole('button', { name: /Join Game/i }).click();
     await player2Page.waitForURL(/\/lobby\//, { timeout: 10000 });
