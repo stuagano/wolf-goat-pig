@@ -34,14 +34,14 @@ def init_database():
         logger.info(f"📊 Found {len(table_names)} tables: {', '.join(table_names)}")
 
         # Check for critical tables
-        required_tables = ['game_state', 'courses', 'players', 'users']
+        required_tables = ['game_state', 'courses', 'holes', 'player_profiles']
         missing_tables = [t for t in required_tables if t not in table_names]
 
         if missing_tables:
             logger.error(f"❌ Missing required tables: {', '.join(missing_tables)}")
             return False
 
-        logger.info("✅ All required tables exist")
+        logger.info(f"✅ All required tables exist: {', '.join(required_tables)}")
 
         # Test database connection
         db = database.SessionLocal()
