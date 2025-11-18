@@ -927,8 +927,8 @@ class RuleManager:
                     # Validate handicap
                     HandicapValidator.validate_handicap(handicap)
 
-                    # Calculate strokes using validator
-                    strokes = HandicapValidator.calculate_strokes_received(
+                    # Calculate strokes using validator (with Creecher Feature support)
+                    strokes = HandicapValidator.calculate_strokes_received_with_creecher(
                         handicap,
                         hole_stroke_index,
                         validate=False  # Already validated above

@@ -627,8 +627,8 @@ class ScoringManager:
                 # Validate handicap
                 HandicapValidator.validate_handicap(handicap)
 
-                # Calculate strokes received on this hole
-                strokes_received = HandicapValidator.calculate_strokes_received(
+                # Calculate strokes received on this hole (with Creecher Feature support)
+                strokes_received = HandicapValidator.calculate_strokes_received_with_creecher(
                     course_handicap=handicap,
                     stroke_index=hole_stroke_index,
                     validate=True

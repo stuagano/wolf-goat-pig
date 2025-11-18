@@ -7,6 +7,7 @@ Player, StrokeAdvantage, and various service classes.
 """
 
 import logging
+import warnings
 from typing import List, Dict, Any, Optional, Union
 from .exceptions import HandicapValidationError
 
@@ -171,7 +172,12 @@ class HandicapValidator:
         validate: bool = True
     ) -> int:
         """
-        Calculate number of strokes a player receives on a hole.
+        DEPRECATED: Calculate number of strokes a player receives on a hole.
+
+        .. deprecated::
+            Use :meth:`calculate_strokes_received_with_creecher` instead for proper
+            half-stroke support. This method rounds handicaps and cannot handle
+            fractional strokes (Creecher Feature).
 
         Uses USGA stroke allocation rules:
         - If course handicap >= stroke index, player gets 1 stroke
@@ -184,11 +190,18 @@ class HandicapValidator:
             validate: Whether to validate inputs first
 
         Returns:
-            Number of strokes to receive on this hole
+            Number of strokes to receive on this hole (integer only, no half strokes)
 
         Raises:
             HandicapValidationError: If validation fails
         """
+        warnings.warn(
+            "calculate_strokes_received() is deprecated and will be removed in a future version. "
+            "Use calculate_strokes_received_with_creecher() instead for proper half-stroke support.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+
         if validate:
             cls.validate_handicap(course_handicap, "course_handicap")
             cls.validate_stroke_index(stroke_index)
