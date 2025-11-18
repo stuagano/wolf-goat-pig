@@ -84,7 +84,17 @@ jobs:
       run: |
         cd frontend
         npm start &
-        sleep 20
+        echo "Waiting for frontend server to start..."
+        sleep 30
+        # Wait for frontend to be ready by checking if it responds
+        for i in {1..30}; do
+          if curl -s http://localhost:3000 > /dev/null; then
+            echo "Frontend server is ready!"
+            break
+          fi
+          echo "Waiting for frontend... attempt $i/30"
+          sleep 2
+        done
       env:
         REACT_APP_API_URL: http://localhost:8000
 
