@@ -25,13 +25,13 @@ export default defineConfig({
       command: 'cd ../../backend && uvicorn app.main:app --reload',
       port: 8000,
       timeout: 120000,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: true,
     },
     {
       command: 'cd .. && npm start',
       port: 3000,
       timeout: 120000,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: true,
     },
   ],
 
