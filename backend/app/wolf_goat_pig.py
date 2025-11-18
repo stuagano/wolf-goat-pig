@@ -3023,7 +3023,7 @@ class WolfGoatPigGame(PersistenceMixin):
             personalities.append(config.get("personality", "balanced"))
         
         # Create new simulation with these players
-        new_sim = WolfGoatPigSimulation(player_count=len(wgp_players), players=wgp_players)
+        new_sim = WolfGoatPigGame(player_count=len(wgp_players), players=wgp_players)
         
         # Set computer players
         new_sim.set_computer_players(computer_player_ids, personalities)
@@ -3524,7 +3524,7 @@ class WolfGoatPigGame(PersistenceMixin):
             }
 
         except Exception as e:
-            logger.error(f"Error serializing WolfGoatPigSimulation: {e}")
+            logger.error(f"Error serializing WolfGoatPigGame: {e}")
             raise
 
     def _deserialize(self, data: Dict[str, Any]):
@@ -3655,7 +3655,7 @@ class WolfGoatPigGame(PersistenceMixin):
             logger.info(f"Successfully deserialized game {self.game_id}")
 
         except Exception as e:
-            logger.error(f"Error deserializing WolfGoatPigSimulation: {e}")
+            logger.error(f"Error deserializing WolfGoatPigGame: {e}")
             raise
 
     def _get_final_scores(self) -> Dict[str, int]:

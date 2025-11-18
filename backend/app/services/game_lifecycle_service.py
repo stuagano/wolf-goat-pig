@@ -80,7 +80,7 @@ class GameLifecycleService:
             creator_user_id: Optional Auth0 user ID of game creator
 
         Returns:
-            Tuple of (game_id: str, simulation: WolfGoatPigSimulation)
+            Tuple of (game_id: str, simulation: WolfGoatPigGame)
 
         Raises:
             HTTPException: If game creation fails

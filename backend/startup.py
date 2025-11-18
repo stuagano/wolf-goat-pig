@@ -581,7 +581,7 @@ async def verify_application_health() -> Dict[str, Any]:
         # Import after environment is set up
         from app.database import SessionLocal
         from app.game_state import game_state
-        from app.wolf_goat_pig_simulation import WolfGoatPigSimulation
+        from app.wolf_goat_pig_simulation import WolfGoatPigGame
         from app.seed_data import get_seeding_status
         from sqlalchemy import text
         
@@ -614,7 +614,7 @@ async def verify_application_health() -> Dict[str, Any]:
         
         # 3. Simulation engine
         try:
-            test_sim = WolfGoatPigSimulation(player_count=4)
+            test_sim = WolfGoatPigGame(player_count=4)
             health_status["components"]["simulation"] = "healthy"
             logging.info("✅ Simulation engine health check passed")
         except Exception as e:
@@ -813,7 +813,7 @@ def verify_health() -> Dict[str, Any]:
         
         # 3. Simulation engine check
         try:
-            test_sim = WolfGoatPigSimulation(player_count=4)
+            test_sim = WolfGoatPigGame(player_count=4)
             health_status["components"]["simulation"] = "healthy"
             logger.info("✅ Simulation engine verified")
         except Exception as e:
