@@ -7,7 +7,7 @@ import json
 import traceback
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from app.wolf_goat_pig import WolfGoatPigGame
+from app.wolf_goat_pig import WolfGoatPigGame, Player
 
 class SmokeTestRunner:
     def __init__(self):
@@ -56,15 +56,15 @@ class SmokeTestRunner:
 def test_basic_simulation_creation():
     """Test basic simulation setup"""
     players = [
-        WGPPlayer(id="p1", name="Player 1", handicap=18),
-        WGPPlayer(id="p2", name="Player 2", handicap=5),
-        WGPPlayer(id="p3", name="Player 3", handicap=12),
-        WGPPlayer(id="p4", name="Player 4", handicap=8)
+        Player(id="p1", name="Player 1", handicap=18),
+        Player(id="p2", name="Player 2", handicap=5),
+        Player(id="p3", name="Player 3", handicap=12),
+        Player(id="p4", name="Player 4", handicap=8)
     ]
     
     # Initialize game
     game = WolfGoatPigGame(player_count=4)
-    sim = WolfGoatPigSimulation(player_count=4, players=players)
+    sim = WolfGoatPigGame(player_count=4, players=players)
     sim.enable_shot_progression()
     
     assert sim.players is not None, "Players not initialized"
@@ -76,13 +76,13 @@ def test_basic_simulation_creation():
 def test_shot_progression_realism():
     """Test that shots always progress realistically"""
     players = [
-        WGPPlayer(id="test1", name="Test1", handicap=18),
-        WGPPlayer(id="test2", name="Test2", handicap=5),
-        WGPPlayer(id="test3", name="Test3", handicap=12),
-        WGPPlayer(id="test4", name="Test4", handicap=8)
+        Player(id="test1", name="Test1", handicap=18),
+        Player(id="test2", name="Test2", handicap=5),
+        Player(id="test3", name="Test3", handicap=12),
+        Player(id="test4", name="Test4", handicap=8)
     ]
     
-    sim = WolfGoatPigSimulation(player_count=4, players=players)
+    sim = WolfGoatPigGame(player_count=4, players=players)
     sim.enable_shot_progression()
     
     backward_shots = 0
@@ -130,13 +130,13 @@ def test_shot_progression_realism():
 def test_partnership_timing():
     """Test that partnerships are offered at correct time"""
     players = [
-        WGPPlayer(id="captain", name="Captain", handicap=18),
-        WGPPlayer(id="partner1", name="Partner1", handicap=5),
-        WGPPlayer(id="partner2", name="Partner2", handicap=12),
-        WGPPlayer(id="partner3", name="Partner3", handicap=8)
+        Player(id="captain", name="Captain", handicap=18),
+        Player(id="partner1", name="Partner1", handicap=5),
+        Player(id="partner2", name="Partner2", handicap=12),
+        Player(id="partner3", name="Partner3", handicap=8)
     ]
     
-    sim = WolfGoatPigSimulation(player_count=4, players=players)
+    sim = WolfGoatPigGame(player_count=4, players=players)
     sim.enable_shot_progression()
     
     hole_state = sim.hole_states.get(sim.current_hole)
@@ -175,13 +175,13 @@ def test_partnership_timing():
 def test_betting_system():
     """Test betting system functionality"""
     players = [
-        WGPPlayer(id="p1", name="Player1", handicap=18),
-        WGPPlayer(id="p2", name="Player2", handicap=5),
-        WGPPlayer(id="p3", name="Player3", handicap=12),
-        WGPPlayer(id="p4", name="Player4", handicap=8)
+        Player(id="p1", name="Player1", handicap=18),
+        Player(id="p2", name="Player2", handicap=5),
+        Player(id="p3", name="Player3", handicap=12),
+        Player(id="p4", name="Player4", handicap=8)
     ]
     
-    sim = WolfGoatPigSimulation(player_count=4, players=players)
+    sim = WolfGoatPigGame(player_count=4, players=players)
     sim.enable_shot_progression()
     
     hole_state = sim.hole_states.get(sim.current_hole)
@@ -213,13 +213,13 @@ def test_betting_system():
 def test_hole_completion():
     """Test that holes complete properly"""
     players = [
-        WGPPlayer(id="p1", name="Player1", handicap=0),  # Low handicap for better chance of completion
-        WGPPlayer(id="p2", name="Player2", handicap=0),
-        WGPPlayer(id="p3", name="Player3", handicap=0),
-        WGPPlayer(id="p4", name="Player4", handicap=0)
+        Player(id="p1", name="Player1", handicap=0),  # Low handicap for better chance of completion
+        Player(id="p2", name="Player2", handicap=0),
+        Player(id="p3", name="Player3", handicap=0),
+        Player(id="p4", name="Player4", handicap=0)
     ]
     
-    sim = WolfGoatPigSimulation(player_count=4, players=players)
+    sim = WolfGoatPigGame(player_count=4, players=players)
     sim.enable_shot_progression()
     
     print("   Testing basic hole completion mechanics...")
@@ -266,13 +266,13 @@ def test_hole_completion():
 def test_json_output_structure():
     """Test that simulation produces valid JSON output"""
     players = [
-        WGPPlayer(id="p1", name="Player1", handicap=18),
-        WGPPlayer(id="p2", name="Player2", handicap=5),
-        WGPPlayer(id="p3", name="Player3", handicap=12),
-        WGPPlayer(id="p4", name="Player4", handicap=8)
+        Player(id="p1", name="Player1", handicap=18),
+        Player(id="p2", name="Player2", handicap=5),
+        Player(id="p3", name="Player3", handicap=12),
+        Player(id="p4", name="Player4", handicap=8)
     ]
     
-    sim = WolfGoatPigSimulation(player_count=4, players=players)
+    sim = WolfGoatPigGame(player_count=4, players=players)
     sim.enable_shot_progression()
     
     # Simulate a few shots
@@ -306,13 +306,13 @@ def test_json_output_structure():
 def test_error_handling():
     """Test system error handling"""
     players = [
-        WGPPlayer(id="p1", name="Player1", handicap=18),
-        WGPPlayer(id="p2", name="Player2", handicap=5),
-        WGPPlayer(id="p3", name="Player3", handicap=12),
-        WGPPlayer(id="p4", name="Player4", handicap=8)
+        Player(id="p1", name="Player1", handicap=18),
+        Player(id="p2", name="Player2", handicap=5),
+        Player(id="p3", name="Player3", handicap=12),
+        Player(id="p4", name="Player4", handicap=8)
     ]
     
-    sim = WolfGoatPigSimulation(player_count=4, players=players)
+    sim = WolfGoatPigGame(player_count=4, players=players)
     sim.enable_shot_progression()
     
     # Test invalid player ID

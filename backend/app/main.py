@@ -17,7 +17,6 @@ from .simulation_timeline_enhancements import (
 )
 from .course_import import CourseImporter, import_course_by_name, import_course_from_json, save_course_to_database
 from .domain.shot_result import ShotResult
-from .domain.player import Player
 from .domain.shot_range_analysis import analyze_shot_decision
 from pydantic import BaseModel, Field
 from typing import List, Optional, Any, Dict, Tuple
@@ -760,7 +759,7 @@ async def create_test_game(
 
     # Initialize WolfGoatPigGame for this game
     wgp_players = [
-        WGPPlayer(
+        Player(
             id=p["id"],
             name=p["name"],
             handicap=p["handicap"]
@@ -2420,10 +2419,10 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
         if len(players) < 2:
             raise HTTPException(status_code=400, detail="Need at least 2 players to start")
 
-        # Create WGPPlayer objects from database players
+        # Create Player objects from database players
         wgp_players = []
         for p in players:
-            wgp_player = WGPPlayer(
+            wgp_player = Player(
                 id=p.player_slot_id,
                 name=p.player_name,
                 handicap=p.handicap
@@ -2730,10 +2729,10 @@ async def perform_game_action_by_id(
                 models.GamePlayer.game_id == game_id
             ).order_by(models.GamePlayer.player_slot_id).all()
 
-            # Create WGPPlayer objects
+            # Create Player objects
             wgp_players = []
             for p in players:
-                wgp_player = WGPPlayer(
+                wgp_player = Player(
                     id=p.player_slot_id,
                     name=p.player_name,
                     handicap=p.handicap
@@ -3170,19 +3169,19 @@ async def handle_initialize_game(game: WolfGoatPigGame, payload: Dict[str, Any])
         
         # Initialize WGP simulation with robust error handling
         try:
-            # Create WGPPlayer objects
+            # Create Player objects
             wgp_players = []
             for player in players:
                 try:
-                    wgp_players.append(WGPPlayer(
+                    wgp_players.append(Player(
                         id=player["id"],
                         name=player["name"],
                         handicap=player["handicap"]
                     ))
                 except Exception as player_creation_error:
-                    logger.error(f"Failed to create WGPPlayer for {player['name']}: {player_creation_error}")
+                    logger.error(f"Failed to create Player for {player['name']}: {player_creation_error}")
                     # Create with minimal data
-                    wgp_players.append(WGPPlayer(
+                    wgp_players.append(Player(
                         id=player.get("id", f"p{len(wgp_players)+1}"),
                         name=player.get("name", f"Player {len(wgp_players)+1}"),
                         handicap=18.0
@@ -6487,10 +6486,10 @@ def setup_simulation(request: Dict[str, Any]):
         if len(all_players) > 6:
             raise HTTPException(status_code=400, detail="Maximum 6 players allowed")
         
-        # Create WGPPlayer objects
+        # Create Player objects
         wgp_players = []
         for i, player_data in enumerate(all_players):
-            wgp_player = WGPPlayer(
+            wgp_player = Player(
                 id=player_data.get("id", f"player_{i+1}"),
                 name=player_data.get("name", f"Player {i+1}"),
                 handicap=float(player_data.get("handicap", 10))
