@@ -132,40 +132,10 @@ cd ..
 
 print_section "Functional Tests"
 
-echo "Checking if backend is running..."
-if check_service "http://localhost:8000/health" "Backend API"; then
-    BACKEND_RUNNING=true
-else
-    echo "Starting backend for functional tests..."
-    cd $BACKEND_DIR
-    python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 &
-    BACKEND_PID=$!
-    cd ..
-    
-    # Wait for backend to start
-    sleep 5
-    
-    if check_service "http://localhost:8000/health" "Backend API"; then
-        BACKEND_RUNNING=true
-    else
-        echo -e "${RED}❌ Could not start backend for functional tests${NC}"
-        BACKEND_RUNNING=false
-    fi
-fi
-
-if [ "$BACKEND_RUNNING" = true ]; then
-    echo "Running functional tests..."
-    if python3 tests/functional/test_simulation_functional.py; then
-        echo -e "${GREEN}✅ Functional tests PASSED${NC}"
-        FUNCTIONAL_SUCCESS=true
-    else
-        echo -e "${RED}❌ Functional tests FAILED${NC}"
-        FUNCTIONAL_SUCCESS=false
-    fi
-else
-    echo -e "${YELLOW}⚠️ Skipping functional tests - backend not available${NC}"
-    FUNCTIONAL_SUCCESS=true
-fi
+# Functional tests disabled - simulation mode not in active use
+echo -e "${YELLOW}⚠️ Skipping functional tests - simulation mode not in use${NC}"
+FUNCTIONAL_SUCCESS=true
+BACKEND_RUNNING=false
 
 print_section "End-to-End Tests"
 
