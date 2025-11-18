@@ -70,7 +70,7 @@ class GamePlayer(Base):
     user_id = Column(String, nullable=True)  # Auth0 user ID
     player_profile_id = Column(Integer, nullable=True)  # References PlayerProfile.id
     player_name = Column(String)  # Display name
-    handicap = Column(Float)
+    handicap = Column(Float, nullable=False, default=18.0)  # Handicap index (0-54)
     join_status = Column(String, default="pending")  # pending, joined, ready
     joined_at = Column(String, nullable=True)
     created_at = Column(String)

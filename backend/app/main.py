@@ -2311,6 +2311,9 @@ async def join_game_with_code(
         player_slot_id = f"p{len(current_players) + 1}"
         current_time = datetime.utcnow().isoformat()
 
+        # Ensure handicap is valid - use default if None
+        player_handicap = request.handicap if request.handicap is not None else 18.0
+
         # Create GamePlayer record
         game_player = models.GamePlayer(
             game_id=game.game_id,
@@ -2318,7 +2321,7 @@ async def join_game_with_code(
             user_id=request.user_id,
             player_profile_id=request.player_profile_id,
             player_name=request.player_name,
-            handicap=request.handicap,
+            handicap=player_handicap,
             join_status="joined",
             joined_at=current_time,
             created_at=current_time
@@ -2330,7 +2333,7 @@ async def join_game_with_code(
         game.state["players"].append({
             "id": player_slot_id,
             "name": request.player_name,
-            "handicap": request.handicap,
+            "handicap": player_handicap,
             "user_id": request.user_id,
             "player_profile_id": request.player_profile_id
         })
@@ -2422,10 +2425,20 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
         # Create Player objects from database players
         wgp_players = []
         for p in players:
+            # Ensure handicap is not None - default to 18.0 if missing
+            player_handicap = p.handicap if p.handicap is not None else 18.0
+
+            # Validate handicap range
+            if player_handicap < 0 or player_handicap > 54:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Player {p.player_name} has invalid handicap {player_handicap}. Handicap must be between 0 and 54."
+                )
+
             wgp_player = Player(
                 id=p.player_slot_id,
                 name=p.player_name,
-                handicap=p.handicap
+                handicap=player_handicap
             )
             wgp_players.append(wgp_player)
 
@@ -2732,10 +2745,13 @@ async def perform_game_action_by_id(
             # Create Player objects
             wgp_players = []
             for p in players:
+                # Ensure handicap is not None - default to 18.0 if missing
+                player_handicap = p.handicap if p.handicap is not None else 18.0
+
                 wgp_player = Player(
                     id=p.player_slot_id,
                     name=p.player_name,
-                    handicap=p.handicap
+                    handicap=player_handicap
                 )
                 wgp_players.append(wgp_player)
 
@@ -6492,7 +6508,7 @@ def setup_simulation(request: Dict[str, Any]):
             wgp_player = Player(
                 id=player_data.get("id", f"player_{i+1}"),
                 name=player_data.get("name", f"Player {i+1}"),
-                handicap=float(player_data.get("handicap", 10))
+                handicap=float(player_data.get("handicap", 18.0))
             )
             wgp_players.append(wgp_player)
         
