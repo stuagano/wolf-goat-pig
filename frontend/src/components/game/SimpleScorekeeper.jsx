@@ -1092,6 +1092,121 @@ const SimpleScorekeeper = ({
         </div>
       </div>
 
+      {/* Stroke Allocation Display - Shows who gets strokes on this hole */}
+      {!isHoepfinger && rotationOrder.length > 0 && (() => {
+        // Calculate stroke allocation for current hole using Creecher Feature logic
+        const getStrokesForHole = (handicap, strokeIndex) => {
+          if (!handicap || !strokeIndex) return 0;
+
+          const fullStrokes = Math.floor(handicap);
+          const hasHalfStroke = (handicap - fullStrokes) >= 0.5;
+
+          // Creecher Feature: For handicaps >18, easiest holes get ONLY half strokes
+          if (handicap > 18 && strokeIndex >= 13 && strokeIndex <= 18) {
+            const creecherStrokes = Math.min(Math.floor(handicap - 18), 6);
+            const easiestHoles = [18, 17, 16, 15, 14, 13];
+            if (easiestHoles.slice(0, creecherStrokes).includes(strokeIndex)) {
+              return 0.5;
+            }
+          }
+
+          // Full strokes on hardest holes
+          if (strokeIndex <= fullStrokes) {
+            return 1.0;
+          }
+
+          // Half stroke on next hardest hole for fractional handicaps
+          if (hasHalfStroke && strokeIndex === fullStrokes + 1) {
+            return 0.5;
+          }
+
+          return 0;
+        };
+
+        // Default stroke index pattern (hardest to easiest, can be customized per course)
+        const defaultStrokeIndex = currentHole; // Simple: hole number = stroke index
+
+        const playersWithStrokes = players
+          .map(player => ({
+            ...player,
+            strokes: getStrokesForHole(player.handicap || 0, defaultStrokeIndex)
+          }))
+          .filter(p => p.strokes > 0);
+
+        if (playersWithStrokes.length === 0) return null;
+
+        return (
+          <div style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            borderRadius: '12px',
+            padding: '16px',
+            marginBottom: '16px',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.15)',
+            border: '2px solid rgba(255,255,255,0.2)'
+          }}>
+            <div style={{
+              fontSize: '14px',
+              fontWeight: 'bold',
+              marginBottom: '12px',
+              color: 'white',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              ⛳ STROKES ON HOLE {currentHole}
+              <span style={{ fontSize: '11px', fontWeight: 'normal', opacity: 0.9 }}>
+                (Stroke Index: {defaultStrokeIndex})
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {playersWithStrokes.map(player => (
+                <div
+                  key={player.id}
+                  style={{
+                    padding: '10px 16px',
+                    borderRadius: '10px',
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    color: '#333',
+                    fontWeight: 'bold',
+                    fontSize: '15px',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <span>{player.name}</span>
+                  <span style={{
+                    background: player.strokes === 0.5 ? '#FF9800' : '#4CAF50',
+                    color: 'white',
+                    padding: '4px 10px',
+                    borderRadius: '12px',
+                    fontSize: '13px',
+                    fontWeight: 'bold'
+                  }}>
+                    {player.strokes === 0.5 ? '½ STROKE' : player.strokes === 1 ? '1 STROKE' : `${player.strokes} STROKES`}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div style={{
+              marginTop: '10px',
+              padding: '8px 12px',
+              background: 'rgba(255,255,255,0.15)',
+              borderRadius: '6px',
+              fontSize: '11px',
+              color: 'white',
+              fontStyle: 'italic'
+            }}>
+              💡 Players receive strokes based on handicap and hole difficulty (stroke index)
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Rotation Order Display */}
       {!isHoepfinger && rotationOrder.length > 0 && (
         <div style={{

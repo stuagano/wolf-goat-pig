@@ -212,41 +212,29 @@ class HoleState:
     
     def _calculate_strokes_received(self, handicap: float, stroke_index: int) -> float:
         """
-        Calculate strokes received on this hole based on handicap and stroke index.
+        Calculate strokes received on this hole with Creecher Feature support.
 
-        Now uses HandicapValidator for USGA-compliant calculation.
+        Uses HandicapValidator's Creecher-aware method which properly implements
+        the Wolf-Goat-Pig house rule for half strokes.
+
+        Args:
+            handicap: Player's course handicap
+            stroke_index: Hole's stroke index (1-18)
+
+        Returns:
+            Float strokes: 0.0, 0.5, 1.0, 1.5, etc.
         """
         try:
-            # Use HandicapValidator for proper USGA stroke allocation
-            strokes = HandicapValidator.calculate_strokes_received(
+            # Use HandicapValidator with Creecher Feature support
+            strokes = HandicapValidator.calculate_strokes_received_with_creecher(
                 handicap,
                 stroke_index,
                 validate=True
             )
-            return float(strokes)
+            return strokes
         except HandicapValidationError as e:
-            logger.warning(f"Stroke calculation error: {e.message}, falling back to legacy calculation")
-            # Fallback to legacy calculation for backward compatibility
-            full_strokes = int(handicap)
-            half_stroke = (handicap - full_strokes) >= 0.5
-
-            # Full strokes: assign to holes with stroke index <= full_strokes
-            if stroke_index <= full_strokes:
-                return 1.0
-
-            # Half stroke: assign to next hardest hole not already getting a stroke
-            if half_stroke and stroke_index == full_strokes + 1:
-                return 0.5
-
-            # Creecher Feature: Half strokes on easiest 6 holes (stroke indexes 13-18)
-            if stroke_index >= 13 and stroke_index <= 18:
-                # For players with handicap > 18, additional half strokes
-                if handicap > 18:
-                    extra_half_strokes = int((handicap - 18) / 1.0)
-                    easiest_holes = [18, 17, 16, 15, 14, 13]
-                    if stroke_index in easiest_holes[:extra_half_strokes]:
-                        return 0.5
-
+            logger.error(f"Stroke calculation failed: {e.message}, defaulting to 0 strokes")
+            # If validation fails, default to no strokes rather than incorrect calculation
             return 0.0
     
     def get_player_stroke_advantage(self, player_id: str) -> Optional[StrokeAdvantage]:

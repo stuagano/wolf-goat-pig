@@ -209,42 +209,122 @@ class HandicapValidator:
         return strokes
 
     @classmethod
-    def calculate_net_score(
+    def calculate_strokes_received_with_creecher(
         cls,
-        gross_score: int,
-        strokes_received: int,
+        course_handicap: float,
+        stroke_index: int,
         validate: bool = True
-    ) -> int:
+    ) -> float:
         """
-        Calculate net score from gross score and strokes received.
+        Calculate strokes received with Creecher Feature (half strokes).
+
+        The Creecher Feature is a Wolf-Goat-Pig house rule that awards half strokes
+        on certain holes to provide more granular handicapping.
+
+        Creecher Feature Rules:
+        1. Players receive full strokes on holes where stroke_index <= full_handicap
+        2. Players with fractional handicaps (e.g., 10.5) get a half stroke on the
+           next hardest hole (stroke_index == full_handicap + 1)
+        3. For handicaps >18, additional half strokes are awarded on the easiest
+           6 holes (stroke indexes 13-18) to prevent excessive strokes per hole
+
+        Examples:
+            handicap=10.5, stroke_index=10 → 1.0 (full stroke)
+            handicap=10.5, stroke_index=11 → 0.5 (half stroke from fractional)
+            handicap=10.5, stroke_index=12 → 0.0 (no stroke)
+            handicap=20.0, stroke_index=18 → 0.5 (Creecher half stroke)
+            handicap=22.0, stroke_index=17 → 0.5 (Creecher half stroke)
 
         Args:
-            gross_score: Player's actual strokes on hole
-            strokes_received: Handicap strokes for this hole
-            validate: Whether to validate inputs
+            course_handicap: Player's course handicap (can be fractional)
+            stroke_index: Hole's stroke index (1-18, where 1 is hardest)
+            validate: Whether to validate inputs first
 
         Returns:
-            Net score (gross - strokes)
+            Float strokes: 0.0, 0.5, 1.0, 1.5, 2.0, etc.
 
         Raises:
             HandicapValidationError: If validation fails
         """
         if validate:
-            if not isinstance(gross_score, int) or gross_score < 1:
+            cls.validate_handicap(course_handicap, "course_handicap")
+            cls.validate_stroke_index(stroke_index)
+
+        # Separate full and fractional parts of handicap
+        full_strokes = int(course_handicap)
+        fractional_part = course_handicap - full_strokes
+        has_half_stroke = fractional_part >= 0.5
+
+        # Rule 3 (checked first): Creecher Feature for high handicaps
+        # For handicaps >18, easiest holes get ONLY half strokes (not full)
+        # This prevents excessive strokes per hole (max 2 strokes/hole)
+        if course_handicap > 18 and stroke_index >= 13 and stroke_index <= 18:
+            # Calculate how many Creecher half strokes (max 6, one per easiest hole)
+            creecher_strokes = min(int(course_handicap - 18), 6)
+
+            # Easiest holes get the Creecher half strokes (18 is easiest)
+            easiest_holes = [18, 17, 16, 15, 14, 13]
+
+            if stroke_index in easiest_holes[:creecher_strokes]:
+                return 0.5
+
+        # Rule 1: Full strokes on holes harder than full handicap value
+        # But NOT on Creecher holes (checked above)
+        if stroke_index <= full_strokes:
+            return 1.0
+
+        # Rule 2: Half stroke on next hardest hole for fractional handicaps
+        if has_half_stroke and stroke_index == full_strokes + 1:
+            return 0.5
+
+        return 0.0
+
+    @classmethod
+    def calculate_net_score(
+        cls,
+        gross_score: Union[int, float],
+        strokes_received: Union[int, float],
+        validate: bool = True
+    ) -> float:
+        """
+        Calculate net score from gross score and strokes received.
+
+        Supports both integer and float values to accommodate the Creecher Feature
+        which awards half strokes (0.5). Net scores can be fractional values like
+        4.5, 3.5, etc.
+
+        Examples:
+            gross=5, strokes=1 → net=4.0
+            gross=5, strokes=0.5 → net=4.5
+            gross=4, strokes=1.5 → net=2.5
+
+        Args:
+            gross_score: Player's actual strokes on hole (int or float)
+            strokes_received: Handicap strokes for this hole (can be 0.5)
+            validate: Whether to validate inputs
+
+        Returns:
+            Net score as float (gross - strokes)
+
+        Raises:
+            HandicapValidationError: If validation fails
+        """
+        if validate:
+            if not isinstance(gross_score, (int, float)) or gross_score < 1:
                 raise HandicapValidationError(
-                    "Gross score must be a positive integer",
+                    "Gross score must be a positive number",
                     field="gross_score",
-                    details={"value": gross_score}
+                    details={"value": gross_score, "type": type(gross_score).__name__}
                 )
 
-            if not isinstance(strokes_received, int) or strokes_received < 0:
+            if not isinstance(strokes_received, (int, float)) or strokes_received < 0:
                 raise HandicapValidationError(
-                    "Strokes received must be a non-negative integer",
+                    "Strokes received must be a non-negative number",
                     field="strokes_received",
-                    details={"value": strokes_received}
+                    details={"value": strokes_received, "type": type(strokes_received).__name__}
                 )
 
-        return gross_score - strokes_received
+        return float(gross_score) - float(strokes_received)
 
     @classmethod
     def validate_course_rating(cls, course_rating: float, slope_rating: int) -> None:
