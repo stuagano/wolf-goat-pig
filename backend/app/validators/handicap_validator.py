@@ -164,62 +164,6 @@ class HandicapValidator:
                 }
             )
 
-    @classmethod
-    def calculate_strokes_received(
-        cls,
-        course_handicap: float,
-        stroke_index: int,
-        validate: bool = True
-    ) -> int:
-        """
-        DEPRECATED: Calculate number of strokes a player receives on a hole.
-
-        .. deprecated::
-            Use :meth:`calculate_strokes_received_with_creecher` instead for proper
-            half-stroke support. This method rounds handicaps and cannot handle
-            fractional strokes (Creecher Feature).
-
-        Uses USGA stroke allocation rules:
-        - If course handicap >= stroke index, player gets 1 stroke
-        - If course handicap >= (stroke index + 18), player gets 2 strokes
-        - etc.
-
-        Args:
-            course_handicap: Player's course handicap
-            stroke_index: Hole's stroke index (1-18)
-            validate: Whether to validate inputs first
-
-        Returns:
-            Number of strokes to receive on this hole (integer only, no half strokes)
-
-        Raises:
-            HandicapValidationError: If validation fails
-        """
-        warnings.warn(
-            "calculate_strokes_received() is deprecated and will be removed in a future version. "
-            "Use calculate_strokes_received_with_creecher() instead for proper half-stroke support.",
-            DeprecationWarning,
-            stacklevel=2
-        )
-
-        if validate:
-            cls.validate_handicap(course_handicap, "course_handicap")
-            cls.validate_stroke_index(stroke_index)
-
-        # Calculate strokes using USGA allocation
-        strokes = 0
-
-        # Round course handicap to nearest integer for stroke allocation
-        rounded_handicap = round(course_handicap)
-
-        # Check each 18-stroke band
-        for band in range(0, 3):  # Max 3 bands (0-18, 18-36, 36-54)
-            if rounded_handicap >= (stroke_index + (band * 18)):
-                strokes += 1
-            else:
-                break
-
-        return strokes
 
     @classmethod
     def calculate_strokes_received_with_creecher(

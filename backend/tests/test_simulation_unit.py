@@ -337,24 +337,24 @@ class TestSimulationUtilities:
     
     def test_handicap_calculation(self):
         """Test handicap-based stroke allocation"""
-        from app.services.odds_calculator import calculate_strokes_received
+        from app.validators import HandicapValidator
         
         player_handicap = 18
         hole_index = 5  # Stroke index
         
-        strokes = calculate_strokes_received(player_handicap, hole_index)
+        strokes = HandicapValidator.calculate_strokes_received_with_creecher(player_handicap, hole_index)
         
         assert isinstance(strokes, (int, float))
         assert strokes >= 0
         
     def test_net_score_calculation(self):
         """Test net score calculation"""
-        from app.services.odds_calculator import calculate_net_score
+        from app.validators import HandicapValidator
         
         gross_score = 5
         strokes_received = 1
         
-        net_score = calculate_net_score(gross_score, strokes_received)
+        net_score = HandicapValidator.calculate_net_score(gross_score, strokes_received)
         
         assert net_score == pytest.approx(4)
         

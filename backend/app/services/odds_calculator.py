@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 import statistics
 import numpy as np
-from functools import lru_cache
+from ..validators import HandicapValidator
 
 
 class TeamConfiguration(Enum):
@@ -873,51 +873,3 @@ def create_hole_state_from_game_data(hole_data: Dict[str, Any]) -> HoleState:
     )
 
 
-def calculate_strokes_received(handicap: Union[int, float], stroke_index: int) -> float:
-    """
-    Public helper that mirrors the simulation engine's stroke-allocation logic.
-
-    Returns the number of strokes a player receives on a given hole (0, 0.5, or 1).
-    """
-    if stroke_index < 1 or stroke_index > 18:
-        raise ValueError("stroke_index must be between 1 and 18")
-
-    try:
-        handicap_value = float(handicap)
-    except (TypeError, ValueError) as exc:
-        raise ValueError("handicap must be numeric") from exc
-
-    if handicap_value < 0:
-        handicap_value = 0.0
-
-    full_strokes = int(handicap_value)
-    half_stroke = (handicap_value - full_strokes) >= 0.5
-
-    if stroke_index <= full_strokes:
-        return 1.0
-
-    if half_stroke and stroke_index == full_strokes + 1:
-        return 0.5
-
-    if handicap_value > 18:
-        extra_half_strokes = min(int(handicap_value - 18), 6)
-        easiest_holes = [18, 17, 16, 15, 14, 13]
-        if stroke_index in easiest_holes[:extra_half_strokes]:
-            return 0.5
-
-    return 0.0
-
-
-def calculate_net_score(gross_score: Union[int, float], strokes_received: Union[int, float]) -> float:
-    """
-    Calculate the net score after applying stroke advantages.
-
-    Negative values are allowed (e.g., birdies) so no floor is applied.
-    """
-    try:
-        gross_value = float(gross_score)
-        strokes_value = float(strokes_received)
-    except (TypeError, ValueError) as exc:
-        raise ValueError("gross_score and strokes_received must be numeric") from exc
-
-    return gross_value - strokes_value

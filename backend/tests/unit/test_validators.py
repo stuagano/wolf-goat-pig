@@ -173,61 +173,6 @@ class TestHandicapValidator:
 
         assert "must be an integer" in str(exc_info.value)
 
-    # ========================================================================
-    # calculate_strokes_received tests
-    # ========================================================================
-
-    def test_calculate_strokes_received_no_strokes(self):
-        """Test stroke calculation for low handicap on hard hole."""
-        strokes = HandicapValidator.calculate_strokes_received(
-            course_handicap=5.0,
-            stroke_index=10
-        )
-        assert strokes == 0
-
-    def test_calculate_strokes_received_one_stroke(self):
-        """Test stroke calculation for one stroke allocation."""
-        strokes = HandicapValidator.calculate_strokes_received(
-            course_handicap=10.0,
-            stroke_index=5
-        )
-        assert strokes == 1
-
-    def test_calculate_strokes_received_two_strokes(self):
-        """Test stroke calculation for two stroke allocation."""
-        strokes = HandicapValidator.calculate_strokes_received(
-            course_handicap=25.0,
-            stroke_index=5
-        )
-        assert strokes == 2
-
-    def test_calculate_strokes_received_three_strokes(self):
-        """Test stroke calculation for maximum stroke allocation."""
-        strokes = HandicapValidator.calculate_strokes_received(
-            course_handicap=45.0,
-            stroke_index=5
-        )
-        assert strokes == 3
-
-    def test_calculate_strokes_received_rounding(self):
-        """Test stroke calculation rounds handicap properly."""
-        # 17.4 rounds to 17, should get 1 stroke on stroke index 10
-        strokes = HandicapValidator.calculate_strokes_received(17.4, 10)
-        assert strokes == 1
-
-        # 17.6 rounds to 18, should get 1 stroke on stroke index 18
-        strokes = HandicapValidator.calculate_strokes_received(17.6, 18)
-        assert strokes == 1
-
-    def test_calculate_strokes_received_without_validation(self):
-        """Test stroke calculation can skip validation."""
-        # Should not raise even with invalid inputs when validate=False
-        strokes = HandicapValidator.calculate_strokes_received(
-            course_handicap=100.0,
-            stroke_index=25,
-            validate=False
-        )
-        assert isinstance(strokes, int)
 
     # ========================================================================
     # calculate_net_score tests
@@ -262,14 +207,14 @@ class TestHandicapValidator:
         with pytest.raises(HandicapValidationError) as exc_info:
             HandicapValidator.calculate_net_score(0, 1)
 
-        assert "Gross score must be a positive integer" in str(exc_info.value)
+        assert "Gross score must be a positive number" in str(exc_info.value)
 
     def test_calculate_net_score_negative_strokes(self):
         """Test net score validation rejects negative strokes received."""
         with pytest.raises(HandicapValidationError) as exc_info:
             HandicapValidator.calculate_net_score(5, -1)
 
-        assert "Strokes received must be a non-negative integer" in str(exc_info.value)
+        assert "Strokes received must be a non-negative number" in str(exc_info.value)
 
     def test_calculate_net_score_without_validation(self):
         """Test net score calculation can skip validation."""
@@ -1124,7 +1069,7 @@ class TestValidatorIntegration:
 
         # 4. Calculate strokes received on a hole
         stroke_index = 5
-        strokes = HandicapValidator.calculate_strokes_received(
+        strokes = HandicapValidator.calculate_strokes_received_with_creecher(
             course_handicap=course_handicap,
             stroke_index=stroke_index
         )

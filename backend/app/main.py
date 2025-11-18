@@ -64,9 +64,7 @@ email_scheduler = None
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Initialize Wolf Goat Pig Simulation (DEPRECATED - will be removed)
-# TODO: Remove this global instance once all endpoints migrate to per-game instances
-wgp_simulation = WolfGoatPigSimulation(player_count=4)
+
 # Initialize Post-Hole Analyzer
 post_hole_analyzer = PostHoleAnalyzer()
 # Initialize Course Manager (replaces game_state.course_manager)
@@ -667,55 +665,6 @@ def ghin_diagnostic():
         "environment": os.getenv("ENVIRONMENT", "development")
     }
 
-# Legacy Game Endpoints (for backward compatibility)
-@app.get("/game/state")
-def get_game_state():
-    """Get current game state (legacy endpoint)"""
-    global wgp_simulation
-    try:
-        # Use new simulation system if available, otherwise fall back to legacy
-        if wgp_simulation:
-            logger.info("Returning state from wgp_simulation")
-            return game.get_game_state()
-        else:
-            logger.info("Returning state from legacy game_state")
-            return {"message": "Legacy game_state.get_state() is deprecated"}
-    except Exception as e:
-        logger.error(f"Error getting game state: {e}")
-        raise HTTPException(status_code=500, detail="Failed to get game state")
-
-@app.get("/game/tips")
-def get_betting_tips():
-    """Get betting tips (legacy endpoint)"""
-    try:
-        return {"tips": [
-            "Consider your handicap advantage on this hole",
-            "Watch for partnership opportunities",
-            "Doubling can be risky but rewarding"
-        ]}
-    except Exception as e:
-        logger.error(f"Error getting betting tips: {e}")
-        raise HTTPException(status_code=500, detail="Failed to get betting tips")
-
-@app.get("/game/player_strokes")
-def get_player_strokes():
-    """Get player stroke information (legacy endpoint)"""
-    try:
-        state = {"message": "Legacy game_state.get_state() is deprecated"}
-        players = state.get("players", [])
-        return {
-            "players": [
-                {
-                    "name": player.get("name", "Unknown"),
-                    "strokes": player.get("strokes", 0),
-                    "handicap": player.get("handicap", 0)
-                }
-                for player in players
-            ]
-        }
-    except Exception as e:
-        logger.error(f"Error getting player strokes: {e}")
-        raise HTTPException(status_code=500, detail="Failed to get player strokes")
 
 @app.post("/games/create")
 async def create_game_with_join_code(

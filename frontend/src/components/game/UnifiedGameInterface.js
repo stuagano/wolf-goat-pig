@@ -5,11 +5,7 @@ import { useGame } from '../../context';
 import { Button, Card, Select } from '../ui';
 import useOddsCalculation from '../../hooks/useOddsCalculation';
 // Import existing widgets
-import ShotResultWidget from '../ShotResultWidget';
-import BettingOpportunityWidget from '../BettingOpportunityWidget';
 import BettingOddsPanel from '../BettingOddsPanel';
-import GameStateWidget from '../GameStateWidget';
-import StrategicAnalysisWidget from '../StrategicAnalysisWidget';
 import AnalyticsDashboard from '../AnalyticsDashboard';
 import HoleStrategyDisplay from '../HoleStrategyDisplay';
 
@@ -151,7 +147,7 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
   const [currentView, setCurrentView] = useState('game');
   const [timelineEvents, setTimelineEvents] = useState([]);
   const [showOddsPanel, setShowOddsPanel] = useState(true);
-  
+
   // Shot analysis state
   const [showShotAnalysis, setShowShotAnalysis] = useState(false);
   const [shotAnalysisData, setShotAnalysisData] = useState(null);
@@ -178,9 +174,9 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
           type: 'odds_update',
           timestamp: new Date(),
           description: `Odds updated: ${newOddsData.optimal_strategy.replace(/_/g, ' ')}`,
-          payload: { 
+          payload: {
             confidence: newOddsData.confidence_level,
-            calculation_time: newOddsData.calculation_time_ms 
+            calculation_time: newOddsData.calculation_time_ms
           }
         }]);
       }
@@ -267,7 +263,7 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
     try {
       const response = await makeGameAction(actionType, payload);
       setGameState(response);
-      
+
       // Add timeline event for enhanced mode
       if (mode === 'enhanced') {
         setTimelineEvents(prev => [...prev, {
@@ -278,7 +274,7 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
           payload
         }]);
       }
-      
+
       return response;
     } catch (error) {
       console.error('Action failed:', error);
@@ -351,7 +347,7 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
 
   const handleShotRecommendation = (recommendation) => {
     setShotAnalysisData(recommendation);
-    
+
     // Add timeline event for enhanced mode
     if (mode === 'enhanced') {
       setTimelineEvents(prev => [...prev, {
@@ -368,10 +364,10 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
   React.useEffect(() => {
     if (gameState && gameState.players) {
       // Try to find the current player to hit
-      const nextPlayer = gameState.players.find(p => 
+      const nextPlayer = gameState.players.find(p =>
         p.id === (gameState.next_player_to_hit || gameState.current_player)
       );
-      
+
       // If no specific next player, use first player as default
       setCurrentPlayerForAnalysis(nextPlayer || gameState.players[0]);
     }
@@ -404,7 +400,7 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
         gameState={gameState}
         onEndSimulation={endGame}
         feedback={feedback}
-        // Add other simulation-specific props as needed
+      // Add other simulation-specific props as needed
       />
     );
   }
@@ -464,8 +460,8 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
               Set up players, course, and game settings
             </p>
           </div>
-          
-          <GameSetupForm 
+
+          <GameSetupForm
             onSetup={(newGameState) => {
               setGameState(newGameState);
               startGame(newGameState);
@@ -479,11 +475,11 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
   // Error state
   if (error) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '50vh' 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '50vh'
       }}>
         <Card variant="error">
           <div style={{ textAlign: 'center', padding: theme.spacing[6] }}>
@@ -505,11 +501,11 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
   // No game state
   if (!gameState) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '50vh' 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '50vh'
       }}>
         <Card>
           <div style={{ textAlign: 'center', padding: theme.spacing[6] }}>
@@ -534,21 +530,21 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
       <div style={{ maxWidth: 1400, margin: '0 auto', padding: theme.spacing[4] }}>
         {/* Header with view switcher */}
         <Card>
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
             alignItems: 'center',
             marginBottom: theme.spacing[4]
           }}>
-            <h1 style={{ 
-              color: theme.colors.primary, 
+            <h1 style={{
+              color: theme.colors.primary,
               margin: 0,
               fontSize: theme.typography['2xl'],
               fontWeight: theme.typography.bold
             }}>
               🚀 Enhanced Wolf Goat Pig
             </h1>
-            
+
             <div style={{ display: 'flex', gap: theme.spacing[2], alignItems: 'center' }}>
               <Button
                 onClick={handleShotAnalysisToggle}
@@ -557,7 +553,7 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
               >
                 {showShotAnalysis ? '🎯 Analysis ON' : '🎯 Shot Analysis'}
               </Button>
-              
+
               <Button
                 onClick={() => setShowOddsPanel(!showOddsPanel)}
                 variant={showOddsPanel ? "primary" : "secondary"}
@@ -565,7 +561,7 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
               >
                 {showOddsPanel ? '📊 Odds ON' : '📊 Betting Odds'}
               </Button>
-              
+
               <Select
                 value={currentView}
                 onChange={(e) => handleViewChange(e.target.value)}
@@ -592,10 +588,10 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
               <div style={{ fontSize: theme.typography.sm, color: theme.colors.textSecondary }}>
                 Current Hole
               </div>
-              <div style={{ 
-                fontSize: theme.typography.xl, 
+              <div style={{
+                fontSize: theme.typography.xl,
                 fontWeight: theme.typography.bold,
-                color: theme.colors.primary 
+                color: theme.colors.primary
               }}>
                 {gameState.current_hole || 1}
               </div>
@@ -604,10 +600,10 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
               <div style={{ fontSize: theme.typography.sm, color: theme.colors.textSecondary }}>
                 Game Phase
               </div>
-              <div style={{ 
-                fontSize: theme.typography.base, 
+              <div style={{
+                fontSize: theme.typography.base,
                 fontWeight: theme.typography.medium,
-                color: theme.colors.textPrimary 
+                color: theme.colors.textPrimary
               }}>
                 {gameState.game_phase || 'Active'}
               </div>
@@ -616,10 +612,10 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
               <div style={{ fontSize: theme.typography.sm, color: theme.colors.textSecondary }}>
                 Base Wager
               </div>
-              <div style={{ 
-                fontSize: theme.typography.lg, 
+              <div style={{
+                fontSize: theme.typography.lg,
                 fontWeight: theme.typography.bold,
-                color: theme.colors.warning 
+                color: theme.colors.warning
               }}>
                 ${gameState.base_wager || 0}
               </div>
@@ -629,40 +625,26 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
 
         {/* View content */}
         {currentView === 'game' && (
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: window.innerWidth < 768 ? '1fr' : 
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: window.innerWidth < 768 ? '1fr' :
               showShotAnalysis && showOddsPanel ? '2fr 1fr 1fr 1fr' :
-              showShotAnalysis || showOddsPanel ? '2fr 1fr 1fr' : '2fr 1fr', 
-            gap: theme.spacing[4] 
+                showShotAnalysis || showOddsPanel ? '2fr 1fr 1fr' : '2fr 1fr',
+            gap: theme.spacing[4]
           }}>
             <div>
-              <GameStateWidget gameState={gameState} holeState={gameState?.hole_state} onAction={sendAction} />
-              {mode === 'enhanced' ? (
-                <EnhancedScoringWidget gameState={gameState} />
-              ) : (
-                <ShotResultWidget gameState={gameState} />
-              )}
+              <EnhancedScoringWidget gameState={gameState} />
             </div>
             <div>
-              {mode === 'enhanced' ? (
-                <>
-                  <EnhancedBettingWidget gameState={gameState} onAction={sendAction} />
-                  {gameState?.players && gameState.players.map(player => (
-                    <InteractivePlayerCard 
-                      key={player.id}
-                      player={player} 
-                      gameState={gameState}
-                      onAction={sendAction}
-                    />
-                  ))}
-                </>
-              ) : (
-                <>
-                  <BettingOpportunityWidget gameState={gameState} onAction={sendAction} />
-                  <StrategicAnalysisWidget gameState={gameState} />
-                </>
-              )}
+              <EnhancedBettingWidget gameState={gameState} onAction={sendAction} />
+              {gameState?.players && gameState.players.map(player => (
+                <InteractivePlayerCard
+                  key={player.id}
+                  player={player}
+                  gameState={gameState}
+                  onAction={sendAction}
+                />
+              ))}
             </div>
             {showOddsPanel && (
               <div>
@@ -691,10 +673,10 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
 
         {/* New dedicated odds view */}
         {currentView === 'odds' && (
-          <div style={{ 
-            display: 'grid', 
+          <div style={{
+            display: 'grid',
             gridTemplateColumns: '1fr',
-            gap: theme.spacing[4] 
+            gap: theme.spacing[4]
           }}>
             <BettingOddsPanel
               gameState={gameState}
@@ -703,7 +685,7 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
               refreshInterval={5000}
               showEducationalTooltips={true}
             />
-            
+
             {/* Performance metrics card */}
             {canCalculate && performanceMetrics && (
               <Card>
@@ -719,8 +701,8 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
                     <div style={{ fontSize: theme.typography.sm, color: theme.colors.textSecondary }}>
                       Average Calculation Time
                     </div>
-                    <div style={{ 
-                      fontSize: theme.typography.xl, 
+                    <div style={{
+                      fontSize: theme.typography.xl,
                       fontWeight: theme.typography.bold,
                       color: performanceMetrics.averageCalculationTime < 50 ? theme.colors.success : theme.colors.warning
                     }}>
@@ -731,8 +713,8 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
                     <div style={{ fontSize: theme.typography.sm, color: theme.colors.textSecondary }}>
                       Success Rate
                     </div>
-                    <div style={{ 
-                      fontSize: theme.typography.xl, 
+                    <div style={{
+                      fontSize: theme.typography.xl,
                       fontWeight: theme.typography.bold,
                       color: theme.colors.success
                     }}>
@@ -743,8 +725,8 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
                     <div style={{ fontSize: theme.typography.sm, color: theme.colors.textSecondary }}>
                       Cache Efficiency
                     </div>
-                    <div style={{ 
-                      fontSize: theme.typography.xl, 
+                    <div style={{
+                      fontSize: theme.typography.xl,
                       fontWeight: theme.typography.bold,
                       color: theme.colors.primary
                     }}>
@@ -755,8 +737,8 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
                     <div style={{ fontSize: theme.typography.sm, color: theme.colors.textSecondary }}>
                       Data Freshness
                     </div>
-                    <div style={{ 
-                      fontSize: theme.typography.base, 
+                    <div style={{
+                      fontSize: theme.typography.base,
                       fontWeight: theme.typography.medium,
                       color: isCalculationStale ? theme.colors.warning : theme.colors.success
                     }}>
@@ -764,7 +746,7 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Manual refresh button */}
                 <div style={{ marginTop: theme.spacing[4] }}>
                   <Button
@@ -775,7 +757,7 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
                   >
                     {oddsLoading ? '⟳ Calculating...' : '🔄 Refresh Odds'}
                   </Button>
-                  
+
                   {oddsError && (
                     <Button
                       onClick={clearOddsError}
@@ -797,8 +779,8 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
         )}
 
         {currentView === 'history' && (
-          <GameHistory 
-            gameData={gameState} 
+          <GameHistory
+            gameData={gameState}
             timelineEvents={timelineEvents}
           />
         )}
@@ -810,8 +792,8 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
             </h3>
             <div style={{ maxHeight: 600, overflowY: 'auto' }}>
               {timelineEvents.length === 0 ? (
-                <div style={{ 
-                  textAlign: 'center', 
+                <div style={{
+                  textAlign: 'center',
                   color: theme.colors.textSecondary,
                   padding: theme.spacing[6]
                 }}>
@@ -819,7 +801,7 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
                 </div>
               ) : (
                 timelineEvents.map(event => (
-                  <div 
+                  <div
                     key={event.id}
                     style={{
                       padding: theme.spacing[3],
@@ -829,13 +811,13 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
                       backgroundColor: theme.colors.background
                     }}
                   >
-                    <div style={{ 
+                    <div style={{
                       fontWeight: theme.typography.medium,
-                      color: theme.colors.primary 
+                      color: theme.colors.primary
                     }}>
                       {event.description}
                     </div>
-                    <div style={{ 
+                    <div style={{
                       fontSize: theme.typography.sm,
                       color: theme.colors.textSecondary,
                       marginTop: theme.spacing[1]
@@ -851,16 +833,16 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
 
         {currentView === 'visualization' && (
           <div>
-            <HoleStrategyDisplay 
-              gameState={gameState} 
+            <HoleStrategyDisplay
+              gameState={gameState}
               holeState={gameState?.hole_state}
               players={gameState?.players}
             />
             {showShotAnalysis && shotAnalysisData && (
               <Card style={{ marginTop: theme.spacing[4] }}>
-                <h4 style={{ 
+                <h4 style={{
                   margin: `0 0 ${theme.spacing[3]} 0`,
-                  color: theme.colors.primary 
+                  color: theme.colors.primary
                 }}>
                   🎯 Shot Analysis Overlay
                 </h4>
@@ -1023,10 +1005,8 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
         gap: theme.spacing[4],
         marginTop: theme.spacing[4]
       }}>
-        <GameStateWidget gameState={gameState} holeState={gameState?.hole_state} onAction={sendAction} />
-        <BettingOpportunityWidget gameState={gameState} onAction={sendAction} />
-        <ShotResultWidget gameState={gameState} />
-        <StrategicAnalysisWidget gameState={gameState} />
+        <EnhancedScoringWidget gameState={gameState} />
+        <EnhancedBettingWidget gameState={gameState} onAction={sendAction} />
 
         {showShotAnalysis && (
           <ShotAnalysisWidget
