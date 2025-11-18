@@ -66,50 +66,61 @@ class TestCreecherFeatureHighHandicaps:
     """Test Creecher Feature for handicaps >18."""
 
     def test_handicap_20_gets_creecher_half_strokes(self):
-        """Test that handicap >18 gets half strokes on easiest holes."""
+        """Test that handicap >18 gets additional half strokes on easiest holes."""
         # Player with 20 handicap
-        # Gets 2 extra half strokes on easiest holes (18, 17)
+        # Gets 2 extra strokes distributed as 0.5 on 4 easiest holes (15-18)
 
-        # Easiest hole (stroke index 18) gets half stroke
+        # Easiest hole (stroke index 18) gets 1.0 base + 0.5 Creecher = 1.5
         strokes = HandicapValidator.calculate_strokes_received_with_creecher(20.0, 18)
-        assert strokes == 0.5
+        assert strokes == 1.5
 
-        # 2nd easiest (stroke index 17) gets half stroke
+        # 2nd easiest (stroke index 17) gets 1.0 base + 0.5 Creecher = 1.5
         strokes = HandicapValidator.calculate_strokes_received_with_creecher(20.0, 17)
-        assert strokes == 0.5
+        assert strokes == 1.5
 
-        # 3rd easiest (stroke index 16) gets NO extra half stroke
+        # 3rd easiest (stroke index 16) gets 1.0 base + 0.5 Creecher = 1.5
         strokes = HandicapValidator.calculate_strokes_received_with_creecher(20.0, 16)
-        assert strokes == 1.0  # Regular full stroke
+        assert strokes == 1.5
+
+        # 4th easiest (stroke index 15) gets 1.0 base + 0.5 Creecher = 1.5
+        strokes = HandicapValidator.calculate_strokes_received_with_creecher(20.0, 15)
+        assert strokes == 1.5
+
+        # 5th easiest (stroke index 14) gets only base stroke
+        strokes = HandicapValidator.calculate_strokes_received_with_creecher(20.0, 14)
+        assert strokes == 1.0  # Regular full stroke only
 
     def test_handicap_24_gets_six_creecher_half_strokes(self):
-        """Test that handicap 24 gets maximum 6 half strokes on easiest holes."""
+        """Test that handicap 24 gets maximum 6 extra strokes as half strokes."""
         # Player with 24 handicap
-        # Gets 6 extra half strokes on all 6 easiest holes (18, 17, 16, 15, 14, 13)
+        # Gets 6 extra strokes distributed as 0.5 on all 12 easiest holes (7-18)
 
-        easiest_holes = [18, 17, 16, 15, 14, 13]
-        for hole in easiest_holes:
+        # Easiest 12 holes get 1.0 base + 0.5 Creecher = 1.5
+        easiest_12_holes = [18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7]
+        for hole in easiest_12_holes:
             strokes = HandicapValidator.calculate_strokes_received_with_creecher(24.0, hole)
-            assert strokes == 0.5, f"Hole {hole} should get half stroke"
+            assert strokes == 1.5, f"Hole {hole} should get 1.5 strokes (1.0 + 0.5)"
 
-        # Hole 12 (7th easiest) gets regular full stroke, not half
-        strokes = HandicapValidator.calculate_strokes_received_with_creecher(24.0, 12)
+        # Hole 6 (13th easiest) gets regular full stroke only
+        strokes = HandicapValidator.calculate_strokes_received_with_creecher(24.0, 6)
         assert strokes == 1.0
 
     def test_handicap_30_max_six_creecher_half_strokes(self):
-        """Test that even high handicaps only get max 6 Creecher half strokes."""
+        """Test that even high handicaps only get max 6 extra strokes as Creecher."""
         # Player with 30 handicap
-        # Still only gets 6 half strokes (cap at 6)
+        # Gets max 6 extra strokes distributed as 0.5 on 12 easiest holes (7-18)
+        # Remaining 6 extra strokes (30-18-6=6) should be distributed normally
 
-        # All 6 easiest holes should get half strokes
-        easiest_holes = [18, 17, 16, 15, 14, 13]
-        for hole in easiest_holes:
+        # Easiest 12 holes get 1.0 base + 0.5 Creecher = 1.5
+        easiest_12_holes = [18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7]
+        for hole in easiest_12_holes:
             strokes = HandicapValidator.calculate_strokes_received_with_creecher(30.0, hole)
-            assert strokes == 0.5, f"Hole {hole} should get half stroke"
+            assert strokes == 1.5, f"Hole {hole} should get 1.5 strokes"
 
-        # Harder holes get full strokes
-        strokes = HandicapValidator.calculate_strokes_received_with_creecher(30.0, 12)
-        assert strokes == 1.0
+        # Holes 1-6 get full strokes only
+        for hole in range(1, 7):
+            strokes = HandicapValidator.calculate_strokes_received_with_creecher(30.0, hole)
+            assert strokes == 1.0, f"Hole {hole} should get 1.0 stroke"
 
     def test_handicap_18_no_creecher_bonus(self):
         """Test that exactly 18 handicap doesn't trigger Creecher feature."""
@@ -184,15 +195,20 @@ class TestEdgeCases:
 
     def test_maximum_handicap(self):
         """Test maximum allowed handicap (54)."""
-        # 54 handicap gets full strokes everywhere plus 6 half strokes on easiest
+        # 54 handicap: base 18 strokes + 36 extra
+        # Max 6 extra via Creecher (12 holes) + remaining 30 strokes normally
 
-        # Hardest hole gets full stroke
+        # Hardest hole gets full stroke (within base 18)
         strokes = HandicapValidator.calculate_strokes_received_with_creecher(54.0, 1)
         assert strokes == 1.0
 
-        # Easiest holes get Creecher half strokes
+        # Easiest holes get 1.0 base + 0.5 Creecher = 1.5
         strokes = HandicapValidator.calculate_strokes_received_with_creecher(54.0, 18)
-        assert strokes == 0.5
+        assert strokes == 1.5
+
+        # All holes within 18 get at least 1.0, some get 1.5
+        strokes = HandicapValidator.calculate_strokes_received_with_creecher(54.0, 10)
+        assert strokes == 1.5  # Gets Creecher bonus (10 is in easiest 12)
 
     def test_all_possible_fractional_handicaps(self):
         """Test common fractional handicaps."""
@@ -246,7 +262,7 @@ class TestRealWorldScenarios:
             8.0: 0.0,   # No stroke (handicap < stroke index)
             10.5: 1.0,  # Full stroke (10 <= 10.5, so gets full stroke)
             15.0: 1.0,  # Full stroke
-            20.5: 1.0   # Full stroke
+            20.5: 1.5   # Full stroke + Creecher bonus (10 is in easiest 12 for handicap 20+)
         }
 
         for hcp, expected_strokes in expected.items():
@@ -256,9 +272,9 @@ class TestRealWorldScenarios:
     def test_high_handicapper_on_easiest_hole(self):
         """Test high handicapper gets proper strokes on easiest hole."""
         # 25 handicap on easiest hole (stroke index 18)
-        # Should get Creecher half stroke (not full stroke)
+        # Should get 1.0 base + 0.5 Creecher = 1.5
         strokes = HandicapValidator.calculate_strokes_received_with_creecher(25.0, 18)
-        assert strokes == 0.5
+        assert strokes == 1.5
 
     def test_complete_18_hole_stroke_allocation(self):
         """Test complete stroke allocation for a player across all 18 holes."""
@@ -281,30 +297,20 @@ class TestRealWorldScenarios:
         assert total_strokes == handicap
 
 
-class TestBackwardCompatibility:
-    """Test that old method still works for non-Creecher use cases."""
+class TestTotalStrokeVerification:
+    """Test that total strokes across all holes equals handicap."""
 
-    def test_old_method_returns_integers(self):
-        """Test that old calculate_strokes_received returns integers."""
-        strokes = HandicapValidator.calculate_strokes_received(10.5, 10)
-        assert isinstance(strokes, int)
-        assert strokes == 1
+    def test_various_handicaps_total_correctly(self):
+        """Verify multiple handicaps total correctly across all 18 holes."""
+        test_handicaps = [10.5, 18.0, 20.0, 22.5, 24.0, 30.0]
 
-    def test_old_method_rounds_handicap(self):
-        """Test that old method rounds fractional handicaps."""
-        # Old method rounds 10.5 to 10 (banker's rounding - round half to even)
-        strokes = HandicapValidator.calculate_strokes_received(10.5, 10)
-        assert strokes == 1  # Gets stroke on hole 10 (10 >= 10)
+        for handicap in test_handicaps:
+            total_strokes = 0
+            for stroke_index in range(1, 19):
+                strokes = HandicapValidator.calculate_strokes_received_with_creecher(
+                    handicap, stroke_index
+                )
+                total_strokes += strokes
 
-    def test_new_method_preferred_for_creecher(self):
-        """Verify new method gives different (correct) results for Creecher."""
-        handicap = 10.5
-        hole = 11
-
-        old_strokes = HandicapValidator.calculate_strokes_received(handicap, hole)
-        new_strokes = HandicapValidator.calculate_strokes_received_with_creecher(handicap, hole)
-
-        # Old method rounds 10.5 to 10 (banker's rounding), 10 < 11, no stroke
-        assert old_strokes == 0  # Old method rounds to 10, doesn't get stroke on hole 11
-        assert new_strokes == 0.5  # New method gives half stroke (fractional 0.5)
-        assert old_strokes != new_strokes  # Different results!
+            assert total_strokes == handicap, \
+                f"Handicap {handicap}: total {total_strokes} != expected {handicap}"
