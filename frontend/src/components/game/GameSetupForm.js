@@ -3,6 +3,8 @@ import CourseManager from "./CourseManager";
 import PlayerProfileManager from "../PlayerProfileManager";
 // import usePlayerProfile from "../../hooks/usePlayerProfile"; // Temporarily disabled
 
+import TeeTossModal from "./TeeTossModal";
+
 const API_URL = process.env.REACT_APP_API_URL || "";
 
 // Helper function to safely serialize error details
@@ -63,7 +65,7 @@ function GameSetupForm({ onSetup }) {
   const selectedProfile = null;
   const profiles = [];
   const hasProfiles = false;
-  const selectProfile = () => {};
+  const selectProfile = () => { };
 
   const [players, setPlayers] = useState([
     { id: 'p1', name: '', handicap: '', strength: '', is_human: true, profile_id: null },
@@ -76,6 +78,7 @@ function GameSetupForm({ onSetup }) {
   const [error, setError] = useState('');
   const [showCourseManager, setShowCourseManager] = useState(false);
   const [showProfileManager, setShowProfileManager] = useState(false);
+  const [showTeeToss, setShowTeeToss] = useState(false);
   const [setupMode, setSetupMode] = useState('quick'); // 'quick' or 'profile'
   // GHIN lookup state
   const [ghinSearch, setGhinSearch] = useState({}); // {p1: {first_name, last_name}, ...}
@@ -95,10 +98,10 @@ function GameSetupForm({ onSetup }) {
         if (!data || typeof data !== 'object') {
           throw new Error('Invalid courses data format');
         }
-        
+
         const courseNames = Object.keys(data);
         setCourses(courseNames);
-        
+
         if (courseNames.length > 0) {
           setCourseName(courseNames[0]);
         } else {
@@ -107,15 +110,15 @@ function GameSetupForm({ onSetup }) {
       })
       .catch(error => {
         console.error('Failed to load courses:', error);
-        
+
         // Provide fallback courses so game can still start
         const fallbackCourses = ["Default Course"];
         setCourses(fallbackCourses);
         setCourseName("Default Course");
-        
+
         // Set error to show user-friendly message
         setError('Unable to load courses from server. Using default course. The game can still be played.');
-        
+
         // Clear error after 5 seconds to not permanently block the UI
         setTimeout(() => {
           setError('');
@@ -126,7 +129,7 @@ function GameSetupForm({ onSetup }) {
   // Auto-populate first player with selected profile
   useEffect(() => {
     if (selectedProfile && setupMode === 'profile') {
-      setPlayers(prevPlayers => prevPlayers.map((p, i) => 
+      setPlayers(prevPlayers => prevPlayers.map((p, i) =>
         i === 0 ? {
           ...p,
           name: selectedProfile.name,
@@ -152,7 +155,7 @@ function GameSetupForm({ onSetup }) {
 
   const handleProfileSelect = (idx, profile) => {
     if (profile) {
-      setPlayers(prevPlayers => prevPlayers.map((p, i) => 
+      setPlayers(prevPlayers => prevPlayers.map((p, i) =>
         i === idx ? {
           ...p,
           name: profile.name,
@@ -162,7 +165,7 @@ function GameSetupForm({ onSetup }) {
         } : p
       ));
     } else {
-      setPlayers(prevPlayers => prevPlayers.map((p, i) => 
+      setPlayers(prevPlayers => prevPlayers.map((p, i) =>
         i === idx ? {
           ...p,
           name: '',
@@ -254,7 +257,7 @@ function GameSetupForm({ onSetup }) {
       {showProfileManager && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ backgroundColor: 'white', borderRadius: 12, maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto', overflowX: 'hidden', padding: 20, boxSizing: 'border-box' }}>
-            <PlayerProfileManager 
+            <PlayerProfileManager
               onProfileSelect={(profile) => {
                 selectProfile(profile);
                 setShowProfileManager(false);
@@ -262,7 +265,7 @@ function GameSetupForm({ onSetup }) {
               selectedProfile={selectedProfile}
               showSelector={false}
             />
-            <button 
+            <button
               onClick={() => setShowProfileManager(false)}
               style={{ ...buttonStyle, background: COLORS.muted, marginTop: 16 }}
             >
@@ -273,7 +276,7 @@ function GameSetupForm({ onSetup }) {
       )}
       <form onSubmit={handleSubmit} style={{ ...cardStyle, maxWidth: 480, margin: '40px auto', background: COLORS.bg }}>
         <h2 style={{ color: COLORS.primary, marginBottom: 12 }}>Setup Players & Course</h2>
-        
+
         {/* Setup Mode Toggle */}
         <div style={{ marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center' }}>
           <label style={{ fontWeight: 600 }}>Setup Mode:</label>
@@ -390,7 +393,7 @@ function GameSetupForm({ onSetup }) {
                 </select>
               </div>
             )}
-            
+
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <label htmlFor={`player-${idx}-name`} style={{ fontSize: 12, fontWeight: 600 }}>
                 Player {idx + 1} Name
@@ -428,7 +431,7 @@ function GameSetupForm({ onSetup }) {
                 <option value="Strong">Strong</option>
                 <option value="Expert">Expert</option>
               </select>
-              
+
               {/* Profile indicator */}
               {player.profile_id && (
                 <span style={{ fontSize: 12, color: COLORS.success, fontWeight: 600 }}>
@@ -475,8 +478,35 @@ function GameSetupForm({ onSetup }) {
           </div>
         ))}
         {error && <div style={{ color: COLORS.error, marginBottom: 8 }}>{error}</div>}
+
+        <button
+          type="button"
+          onClick={() => {
+            if (players.some(p => !p.name)) {
+              setError('Please enter all player names first.');
+              return;
+            }
+            setError('');
+            setShowTeeToss(true);
+          }}
+          style={{ ...buttonStyle, width: '100%', background: COLORS.accent, marginBottom: 12 }}
+        >
+          🔄 Toss Tees for Order
+        </button>
+
         <button type="submit" style={{ ...buttonStyle, width: '100%' }}>Start Game</button>
       </form>
+
+      {showTeeToss && (
+        <TeeTossModal
+          players={players}
+          onClose={() => setShowTeeToss(false)}
+          onOrderComplete={(orderedPlayers) => {
+            setPlayers(orderedPlayers);
+            setShowTeeToss(false);
+          }}
+        />
+      )}
     </>
   );
 }
