@@ -160,6 +160,15 @@ test.describe('Smoke Tests - Frontend Rendering', () => {
       !log.includes('Warning')
     );
 
+    // Log the actual errors for debugging
+    if (criticalErrors.length > 0) {
+      console.log('=== Console Errors Found ===');
+      criticalErrors.forEach((error, index) => {
+        console.log(`Error ${index + 1}: ${error}`);
+      });
+      console.log('============================');
+    }
+
     expect(criticalErrors.length).toBe(0);
   });
 });
