@@ -22,10 +22,10 @@
     "lint": "eslint src/**/*.{js,jsx}",
     "vercel-build": "react-scripts build",
     "prepare": "husky",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui",
-    "test:e2e:debug": "playwright test --debug",
-    "test:e2e:headed": "playwright test --headed",
+    "test:e2e": "playwright test --config tests/e2e/playwright.config.js",
+    "test:e2e:ui": "playwright test --config tests/e2e/playwright.config.js --ui",
+    "test:e2e:debug": "playwright test --config tests/e2e/playwright.config.js --debug",
+    "test:e2e:headed": "playwright test --config tests/e2e/playwright.config.js --headed",
     "test:e2e:report": "playwright show-report"
   },
   "jest": {
