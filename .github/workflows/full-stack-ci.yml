@@ -63,6 +63,15 @@ jobs:
         cd frontend
         npm install
     
+    - name: Initialize database
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/wolf_goat_pig_test
+        SECRET_KEY: test-secret-key-for-ci
+        ENVIRONMENT: test
+      run: |
+        cd backend
+        python init_db.py
+
     - name: Start backend server
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/wolf_goat_pig_test
