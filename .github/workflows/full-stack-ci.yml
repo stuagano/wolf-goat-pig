@@ -79,7 +79,15 @@ jobs:
         npm run build
       env:
         REACT_APP_API_URL: http://localhost:8000
-    
+
+    - name: Start frontend server
+      run: |
+        cd frontend
+        npm start &
+        sleep 20
+      env:
+        REACT_APP_API_URL: http://localhost:8000
+
     - name: Run E2E tests
       run: |
         cd frontend
