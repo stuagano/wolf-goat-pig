@@ -20,8 +20,7 @@ services:
     buildCommand: |
       pip install --upgrade pip
       pip install -r requirements.txt
-    startCommand: |
-      sleep 5 && python startup.py --seed-only && python -m app.migrations.add_holes_from_json && uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1 --log-level info
+    startCommand: python render-startup.py
     envVars:
       - key: DATABASE_URL
         fromService:
