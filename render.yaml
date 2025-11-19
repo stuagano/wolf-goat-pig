@@ -21,7 +21,7 @@ services:
       pip install --upgrade pip
       pip install -r requirements.txt
     startCommand: |
-      python -c "from app.database import init_db; init_db()" && uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1 --log-level info
+      sleep 5 && python -c "from app.database import init_db; init_db()" && uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1 --log-level info
     envVars:
       - key: DATABASE_URL
         fromService:
