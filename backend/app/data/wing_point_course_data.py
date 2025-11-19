@@ -173,7 +173,12 @@ WING_POINT_COURSE_DATA = {
         },
         {
             "hole_number": 11,
-            "par": 4,
+            "par": 4,  # Note: Par 4/5 depending on tee box (typically Par 4 for men's white tees)
+            "par_variation": {
+                "default": 4,
+                "championship": 5,
+                "note": "Par 4/5 depending on tee box used"
+            },
             "handicap_men": 2,
             "handicap_women": 10,
             "yards": {
@@ -183,7 +188,7 @@ WING_POINT_COURSE_DATA = {
                 "gold": 349
             },
             "name": "The Beast",
-            "description": "Second toughest hole on the course"
+            "description": "Second toughest hole on the course - Par 4/5 depending on tees"
         },
         {
             "hole_number": 12,
@@ -284,7 +289,7 @@ WING_POINT_COURSE_DATA = {
             "description": "Strong finishing par 4 - Big Dick opportunity"
         }
     ],
-    "total_par": 71,  # 36 front, 35 back
+    "total_par": 71,  # 36 front, 35 back (72 if hole 11 played as Par 5)
     "course_rules": {
         "out_of_bounds": "Marked by white stakes on holes 10 and 15",
         "lateral_hazards": "Red stakes throughout",
