@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean
+from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey
+from sqlalchemy.orm import relationship
 from .database import Base
 from sqlalchemy.types import JSON
 from sqlalchemy.dialects.postgresql import UUID
@@ -33,20 +34,59 @@ class Course(Base):
     total_yards = Column(Integer)
     course_rating = Column(Float, nullable=True)
     slope_rating = Column(Float, nullable=True)
-    holes_data = Column(JSON)  # Store hole details as JSON
+    holes_data = Column(JSON)  # Store hole details as JSON (for backward compatibility)
     created_at = Column(String)
     updated_at = Column(String)
 
+    # Relationship to holes
+    holes = relationship("Hole", back_populates="course", cascade="all, delete-orphan", order_by="Hole.hole_number")
+
+    def get_hole(self, hole_number: int):
+        """Get a specific hole by its number (1-18)"""
+        for hole in self.holes:
+            if hole.hole_number == hole_number:
+                return hole
+        return None
+
+    def get_hole_par(self, hole_number: int) -> int:
+        """Get the par for a specific hole"""
+        hole = self.get_hole(hole_number)
+        return hole.par if hole else 0
+
+    def get_hole_handicap(self, hole_number: int) -> int:
+        """Get the handicap index (stroke index) for a specific hole"""
+        hole = self.get_hole(hole_number)
+        return hole.handicap if hole else 0
+
+    def get_hole_yards(self, hole_number: int, tee_box: str = "regular") -> int:
+        """Get the yardage for a specific hole from a specific tee box"""
+        hole = self.get_hole(hole_number)
+        if hole and hole.tee_box == tee_box:
+            return hole.yards
+        return 0
+
+    def get_holes_by_handicap_range(self, min_handicap: int, max_handicap: int):
+        """Get all holes within a handicap range (for Creecher calculations)"""
+        return [h for h in self.holes if min_handicap <= h.handicap <= max_handicap]
+
 class Hole(Base):
+    """
+    Hole model representing individual holes in a golf course.
+    Each hole has a par, yardage, and handicap index (stroke index 1-18).
+    The handicap index determines the order of difficulty for handicap calculations.
+    """
     __tablename__ = "holes"
     id = Column(Integer, primary_key=True, index=True)
-    course_id = Column(Integer, index=True)
-    hole_number = Column(Integer)
-    par = Column(Integer)
-    yards = Column(Integer)
-    handicap = Column(Integer)  # Stroke index (1-18)
-    description = Column(String, nullable=True)
+    course_id = Column(Integer, ForeignKey("courses.id"), index=True)
+    hole_number = Column(Integer)  # 1-18
+    par = Column(Integer)  # Typically 3, 4, or 5 (can be 6)
+    yards = Column(Integer)  # Distance in yards
+    handicap = Column(Integer)  # Stroke index (1-18, where 1 is hardest)
+    description = Column(String, nullable=True)  # Hole name or description
     tee_box = Column(String, default="regular")  # regular, championship, forward, etc.
+
+    # Relationship back to course
+    course = relationship("Course", back_populates="holes")
 
 # For MVP: store the entire game state as a JSON blob
 # Updated to support multiple active games with unique game_id

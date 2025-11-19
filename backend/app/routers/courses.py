@@ -152,7 +152,7 @@ def get_course_by_id(course_id: int):
 
 @router.post("", response_model=dict)
 def add_course(course: schemas.CourseCreate):
-    """Add a new course - persists to database"""
+    """Add a new course - persists to database with Hole records"""
     db = SessionLocal()
     try:
         course_dict = course.dict()
@@ -174,19 +174,34 @@ def add_course(course: schemas.CourseCreate):
             description=course_dict.get("description", ""),
             total_par=total_par,
             total_yards=total_yards,
-            holes_data=holes,
+            holes_data=holes,  # Keep for backward compatibility
             created_at=now,
             updated_at=now
         )
 
         db.add(db_course)
+        db.flush()  # Flush to get the course ID
+
+        # Create Hole records for each hole
+        for hole_data in holes:
+            db_hole = models.Hole(
+                course_id=db_course.id,
+                hole_number=hole_data.get("hole_number"),
+                par=hole_data.get("par"),
+                yards=hole_data.get("yards"),
+                handicap=hole_data.get("handicap"),
+                description=hole_data.get("description"),
+                tee_box=hole_data.get("tee_box", "regular")
+            )
+            db.add(db_hole)
+
         db.commit()
         db.refresh(db_course)
 
         # Also add to in-memory course manager for current session
         course_manager.add_course(course.name, holes)
 
-        logger.info(f"Created course '{course.name}' in database (ID: {db_course.id})")
+        logger.info(f"Created course '{course.name}' with {len(holes)} holes in database (ID: {db_course.id})")
 
         return {
             "status": "success",
@@ -212,7 +227,7 @@ def add_course(course: schemas.CourseCreate):
 
 @router.put("/{course_name}")
 def update_course(course_name: str, course_update: schemas.CourseUpdate):
-    """Update an existing course - persists to database"""
+    """Update an existing course - persists to database and updates Hole records"""
     db = SessionLocal()
     try:
         # Find the course in database
@@ -230,10 +245,24 @@ def update_course(course_name: str, course_update: schemas.CourseUpdate):
             db_course.description = update_dict["description"]
         if "holes" in update_dict:
             holes = update_dict["holes"]
-            db_course.holes_data = holes
+            db_course.holes_data = holes  # Keep for backward compatibility
             # Recalculate statistics
             db_course.total_par = sum(h.get("par", 0) for h in holes)
             db_course.total_yards = sum(h.get("yards", 0) for h in holes)
+
+            # Update Hole records - delete existing and create new ones
+            db.query(models.Hole).filter(models.Hole.course_id == db_course.id).delete()
+            for hole_data in holes:
+                db_hole = models.Hole(
+                    course_id=db_course.id,
+                    hole_number=hole_data.get("hole_number"),
+                    par=hole_data.get("par"),
+                    yards=hole_data.get("yards"),
+                    handicap=hole_data.get("handicap"),
+                    description=hole_data.get("description"),
+                    tee_box=hole_data.get("tee_box", "regular")
+                )
+                db.add(db_hole)
 
         db_course.updated_at = datetime.utcnow().isoformat()
 
@@ -244,7 +273,7 @@ def update_course(course_name: str, course_update: schemas.CourseUpdate):
         if "holes" in update_dict:
             course_manager.update_course(course_name, update_dict["holes"])
 
-        logger.info(f"Updated course '{course_name}' in database (ID: {db_course.id})")
+        logger.info(f"Updated course '{course_name}' and its holes in database (ID: {db_course.id})")
 
         return {
             "status": "success",

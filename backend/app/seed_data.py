@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from .database import SessionLocal, init_db
-from .models import Course, Rule, PlayerProfile, GameRecord, GamePlayerResult
+from .models import Course, Hole, Rule, PlayerProfile, GameRecord, GamePlayerResult
 from .seed_courses import DEFAULT_COURSES
 from .seed_rules import RULES
 
@@ -119,18 +119,18 @@ def verify_database_connection(db: Session) -> bool:
         return False
 
 def seed_courses(db: Session) -> int:
-    """Seed database with default golf courses."""
+    """Seed database with default golf courses and their holes."""
     courses_added = 0
-    
+
     try:
         for course_data in DEFAULT_COURSES:
             # Check if course already exists
             existing_course = db.query(Course).filter_by(name=course_data["name"]).first()
-            
+
             if existing_course:
                 logger.info(f"Course '{course_data['name']}' already exists, skipping...")
                 continue
-            
+
             # Create new course
             course = Course(
                 name=course_data["name"],
@@ -139,23 +139,39 @@ def seed_courses(db: Session) -> int:
                 total_yards=course_data["total_yards"],
                 course_rating=course_data.get("course_rating"),
                 slope_rating=course_data.get("slope_rating"),
-                holes_data=course_data["holes_data"],
+                holes_data=course_data["holes_data"],  # Keep for backward compatibility
                 created_at=datetime.now().isoformat(),
                 updated_at=datetime.now().isoformat()
             )
-            
+
             db.add(course)
+            db.flush()  # Flush to get the course ID
+
+            # Create Hole records for each hole
+            holes_data = course_data["holes_data"]
+            for hole_data in holes_data:
+                hole = Hole(
+                    course_id=course.id,
+                    hole_number=hole_data.get("hole_number"),
+                    par=hole_data.get("par"),
+                    yards=hole_data.get("yards"),
+                    handicap=hole_data.get("handicap"),
+                    description=hole_data.get("description"),
+                    tee_box=hole_data.get("tee_box", "regular")
+                )
+                db.add(hole)
+
             courses_added += 1
-            logger.info(f"Added course: {course_data['name']} ({course_data['total_par']} par, {course_data['total_yards']} yards)")
-        
+            logger.info(f"Added course: {course_data['name']} ({course_data['total_par']} par, {course_data['total_yards']} yards) with {len(holes_data)} holes")
+
         db.commit()
-        logger.info(f"Successfully seeded {courses_added} courses!")
-        
+        logger.info(f"Successfully seeded {courses_added} courses with their holes!")
+
     except Exception as e:
         db.rollback()
         logger.error(f"Error seeding courses: {e}")
         raise
-    
+
     return courses_added
 
 def seed_rules(db: Session) -> int:
