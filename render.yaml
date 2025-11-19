@@ -13,7 +13,6 @@ services:
   - type: web
     name: wolf-goat-pig-api
     env: python
-    runtime: python
     plan: free
     region: oregon
     rootDir: backend
