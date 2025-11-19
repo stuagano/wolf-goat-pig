@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../theme/Provider';
 import GameCompletionView from './GameCompletionView';
 import { triggerBadgeNotification } from '../BadgeNotification';
+import Scorecard from './Scorecard';
 import '../../styles/mobile-touch.css';
 
 const API_URL = process.env.REACT_APP_API_URL || '';
@@ -215,6 +216,98 @@ const SimpleScorekeeper = ({
 
     // Scroll to top so user can see the form
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Handle editing a single score from the scorecard
+  const handleEditHoleScore = async (editData) => {
+    try {
+      const { hole, playerId, strokes, quarters } = editData;
+
+      // Find the hole in history
+      const holeData = holeHistory.find(h => h.hole === hole);
+      if (!holeData) {
+        setError(`Hole ${hole} not found`);
+        return;
+      }
+
+      // Update the gross_scores for this player
+      const updatedGrossScores = {
+        ...holeData.gross_scores,
+        [playerId]: strokes
+      };
+
+      // Check if quarters were manually overridden
+      let manualOverride = null;
+      if (quarters !== undefined && quarters !== null) {
+        const currentQuarters = holeData.points_delta?.[playerId] || 0;
+        if (quarters !== currentQuarters) {
+          // Manual override - store the override info
+          manualOverride = {
+            player_id: playerId,
+            quarters: quarters
+          };
+        }
+      }
+
+      // Prepare the complete hole request
+      const updateRequest = {
+        hole_number: hole,
+        rotation_order: holeData.rotation_order || [],
+        captain_index: holeData.captain_index || 0,
+        phase: holeData.phase || 'normal',
+        joes_special_wager: holeData.joes_special_wager || null,
+        option_turned_off: holeData.option_turned_off || false,
+        duncan_invoked: holeData.duncan_invoked || false,
+        tunkarri_invoked: holeData.tunkarri_invoked || false,
+        teams: holeData.teams,
+        final_wager: holeData.wager || holeData.final_wager || baseWager,
+        winner: holeData.winner,
+        scores: updatedGrossScores,
+        hole_par: holeData.hole_par || 4,
+        float_invoked_by: holeData.float_invoked_by || null,
+        option_invoked_by: holeData.option_invoked_by || null,
+        carry_over_applied: holeData.carry_over_applied || false,
+        doubles_history: holeData.doubles_history || [],
+        big_dick_invoked_by: holeData.big_dick_invoked_by || null,
+        aardvark_requested_team: holeData.aardvark_requested_team || null,
+        aardvark_tossed: holeData.aardvark_tossed || false,
+        aardvark_ping_ponged: holeData.aardvark_ping_ponged || false,
+        aardvark_solo: holeData.aardvark_solo || false,
+        // Add manual override if provided
+        manual_points_override: manualOverride
+      };
+
+      // Call the backend PATCH endpoint
+      const response = await fetch(`${API_URL}/games/${gameId}/holes/${hole}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateRequest)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to update score');
+      }
+
+      const result = await response.json();
+
+      // Update the hole history with the new data
+      const updatedHistory = holeHistory.map(h =>
+        h.hole === hole ? result.hole_result : h
+      );
+      setHoleHistory(updatedHistory);
+
+      // Refresh game state
+      const gameStateRes = await fetch(`${API_URL}/games/${gameId}/state`);
+      if (gameStateRes.ok) {
+        const gameState = await gameStateRes.json();
+        setHoleHistory(gameState.hole_history || []);
+      }
+
+    } catch (err) {
+      console.error('Error updating score:', err);
+      setError(err.message);
+    }
   };
 
   // Handle team selection for partners mode
@@ -549,662 +642,37 @@ const SimpleScorekeeper = ({
 
       {/* Golf-Style Scorecard at Top */}
       <div style={{
-        background: theme.colors.paper,
-        padding: '16px',
-        borderRadius: '12px',
-        marginBottom: '20px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        overflowX: 'auto',
         position: 'sticky',
         top: '0',
-        zIndex: 10
+        zIndex: 10,
+        marginBottom: '20px'
       }}>
-        <h3 style={{ margin: '0 0 12px', fontSize: '18px', fontWeight: 'bold', color: theme.colors.textPrimary }}>
-          📊 SCORECARD
-        </h3>
-
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{
-            width: '100%',
-            borderCollapse: 'collapse',
-            fontSize: '13px',
-            minWidth: '600px'
-          }}>
-            <thead>
-              <tr style={{ background: theme.colors.backgroundSecondary }}>
-                <th style={{
-                  padding: '8px 6px',
-                  textAlign: 'left',
-                  fontWeight: 'bold',
-                  borderBottom: `2px solid ${theme.colors.border}`,
-                  position: 'sticky',
-                  left: 0,
-                  background: theme.colors.backgroundSecondary,
-                  zIndex: 2
-                }}>
-                  HOLE
-                </th>
-                {[...Array(9)].map((_, i) => (
-                  <th key={i} style={{
-                    padding: '8px 4px',
-                    textAlign: 'center',
-                    fontWeight: 'bold',
-                    borderBottom: `2px solid ${theme.colors.border}`,
-                    background: theme.colors.backgroundSecondary
-                  }}>
-                    {i + 1}
-                  </th>
-                ))}
-                <th style={{
-                  padding: '8px 6px',
-                  textAlign: 'center',
-                  fontWeight: 'bold',
-                  borderBottom: `2px solid ${theme.colors.border}`,
-                  borderLeft: `2px solid ${theme.colors.border}`,
-                  background: 'rgba(76, 175, 80, 0.1)'
-                }}>
-                  OUT
-                </th>
-                {[...Array(9)].map((_, i) => (
-                  <th key={i + 9} style={{
-                    padding: '8px 4px',
-                    textAlign: 'center',
-                    fontWeight: 'bold',
-                    borderBottom: `2px solid ${theme.colors.border}`,
-                    background: theme.colors.backgroundSecondary
-                  }}>
-                    {i + 10}
-                  </th>
-                ))}
-                <th style={{
-                  padding: '8px 6px',
-                  textAlign: 'center',
-                  fontWeight: 'bold',
-                  borderBottom: `2px solid ${theme.colors.border}`,
-                  borderLeft: `2px solid ${theme.colors.border}`,
-                  background: 'rgba(76, 175, 80, 0.1)'
-                }}>
-                  IN
-                </th>
-                <th style={{
-                  padding: '8px 6px',
-                  textAlign: 'center',
-                  fontWeight: 'bold',
-                  borderBottom: `2px solid ${theme.colors.border}`,
-                  borderLeft: `2px solid ${theme.colors.border}`,
-                  background: 'rgba(33, 150, 243, 0.1)'
-                }}>
-                  TOT
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {/* Par Row */}
-              <tr style={{ background: 'rgba(255, 193, 7, 0.1)', borderBottom: `2px solid ${theme.colors.border}` }}>
-                <td style={{
-                  padding: '6px',
-                  fontWeight: 'bold',
-                  fontSize: '11px',
-                  position: 'sticky',
-                  left: 0,
-                  background: 'rgba(255, 193, 7, 0.1)',
-                  borderRight: `2px solid ${theme.colors.border}`,
-                  zIndex: 1
-                }}>
-                  PAR
-                </td>
-                {[...Array(18)].map((_, i) => {
-                  const hole = holeHistory.find(h => h.hole === (i + 1));
-                  const par = hole?.hole_par || (i + 1 <= 9 ? 4 : 4); // Default to 4 if not available
-                  const showDivider = i === 8; // After hole 9
-                  return (
-                    <td key={i} style={{
-                      padding: '6px 4px',
-                      textAlign: 'center',
-                      fontSize: '11px',
-                      fontWeight: 'bold',
-                      borderLeft: showDivider ? `2px solid ${theme.colors.border}` : 'none'
-                    }}>
-                      {par}
-                    </td>
-                  );
-                })}
-                <td style={{ padding: '6px', textAlign: 'center', fontSize: '11px', fontWeight: 'bold', borderLeft: `2px solid ${theme.colors.border}`, background: 'rgba(76, 175, 80, 0.05)' }}>36</td>
-                <td style={{ padding: '6px', textAlign: 'center', fontSize: '11px', fontWeight: 'bold', borderLeft: `2px solid ${theme.colors.border}`, background: 'rgba(76, 175, 80, 0.05)' }}>36</td>
-                <td style={{ padding: '6px', textAlign: 'center', fontSize: '11px', fontWeight: 'bold', borderLeft: `2px solid ${theme.colors.border}`, background: 'rgba(33, 150, 243, 0.05)' }}>72</td>
-              </tr>
-
-              {localPlayers.map((player, playerIdx) => {
-                // Calculate stroke totals
-                let outStroke = 0, inStroke = 0;
-                let outQuarters = 0, inQuarters = 0;
-
-                holeHistory.forEach(hole => {
-                  const score = hole.gross_scores?.[player.id] || 0;
-                  const quarters = hole.points_delta?.[player.id] || 0;
-                  if (hole.hole <= 9) {
-                    outStroke += score;
-                    outQuarters += quarters;
-                  } else {
-                    inStroke += score;
-                    inQuarters += quarters;
-                  }
-                });
-
-                return (
-                  <React.Fragment key={player.id}>
-                    {/* Stroke Row */}
-                    <tr style={{
-                      background: playerIdx % 2 === 0 ? 'white' : theme.colors.background,
-                      borderTop: playerIdx === 0 ? `2px solid ${theme.colors.border}` : 'none'
-                    }}>
-                      <td
-                        style={{
-                          padding: '8px 6px',
-                          fontWeight: 'bold',
-                          position: 'sticky',
-                          left: 0,
-                          background: playerIdx % 2 === 0 ? 'white' : theme.colors.background,
-                          borderRight: `2px solid ${theme.colors.border}`,
-                          fontSize: '12px',
-                          maxWidth: '80px',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          zIndex: 1,
-                          cursor: 'pointer'
-                        }}
-                        onClick={() => handlePlayerNameClick(player.id, player.name)}
-                        title="Click to edit player name"
-                      >
-                        <PlayerName name={player.name} isAuthenticated={player.is_authenticated} />
-                        <span style={{ fontSize: '10px', marginLeft: '4px', opacity: 0.5 }}>✏️</span>
-                      </td>
-                      {/* Front 9 Strokes */}
-                      {[...Array(9)].map((_, i) => {
-                        const holeNumber = i + 1;
-                        const hole = holeHistory.find(h => h.hole === holeNumber);
-                        const score = hole?.gross_scores?.[player.id];
-                        const par = hole?.hole_par || 4;
-                        const diff = score ? score - par : null;
-
-                        // Calculate strokes player receives on this hole using Creecher Feature
-                        const getStrokesForHole = (handicap, strokeIndex) => {
-                          if (!handicap || handicap <= 0) return 0;
-
-                          const fullHandicap = Math.floor(handicap);
-                          const hasFractional = (handicap % 1) >= 0.5;
-
-                          // Creecher Feature implementation
-                          if (handicap <= 6) {
-                            // All allocated holes get 0.5
-                            return strokeIndex <= fullHandicap ? 0.5 : 0;
-                          } else if (handicap <= 18) {
-                            // Easiest 6 of allocated holes get 0.5, rest get 1.0
-                            if (strokeIndex <= fullHandicap) {
-                              const easiestSix = Array.from({ length: fullHandicap }, (_, idx) => fullHandicap - idx);
-                              return easiestSix.slice(0, 6).includes(strokeIndex) ? 0.5 : 1.0;
-                            }
-                            // Fractional: add 0.5 to next hole
-                            if (hasFractional && strokeIndex === fullHandicap + 1) {
-                              return 0.5;
-                            }
-                            return 0;
-                          } else {
-                            // Handicap > 18
-                            // Base 18: holes 13-18 get 0.5, holes 1-12 get 1.0
-                            const extraStrokes = fullHandicap - 18;
-                            const extraHalfStrokes = extraStrokes * 2;
-
-                            if (strokeIndex >= 13 && strokeIndex <= 18) {
-                              // Easiest 6 holes get base 0.5
-                              // Check if they get extra half from wrap-around
-                              const halfsNeeded = extraHalfStrokes;
-                              const holesGettingExtra = Math.min(halfsNeeded, 12);
-                              if (strokeIndex <= holesGettingExtra) {
-                                return 1.0; // 0.5 base + 0.5 extra
-                              }
-                              return 0.5;
-                            } else {
-                              // Hardest 12 holes get base 1.0
-                              // Check if they get extra half from wrap-around
-                              const halfsNeeded = extraHalfStrokes;
-                              const holesGettingExtra = Math.min(halfsNeeded, 12);
-                              if (strokeIndex <= holesGettingExtra) {
-                                return 1.5; // 1.0 base + 0.5 extra
-                              }
-                              return 1.0;
-                            }
-                          }
-                        };
-
-                        const strokesReceived = getStrokesForHole(player.handicap || 0, holeNumber);
-
-                        // Determine indicator style based on score relative to par
-                        let indicatorStyle = {};
-                        if (diff === -1) {
-                          // Birdie - Circle
-                          indicatorStyle = {
-                            display: 'inline-block',
-                            width: '24px',
-                            height: '24px',
-                            lineHeight: '20px',
-                            borderRadius: '50%',
-                            border: '2px solid #4CAF50'
-                          };
-                        } else if (diff === 1) {
-                          // Bogey - Square
-                          indicatorStyle = {
-                            display: 'inline-block',
-                            width: '24px',
-                            height: '24px',
-                            lineHeight: '20px',
-                            border: '2px solid #f44336'
-                          };
-                        } else if (diff >= 2) {
-                          // Double bogey or worse - Double square (thicker border)
-                          indicatorStyle = {
-                            display: 'inline-block',
-                            width: '24px',
-                            height: '24px',
-                            lineHeight: '20px',
-                            border: '3px double #f44336'
-                          };
-                        }
-
-                        return (
-                          <td key={i} style={{
-                            padding: '8px 4px',
-                            textAlign: 'center',
-                            fontWeight: score ? 'bold' : 'normal',
-                            color: score ? theme.colors.textPrimary : theme.colors.textSecondary,
-                            position: 'relative'
-                          }}>
-                            <div>
-                              {score ? (
-                                diff !== null && diff !== 0 ? (
-                                  <span style={indicatorStyle}>{score}</span>
-                                ) : score
-                              ) : '-'}
-                            </div>
-                            {/* Stroke indicator for upcoming holes */}
-                            {!score && strokesReceived > 0 && (
-                              <div style={{
-                                fontSize: '9px',
-                                color: strokesReceived === 0.5 ? '#FF9800' : strokesReceived === 1.0 ? '#2196F3' : '#9C27B0',
-                                fontWeight: 'bold',
-                                marginTop: '2px'
-                              }}>
-                                {strokesReceived === 0.5 ? '½' : strokesReceived === 1.0 ? '1' : strokesReceived === 1.5 ? '1½' : strokesReceived}
-                              </div>
-                            )}
-                          </td>
-                        );
-                      })}
-                      <td style={{
-                        padding: '8px 6px',
-                        textAlign: 'center',
-                        fontWeight: 'bold',
-                        borderLeft: `2px solid ${theme.colors.border}`,
-                        background: 'rgba(76, 175, 80, 0.05)'
-                      }}>
-                        {outStroke || '-'}
-                      </td>
-                      {/* Back 9 Strokes */}
-                      {[...Array(9)].map((_, i) => {
-                        const holeNumber = i + 10;
-                        const hole = holeHistory.find(h => h.hole === holeNumber);
-                        const score = hole?.gross_scores?.[player.id];
-                        const par = hole?.hole_par || 4;
-                        const diff = score ? score - par : null;
-
-                        // Calculate strokes player receives on this hole using Creecher Feature
-                        const getStrokesForHole = (handicap, strokeIndex) => {
-                          if (!handicap || handicap <= 0) return 0;
-
-                          const fullHandicap = Math.floor(handicap);
-                          const hasFractional = (handicap % 1) >= 0.5;
-
-                          // Creecher Feature implementation
-                          if (handicap <= 6) {
-                            // All allocated holes get 0.5
-                            return strokeIndex <= fullHandicap ? 0.5 : 0;
-                          } else if (handicap <= 18) {
-                            // Easiest 6 of allocated holes get 0.5, rest get 1.0
-                            if (strokeIndex <= fullHandicap) {
-                              const easiestSix = Array.from({ length: fullHandicap }, (_, idx) => fullHandicap - idx);
-                              return easiestSix.slice(0, 6).includes(strokeIndex) ? 0.5 : 1.0;
-                            }
-                            // Fractional: add 0.5 to next hole
-                            if (hasFractional && strokeIndex === fullHandicap + 1) {
-                              return 0.5;
-                            }
-                            return 0;
-                          } else {
-                            // Handicap > 18
-                            // Base 18: holes 13-18 get 0.5, holes 1-12 get 1.0
-                            const extraStrokes = fullHandicap - 18;
-                            const extraHalfStrokes = extraStrokes * 2;
-
-                            if (strokeIndex >= 13 && strokeIndex <= 18) {
-                              // Easiest 6 holes get base 0.5
-                              // Check if they get extra half from wrap-around
-                              const halfsNeeded = extraHalfStrokes;
-                              const holesGettingExtra = Math.min(halfsNeeded, 12);
-                              if (strokeIndex <= holesGettingExtra) {
-                                return 1.0; // 0.5 base + 0.5 extra
-                              }
-                              return 0.5;
-                            } else {
-                              // Hardest 12 holes get base 1.0
-                              // Check if they get extra half from wrap-around
-                              const halfsNeeded = extraHalfStrokes;
-                              const holesGettingExtra = Math.min(halfsNeeded, 12);
-                              if (strokeIndex <= holesGettingExtra) {
-                                return 1.5; // 1.0 base + 0.5 extra
-                              }
-                              return 1.0;
-                            }
-                          }
-                        };
-
-                        const strokesReceived = getStrokesForHole(player.handicap || 0, holeNumber);
-
-                        // Determine indicator style based on score relative to par
-                        let indicatorStyle = {};
-                        if (diff === -1) {
-                          // Birdie - Circle
-                          indicatorStyle = {
-                            display: 'inline-block',
-                            width: '24px',
-                            height: '24px',
-                            lineHeight: '20px',
-                            borderRadius: '50%',
-                            border: '2px solid #4CAF50'
-                          };
-                        } else if (diff === 1) {
-                          // Bogey - Square
-                          indicatorStyle = {
-                            display: 'inline-block',
-                            width: '24px',
-                            height: '24px',
-                            lineHeight: '20px',
-                            border: '2px solid #f44336'
-                          };
-                        } else if (diff >= 2) {
-                          // Double bogey or worse - Double square (thicker border)
-                          indicatorStyle = {
-                            display: 'inline-block',
-                            width: '24px',
-                            height: '24px',
-                            lineHeight: '20px',
-                            border: '3px double #f44336'
-                          };
-                        }
-
-                        return (
-                          <td key={i + 9} style={{
-                            padding: '8px 4px',
-                            textAlign: 'center',
-                            fontWeight: score ? 'bold' : 'normal',
-                            color: score ? theme.colors.textPrimary : theme.colors.textSecondary,
-                            position: 'relative'
-                          }}>
-                            <div>
-                              {score ? (
-                                diff !== null && diff !== 0 ? (
-                                  <span style={indicatorStyle}>{score}</span>
-                                ) : score
-                              ) : '-'}
-                            </div>
-                            {/* Stroke indicator for upcoming holes */}
-                            {!score && strokesReceived > 0 && (
-                              <div style={{
-                                fontSize: '9px',
-                                color: strokesReceived === 0.5 ? '#FF9800' : strokesReceived === 1.0 ? '#2196F3' : '#9C27B0',
-                                fontWeight: 'bold',
-                                marginTop: '2px'
-                              }}>
-                                {strokesReceived === 0.5 ? '½' : strokesReceived === 1.0 ? '1' : strokesReceived === 1.5 ? '1½' : strokesReceived}
-                              </div>
-                            )}
-                          </td>
-                        );
-                      })}
-                      <td style={{
-                        padding: '8px 6px',
-                        textAlign: 'center',
-                        fontWeight: 'bold',
-                        borderLeft: `2px solid ${theme.colors.border}`,
-                        background: 'rgba(76, 175, 80, 0.05)'
-                      }}>
-                        {inStroke || '-'}
-                      </td>
-                      <td style={{
-                        padding: '8px 6px',
-                        textAlign: 'center',
-                        fontWeight: 'bold',
-                        fontSize: '14px',
-                        borderLeft: `2px solid ${theme.colors.border}`,
-                        background: 'rgba(33, 150, 243, 0.05)'
-                      }}>
-                        {(outStroke + inStroke) || '-'}
-                      </td>
-                    </tr>
-
-                    {/* Quarters Row */}
-                    <tr style={{
-                      background: playerIdx % 2 === 0 ? 'white' : theme.colors.background,
-                      borderBottom: `1px solid ${theme.colors.border}`
-                    }}>
-                      <td style={{
-                        padding: '6px',
-                        fontSize: '11px',
-                        fontStyle: 'italic',
-                        color: theme.colors.textSecondary,
-                        position: 'sticky',
-                        left: 0,
-                        background: playerIdx % 2 === 0 ? 'white' : theme.colors.background,
-                        borderRight: `2px solid ${theme.colors.border}`,
-                        zIndex: 1
-                      }}>
-                        Quarters
-                      </td>
-                      {/* Front 9 Quarters */}
-                      {[...Array(9)].map((_, i) => {
-                        const hole = holeHistory.find(h => h.hole === (i + 1));
-                        const quarters = hole?.points_delta?.[player.id];
-                        const hasValue = quarters !== undefined && quarters !== null;
-
-                        // Check for special actions
-                        const wasSolo = hole?.teams?.type === 'solo' && hole?.teams?.captain === player.id;
-                        const usedFloat = hole?.float_invoked_by === player.id;
-                        const usedOption = hole?.option_invoked_by === player.id;
-
-                        return (
-                          <td key={i} style={{
-                            padding: '6px 4px',
-                            textAlign: 'center',
-                            fontSize: '11px',
-                            fontWeight: hasValue ? 'bold' : 'normal',
-                            color: hasValue ? (quarters > 0 ? '#4CAF50' : quarters < 0 ? '#f44336' : theme.colors.textSecondary) : theme.colors.textSecondary,
-                            position: 'relative'
-                          }}>
-                            <div>
-                              {hasValue ? (quarters > 0 ? `+${quarters}` : quarters) : '·'}
-                            </div>
-                            {(wasSolo || usedFloat || usedOption) && (
-                              <div style={{
-                                display: 'flex',
-                                gap: '2px',
-                                justifyContent: 'center',
-                                marginTop: '2px',
-                                fontSize: '9px'
-                              }}>
-                                {wasSolo && (
-                                  <span style={{
-                                    background: theme.colors.primary,
-                                    color: 'white',
-                                    padding: '1px 3px',
-                                    borderRadius: '3px',
-                                    fontWeight: 'bold'
-                                  }}>S</span>
-                                )}
-                                {usedFloat && (
-                                  <span style={{
-                                    background: '#2196F3',
-                                    color: 'white',
-                                    padding: '1px 3px',
-                                    borderRadius: '3px',
-                                    fontWeight: 'bold'
-                                  }}>F</span>
-                                )}
-                                {usedOption && (
-                                  <span style={{
-                                    background: theme.colors.warning,
-                                    color: 'white',
-                                    padding: '1px 3px',
-                                    borderRadius: '3px',
-                                    fontWeight: 'bold'
-                                  }}>O</span>
-                                )}
-                              </div>
-                            )}
-                          </td>
-                        );
-                      })}
-                      <td style={{
-                        padding: '6px',
-                        textAlign: 'center',
-                        fontSize: '11px',
-                        fontWeight: 'bold',
-                        borderLeft: `2px solid ${theme.colors.border}`,
-                        background: 'rgba(76, 175, 80, 0.05)',
-                        color: outQuarters > 0 ? '#4CAF50' : outQuarters < 0 ? '#f44336' : theme.colors.textSecondary
-                      }}>
-                        {outQuarters !== 0 ? (outQuarters > 0 ? `+${outQuarters}` : outQuarters) : '-'}
-                      </td>
-                      {/* Back 9 Quarters */}
-                      {[...Array(9)].map((_, i) => {
-                        const hole = holeHistory.find(h => h.hole === (i + 10));
-                        const quarters = hole?.points_delta?.[player.id];
-                        const hasValue = quarters !== undefined && quarters !== null;
-
-                        // Check for special actions
-                        const wasSolo = hole?.teams?.type === 'solo' && hole?.teams?.captain === player.id;
-                        const usedFloat = hole?.float_invoked_by === player.id;
-                        const usedOption = hole?.option_invoked_by === player.id;
-
-                        return (
-                          <td key={i + 9} style={{
-                            padding: '6px 4px',
-                            textAlign: 'center',
-                            fontSize: '11px',
-                            fontWeight: hasValue ? 'bold' : 'normal',
-                            color: hasValue ? (quarters > 0 ? '#4CAF50' : quarters < 0 ? '#f44336' : theme.colors.textSecondary) : theme.colors.textSecondary,
-                            position: 'relative'
-                          }}>
-                            <div>
-                              {hasValue ? (quarters > 0 ? `+${quarters}` : quarters) : '·'}
-                            </div>
-                            {(wasSolo || usedFloat || usedOption) && (
-                              <div style={{
-                                display: 'flex',
-                                gap: '2px',
-                                justifyContent: 'center',
-                                marginTop: '2px',
-                                fontSize: '9px'
-                              }}>
-                                {wasSolo && (
-                                  <span style={{
-                                    background: theme.colors.primary,
-                                    color: 'white',
-                                    padding: '1px 3px',
-                                    borderRadius: '3px',
-                                    fontWeight: 'bold'
-                                  }}>S</span>
-                                )}
-                                {usedFloat && (
-                                  <span style={{
-                                    background: '#2196F3',
-                                    color: 'white',
-                                    padding: '1px 3px',
-                                    borderRadius: '3px',
-                                    fontWeight: 'bold'
-                                  }}>F</span>
-                                )}
-                                {usedOption && (
-                                  <span style={{
-                                    background: theme.colors.warning,
-                                    color: 'white',
-                                    padding: '1px 3px',
-                                    borderRadius: '3px',
-                                    fontWeight: 'bold'
-                                  }}>O</span>
-                                )}
-                              </div>
-                            )}
-                          </td>
-                        );
-                      })}
-                      <td style={{
-                        padding: '6px',
-                        textAlign: 'center',
-                        fontSize: '11px',
-                        fontWeight: 'bold',
-                        borderLeft: `2px solid ${theme.colors.border}`,
-                        background: 'rgba(76, 175, 80, 0.05)',
-                        color: inQuarters > 0 ? '#4CAF50' : inQuarters < 0 ? '#f44336' : theme.colors.textSecondary
-                      }}>
-                        {inQuarters !== 0 ? (inQuarters > 0 ? `+${inQuarters}` : inQuarters) : '-'}
-                      </td>
-                      <td style={{
-                        padding: '6px',
-                        textAlign: 'center',
-                        fontSize: '12px',
-                        fontWeight: 'bold',
-                        borderLeft: `2px solid ${theme.colors.border}`,
-                        background: 'rgba(33, 150, 243, 0.05)',
-                        color: (outQuarters + inQuarters) > 0 ? '#4CAF50' : (outQuarters + inQuarters) < 0 ? '#f44336' : theme.colors.textSecondary
-                      }}>
-                        {(outQuarters + inQuarters) !== 0 ? ((outQuarters + inQuarters) > 0 ? `+${outQuarters + inQuarters}` : (outQuarters + inQuarters)) : '-'}
-                      </td>
-                    </tr>
-                  </React.Fragment>
+        <Scorecard
+          players={localPlayers}
+          holeHistory={holeHistory}
+          currentHole={currentHole}
+          onEditHole={handleEditHoleScore}
+          gameId={gameId}
+          onPlayerNameChange={async (playerId, newName) => {
+            try {
+              const response = await fetch(`${API_URL}/games/${gameId}/players/${playerId}/name`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ new_name: newName })
+              });
+              if (response.ok) {
+                const updatedPlayers = localPlayers.map(p =>
+                  p.id === playerId ? { ...p, name: newName } : p
                 );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Quick Actions for Last Hole */}
-        {holeHistory.length > 0 && (
-          <div style={{
-            marginTop: '12px',
-            paddingTop: '12px',
-            borderTop: `1px solid ${theme.colors.border}`,
-            fontSize: '12px',
-            color: theme.colors.textSecondary
-          }}>
-            <button
-              onClick={() => loadHoleForEdit(holeHistory[holeHistory.length - 1])}
-              className="touch-optimized"
-              style={{
-                padding: '6px 12px',
-                fontSize: '12px',
-                border: `1px solid ${theme.colors.primary}`,
-                borderRadius: '6px',
-                background: 'white',
-                color: theme.colors.primary,
-                cursor: 'pointer'
-              }}
-            >
-              ✏️ Edit Last Hole
-            </button>
-          </div>
-        )}
+                setLocalPlayers(updatedPlayers);
+              }
+            } catch (err) {
+              console.error('Error updating player name:', err);
+              setError(err.message);
+            }
+          }}
+        />
       </div>
-
       {/* Header - Beautiful Gradient Banner */}
       <div style={{
         background: `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.accent})`,

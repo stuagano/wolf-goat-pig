@@ -146,6 +146,11 @@ class HoleTeams(BaseModel):
     opponents: Optional[List[str]] = None  # Opponent player IDs (solo mode)
 
 
+class ManualPointsOverride(BaseModel):
+    """Manual override for a single player's quarters on a hole"""
+    player_id: str
+    quarters: float
+
 class CompleteHoleRequest(BaseModel):
     """Request to complete a hole with all data at once - for scorekeeper mode"""
     hole_number: int = Field(..., ge=1, le=18)
@@ -171,6 +176,8 @@ class CompleteHoleRequest(BaseModel):
     aardvark_tossed: Optional[bool] = Field(False, description="Whether Aardvark was tossed by requested team")
     aardvark_ping_ponged: Optional[bool] = Field(False, description="Whether Aardvark was re-tossed (ping-ponged) by second team")
     aardvark_solo: Optional[bool] = Field(False, description="Whether Aardvark went solo (1v4)")
+    # Manual override controls
+    manual_points_override: Optional[ManualPointsOverride] = Field(None, description="Manual override for a player's quarters")
 
 
 class RotationSelectionRequest(BaseModel):
@@ -1569,9 +1576,16 @@ async def complete_hole(
                 for player_id in points_delta:
                     points_delta[player_id] *= multiplier
 
+        # Apply manual points override if provided
+        if request.manual_points_override:
+            override = request.manual_points_override
+            logger.info(f"Manual points override for player {override.player_id}: {override.quarters}")
+            points_delta[override.player_id] = override.quarters
+
         # Phase 4: Scorekeeping Validation - verify points balance to zero
+        # Skip validation if manual override was used
         points_total = sum(points_delta.values())
-        if abs(points_total) > 0.01:  # Allow for floating point precision
+        if not request.manual_points_override and abs(points_total) > 0.01:  # Allow for floating point precision
             logger.error(
                 f"SCOREKEEPING ERROR: Points do not balance to zero! "
                 f"Hole {request.hole_number}, Total: {points_total}, "
@@ -1581,6 +1595,11 @@ async def complete_hole(
             raise HTTPException(
                 status_code=500,
                 detail=f"Scorekeeping error: points total {points_total} instead of 0. Please report this bug."
+            )
+        elif request.manual_points_override and abs(points_total) > 0.01:
+            logger.warning(
+                f"Manual override used - points do not balance to zero. "
+                f"Hole {request.hole_number}, Total: {points_total}, Points: {points_delta}"
             )
 
         # Create hole result
@@ -1848,8 +1867,145 @@ async def update_hole(
             if score > 15:
                 raise HTTPException(status_code=400, detail=f"Score too high for {player_id}")
 
-        # Create updated hole result (simplified - no Karl Marx recalculation here)
-        # We'll recalculate all player totals from scratch below
+        # Recalculate points_delta using the same logic as complete_hole
+        # (Extracted from complete_hole endpoint for consistency)
+
+        # Helper function for Karl Marx distribution
+        def apply_karl_marx(team_players, total_amount, game_state):
+            if len(team_players) == 0:
+                return {}
+            num_players = len(team_players)
+            result = {}
+            abs_total = abs(total_amount)
+            is_loss = total_amount < 0
+
+            if abs_total % num_players != 0:
+                base_share = abs_total // num_players
+                remainder = abs_total % num_players
+                player_points = {}
+                for player in game_state.get("players", []):
+                    if player["id"] in team_players:
+                        player_points[player["id"]] = player.get("total_points", 0)
+                goat_id = min(player_points, key=player_points.get) if player_points else team_players[0]
+                non_goat_count = num_players - 1
+                extra_per_non_goat = remainder // non_goat_count if non_goat_count > 0 else 0
+                leftover_after_even_split = remainder % non_goat_count if non_goat_count > 0 else remainder
+
+                if is_loss:
+                    leftover_counter = leftover_after_even_split
+                    for player_id in team_players:
+                        if player_id == goat_id:
+                            result[player_id] = -base_share
+                        else:
+                            share = base_share + extra_per_non_goat
+                            if leftover_counter > 0:
+                                share += 1
+                                leftover_counter -= 1
+                            result[player_id] = -share
+                else:
+                    for player_id in team_players:
+                        if player_id == goat_id:
+                            result[player_id] = base_share + remainder
+                        else:
+                            result[player_id] = base_share
+            else:
+                even_amount = total_amount / num_players
+                for player_id in team_players:
+                    result[player_id] = even_amount
+            return result
+
+        # Calculate points_delta based on winner and teams
+        points_delta = {}
+        if request.teams.type == "partners":
+            team1_size = len(request.teams.team1)
+            team2_size = len(request.teams.team2)
+
+            if request.winner == "team1":
+                total_won_by_team1 = request.final_wager * team1_size
+                total_lost_by_team2 = -request.final_wager * team1_size
+                points_delta.update(apply_karl_marx(request.teams.team1, total_won_by_team1, game_state))
+                points_delta.update(apply_karl_marx(request.teams.team2, total_lost_by_team2, game_state))
+            elif request.winner == "team2":
+                total_won_by_team2 = request.final_wager * team2_size
+                total_lost_by_team1 = -request.final_wager * team2_size
+                points_delta.update(apply_karl_marx(request.teams.team2, total_won_by_team2, game_state))
+                points_delta.update(apply_karl_marx(request.teams.team1, total_lost_by_team1, game_state))
+            elif request.winner == "team1_flush":
+                total_won = request.final_wager * team2_size
+                total_lost = -request.final_wager * team2_size
+                points_delta.update(apply_karl_marx(request.teams.team1, total_won, game_state))
+                points_delta.update(apply_karl_marx(request.teams.team2, total_lost, game_state))
+            elif request.winner == "team2_flush":
+                total_won = request.final_wager * team1_size
+                total_lost = -request.final_wager * team1_size
+                points_delta.update(apply_karl_marx(request.teams.team2, total_won, game_state))
+                points_delta.update(apply_karl_marx(request.teams.team1, total_lost, game_state))
+            else:  # push
+                for player_id in request.teams.team1 + request.teams.team2:
+                    points_delta[player_id] = 0
+        else:  # solo mode
+            if request.duncan_invoked and request.winner == "captain":
+                total_payout = (request.final_wager * 3) / 2
+                points_delta[request.teams.captain] = total_payout
+                loss_per_opponent = total_payout / len(request.teams.opponents)
+                for opp_id in request.teams.opponents:
+                    points_delta[opp_id] = -loss_per_opponent
+            elif request.duncan_invoked and request.winner == "opponents":
+                total_loss = request.final_wager * len(request.teams.opponents)
+                points_delta[request.teams.captain] = -total_loss
+                for opp_id in request.teams.opponents:
+                    points_delta[opp_id] = request.final_wager
+            elif request.tunkarri_invoked and request.winner == "captain":
+                total_payout = (request.final_wager * 3) / 2
+                points_delta[request.teams.captain] = total_payout
+                loss_per_opponent = total_payout / len(request.teams.opponents)
+                for opp_id in request.teams.opponents:
+                    points_delta[opp_id] = -loss_per_opponent
+            elif request.tunkarri_invoked and request.winner == "opponents":
+                total_loss = request.final_wager * len(request.teams.opponents)
+                points_delta[request.teams.captain] = -total_loss
+                for opp_id in request.teams.opponents:
+                    points_delta[opp_id] = request.final_wager
+            elif request.winner == "captain":
+                points_delta[request.teams.captain] = request.final_wager * len(request.teams.opponents)
+                for opp_id in request.teams.opponents:
+                    points_delta[opp_id] = -request.final_wager
+            elif request.winner == "opponents":
+                points_delta[request.teams.captain] = -request.final_wager * len(request.teams.opponents)
+                for opp_id in request.teams.opponents:
+                    points_delta[opp_id] = request.final_wager
+            elif request.winner == "captain_flush":
+                points_delta[request.teams.captain] = request.final_wager * len(request.teams.opponents)
+                for opp_id in request.teams.opponents:
+                    points_delta[opp_id] = -request.final_wager
+            elif request.winner == "opponents_flush":
+                points_delta[request.teams.captain] = -request.final_wager * len(request.teams.opponents)
+                for opp_id in request.teams.opponents:
+                    points_delta[opp_id] = request.final_wager
+            else:  # push
+                points_delta[request.teams.captain] = 0
+                for opp_id in request.teams.opponents:
+                    points_delta[opp_id] = 0
+
+        # Apply double points for holes 17-18 (except during Hoepfinger)
+        if hole_number in [17, 18] and request.phase != "hoepfinger":
+            for player_id in points_delta:
+                points_delta[player_id] *= 2
+
+        # Phase 5: Aardvark toss doubling (5-man games only)
+        if player_count == 5 and request.aardvark_tossed and request.aardvark_requested_team:
+            if request.teams.type == "partners":
+                multiplier = 4 if request.aardvark_ping_ponged else 2
+                for player_id in points_delta:
+                    points_delta[player_id] *= multiplier
+
+        # Apply manual points override if provided
+        if request.manual_points_override:
+            override = request.manual_points_override
+            logger.info(f"Manual points override for player {override.player_id}: {override.quarters}")
+            points_delta[override.player_id] = override.quarters
+
+        # Create updated hole result
         hole_result = {
             "hole": hole_number,
             "hole_number": hole_number,
@@ -1866,7 +2022,7 @@ async def update_hole(
             "winner": request.winner,
             "gross_scores": request.scores,
             "hole_par": request.hole_par,
-            "points_delta": {},  # Will be recalculated
+            "points_delta": points_delta,
             "float_invoked_by": request.float_invoked_by,
             "option_invoked_by": request.option_invoked_by,
             "carry_over_applied": request.carry_over_applied,
