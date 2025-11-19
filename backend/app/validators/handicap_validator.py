@@ -178,21 +178,15 @@ class HandicapValidator:
         The Creecher Feature is a Wolf-Goat-Pig house rule that awards half strokes
         on certain holes to provide more granular handicapping.
 
-        Creecher Feature Rules:
-        1. Players receive full strokes on holes where stroke_index <= min(handicap, 18)
-        2. Players with fractional handicaps (e.g., 10.5) get a half stroke on the
-           next hardest hole (stroke_index == full_handicap + 1)
-        3. For handicaps >18, the extra strokes beyond 18 are distributed as
-           additional half strokes on the easiest holes (preventing 2 full strokes
-           per hole). Each extra stroke = 0.5 on two easiest holes.
-
-        Examples:
-            handicap=10.5, stroke_index=10 → 1.0 (full stroke)
-            handicap=10.5, stroke_index=11 → 0.5 (half stroke from fractional)
-            handicap=10.5, stroke_index=12 → 0.0 (no stroke)
-            handicap=20.0, stroke_index=18 → 1.5 (1.0 base + 0.5 Creecher)
-            handicap=20.0, stroke_index=15 → 1.5 (1.0 base + 0.5 Creecher)
-            handicap=20.0, stroke_index=14 → 1.0 (1.0 base only)
+        Official Rules:
+        1. Players with net handicap <= 6: Play all their handicap holes at half strokes.
+        2. Players with net handicap > 6 and <= 18: Play their easiest 6 handicap holes
+           at half strokes, and the rest at full strokes.
+        3. Players with net handicap > 18:
+           - Play holes 13-18 at half stroke (easiest 6 of base 18).
+           - Play holes 1-12 at full stroke.
+           - Receive an additional 1/2 stroke on two holes for every 1 stroke > 18.
+             (These extra half strokes wrap around starting from the hardest holes).
 
         Args:
             course_handicap: Player's course handicap (can be fractional)
@@ -201,80 +195,85 @@ class HandicapValidator:
 
         Returns:
             Float strokes: 0.0, 0.5, 1.0, 1.5, 2.0, etc.
-
-        Raises:
-            HandicapValidationError: If validation fails
         """
         if validate:
             cls.validate_handicap(course_handicap, "course_handicap")
             cls.validate_stroke_index(stroke_index)
 
-        # Separate full and fractional parts of handicap
-        full_strokes = int(course_handicap)
-        fractional_part = course_handicap - full_strokes
-        has_half_stroke = fractional_part >= 0.5
-
+        full_handicap = int(course_handicap)
+        fractional_part = course_handicap - full_handicap
+        
         total_strokes = 0.0
 
-        # Rule 1: Base strokes - full stroke on holes up to min(handicap, 18)
-        if stroke_index <= min(full_strokes, 18):
-            total_strokes += 1.0
-
-        # Rule 3: Creecher Feature for high handicaps (>18)
-        # Extra strokes beyond 18 are distributed as additional 0.5 strokes
-        # on the easiest holes to avoid giving 2 full strokes per hole
-        if full_strokes > 18:
-            extra_strokes = full_strokes - 18
-
-            # Distribute extra strokes as 0.5 increments using multiple passes
-            # Each pass gives 0.5 to a set of easiest holes
-            # Continue passes until all extra strokes are distributed
-            remaining_extra = extra_strokes
-            pass_sizes = [18, 18, 12, 6, 6, 6]  # Number of holes in each pass (supports up to handicap 45)
-
-            for pass_size in pass_sizes:
-                if remaining_extra <= 0:
-                    break
-
-                # How many strokes does this pass use? (Each hole gets 0.5)
-                strokes_in_pass = min(remaining_extra, pass_size / 2.0)
-                holes_in_pass = int(strokes_in_pass * 2)
-
-                # Threshold: easiest holes_in_pass holes get the bonus
-                threshold = 18 - holes_in_pass + 1
-
-                if stroke_index >= threshold:
+        # --- Base Allocation (First 18 strokes) ---
+        if full_handicap <= 6:
+            # Rule 1: All allocated holes get 0.5
+            if stroke_index <= full_handicap:
+                total_strokes += 0.5
+        elif full_handicap <= 18:
+            # Rule 2: Easiest 6 allocated holes get 0.5, rest 1.0
+            # Allocated holes are 1 to full_handicap
+            if stroke_index <= full_handicap:
+                # The easiest 6 holes of the allocated set are indices:
+                # (full_handicap - 5) to full_handicap
+                creecher_threshold = full_handicap - 6
+                if stroke_index > creecher_threshold:
                     total_strokes += 0.5
-
-                remaining_extra -= strokes_in_pass
-
-            # If still have remaining extra strokes (for handicaps >45),
-            # give additional full strokes on hardest holes (USGA fallback)
-            if remaining_extra > 0:
-                # How many holes get an additional full stroke?
-                extra_full_strokes = int(remaining_extra)
-                # Give to the hardest holes (lowest stroke indexes)
-                if stroke_index <= extra_full_strokes:
+                else:
                     total_strokes += 1.0
-
-        # Rule 2: Fractional handicap gives half stroke on next hardest hole
-        # For handicaps >18, the fractional applies differently
-        if has_half_stroke:
-            if full_strokes < 18:
-                # Normal case: half stroke on next hole after full handicap
-                if stroke_index == full_strokes + 1:
-                    total_strokes += 0.5
+        else:
+            # Rule 3 (Base part): H > 18
+            # Holes 13-18 get 0.5, Holes 1-12 get 1.0
+            if stroke_index >= 13:
+                total_strokes += 0.5
             else:
-                # For handicaps >18, fractional adds to the Creecher distribution
-                # Add 0.5 to one more hole (the next easiest after current Creecher holes)
-                extra_strokes = full_strokes - 18
-                # Calculate how many holes already get Creecher bonuses
-                num_creecher_holes = min(int(extra_strokes * 2), 18)
-                threshold = 18 - num_creecher_holes
+                total_strokes += 1.0
 
-                # The fractional adds 0.5 to one more hole
-                if stroke_index == threshold:
-                    total_strokes += 0.5
+        # --- Extra Allocation (Handicap > 18) ---
+        if full_handicap > 18:
+            extra_full_strokes = full_handicap - 18
+            # Convert to half strokes: 1 extra stroke = 2 half strokes
+            extra_half_strokes = extra_full_strokes * 2
+            
+            # Distribute extra half strokes wrapping around from 1
+            # Each pass through 1-18 consumes 18 half strokes
+            
+            # Full passes (0.5 added to all holes)
+            full_passes = extra_half_strokes // 18
+            total_strokes += full_passes * 0.5
+            
+            # Remaining half strokes
+            remainder = extra_half_strokes % 18
+            if stroke_index <= remainder:
+                total_strokes += 0.5
+
+        # --- Fractional Handling ---
+        # If there is a fractional part (e.g. .5), add 0.5 to the next hole
+        # "Next hole" is the one after the full_handicap allocation
+        # For H > 18, this continues the wrap around sequence?
+        # Or does it just apply to hole (full_handicap + 1)?
+        # Given the wrap-around logic for >18, "next hole" is complex.
+        # Simple interpretation: Treat fractional as one more "half stroke" in the sequence.
+        
+        if fractional_part >= 0.5:
+            # Determine which hole gets the fractional half stroke
+            # For H <= 18, it's hole (full_handicap + 1)
+            # For H > 18, it's the next hole in the extra_half_strokes sequence
+            
+            target_hole = 0
+            if full_handicap < 18:
+                target_hole = full_handicap + 1
+            else:
+                # H=19 (1 extra) -> 2 halves (Holes 1, 2). Next is 3.
+                # H=18 (0 extra) -> 0 halves. Next is 1.
+                extra_full = full_handicap - 18
+                extra_halves = extra_full * 2
+                # The fractional half stroke goes to the hole at position (extra_halves + 1)
+                # wrapped around 1-18
+                target_hole = (extra_halves % 18) + 1
+            
+            if stroke_index == target_hole:
+                total_strokes += 0.5
 
         return total_strokes
 
