@@ -261,6 +261,10 @@ app.include_router(sheet_integration.router)
 app.include_router(players.router)
 app.include_router(courses.router)
 
+# Import and include course data update router
+from .routers import course_data_update
+app.include_router(course_data_update.router)
+
 logger.info("✅ All routers registered")
 
 # Global exception handler
