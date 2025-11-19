@@ -216,7 +216,7 @@ const Scorecard = ({ players = [], holeHistory = [], currentHole = 1, onEditHole
 
             <div style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
-                Strokes:
+                Strokes (Gross Score):
               </label>
               <input
                 type="number"
@@ -232,11 +232,14 @@ const Scorecard = ({ players = [], holeHistory = [], currentHole = 1, onEditHole
                   borderRadius: '4px'
                 }}
               />
+              <p style={{ fontSize: '12px', color: theme.colors.textSecondary, marginTop: '4px' }}>
+                Actual number of strokes taken on this hole
+              </p>
             </div>
 
             <div style={{ marginBottom: '24px' }}>
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
-                Quarters (points):
+                Quarters (Manual Override):
               </label>
               <input
                 type="number"
@@ -244,16 +247,20 @@ const Scorecard = ({ players = [], holeHistory = [], currentHole = 1, onEditHole
                 onChange={(e) => setEditQuarters(e.target.value)}
                 min="-10"
                 max="10"
+                step="0.5"
                 style={{
                   width: '100%',
                   padding: '8px',
                   fontSize: '16px',
-                  border: `1px solid ${theme.colors.border}`,
-                  borderRadius: '4px'
+                  border: `2px solid ${theme.colors.warning || '#ff9800'}`,
+                  borderRadius: '4px',
+                  backgroundColor: 'rgba(255, 152, 0, 0.05)'
                 }}
               />
               <p style={{ fontSize: '12px', color: theme.colors.textSecondary, marginTop: '4px' }}>
-                Positive for winning, negative for losing
+                ⚠️ Override automatic quarter calculation. Use when scores are correct but quarters are wrong.
+                <br />
+                Positive for winning (+), negative for losing (-)
               </p>
             </div>
 

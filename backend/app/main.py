@@ -146,6 +146,11 @@ class HoleTeams(BaseModel):
     opponents: Optional[List[str]] = None  # Opponent player IDs (solo mode)
 
 
+class ManualPointsOverride(BaseModel):
+    """Manual override for a single player's quarters on a hole"""
+    player_id: str
+    quarters: float
+
 class CompleteHoleRequest(BaseModel):
     """Request to complete a hole with all data at once - for scorekeeper mode"""
     hole_number: int = Field(..., ge=1, le=18)
@@ -171,6 +176,8 @@ class CompleteHoleRequest(BaseModel):
     aardvark_tossed: Optional[bool] = Field(False, description="Whether Aardvark was tossed by requested team")
     aardvark_ping_ponged: Optional[bool] = Field(False, description="Whether Aardvark was re-tossed (ping-ponged) by second team")
     aardvark_solo: Optional[bool] = Field(False, description="Whether Aardvark went solo (1v4)")
+    # Manual override controls
+    manual_points_override: Optional[ManualPointsOverride] = Field(None, description="Manual override for a player's quarters")
 
 
 class RotationSelectionRequest(BaseModel):
@@ -1569,9 +1576,16 @@ async def complete_hole(
                 for player_id in points_delta:
                     points_delta[player_id] *= multiplier
 
+        # Apply manual points override if provided
+        if request.manual_points_override:
+            override = request.manual_points_override
+            logger.info(f"Manual points override for player {override.player_id}: {override.quarters}")
+            points_delta[override.player_id] = override.quarters
+
         # Phase 4: Scorekeeping Validation - verify points balance to zero
+        # Skip validation if manual override was used
         points_total = sum(points_delta.values())
-        if abs(points_total) > 0.01:  # Allow for floating point precision
+        if not request.manual_points_override and abs(points_total) > 0.01:  # Allow for floating point precision
             logger.error(
                 f"SCOREKEEPING ERROR: Points do not balance to zero! "
                 f"Hole {request.hole_number}, Total: {points_total}, "
@@ -1581,6 +1595,11 @@ async def complete_hole(
             raise HTTPException(
                 status_code=500,
                 detail=f"Scorekeeping error: points total {points_total} instead of 0. Please report this bug."
+            )
+        elif request.manual_points_override and abs(points_total) > 0.01:
+            logger.warning(
+                f"Manual override used - points do not balance to zero. "
+                f"Hole {request.hole_number}, Total: {points_total}, Points: {points_delta}"
             )
 
         # Create hole result
@@ -1979,6 +1998,12 @@ async def update_hole(
                 multiplier = 4 if request.aardvark_ping_ponged else 2
                 for player_id in points_delta:
                     points_delta[player_id] *= multiplier
+
+        # Apply manual points override if provided
+        if request.manual_points_override:
+            override = request.manual_points_override
+            logger.info(f"Manual points override for player {override.player_id}: {override.quarters}")
+            points_delta[override.player_id] = override.quarters
 
         # Create updated hole result
         hole_result = {

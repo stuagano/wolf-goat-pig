@@ -221,7 +221,7 @@ const SimpleScorekeeper = ({
   // Handle editing a single score from the scorecard
   const handleEditHoleScore = async (editData) => {
     try {
-      const { hole, playerId, strokes } = editData;
+      const { hole, playerId, strokes, quarters } = editData;
 
       // Find the hole in history
       const holeData = holeHistory.find(h => h.hole === hole);
@@ -235,6 +235,19 @@ const SimpleScorekeeper = ({
         ...holeData.gross_scores,
         [playerId]: strokes
       };
+
+      // Check if quarters were manually overridden
+      let manualOverride = null;
+      if (quarters !== undefined && quarters !== null) {
+        const currentQuarters = holeData.points_delta?.[playerId] || 0;
+        if (quarters !== currentQuarters) {
+          // Manual override - store the override info
+          manualOverride = {
+            player_id: playerId,
+            quarters: quarters
+          };
+        }
+      }
 
       // Prepare the complete hole request
       const updateRequest = {
@@ -259,7 +272,9 @@ const SimpleScorekeeper = ({
         aardvark_requested_team: holeData.aardvark_requested_team || null,
         aardvark_tossed: holeData.aardvark_tossed || false,
         aardvark_ping_ponged: holeData.aardvark_ping_ponged || false,
-        aardvark_solo: holeData.aardvark_solo || false
+        aardvark_solo: holeData.aardvark_solo || false,
+        // Add manual override if provided
+        manual_points_override: manualOverride
       };
 
       // Call the backend PATCH endpoint
