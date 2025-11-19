@@ -74,6 +74,37 @@ const SimpleScorekeeper = ({
   const [editPlayerNameValue, setEditPlayerNameValue] = useState(''); // Player name input value
   const [localPlayers, setLocalPlayers] = useState(players); // Local copy of players for immediate UI updates
   const [showUsageStats, setShowUsageStats] = useState(false); // Toggle for usage statistics section
+  const [courseData, setCourseData] = useState(null); // Course data with hole information
+
+  // Fetch course data
+  useEffect(() => {
+    const fetchCourseData = async () => {
+      try {
+        // Get game state to find course name
+        const gameResponse = await fetch(`${API_URL}/games/${gameId}/state`);
+        if (gameResponse.ok) {
+          const gameData = await gameResponse.json();
+          const courseName = gameData.course_name || 'Wing Point Golf & Country Club';
+
+          // Fetch course details
+          const courseResponse = await fetch(`${API_URL}/courses`);
+          if (courseResponse.ok) {
+            const courses = await courseResponse.json();
+            const course = courses.find(c => c.name === courseName);
+            if (course) {
+              setCourseData(course);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching course data:', err);
+      }
+    };
+
+    if (gameId) {
+      fetchCourseData();
+    }
+  }, [gameId]);
 
   // Initialize player standings from hole history
   useEffect(() => {
@@ -654,8 +685,10 @@ const SimpleScorekeeper = ({
                   PAR
                 </td>
                 {[...Array(18)].map((_, i) => {
-                  const hole = holeHistory.find(h => h.hole === (i + 1));
-                  const par = hole?.hole_par || (i + 1 <= 9 ? 4 : 4); // Default to 4 if not available
+                  const holeNumber = i + 1;
+                  const hole = holeHistory.find(h => h.hole === holeNumber);
+                  // Try to get par from hole history first, then from course data, then default to 4
+                  const par = hole?.hole_par || courseData?.holes?.find(h => h.hole_number === holeNumber)?.par || 4;
                   const showDivider = i === 8; // After hole 9
                   return (
                     <td key={i} style={{
@@ -672,6 +705,41 @@ const SimpleScorekeeper = ({
                 <td style={{ padding: '6px', textAlign: 'center', fontSize: '11px', fontWeight: 'bold', borderLeft: `2px solid ${theme.colors.border}`, background: 'rgba(76, 175, 80, 0.05)' }}>36</td>
                 <td style={{ padding: '6px', textAlign: 'center', fontSize: '11px', fontWeight: 'bold', borderLeft: `2px solid ${theme.colors.border}`, background: 'rgba(76, 175, 80, 0.05)' }}>36</td>
                 <td style={{ padding: '6px', textAlign: 'center', fontSize: '11px', fontWeight: 'bold', borderLeft: `2px solid ${theme.colors.border}`, background: 'rgba(33, 150, 243, 0.05)' }}>72</td>
+              </tr>
+
+              {/* Handicap Row */}
+              <tr style={{ background: 'rgba(156, 39, 176, 0.1)', borderBottom: `2px solid ${theme.colors.border}` }}>
+                <td style={{
+                  padding: '6px',
+                  fontWeight: 'bold',
+                  fontSize: '11px',
+                  position: 'sticky',
+                  left: 0,
+                  background: 'rgba(156, 39, 176, 0.1)',
+                  borderRight: `2px solid ${theme.colors.border}`,
+                  zIndex: 1
+                }}>
+                  HDCP
+                </td>
+                {[...Array(18)].map((_, i) => {
+                  const holeNumber = i + 1;
+                  const handicap = courseData?.holes?.find(h => h.hole_number === holeNumber)?.handicap || holeNumber;
+                  const showDivider = i === 8; // After hole 9
+                  return (
+                    <td key={i} style={{
+                      padding: '6px 4px',
+                      textAlign: 'center',
+                      fontSize: '11px',
+                      fontWeight: 'bold',
+                      borderLeft: showDivider ? `2px solid ${theme.colors.border}` : 'none'
+                    }}>
+                      {handicap}
+                    </td>
+                  );
+                })}
+                <td style={{ padding: '6px', textAlign: 'center', fontSize: '11px', borderLeft: `2px solid ${theme.colors.border}`, background: 'rgba(76, 175, 80, 0.05)' }}>-</td>
+                <td style={{ padding: '6px', textAlign: 'center', fontSize: '11px', borderLeft: `2px solid ${theme.colors.border}`, background: 'rgba(76, 175, 80, 0.05)' }}>-</td>
+                <td style={{ padding: '6px', textAlign: 'center', fontSize: '11px', borderLeft: `2px solid ${theme.colors.border}`, background: 'rgba(33, 150, 243, 0.05)' }}>-</td>
               </tr>
 
               {localPlayers.map((player, playerIdx) => {
@@ -778,7 +846,9 @@ const SimpleScorekeeper = ({
                           }
                         };
 
-                        const strokesReceived = getStrokesForHole(player.handicap || 0, holeNumber);
+                        // Get the actual stroke index (handicap) for this hole from course data
+                        const holeHandicap = courseData?.holes?.find(h => h.hole_number === holeNumber)?.handicap || holeNumber;
+                        const strokesReceived = getStrokesForHole(player.handicap || 0, holeHandicap);
 
                         // Determine indicator style based on score relative to par
                         let indicatorStyle = {};
@@ -908,7 +978,9 @@ const SimpleScorekeeper = ({
                           }
                         };
 
-                        const strokesReceived = getStrokesForHole(player.handicap || 0, holeNumber);
+                        // Get the actual stroke index (handicap) for this hole from course data
+                        const holeHandicap = courseData?.holes?.find(h => h.hole_number === holeNumber)?.handicap || holeNumber;
+                        const strokesReceived = getStrokesForHole(player.handicap || 0, holeHandicap);
 
                         // Determine indicator style based on score relative to par
                         let indicatorStyle = {};
