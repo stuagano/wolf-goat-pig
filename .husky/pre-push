@@ -28,11 +28,14 @@ for path in "${DB_FILES[@]}"; do
     fi
 done
 
-if PYTHONPATH=. ./scripts/diagnostics/run_simulation_tests.sh; then
-    echo -e "${GREEN}✓ Simulation diagnostics passed${NC}"
+echo "Running backend tests..."
+if cd backend && source venv/bin/activate && pytest; then
+    echo -e "${GREEN}✓ Backend tests passed${NC}"
+    cd ..
 else
-    echo -e "${RED}✗ Simulation diagnostics failed${NC}"
+    echo -e "${RED}✗ Backend tests failed${NC}"
     CHECKS_PASSED=false
+    cd ..
 fi
 
 for path in "${DB_FILES[@]}"; do
