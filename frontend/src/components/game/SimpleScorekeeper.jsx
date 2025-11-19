@@ -89,8 +89,9 @@ const SimpleScorekeeper = ({
           // Fetch course details
           const courseResponse = await fetch(`${API_URL}/courses`);
           if (courseResponse.ok) {
-            const courses = await courseResponse.json();
-            const course = courses.find(c => c.name === courseName);
+            const coursesData = await courseResponse.json();
+            // /courses returns an object with course names as keys, not an array
+            const course = coursesData[courseName];
             if (course) {
               setCourseData(course);
             }
@@ -723,7 +724,7 @@ const SimpleScorekeeper = ({
                 </td>
                 {[...Array(18)].map((_, i) => {
                   const holeNumber = i + 1;
-                  const handicap = courseData?.holes?.find(h => h.hole_number === holeNumber)?.handicap || holeNumber;
+                  const handicap = courseData?.holes?.find(h => h.hole_number === holeNumber)?.stroke_index || holeNumber;
                   const showDivider = i === 8; // After hole 9
                   return (
                     <td key={i} style={{
@@ -847,7 +848,7 @@ const SimpleScorekeeper = ({
                         };
 
                         // Get the actual stroke index (handicap) for this hole from course data
-                        const holeHandicap = courseData?.holes?.find(h => h.hole_number === holeNumber)?.handicap || holeNumber;
+                        const holeHandicap = courseData?.holes?.find(h => h.hole_number === holeNumber)?.stroke_index || holeNumber;
                         const strokesReceived = getStrokesForHole(player.handicap || 0, holeHandicap);
 
                         // Determine indicator style based on score relative to par
@@ -979,7 +980,7 @@ const SimpleScorekeeper = ({
                         };
 
                         // Get the actual stroke index (handicap) for this hole from course data
-                        const holeHandicap = courseData?.holes?.find(h => h.hole_number === holeNumber)?.handicap || holeNumber;
+                        const holeHandicap = courseData?.holes?.find(h => h.hole_number === holeNumber)?.stroke_index || holeNumber;
                         const strokesReceived = getStrokesForHole(player.handicap || 0, holeHandicap);
 
                         // Determine indicator style based on score relative to par
