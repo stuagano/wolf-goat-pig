@@ -702,6 +702,18 @@ async def create_game_with_join_code(
             "players": [],
             "hole_history": []
         }
+        
+        # Add holes_config for Wing Point course
+        if course_name and "wing point" in course_name.lower():
+            from .data.wing_point_course_data import WING_POINT_COURSE_DATA
+            holes_config = []
+            for hole_data in WING_POINT_COURSE_DATA["holes"]:
+                holes_config.append({
+                    "hole_number": hole_data["hole_number"],
+                    "par": hole_data["par"],
+                    "handicap": hole_data["handicap_men"]
+                })
+            initial_state["holes_config"] = holes_config
 
         # Create GameStateModel
         game_state_model = models.GameStateModel(
@@ -777,6 +789,18 @@ async def create_test_game(
     game_state = simulation.get_game_state()
     game_state["game_status"] = "in_progress"
     game_state["test_mode"] = True
+    
+    # Add holes_config for Wing Point course
+    if course_name and "wing point" in course_name.lower():
+        from .data.wing_point_course_data import WING_POINT_COURSE_DATA
+        holes_config = []
+        for hole_data in WING_POINT_COURSE_DATA["holes"]:
+            holes_config.append({
+                "hole_number": hole_data["hole_number"],
+                "par": hole_data["par"],
+                "handicap": hole_data["handicap_men"]
+            })
+        game_state["holes_config"] = holes_config
 
     # Add simulation to active_games for test mode
     service = get_game_lifecycle_service()

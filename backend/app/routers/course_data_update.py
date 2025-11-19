@@ -56,7 +56,7 @@ async def update_game_course_data(
                 "handicap": hole_data["handicap_men"]  # Using men's handicap (stroke index)
             }
         
-        # Update each hole's par and handicap in the history
+        # Update hole_history (already played holes)
         holes_updated = 0
         for hole in hole_history:
             hole_number = hole.get("hole") or hole.get("hole_number")
@@ -88,31 +88,45 @@ async def update_game_course_data(
                 if updated:
                     holes_updated += 1
         
-        # Save updated game state
-        if holes_updated > 0:
-            game.state = game_state
-            
-            # Mark state as modified for SQLAlchemy to detect JSON changes
-            from sqlalchemy.orm.attributes import flag_modified
-            flag_modified(game, "state")
-            
-            from datetime import datetime
-            game.updated_at = datetime.utcnow().isoformat()
-            
-            db.commit()
-            db.refresh(game)
-            
-            logger.info(
-                f"Successfully updated course data for game {game_id}: "
-                f"{holes_updated} holes updated"
-            )
+        # Create/update holes_config with ALL 18 holes
+        holes_config = []
+        for hole_num in range(1, 19):
+            if hole_num in hole_data_map:
+                course_data = hole_data_map[hole_num]
+                holes_config.append({
+                    "hole_number": hole_num,
+                    "par": course_data["par"],
+                    "handicap": course_data["handicap"]
+                })
+        
+        game_state["holes_config"] = holes_config
+        total_holes_configured = len(holes_config)
+        
+        # Save updated game state (always save to add holes_config)
+        game.state = game_state
+        
+        # Mark state as modified for SQLAlchemy to detect JSON changes
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(game, "state")
+        
+        from datetime import datetime
+        game.updated_at = datetime.utcnow().isoformat()
+        
+        db.commit()
+        db.refresh(game)
+        
+        logger.info(
+            f"Successfully updated course data for game {game_id}: "
+            f"{holes_updated} holes in history updated, {total_holes_configured} holes configured"
+        )
         
         return {
             "success": True,
             "game_id": game_id,
-            "holes_updated": holes_updated,
-            "total_holes": len(hole_history),
-            "message": f"Updated {holes_updated} hole(s) with latest Wing Point course data"
+            "holes_in_history_updated": holes_updated,
+            "total_holes_in_history": len(hole_history),
+            "holes_configured": total_holes_configured,
+            "message": f"Updated {holes_updated} played hole(s) and configured all {total_holes_configured} holes with Wing Point data"
         }
         
     except HTTPException:
@@ -158,6 +172,17 @@ async def update_all_games_course_data(
                 "handicap": hole_data["handicap_men"]  # Using men's handicap (stroke index)
             }
         
+        # Create holes_config for all 18 holes
+        holes_config_template = []
+        for hole_num in range(1, 19):
+            if hole_num in hole_data_map:
+                course_data = hole_data_map[hole_num]
+                holes_config_template.append({
+                    "hole_number": hole_num,
+                    "par": course_data["par"],
+                    "handicap": course_data["handicap"]
+                })
+        
         games_updated = 0
         total_holes_updated = 0
         game_details = []
@@ -166,12 +191,9 @@ async def update_all_games_course_data(
             game_state = game.state or {}
             hole_history = game_state.get("hole_history", [])
             
-            if not hole_history:
-                continue
-            
             holes_updated_this_game = 0
             
-            # Update each hole's par and handicap
+            # Update each hole's par and handicap in hole_history
             for hole in hole_history:
                 hole_number = hole.get("hole") or hole.get("hole_number")
                 if hole_number and hole_number in hole_data_map:
@@ -194,39 +216,43 @@ async def update_all_games_course_data(
                     if updated:
                         holes_updated_this_game += 1
             
-            # Save if any holes were updated
-            if holes_updated_this_game > 0:
-                game.state = game_state
-                
-                from sqlalchemy.orm.attributes import flag_modified
-                flag_modified(game, "state")
-                
-                from datetime import datetime
-                game.updated_at = datetime.utcnow().isoformat()
-                
-                games_updated += 1
-                total_holes_updated += holes_updated_this_game
-                
-                game_details.append({
-                    "game_id": game.game_id,
-                    "holes_updated": holes_updated_this_game
-                })
+            # Always add/update holes_config with all 18 holes
+            game_state["holes_config"] = holes_config_template
+            
+            # Save game state (always save to add holes_config)
+            game.state = game_state
+            
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(game, "state")
+            
+            from datetime import datetime
+            game.updated_at = datetime.utcnow().isoformat()
+            
+            games_updated += 1
+            total_holes_updated += holes_updated_this_game
+            
+            game_details.append({
+                "game_id": game.game_id,
+                "holes_in_history_updated": holes_updated_this_game,
+                "holes_configured": len(holes_config_template)
+            })
         
         # Commit all changes
-        if games_updated > 0:
-            db.commit()
-            logger.info(
-                f"Bulk update complete: {games_updated} games, "
-                f"{total_holes_updated} total holes updated"
-            )
+        db.commit()
+        logger.info(
+            f"Bulk update complete: {games_updated} games, "
+            f"{total_holes_updated} total holes in history updated, "
+            f"all games configured with 18 holes"
+        )
         
         return {
             "success": True,
             "games_updated": games_updated,
             "total_games_checked": len(games),
-            "total_holes_updated": total_holes_updated,
+            "total_holes_in_history_updated": total_holes_updated,
+            "holes_configured_per_game": 18,
             "game_details": game_details,
-            "message": f"Updated {games_updated} game(s) with latest Wing Point course data"
+            "message": f"Updated {games_updated} game(s): {total_holes_updated} played holes updated, all games configured with 18 Wing Point holes"
         }
         
     except Exception as e:
