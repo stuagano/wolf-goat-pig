@@ -7,155 +7,155 @@ import json
 DEFAULT_COURSES = [
     {
         "name": "Wing Point Golf & Country Club",
-        "description": "Classic parkland course on Bainbridge Island, WA. Home of the original Wolf Goat Pig game.",
-        "total_par": 72,
-        "total_yards": 7050,
-        "course_rating": 73.2,
-        "slope_rating": 135,
+        "description": "Classic parkland course on Bainbridge Island, WA (Est. 1903). Home of the original Wolf Goat Pig game.",
+        "total_par": 71,
+        "total_yards": 5486,
+        "course_rating": 67.4,
+        "slope_rating": 120,
         "holes_data": [
             {
                 "hole_number": 1,
-                "par": 4,
-                "yards": 420,
+                "par": 5,
+                "yards": 429,
                 "stroke_index": 5,
-                "description": "Dogleg right with water hazard on the right side. Requires accurate tee shot to avoid trouble.",
-                "tee_box": "regular"
+                "description": "Opening Drive - gentle starting hole, slight dogleg right",
+                "tee_box": "white"
             },
             {
                 "hole_number": 2,
-                "par": 4,
-                "yards": 385,
-                "stroke_index": 13,
-                "description": "Straightaway par 4 with slight uphill approach. Fairway bunkers guard the landing area.",
-                "tee_box": "regular"
+                "par": 3,
+                "yards": 158,
+                "stroke_index": 15,
+                "description": "Short Iron - downhill par 3 with bunkers guarding the green",
+                "tee_box": "white"
             },
             {
                 "hole_number": 3,
-                "par": 5,
-                "yards": 580,
+                "par": 4,
+                "yards": 310,
                 "stroke_index": 1,
-                "description": "Long par 5 with fairway bunkers and water hazard. Three-shot hole for most players.",
-                "tee_box": "regular"
+                "description": "The Challenge - handicap 1, tough dogleg left requiring precision",
+                "tee_box": "white"
             },
             {
                 "hole_number": 4,
                 "par": 3,
-                "yards": 165,
+                "yards": 112,
                 "stroke_index": 17,
-                "description": "Short par 3 over water to an elevated green. Wind can be a significant factor.",
-                "tee_box": "regular"
+                "description": "Precision - short but tricky par 3",
+                "tee_box": "white"
             },
             {
                 "hole_number": 5,
-                "par": 4,
-                "yards": 445,
+                "par": 5,
+                "yards": 440,
                 "stroke_index": 7,
-                "description": "Long par 4 with out of bounds left. Demanding tee shot and approach.",
-                "tee_box": "regular"
+                "description": "The Long One - reachable par 5 for longer hitters",
+                "tee_box": "white"
             },
             {
                 "hole_number": 6,
                 "par": 4,
-                "yards": 395,
-                "stroke_index": 11,
-                "description": "Slight dogleg left with trees lining both sides. Position off the tee is key.",
-                "tee_box": "regular"
+                "yards": 327,
+                "stroke_index": 9,
+                "description": "Mid Iron - strategic placement required off the tee",
+                "tee_box": "white"
             },
             {
                 "hole_number": 7,
-                "par": 5,
-                "yards": 520,
-                "stroke_index": 15,
-                "description": "Reachable par 5 in two for long hitters. Risk/reward second shot over water.",
-                "tee_box": "regular"
+                "par": 4,
+                "yards": 291,
+                "stroke_index": 13,
+                "description": "Risk Reward - short par 4 with risk-reward options",
+                "tee_box": "white"
             },
             {
                 "hole_number": 8,
-                "par": 3,
-                "yards": 185,
-                "stroke_index": 3,
-                "description": "Long par 3 with deep bunkers protecting the green. Club selection is crucial.",
-                "tee_box": "regular"
+                "par": 4,
+                "yards": 280,
+                "stroke_index": 11,
+                "description": "The Turn - another short par 4 before the turn",
+                "tee_box": "white"
             },
             {
                 "hole_number": 9,
                 "par": 4,
-                "yards": 410,
-                "stroke_index": 9,
-                "description": "Finishing hole with elevated green. Approach shot requires extra club.",
-                "tee_box": "regular"
+                "yards": 316,
+                "stroke_index": 3,
+                "description": "Home Bound - tough finishing hole for the front nine",
+                "tee_box": "white"
             },
             {
                 "hole_number": 10,
-                "par": 4,
-                "yards": 455,
-                "stroke_index": 2,
-                "description": "Championship tee makes this a very challenging par 4. Narrow landing area.",
-                "tee_box": "regular"
+                "par": 3,
+                "yards": 200,
+                "stroke_index": 16,
+                "description": "Back Nine Starter - long par 3 to start the back nine",
+                "tee_box": "white"
             },
             {
                 "hole_number": 11,
-                "par": 5,
-                "yards": 545,
-                "stroke_index": 16,
-                "description": "Three-shot par 5 with creek crossing the fairway. Strategic layup required.",
-                "tee_box": "regular"
+                "par": 4,
+                "yards": 353,
+                "stroke_index": 2,
+                "description": "The Beast - second toughest hole on the course, Par 4/5 depending on tees",
+                "tee_box": "white"
             },
             {
                 "hole_number": 12,
                 "par": 3,
-                "yards": 175,
-                "stroke_index": 8,
-                "description": "Elevated tee with wind factor. Green slopes from back to front.",
-                "tee_box": "regular"
+                "yards": 168,
+                "stroke_index": 14,
+                "description": "Over Water - beautiful par 3 with water in play",
+                "tee_box": "white"
             },
             {
                 "hole_number": 13,
                 "par": 4,
-                "yards": 375,
-                "stroke_index": 14,
-                "description": "Short par 4, drivable green for long hitters. Bunkers protect the green.",
-                "tee_box": "regular"
+                "yards": 272,
+                "stroke_index": 18,
+                "description": "Breathing Room - easiest hole on the course, make your birdie here",
+                "tee_box": "white"
             },
             {
                 "hole_number": 14,
                 "par": 4,
-                "yards": 435,
-                "stroke_index": 4,
-                "description": "Narrow fairway with difficult approach shot. Trees and bunkers create challenge.",
-                "tee_box": "regular"
+                "yards": 303,
+                "stroke_index": 8,
+                "description": "Deceptive - looks easy but plays tough",
+                "tee_box": "white"
             },
             {
                 "hole_number": 15,
-                "par": 5,
-                "yards": 565,
-                "stroke_index": 18,
-                "description": "Longest hole on course. Generous fairway but long approach to elevated green.",
-                "tee_box": "regular"
+                "par": 4,
+                "yards": 356,
+                "stroke_index": 10,
+                "description": "The Stretch - start of the tough finishing stretch",
+                "tee_box": "white"
             },
             {
                 "hole_number": 16,
                 "par": 4,
-                "yards": 425,
-                "stroke_index": 10,
-                "description": "Risk/reward hole with water hazard. Aggressive play can pay off.",
-                "tee_box": "regular"
+                "yards": 344,
+                "stroke_index": 4,
+                "description": "Penultimate - tough hole as you near the finish",
+                "tee_box": "white"
             },
             {
                 "hole_number": 17,
-                "par": 3,
-                "yards": 155,
+                "par": 5,
+                "yards": 455,
                 "stroke_index": 12,
-                "description": "Island green signature hole. Short but intimidating with water all around.",
-                "tee_box": "regular"
+                "description": "The Penultimate - par 5 start of Hoepfinger phase",
+                "tee_box": "white"
             },
             {
                 "hole_number": 18,
                 "par": 4,
-                "yards": 415,
+                "yards": 372,
                 "stroke_index": 6,
-                "description": "Dramatic finishing hole with water hazard and elevated green. Classic risk/reward.",
-                "tee_box": "regular"
+                "description": "The Finale - strong finishing par 4, Big Dick opportunity",
+                "tee_box": "white"
             }
         ]
     },

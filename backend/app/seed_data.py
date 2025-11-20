@@ -395,7 +395,17 @@ def seed_all_data(force_reseed: bool = False) -> dict:
             "added": courses_added,
             "status": "success"
         }
-        
+
+        # Fix Wing Point course data if it exists with wrong par values
+        logger.info("Checking Wing Point course data...")
+        try:
+            from .fix_wing_point_data import fix_wing_point_course
+            wing_point_fixed = fix_wing_point_course()
+            if wing_point_fixed:
+                logger.info("✅ Wing Point course data corrected")
+        except Exception as fix_error:
+            logger.warning(f"Could not fix Wing Point course: {fix_error}")
+
         # Seed rules
         logger.info("Seeding rules...")
         rules_added = seed_rules(db)
