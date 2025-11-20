@@ -790,7 +790,28 @@ async def create_test_game(
         for p in mock_players
     ]
 
-    simulation = WolfGoatPigGame(player_count=player_count, players=wgp_players)
+    # Initialize course manager with selected course
+    test_course_manager = None
+    if course_name:
+        try:
+            from .state.course_manager import CourseManager
+            test_course_manager = CourseManager()
+            available_courses = test_course_manager.get_courses()
+            if course_name in available_courses:
+                test_course_manager.load_course(course_name)
+                logger.info(f"Loaded course '{course_name}' for test game {game_id}")
+            else:
+                logger.warning(f"Course '{course_name}' not found for test game")
+                test_course_manager = None
+        except Exception as course_error:
+            logger.error(f"Failed to load course for test game: {course_error}")
+            test_course_manager = None
+
+    simulation = WolfGoatPigGame(
+        player_count=player_count,
+        players=wgp_players,
+        course_manager=test_course_manager
+    )
 
     # Get the game state (game is already started in __init__)
     game_state = simulation.get_game_state()
@@ -2631,9 +2652,33 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
         configured_player_count = game.state.get("player_count", 4)
         logger.info(f"Initializing WGP simulation for game {game_id} with {len(wgp_players)} players (configured for {configured_player_count})")
 
+        # Initialize course manager with selected course
+        course_manager = None
+        course_name = game.state.get("course_name")
+        if course_name:
+            try:
+                from .state.course_manager import CourseManager
+                course_manager = CourseManager()
+
+                # Check if course exists in course manager
+                available_courses = course_manager.get_courses()
+                if course_name in available_courses:
+                    course_manager.load_course(course_name)
+                    logger.info(f"Loaded course '{course_name}' for game {game_id}")
+                else:
+                    logger.warning(f"Course '{course_name}' not found in course manager. Available courses: {list(available_courses.keys())}")
+                    course_manager = None
+            except Exception as course_error:
+                logger.error(f"Failed to load course '{course_name}': {course_error}")
+                course_manager = None
+
         try:
-            # Create simulation with configured player count and actual players
-            simulation = WolfGoatPigGame(player_count=configured_player_count, players=wgp_players)
+            # Create simulation with configured player count, actual players, and course manager
+            simulation = WolfGoatPigGame(
+                player_count=configured_player_count,
+                players=wgp_players,
+                course_manager=course_manager
+            )
             logger.info(f"Simulation initialized for game {game_id}")
         except Exception as init_error:
             logger.error(f"Failed to initialize simulation: {init_error}")
@@ -2942,8 +2987,30 @@ async def perform_game_action_by_id(
             # Get configured player count from saved state
             configured_player_count = game.state.get("player_count", 4)
 
-            # Create new simulation
-            simulation = WolfGoatPigGame(player_count=configured_player_count, players=wgp_players)
+            # Initialize course manager with selected course
+            course_manager = None
+            course_name = game.state.get("course_name")
+            if course_name:
+                try:
+                    from .state.course_manager import CourseManager
+                    course_manager = CourseManager()
+                    available_courses = course_manager.get_courses()
+                    if course_name in available_courses:
+                        course_manager.load_course(course_name)
+                        logger.info(f"Loaded course '{course_name}' for restored game {game_id}")
+                    else:
+                        logger.warning(f"Course '{course_name}' not found during game restoration")
+                        course_manager = None
+                except Exception as course_error:
+                    logger.error(f"Failed to load course during restoration: {course_error}")
+                    course_manager = None
+
+            # Create new simulation with course manager
+            simulation = WolfGoatPigGame(
+                player_count=configured_player_count,
+                players=wgp_players,
+                course_manager=course_manager
+            )
 
             # TODO: Restore full game state (hole states, scores, etc.) from game.state
             # For now, this creates a fresh simulation - user will need to restart game
@@ -6695,11 +6762,12 @@ def setup_simulation(request: Dict[str, Any]):
                 handicap=float(player_data.get("handicap", 18.0))
             )
             wgp_players.append(wgp_player)
-        
-        # Initialize simulation with players
+
+        # Initialize simulation with players and global course_manager
         wgp_simulation = WolfGoatPigGame(
             player_count=len(wgp_players),
-            players=wgp_players
+            players=wgp_players,
+            course_manager=course_manager
         )
         
         # Enhance with timeline tracking
