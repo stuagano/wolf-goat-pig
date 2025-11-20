@@ -152,6 +152,22 @@ const SimpleScorekeeper = ({
     setPlayerStandings(standings);
   }, [players, holeHistory]);
 
+  // Update hole par when current hole or course data changes
+  useEffect(() => {
+    if (courseData && courseData.holes && currentHole >= 1 && currentHole <= 18) {
+      const holeData = courseData.holes.find(h => h.hole_number === currentHole);
+      if (holeData && holeData.par) {
+        console.log(`🏌️ Setting par for hole ${currentHole}: ${holeData.par}`);
+        setHolePar(holeData.par);
+      } else {
+        console.warn(`⚠️ No course data found for hole ${currentHole}, using default par 4`);
+        setHolePar(4);
+      }
+    } else if (!courseData) {
+      console.warn(`⚠️ Course data not loaded yet, using default par 4 for hole ${currentHole}`);
+    }
+  }, [courseData, currentHole]);
+
   // Fetch rotation and wager info when hole changes
   useEffect(() => {
     const fetchRotationAndWager = async () => {
@@ -208,7 +224,8 @@ const SimpleScorekeeper = ({
     setCurrentWager(baseWager);
     setScores({});
     setWinner(null);
-    setHolePar(4);
+    // Don't reset holePar here - let the useEffect handle it based on course data
+    // setHolePar(4); // Removed - handled by useEffect
     setFloatInvokedBy(null);
     setOptionInvokedBy(null);
     setError(null);

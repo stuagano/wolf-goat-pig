@@ -104,10 +104,6 @@ DEFAULT_AI_PERSONALITIES = [
     }
 ]
 
-# Sample game scenarios - DEPRECATED (not used)
-# Sample games disabled - real game data created through gameplay
-SAMPLE_GAME_SCENARIOS = []
-
 def verify_database_connection(db: Session) -> bool:
     """Verify database connection is working."""
     try:
@@ -246,25 +242,8 @@ def seed_ai_personalities(db: Session) -> int:
         db.rollback()
         logger.error(f"Error seeding AI personalities: {e}")
         raise
-    
+
     return personalities_added
-
-def seed_sample_games(db: Session) -> int:
-    """
-    DEPRECATED: Sample game seeding disabled.
-
-    Sample games are not needed for the application to function.
-    Real game data is created naturally through gameplay using the
-    simple commit-per-hole pattern in main.py.
-
-    This function previously attempted complex batch operations with
-    flush/rollback logic that caused foreign key violations and added
-    unnecessary complexity.
-
-    If you need test data, use actual game simulation endpoints instead.
-    """
-    logger.info("Sample game seeding is disabled - not needed for app functionality")
-    return 0
 
 def create_default_human_player(db: Session) -> Optional[PlayerProfile]:
     """Create a default human player profile if none exists."""
