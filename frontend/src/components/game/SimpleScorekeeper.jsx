@@ -41,7 +41,6 @@ const SimpleScorekeeper = ({
   const [currentWager, setCurrentWager] = useState(baseWager);
   const [scores, setScores] = useState({});
   const [winner, setWinner] = useState(null);
-  const [holePar, setHolePar] = useState(4);
   const [floatInvokedBy, setFloatInvokedBy] = useState(null); // Player ID who invoked float
   const [optionInvokedBy, setOptionInvokedBy] = useState(null); // Player ID who triggered option
 
@@ -75,6 +74,9 @@ const SimpleScorekeeper = ({
   const [localPlayers, setLocalPlayers] = useState(players); // Local copy of players for immediate UI updates
   const [showUsageStats, setShowUsageStats] = useState(false); // Toggle for usage statistics section
   const [courseData, setCourseData] = useState(null); // Course data with hole information
+
+  // Derive current hole par from course data (pars are constants and don't change)
+  const holePar = courseData?.holes?.find(h => h.hole_number === currentHole)?.par || 4;
 
   // Fetch course data
   useEffect(() => {
@@ -152,24 +154,6 @@ const SimpleScorekeeper = ({
     setPlayerStandings(standings);
   }, [players, holeHistory]);
 
-  // Update hole par when current hole or course data changes
-  useEffect(() => {
-    console.log(`📊 Course Data:`, courseData);
-    if (courseData && courseData.holes && currentHole >= 1 && currentHole <= 18) {
-      console.log(`📊 All holes:`, courseData.holes.map(h => ({ num: h.hole_number, par: h.par })));
-      const holeData = courseData.holes.find(h => h.hole_number === currentHole);
-      if (holeData && holeData.par) {
-        console.log(`🏌️ Setting par for hole ${currentHole}: ${holeData.par}`, holeData);
-        setHolePar(holeData.par);
-      } else {
-        console.warn(`⚠️ No course data found for hole ${currentHole}, using default par 4`, { courseData, holeData });
-        setHolePar(4);
-      }
-    } else if (!courseData) {
-      console.warn(`⚠️ Course data not loaded yet, using default par 4 for hole ${currentHole}`);
-    }
-  }, [courseData, currentHole]);
-
   // Fetch rotation and wager info when hole changes
   useEffect(() => {
     const fetchRotationAndWager = async () => {
@@ -226,8 +210,6 @@ const SimpleScorekeeper = ({
     setCurrentWager(baseWager);
     setScores({});
     setWinner(null);
-    // Don't reset holePar here - let the useEffect handle it based on course data
-    // setHolePar(4); // Removed - handled by useEffect
     setFloatInvokedBy(null);
     setOptionInvokedBy(null);
     setError(null);
@@ -241,8 +223,7 @@ const SimpleScorekeeper = ({
   // Load hole data for editing
   const loadHoleForEdit = (hole) => {
     setEditingHole(hole.hole);
-    setCurrentHole(hole.hole);
-    setHolePar(hole.hole_par || 4);
+    setCurrentHole(hole.hole); // Setting currentHole automatically updates derived holePar
     setScores(hole.gross_scores || {});
     setCurrentWager(hole.wager || baseWager);
     setWinner(hole.winner);
@@ -758,7 +739,7 @@ const SimpleScorekeeper = ({
                 </td>
                 {[...Array(18)].map((_, i) => {
                   const holeNumber = i + 1;
-                  const handicap = courseData?.holes?.find(h => h.hole_number === holeNumber)?.stroke_index || holeNumber;
+                  const handicap = courseData?.holes?.find(h => h.hole_number === holeNumber)?.handicap || holeNumber;
                   const showDivider = i === 8; // After hole 9
                   return (
                     <td key={i} style={{
@@ -882,7 +863,7 @@ const SimpleScorekeeper = ({
                         };
 
                         // Get the actual stroke index (handicap) for this hole from course data
-                        const holeHandicap = courseData?.holes?.find(h => h.hole_number === holeNumber)?.stroke_index || holeNumber;
+                        const holeHandicap = courseData?.holes?.find(h => h.hole_number === holeNumber)?.handicap || holeNumber;
                         const strokesReceived = getStrokesForHole(player.handicap || 0, holeHandicap);
 
                         // Determine indicator style based on score relative to par
@@ -1014,7 +995,7 @@ const SimpleScorekeeper = ({
                         };
 
                         // Get the actual stroke index (handicap) for this hole from course data
-                        const holeHandicap = courseData?.holes?.find(h => h.hole_number === holeNumber)?.stroke_index || holeNumber;
+                        const holeHandicap = courseData?.holes?.find(h => h.hole_number === holeNumber)?.handicap || holeNumber;
                         const strokesReceived = getStrokesForHole(player.handicap || 0, holeHandicap);
 
                         // Determine indicator style based on score relative to par
@@ -1364,13 +1345,13 @@ const SimpleScorekeeper = ({
           return 0;
         };
 
-        // Default stroke index pattern (hardest to easiest, can be customized per course)
-        const defaultStrokeIndex = currentHole; // Simple: hole number = stroke index
+        // Get actual stroke index from course data (hole handicap/difficulty ranking)
+        const strokeIndex = courseData?.holes?.find(h => h.hole_number === currentHole)?.handicap || currentHole;
 
         const playersWithStrokes = players
           .map(player => ({
             ...player,
-            strokes: getStrokesForHole(player.handicap || 0, defaultStrokeIndex)
+            strokes: getStrokesForHole(player.handicap || 0, strokeIndex)
           }))
           .filter(p => p.strokes > 0);
 
