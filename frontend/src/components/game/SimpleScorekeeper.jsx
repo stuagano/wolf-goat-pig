@@ -702,27 +702,41 @@ const SimpleScorekeeper = ({
                 }}>
                   PAR
                 </td>
-                {[...Array(18)].map((_, i) => {
-                  const holeNumber = i + 1;
-                  const hole = holeHistory.find(h => h.hole === holeNumber);
-                  // Try to get par from hole history first, then from course data, then default to 4
-                  const par = hole?.hole_par || courseData?.holes?.find(h => h.hole_number === holeNumber)?.par || 4;
-                  const showDivider = i === 8; // After hole 9
-                  return (
-                    <td key={i} style={{
-                      padding: '6px 4px',
-                      textAlign: 'center',
-                      fontSize: '11px',
-                      fontWeight: 'bold',
-                      borderLeft: showDivider ? `2px solid ${theme.colors.border}` : 'none'
-                    }}>
-                      {par}
-                    </td>
-                  );
-                })}
-                <td style={{ padding: '6px', textAlign: 'center', fontSize: '11px', fontWeight: 'bold', borderLeft: `2px solid ${theme.colors.border}`, background: 'rgba(76, 175, 80, 0.05)' }}>36</td>
-                <td style={{ padding: '6px', textAlign: 'center', fontSize: '11px', fontWeight: 'bold', borderLeft: `2px solid ${theme.colors.border}`, background: 'rgba(76, 175, 80, 0.05)' }}>36</td>
-                <td style={{ padding: '6px', textAlign: 'center', fontSize: '11px', fontWeight: 'bold', borderLeft: `2px solid ${theme.colors.border}`, background: 'rgba(33, 150, 243, 0.05)' }}>72</td>
+                {(() => {
+                  let frontNinePar = 0;
+                  let backNinePar = 0;
+
+                  return [... Array(18)].map((_, i) => {
+                    const holeNumber = i + 1;
+                    const hole = holeHistory.find(h => h.hole === holeNumber);
+                    // Try to get par from hole history first, then from course data, then default to 4
+                    const par = hole?.hole_par || courseData?.holes?.find(h => h.hole_number === holeNumber)?.par || 4;
+
+                    // Track totals for front and back nine
+                    if (holeNumber <= 9) {
+                      frontNinePar += par;
+                    } else {
+                      backNinePar += par;
+                    }
+
+                    const showDivider = i === 8; // After hole 9
+                    return (
+                      <td key={i} style={{
+                        padding: '6px 4px',
+                        textAlign: 'center',
+                        fontSize: '11px',
+                        fontWeight: 'bold',
+                        borderLeft: showDivider ? `2px solid ${theme.colors.border}` : 'none'
+                      }}>
+                        {par}
+                      </td>
+                    );
+                  }).concat([
+                    <td key="front-total" style={{ padding: '6px', textAlign: 'center', fontSize: '11px', fontWeight: 'bold', borderLeft: `2px solid ${theme.colors.border}`, background: 'rgba(76, 175, 80, 0.05)' }}>{frontNinePar}</td>,
+                    <td key="back-total" style={{ padding: '6px', textAlign: 'center', fontSize: '11px', fontWeight: 'bold', borderLeft: `2px solid ${theme.colors.border}`, background: 'rgba(76, 175, 80, 0.05)' }}>{backNinePar}</td>,
+                    <td key="total" style={{ padding: '6px', textAlign: 'center', fontSize: '11px', fontWeight: 'bold', borderLeft: `2px solid ${theme.colors.border}`, background: 'rgba(33, 150, 243, 0.05)' }}>{frontNinePar + backNinePar}</td>
+                  ]);
+                })()}
               </tr>
 
               {/* Handicap Row */}
