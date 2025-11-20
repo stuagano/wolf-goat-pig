@@ -39,7 +39,7 @@ def get_fallback_courses():
                     "hole_number": i,
                     "par": 4 if i not in [4, 8, 12, 17] else 3 if i in [4, 8, 17] else 5,
                     "yards": 400 if i not in [4, 8, 12, 17] else 160 if i in [4, 8, 17] else 520,
-                    "stroke_index": ((i - 1) % 18) + 1,
+                    "handicap": ((i - 1) % 18) + 1,
                     "description": f"Emergency hole {i} - Par {4 if i not in [4, 8, 12, 17] else 3 if i in [4, 8, 17] else 5}"
                 }
                 for i in range(1, 19)
@@ -52,24 +52,24 @@ def get_fallback_courses():
             "name": "Wing Point Golf & Country Club",
             "description": "Classic parkland course on Bainbridge Island, WA (Est. 1903)",
             "holes": [
-                {"hole_number": 1, "par": 5, "yards": 476, "stroke_index": 5, "description": "Opening Drive - gentle starting hole, slight dogleg right"},
-                {"hole_number": 2, "par": 3, "yards": 175, "stroke_index": 13, "description": "Short Iron - downhill par 3 with bunkers"},
-                {"hole_number": 3, "par": 4, "yards": 401, "stroke_index": 1, "description": "The Challenge - handicap 1, tough dogleg left"},
-                {"hole_number": 4, "par": 3, "yards": 133, "stroke_index": 17, "description": "Precision - short but tricky par 3"},
-                {"hole_number": 5, "par": 5, "yards": 498, "stroke_index": 7, "description": "The Long One - reachable par 5"},
-                {"hole_number": 6, "par": 4, "yards": 351, "stroke_index": 11, "description": "Mid Iron - strategic placement required"},
-                {"hole_number": 7, "par": 4, "yards": 316, "stroke_index": 15, "description": "Risk Reward - short par 4"},
-                {"hole_number": 8, "par": 4, "yards": 294, "stroke_index": 3, "description": "The Turn - another short par 4"},
-                {"hole_number": 9, "par": 4, "yards": 340, "stroke_index": 9, "description": "Home Bound - tough finishing hole for front nine"},
-                {"hole_number": 10, "par": 3, "yards": 239, "stroke_index": 2, "description": "Back Nine Starter - long par 3"},
-                {"hole_number": 11, "par": 4, "yards": 401, "stroke_index": 16, "description": "The Beast - second toughest hole"},
-                {"hole_number": 12, "par": 3, "yards": 204, "stroke_index": 8, "description": "Over Water - beautiful par 3"},
-                {"hole_number": 13, "par": 4, "yards": 310, "stroke_index": 14, "description": "Breathing Room - easiest hole"},
-                {"hole_number": 14, "par": 4, "yards": 317, "stroke_index": 4, "description": "Deceptive - looks easy but plays tough"},
-                {"hole_number": 15, "par": 4, "yards": 396, "stroke_index": 18, "description": "The Stretch - start of tough finish"},
-                {"hole_number": 16, "par": 4, "yards": 358, "stroke_index": 10, "description": "Penultimate - tough as you near finish"},
-                {"hole_number": 17, "par": 5, "yards": 490, "stroke_index": 12, "description": "The Penultimate - par 5 start of Hoepfinger"},
-                {"hole_number": 18, "par": 4, "yards": 394, "stroke_index": 6, "description": "The Finale - strong finishing par 4"}
+                {"hole_number": 1, "par": 5, "yards": 476, "handicap": 5, "description": "Opening Drive - gentle starting hole, slight dogleg right"},
+                {"hole_number": 2, "par": 3, "yards": 175, "handicap": 13, "description": "Short Iron - downhill par 3 with bunkers"},
+                {"hole_number": 3, "par": 4, "yards": 401, "handicap": 1, "description": "The Challenge - handicap 1, tough dogleg left"},
+                {"hole_number": 4, "par": 3, "yards": 133, "handicap": 17, "description": "Precision - short but tricky par 3"},
+                {"hole_number": 5, "par": 5, "yards": 498, "handicap": 7, "description": "The Long One - reachable par 5"},
+                {"hole_number": 6, "par": 4, "yards": 351, "handicap": 11, "description": "Mid Iron - strategic placement required"},
+                {"hole_number": 7, "par": 4, "yards": 316, "handicap": 15, "description": "Risk Reward - short par 4"},
+                {"hole_number": 8, "par": 4, "yards": 294, "handicap": 3, "description": "The Turn - another short par 4"},
+                {"hole_number": 9, "par": 4, "yards": 340, "handicap": 9, "description": "Home Bound - tough finishing hole for front nine"},
+                {"hole_number": 10, "par": 3, "yards": 239, "handicap": 2, "description": "Back Nine Starter - long par 3"},
+                {"hole_number": 11, "par": 4, "yards": 401, "handicap": 16, "description": "The Beast - second toughest hole"},
+                {"hole_number": 12, "par": 3, "yards": 204, "handicap": 8, "description": "Over Water - beautiful par 3"},
+                {"hole_number": 13, "par": 4, "yards": 310, "handicap": 14, "description": "Breathing Room - easiest hole"},
+                {"hole_number": 14, "par": 4, "yards": 317, "handicap": 4, "description": "Deceptive - looks easy but plays tough"},
+                {"hole_number": 15, "par": 4, "yards": 396, "handicap": 18, "description": "The Stretch - start of tough finish"},
+                {"hole_number": 16, "par": 4, "yards": 358, "handicap": 10, "description": "Penultimate - tough as you near finish"},
+                {"hole_number": 17, "par": 5, "yards": 490, "handicap": 12, "description": "The Penultimate - par 5 start of Hoepfinger"},
+                {"hole_number": 18, "par": 4, "yards": 394, "handicap": 6, "description": "The Finale - strong finishing par 4"}
             ],
             "total_par": 71,
             "total_yards": 6093,
@@ -397,8 +397,8 @@ async def preview_course_import(request: schemas.CourseImportRequest):
                 "rating": 72.5,
                 "slope": 135,
                 "sample_holes": [
-                    {"hole": 1, "par": 4, "yards": 400, "stroke_index": 7},
-                    {"hole": 2, "par": 3, "yards": 175, "stroke_index": 15}
+                    {"hole": 1, "par": 4, "yards": 400, "handicap": 7},
+                    {"hole": 2, "par": 3, "yards": 175, "handicap": 15}
                 ]
             }
         }

@@ -863,7 +863,7 @@ const SimpleScorekeeper = ({
                         };
 
                         // Get the actual stroke index (handicap) for this hole from course data
-                        const holeHandicap = courseData?.holes?.find(h => h.hole_number === holeNumber)?.stroke_index || holeNumber;
+                        const holeHandicap = courseData?.holes?.find(h => h.hole_number === holeNumber)?.handicap || holeNumber;
                         const strokesReceived = getStrokesForHole(player.handicap || 0, holeHandicap);
 
                         // Determine indicator style based on score relative to par
@@ -995,7 +995,7 @@ const SimpleScorekeeper = ({
                         };
 
                         // Get the actual stroke index (handicap) for this hole from course data
-                        const holeHandicap = courseData?.holes?.find(h => h.hole_number === holeNumber)?.stroke_index || holeNumber;
+                        const holeHandicap = courseData?.holes?.find(h => h.hole_number === holeNumber)?.handicap || holeNumber;
                         const strokesReceived = getStrokesForHole(player.handicap || 0, holeHandicap);
 
                         // Determine indicator style based on score relative to par
