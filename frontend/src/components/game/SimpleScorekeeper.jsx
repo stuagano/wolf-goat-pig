@@ -739,7 +739,7 @@ const SimpleScorekeeper = ({
                 </td>
                 {[...Array(18)].map((_, i) => {
                   const holeNumber = i + 1;
-                  const handicap = courseData?.holes?.find(h => h.hole_number === holeNumber)?.stroke_index || holeNumber;
+                  const handicap = courseData?.holes?.find(h => h.hole_number === holeNumber)?.handicap || holeNumber;
                   const showDivider = i === 8; // After hole 9
                   return (
                     <td key={i} style={{
@@ -1345,13 +1345,13 @@ const SimpleScorekeeper = ({
           return 0;
         };
 
-        // Default stroke index pattern (hardest to easiest, can be customized per course)
-        const defaultStrokeIndex = currentHole; // Simple: hole number = stroke index
+        // Get actual stroke index from course data (hole handicap/difficulty ranking)
+        const strokeIndex = courseData?.holes?.find(h => h.hole_number === currentHole)?.handicap || currentHole;
 
         const playersWithStrokes = players
           .map(player => ({
             ...player,
-            strokes: getStrokesForHole(player.handicap || 0, defaultStrokeIndex)
+            strokes: getStrokesForHole(player.handicap || 0, strokeIndex)
           }))
           .filter(p => p.strokes > 0);
 
