@@ -41,7 +41,6 @@ const SimpleScorekeeper = ({
   const [currentWager, setCurrentWager] = useState(baseWager);
   const [scores, setScores] = useState({});
   const [winner, setWinner] = useState(null);
-  const [holePar, setHolePar] = useState(4);
   const [floatInvokedBy, setFloatInvokedBy] = useState(null); // Player ID who invoked float
   const [optionInvokedBy, setOptionInvokedBy] = useState(null); // Player ID who triggered option
 
@@ -75,6 +74,9 @@ const SimpleScorekeeper = ({
   const [localPlayers, setLocalPlayers] = useState(players); // Local copy of players for immediate UI updates
   const [showUsageStats, setShowUsageStats] = useState(false); // Toggle for usage statistics section
   const [courseData, setCourseData] = useState(null); // Course data with hole information
+
+  // Derive current hole par from course data (pars are constants and don't change)
+  const holePar = courseData?.holes?.find(h => h.hole_number === currentHole)?.par || 4;
 
   // Fetch course data
   useEffect(() => {
@@ -152,25 +154,6 @@ const SimpleScorekeeper = ({
     setPlayerStandings(standings);
   }, [players, holeHistory]);
 
-  // Update hole par when current hole or course data changes
-  useEffect(() => {
-    // Only proceed if courseData has been loaded
-    if (!courseData || !courseData.holes) {
-      return; // Wait for course data to load, don't set default yet
-    }
-
-    if (currentHole >= 1 && currentHole <= 18) {
-      const holeData = courseData.holes.find(h => h.hole_number === currentHole);
-      if (holeData && holeData.par) {
-        setHolePar(holeData.par);
-      } else {
-        // Only log if we have course data but can't find the hole
-        console.warn(`⚠️ No par data found for hole ${currentHole}, using default par 4`);
-        setHolePar(4);
-      }
-    }
-  }, [courseData, currentHole]);
-
   // Fetch rotation and wager info when hole changes
   useEffect(() => {
     const fetchRotationAndWager = async () => {
@@ -227,8 +210,6 @@ const SimpleScorekeeper = ({
     setCurrentWager(baseWager);
     setScores({});
     setWinner(null);
-    // Don't reset holePar here - let the useEffect handle it based on course data
-    // setHolePar(4); // Removed - handled by useEffect
     setFloatInvokedBy(null);
     setOptionInvokedBy(null);
     setError(null);
@@ -242,8 +223,7 @@ const SimpleScorekeeper = ({
   // Load hole data for editing
   const loadHoleForEdit = (hole) => {
     setEditingHole(hole.hole);
-    setCurrentHole(hole.hole);
-    setHolePar(hole.hole_par || 4);
+    setCurrentHole(hole.hole); // Setting currentHole automatically updates derived holePar
     setScores(hole.gross_scores || {});
     setCurrentWager(hole.wager || baseWager);
     setWinner(hole.winner);
