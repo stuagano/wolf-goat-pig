@@ -154,19 +154,20 @@ const SimpleScorekeeper = ({
 
   // Update hole par when current hole or course data changes
   useEffect(() => {
-    console.log(`📊 Course Data:`, courseData);
-    if (courseData && courseData.holes && currentHole >= 1 && currentHole <= 18) {
-      console.log(`📊 All holes:`, courseData.holes.map(h => ({ num: h.hole_number, par: h.par })));
+    // Only proceed if courseData has been loaded
+    if (!courseData || !courseData.holes) {
+      return; // Wait for course data to load, don't set default yet
+    }
+
+    if (currentHole >= 1 && currentHole <= 18) {
       const holeData = courseData.holes.find(h => h.hole_number === currentHole);
       if (holeData && holeData.par) {
-        console.log(`🏌️ Setting par for hole ${currentHole}: ${holeData.par}`, holeData);
         setHolePar(holeData.par);
       } else {
-        console.warn(`⚠️ No course data found for hole ${currentHole}, using default par 4`, { courseData, holeData });
+        // Only log if we have course data but can't find the hole
+        console.warn(`⚠️ No par data found for hole ${currentHole}, using default par 4`);
         setHolePar(4);
       }
-    } else if (!courseData) {
-      console.warn(`⚠️ Course data not loaded yet, using default par 4 for hole ${currentHole}`);
     }
   }, [courseData, currentHole]);
 
