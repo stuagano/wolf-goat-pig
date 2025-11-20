@@ -154,13 +154,15 @@ const SimpleScorekeeper = ({
 
   // Update hole par when current hole or course data changes
   useEffect(() => {
+    console.log(`📊 Course Data:`, courseData);
     if (courseData && courseData.holes && currentHole >= 1 && currentHole <= 18) {
+      console.log(`📊 All holes:`, courseData.holes.map(h => ({ num: h.hole_number, par: h.par })));
       const holeData = courseData.holes.find(h => h.hole_number === currentHole);
       if (holeData && holeData.par) {
-        console.log(`🏌️ Setting par for hole ${currentHole}: ${holeData.par}`);
+        console.log(`🏌️ Setting par for hole ${currentHole}: ${holeData.par}`, holeData);
         setHolePar(holeData.par);
       } else {
-        console.warn(`⚠️ No course data found for hole ${currentHole}, using default par 4`);
+        console.warn(`⚠️ No course data found for hole ${currentHole}, using default par 4`, { courseData, holeData });
         setHolePar(4);
       }
     } else if (!courseData) {
@@ -709,8 +711,9 @@ const SimpleScorekeeper = ({
                   return [... Array(18)].map((_, i) => {
                     const holeNumber = i + 1;
                     const hole = holeHistory.find(h => h.hole === holeNumber);
-                    // Try to get par from hole history first, then from course data, then default to 4
-                    const par = hole?.hole_par || courseData?.holes?.find(h => h.hole_number === holeNumber)?.par || 4;
+                    // IMPORTANT: Prioritize course data for par display in scorecard, not hole history
+                    // Hole history may contain old/incorrect data
+                    const par = courseData?.holes?.find(h => h.hole_number === holeNumber)?.par || hole?.hole_par || 4;
 
                     // Track totals for front and back nine
                     if (holeNumber <= 9) {
