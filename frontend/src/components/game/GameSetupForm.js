@@ -85,6 +85,7 @@ function GameSetupForm({ onSetup }) {
   const [ghinResults, setGhinResults] = useState({}); // {p1: [], ...}
   const [ghinLoading, setGhinLoading] = useState({});
   const [ghinError, setGhinError] = useState({});
+  const [orderSet, setOrderSet] = useState(false);
 
   useEffect(() => {
     fetch(`${API_URL}/courses`)
@@ -138,6 +139,7 @@ function GameSetupForm({ onSetup }) {
           profile_id: selectedProfile.id
         } : p
       ));
+      setOrderSet(false); // Reset order when profile changes
     }
   }, [selectedProfile, setupMode]);
 
@@ -151,9 +153,13 @@ function GameSetupForm({ onSetup }) {
 
   const handleChange = (idx, field, value) => {
     setPlayers(players => players.map((p, i) => i === idx ? { ...p, [field]: value } : p));
+    if (field === 'name') {
+      setOrderSet(false); // Reset order if names change
+    }
   };
 
   const handleProfileSelect = (idx, profile) => {
+    setOrderSet(false); // Reset order
     if (profile) {
       setPlayers(prevPlayers => prevPlayers.map((p, i) =>
         i === idx ? {
@@ -203,6 +209,7 @@ function GameSetupForm({ onSetup }) {
     }
   };
   const handleGhinSelect = (pid, golfer) => {
+    setOrderSet(false); // Reset order
     setPlayers(players => players.map(p => p.id === pid ? {
       ...p,
       name: golfer.name,
@@ -479,22 +486,61 @@ function GameSetupForm({ onSetup }) {
         ))}
         {error && <div style={{ color: COLORS.error, marginBottom: 8 }}>{error}</div>}
 
-        <button
-          type="button"
-          onClick={() => {
-            if (players.some(p => !p.name)) {
-              setError('Please enter all player names first.');
-              return;
-            }
-            setError('');
-            setShowTeeToss(true);
-          }}
-          style={{ ...buttonStyle, width: '100%', background: COLORS.accent, marginBottom: 12 }}
-        >
-          🔄 Toss Tees for Order
-        </button>
+        {/* Player Order Section */}
+        {orderSet ? (
+          <div style={{ marginBottom: 20, padding: 16, background: '#e8f5e9', borderRadius: 8, border: `1px solid ${COLORS.success}` }}>
+            <h3 style={{ margin: '0 0 12px 0', color: COLORS.success, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>✅</span> Player Order Set
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+              {players.map((p, i) => (
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 16 }}>
+                  <span style={{
+                    width: 24, height: 24, borderRadius: '50%', background: COLORS.success, color: 'white',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 14
+                  }}>
+                    {i + 1}
+                  </span>
+                  <span style={{ fontWeight: 500 }}>{p.name}</span>
+                  <span style={{ color: COLORS.muted, fontSize: 14 }}>({p.handicap || 'No'} HCP)</span>
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowTeeToss(true)}
+              style={{ ...buttonStyle, background: 'white', color: COLORS.success, border: `1px solid ${COLORS.success}`, padding: '8px 16px', fontSize: 14, width: 'auto', minHeight: 36 }}
+            >
+              🔄 Re-toss / Edit Order
+            </button>
+          </div>
+        ) : (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ color: COLORS.muted, marginBottom: 8, fontSize: 14, fontStyle: 'italic' }}>
+              * You must determine the player order before starting.
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (players.some(p => !p.name)) {
+                  setError('Please enter all player names first.');
+                  return;
+                }
+                setError('');
+                setShowTeeToss(true);
+              }}
+              style={{ ...buttonStyle, width: '100%', background: COLORS.accent }}
+            >
+              👉 Next: Set Player Order
+            </button>
+          </div>
+        )}
 
-        <button type="submit" style={{ ...buttonStyle, width: '100%' }}>Start Game</button>
+        {orderSet && (
+          <button type="submit" style={{ ...buttonStyle, width: '100%' }}>
+            🚀 Start Game
+          </button>
+        )}
       </form>
 
       {showTeeToss && (
@@ -503,6 +549,7 @@ function GameSetupForm({ onSetup }) {
           onClose={() => setShowTeeToss(false)}
           onOrderComplete={(orderedPlayers) => {
             setPlayers(orderedPlayers);
+            setOrderSet(true);
             setShowTeeToss(false);
           }}
         />
