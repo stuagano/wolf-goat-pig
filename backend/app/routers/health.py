@@ -238,3 +238,16 @@ def health_check_render_alias():
     except HTTPException as exc:
         # Mirror original status code to keep behaviour consistent.
         raise exc
+
+
+@router.get("/ready")
+def readiness_check():
+    """
+    Lightweight readiness probe for Render/K8s.
+    Only checks if the app is running, not comprehensive system health.
+    Use /health for detailed health checks.
+    """
+    return {
+        "status": "ready",
+        "timestamp": datetime.now().isoformat()
+    }

@@ -301,7 +301,13 @@ async def startup():
     """Enhanced startup event handler with comprehensive bootstrapping."""
     logger.info("🐺 Wolf Goat Pig API starting up...")
     logger.info(f"ENVIRONMENT: {os.getenv('ENVIRONMENT')}")
-    
+
+    # Skip initialization if already done by render-startup.py
+    if os.getenv("SKIP_FASTAPI_STARTUP_INIT", "false").lower() == "true":
+        logger.info("⏭️ Skipping FastAPI startup initialization (already completed by render-startup.py)")
+        logger.info("🚀 Wolf Goat Pig API ready to accept requests!")
+        return
+
     # Initialize database first
     try:
         # Ensure all models are imported before creating tables
@@ -549,9 +555,9 @@ async def startup():
 
 @app.on_event("shutdown")
 async def shutdown():
-    """Cleanup on shutdown"""
+    """Comprehensive cleanup on shutdown with graceful handling"""
     logger.info("🛑 Wolf Goat Pig API shutting down...")
-    
+
     # Stop email scheduler if it was started
     try:
         if email_scheduler is not None and hasattr(email_scheduler, 'stop'):
@@ -559,6 +565,16 @@ async def shutdown():
             logger.info("📧 Email scheduler stopped successfully")
     except Exception as e:
         logger.error(f"Failed to stop email scheduler: {str(e)}")
+
+    # Close database connections gracefully
+    try:
+        if database.engine:
+            database.engine.dispose()
+            logger.info("🗄️ Database connections closed successfully")
+    except Exception as e:
+        logger.error(f"Failed to close database connections: {str(e)}")
+
+    logger.info("✅ Shutdown complete")
 
 async def run_seeding_process():
     """Run the data seeding process during startup."""
