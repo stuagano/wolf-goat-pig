@@ -45,7 +45,7 @@ const MobileScorecard = ({ gameState }) => {
     };
 
     fetchCourseData();
-  }, [gameState?.course_name]);
+  }, [gameState, gameState?.course_name]);
 
   if (!gameState || !gameState.players) return null;
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const COLORS = {
     primary: "#1976d2",
@@ -180,8 +180,6 @@ const TeeTossModal = ({ players, onClose, onOrderComplete }) => {
             // So the segment for player 0 is from -segmentSize/2 to +segmentSize/2
             // But we are working with 0-360 positive.
             // Let's shift angle by half segment to align boundaries.
-
-            let adjustedAngle = finalAngle;
             // If angle > 360 - halfSegment, it belongs to player 0
             // Or if angle < halfSegment, it belongs to player 0
 
