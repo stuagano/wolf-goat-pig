@@ -16,12 +16,19 @@ if DATABASE_URL:
     if DATABASE_URL.startswith("postgres://"):
         # Fix for newer SQLAlchemy versions
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-    
+
     engine = create_engine(
         DATABASE_URL,
         pool_pre_ping=True,       # Verify connections before use
         pool_recycle=300,         # Recycle connections every 5 minutes
+        pool_size=5,              # Maximum pool size (Render free tier limit)
+        max_overflow=10,          # Allow up to 10 additional connections
+        pool_timeout=30,          # Wait up to 30s for a connection
         pool_reset_on_return='rollback',  # Always rollback on connection return to reset transaction state
+        connect_args={
+            "connect_timeout": 10,  # Connection timeout in seconds
+            "options": "-c statement_timeout=30000"  # Query timeout (30s)
+        },
         echo=os.getenv("ENVIRONMENT") == "development"
     )
 else:

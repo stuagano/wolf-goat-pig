@@ -11,6 +11,7 @@ import sys
 import logging
 import subprocess
 import time
+import signal
 
 # Setup logging
 logging.basicConfig(
@@ -21,6 +22,61 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+# Global flag for graceful shutdown
+shutdown_requested = False
+
+def signal_handler(signum, frame):
+    """Handle shutdown signals gracefully."""
+    global shutdown_requested
+    sig_name = signal.Signals(signum).name
+    logger.info(f"📡 Received signal {sig_name}, initiating graceful shutdown...")
+    shutdown_requested = True
+    sys.exit(0)
+
+# Register signal handlers
+signal.signal(signal.SIGTERM, signal_handler)
+signal.signal(signal.SIGINT, signal_handler)
+
+
+def wait_for_database(max_attempts=30, delay=2):
+    """
+    Wait for database to be ready with retry logic.
+
+    Args:
+        max_attempts: Maximum number of connection attempts
+        delay: Delay in seconds between attempts
+
+    Returns:
+        bool: True if database is ready, False otherwise
+    """
+    logger.info("⏳ Waiting for database to be ready...")
+
+    for attempt in range(1, max_attempts + 1):
+        try:
+            # Try to import and test database connection
+            sys.path.insert(0, os.path.dirname(__file__))
+            from app.database import SessionLocal
+            from sqlalchemy import text
+
+            db = SessionLocal()
+            try:
+                db.execute(text("SELECT 1"))
+                db.commit()
+                logger.info(f"✅ Database ready after {attempt} attempt(s)")
+                return True
+            finally:
+                db.close()
+
+        except Exception as e:
+            if attempt < max_attempts:
+                logger.warning(f"⏳ Database not ready (attempt {attempt}/{max_attempts}): {e}")
+                time.sleep(delay)
+            else:
+                logger.error(f"❌ Database not ready after {max_attempts} attempts: {e}")
+                return False
+
+    return False
+
 
 def run_initialization_steps():
     """
@@ -30,9 +86,10 @@ def run_initialization_steps():
     logger.info("🐺 Wolf-Goat-Pig Render Startup")
     logger.info("=" * 50)
 
-    # Wait for database to be ready
-    logger.info("⏳ Waiting for database...")
-    time.sleep(5)
+    # Wait for database to be ready with retry logic
+    if not wait_for_database():
+        logger.error("❌ Database connection failed, but continuing with startup...")
+        # Continue anyway - app might still work with retry logic in endpoints
 
     # Step 1: Initialize database and run seeding
     logger.info("🗄️ Running database initialization and seeding...")
@@ -90,7 +147,7 @@ def run_initialization_steps():
 
 
 def start_server():
-    """Start the uvicorn server."""
+    """Start the uvicorn server with production-optimized settings."""
     port = os.getenv("PORT", "8000")
 
     logger.info(f"🚀 Starting uvicorn server on 0.0.0.0:{port}")
@@ -108,7 +165,12 @@ def start_server():
             "--host", "0.0.0.0",
             "--port", port,
             "--workers", "1",
-            "--log-level", "info"
+            "--log-level", "info",
+            "--timeout-keep-alive", "75",  # Keep connections alive longer
+            "--timeout-graceful-shutdown", "30",  # Allow 30s for graceful shutdown
+            "--limit-concurrency", "100",  # Limit concurrent connections
+            "--backlog", "2048",  # Connection backlog
+            "--no-access-log"  # Reduce logging overhead (Render already captures logs)
         ])
     except Exception as e:
         logger.error(f"❌ Failed to start uvicorn: {e}")
