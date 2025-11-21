@@ -20,7 +20,7 @@
   },
   "rewrites": [
     {
-      "source": "/((?!static|manifest\\.json|favicon\\.ico|service-worker\\.js|.*\\.(js|css|png|jpg|jpeg|svg|gif|woff|woff2|ttf|eot|json|ico)).*)",
+      "source": "/:path((?!.*\\.).*)",
       "destination": "/index.html"
     }
   ],
