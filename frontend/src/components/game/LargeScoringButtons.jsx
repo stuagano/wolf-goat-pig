@@ -38,9 +38,9 @@ const LargeScoringButtons = ({
     fetchCourseData();
   }, [gameState?.course_name]);
 
-  // Get current hole par from course database ONLY
+  // Get current hole par from course database ONLY - no defaults
   const currentHole = gameState?.current_hole || 1;
-  const holePar = courseData?.holes?.find(h => h.hole_number === currentHole)?.par || 4;
+  const holePar = courseData?.holes?.find(h => h.hole_number === currentHole)?.par;
 
   const updateScore = (playerId, value) => {
     setScores(prev => ({ ...prev, [playerId]: value }));
@@ -157,7 +157,8 @@ const LargeScoringButtons = ({
   const renderScoreSelector = (player) => {
     const playerScore = scores[player.id];
     // Use holePar from course data (defined at component level)
-    const commonScores = [holePar - 2, holePar - 1, holePar, holePar + 1, holePar + 2];
+    // Only create score buttons if holePar is available
+    const commonScores = holePar ? [holePar - 2, holePar - 1, holePar, holePar + 1, holePar + 2] : [];
 
     return (
       <div key={player.id}
@@ -449,7 +450,7 @@ const LargeScoringButtons = ({
             display: 'flex',
             alignItems: 'center'
           }}>
-            Par {holePar}
+            {holePar ? `Par ${holePar}` : 'Par -'}
           </div>
         </div>
 

@@ -51,8 +51,8 @@ const MobileScorecard = ({ gameState }) => {
   const standings = getCurrentStandings();
   const currentHole = gameState.current_hole || 1;
 
-  // Get current hole par from course database ONLY
-  const currentHolePar = courseData?.holes?.find(h => h.hole_number === currentHole)?.par || 4;
+  // Get current hole par from course database ONLY - no defaults
+  const currentHolePar = courseData?.holes?.find(h => h.hole_number === currentHole)?.par;
 
   // Render compact standings view (default for game manager)
   const renderStandingsView = () => (
@@ -73,7 +73,7 @@ const MobileScorecard = ({ gameState }) => {
           {currentHole}
         </div>
         <div style={{ fontSize: '16px', marginTop: '8px', opacity: 0.9 }}>
-          Par {currentHolePar}
+          {currentHolePar ? `Par ${currentHolePar}` : 'Par -'}
         </div>
       </div>
 

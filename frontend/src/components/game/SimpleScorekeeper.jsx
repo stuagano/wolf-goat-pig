@@ -76,7 +76,8 @@ const SimpleScorekeeper = ({
   const [courseData, setCourseData] = useState(null); // Course data with hole information
 
   // Derive current hole par from course data (pars are constants and don't change)
-  const holePar = courseData?.holes?.find(h => h.hole_number === currentHole)?.par || 4;
+  // No defaults - only use actual course data
+  const holePar = courseData?.holes?.find(h => h.hole_number === currentHole)?.par;
 
   // Fetch course data
   useEffect(() => {
@@ -693,13 +694,15 @@ const SimpleScorekeeper = ({
                     const holeNumber = i + 1;
                     // IMPORTANT: ONLY read from course database, never from hole history
                     // Hole history may contain stale/incorrect data that doesn't match the course
-                    const par = courseData?.holes?.find(h => h.hole_number === holeNumber)?.par || 4;
+                    const par = courseData?.holes?.find(h => h.hole_number === holeNumber)?.par;
 
-                    // Track totals for front and back nine
-                    if (holeNumber <= 9) {
-                      frontNinePar += par;
-                    } else {
-                      backNinePar += par;
+                    // Track totals for front and back nine (only if par is defined)
+                    if (par !== undefined) {
+                      if (holeNumber <= 9) {
+                        frontNinePar += par;
+                      } else {
+                        backNinePar += par;
+                      }
                     }
 
                     const showDivider = i === 8; // After hole 9
@@ -711,7 +714,7 @@ const SimpleScorekeeper = ({
                         fontWeight: 'bold',
                         borderLeft: showDivider ? `2px solid ${theme.colors.border}` : 'none'
                       }}>
-                        {par}
+                        {par ?? '-'}
                       </td>
                     );
                   }).concat([
@@ -739,7 +742,7 @@ const SimpleScorekeeper = ({
                 {[...Array(18)].map((_, i) => {
                   const holeNumber = i + 1;
                   // ONLY read handicap from course database
-                  const handicap = courseData?.holes?.find(h => h.hole_number === holeNumber)?.handicap || i + 1;
+                  const handicap = courseData?.holes?.find(h => h.hole_number === holeNumber)?.handicap;
                   const showDivider = i === 8; // After hole 9
                   return (
                     <td key={i} style={{
@@ -749,7 +752,7 @@ const SimpleScorekeeper = ({
                       fontWeight: 'bold',
                       borderLeft: showDivider ? `2px solid ${theme.colors.border}` : 'none'
                     }}>
-                      {handicap}
+                      {handicap ?? '-'}
                     </td>
                   );
                 })}
