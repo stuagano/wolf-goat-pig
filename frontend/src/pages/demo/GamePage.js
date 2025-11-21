@@ -429,6 +429,8 @@ function GamePage({ gameState, setGameState, loading, setLoading, ...rest }) {
           holeHistory={gameState.hole_history || []}
           currentHole={gameState.current_hole}
           captainId={gameState.captain_id}
+          courseHoles={gameState.course_holes || []}
+          strokeAllocation={gameState.stroke_allocation || {}}
         />
       </div>
 

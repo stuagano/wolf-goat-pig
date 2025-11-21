@@ -913,6 +913,8 @@ const UnifiedGameInterface = ({ mode = 'regular' }) => {
           holeHistory={gameState.hole_history || []}
           currentHole={gameState.current_hole || 1}
           captainId={gameState.captain_id}
+          courseHoles={gameState.course_holes || []}
+          strokeAllocation={gameState.stroke_allocation || {}}
           onEditHole={async (editData) => {
             // Handle editing hole scores
             try {

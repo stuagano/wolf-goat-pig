@@ -1,5 +1,5 @@
 // frontend/src/components/game/Scorecard.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Card, Button } from '../ui';
 import { useTheme } from '../../theme/Provider';
@@ -8,15 +8,48 @@ import { useTheme } from '../../theme/Provider';
  * Scorecard component for real game mode
  * Displays all 18 holes with strokes and quarters, with click-to-edit functionality
  */
-const Scorecard = ({ players = [], holeHistory = [], currentHole = 1, onEditHole }) => {
+const Scorecard = ({
+  players = [],
+  holeHistory = [],
+  currentHole = 1,
+  onEditHole,
+  courseHoles = [],
+  strokeAllocation = {}
+}) => {
   const theme = useTheme();
   const [editingHole, setEditingHole] = useState(null);
   const [editingPlayer, setEditingPlayer] = useState(null);
   const [editStrokes, setEditStrokes] = useState('');
   const [editQuarters, setEditQuarters] = useState('');
 
+  // Debug logging
+  useEffect(() => {
+    console.log('[Scorecard] Received data:', {
+      players: players.map(p => ({ id: p.id, name: p.name })),
+      holeHistoryLength: holeHistory.length,
+      currentHole,
+      courseHolesLength: courseHoles.length,
+      hasStrokeAllocation: Object.keys(strokeAllocation).length > 0,
+      holeHistory: holeHistory,
+      courseHoles: courseHoles,
+      strokeAllocation: strokeAllocation
+    });
+  }, [players, holeHistory, currentHole, courseHoles, strokeAllocation]);
+
   // Create a scorecard data structure
   const holes = Array.from({ length: 18 }, (_, i) => i + 1);
+
+  // Get course hole info (par, handicap, yards)
+  const getCourseHoleInfo = (holeNumber) => {
+    if (!courseHoles || courseHoles.length === 0) return null;
+    return courseHoles.find(h => h.hole === holeNumber);
+  };
+
+  // Get stroke allocation for a player on a hole
+  const getStrokesReceived = (playerId, holeNumber) => {
+    if (!strokeAllocation || !strokeAllocation[playerId]) return 0;
+    return strokeAllocation[playerId][holeNumber] || 0;
+  };
 
   // Get hole data for a player
   const getHoleData = (holeNumber, playerId) => {
@@ -120,6 +153,44 @@ const Scorecard = ({ players = [], holeHistory = [], currentHole = 1, onEditHole
               <th style={headerCellStyle}>IN</th>
               <th style={headerCellStyle}>TOT</th>
             </tr>
+            {courseHoles && courseHoles.length > 0 && (
+              <>
+                <tr style={{ backgroundColor: 'rgba(0, 0, 0, 0.02)' }}>
+                  <td style={{ ...cellStyle, fontWeight: 'bold', fontSize: '10px' }}>PAR</td>
+                  {holes.map(hole => {
+                    const holeInfo = getCourseHoleInfo(hole);
+                    return (
+                      <td key={`par-${hole}`} style={{ ...cellStyle, fontSize: '10px', textAlign: 'center' }}>
+                        {holeInfo?.par || '-'}
+                      </td>
+                    );
+                  })}
+                  <td style={{ ...totalCellStyle, fontSize: '10px' }}>
+                    {courseHoles.slice(0, 9).reduce((sum, h) => sum + (h.par || 0), 0)}
+                  </td>
+                  <td style={{ ...totalCellStyle, fontSize: '10px' }}>
+                    {courseHoles.slice(9, 18).reduce((sum, h) => sum + (h.par || 0), 0)}
+                  </td>
+                  <td style={{ ...totalCellStyle, fontWeight: 'bold', fontSize: '10px' }}>
+                    {courseHoles.reduce((sum, h) => sum + (h.par || 0), 0)}
+                  </td>
+                </tr>
+                <tr style={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }}>
+                  <td style={{ ...cellStyle, fontWeight: 'bold', fontSize: '9px' }}>HDCP</td>
+                  {holes.map(hole => {
+                    const holeInfo = getCourseHoleInfo(hole);
+                    return (
+                      <td key={`hdcp-${hole}`} style={{ ...cellStyle, fontSize: '9px', textAlign: 'center' }}>
+                        {holeInfo?.handicap || '-'}
+                      </td>
+                    );
+                  })}
+                  <td style={{ ...totalCellStyle, fontSize: '9px' }}>-</td>
+                  <td style={{ ...totalCellStyle, fontSize: '9px' }}>-</td>
+                  <td style={{ ...totalCellStyle, fontSize: '9px' }}>-</td>
+                </tr>
+              </>
+            )}
           </thead>
           <tbody>
             {players.map((player, idx) => {
@@ -146,6 +217,7 @@ const Scorecard = ({ players = [], holeHistory = [], currentHole = 1, onEditHole
                     const { quarters, strokes } = getHoleData(hole, player.id);
                     const isCurrentHole = hole === currentHole;
                     const isCompleted = hole < currentHole || (holeHistory.find(h => h.hole === hole));
+                    const strokesReceived = getStrokesReceived(player.id, hole);
 
                     return (
                       <td
@@ -155,7 +227,8 @@ const Scorecard = ({ players = [], holeHistory = [], currentHole = 1, onEditHole
                           backgroundColor: isCurrentHole ? 'rgba(255, 215, 0, 0.1)' : 'transparent',
                           fontWeight: (quarters && quarters !== 0) || strokes ? 'bold' : 'normal',
                           color: quarters > 0 ? '#4CAF50' : quarters < 0 ? '#f44336' : theme.colors.textSecondary,
-                          cursor: isCurrentHole || isCompleted ? 'pointer' : 'default'
+                          cursor: isCurrentHole || isCompleted ? 'pointer' : 'default',
+                          position: 'relative'
                         }}
                         title={isCurrentHole || isCompleted ? 'Click to edit' : ''}
                         onClick={() => handleCellClick(hole, player.id)}
@@ -164,6 +237,15 @@ const Scorecard = ({ players = [], holeHistory = [], currentHole = 1, onEditHole
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: '1.2' }}>
                             <div style={{ fontSize: '11px', fontWeight: 'bold' }}>
                               {strokes || '-'}
+                              {strokesReceived === 1 && (
+                                <span style={{ color: theme.colors.accent, marginLeft: '2px' }} title="Gets 1 stroke">●</span>
+                              )}
+                              {strokesReceived === 0.5 && (
+                                <span style={{ color: theme.colors.warning, marginLeft: '2px' }} title="Gets 0.5 stroke">◐</span>
+                              )}
+                              {strokesReceived > 1 && (
+                                <span style={{ color: theme.colors.accent, marginLeft: '2px', fontSize: '8px' }} title={`Gets ${strokesReceived} strokes`}>●{strokesReceived}</span>
+                              )}
                             </div>
                             <div style={{ fontSize: '9px', marginTop: '2px' }}>
                               {quarters !== null && quarters !== 0 ? (
@@ -171,7 +253,15 @@ const Scorecard = ({ players = [], holeHistory = [], currentHole = 1, onEditHole
                               ) : '·'}
                             </div>
                           </div>
-                        ) : ''}
+                        ) : (
+                          strokesReceived > 0 && (
+                            <div style={{ fontSize: '10px', color: theme.colors.textSecondary }}>
+                              {strokesReceived === 1 && <span title="Gets 1 stroke">●</span>}
+                              {strokesReceived === 0.5 && <span title="Gets 0.5 stroke">◐</span>}
+                              {strokesReceived > 1 && <span title={`Gets ${strokesReceived} strokes`}>●{strokesReceived}</span>}
+                            </div>
+                          )
+                        )}
                       </td>
                     );
                   })}
@@ -313,7 +403,14 @@ Scorecard.propTypes = {
     gross_scores: PropTypes.object
   })),
   currentHole: PropTypes.number,
-  onEditHole: PropTypes.func
+  onEditHole: PropTypes.func,
+  courseHoles: PropTypes.arrayOf(PropTypes.shape({
+    hole: PropTypes.number.isRequired,
+    par: PropTypes.number,
+    handicap: PropTypes.number,
+    yards: PropTypes.number
+  })),
+  strokeAllocation: PropTypes.object
 };
 
 export default Scorecard;
