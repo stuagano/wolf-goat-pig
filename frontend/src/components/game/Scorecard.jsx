@@ -1,7 +1,7 @@
 // frontend/src/components/game/Scorecard.jsx
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { Card, Button } from '../ui';
+import { Card, Button, Input } from '../ui';
 import { useTheme } from '../../theme/Provider';
 
 /**
@@ -399,17 +399,14 @@ const Scorecard = ({
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
                 Strokes (Gross Score):
               </label>
-              <input
+              <Input
                 type="number"
                 value={editStrokes}
                 onChange={(e) => setEditStrokes(e.target.value)}
                 min="0"
                 max="15"
-                autoComplete="off"
-                data-lpignore="true"
-                data-form-type="other"
-                data-1p-ignore="true"
-                style={{
+                variant="inline"
+                inputStyle={{
                   width: '100%',
                   padding: '8px',
                   fontSize: '16px',
@@ -426,18 +423,15 @@ const Scorecard = ({
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
                 Quarters (Manual Override):
               </label>
-              <input
+              <Input
                 type="number"
                 value={editQuarters}
                 onChange={(e) => setEditQuarters(e.target.value)}
                 min="-10"
                 max="10"
                 step="0.5"
-                autoComplete="off"
-                data-lpignore="true"
-                data-form-type="other"
-                data-1p-ignore="true"
-                style={{
+                variant="inline"
+                inputStyle={{
                   width: '100%',
                   padding: '8px',
                   fontSize: '16px',
@@ -492,23 +486,20 @@ const Scorecard = ({
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
                 Player Name:
               </label>
-              <input
+              <Input
                 type="text"
                 value={editPlayerNameValue}
                 onChange={(e) => setEditPlayerNameValue(e.target.value)}
                 placeholder="Enter player name"
                 maxLength="50"
                 autoFocus
-                autoComplete="off"
-                data-lpignore="true"
-                data-form-type="other"
-                data-1p-ignore="true"
+                variant="inline"
                 onKeyPress={(e) => {
                   if (e.key === 'Enter') {
                     handleSavePlayerName();
                   }
                 }}
-                style={{
+                inputStyle={{
                   width: '100%',
                   padding: '12px',
                   fontSize: '16px',

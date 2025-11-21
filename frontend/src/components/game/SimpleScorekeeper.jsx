@@ -1,6 +1,7 @@
 // frontend/src/components/game/SimpleScorekeeper.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTheme } from '../../theme/Provider';
+import { Input } from '../ui';
 import GameCompletionView from './GameCompletionView';
 import Scorecard from './Scorecard';
 import { triggerBadgeNotification } from '../BadgeNotification';
@@ -1012,7 +1013,7 @@ const SimpleScorekeeper = ({
                 Reset
               </button>
             </div>
-            <input
+            <Input
               type="number"
               min={nextHoleWager}
               step={nextHoleWager}
@@ -1023,11 +1024,8 @@ const SimpleScorekeeper = ({
                   setCurrentWager(value);
                 }
               }}
-              autoComplete="off"
-              data-lpignore="true"
-              data-form-type="other"
-              data-1p-ignore="true"
-              style={{
+              variant="inline"
+              inputStyle={{
                 width: '100%',
                 padding: '8px',
                 fontSize: '14px',
@@ -1773,18 +1771,15 @@ const SimpleScorekeeper = ({
                 {player.name}
                 :
               </label>
-              <input
+              <Input
                 data-testid={`score-input-${player.id}`}
                 type="number"
                 min="0"
                 max="15"
                 value={scores[player.id] || ''}
                 onChange={(e) => handleScoreChange(player.id, e.target.value)}
-                autoComplete="off"
-                data-lpignore="true"
-                data-form-type="other"
-                data-1p-ignore="true"
-                style={{
+                variant="inline"
+                inputStyle={{
                   width: '60px',
                   padding: '8px',
                   fontSize: '16px',
@@ -2049,23 +2044,20 @@ const SimpleScorekeeper = ({
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: theme.colors.textPrimary }}>
                 Player Name:
               </label>
-              <input
+              <Input
                 type="text"
                 value={editPlayerNameValue}
                 onChange={(e) => setEditPlayerNameValue(e.target.value)}
                 placeholder="Enter player name"
                 maxLength="50"
                 autoFocus
-                autoComplete="off"
-                data-lpignore="true"
-                data-form-type="other"
-                data-1p-ignore="true"
+                variant="inline"
                 onKeyPress={(e) => {
                   if (e.key === 'Enter') {
                     handleSavePlayerName();
                   }
                 }}
-                style={{
+                inputStyle={{
                   width: '100%',
                   padding: '12px',
                   fontSize: '16px',

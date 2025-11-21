@@ -1,7 +1,7 @@
 import React, { useId } from 'react';
 import { useTheme } from '../../theme/Provider';
 
-const Input = ({ 
+const Input = ({
   label,
   error,
   disabled = false,
@@ -12,7 +12,9 @@ const Input = ({
   style = {},
   inputStyle = {},
   id,
-  ...props 
+  variant = 'default', // 'default' | 'inline'
+  browserProtection = true, // Enable browser extension protection by default
+  ...props
 }) => {
   const theme = useTheme();
   const generatedId = useId();
@@ -60,6 +62,35 @@ const Input = ({
     color: theme.colors.error,
   };
 
+  // Browser extension protection attributes
+  const protectionProps = browserProtection ? {
+    autoComplete: 'off',
+    'data-lpignore': 'true',
+    'data-form-type': 'other',
+    'data-1p-ignore': 'true'
+  } : {};
+
+  // Input element
+  const inputElement = (
+    <input
+      type={type}
+      placeholder={placeholder}
+      value={value}
+      onChange={onChange}
+      disabled={disabled}
+      style={variant === 'inline' ? inputStyle : baseInputStyle}
+      id={inputId}
+      {...protectionProps}
+      {...props}
+    />
+  );
+
+  // Inline variant: just return the input
+  if (variant === 'inline') {
+    return inputElement;
+  }
+
+  // Default variant: return input with label and error
   return (
     <div style={containerStyle}>
       {label && (
@@ -67,16 +98,7 @@ const Input = ({
           {label}
         </label>
       )}
-      <input
-        type={type}
-        placeholder={placeholder}
-        value={value}
-        onChange={onChange}
-        disabled={disabled}
-        style={baseInputStyle}
-        id={inputId}
-        {...props}
-      />
+      {inputElement}
       {error && (
         <div style={errorStyle}>
           {error}

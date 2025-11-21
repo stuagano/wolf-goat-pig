@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTheme } from '../theme/Provider';
 import { useAuth0 } from '@auth0/auth0-react';
+import { Input } from '../components/ui';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -121,17 +122,14 @@ function JoinGamePage() {
             }}>
               Join Code:
             </label>
-            <input
+            <Input
               type="text"
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
               placeholder="ABC123"
               maxLength={6}
-              autoComplete="off"
-              data-lpignore="true"
-              data-form-type="other"
-              data-1p-ignore="true"
-              style={{
+              variant="inline"
+              inputStyle={{
                 width: '100%',
                 padding: 12,
                 fontSize: 20,
@@ -164,16 +162,13 @@ function JoinGamePage() {
             }}>
               Your Name:
             </label>
-            <input
+            <Input
               type="text"
               value={playerName}
               onChange={(e) => setPlayerName(e.target.value)}
               placeholder="Enter your name"
-              autoComplete="off"
-              data-lpignore="true"
-              data-form-type="other"
-              data-1p-ignore="true"
-              style={{
+              variant="inline"
+              inputStyle={{
                 width: '100%',
                 padding: 12,
                 fontSize: 16,
@@ -195,17 +190,14 @@ function JoinGamePage() {
             }}>
               Your Handicap:
             </label>
-            <input
+            <Input
               type="number"
               step="0.1"
               value={handicap}
               onChange={(e) => setHandicap(e.target.value)}
               placeholder="18.0"
-              autoComplete="off"
-              data-lpignore="true"
-              data-form-type="other"
-              data-1p-ignore="true"
-              style={{
+              variant="inline"
+              inputStyle={{
                 width: '100%',
                 padding: 12,
                 fontSize: 16,

@@ -1,6 +1,7 @@
 // frontend/src/components/game/LargeScoringButtons.jsx
 import React, { useState } from 'react';
 import { useTheme } from '../../theme/Provider';
+import { Input } from '../ui';
 import '../../styles/mobile-touch.css';
 
 const API_URL = process.env.REACT_APP_API_URL || '';
@@ -309,7 +310,7 @@ const LargeScoringButtons = ({
 
         {/* Custom score input for unusual scores */}
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <input
+          <Input
             type="number"
             placeholder="Other score..."
             value={playerScore !== undefined && !commonScores.includes(playerScore) ? playerScore : ''}
@@ -317,11 +318,8 @@ const LargeScoringButtons = ({
               const val = e.target.value ? parseInt(e.target.value) : undefined;
               if (val) updateScore(player.id, val);
             }}
-            autoComplete="off"
-            data-lpignore="true"
-            data-form-type="other"
-            data-1p-ignore="true"
-            style={{
+            variant="inline"
+            inputStyle={{
               flex: 1,
               padding: '16px', // Increased from 12px
               fontSize: '20px', // Increased from 16px for better visibility
