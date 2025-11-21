@@ -44,7 +44,7 @@ describe('usePlayerProfile', () => {
     const { result } = renderProfileHook();
 
     await waitFor(() => expect(result.current.profiles.length).toBe(2));
-    expect(fetch).toHaveBeenCalledWith('/api/players');
+    expect(fetch).toHaveBeenCalledWith('http://test-api.com/api/players');
   });
 
   test('selectProfile updates selected profile and saves to localStorage', async () => {
@@ -84,7 +84,7 @@ describe('usePlayerProfile', () => {
     });
 
     expect(created).toEqual({ id: '3', name: 'Carol', handicap: 20 });
-    expect(fetch).toHaveBeenCalledWith('/api/players', expect.any(Object));
+    expect(fetch).toHaveBeenCalledWith('http://test-api.com/api/players', expect.any(Object));
   });
 
   test('loadProfileStatistics caches results', async () => {
@@ -111,6 +111,6 @@ describe('usePlayerProfile', () => {
     });
 
     expect(stats).toEqual(mockStatistics);
-    expect(fetch).toHaveBeenCalledWith('/api/players/1/statistics');
+    expect(fetch).toHaveBeenCalledWith('http://test-api.com/api/players/1/statistics');
   });
 });
