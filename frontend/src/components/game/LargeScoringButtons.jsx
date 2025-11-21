@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { useTheme } from '../../theme/Provider';
 import '../../styles/mobile-touch.css';
 
+const API_URL = process.env.REACT_APP_API_URL || '';
+
 const LargeScoringButtons = ({
   gameState,
   onScoreSubmit,
@@ -23,7 +25,7 @@ const LargeScoringButtons = ({
       try {
         const courseName = gameState?.course_name;
         if (courseName) {
-          const courseResponse = await fetch(`/api/courses`);
+          const courseResponse = await fetch(`${API_URL}/courses`);
           if (courseResponse.ok) {
             const coursesData = await courseResponse.json();
             const course = coursesData[courseName];

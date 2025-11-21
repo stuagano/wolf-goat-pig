@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Card } from './ui';
 
+const API_URL = process.env.REACT_APP_API_URL || '';
+
 /**
  * PerformanceAnalytics - Advanced analytics visualization component
  * 
@@ -35,10 +37,10 @@ const PerformanceAnalytics = ({ playerId, playerName, timeRange = 30 }) => {
 
             // Load all analytics data in parallel
             const [trendsResponse, metricsResponse, insightsResponse, ratingResponse] = await Promise.all([
-                fetch(`/api/players/${playerId}/trends?days=${selectedTimeRange}`),
-                fetch(`/api/players/${playerId}/advanced-metrics`),
-                fetch(`/api/players/${playerId}/insights`),
-                fetch(`/api/players/${playerId}/skill-rating`)
+                fetch(`${API_URL}/api/players/${playerId}/trends?days=${selectedTimeRange}`),
+                fetch(`${API_URL}/api/players/${playerId}/advanced-metrics`),
+                fetch(`${API_URL}/api/players/${playerId}/insights`),
+                fetch(`${API_URL}/api/players/${playerId}/skill-rating`)
             ]);
 
             const trendsData = trendsResponse.ok ? await trendsResponse.json() : null;

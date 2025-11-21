@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import './MonteCarloSimulation.css';
 
+const API_URL = process.env.REACT_APP_API_URL || '';
+
 const MonteCarloSimulation = () => {
   const [formData, setFormData] = useState({
     humanPlayer: {
@@ -54,7 +56,7 @@ const MonteCarloSimulation = () => {
     setResults(null);
 
     try {
-      const response = await fetch('/api/simulation/monte-carlo', {
+      const response = await fetch(`${API_URL}/api/simulation/monte-carlo`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

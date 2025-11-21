@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './BadgeGallery.css';
 
+const API_URL = process.env.REACT_APP_API_URL || '';
+
 const RARITY_COLORS = {
   common: '#9CA3AF',
   rare: '#3B82F6',
@@ -34,17 +36,17 @@ const BadgeGallery = ({ playerId }) => {
       setLoading(true);
 
       // Fetch earned badges
-      const earnedResponse = await fetch(`/api/badges/player/${playerId}/earned`);
+      const earnedResponse = await fetch(`${API_URL}/api/badges/player/${playerId}/earned`);
       const earnedData = await earnedResponse.json();
       setEarnedBadges(earnedData);
 
       // Fetch all available badges
-      const allResponse = await fetch('/api/badges/available');
+      const allResponse = await fetch(`${API_URL}/api/badges/available`);
       const allData = await allResponse.json();
       setAllBadges(allData);
 
       // Fetch badge stats
-      const statsResponse = await fetch(`/api/badges/player/${playerId}/stats`);
+      const statsResponse = await fetch(`${API_URL}/api/badges/player/${playerId}/stats`);
       const statsData = await statsResponse.json();
       setBadgeStats(statsData);
 
