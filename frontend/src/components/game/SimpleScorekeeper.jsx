@@ -1379,7 +1379,7 @@ const SimpleScorekeeper = ({
             }}>
               ⛳ STROKES ON HOLE {currentHole}
               <span style={{ fontSize: '11px', fontWeight: 'normal', opacity: 0.9 }}>
-                (Stroke Index: {defaultStrokeIndex})
+                (Stroke Index: {strokeIndex})
               </span>
             </div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
