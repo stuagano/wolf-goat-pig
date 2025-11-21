@@ -8,6 +8,7 @@ import logging
 from copy import deepcopy
 from datetime import datetime
 from .mixins import PersistenceMixin
+from .state.course_manager import get_wing_point_holes
 from .validators import (
     HandicapValidator,
     BettingValidator,
@@ -1736,11 +1737,21 @@ class WolfGoatPigGame(PersistenceMixin):
                 ...
             ]
         """
+        # Get Wing Point holes as fallback data
+        wing_point_holes = get_wing_point_holes()
+
         holes_info = []
 
         if not self.course_manager:
-            # Return default/empty data if no course loaded
-            return [{"hole": i, "par": 4, "handicap": i, "yards": 400} for i in range(1, 19)]
+            # Use Wing Point as fallback if no course loaded
+            for wp_hole in wing_point_holes:
+                holes_info.append({
+                    "hole": wp_hole["hole_number"],
+                    "par": wp_hole["par"],
+                    "handicap": wp_hole["stroke_index"],
+                    "yards": wp_hole["yards"]
+                })
+            return holes_info
 
         for hole_num in range(1, 19):
             try:
@@ -1753,12 +1764,23 @@ class WolfGoatPigGame(PersistenceMixin):
                 })
             except Exception as e:
                 logger.warning(f"Failed to get hole info for hole {hole_num}: {e}")
-                holes_info.append({
-                    "hole": hole_num,
-                    "par": 4,
-                    "handicap": hole_num,
-                    "yards": 400
-                })
+                # Use Wing Point hole as fallback for this specific hole
+                wp_hole = wing_point_holes[hole_num - 1] if hole_num <= len(wing_point_holes) else None
+                if wp_hole:
+                    holes_info.append({
+                        "hole": hole_num,
+                        "par": wp_hole["par"],
+                        "handicap": wp_hole["stroke_index"],
+                        "yards": wp_hole["yards"]
+                    })
+                else:
+                    # Final fallback to generic defaults
+                    holes_info.append({
+                        "hole": hole_num,
+                        "par": 4,
+                        "handicap": hole_num,
+                        "yards": 400
+                    })
 
         return holes_info
 
