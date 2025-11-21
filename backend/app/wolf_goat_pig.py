@@ -8,6 +8,7 @@ import logging
 from copy import deepcopy
 from datetime import datetime
 from .mixins import PersistenceMixin
+from .state.course_manager import get_wing_point_holes
 from .validators import (
     HandicapValidator,
     BettingValidator,
@@ -1583,6 +1584,7 @@ class WolfGoatPigGame(PersistenceMixin):
             "game_phase": self.game_phase.value,
             "player_count": self.player_count,
             **hole_info,  # Include hole info at top level
+            "course_name": self.course_manager.selected_course if self.course_manager else getattr(self, 'course_name', None),
             "players": [
                 {
                     "id": p.id,
@@ -1596,6 +1598,8 @@ class WolfGoatPigGame(PersistenceMixin):
             ],
             "hole_state": self._get_hole_state_summary() if hole_state else None,
             "hole_history": getattr(self, 'scorekeeper_hole_history', None) or self._get_hole_history(),
+            "course_holes": self._get_course_scorecard_info(),
+            "stroke_allocation": self._get_stroke_allocation_table(),
             "hoepfinger_start": self.hoepfinger_start_hole,
             "settings": {
                 "double_points_round": self.double_points_round,
@@ -1625,14 +1629,17 @@ class WolfGoatPigGame(PersistenceMixin):
 
             # Only include holes that have been completed with scores
             if hole_state.hole_complete and hole_state.scores:
-                history.append({
+                hole_data = {
                     "hole": hole_num,
                     "gross_scores": hole_state.scores.copy(),
                     "points_delta": hole_state.points_awarded.copy() if hole_state.points_awarded else {},
                     "wager": hole_state.betting.current_wager,
                     "team_type": hole_state.teams.type,
-                    "halved": not bool(hole_state.points_awarded) or all(v == 0 for v in hole_state.points_awarded.values())
-                })
+                    "halved": not bool(hole_state.points_awarded) or all(v == 0 for v in hole_state.points_awarded.values()),
+                    "par": hole_state.hole_par,
+                    "handicap": hole_state.stroke_index
+                }
+                history.append(hole_data)
 
         return history
 
@@ -1715,7 +1722,112 @@ class WolfGoatPigGame(PersistenceMixin):
         }
     
     # Helper methods
-    
+
+    def _get_course_scorecard_info(self) -> List[Dict[str, Any]]:
+        """
+        Get par and handicap (stroke index) for all 18 holes for scorecard display.
+        This provides the course layout information that appears at the top of
+        traditional scorecards.
+
+        Returns:
+            List of hole information dictionaries for holes 1-18
+            Example: [
+                {"hole": 1, "par": 4, "handicap": 5, "yards": 420},
+                {"hole": 2, "par": 3, "handicap": 17, "yards": 165},
+                ...
+            ]
+        """
+        # Get Wing Point holes as fallback data
+        wing_point_holes = get_wing_point_holes()
+
+        holes_info = []
+
+        if not self.course_manager:
+            # Use Wing Point as fallback if no course loaded
+            for wp_hole in wing_point_holes:
+                holes_info.append({
+                    "hole": wp_hole["hole_number"],
+                    "par": wp_hole["par"],
+                    "handicap": wp_hole["stroke_index"],
+                    "yards": wp_hole["yards"]
+                })
+            return holes_info
+
+        for hole_num in range(1, 19):
+            try:
+                hole_info = self.course_manager.get_hole_info(hole_num)
+                holes_info.append({
+                    "hole": hole_num,
+                    "par": hole_info.get("par", 4),
+                    "handicap": hole_info.get("stroke_index", hole_num),
+                    "yards": hole_info.get("yards", 400)
+                })
+            except Exception as e:
+                logger.warning(f"Failed to get hole info for hole {hole_num}: {e}")
+                # Use Wing Point hole as fallback for this specific hole
+                wp_hole = wing_point_holes[hole_num - 1] if hole_num <= len(wing_point_holes) else None
+                if wp_hole:
+                    holes_info.append({
+                        "hole": hole_num,
+                        "par": wp_hole["par"],
+                        "handicap": wp_hole["stroke_index"],
+                        "yards": wp_hole["yards"]
+                    })
+                else:
+                    # Final fallback to generic defaults
+                    holes_info.append({
+                        "hole": hole_num,
+                        "par": 4,
+                        "handicap": hole_num,
+                        "yards": 400
+                    })
+
+        return holes_info
+
+    def _get_stroke_allocation_table(self) -> Dict[str, Dict[int, float]]:
+        """
+        Calculate stroke allocation for all 18 holes for each player.
+        This allows the scorecard to display which holes each player gets strokes on
+        before those holes are played (traditional golf scorecard functionality).
+
+        Returns:
+            Dictionary mapping player_id -> {hole_number: strokes_received}
+            Example: {
+                "player1": {1: 1.0, 2: 0.5, 3: 0.0, ...},
+                "player2": {1: 0.5, 2: 0.0, 3: 0.0, ...}
+            }
+        """
+        stroke_allocation = {}
+
+        if not self.course_manager:
+            return stroke_allocation
+
+        for player in self.players:
+            player_strokes = {}
+
+            # Calculate strokes for all 18 holes
+            for hole_num in range(1, 19):
+                try:
+                    # Get stroke index for this hole
+                    hole_info = self.course_manager.get_hole_info(hole_num)
+                    stroke_index = hole_info.get("stroke_index", hole_num)
+
+                    # Calculate strokes received using Creecher Feature
+                    strokes = HandicapValidator.calculate_strokes_received_with_creecher(
+                        player.handicap,
+                        stroke_index,
+                        validate=True
+                    )
+                    player_strokes[hole_num] = strokes
+
+                except Exception as e:
+                    logger.warning(f"Failed to calculate strokes for player {player.id} hole {hole_num}: {e}")
+                    player_strokes[hole_num] = 0.0
+
+            stroke_allocation[player.id] = player_strokes
+
+        return stroke_allocation
+
     def _get_player_name(self, player_id: str) -> str:
         """Get player name by ID"""
         player = next((p for p in self.players if p.id == player_id), None)
@@ -3519,7 +3631,7 @@ class WolfGoatPigGame(PersistenceMixin):
                 'betting_analysis_enabled': self.betting_analysis_enabled,
                 'shot_simulation_mode': self.shot_simulation_mode,
                 'hole_progression': hole_progression_data,
-                'course_name': self.course_manager.course_name if self.course_manager else None,
+                'course_name': self.course_manager.selected_course if self.course_manager else None,
                 '_game_completed': self._game_completed
             }
 
@@ -3644,7 +3756,7 @@ class WolfGoatPigGame(PersistenceMixin):
                 self.course_manager = CourseManager()
                 course_name = data.get('course_name')
                 if course_name:
-                    self.course_manager.course_name = course_name
+                    self.course_manager.load_course(course_name)
 
             # Initialize empty computer players dict
             self.computer_players = {}
@@ -3665,7 +3777,7 @@ class WolfGoatPigGame(PersistenceMixin):
     def _get_game_metadata(self) -> Dict[str, Any]:
         """Get game metadata for completion record. Used by PersistenceMixin."""
         return {
-            'course_name': self.course_manager.course_name if self.course_manager else 'Unknown',
+            'course_name': self.course_manager.selected_course if self.course_manager else 'Unknown',
             'player_count': self.player_count,
             'total_holes_played': len(self.hole_states),
             'settings': {
