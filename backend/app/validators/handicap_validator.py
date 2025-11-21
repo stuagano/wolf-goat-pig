@@ -211,16 +211,18 @@ class HandicapValidator:
             if stroke_index <= full_handicap:
                 total_strokes += 0.5
         elif full_handicap <= 18:
-            # Rule 2: Easiest 6 allocated holes get 0.5, rest 1.0
-            # Allocated holes are 1 to full_handicap
+            # Rule 2: Easiest 6 allocated holes get 0.5, rest get 1.0 (Creecher)
+            # Allocated holes are stroke indexes 1 to full_handicap
+            # Remember: stroke index 1 = hardest hole, stroke index 18 = easiest hole
             if stroke_index <= full_handicap:
-                # The easiest 6 holes of the allocated set are indices:
-                # (full_handicap - 5) to full_handicap
+                # The easiest 6 holes you get strokes on are the highest stroke indexes
+                # For H=13: easiest 6 are indexes 8-13, rest (1-7) are full strokes
+                # For H=10: easiest 6 are indexes 5-10, rest (1-4) are full strokes
                 creecher_threshold = full_handicap - 6
                 if stroke_index > creecher_threshold:
-                    total_strokes += 0.5
+                    total_strokes += 0.5  # Easiest 6 get half strokes
                 else:
-                    total_strokes += 1.0
+                    total_strokes += 1.0  # Rest get full strokes
         else:
             # Rule 3 (Base part): H > 18
             # Holes 13-18 get 0.5, Holes 1-12 get 1.0
