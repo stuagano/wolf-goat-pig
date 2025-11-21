@@ -1,38 +1,50 @@
-# Configuration for automatic PR labeling
+# Configuration for automatic PR labeling (labeler v5 format)
 
 backend:
-  - backend/**/*
+  - changed-files:
+    - any-glob-to-any-file: 'backend/**/*'
 
 frontend:
-  - frontend/**/*
+  - changed-files:
+    - any-glob-to-any-file: 'frontend/**/*'
 
 documentation:
-  - '**/*.md'
-  - docs/**/*
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*.md'
+      - 'docs/**/*'
 
 tests:
-  - '**/test_*.py'
-  - '**/*.test.js'
-  - '**/*.test.jsx'
-  - '**/*.test.ts'
-  - '**/*.test.tsx'
-  - '**/tests/**/*'
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/test_*.py'
+      - '**/*.test.js'
+      - '**/*.test.jsx'
+      - '**/*.test.ts'
+      - '**/*.test.tsx'
+      - '**/tests/**/*'
 
 dependencies:
-  - '**/requirements*.txt'
-  - '**/package.json'
-  - '**/package-lock.json'
-  - '**/yarn.lock'
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/requirements*.txt'
+      - '**/package.json'
+      - '**/package-lock.json'
+      - '**/yarn.lock'
 
 ci/cd:
-  - .github/workflows/*
-  - .github/actions/*
-  - '**/Dockerfile'
-  - '**/docker-compose*.yml'
+  - changed-files:
+    - any-glob-to-any-file:
+      - '.github/workflows/*'
+      - '.github/actions/*'
+      - '**/Dockerfile'
+      - '**/docker-compose*.yml'
 
 configuration:
-  - '**/*.env*'
-  - '**/*.config.js'
-  - '**/*.config.ts'
-  - '**/settings.py'
-  - '**/config.py'
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*.env*'
+      - '**/*.config.js'
+      - '**/*.config.ts'
+      - '**/settings.py'
+      - '**/config.py'
