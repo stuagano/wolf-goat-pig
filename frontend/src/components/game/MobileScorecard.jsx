@@ -3,6 +3,8 @@ import React from 'react';
 import { useTheme } from '../../theme/Provider';
 import '../../styles/mobile-touch.css';
 
+const API_URL = process.env.REACT_APP_API_URL || '';
+
 /**
  * Mobile-optimized scorecard for game managers
  * Replaces traditional paper scorecard with easy-to-read digital version
@@ -24,7 +26,7 @@ const MobileScorecard = ({ gameState }) => {
       try {
         const courseName = gameState.course_name;
         if (courseName) {
-          const courseResponse = await fetch(`/api/courses`);
+          const courseResponse = await fetch(`${API_URL}/courses`);
           if (courseResponse.ok) {
             const coursesData = await courseResponse.json();
             const course = coursesData[courseName];

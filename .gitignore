@@ -152,7 +152,7 @@ pnpm-lock.yaml
 .nuxt
 
 # Gatsby files
-public
+# public  # Commented out - CRA needs frontend/public/ for static assets
 
 # Storybook build outputs
 .out
