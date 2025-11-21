@@ -413,6 +413,10 @@ function GameSetupForm({ onSetup }) {
                 style={{ width: 120, minWidth: 80, maxWidth: 200, marginRight: 8, boxSizing: 'border-box', flex: '1 1 auto' }}
                 id={`player-${idx}-name`}
                 disabled={setupMode === 'profile' && idx === 0 && selectedProfile}
+                autoComplete="off"
+                data-lpignore="true"
+                data-form-type="other"
+                data-1p-ignore="true"
               />
               <label htmlFor={`player-${idx}-handicap`} style={{ fontSize: 12, fontWeight: 600, flexShrink: 0 }}>
                 Handicap
@@ -425,6 +429,10 @@ function GameSetupForm({ onSetup }) {
                 style={{ width: 70, minWidth: 60, maxWidth: 100, marginRight: 8, boxSizing: 'border-box', flex: '0 1 auto' }}
                 id={`player-${idx}-handicap`}
                 disabled={setupMode === 'profile' && idx === 0 && selectedProfile}
+                autoComplete="off"
+                data-lpignore="true"
+                data-form-type="other"
+                data-1p-ignore="true"
               />
               <select
                 value={player.strength}
@@ -452,6 +460,10 @@ function GameSetupForm({ onSetup }) {
                 value={ghinSearch[player.id]?.first_name || ''}
                 onChange={e => handleGhinSearchChange(player.id, 'first_name', e.target.value)}
                 style={{ width: 120, minWidth: 80, maxWidth: 180, padding: 6, marginRight: 4, boxSizing: 'border-box', borderRadius: 4, border: '1px solid #ccc' }}
+                autoComplete="off"
+                data-lpignore="true"
+                data-form-type="other"
+                data-1p-ignore="true"
               />
               <input
                 type="text"
@@ -460,6 +472,10 @@ function GameSetupForm({ onSetup }) {
                 onChange={e => handleGhinSearchChange(player.id, 'last_name', e.target.value)}
                 required
                 style={{ width: 120, minWidth: 80, maxWidth: 180, padding: 6, marginRight: 4, boxSizing: 'border-box', borderRadius: 4, border: '1px solid #ccc' }}
+                autoComplete="off"
+                data-lpignore="true"
+                data-form-type="other"
+                data-1p-ignore="true"
               />
               <button
                 type="button"

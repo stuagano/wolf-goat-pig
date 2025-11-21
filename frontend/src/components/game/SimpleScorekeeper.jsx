@@ -1605,6 +1605,10 @@ const SimpleScorekeeper = ({
                   setCurrentWager(value);
                 }
               }}
+              autoComplete="off"
+              data-lpignore="true"
+              data-form-type="other"
+              data-1p-ignore="true"
               style={{
                 width: '100%',
                 padding: '8px',
@@ -2358,6 +2362,10 @@ const SimpleScorekeeper = ({
                 max="15"
                 value={scores[player.id] || ''}
                 onChange={(e) => handleScoreChange(player.id, e.target.value)}
+                autoComplete="off"
+                data-lpignore="true"
+                data-form-type="other"
+                data-1p-ignore="true"
                 style={{
                   width: '60px',
                   padding: '8px',
@@ -2630,6 +2638,10 @@ const SimpleScorekeeper = ({
                 placeholder="Enter player name"
                 maxLength="50"
                 autoFocus
+                autoComplete="off"
+                data-lpignore="true"
+                data-form-type="other"
+                data-1p-ignore="true"
                 onKeyPress={(e) => {
                   if (e.key === 'Enter') {
                     handleSavePlayerName();

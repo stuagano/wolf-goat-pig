@@ -402,6 +402,10 @@ const Scorecard = ({
                 onChange={(e) => setEditStrokes(e.target.value)}
                 min="0"
                 max="15"
+                autoComplete="off"
+                data-lpignore="true"
+                data-form-type="other"
+                data-1p-ignore="true"
                 style={{
                   width: '100%',
                   padding: '8px',
@@ -422,6 +426,10 @@ const Scorecard = ({
                 onChange={(e) => setEditQuarters(e.target.value)}
                 min="-10"
                 max="10"
+                autoComplete="off"
+                data-lpignore="true"
+                data-form-type="other"
+                data-1p-ignore="true"
                 style={{
                   width: '100%',
                   padding: '8px',
@@ -481,6 +489,10 @@ const Scorecard = ({
                 placeholder="Enter player name"
                 maxLength="50"
                 autoFocus
+                autoComplete="off"
+                data-lpignore="true"
+                data-form-type="other"
+                data-1p-ignore="true"
                 onKeyPress={(e) => {
                   if (e.key === 'Enter') {
                     handleSavePlayerName();

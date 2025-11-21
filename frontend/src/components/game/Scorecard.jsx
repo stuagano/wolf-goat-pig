@@ -314,6 +314,10 @@ const Scorecard = ({
                 onChange={(e) => setEditStrokes(e.target.value)}
                 min="0"
                 max="15"
+                autoComplete="off"
+                data-lpignore="true"
+                data-form-type="other"
+                data-1p-ignore="true"
                 style={{
                   width: '100%',
                   padding: '8px',
@@ -338,6 +342,10 @@ const Scorecard = ({
                 min="-10"
                 max="10"
                 step="0.5"
+                autoComplete="off"
+                data-lpignore="true"
+                data-form-type="other"
+                data-1p-ignore="true"
                 style={{
                   width: '100%',
                   padding: '8px',

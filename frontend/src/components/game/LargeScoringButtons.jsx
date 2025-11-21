@@ -317,6 +317,10 @@ const LargeScoringButtons = ({
               const val = e.target.value ? parseInt(e.target.value) : undefined;
               if (val) updateScore(player.id, val);
             }}
+            autoComplete="off"
+            data-lpignore="true"
+            data-form-type="other"
+            data-1p-ignore="true"
             style={{
               flex: 1,
               padding: '16px', // Increased from 12px

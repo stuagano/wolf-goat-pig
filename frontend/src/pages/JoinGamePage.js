@@ -127,6 +127,10 @@ function JoinGamePage() {
               onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
               placeholder="ABC123"
               maxLength={6}
+              autoComplete="off"
+              data-lpignore="true"
+              data-form-type="other"
+              data-1p-ignore="true"
               style={{
                 width: '100%',
                 padding: 12,
@@ -165,6 +169,10 @@ function JoinGamePage() {
               value={playerName}
               onChange={(e) => setPlayerName(e.target.value)}
               placeholder="Enter your name"
+              autoComplete="off"
+              data-lpignore="true"
+              data-form-type="other"
+              data-1p-ignore="true"
               style={{
                 width: '100%',
                 padding: 12,
@@ -193,6 +201,10 @@ function JoinGamePage() {
               value={handicap}
               onChange={(e) => setHandicap(e.target.value)}
               placeholder="18.0"
+              autoComplete="off"
+              data-lpignore="true"
+              data-form-type="other"
+              data-1p-ignore="true"
               style={{
                 width: '100%',
                 padding: 12,
