@@ -74,6 +74,7 @@ const SimpleScorekeeper = ({
   const [localPlayers, setLocalPlayers] = useState(players); // Local copy of players for immediate UI updates
   const [showUsageStats, setShowUsageStats] = useState(false); // Toggle for usage statistics section
   const [courseData, setCourseData] = useState(null); // Course data with hole information
+  const [courseDataLoading, setCourseDataLoading] = useState(true); // Track course data loading state
 
   // Derive current hole par from course data (pars are constants and don't change)
   // No defaults - only use actual course data
@@ -82,6 +83,7 @@ const SimpleScorekeeper = ({
   // Fetch course data
   useEffect(() => {
     const fetchCourseData = async () => {
+      setCourseDataLoading(true);
       try {
         // Get game state to find course name
         const gameResponse = await fetch(`${API_URL}/games/${gameId}/state`);
@@ -97,11 +99,15 @@ const SimpleScorekeeper = ({
             const course = coursesData[courseName];
             if (course) {
               setCourseData(course);
+            } else {
+              console.warn(`Course "${courseName}" not found in courses data`);
             }
           }
         }
       } catch (err) {
         console.error('Error fetching course data:', err);
+      } finally {
+        setCourseDataLoading(false);
       }
     };
 

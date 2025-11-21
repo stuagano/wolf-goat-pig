@@ -12,12 +12,14 @@ const MobileScorecard = ({ gameState }) => {
   const theme = useTheme();
   const [isMinimized, setIsMinimized] = React.useState(false);
   const [courseData, setCourseData] = React.useState(null);
+  const [courseDataLoading, setCourseDataLoading] = React.useState(true);
 
   if (!gameState || !gameState.players) return null;
 
   // Fetch course data to get hole par information
   React.useEffect(() => {
     const fetchCourseData = async () => {
+      setCourseDataLoading(true);
       try {
         const courseName = gameState.course_name;
         if (courseName) {
@@ -27,11 +29,15 @@ const MobileScorecard = ({ gameState }) => {
             const course = coursesData[courseName];
             if (course) {
               setCourseData(course);
+            } else {
+              console.warn(`Course "${courseName}" not found in courses data`);
             }
           }
         }
       } catch (err) {
         console.error('Error fetching course data:', err);
+      } finally {
+        setCourseDataLoading(false);
       }
     };
 
@@ -73,7 +79,7 @@ const MobileScorecard = ({ gameState }) => {
           {currentHole}
         </div>
         <div style={{ fontSize: '16px', marginTop: '8px', opacity: 0.9 }}>
-          {currentHolePar ? `Par ${currentHolePar}` : 'Par -'}
+          {courseDataLoading ? '⏳ Loading...' : currentHolePar ? `Par ${currentHolePar}` : 'Par -'}
         </div>
       </div>
 

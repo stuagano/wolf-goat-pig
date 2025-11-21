@@ -14,10 +14,12 @@ const LargeScoringButtons = ({
   const [scores, setScores] = useState({});
   const [pressedButton, setPressedButton] = useState(null); // Track which button is pressed
   const [courseData, setCourseData] = useState(null);
+  const [courseDataLoading, setCourseDataLoading] = useState(true);
 
   // Fetch course data to get hole par information
   React.useEffect(() => {
     const fetchCourseData = async () => {
+      setCourseDataLoading(true);
       try {
         const courseName = gameState?.course_name;
         if (courseName) {
@@ -27,11 +29,15 @@ const LargeScoringButtons = ({
             const course = coursesData[courseName];
             if (course) {
               setCourseData(course);
+            } else {
+              console.warn(`Course "${courseName}" not found in courses data`);
             }
           }
         }
       } catch (err) {
         console.error('Error fetching course data:', err);
+      } finally {
+        setCourseDataLoading(false);
       }
     };
 
@@ -186,6 +192,37 @@ const LargeScoringButtons = ({
             (Hdcp {player.handicap})
           </span>
         </h3>
+
+        {/* Loading indicator when course data is being fetched */}
+        {courseDataLoading && (
+          <div style={{
+            padding: '20px',
+            textAlign: 'center',
+            color: theme.colors.textSecondary,
+            background: 'rgba(0, 0, 0, 0.02)',
+            borderRadius: '12px',
+            marginBottom: '12px'
+          }}>
+            <div style={{ fontSize: '24px', marginBottom: '8px' }}>⏳</div>
+            <div style={{ fontSize: '14px' }}>Loading course data...</div>
+          </div>
+        )}
+
+        {/* Warning message if par data not available but not loading */}
+        {!courseDataLoading && !holePar && (
+          <div style={{
+            padding: '16px',
+            textAlign: 'center',
+            color: '#856404',
+            background: '#fff3cd',
+            border: '2px solid #ffc107',
+            borderRadius: '12px',
+            marginBottom: '12px',
+            fontSize: '14px'
+          }}>
+            ⚠️ Par data unavailable. Use custom score entry below.
+          </div>
+        )}
 
         <div
           className="score-grid-mobile"
