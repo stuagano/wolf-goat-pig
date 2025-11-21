@@ -1,18 +1,24 @@
 // frontend/src/components/game/Scorecard.jsx
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { Card, Button } from '../ui';
+import { Card, Button, Input } from '../ui';
 import { useTheme } from '../../theme/Provider';
 
 /**
- * Scorecard component for real game mode
+ * Unified Scorecard component for both real games and simulations
  * Displays all 18 holes with strokes and quarters, with click-to-edit functionality
+ *
+ * Optional features (enabled via props):
+ * - Player name editing (onPlayerNameChange)
+ * - Standings view toggle (captainId)
  */
 const Scorecard = ({
   players = [],
   holeHistory = [],
   currentHole = 1,
   onEditHole,
+  onPlayerNameChange, // Optional: enables player name editing in simulations
+  captainId, // Optional: enables standings view and captain highlighting
   courseHoles = [],
   strokeAllocation = {}
 }) => {
@@ -21,6 +27,9 @@ const Scorecard = ({
   const [editingPlayer, setEditingPlayer] = useState(null);
   const [editStrokes, setEditStrokes] = useState('');
   const [editQuarters, setEditQuarters] = useState('');
+  const [viewMode, setViewMode] = useState('scorecard'); // 'scorecard' or 'standings'
+  const [editingPlayerName, setEditingPlayerName] = useState(null);
+  const [editPlayerNameValue, setEditPlayerNameValue] = useState('');
 
   // Debug logging
   useEffect(() => {
@@ -120,13 +129,87 @@ const Scorecard = ({
     setEditQuarters('');
   };
 
+  // Handle clicking on a player name to edit it (simulation mode only)
+  const handlePlayerNameClick = (playerId, currentName) => {
+    setEditingPlayerName(playerId);
+    setEditPlayerNameValue(currentName);
+  };
+
+  // Handle saving the player name edit
+  const handleSavePlayerName = async () => {
+    if (editingPlayerName && editPlayerNameValue.trim() && onPlayerNameChange) {
+      try {
+        await onPlayerNameChange(editingPlayerName, editPlayerNameValue.trim());
+      } catch (error) {
+        console.error('Failed to update player name:', error);
+        alert('Failed to update player name. Please try again.');
+      }
+    }
+    setEditingPlayerName(null);
+    setEditPlayerNameValue('');
+  };
+
+  // Handle canceling the player name edit
+  const handleCancelPlayerNameEdit = () => {
+    setEditingPlayerName(null);
+    setEditPlayerNameValue('');
+  };
+
+  // Standings View Component (for simulations)
+  const StandingsView = () => (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+        {players.map(player => {
+          const totals = calculateTotals(player.id);
+          const isCaptain = player.id === captainId;
+          const isHuman = player.is_human || player.id === 'human';
+
+          return (
+            <div key={player.id} style={{
+              padding: '12px',
+              background: 'white',
+              borderRadius: '8px',
+              border: `2px solid ${isCaptain ? theme.colors.primary : theme.colors.border}`
+            }}>
+              <div style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 4 }}>
+                {isHuman ? '👤 ' : '🤖 '}
+                {player.name} {isCaptain && '⭐'}
+              </div>
+              <div style={{ fontSize: 24, fontWeight: 'bold', color: totals.total >= 0 ? theme.colors.success : theme.colors.error }}>
+                {totals.total > 0 ? '+' : ''}{totals.total}q
+              </div>
+              <div style={{ fontSize: 12, color: theme.colors.textSecondary }}>
+                Hdcp: {player.handicap}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
   return (
     <Card style={{ height: '100%', overflow: 'auto' }}>
-      <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: 'bold' }}>
-        📊 SCORECARD
-      </h3>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+        <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold' }}>
+          📊 SCORECARD
+        </h3>
+        {/* View toggle button - only show in simulation mode (when captainId is provided) */}
+        {captainId && (
+          <Button
+            variant="secondary"
+            onClick={() => setViewMode(viewMode === 'scorecard' ? 'standings' : 'scorecard')}
+            style={{ padding: '6px 12px', fontSize: '12px' }}
+          >
+            {viewMode === 'scorecard' ? '📊 Standings' : '📋 Scorecard'}
+          </Button>
+        )}
+      </div>
 
-      <div style={{ overflowX: 'auto' }}>
+      {viewMode === 'standings' ? (
+        <StandingsView />
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
         <table style={{
           width: '100%',
           borderCollapse: 'collapse',
@@ -202,16 +285,23 @@ const Scorecard = ({
                   backgroundColor: idx % 2 === 0 ? 'rgba(0, 0, 0, 0.02)' : 'transparent',
                   borderLeft: isHuman ? '3px solid rgba(33, 150, 243, 0.5)' : 'none'
                 }}>
-                  <td style={{
-                    ...cellStyle,
-                    fontWeight: 'bold',
-                    maxWidth: '100px',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
-                  }}>
+                  <td
+                    style={{
+                      ...cellStyle,
+                      fontWeight: 'bold',
+                      maxWidth: '100px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      cursor: onPlayerNameChange ? 'pointer' : 'default',
+                      position: 'relative'
+                    }}
+                    onClick={() => onPlayerNameChange && handlePlayerNameClick(player.id, player.name)}
+                    title={onPlayerNameChange ? 'Click to edit name' : ''}
+                  >
                     {isHuman ? '👤 ' : '🤖 '}
                     {player.name}
+                    {onPlayerNameChange && <span style={{ fontSize: '10px', marginLeft: '4px', opacity: 0.5 }}>✏️</span>}
                   </td>
                   {holes.map(hole => {
                     const { quarters, strokes } = getHoleData(hole, player.id);
@@ -280,8 +370,9 @@ const Scorecard = ({
           </tbody>
         </table>
       </div>
+      )}
 
-      {/* Edit Modal */}
+      {/* Edit Hole Modal */}
       {editingHole && editingPlayer && (
         <div style={{
           position: 'fixed',
@@ -308,13 +399,14 @@ const Scorecard = ({
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
                 Strokes (Gross Score):
               </label>
-              <input
+              <Input
                 type="number"
                 value={editStrokes}
                 onChange={(e) => setEditStrokes(e.target.value)}
                 min="0"
                 max="15"
-                style={{
+                variant="inline"
+                inputStyle={{
                   width: '100%',
                   padding: '8px',
                   fontSize: '16px',
@@ -331,14 +423,15 @@ const Scorecard = ({
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
                 Quarters (Manual Override):
               </label>
-              <input
+              <Input
                 type="number"
                 value={editQuarters}
                 onChange={(e) => setEditQuarters(e.target.value)}
                 min="-10"
                 max="10"
                 step="0.5"
-                style={{
+                variant="inline"
+                inputStyle={{
                   width: '100%',
                   padding: '8px',
                   fontSize: '16px',
@@ -359,6 +452,71 @@ const Scorecard = ({
                 Cancel
               </Button>
               <Button variant="primary" onClick={handleSaveEdit}>
+                Save
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Edit Player Name Modal (simulation mode only) */}
+      {editingPlayerName && onPlayerNameChange && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1001
+        }}>
+          <Card style={{
+            maxWidth: '400px',
+            width: '90%',
+            padding: '24px'
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: '16px' }}>
+              Edit Player Name
+            </h3>
+
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
+                Player Name:
+              </label>
+              <Input
+                type="text"
+                value={editPlayerNameValue}
+                onChange={(e) => setEditPlayerNameValue(e.target.value)}
+                placeholder="Enter player name"
+                maxLength="50"
+                autoFocus
+                variant="inline"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSavePlayerName();
+                  }
+                }}
+                inputStyle={{
+                  width: '100%',
+                  padding: '12px',
+                  fontSize: '16px',
+                  border: `1px solid ${theme.colors.border}`,
+                  borderRadius: '4px'
+                }}
+              />
+              <p style={{ fontSize: '12px', color: theme.colors.textSecondary, marginTop: '4px' }}>
+                Press Enter to save, or click Save button
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <Button variant="secondary" onClick={handleCancelPlayerNameEdit}>
+                Cancel
+              </Button>
+              <Button variant="primary" onClick={handleSavePlayerName}>
                 Save
               </Button>
             </div>
@@ -395,6 +553,7 @@ Scorecard.propTypes = {
     id: PropTypes.string.isRequired,
     name: PropTypes.string.isRequired,
     points: PropTypes.number,
+    handicap: PropTypes.number,
     is_human: PropTypes.bool
   })),
   holeHistory: PropTypes.arrayOf(PropTypes.shape({
@@ -404,6 +563,8 @@ Scorecard.propTypes = {
   })),
   currentHole: PropTypes.number,
   onEditHole: PropTypes.func,
+  onPlayerNameChange: PropTypes.func, // Optional: enables player name editing
+  captainId: PropTypes.string, // Optional: enables standings view
   courseHoles: PropTypes.arrayOf(PropTypes.shape({
     hole: PropTypes.number.isRequired,
     par: PropTypes.number,

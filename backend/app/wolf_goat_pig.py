@@ -3150,7 +3150,7 @@ class WolfGoatPigGame(PersistenceMixin):
                 self.selected_course = course_name
                 self.hole_pars = [4] * 18  # Default pars
                 self.hole_yards = [400] * 18  # Default yards
-                self.hole_stroke_indexes = list(range(1, 19))  # Default stroke indexes
+                self.hole_handicaps = list(range(1, 19))  # Default handicaps
                 self.hole_descriptions = ["Standard hole"] * 18  # Default descriptions
                 self.current_hole = 1
                 self.betting_state = wgp_sim.hole_states[1].betting if 1 in wgp_sim.hole_states else None

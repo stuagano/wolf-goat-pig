@@ -5,9 +5,9 @@ import './styles.css';
 import {
   HoleVisualization,
   PlayersCard,
-  BettingCard,
-  Scorecard
+  BettingCard
 } from './index';
+import Scorecard from '../../game/Scorecard';
 import SimulationDecisionPanel from '../SimulationDecisionPanel';
 import { Card } from '../../ui';
 

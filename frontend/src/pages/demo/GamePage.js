@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useTheme } from '../theme/Provider';
-import Scorecard from '../components/simulation/visual/Scorecard';
+import Scorecard from '../components/game/Scorecard';
 import LargeScoringButtons from '../components/game/LargeScoringButtons';
 import GameBanner from '../components/GameBanner';
 import CommissionerChat from '../components/CommissionerChat';

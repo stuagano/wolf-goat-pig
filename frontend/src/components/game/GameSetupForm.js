@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Input } from '../ui';
 import CourseManager from "./CourseManager";
 import PlayerProfileManager from "../PlayerProfileManager";
 // import usePlayerProfile from "../../hooks/usePlayerProfile"; // Temporarily disabled
@@ -405,24 +406,26 @@ function GameSetupForm({ onSetup }) {
               <label htmlFor={`player-${idx}-name`} style={{ fontSize: 12, fontWeight: 600 }}>
                 Player {idx + 1} Name
               </label>
-              <input
+              <Input
                 type="text"
                 placeholder="Name"
                 value={player.name}
                 onChange={e => handleChange(idx, 'name', e.target.value)}
-                style={{ width: 120, minWidth: 80, maxWidth: 200, marginRight: 8, boxSizing: 'border-box', flex: '1 1 auto' }}
+                variant="inline"
+                inputStyle={{ width: 120, minWidth: 80, maxWidth: 200, marginRight: 8, boxSizing: 'border-box', flex: '1 1 auto' }}
                 id={`player-${idx}-name`}
                 disabled={setupMode === 'profile' && idx === 0 && selectedProfile}
               />
               <label htmlFor={`player-${idx}-handicap`} style={{ fontSize: 12, fontWeight: 600, flexShrink: 0 }}>
                 Handicap
               </label>
-              <input
+              <Input
                 type="number"
                 placeholder="Handicap"
                 value={player.handicap}
                 onChange={e => handleChange(idx, 'handicap', e.target.value)}
-                style={{ width: 70, minWidth: 60, maxWidth: 100, marginRight: 8, boxSizing: 'border-box', flex: '0 1 auto' }}
+                variant="inline"
+                inputStyle={{ width: 70, minWidth: 60, maxWidth: 100, marginRight: 8, boxSizing: 'border-box', flex: '0 1 auto' }}
                 id={`player-${idx}-handicap`}
                 disabled={setupMode === 'profile' && idx === 0 && selectedProfile}
               />
@@ -446,20 +449,22 @@ function GameSetupForm({ onSetup }) {
                 </span>
               )}
               {/* GHIN Lookup UI */}
-              <input
+              <Input
                 type="text"
                 placeholder="First Name (optional)"
                 value={ghinSearch[player.id]?.first_name || ''}
                 onChange={e => handleGhinSearchChange(player.id, 'first_name', e.target.value)}
-                style={{ width: 120, minWidth: 80, maxWidth: 180, padding: 6, marginRight: 4, boxSizing: 'border-box', borderRadius: 4, border: '1px solid #ccc' }}
+                variant="inline"
+                inputStyle={{ width: 120, minWidth: 80, maxWidth: 180, padding: 6, marginRight: 4, boxSizing: 'border-box', borderRadius: 4, border: '1px solid #ccc' }}
               />
-              <input
+              <Input
                 type="text"
                 placeholder="Last Name (required)"
                 value={ghinSearch[player.id]?.last_name || ''}
                 onChange={e => handleGhinSearchChange(player.id, 'last_name', e.target.value)}
                 required
-                style={{ width: 120, minWidth: 80, maxWidth: 180, padding: 6, marginRight: 4, boxSizing: 'border-box', borderRadius: 4, border: '1px solid #ccc' }}
+                variant="inline"
+                inputStyle={{ width: 120, minWidth: 80, maxWidth: 180, padding: 6, marginRight: 4, boxSizing: 'border-box', borderRadius: 4, border: '1px solid #ccc' }}
               />
               <button
                 type="button"
