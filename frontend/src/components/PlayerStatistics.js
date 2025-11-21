@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from './ui';
 
+const API_URL = process.env.REACT_APP_API_URL || '';
+
 /**
  * PlayerStatistics - Dashboard component for displaying player statistics
  * 
@@ -32,8 +34,8 @@ const PlayerStatistics = ({ playerId, playerName }) => {
 
             // Load statistics, analytics, and achievements in parallel
             const [statsResponse, analyticsResponse] = await Promise.all([
-                fetch(`/api/players/${playerId}/statistics`),
-                fetch(`/api/players/${playerId}/analytics`)
+                fetch(`${API_URL}/api/players/${playerId}/statistics`),
+                fetch(`${API_URL}/api/players/${playerId}/analytics`)
             ]);
 
             if (!statsResponse.ok) {

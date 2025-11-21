@@ -3,6 +3,8 @@ import { Card } from './ui';
 import ProbabilityVisualization from './ProbabilityVisualization';
 import EducationalTooltip, { BettingConcepts, generateStrategicInsight, ContextualHelp } from './EducationalTooltip';
 
+const API_URL = process.env.REACT_APP_API_URL || '';
+
 const COLORS = {
   primary: '#1976d2',
   accent: '#00bcd4',
@@ -105,7 +107,7 @@ const BettingOddsPanel = ({
         }
       };
 
-      const response = await fetch('/api/wgp/calculate-odds', {
+      const response = await fetch(`${API_URL}/api/wgp/calculate-odds`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

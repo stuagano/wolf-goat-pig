@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
+const API_URL = process.env.REACT_APP_API_URL || '';
+
 /**
  * Custom hook for real-time odds calculation and management.
  * Provides automated updates, caching, and performance optimization.
@@ -158,7 +160,7 @@ const useOddsCalculation = ({
       
       while (retryCount <= maxRetries) {
         try {
-          const apiResponse = await fetch('/api/wgp/calculate-odds', {
+          const apiResponse = await fetch(`${API_URL}/api/wgp/calculate-odds`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
@@ -261,7 +263,7 @@ const useOddsCalculation = ({
     }
 
     try {
-      const response = await fetch('/api/wgp/quick-odds', {
+      const response = await fetch(`${API_URL}/api/wgp/quick-odds`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

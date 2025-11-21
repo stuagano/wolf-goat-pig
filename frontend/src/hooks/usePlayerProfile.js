@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 
+const API_URL = process.env.REACT_APP_API_URL || '';
+
 /**
  * usePlayerProfile - Custom hook for player profile management
  * 
@@ -70,7 +72,7 @@ const usePlayerProfile = () => {
                 return cached.data;
             }
 
-            const response = await fetch(`/api/players/${profileId}/statistics`);
+            const response = await fetch(`${API_URL}/api/players/${profileId}/statistics`);
             if (!response.ok) {
                 // Statistics might not exist for new profiles
                 return null;
@@ -99,7 +101,7 @@ const usePlayerProfile = () => {
 
     const updateLastPlayed = useCallback(async (profileId) => {
         try {
-            await fetch(`/api/players/${profileId}`, {
+            await fetch(`${API_URL}/api/players/${profileId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -117,7 +119,7 @@ const usePlayerProfile = () => {
             setSyncStatus('syncing');
 
             // Fetch latest profiles from server
-            const response = await fetch('/api/players');
+            const response = await fetch(`${API_URL}/api/players`);
             if (!response.ok) {
                 throw new Error('Failed to fetch profiles from server');
             }
@@ -195,7 +197,7 @@ const usePlayerProfile = () => {
             setLoading(true);
             setError(null);
             
-            const response = await fetch('/api/players', {
+            const response = await fetch(`${API_URL}/api/players`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(profileData)
@@ -232,7 +234,7 @@ const usePlayerProfile = () => {
             setLoading(true);
             setError(null);
             
-            const response = await fetch(`/api/players/${profileId}`, {
+            const response = await fetch(`${API_URL}/api/players/${profileId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updateData)
@@ -274,7 +276,7 @@ const usePlayerProfile = () => {
             setLoading(true);
             setError(null);
             
-            const response = await fetch(`/api/players/${profileId}`, {
+            const response = await fetch(`${API_URL}/api/players/${profileId}`, {
                 method: 'DELETE'
             });
 
@@ -310,7 +312,7 @@ const usePlayerProfile = () => {
 
     const recordGameResult = useCallback(async (gameResult) => {
         try {
-            const response = await fetch('/api/game-results', {
+            const response = await fetch(`${API_URL}/api/game-results`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(gameResult)

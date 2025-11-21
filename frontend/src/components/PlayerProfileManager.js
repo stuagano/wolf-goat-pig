@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from './ui';
 
+const API_URL = process.env.REACT_APP_API_URL || '';
+
 /**
  * PlayerProfileManager - Component for managing player profiles
  * 
@@ -38,7 +40,7 @@ const PlayerProfileManager = ({ onProfileSelect, selectedProfile, showSelector =
     const loadProfiles = async () => {
         try {
             setLoading(true);
-            const response = await fetch('/api/players');
+            const response = await fetch(`${API_URL}/api/players`);
             if (!response.ok) {
                 throw new Error('Failed to load profiles');
             }
@@ -57,7 +59,7 @@ const PlayerProfileManager = ({ onProfileSelect, selectedProfile, showSelector =
         e.preventDefault();
         try {
             setLoading(true);
-            const response = await fetch('/api/players', {
+            const response = await fetch(`${API_URL}/api/players`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
@@ -89,7 +91,7 @@ const PlayerProfileManager = ({ onProfileSelect, selectedProfile, showSelector =
         e.preventDefault();
         try {
             setLoading(true);
-            const response = await fetch(`/api/players/${editingProfile.id}`, {
+            const response = await fetch(`${API_URL}/api/players/${editingProfile.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
@@ -119,7 +121,7 @@ const PlayerProfileManager = ({ onProfileSelect, selectedProfile, showSelector =
 
         try {
             setLoading(true);
-            const response = await fetch(`/api/players/${profileId}`, {
+            const response = await fetch(`${API_URL}/api/players/${profileId}`, {
                 method: 'DELETE'
             });
 

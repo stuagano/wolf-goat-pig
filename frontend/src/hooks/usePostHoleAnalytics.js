@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 
+const API_URL = process.env.REACT_APP_API_URL || '';
+
 /**
  * Hook for fetching and managing post-hole analytics
  */
@@ -17,7 +19,7 @@ const usePostHoleAnalytics = (holeNumber, isHoleComplete) => {
     setError(null);
 
     try {
-      const response = await fetch(`/api/simulation/post-hole-analytics/${holeNumber}`);
+      const response = await fetch(`${API_URL}/api/simulation/post-hole-analytics/${holeNumber}`);
       
       if (!response.ok) {
         const errorData = await response.json();
