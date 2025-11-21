@@ -14,10 +14,11 @@ const MobileScorecard = ({ gameState }) => {
   const [courseData, setCourseData] = React.useState(null);
   const [courseDataLoading, setCourseDataLoading] = React.useState(true);
 
-  if (!gameState || !gameState.players) return null;
-
   // Fetch course data to get hole par information
   React.useEffect(() => {
+    // Guard against missing gameState
+    if (!gameState || !gameState.course_name) return;
+
     const fetchCourseData = async () => {
       setCourseDataLoading(true);
       try {
@@ -42,7 +43,9 @@ const MobileScorecard = ({ gameState }) => {
     };
 
     fetchCourseData();
-  }, [gameState.course_name]);
+  }, [gameState?.course_name]);
+
+  if (!gameState || !gameState.players) return null;
 
   // Calculate current standings (total quarters/points won)
   const getCurrentStandings = () => {
