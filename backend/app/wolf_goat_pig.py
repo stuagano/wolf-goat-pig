@@ -1597,6 +1597,7 @@ class WolfGoatPigGame(PersistenceMixin):
             ],
             "hole_state": self._get_hole_state_summary() if hole_state else None,
             "hole_history": getattr(self, 'scorekeeper_hole_history', None) or self._get_hole_history(),
+            "course_holes": self._get_course_scorecard_info(),
             "stroke_allocation": self._get_stroke_allocation_table(),
             "hoepfinger_start": self.hoepfinger_start_hole,
             "settings": {
@@ -1720,6 +1721,46 @@ class WolfGoatPigGame(PersistenceMixin):
         }
     
     # Helper methods
+
+    def _get_course_scorecard_info(self) -> List[Dict[str, Any]]:
+        """
+        Get par and handicap (stroke index) for all 18 holes for scorecard display.
+        This provides the course layout information that appears at the top of
+        traditional scorecards.
+
+        Returns:
+            List of hole information dictionaries for holes 1-18
+            Example: [
+                {"hole": 1, "par": 4, "handicap": 5, "yards": 420},
+                {"hole": 2, "par": 3, "handicap": 17, "yards": 165},
+                ...
+            ]
+        """
+        holes_info = []
+
+        if not self.course_manager:
+            # Return default/empty data if no course loaded
+            return [{"hole": i, "par": 4, "handicap": i, "yards": 400} for i in range(1, 19)]
+
+        for hole_num in range(1, 19):
+            try:
+                hole_info = self.course_manager.get_hole_info(hole_num)
+                holes_info.append({
+                    "hole": hole_num,
+                    "par": hole_info.get("par", 4),
+                    "handicap": hole_info.get("stroke_index", hole_num),
+                    "yards": hole_info.get("yards", 400)
+                })
+            except Exception as e:
+                logger.warning(f"Failed to get hole info for hole {hole_num}: {e}")
+                holes_info.append({
+                    "hole": hole_num,
+                    "par": 4,
+                    "handicap": hole_num,
+                    "yards": 400
+                })
+
+        return holes_info
 
     def _get_stroke_allocation_table(self) -> Dict[str, Dict[int, float]]:
         """
