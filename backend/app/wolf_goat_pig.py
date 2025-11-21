@@ -3519,7 +3519,7 @@ class WolfGoatPigGame(PersistenceMixin):
                 'betting_analysis_enabled': self.betting_analysis_enabled,
                 'shot_simulation_mode': self.shot_simulation_mode,
                 'hole_progression': hole_progression_data,
-                'course_name': self.course_manager.course_name if self.course_manager else None,
+                'course_name': self.course_manager.selected_course if self.course_manager else None,
                 '_game_completed': self._game_completed
             }
 
@@ -3644,7 +3644,7 @@ class WolfGoatPigGame(PersistenceMixin):
                 self.course_manager = CourseManager()
                 course_name = data.get('course_name')
                 if course_name:
-                    self.course_manager.course_name = course_name
+                    self.course_manager.load_course(course_name)
 
             # Initialize empty computer players dict
             self.computer_players = {}
@@ -3665,7 +3665,7 @@ class WolfGoatPigGame(PersistenceMixin):
     def _get_game_metadata(self) -> Dict[str, Any]:
         """Get game metadata for completion record. Used by PersistenceMixin."""
         return {
-            'course_name': self.course_manager.course_name if self.course_manager else 'Unknown',
+            'course_name': self.course_manager.selected_course if self.course_manager else 'Unknown',
             'player_count': self.player_count,
             'total_holes_played': len(self.hole_states),
             'settings': {
