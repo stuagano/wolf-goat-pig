@@ -19,7 +19,7 @@ def get_wing_point_holes():
         return [
             {
                 "hole_number": h["hole_number"],
-                "stroke_index": h["handicap_men"],
+                "handicap": h["handicap_men"],
                 "par": h["par"],
                 "yards": h["yards"]["white"],  # Use white tees as default
                 "description": h["description"]
@@ -29,7 +29,7 @@ def get_wing_point_holes():
     else:
         # Fallback to basic data if import fails
         return [
-            {"hole_number": i, "stroke_index": i, "par": 4, "yards": 400, 
+            {"hole_number": i, "handicap": i, "par": 4, "yards": 400,
              "description": f"Hole {i}"} for i in range(1, 19)
         ]
 
@@ -37,51 +37,51 @@ def get_wing_point_holes():
 DEFAULT_COURSES = {
     "Wing Point Golf & Country Club": get_wing_point_holes(),
     "Championship Links": [
-        {"hole_number": 1, "stroke_index": 7, "par": 4, "yards": 450, "description": "Opening hole with wide fairway but challenging approach to elevated green."},
-        {"hole_number": 2, "stroke_index": 15, "par": 3, "yards": 185, "description": "Long par 3 with deep bunkers and wind factor."},
-        {"hole_number": 3, "stroke_index": 1, "par": 5, "yards": 620, "description": "Monster par 5 requiring three solid shots. Water hazard on the right."},
-        {"hole_number": 4, "stroke_index": 3, "par": 4, "yards": 485, "description": "Long par 4 with narrow fairway and difficult green complex."},
-        {"hole_number": 5, "stroke_index": 11, "par": 4, "yards": 420, "description": "Dogleg left with strategic bunkering. Position is key."},
-        {"hole_number": 6, "stroke_index": 17, "par": 5, "yards": 580, "description": "Reachable par 5 with risk/reward second shot over water."},
-        {"hole_number": 7, "stroke_index": 5, "par": 4, "yards": 465, "description": "Long par 4 with out of bounds left and water right."},
-        {"hole_number": 8, "stroke_index": 13, "par": 3, "yards": 195, "description": "Elevated tee with wind factor. Green slopes severely."},
-        {"hole_number": 9, "stroke_index": 9, "par": 4, "yards": 440, "description": "Finishing hole with water hazard and dramatic green setting."},
-        {"hole_number": 10, "stroke_index": 2, "par": 4, "yards": 470, "description": "Challenging par 4 with narrow landing area and difficult approach."},
-        {"hole_number": 11, "stroke_index": 16, "par": 5, "yards": 600, "description": "Long par 5 requiring three solid shots. Strategic layup area."},
-        {"hole_number": 12, "stroke_index": 14, "par": 3, "yards": 175, "description": "Short par 3 with island green. Wind and pressure factor."},
-        {"hole_number": 13, "stroke_index": 18, "par": 4, "yards": 400, "description": "Short par 4, drivable for long hitters. Risk/reward hole."},
-        {"hole_number": 14, "stroke_index": 4, "par": 4, "yards": 480, "description": "Long par 4 with narrow fairway and challenging green."},
-        {"hole_number": 15, "stroke_index": 12, "par": 5, "yards": 590, "description": "Three-shot par 5 with water hazard crossing the fairway."},
-        {"hole_number": 16, "stroke_index": 8, "par": 4, "yards": 460, "description": "Dogleg right with water hazard. Demanding tee shot and approach."},
-        {"hole_number": 17, "stroke_index": 10, "par": 3, "yards": 165, "description": "Short par 3 with deep bunkers and wind factor."},
-        {"hole_number": 18, "stroke_index": 6, "par": 4, "yards": 655, "description": "Epic finishing hole with water hazard and dramatic green setting."}
+        {"hole_number": 1, "handicap": 7, "par": 4, "yards": 450, "description": "Opening hole with wide fairway but challenging approach to elevated green."},
+        {"hole_number": 2, "handicap": 15, "par": 3, "yards": 185, "description": "Long par 3 with deep bunkers and wind factor."},
+        {"hole_number": 3, "handicap": 1, "par": 5, "yards": 620, "description": "Monster par 5 requiring three solid shots. Water hazard on the right."},
+        {"hole_number": 4, "handicap": 3, "par": 4, "yards": 485, "description": "Long par 4 with narrow fairway and difficult green complex."},
+        {"hole_number": 5, "handicap": 11, "par": 4, "yards": 420, "description": "Dogleg left with strategic bunkering. Position is key."},
+        {"hole_number": 6, "handicap": 17, "par": 5, "yards": 580, "description": "Reachable par 5 with risk/reward second shot over water."},
+        {"hole_number": 7, "handicap": 5, "par": 4, "yards": 465, "description": "Long par 4 with out of bounds left and water right."},
+        {"hole_number": 8, "handicap": 13, "par": 3, "yards": 195, "description": "Elevated tee with wind factor. Green slopes severely."},
+        {"hole_number": 9, "handicap": 9, "par": 4, "yards": 440, "description": "Finishing hole with water hazard and dramatic green setting."},
+        {"hole_number": 10, "handicap": 2, "par": 4, "yards": 470, "description": "Challenging par 4 with narrow landing area and difficult approach."},
+        {"hole_number": 11, "handicap": 16, "par": 5, "yards": 600, "description": "Long par 5 requiring three solid shots. Strategic layup area."},
+        {"hole_number": 12, "handicap": 14, "par": 3, "yards": 175, "description": "Short par 3 with island green. Wind and pressure factor."},
+        {"hole_number": 13, "handicap": 18, "par": 4, "yards": 400, "description": "Short par 4, drivable for long hitters. Risk/reward hole."},
+        {"hole_number": 14, "handicap": 4, "par": 4, "yards": 480, "description": "Long par 4 with narrow fairway and challenging green."},
+        {"hole_number": 15, "handicap": 12, "par": 5, "yards": 590, "description": "Three-shot par 5 with water hazard crossing the fairway."},
+        {"hole_number": 16, "handicap": 8, "par": 4, "yards": 460, "description": "Dogleg right with water hazard. Demanding tee shot and approach."},
+        {"hole_number": 17, "handicap": 10, "par": 3, "yards": 165, "description": "Short par 3 with deep bunkers and wind factor."},
+        {"hole_number": 18, "handicap": 6, "par": 4, "yards": 655, "description": "Epic finishing hole with water hazard and dramatic green setting."}
     ],
     "Executive Course": [
-        {"hole_number": 1, "stroke_index": 9, "par": 4, "yards": 320, "description": "Short opening hole with wide fairway. Good for building confidence."},
-        {"hole_number": 2, "stroke_index": 17, "par": 3, "yards": 140, "description": "Short par 3 with large green. Good for practicing irons."},
-        {"hole_number": 3, "stroke_index": 5, "par": 4, "yards": 350, "description": "Straightaway par 4 with minimal hazards. Fairway is generous."},
-        {"hole_number": 4, "stroke_index": 15, "par": 4, "yards": 155, "description": "Elevated tee with wind factor. Green slopes from back to front."},
-        {"hole_number": 5, "stroke_index": 3, "par": 4, "yards": 365, "description": "Slight dogleg with bunkers protecting the green."},
-        {"hole_number": 6, "stroke_index": 11, "par": 5, "yards": 480, "description": "Short par 5 reachable in two. Good for practicing long approach shots."},
-        {"hole_number": 7, "stroke_index": 7, "par": 4, "yards": 340, "description": "Straight par 4 with water hazard on the right."},
-        {"hole_number": 8, "stroke_index": 13, "par": 3, "yards": 150, "description": "Short par 3 with bunkers around the green."},
-        {"hole_number": 9, "stroke_index": 1, "par": 4, "yards": 355, "description": "Finishing hole with elevated green. Approach shot requires extra club."},
-        {"hole_number": 10, "stroke_index": 8, "par": 4, "yards": 330, "description": "Short par 4 with wide fairway. Good scoring opportunity."},
-        {"hole_number": 11, "stroke_index": 16, "par": 4, "yards": 145, "description": "Short par 4 with large green. Wind can be a factor."},
-        {"hole_number": 12, "stroke_index": 4, "par": 4, "yards": 360, "description": "Straightaway par 4 with bunkers protecting the green."},
-        {"hole_number": 13, "stroke_index": 14, "par": 4, "yards": 160, "description": "Elevated tee with wind factor. Green slopes from back to front."},
-        {"hole_number": 14, "stroke_index": 2, "par": 4, "yards": 375, "description": "Longest par 4 on the course. Requires solid tee shot and approach."},
-        {"hole_number": 15, "stroke_index": 12, "par": 5, "yards": 490, "description": "Short par 5 reachable in two. Water hazard on the right."},
-        {"hole_number": 16, "stroke_index": 6, "par": 4, "yards": 345, "description": "Dogleg left with strategic bunkering. Position is key."},
-        {"hole_number": 17, "stroke_index": 18, "par": 4, "yards": 135, "description": "Shortest hole on the course. Good for practicing short irons."},
-        {"hole_number": 18, "stroke_index": 10, "par": 4, "yards": 350, "description": "Finishing hole with water hazard and dramatic green setting."}
+        {"hole_number": 1, "handicap": 9, "par": 4, "yards": 320, "description": "Short opening hole with wide fairway. Good for building confidence."},
+        {"hole_number": 2, "handicap": 17, "par": 3, "yards": 140, "description": "Short par 3 with large green. Good for practicing irons."},
+        {"hole_number": 3, "handicap": 5, "par": 4, "yards": 350, "description": "Straightaway par 4 with minimal hazards. Fairway is generous."},
+        {"hole_number": 4, "handicap": 15, "par": 4, "yards": 155, "description": "Elevated tee with wind factor. Green slopes from back to front."},
+        {"hole_number": 5, "handicap": 3, "par": 4, "yards": 365, "description": "Slight dogleg with bunkers protecting the green."},
+        {"hole_number": 6, "handicap": 11, "par": 5, "yards": 480, "description": "Short par 5 reachable in two. Good for practicing long approach shots."},
+        {"hole_number": 7, "handicap": 7, "par": 4, "yards": 340, "description": "Straight par 4 with water hazard on the right."},
+        {"hole_number": 8, "handicap": 13, "par": 3, "yards": 150, "description": "Short par 3 with bunkers around the green."},
+        {"hole_number": 9, "handicap": 1, "par": 4, "yards": 355, "description": "Finishing hole with elevated green. Approach shot requires extra club."},
+        {"hole_number": 10, "handicap": 8, "par": 4, "yards": 330, "description": "Short par 4 with wide fairway. Good scoring opportunity."},
+        {"hole_number": 11, "handicap": 16, "par": 4, "yards": 145, "description": "Short par 4 with large green. Wind can be a factor."},
+        {"hole_number": 12, "handicap": 4, "par": 4, "yards": 360, "description": "Straightaway par 4 with bunkers protecting the green."},
+        {"hole_number": 13, "handicap": 14, "par": 4, "yards": 160, "description": "Elevated tee with wind factor. Green slopes from back to front."},
+        {"hole_number": 14, "handicap": 2, "par": 4, "yards": 375, "description": "Longest par 4 on the course. Requires solid tee shot and approach."},
+        {"hole_number": 15, "handicap": 12, "par": 5, "yards": 490, "description": "Short par 5 reachable in two. Water hazard on the right."},
+        {"hole_number": 16, "handicap": 6, "par": 4, "yards": 345, "description": "Dogleg left with strategic bunkering. Position is key."},
+        {"hole_number": 17, "handicap": 18, "par": 4, "yards": 135, "description": "Shortest hole on the course. Good for practicing short irons."},
+        {"hole_number": 18, "handicap": 10, "par": 4, "yards": 350, "description": "Finishing hole with water hazard and dramatic green setting."}
     ]
 }
 
 @dataclass
 class CourseManager:
     selected_course: Optional[str] = None
-    hole_stroke_indexes: List[int] = field(default_factory=list)
+    hole_handicaps: List[int] = field(default_factory=list)
     hole_pars: List[int] = field(default_factory=list)
     hole_yards: List[int] = field(default_factory=list)
     course_data: Dict[str, Any] = field(default_factory=lambda: DEFAULT_COURSES.copy())
@@ -144,7 +144,7 @@ class CourseManager:
             else:
                 self.course_data = {
                     "Fallback Course": [
-                        {"hole_number": i, "par": 4, "yards": 400, "stroke_index": i,
+                        {"hole_number": i, "par": 4, "yards": 400, "handicap": i,
                          "description": f"Fallback hole {i}"}
                         for i in range(1, 19)
                     ]
@@ -161,7 +161,7 @@ class CourseManager:
         if not course:
             raise ValueError(f"Course '{course_name}' not found.")
         self.selected_course = course_name
-        self.hole_stroke_indexes = [h["stroke_index"] for h in course]
+        self.hole_handicaps = [h["handicap"] for h in course]
         self.hole_pars = [h["par"] for h in course]
         self.hole_yards = [h["yards"] for h in course]
 
@@ -268,10 +268,10 @@ class CourseManager:
         # Calculate difficulty rating based on yards and par
         difficulty_score = 0
         for hole in course:
-            # Higher difficulty for longer holes and harder stroke indexes
+            # Higher difficulty for longer holes and harder handicaps
             yard_factor = hole["yards"] / (hole["par"] * 100)  # Normalize by par
-            stroke_factor = (19 - hole["stroke_index"]) / 18  # Lower stroke index = harder
-            difficulty_score += yard_factor * stroke_factor
+            handicap_factor = (19 - hole["handicap"]) / 18  # Lower handicap = harder
+            difficulty_score += yard_factor * handicap_factor
         
         return {
             "total_par": total_par,
@@ -306,24 +306,24 @@ class CourseManager:
         hole_idx = hole_number - 1
         if hole_idx < 0 or hole_idx >= len(course):
             return 1.0
-        
-        # Combine stroke index difficulty with distance
-        stroke_index = course[hole_idx]["stroke_index"]
-        stroke_difficulty = (19 - stroke_index) / 18  # 0-1, higher = more difficult
-        
+
+        # Combine handicap difficulty with distance
+        handicap = course[hole_idx]["handicap"]
+        handicap_difficulty = (19 - handicap) / 18  # 0-1, higher = more difficult
+
         par = course[hole_idx]["par"]
         yards = course[hole_idx]["yards"]
         # Normalize yards by par (longer than expected = harder)
         expected_yards = {3: 150, 4: 400, 5: 550}
         yard_difficulty = min(1.5, yards / expected_yards.get(par, 400))
-        
+
         # Combine factors
-        return 0.7 * stroke_difficulty + 0.3 * (yard_difficulty - 0.5)
+        return 0.7 * handicap_difficulty + 0.3 * (yard_difficulty - 0.5)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "selected_course": self.selected_course,
-            "hole_stroke_indexes": self.hole_stroke_indexes,
+            "hole_handicaps": self.hole_handicaps,
             "hole_pars": self.hole_pars,
             "hole_yards": self.hole_yards,
             "course_data": self.course_data
@@ -333,7 +333,7 @@ class CourseManager:
     def from_dict(cls, data: Dict[str, Any]) -> 'CourseManager':
         obj = cls()
         obj.selected_course = data.get("selected_course")
-        obj.hole_stroke_indexes = data.get("hole_stroke_indexes", [])
+        obj.hole_handicaps = data.get("hole_handicaps", [])
         obj.hole_pars = data.get("hole_pars", [])
         obj.hole_yards = data.get("hole_yards", [])
         obj.course_data = data.get("course_data", DEFAULT_COURSES.copy())
