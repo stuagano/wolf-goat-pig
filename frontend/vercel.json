@@ -28,9 +28,6 @@
       "destination": "/index.html"
     }
   ],
-  "comments": {
-    "rewrites": "Two rewrite rules are required for React Router to work correctly: 1) The root path '/' rule handles the homepage. 2) The regex pattern '/:path((?!.*\\.).*)' handles all other routes without file extensions (dots), but doesn't match the root path due to the (?!.*\\.) lookahead requiring path content. Static assets like .js, .css, .png files are excluded by the regex and served normally."
-  },
   "headers": [
     {
       "source": "/static/(.*)",
