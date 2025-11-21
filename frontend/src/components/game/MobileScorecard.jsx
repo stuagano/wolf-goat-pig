@@ -11,8 +11,32 @@ import '../../styles/mobile-touch.css';
 const MobileScorecard = ({ gameState }) => {
   const theme = useTheme();
   const [isMinimized, setIsMinimized] = React.useState(false);
+  const [courseData, setCourseData] = React.useState(null);
 
   if (!gameState || !gameState.players) return null;
+
+  // Fetch course data to get hole par information
+  React.useEffect(() => {
+    const fetchCourseData = async () => {
+      try {
+        const courseName = gameState.course_name;
+        if (courseName) {
+          const courseResponse = await fetch(`/api/courses`);
+          if (courseResponse.ok) {
+            const coursesData = await courseResponse.json();
+            const course = coursesData[courseName];
+            if (course) {
+              setCourseData(course);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching course data:', err);
+      }
+    };
+
+    fetchCourseData();
+  }, [gameState.course_name]);
 
   // Calculate current standings (total quarters/points won)
   const getCurrentStandings = () => {
@@ -26,6 +50,9 @@ const MobileScorecard = ({ gameState }) => {
 
   const standings = getCurrentStandings();
   const currentHole = gameState.current_hole || 1;
+
+  // Get current hole par from course database ONLY - no defaults
+  const currentHolePar = courseData?.holes?.find(h => h.hole_number === currentHole)?.par;
 
   // Render compact standings view (default for game manager)
   const renderStandingsView = () => (
@@ -46,7 +73,7 @@ const MobileScorecard = ({ gameState }) => {
           {currentHole}
         </div>
         <div style={{ fontSize: '16px', marginTop: '8px', opacity: 0.9 }}>
-          Par {gameState.hole_par || 4}
+          {currentHolePar ? `Par ${currentHolePar}` : 'Par -'}
         </div>
       </div>
 
