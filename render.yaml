@@ -48,7 +48,7 @@ services:
         value: "https://wolf-goat-pig.onrender.com"
       - key: AUTH0_CLIENT_ID
         value: "qAZuRv5E9mPQ9uTGg7NWpkpfVj8bCeoB"
-    healthCheckPath: /health
+    healthCheckPath: /ready
     autoDeploy: true
     disk:
       name: wolf-goat-pig-api-disk

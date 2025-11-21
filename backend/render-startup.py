@@ -95,6 +95,9 @@ def start_server():
 
     logger.info(f"🚀 Starting uvicorn server on 0.0.0.0:{port}")
 
+    # Set flag to skip FastAPI startup initialization since we've already done it
+    os.environ["SKIP_FASTAPI_STARTUP_INIT"] = "true"
+
     try:
         # Use exec to replace this process with uvicorn
         # This ensures that uvicorn receives signals properly

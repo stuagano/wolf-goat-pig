@@ -301,7 +301,13 @@ async def startup():
     """Enhanced startup event handler with comprehensive bootstrapping."""
     logger.info("🐺 Wolf Goat Pig API starting up...")
     logger.info(f"ENVIRONMENT: {os.getenv('ENVIRONMENT')}")
-    
+
+    # Skip initialization if already done by render-startup.py
+    if os.getenv("SKIP_FASTAPI_STARTUP_INIT", "false").lower() == "true":
+        logger.info("⏭️ Skipping FastAPI startup initialization (already completed by render-startup.py)")
+        logger.info("🚀 Wolf Goat Pig API ready to accept requests!")
+        return
+
     # Initialize database first
     try:
         # Ensure all models are imported before creating tables
