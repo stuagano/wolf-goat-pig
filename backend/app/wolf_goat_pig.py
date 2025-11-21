@@ -1597,6 +1597,7 @@ class WolfGoatPigGame(PersistenceMixin):
             ],
             "hole_state": self._get_hole_state_summary() if hole_state else None,
             "hole_history": getattr(self, 'scorekeeper_hole_history', None) or self._get_hole_history(),
+            "stroke_allocation": self._get_stroke_allocation_table(),
             "hoepfinger_start": self.hoepfinger_start_hole,
             "settings": {
                 "double_points_round": self.double_points_round,
@@ -1719,7 +1720,51 @@ class WolfGoatPigGame(PersistenceMixin):
         }
     
     # Helper methods
-    
+
+    def _get_stroke_allocation_table(self) -> Dict[str, Dict[int, float]]:
+        """
+        Calculate stroke allocation for all 18 holes for each player.
+        This allows the scorecard to display which holes each player gets strokes on
+        before those holes are played (traditional golf scorecard functionality).
+
+        Returns:
+            Dictionary mapping player_id -> {hole_number: strokes_received}
+            Example: {
+                "player1": {1: 1.0, 2: 0.5, 3: 0.0, ...},
+                "player2": {1: 0.5, 2: 0.0, 3: 0.0, ...}
+            }
+        """
+        stroke_allocation = {}
+
+        if not self.course_manager:
+            return stroke_allocation
+
+        for player in self.players:
+            player_strokes = {}
+
+            # Calculate strokes for all 18 holes
+            for hole_num in range(1, 19):
+                try:
+                    # Get stroke index for this hole
+                    hole_info = self.course_manager.get_hole_info(hole_num)
+                    stroke_index = hole_info.get("stroke_index", hole_num)
+
+                    # Calculate strokes received using Creecher Feature
+                    strokes = HandicapValidator.calculate_strokes_received_with_creecher(
+                        player.handicap,
+                        stroke_index,
+                        validate=True
+                    )
+                    player_strokes[hole_num] = strokes
+
+                except Exception as e:
+                    logger.warning(f"Failed to calculate strokes for player {player.id} hole {hole_num}: {e}")
+                    player_strokes[hole_num] = 0.0
+
+            stroke_allocation[player.id] = player_strokes
+
+        return stroke_allocation
+
     def _get_player_name(self, player_id: str) -> str:
         """Get player name by ID"""
         player = next((p for p in self.players if p.id == player_id), None)
