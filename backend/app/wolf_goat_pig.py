@@ -1583,6 +1583,7 @@ class WolfGoatPigGame(PersistenceMixin):
             "game_phase": self.game_phase.value,
             "player_count": self.player_count,
             **hole_info,  # Include hole info at top level
+            "course_name": self.course_manager.selected_course if self.course_manager else getattr(self, 'course_name', None),
             "players": [
                 {
                     "id": p.id,
@@ -1625,14 +1626,17 @@ class WolfGoatPigGame(PersistenceMixin):
 
             # Only include holes that have been completed with scores
             if hole_state.hole_complete and hole_state.scores:
-                history.append({
+                hole_data = {
                     "hole": hole_num,
                     "gross_scores": hole_state.scores.copy(),
                     "points_delta": hole_state.points_awarded.copy() if hole_state.points_awarded else {},
                     "wager": hole_state.betting.current_wager,
                     "team_type": hole_state.teams.type,
-                    "halved": not bool(hole_state.points_awarded) or all(v == 0 for v in hole_state.points_awarded.values())
-                })
+                    "halved": not bool(hole_state.points_awarded) or all(v == 0 for v in hole_state.points_awarded.values()),
+                    "par": hole_state.hole_par,
+                    "handicap": hole_state.stroke_index
+                }
+                history.append(hole_data)
 
         return history
 
