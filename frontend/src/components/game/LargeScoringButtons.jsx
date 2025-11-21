@@ -13,6 +13,34 @@ const LargeScoringButtons = ({
   const theme = useTheme();
   const [scores, setScores] = useState({});
   const [pressedButton, setPressedButton] = useState(null); // Track which button is pressed
+  const [courseData, setCourseData] = useState(null);
+
+  // Fetch course data to get hole par information
+  React.useEffect(() => {
+    const fetchCourseData = async () => {
+      try {
+        const courseName = gameState?.course_name;
+        if (courseName) {
+          const courseResponse = await fetch(`/api/courses`);
+          if (courseResponse.ok) {
+            const coursesData = await courseResponse.json();
+            const course = coursesData[courseName];
+            if (course) {
+              setCourseData(course);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching course data:', err);
+      }
+    };
+
+    fetchCourseData();
+  }, [gameState?.course_name]);
+
+  // Get current hole par from course database ONLY
+  const currentHole = gameState?.current_hole || 1;
+  const holePar = courseData?.holes?.find(h => h.hole_number === currentHole)?.par || 4;
 
   const updateScore = (playerId, value) => {
     setScores(prev => ({ ...prev, [playerId]: value }));
@@ -128,7 +156,7 @@ const LargeScoringButtons = ({
   // Score selection buttons for a player
   const renderScoreSelector = (player) => {
     const playerScore = scores[player.id];
-    const holePar = gameState.hole_par || 4;
+    // Use holePar from course data (defined at component level)
     const commonScores = [holePar - 2, holePar - 1, holePar, holePar + 1, holePar + 2];
 
     return (
@@ -421,7 +449,7 @@ const LargeScoringButtons = ({
             display: 'flex',
             alignItems: 'center'
           }}>
-            Par {gameState?.hole_par || 4}
+            Par {holePar}
           </div>
         </div>
 

@@ -691,10 +691,9 @@ const SimpleScorekeeper = ({
 
                   return [... Array(18)].map((_, i) => {
                     const holeNumber = i + 1;
-                    const hole = holeHistory.find(h => h.hole === holeNumber);
-                    // IMPORTANT: Prioritize course data for par display in scorecard, not hole history
-                    // Hole history may contain old/incorrect data
-                    const par = courseData?.holes?.find(h => h.hole_number === holeNumber)?.par || hole?.hole_par || 4;
+                    // IMPORTANT: ONLY read from course database, never from hole history
+                    // Hole history may contain stale/incorrect data that doesn't match the course
+                    const par = courseData?.holes?.find(h => h.hole_number === holeNumber)?.par || 4;
 
                     // Track totals for front and back nine
                     if (holeNumber <= 9) {
@@ -739,7 +738,8 @@ const SimpleScorekeeper = ({
                 </td>
                 {[...Array(18)].map((_, i) => {
                   const holeNumber = i + 1;
-                  const handicap = courseData?.holes?.find(h => h.hole_number === holeNumber)?.handicap || holeNumber;
+                  // ONLY read handicap from course database
+                  const handicap = courseData?.holes?.find(h => h.hole_number === holeNumber)?.handicap || i + 1;
                   const showDivider = i === 8; // After hole 9
                   return (
                     <td key={i} style={{
