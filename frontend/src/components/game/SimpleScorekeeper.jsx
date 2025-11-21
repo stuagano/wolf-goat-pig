@@ -872,8 +872,10 @@ const SimpleScorekeeper = ({
                         };
 
                         // Get the actual stroke index (handicap) for this hole from course data
-                        const holeHandicap = courseData?.holes?.find(h => h.hole_number === holeNumber)?.handicap || holeNumber;
-                        const strokesReceived = getStrokesForHole(player.handicap || 0, holeHandicap);
+                        // CRITICAL: Do NOT use holeNumber as fallback - it's not the same as strokeIndex!
+                        // strokeIndex = difficulty ranking, holeNumber = position on course
+                        const holeHandicap = courseData?.holes?.find(h => h.hole_number === holeNumber)?.handicap;
+                        const strokesReceived = holeHandicap ? getStrokesForHole(player.handicap || 0, holeHandicap) : null;
 
                         // Determine indicator style based on score relative to par
                         let indicatorStyle = {};
@@ -923,7 +925,7 @@ const SimpleScorekeeper = ({
                               ) : '-'}
                             </div>
                             {/* Stroke indicator for upcoming holes */}
-                            {!score && strokesReceived > 0 && (
+                            {!score && strokesReceived !== null && strokesReceived > 0 && (
                               <div style={{
                                 fontSize: '9px',
                                 color: strokesReceived === 0.5 ? '#FF9800' : strokesReceived === 1.0 ? '#2196F3' : '#9C27B0',
@@ -1004,8 +1006,10 @@ const SimpleScorekeeper = ({
                         };
 
                         // Get the actual stroke index (handicap) for this hole from course data
-                        const holeHandicap = courseData?.holes?.find(h => h.hole_number === holeNumber)?.handicap || holeNumber;
-                        const strokesReceived = getStrokesForHole(player.handicap || 0, holeHandicap);
+                        // CRITICAL: Do NOT use holeNumber as fallback - it's not the same as strokeIndex!
+                        // strokeIndex = difficulty ranking, holeNumber = position on course
+                        const holeHandicap = courseData?.holes?.find(h => h.hole_number === holeNumber)?.handicap;
+                        const strokesReceived = holeHandicap ? getStrokesForHole(player.handicap || 0, holeHandicap) : null;
 
                         // Determine indicator style based on score relative to par
                         let indicatorStyle = {};
@@ -1055,7 +1059,7 @@ const SimpleScorekeeper = ({
                               ) : '-'}
                             </div>
                             {/* Stroke indicator for upcoming holes */}
-                            {!score && strokesReceived > 0 && (
+                            {!score && strokesReceived !== null && strokesReceived > 0 && (
                               <div style={{
                                 fontSize: '9px',
                                 color: strokesReceived === 0.5 ? '#FF9800' : strokesReceived === 1.0 ? '#2196F3' : '#9C27B0',
@@ -1355,7 +1359,12 @@ const SimpleScorekeeper = ({
         };
 
         // Get actual stroke index from course data (hole handicap/difficulty ranking)
-        const strokeIndex = courseData?.holes?.find(h => h.hole_number === currentHole)?.handicap || currentHole;
+        // CRITICAL: Do NOT use currentHole as fallback - it's not the same as strokeIndex!
+        // strokeIndex = difficulty ranking (1=hardest, 18=easiest), currentHole = position on course
+        const strokeIndex = courseData?.holes?.find(h => h.hole_number === currentHole)?.handicap;
+
+        // Don't show stroke allocation if course data isn't loaded yet (prevents wrong calculations)
+        if (!strokeIndex) return null;
 
         const playersWithStrokes = players
           .map(player => ({
