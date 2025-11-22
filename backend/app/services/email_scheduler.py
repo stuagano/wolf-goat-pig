@@ -36,11 +36,10 @@ class EmailScheduler:
         # Schedule weekly summaries on Sunday at 9 AM
         schedule.every().sunday.at("09:00").do(self._send_weekly_summaries)
 
-        # Schedule daily matchmaking at 10 AM
-        schedule.every().day.at("10:00").do(self._run_matchmaking)
-
-        # Schedule daily Google Sheets sync at 2 AM (for historical data)
-        schedule.every().day.at("02:00").do(self._sync_google_sheets)
+        # DISABLED: These tasks make HTTP requests to the same server which causes deadlocks
+        # Use external cron jobs or proper async background tasks instead
+        # schedule.every().day.at("10:00").do(self._run_matchmaking)
+        # schedule.every().day.at("02:00").do(self._sync_google_sheets)
 
         logger.info("Email schedules set up successfully")
     
@@ -77,7 +76,7 @@ class EmailScheduler:
             for player, prefs in players_with_prefs:
                 try:
                     if player.email:
-                        success =get_email_service().send_daily_signup_reminder(
+                        success = get_email_service().send_daily_signup_reminder(
                             to_email=player.email,
                             player_name=player.name,
                             available_dates=available_dates
@@ -125,12 +124,12 @@ class EmailScheduler:
             for player, prefs in players_with_prefs:
                 try:
                     if player.email:
-                        success =get_email_service().send_daily_signup_reminder(
+                        success = get_email_service().send_daily_signup_reminder(
                             to_email=player.email,
                             player_name=player.name,
                             available_dates=available_dates
                         )
-                        
+
                         if success:
                             logger.info(f"Daily reminder sent to {player.name} ({player.email})")
                         else:
@@ -237,7 +236,7 @@ class EmailScheduler:
     def send_signup_confirmation_now(self, player_email: str, player_name: str, signup_date: str) -> bool:
         """Send an immediate signup confirmation email"""
         try:
-            returnget_email_service().send_signup_confirmation(
+            return get_email_service().send_signup_confirmation(
                 to_email=player_email,
                 player_name=player_name,
                 signup_date=signup_date
@@ -249,7 +248,7 @@ class EmailScheduler:
     def send_game_invitation_now(self, to_email: str, player_name: str, inviter_name: str, game_date: str) -> bool:
         """Send an immediate game invitation email"""
         try:
-            returnget_email_service().send_game_invitation(
+            return get_email_service().send_game_invitation(
                 to_email=to_email,
                 player_name=player_name,
                 inviter_name=inviter_name,
@@ -260,63 +259,80 @@ class EmailScheduler:
             return False
     
     def _run_matchmaking(self):
-        """Run the matchmaking process and send notifications"""
-        logger.info("Running scheduled matchmaking...")
-        
-        try:
-            import requests
-            # Call the matchmaking endpoint (assumes backend is running)
-            response = requests.post("http://localhost:8000/matchmaking/create-and-notify")
-            
-            if response.status_code == 200:
-                result = response.json()
-                logger.info(f"Matchmaking completed: {result.get('matches_created', 0)} matches created, "
-                           f"{result.get('notifications_sent', 0)} notifications sent")
-            else:
-                logger.error(f"Matchmaking endpoint returned status {response.status_code}")
-                
-        except Exception as e:
-            logger.error(f"Error running scheduled matchmaking: {str(e)}")
+        """
+        Run the matchmaking process and send notifications.
+
+        DISABLED: This method makes HTTP requests to the same server which causes deadlocks
+        when running in a background thread. Use external cron jobs to call the endpoint
+        instead, or refactor to use proper async background tasks.
+        """
+        logger.warning("_run_matchmaking is disabled - use external scheduler to call /matchmaking/create-and-notify")
+        return
+
+        # COMMENTED OUT - CAUSES DEADLOCK
+        # logger.info("Running scheduled matchmaking...")
+        #
+        # try:
+        #     import requests
+        #     # Call the matchmaking endpoint (assumes backend is running)
+        #     response = requests.post("http://localhost:8000/matchmaking/create-and-notify")
+        #
+        #     if response.status_code == 200:
+        #         result = response.json()
+        #         logger.info(f"Matchmaking completed: {result.get('matches_created', 0)} matches created, "
+        #                    f"{result.get('notifications_sent', 0)} notifications sent")
+        #     else:
+        #         logger.error(f"Matchmaking endpoint returned status {response.status_code}")
+        #
+        # except Exception as e:
+        #     logger.error(f"Error running scheduled matchmaking: {str(e)}")
 
     def _sync_google_sheets(self):
         """
         Sync historical player data from Google Sheets once daily.
 
-        This is a background process that fetches historical data from the
-        Wolf-Goat-Pig Google Sheets leaderboard and updates the database.
-        Runs at 2 AM daily to avoid peak usage times.
+        DISABLED: This method makes HTTP requests to the same server which causes deadlocks
+        when running in a background thread. Use external cron jobs to call the endpoint
+        instead, or refactor to use proper async background tasks.
+
+        Additionally, the original code had the wrong port (10000 instead of 8000).
         """
-        logger.info("Running scheduled Google Sheets sync...")
+        logger.warning("_sync_google_sheets is disabled - use external scheduler to call /sheet-integration/sync-wgp-sheet")
+        return
 
-        try:
-            import httpx
-
-            # Hardcoded sheet URL (same as in SheetSyncContext)
-            sheet_id = "1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM"
-            gid = "0"
-            csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
-
-            # Call the sync endpoint directly (internal call, no rate limiting for scheduled jobs)
-            # Use a special header to bypass rate limiting for scheduled jobs
-            import requests
-            response = requests.post(
-                "http://localhost:10000/sheet-integration/sync-wgp-sheet",
-                json={"csv_url": csv_url},
-                headers={"X-Scheduled-Job": "true"},
-                timeout=60
-            )
-
-            if response.status_code == 200:
-                result = response.json()
-                players_synced = result.get('player_count', 0)
-                logger.info(f"✅ Google Sheets sync completed successfully: {players_synced} players synced")
-            elif response.status_code == 429:
-                logger.warning("⚠️ Sheet sync rate limited - will retry tomorrow")
-            else:
-                logger.error(f"❌ Sheet sync failed with status {response.status_code}: {response.text[:200]}")
-
-        except Exception as e:
-            logger.error(f"❌ Error running scheduled Google Sheets sync: {str(e)}")
+        # COMMENTED OUT - CAUSES DEADLOCK AND HAD WRONG PORT
+        # logger.info("Running scheduled Google Sheets sync...")
+        #
+        # try:
+        #     import httpx
+        #
+        #     # Hardcoded sheet URL (same as in SheetSyncContext)
+        #     sheet_id = "1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM"
+        #     gid = "0"
+        #     csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
+        #
+        #     # Call the sync endpoint directly (internal call, no rate limiting for scheduled jobs)
+        #     # Use a special header to bypass rate limiting for scheduled jobs
+        #     import requests
+        #     # BUG: Port should be 8000 (or from env), not hardcoded 10000
+        #     response = requests.post(
+        #         "http://localhost:10000/sheet-integration/sync-wgp-sheet",
+        #         json={"csv_url": csv_url},
+        #         headers={"X-Scheduled-Job": "true"},
+        #         timeout=60
+        #     )
+        #
+        #     if response.status_code == 200:
+        #         result = response.json()
+        #         players_synced = result.get('player_count', 0)
+        #         logger.info(f"✅ Google Sheets sync completed successfully: {players_synced} players synced")
+        #     elif response.status_code == 429:
+        #         logger.warning("⚠️ Sheet sync rate limited - will retry tomorrow")
+        #     else:
+        #         logger.error(f"❌ Sheet sync failed with status {response.status_code}: {response.text[:200]}")
+        #
+        # except Exception as e:
+        #     logger.error(f"❌ Error running scheduled Google Sheets sync: {str(e)}")
 
 # Global email scheduler instance
 email_scheduler = EmailScheduler()
