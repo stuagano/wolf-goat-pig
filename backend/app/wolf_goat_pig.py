@@ -1748,14 +1748,16 @@ class WolfGoatPigGame(PersistenceMixin):
         """
         course_manager = get_course_manager()
         # Get Wing Point holes as fallback data
-        course_details = course_manager.get_course_details("Wing Point")
+        course_details = course_manager.get_course_details("Wing Point Golf & Country Club")
 
         if not course_details:
             # Create a default Wing Point course if it doesn't exist
             # This is a fallback for a clean database
-            from .state.wing_point_data import WING_POINT_DATA
-            course_manager.create_course(WING_POINT_DATA)
-            course_details = course_manager.get_course_details("Wing Point")
+            from .seed_courses import DEFAULT_COURSES
+            wing_point_data = next((c for c in DEFAULT_COURSES if c["name"] == "Wing Point Golf & Country Club"), None)
+            if wing_point_data:
+                course_manager.create_course(wing_point_data)
+                course_details = course_manager.get_course_details("Wing Point Golf & Country Club")
 
         wing_point_holes = course_details.get('holes', []) if course_details else []
 
