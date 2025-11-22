@@ -16,6 +16,31 @@ repos:
       - id: check-merge-conflict
       - id: debug-statements
 
+  # Ruff for fast linting and formatting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.0
+    hooks:
+      # Run the linter
+      - id: ruff
+        args: [--fix]
+        files: ^backend/
+      # Run the formatter
+      - id: ruff-format
+        files: ^backend/
+
+  # Type checking with mypy
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.13.0
+    hooks:
+      - id: mypy
+        files: ^backend/app/
+        args: [--config-file=backend/mypy.ini]
+        additional_dependencies:
+          - types-requests
+          - sqlalchemy
+          - fastapi
+          - pydantic
+
   # Custom database transaction linter
   - repo: local
     hooks:

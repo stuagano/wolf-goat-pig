@@ -1,0 +1,38 @@
+[tool.ruff]
+# Target Python 3.9+ for compatibility
+target-version = "py39"
+line-length = 120
+
+# Include backend directory
+include = ["app/**/*.py", "tests/**/*.py"]
+
+[tool.ruff.lint]
+# Enable important rule categories
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+    "TCH", # flake8-type-checking
+]
+
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "B008",  # do not perform function calls in argument defaults
+    "N805",  # first argument should be named 'self'
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests can have longer lines and other relaxed rules
+"tests/**/*.py" = ["E402", "F401", "F811"]
+
+[tool.ruff.format]
+# Use double quotes for strings
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"

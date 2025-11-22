@@ -9,5 +9,12 @@ httpx
 python-dotenv
 pydantic
 
+# Type checking and linting
+mypy
+ruff
+
+# Pre-commit hooks
+pre-commit
+
 # For local development, we use SQLite (no PostgreSQL needed)
 # psycopg2-binary is only needed for production PostgreSQL on Render
