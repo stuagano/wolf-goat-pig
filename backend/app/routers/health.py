@@ -67,7 +67,7 @@ def health_check():
                 health_status["components"]["courses"] = {
                     "status": "healthy",
                     "message": f"{course_count} courses available",
-                    "courses": list(courses.keys()) if courses else []
+                    "courses": [c["name"] for c in courses] if courses else []
                 }
             else:
                 health_status["components"]["courses"] = {
