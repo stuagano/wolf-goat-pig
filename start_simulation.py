@@ -201,7 +201,7 @@ def test_basic_imports() -> bool:
 
     try:
         import app.database  # noqa: F401
-        from app.wolf_goat_pig_simulation import WolfGoatPigSimulation
+        from app.wolf_goat_pig import WolfGoatPigGame
     except ModuleNotFoundError as exc:
         logger.error("❌ Missing dependency while importing backend modules: %s", exc)
         logger.info("Run `python -m pip install -r backend/requirements.txt` and retry.")
@@ -211,7 +211,7 @@ def test_basic_imports() -> bool:
         return False
 
     try:
-        WolfGoatPigSimulation(player_count=4)
+        WolfGoatPigGame(player_count=4)
     except Exception as exc:  # pragma: no cover - diagnostics only
         logger.error("❌ Failed to instantiate WolfGoatPigSimulation: %s", exc)
         return False
