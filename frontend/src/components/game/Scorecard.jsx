@@ -51,7 +51,7 @@ const Scorecard = ({
   // Get course hole info (par, handicap, yards)
   const getCourseHoleInfo = (holeNumber) => {
     if (!courseHoles || courseHoles.length === 0) return null;
-    return courseHoles.find(h => h.hole === holeNumber);
+    return courseHoles.find(h => h.hole_number === holeNumber);
   };
 
   // Get stroke allocation for a player on a hole

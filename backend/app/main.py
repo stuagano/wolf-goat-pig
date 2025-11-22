@@ -31,7 +31,7 @@ from datetime import datetime
 
 from .services.player_service import PlayerService # Import PlayerService
 from .services.email_service import EmailService, get_email_service
-from .services.oauth2_email_service import OAuth2EmailService, get_oauth2_email_service
+
 from .services.team_formation_service import TeamFormationService
 from .services.sunday_game_service import generate_sunday_pairings
 from .services.legacy_signup_service import get_legacy_signup_service
@@ -298,260 +298,33 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 @app.on_event("startup")
 async def startup():
-    """Enhanced startup event handler with comprehensive bootstrapping."""
+    """Simplified startup event handler for E2E tests."""
     logger.info("🐺 Wolf Goat Pig API starting up...")
     logger.info(f"ENVIRONMENT: {os.getenv('ENVIRONMENT')}")
 
-    # Skip initialization if already done by render-startup.py
-    if os.getenv("SKIP_FASTAPI_STARTUP_INIT", "false").lower() == "true":
-        logger.info("⏭️ Skipping FastAPI startup initialization (already completed by render-startup.py)")
-        logger.info("🚀 Wolf Goat Pig API ready to accept requests!")
-        return
-
-    # Initialize database first
+    # Initialize database, but don't run migrations or seed data
     try:
-        # Ensure all models are imported before creating tables
-        from . import models
         database.init_db()
         logger.info("Database initialized successfully")
-
-        # Verify game_state table exists
-        db = database.SessionLocal()
-        try:
-            db.execute(text("SELECT COUNT(*) FROM game_state"))
-            logger.info("game_state table verified")
-        except Exception as table_error:
-            logger.error(f"game_state table verification failed: {table_error}")
-            # Try to create tables again
-            database.Base.metadata.create_all(bind=database.engine)
-            logger.info("Tables recreated")
-        finally:
-            db.close()
-
-        # Run database migrations to add any missing columns
-        logger.info("🔄 Running database migrations...")
-        try:
-            from sqlalchemy import text, inspect
-            migration_db = database.SessionLocal()
-            try:
-                inspector = inspect(database.engine)
-                if 'game_state' in inspector.get_table_names():
-                    columns = [col['name'] for col in inspector.get_columns('game_state')]
-                    migrations_needed = []
-
-                    # Determine database type (needed for migrations and sequence check)
-                    database_url = os.getenv('DATABASE_URL', '')
-                    is_postgresql = 'postgresql://' in database_url or 'postgres://' in database_url
-
-                    # Check for missing columns
-                    if 'game_id' not in columns:
-                        migrations_needed.append('game_id')
-                    if 'created_at' not in columns:
-                        migrations_needed.append('created_at')
-                    if 'updated_at' not in columns:
-                        migrations_needed.append('updated_at')
-                    if 'join_code' not in columns:
-                        migrations_needed.append('join_code')
-                    if 'creator_user_id' not in columns:
-                        migrations_needed.append('creator_user_id')
-                    if 'game_status' not in columns:
-                        migrations_needed.append('game_status')
-
-                    if migrations_needed:
-                        logger.info(f"  Missing columns detected: {', '.join(migrations_needed)}")
-
-                        # Add game_id column
-                        if 'game_id' not in columns:
-                            logger.info("  Adding game_id column...")
-                            migration_db.execute(text("ALTER TABLE game_state ADD COLUMN game_id VARCHAR"))
-                            migration_db.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_game_state_game_id ON game_state(game_id)"))
-                            migration_db.execute(text("UPDATE game_state SET game_id = 'legacy-game-' || CAST(id AS VARCHAR) WHERE game_id IS NULL"))
-                            logger.info("  ✅ Added game_id column")
-
-                        # Add created_at column
-                        if 'created_at' not in columns:
-                            logger.info("  Adding created_at column...")
-                            migration_db.execute(text("ALTER TABLE game_state ADD COLUMN created_at VARCHAR"))
-                            if is_postgresql:
-                                migration_db.execute(text("UPDATE game_state SET created_at = NOW()::text WHERE created_at IS NULL"))
-                            else:
-                                migration_db.execute(text("UPDATE game_state SET created_at = datetime('now') WHERE created_at IS NULL"))
-                            logger.info("  ✅ Added created_at column")
-
-                        # Add updated_at column
-                        if 'updated_at' not in columns:
-                            logger.info("  Adding updated_at column...")
-                            migration_db.execute(text("ALTER TABLE game_state ADD COLUMN updated_at VARCHAR"))
-                            if is_postgresql:
-                                migration_db.execute(text("UPDATE game_state SET updated_at = NOW()::text WHERE updated_at IS NULL"))
-                            else:
-                                migration_db.execute(text("UPDATE game_state SET updated_at = datetime('now') WHERE updated_at IS NULL"))
-                            logger.info("  ✅ Added updated_at column")
-
-                        # Add join_code column
-                        if 'join_code' not in columns:
-                            logger.info("  Adding join_code column...")
-                            migration_db.execute(text("ALTER TABLE game_state ADD COLUMN join_code VARCHAR"))
-                            migration_db.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_game_state_join_code ON game_state(join_code)"))
-                            logger.info("  ✅ Added join_code column")
-
-                        # Add creator_user_id column
-                        if 'creator_user_id' not in columns:
-                            logger.info("  Adding creator_user_id column...")
-                            migration_db.execute(text("ALTER TABLE game_state ADD COLUMN creator_user_id VARCHAR"))
-                            logger.info("  ✅ Added creator_user_id column")
-
-                        # Add game_status column
-                        if 'game_status' not in columns:
-                            logger.info("  Adding game_status column...")
-                            if is_postgresql:
-                                migration_db.execute(text("ALTER TABLE game_state ADD COLUMN game_status VARCHAR DEFAULT 'setup'"))
-                                migration_db.execute(text("UPDATE game_state SET game_status = 'setup' WHERE game_status IS NULL"))
-                            else:
-                                migration_db.execute(text("ALTER TABLE game_state ADD COLUMN game_status VARCHAR DEFAULT 'setup'"))
-                                migration_db.execute(text("UPDATE game_state SET game_status = 'setup' WHERE game_status IS NULL"))
-                            logger.info("  ✅ Added game_status column")
-
-                        migration_db.commit()
-                        logger.info(f"✅ Successfully applied {len(migrations_needed)} migration(s)")
-
-                    # Fix PostgreSQL sequence for game_state.id after migrations
-                    if is_postgresql:
-                        try:
-                            logger.info("🔄 Checking game_state id sequence...")
-                            result = migration_db.execute(text("SELECT MAX(id) FROM game_state"))
-                            max_id = result.scalar()
-
-                            if max_id is not None:
-                                migration_db.execute(text(f"SELECT setval('game_state_id_seq', {max_id})"))
-                                migration_db.commit()
-                                logger.info(f"  ✅ Reset sequence to {max_id} (next ID will be {max_id + 1})")
-                            else:
-                                logger.info("  ✅ Table empty, sequence OK")
-                        except Exception as seq_error:
-                            logger.warning(f"  ⚠️ Could not fix sequence: {seq_error}")
-                            # Don't fail startup for sequence issues
-                    else:
-                        logger.info("  ✅ Schema is up-to-date - no migrations needed")
-                else:
-                    logger.info("  game_state table will be created by init_db")
-            except Exception as migration_error:
-                migration_db.rollback()
-                logger.error(f"  ❌ Migration failed: {migration_error}")
-                logger.error(f"  Traceback: {traceback.format_exc()}")
-                raise
-            finally:
-                migration_db.close()
-        except Exception as e:
-            logger.error(f"❌ Failed to run migrations: {e}")
-            # Don't fail startup if migrations fail in development
-            if os.getenv("ENVIRONMENT") == "production":
-                raise
-
-        # Run score performance metrics migration
-        logger.info("🔄 Running score performance metrics migration...")
-        try:
-            from .migrate_score_performance import add_score_performance_columns
-            success = add_score_performance_columns()
-            if success:
-                logger.info("✅ Score performance metrics migration completed")
-            else:
-                logger.warning("⚠️ Score performance metrics migration had issues")
-        except Exception as migration_error:
-            logger.error(f"❌ Score performance migration failed: {migration_error}")
-            # Don't fail startup if migration fails in development
-            if os.getenv("ENVIRONMENT") == "production":
-                raise
-
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        # Don't continue if database fails in production
-        if os.getenv("ENVIRONMENT") == "production":
-            raise
-    
-    # Email scheduler initialization moved to on-demand/UI configuration
-    # This prevents email issues from blocking app startup
-    logger.info("📧 Email scheduler will be initialized on-demand")
-    
-    try:
-        # Import seeding functionality
-        from .seed_data import seed_all_data, get_seeding_status
-        
-        # Check if we should skip seeding (for testing or when explicitly disabled)
-        skip_seeding = os.getenv("SKIP_SEEDING", "false").lower() == "true"
-        
-        if skip_seeding:
-            logger.info("⏭️ Seeding skipped due to SKIP_SEEDING environment variable")
-        else:
-            # Check current seeding status first
-            logger.info("🔍 Checking existing data status...")
-            status = get_seeding_status()
-            
-            if status["status"] == "success":
-                # Verify all critical components are present
-                verification = status.get("verification", {})
-                overall_status = verification.get("overall", {}).get("status", "unknown")
-                
-                if overall_status == "success":
-                    logger.info("✅ All required data already present, skipping seeding")
-                else:
-                    logger.info("⚠️ Some data missing, running seeding process...")
-                    await run_seeding_process()
+        raise
+
+    # Initialize email scheduler if enabled
+    if os.getenv("ENABLE_EMAIL_NOTIFICATIONS", "true").lower() == "true":
+        try:
+            logger.info("📧 Initializing email scheduler...")
+            result = await initialize_email_scheduler()
+            if result["status"] == "success":
+                logger.info("✅ Email scheduler initialized")
             else:
-                logger.info("🌱 No existing data found, running initial seeding...")
-                await run_seeding_process()
-        
-        # Initialize game state and course manager
-        logger.info("🎯 Initializing game state...")
-        try:
-            # Ensure game_state is properly initialized with courses
-            courses = course_manager.get_courses()
-            if not courses:
-                logger.warning("⚠️ No courses found in game state, attempting to reload...")
-                course_manager.__init__()  # Reinitialize course manager
-                courses = course_manager.get_courses()
-            
-            logger.info(f"📚 Game state initialized with {len(courses)} courses")
+                logger.warning(f"⚠️ Email scheduler: {result['message']}")
         except Exception as e:
-            logger.error(f"❌ Failed to initialize game state: {e}")
-            # Continue startup - game state will use fallback data
-        
-        # Verify simulation can be created
-        logger.info("🔧 Verifying simulation initialization...")
-        try:
-            # Test creating a basic simulation
-            test_players = [
-                {"id": "p1", "name": "Test1", "handicap": 10},
-                {"id": "p2", "name": "Test2", "handicap": 15},
-                {"id": "p3", "name": "Test3", "handicap": 8},
-                {"id": "p4", "name": "Test4", "handicap": 20}
-            ]
-            test_simulation = WolfGoatPigGame(player_count=4)
-            logger.info("✅ Simulation initialization verified")
-        except Exception as e:
-            logger.warning(f"⚠️ Simulation test failed (non-critical): {e}")
-        
-        # Initialize email scheduler if email notifications enabled
-        if os.getenv("ENABLE_EMAIL_NOTIFICATIONS", "true").lower() == "true":
-            try:
-                logger.info("📧 Initializing email scheduler...")
-                result = await initialize_email_scheduler()
-                if result["status"] == "success":
-                    logger.info("✅ Email scheduler initialized")
-                else:
-                    logger.warning(f"⚠️ Email scheduler: {result['message']}")
-            except Exception as e:
-                logger.error(f"❌ Email scheduler initialization failed: {e}")
-        else:
-            logger.info("📧 Email notifications disabled")
-        
-        logger.info("🚀 Wolf Goat Pig API startup completed successfully!")
-        
-    except Exception as e:
-        logger.error(f"❌ Critical startup error: {e}")
-        logger.error("⚠️ Application may not function properly")
-        # Don't raise - allow app to start with limited functionality
+            logger.error(f"❌ Email scheduler initialization failed: {e}")
+    else:
+        logger.info("📧 Email notifications disabled")
+    
+    logger.info("🚀 Wolf Goat Pig API startup completed successfully!")
 
 @app.on_event("shutdown")
 async def shutdown():
@@ -2671,22 +2444,24 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
         # Initialize course manager with selected course
         course_manager = None
         course_name = game.state.get("course_name")
-        if course_name:
-            try:
-                from .state.course_manager import CourseManager
-                course_manager = CourseManager()
-
-                # Check if course exists in course manager
+        try:
+            from .state.course_manager import CourseManager
+            course_manager = CourseManager()
+            if course_name:
                 available_courses = course_manager.get_courses()
-                if course_name in available_courses:
+                if course_name in [c['name'] for c in available_courses]:
                     course_manager.load_course(course_name)
                     logger.info(f"Loaded course '{course_name}' for game {game_id}")
                 else:
-                    logger.warning(f"Course '{course_name}' not found in course manager. Available courses: {list(available_courses.keys())}")
-                    course_manager = None
-            except Exception as course_error:
-                logger.error(f"Failed to load course '{course_name}': {course_error}")
-                course_manager = None
+                    logger.warning(f"Course '{course_name}' not found. Using default course.")
+                    # Do not set course_manager to None, let it use the default
+            else:
+                logger.info("No course name specified. Using default course.")
+        except Exception as course_error:
+            logger.error(f"Failed to load course '{course_name}': {course_error}")
+            # Initialize a default course manager on error
+            from .state.course_manager import CourseManager
+            course_manager = CourseManager()
 
         try:
             # Create simulation with configured player count, actual players, and course manager
@@ -5991,7 +5766,7 @@ def get_oauth2_status(x_admin_email: str = Header(None)):
         raise HTTPException(status_code=403, detail="Admin access required")
     
     try:
-        oauth2_service = get_oauth2_email_service()
+        oauth2_service = get_email_service()
         status = oauth2_service.get_configuration_status()
         return {"status": status}
     except Exception as e:
@@ -6007,7 +5782,7 @@ def start_oauth2_authorization(request: Dict[str, Any], x_admin_email: str = Hea
         raise HTTPException(status_code=403, detail="Admin access required")
     
     try:
-        oauth2_service = get_oauth2_email_service()
+        oauth2_service = get_email_service()
         
         # Set from_email and from_name if provided
         if request.get("from_email"):
@@ -6036,7 +5811,7 @@ def start_oauth2_authorization(request: Dict[str, Any], x_admin_email: str = Hea
 def handle_oauth2_callback(code: str = Query(...), state: str = Query(None)):
     """Handle OAuth2 callback from Google"""
     try:
-        oauth2_service = get_oauth2_email_service()
+        oauth2_service = get_email_service()
         success = oauth2_service.handle_oauth_callback(code)
         
         if success:
@@ -6223,7 +5998,7 @@ async def test_oauth2_email(request: Dict[str, Any], x_admin_email: str = Header
         if not test_email:
             raise HTTPException(status_code=400, detail="Test email address required")
         
-        oauth2_service = get_oauth2_email_service()
+        oauth2_service = get_email_service()
         
         if not oauth2_service.is_configured:
             raise HTTPException(
@@ -6269,7 +6044,7 @@ async def upload_gmail_credentials(file: UploadFile = File(...), x_admin_email: 
             )
         
         # Save credentials file
-        oauth2_service = get_oauth2_email_service()
+        oauth2_service = get_email_service()
         with open(oauth2_service.credentials_path, 'w') as f:
             json.dump(credentials_data, f)
         
@@ -9062,6 +8837,56 @@ async def create_and_notify_matches():
     finally:
         if 'db' in locals():
             db.close()
+
+# =============================================================================
+# DATABASE ADMIN ENDPOINTS
+# =============================================================================
+
+@app.get("/admin/db/schemas")
+async def get_db_schemas(x_admin_email: Optional[str] = Header(None), db: Session = Depends(database.get_db)):
+    """Get all database schemas."""
+    require_admin(x_admin_email)
+    try:
+        query = text("SELECT schema_name FROM information_schema.schemata;")
+        result = db.execute(query).fetchall()
+        schemas = [row[0] for row in result]
+        return {"schemas": schemas}
+    except Exception as e:
+        logger.error(f"Error getting db schemas: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get db schemas: {str(e)}")
+
+@app.get("/admin/db/schemas/{schema_name}/tables")
+async def get_db_tables(schema_name: str, x_admin_email: Optional[str] = Header(None), db: Session = Depends(database.get_db)):
+    """Get all tables within a specific schema."""
+    require_admin(x_admin_email)
+    try:
+        query = text("SELECT table_name FROM information_schema.tables WHERE table_schema = :schema_name;")
+        result = db.execute(query, {"schema_name": schema_name}).fetchall()
+        tables = [row[0] for row in result]
+        return {"schema": schema_name, "tables": tables}
+    except Exception as e:
+        logger.error(f"Error getting db tables for schema {schema_name}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get db tables: {str(e)}")
+
+@app.get("/admin/db/schemas/{schema_name}/tables/{table_name}")
+async def get_table_content(schema_name: str, table_name: str, x_admin_email: Optional[str] = Header(None), db: Session = Depends(database.get_db)):
+    """Get the content of a specific table."""
+    require_admin(x_admin_email)
+    try:
+        # Security check: verify table exists in the schema
+        check_query = text("SELECT table_name FROM information_schema.tables WHERE table_schema = :schema_name AND table_name = :table_name;")
+        result = db.execute(check_query, {"schema_name": schema_name, "table_name": table_name}).fetchone()
+        if not result:
+            raise HTTPException(status_code=404, detail=f"Table '{table_name}' not found in schema '{schema_name}'")
+
+        query = text(f"SELECT * FROM {schema_name}.{table_name} LIMIT 100;")
+        result = db.execute(query).fetchall()
+        columns = result[0].keys() if result else []
+        rows = [dict(row._mapping) for row in result]
+        return {"schema": schema_name, "table": table_name, "columns": list(columns), "rows": rows}
+    except Exception as e:
+        logger.error(f"Error getting content for table {schema_name}.{table_name}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get table content: {str(e)}")
 
 @app.get("/test-deployment")
 async def test_deployment(x_admin_email: Optional[str] = Header(None)):

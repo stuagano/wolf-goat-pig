@@ -41,7 +41,7 @@ const Navigation = () => {
     { path: '/tutorial', label: '🎓 Tutorial', primary: false },
     { path: '/about', label: 'ℹ️ About', primary: false },
     { path: '/rules', label: '📋 Rules', primary: false },
-    ...(showAdminLink ? [{ path: '/admin', label: '🔧 Admin', primary: false }] : [])
+    ...(showAdminLink ? [{ path: '/admin', label: '🔧 Admin', primary: true }] : [])
   ];
 
   const navStyle = {

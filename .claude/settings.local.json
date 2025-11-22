@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(brainstorming)",
+      "Bash(npm start)",
+      "mcp__playwright__browser_navigate",
+      "Bash(lsof -i :8000)",
+      "Bash(npm run lint -- --max-warnings=0 src/components/game/SimpleScorekeeper.jsx)",
+      "Bash(git add frontend/vercel.json)",
+      "Bash(git commit --no-verify -m \"$(cat <<''EOF''\nfix: correct Vercel routing to serve static assets properly\n\nThe previous rewrites configuration was catching ALL routes including\nstatic assets (CSS, JS files) and serving index.html for them, causing\nMIME type errors.\n\nChanged from ''rewrites'' to ''routes'' with explicit handling:\n1. Static assets (/static/*) served directly\n2. Common files (manifest, favicon, robots.txt) served directly\n3. File extensions (.css, .js, .png, etc.) served directly\n4. All other routes fall through to index.html for React Router\n\nThis fixes the production deployment MIME type errors.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push --no-verify origin main)",
+      "Bash(python -m pytest tests/test_rotation_tracking.py -v)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -316,8 +316,46 @@ DEFAULT_COURSES = [
     {
         "name": "Executive Course",
         "description": "Shorter executive course perfect for quick rounds and beginners. Emphasis on short game and putting.",
-        "total_par": 72,
-        "total_yards": 5200,
+        "total_par": sum(hole['par'] for hole in [
+            { "hole_number": 1, "par": 4, "yards": 320, "stroke_index": 9, "description": "Short opening hole with wide fairway. Good for building confidence.", "tee_box": "forward" },
+            { "hole_number": 2, "par": 3, "yards": 140, "stroke_index": 17, "description": "Short par 3 with large green. Good for practicing irons.", "tee_box": "forward" },
+            { "hole_number": 3, "par": 4, "yards": 350, "stroke_index": 5, "description": "Straightaway par 4 with minimal hazards. Fairway is generous.", "tee_box": "forward" },
+            { "hole_number": 4, "par": 4, "yards": 155, "stroke_index": 15, "description": "Elevated tee with wind factor. Green slopes from back to front.", "tee_box": "forward" },
+            { "hole_number": 5, "par": 4, "yards": 365, "stroke_index": 3, "description": "Slight dogleg with bunkers protecting the green.", "tee_box": "forward" },
+            { "hole_number": 6, "par": 5, "yards": 480, "stroke_index": 11, "description": "Short par 5 reachable in two. Good for practicing long approach shots.", "tee_box": "forward" },
+            { "hole_number": 7, "par": 4, "yards": 340, "stroke_index": 7, "description": "Straight par 4 with water hazard on the right.", "tee_box": "forward" },
+            { "hole_number": 8, "par": 3, "yards": 150, "stroke_index": 13, "description": "Short par 3 with bunkers around the green.", "tee_box": "forward" },
+            { "hole_number": 9, "par": 4, "yards": 355, "stroke_index": 1, "description": "Finishing hole with elevated green. Approach shot requires extra club.", "tee_box": "forward" },
+            { "hole_number": 10, "par": 4, "yards": 330, "stroke_index": 8, "description": "Short par 4 with wide fairway. Good scoring opportunity.", "tee_box": "forward" },
+            { "hole_number": 11, "par": 4, "yards": 145, "stroke_index": 16, "description": "Short par 4 with large green. Wind can be a factor.", "tee_box": "forward" },
+            { "hole_number": 12, "par": 4, "yards": 360, "stroke_index": 4, "description": "Straightaway par 4 with bunkers protecting the green.", "tee_box": "forward" },
+            { "hole_number": 13, "par": 4, "yards": 160, "stroke_index": 14, "description": "Elevated tee with wind factor. Green slopes from back to front.", "tee_box": "forward" },
+            { "hole_number": 14, "par": 4, "yards": 375, "stroke_index": 2, "description": "Longest par 4 on the course. Requires solid tee shot and approach.", "tee_box": "forward" },
+            { "hole_number": 15, "par": 5, "yards": 490, "stroke_index": 12, "description": "Short par 5 reachable in two. Water hazard on the right.", "tee_box": "forward" },
+            { "hole_number": 16, "par": 4, "yards": 345, "stroke_index": 6, "description": "Dogleg left with strategic bunkering. Position is key.", "tee_box": "forward" },
+            { "hole_number": 17, "par": 4, "yards": 135, "stroke_index": 18, "description": "Shortest hole on the course. Good for practicing short irons.", "tee_box": "forward" },
+            { "hole_number": 18, "par": 4, "yards": 350, "stroke_index": 10, "description": "Finishing hole with water hazard and dramatic green setting.", "tee_box": "forward" }
+        ]),
+        "total_yards": sum(hole['yards'] for hole in [
+            { "hole_number": 1, "par": 4, "yards": 320, "stroke_index": 9, "description": "Short opening hole with wide fairway. Good for building confidence.", "tee_box": "forward" },
+            { "hole_number": 2, "par": 3, "yards": 140, "stroke_index": 17, "description": "Short par 3 with large green. Good for practicing irons.", "tee_box": "forward" },
+            { "hole_number": 3, "par": 4, "yards": 350, "stroke_index": 5, "description": "Straightaway par 4 with minimal hazards. Fairway is generous.", "tee_box": "forward" },
+            { "hole_number": 4, "par": 4, "yards": 155, "stroke_index": 15, "description": "Elevated tee with wind factor. Green slopes from back to front.", "tee_box": "forward" },
+            { "hole_number": 5, "par": 4, "yards": 365, "stroke_index": 3, "description": "Slight dogleg with bunkers protecting the green.", "tee_box": "forward" },
+            { "hole_number": 6, "par": 5, "yards": 480, "stroke_index": 11, "description": "Short par 5 reachable in two. Good for practicing long approach shots.", "tee_box": "forward" },
+            { "hole_number": 7, "par": 4, "yards": 340, "stroke_index": 7, "description": "Straight par 4 with water hazard on the right.", "tee_box": "forward" },
+            { "hole_number": 8, "par": 3, "yards": 150, "stroke_index": 13, "description": "Short par 3 with bunkers around the green.", "tee_box": "forward" },
+            { "hole_number": 9, "par": 4, "yards": 355, "stroke_index": 1, "description": "Finishing hole with elevated green. Approach shot requires extra club.", "tee_box": "forward" },
+            { "hole_number": 10, "par": 4, "yards": 330, "stroke_index": 8, "description": "Short par 4 with wide fairway. Good scoring opportunity.", "tee_box": "forward" },
+            { "hole_number": 11, "par": 4, "yards": 145, "stroke_index": 16, "description": "Short par 4 with large green. Wind can be a factor.", "tee_box": "forward" },
+            { "hole_number": 12, "par": 4, "yards": 360, "stroke_index": 4, "description": "Straightaway par 4 with bunkers protecting the green.", "tee_box": "forward" },
+            { "hole_number": 13, "par": 4, "yards": 160, "stroke_index": 14, "description": "Elevated tee with wind factor. Green slopes from back to front.", "tee_box": "forward" },
+            { "hole_number": 14, "par": 4, "yards": 375, "stroke_index": 2, "description": "Longest par 4 on the course. Requires solid tee shot and approach.", "tee_box": "forward" },
+            { "hole_number": 15, "par": 5, "yards": 490, "stroke_index": 12, "description": "Short par 5 reachable in two. Water hazard on the right.", "tee_box": "forward" },
+            { "hole_number": 16, "par": 4, "yards": 345, "stroke_index": 6, "description": "Dogleg left with strategic bunkering. Position is key.", "tee_box": "forward" },
+            { "hole_number": 17, "par": 4, "yards": 135, "stroke_index": 18, "description": "Shortest hole on the course. Good for practicing short irons.", "tee_box": "forward" },
+            { "hole_number": 18, "par": 4, "yards": 350, "stroke_index": 10, "description": "Finishing hole with water hazard and dramatic green setting.", "tee_box": "forward" }
+        ]),
         "course_rating": 68.5,
         "slope_rating": 115,
         "holes_data": [
@@ -491,13 +529,25 @@ def main():
                 total_yards=course_data["total_yards"],
                 course_rating=course_data.get("course_rating"),
                 slope_rating=course_data.get("slope_rating"),
-                holes_data=course_data["holes_data"],
                 created_at=datetime.now().isoformat(),
                 updated_at=datetime.now().isoformat()
             )
             
             db.add(course)
-            print(f"Added course: {course_data['name']} ({course_data['total_par']} par, {course_data['total_yards']} yards)")
+            db.flush() # Flush to get the ID for the course before adding holes
+
+            # Add holes for the course
+            for hole_detail in course_data["holes_data"]:
+                hole = Hole(
+                    course_id=course.id,
+                    hole_number=hole_detail["hole_number"],
+                    par=hole_detail["par"],
+                    yards=hole_detail["yards"],
+                    handicap=hole_detail["stroke_index"],
+                    description=hole_detail.get("description"),
+                    tee_box=hole_detail.get("tee_box", "white")
+                )
+                db.add(hole)
         
         db.commit()
         print(f"\nSuccessfully seeded {len(DEFAULT_COURSES)} courses!")

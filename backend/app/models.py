@@ -34,7 +34,6 @@ class Course(Base):
     total_yards = Column(Integer)
     course_rating = Column(Float, nullable=True)
     slope_rating = Column(Float, nullable=True)
-    holes_data = Column(JSON)  # Store hole details as JSON (for backward compatibility)
     created_at = Column(String)
     updated_at = Column(String)
 

@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from ..database import SessionLocal
 from ..models import PlayerProfile, EmailPreferences
-from .email_service import email_service
+from .email_service import get_email_service
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ class EmailScheduler:
             for player, prefs in players_with_prefs:
                 try:
                     if player.email:
-                        success = email_service.send_daily_signup_reminder(
+                        success =get_email_service().send_daily_signup_reminder(
                             to_email=player.email,
                             player_name=player.name,
                             available_dates=available_dates
@@ -125,7 +125,7 @@ class EmailScheduler:
             for player, prefs in players_with_prefs:
                 try:
                     if player.email:
-                        success = email_service.send_daily_signup_reminder(
+                        success =get_email_service().send_daily_signup_reminder(
                             to_email=player.email,
                             player_name=player.name,
                             available_dates=available_dates
@@ -169,7 +169,7 @@ class EmailScheduler:
                         # Get player's weekly stats (mock data for now)
                         summary_data = self._get_player_weekly_summary(player.id)
                         
-                        success = email_service.send_weekly_summary(
+                        success =get_email_service().send_weekly_summary(
                             to_email=player.email,
                             player_name=player.name,
                             summary_data=summary_data
@@ -237,7 +237,7 @@ class EmailScheduler:
     def send_signup_confirmation_now(self, player_email: str, player_name: str, signup_date: str) -> bool:
         """Send an immediate signup confirmation email"""
         try:
-            return email_service.send_signup_confirmation(
+            returnget_email_service().send_signup_confirmation(
                 to_email=player_email,
                 player_name=player_name,
                 signup_date=signup_date
@@ -249,7 +249,7 @@ class EmailScheduler:
     def send_game_invitation_now(self, to_email: str, player_name: str, inviter_name: str, game_date: str) -> bool:
         """Send an immediate game invitation email"""
         try:
-            return email_service.send_game_invitation(
+            returnget_email_service().send_game_invitation(
                 to_email=to_email,
                 player_name=player_name,
                 inviter_name=inviter_name,

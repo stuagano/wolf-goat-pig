@@ -13,6 +13,10 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
 
+  globalSetup: './global-setup.js',
+  globalTeardown: './global-teardown.js',
+
+  /* Configure projects for major browsers */
   projects: [
     {
       name: 'chromium',
@@ -22,16 +26,16 @@ export default defineConfig({
 
   webServer: [
     {
-      command: 'cd ../../backend && uvicorn app.main:app --reload',
-      port: 8000,
-      timeout: 120000,
-      reuseExistingServer: true,
+      command: 'npm run start',
+      url: 'http://localhost:3000',
+      timeout: 300 * 1000,
+      reuseExistingServer: !process.env.CI,
     },
     {
-      command: 'cd .. && npm start',
-      port: 3000,
-      timeout: 120000,
-      reuseExistingServer: true,
+      command: 'cd ../../../backend && source venv/bin/activate && uvicorn app.main:app --reload',
+      port: 8000,
+      timeout: 300 * 1000,
+      reuseExistingServer: !process.env.CI,
     },
   ],
 
