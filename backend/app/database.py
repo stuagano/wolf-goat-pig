@@ -11,7 +11,10 @@ logger = logging.getLogger(__name__)
 # Database configuration with environment-specific settings
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-if DATABASE_URL:
+# Check if we're using PostgreSQL or SQLite
+is_postgresql = DATABASE_URL and (DATABASE_URL.startswith("postgres://") or DATABASE_URL.startswith("postgresql://"))
+
+if is_postgresql:
     # Production database (PostgreSQL)
     if DATABASE_URL.startswith("postgres://"):
         # Fix for newer SQLAlchemy versions
@@ -33,9 +36,14 @@ if DATABASE_URL:
     )
 else:
     # Development/local database (SQLite)
-    SQLITE_DATABASE_URL = "sqlite:///./wolf_goat_pig.db"
+    # Check if DATABASE_URL is set to a SQLite path
+    if DATABASE_URL and DATABASE_URL.startswith("sqlite:///"):
+        SQLITE_DATABASE_URL = DATABASE_URL
+    else:
+        SQLITE_DATABASE_URL = "sqlite:///./wolf_goat_pig.db"
+
     engine = create_engine(
-        SQLITE_DATABASE_URL, 
+        SQLITE_DATABASE_URL,
         connect_args={"check_same_thread": False},
         echo=os.getenv("ENVIRONMENT") == "development"
     )

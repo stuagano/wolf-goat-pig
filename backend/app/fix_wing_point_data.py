@@ -2,8 +2,8 @@
 Fix Wing Point Golf & Country Club course data if it exists with incorrect par values.
 This script checks if Wing Point exists in the database and updates it if the par values are wrong.
 """
-from database import SessionLocal
-from models import Course
+from .database import SessionLocal
+from .models import Course
 from datetime import datetime
 import logging
 
