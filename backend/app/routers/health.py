@@ -4,6 +4,7 @@ Health Check Router
 System health monitoring endpoints.
 """
 
+from typing import Dict, Any
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import text
 from datetime import datetime
@@ -25,9 +26,9 @@ router = APIRouter(
 
 
 @router.get("/health")
-def health_check():
+def health_check() -> Dict[str, Any]:
     """Comprehensive health check endpoint verifying all critical systems"""
-    health_status = {
+    health_status: Dict[str, Any] = {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "environment": os.getenv("ENVIRONMENT", "unknown"),
