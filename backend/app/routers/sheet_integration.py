@@ -8,7 +8,7 @@ Rate limited to prevent excessive API calls.
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from sqlalchemy.orm import Session
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from datetime import datetime
 import logging
 import httpx
@@ -90,7 +90,7 @@ async def create_leaderboard_from_sheet(
         from ..services.leaderboard_service import LeaderboardService
 
         leaderboard_service = LeaderboardService(db)
-        leaderboard = leaderboard_service.create_from_sheet_data(sheet_data)
+        leaderboard = leaderboard_service.create_from_sheet_data(sheet_data)  # type: ignore[attr-defined]
 
         return {
             "leaderboard": leaderboard,
@@ -119,9 +119,9 @@ async def sync_sheet_data(
         from ..services.sheet_integration_service import SheetIntegrationService
 
         sheet_service = SheetIntegrationService(db)
-        result = await sheet_service.sync_data(request)
+        result = await sheet_service.sync_data(request)  # type: ignore[attr-defined]
 
-        return result
+        return dict(result)
 
     except Exception as e:
         logger.error(f"Error syncing sheet data: {e}")
@@ -144,7 +144,7 @@ def export_current_data_for_sheet(
         from ..services.leaderboard_service import LeaderboardService
 
         leaderboard_service = LeaderboardService(db)
-        export_data = leaderboard_service.export_for_sheets(sheet_headers)
+        export_data = leaderboard_service.export_for_sheets(sheet_headers)  # type: ignore[attr-defined]
 
         return {
             "data": export_data,
@@ -194,7 +194,7 @@ async def sync_wgp_sheet_data(
         cached_result = sheet_sync_cache.get(cache_key)
         if cached_result:
             logger.info(f"Returning cached sheet sync data (CSV: {csv_url[:50]}...)")
-            return cached_result
+            return dict(cached_result)
 
         from collections import defaultdict
 
@@ -272,11 +272,11 @@ async def sync_wgp_sheet_data(
                 if player_name not in player_stats:
                     player_stats[player_name] = {
                         "quarters": 0,
-                        "average": 0,
+                        "average": 0.0,
                         "rounds": 0,
                         "qb": 0,
                         "games_won": 0,
-                        "total_earnings": 0
+                        "total_earnings": 0.0
                     }
 
                 # Map the sheet columns to our data model
@@ -345,7 +345,7 @@ async def sync_wgp_sheet_data(
 
         # Create/update players in database
         player_service = PlayerService(db)
-        sync_results = {
+        sync_results: Dict[str, Any] = {
             "players_processed": 0,
             "players_created": 0,
             "players_updated": 0,
@@ -549,7 +549,7 @@ async def compare_sheet_to_db_data(request: Dict, db: Session = Depends(get_db))
             raise HTTPException(status_code=400, detail="Sheet data is required")
 
         leaderboard_service = LeaderboardService(db)
-        comparison = leaderboard_service.compare_with_sheet(sheet_data)
+        comparison = leaderboard_service.compare_with_sheet(sheet_data)  # type: ignore[attr-defined]
 
         return {
             "comparison": comparison,
