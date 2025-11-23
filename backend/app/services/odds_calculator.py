@@ -78,7 +78,7 @@ class OddsResult:
     """Complete odds calculation result"""
     timestamp: float
     calculation_time_ms: float
-    player_probabilities: Dict[str, float]
+    player_probabilities: Dict[str, Any]
     team_probabilities: Dict[str, float]
     betting_scenarios: List[BettingScenario]
     optimal_strategy: str
@@ -109,21 +109,21 @@ class OddsCalculator:
         
     def _initialize_handicap_adjustments(self) -> Dict[float, float]:
         """Initialize handicap-based probability adjustments"""
-        adjustments = {}
+        adjustments: Dict[float, float] = {}
         for hcp in range(0, 37):
             # Convert handicap to skill multiplier (0 = best, 36 = worst)
             if hcp <= 5:
-                adjustments[hcp] = 1.2  # Scratch players have advantage
+                adjustments[float(hcp)] = 1.2  # Scratch players have advantage
             elif hcp <= 10:
-                adjustments[hcp] = 1.1
+                adjustments[float(hcp)] = 1.1
             elif hcp <= 15:
-                adjustments[hcp] = 1.0
+                adjustments[float(hcp)] = 1.0
             elif hcp <= 20:
-                adjustments[hcp] = 0.9
+                adjustments[float(hcp)] = 0.9
             elif hcp <= 25:
-                adjustments[hcp] = 0.8
+                adjustments[float(hcp)] = 0.8
             else:
-                adjustments[hcp] = 0.7
+                adjustments[float(hcp)] = 0.7
         return adjustments
     
     def _precompute_lie_multipliers(self) -> Dict[str, float]:
@@ -194,7 +194,7 @@ class OddsCalculator:
         if cache_key in self._probability_cache:
             timestamp, cached_prob = self._probability_cache[cache_key]
             if current_time - timestamp < self.cache_expiry:
-                return cached_prob
+                return float(cached_prob)
         
         # Perform cleanup if needed
         self._cleanup_caches_if_needed()
@@ -244,7 +244,7 @@ class OddsCalculator:
         
         # Check cache
         if cache_key in self._team_calculation_cache:
-            return self._team_calculation_cache[cache_key]
+            return dict(self._team_calculation_cache[cache_key])
         
         target_score = hole.par
         current_shots = player.shots_taken
@@ -390,40 +390,40 @@ class OddsCalculator:
             
             if team1_players and team2_players:
                 # Calculate best ball probabilities for each team
-                score_range = list(range(hole.par - 2, hole.par + 4))
-                
-                team1_scores = {}
-                team2_scores = {}
-                
-                for score in score_range:
+                score_range: List[int] = list(range(hole.par - 2, hole.par + 4))
+
+                team1_scores: Dict[int, float] = {}
+                team2_scores: Dict[int, float] = {}
+
+                for score_val in score_range:
                     # Team 1 probability of making this score or better
                     team1_prob = 1.0
                     for player in team1_players:
                         player_scores = self._calculate_hole_completion_probability(player, hole)
                         player_prob_worse = sum(
-                            prob for s, prob in player_scores.items() 
-                            if int(s) > score
+                            prob for s, prob in player_scores.items()
+                            if int(s) > score_val
                         )
                         team1_prob *= player_prob_worse
-                    team1_scores[str(score)] = 1.0 - team1_prob
-                    
+                    team1_scores[score_val] = 1.0 - team1_prob
+
                     # Team 2 probability
                     team2_prob = 1.0
                     for player in team2_players:
                         player_scores = self._calculate_hole_completion_probability(player, hole)
                         player_prob_worse = sum(
-                            prob for s, prob in player_scores.items() 
-                            if int(s) > score
+                            prob for s, prob in player_scores.items()
+                            if int(s) > score_val
                         )
                         team2_prob *= player_prob_worse
-                    team2_scores[str(score)] = 1.0 - team2_prob
-                
+                    team2_scores[score_val] = 1.0 - team2_prob
+
                 # Calculate team win probabilities
                 team1_win_prob = 0.0
-                for score in score_range:
-                    team1_score_prob = team1_scores[str(score)]
+                for score_val in score_range:
+                    team1_score_prob = team1_scores[score_val]
                     team2_worse_prob = sum(
-                        team2_scores[str(s)] for s in score_range if s > score
+                        team2_scores[s_val] for s_val in score_range if s_val > score_val
                     )
                     team1_win_prob += team1_score_prob * team2_worse_prob
                 
