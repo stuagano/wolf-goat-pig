@@ -89,7 +89,7 @@ class RateLimiter:
 
         return True
 
-    def reset(self, key: str, client_id: Optional[str] = None):
+    def reset(self, key: str, client_id: Optional[str] = None) -> None:
         """Reset rate limit for a specific key."""
         rate_key = f"{key}:{client_id or 'system'}"
         if rate_key in self.last_request:

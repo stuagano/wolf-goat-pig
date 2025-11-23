@@ -4,7 +4,9 @@ Official Course Data
 Est. 1903
 """
 
-WING_POINT_COURSE_DATA = {
+from typing import Any, Dict
+
+WING_POINT_COURSE_DATA: Dict[str, Any] = {
     "name": "Wing Point Golf & Country Club",
     "established": 1903,
     "location": "Bainbridge Island, WA",
