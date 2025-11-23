@@ -225,9 +225,9 @@ Skills are reusable capabilities that can be invoked for common tasks. They prov
 **Purpose**: Run linters, formatters, and type checkers
 
 **What It Does**:
+- **Type checks with mypy and TypeScript** (see [Type Checking Guide](type-checking-guide.md))
 - Lints backend code with ruff
 - Formats with black
-- Type checks with mypy
 - Lints frontend with ESLint
 - Runs security checks (safety, npm audit)
 - Checks code complexity
@@ -237,6 +237,15 @@ Skills are reusable capabilities that can be invoked for common tasks. They prov
 - During code review
 - To maintain code quality standards
 - Before pull requests
+
+**Type Checking**:
+```bash
+npm run typecheck           # Both backend and frontend
+npm run typecheck:backend   # Python with mypy
+npm run typecheck:frontend  # TypeScript with tsc
+```
+
+See **[Type Checking Guide](type-checking-guide.md)** for detailed instructions.
 
 ---
 
@@ -392,6 +401,33 @@ Agents are aware of these known issues:
 - GitHub Actions (CI/CD)
 - Docker Compose (local development)
 
+**Type Checking**:
+- Backend: mypy with strict settings (see [Type Checking Guide](type-checking-guide.md))
+- Frontend: TypeScript with strict mode enabled
+- 13 core modules fully type-safe
+- 874 remaining errors (down from 958)
+- Run: `npm run typecheck`
+
+## Guides and Documentation
+
+### [Type Checking Guide](type-checking-guide.md)
+
+Comprehensive guide for type checking in Wolf Goat Pig:
+- **Quick Start**: `npm run typecheck`
+- Python mypy configuration and best practices
+- TypeScript strict mode settings
+- Common errors and how to fix them
+- Integration with VS Code and CI/CD
+- Current status: 13 modules fully type-safe, 874 errors remaining
+
+**Use When**:
+- Adding type annotations to new code
+- Fixing type errors
+- Understanding mypy/TypeScript errors
+- Setting up IDE integration
+
+---
+
 ## Getting Help
 
 ### Agent Selection Guide
@@ -408,6 +444,7 @@ Agents are aware of these known issues:
 **Want to...**
 - **Run all tests** → Run All Tests skill
 - **Check code quality** → Check Code Quality skill
+- **Check types** → [Type Checking Guide](type-checking-guide.md)
 - **Deploy to staging** → Deploy to Staging skill
 - **Generate API docs** → Generate API Docs skill
 - **Analyze coverage** → Analyze Test Coverage skill
@@ -437,6 +474,6 @@ This `.claude` directory should be updated when:
 
 ---
 
-**Last Updated**: 2025-10-21
+**Last Updated**: 2025-01-23
 
 For questions or suggestions about these agents and skills, please create an issue in the repository.
