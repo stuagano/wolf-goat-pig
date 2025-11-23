@@ -11,14 +11,14 @@ class PlayerManager:
         self.hitting_order: List[str] = [p.id for p in self.players] if self.players else []
         self.captain_id: Optional[str] = self.hitting_order[0] if self.hitting_order else None
 
-    def setup_players(self, players: List[Player]):
+    def setup_players(self, players: List[Player]) -> None:
         if len(players) != 4:
             raise ValueError("Exactly 4 players required.")
         self.players = players
         self.hitting_order = [p.id for p in players]
         self.captain_id = self.hitting_order[0]
 
-    def rotate_captain(self):
+    def rotate_captain(self) -> None:
         if not self.hitting_order:
             return
         self.hitting_order = self.hitting_order[1:] + [self.hitting_order[0]]
@@ -37,7 +37,7 @@ class PlayerManager:
             "captain_id": self.captain_id
         }
 
-    def from_dict(self, data: Dict):
+    def from_dict(self, data: Dict) -> None:
         self.players = [Player.from_dict(p) for p in data.get("players", [])]
         self.hitting_order = data.get("hitting_order", [p.id for p in self.players])
         self.captain_id = data.get("captain_id", self.hitting_order[0] if self.hitting_order else None)

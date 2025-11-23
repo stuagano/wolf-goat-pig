@@ -18,6 +18,10 @@ class ValidationError(Exception):
         details: Optional dictionary with additional context
     """
 
+    message: str
+    field: Optional[str]
+    details: Dict[str, Any]
+
     def __init__(
         self,
         message: str,
@@ -31,7 +35,7 @@ class ValidationError(Exception):
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert exception to dictionary for API responses."""
-        result = {"error": self.message}
+        result: Dict[str, Any] = {"error": self.message}
         if self.field:
             result["field"] = self.field
         if self.details:

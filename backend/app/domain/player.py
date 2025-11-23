@@ -6,7 +6,7 @@ handicap, scoring, and game state information.
 """
 
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, List
 from enum import Enum
 
 
@@ -186,7 +186,7 @@ class Player:
                 f"handicap={self.handicap}, points={self.points}, "
                 f"strength='{self.strength}')")
     
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: object) -> bool:
         """Equality comparison based on player ID."""
         if not isinstance(other, Player):
             return False
@@ -197,7 +197,7 @@ class Player:
         return hash(self.id) 
 
     @staticmethod
-    def get_human_player_id(players: list) -> str:
+    def get_human_player_id(players: List["Player"]) -> str:
         """
         Get the human player ID from a list of players.
         This is a centralized utility function for human player identification.
