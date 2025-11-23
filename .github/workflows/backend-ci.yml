@@ -70,9 +70,10 @@ jobs:
     - name: Run type checking
       run: |
         cd backend
-        pip install mypy
-        mypy app/ --ignore-missing-imports
-      continue-on-error: true
+        pip install mypy types-requests
+        mypy app/ --config-file=mypy.ini
+      # Fail the build if type checking fails
+      continue-on-error: false
     
     - name: Run tests with coverage
       env:
