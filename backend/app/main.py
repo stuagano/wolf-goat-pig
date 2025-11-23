@@ -276,7 +276,7 @@ logger.info("✅ All routers registered")
 
 # Global exception handler
 @app.exception_handler(HTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException):
+async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
     """Handle HTTP exceptions and preserve their status codes"""
     logger.error(f"HTTP exception: {exc.status_code} - {exc.detail}")
     # Add logging for host header during exceptions
@@ -288,7 +288,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     )
 
 @app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     logger.error(f"Unhandled exception: {exc}")
     logger.error(traceback.format_exc())
     return JSONResponse(
@@ -401,7 +401,7 @@ async def ghin_lookup(
     page: int = Query(1),
     per_page: int = Query(10),
     db: Session = Depends(database.get_db)
-):
+) -> Dict[str, Any]:
     """Look up golfers by name using GHIN API"""
     try:
         from .services.ghin_service import GHINService
@@ -432,7 +432,7 @@ async def ghin_lookup(
 async def sync_player_ghin_handicap(
     player_id: int = Path(..., description="The ID of the player to sync"),
     db: Session = Depends(database.get_db)
-):
+) -> Dict[str, Any]:
     """Sync a specific player's handicap from GHIN."""
     from .services.ghin_service import GHINService
     
@@ -450,7 +450,7 @@ async def sync_player_ghin_handicap(
         logger.error(f"Failed to sync handicap for player {player_id}")
         raise HTTPException(status_code=500, detail=f"Failed to sync handicap for player {player_id}. Check if player has a GHIN ID and logs for details.")
 @app.get("/ghin/diagnostic")
-def ghin_diagnostic():
+def ghin_diagnostic() -> Dict[str, Any]:
     """Diagnostic endpoint for GHIN API configuration"""
     email = os.getenv("GHIN_API_USER")
     password = os.getenv("GHIN_API_PASS")
@@ -471,7 +471,7 @@ async def create_game_with_join_code(
     player_count: int = 4,
     user_id: Optional[str] = None,
     db: Session = Depends(database.get_db)
-):
+) -> Dict[str, Any]:
     """Create a new game with a join code for authenticated players"""
     try:
         import random
@@ -2351,7 +2351,7 @@ async def join_game_with_code(
         raise HTTPException(status_code=500, detail=f"Error joining game: {str(e)}")
 
 @app.get("/games/{game_id}/lobby")
-async def get_game_lobby(game_id: str, db: Session = Depends(database.get_db)):
+async def get_game_lobby(game_id: str, db: Session = Depends(database.get_db))->Dict[str,Any]:
     """Get game lobby information - who has joined"""
     try:
         game = db.query(models.GameStateModel).filter(
@@ -2394,7 +2394,7 @@ async def get_game_lobby(game_id: str, db: Session = Depends(database.get_db)):
         raise HTTPException(status_code=500, detail=f"Error retrieving game lobby: {str(e)}")
 
 @app.post("/games/{game_id}/start")
-async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get_db)):
+async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get_db))->Dict[str,Any]:
     """Start a game from the lobby - initializes WGP simulation"""
     # MIGRATED: Using GameLifecycleService instead of global active_games
 
@@ -2668,7 +2668,7 @@ async def delete_game(
 
 
 @app.get("/games/{game_id}/state")
-async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_db)):
+async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_db))->Dict[str,Any]:
     """Get current game state for a specific multiplayer game"""
     # MIGRATED: Using GameLifecycleService instead of global active_games
 
@@ -2856,7 +2856,7 @@ async def perform_game_action_by_id(
         raise HTTPException(status_code=500, detail=f"Error performing action: {str(e)}")
 
 @app.get("/games/history")
-async def get_game_history(limit: int = 10, offset: int = 0, db: Session = Depends(database.get_db)):
+async def get_game_history(limit: int = 10, offset: int = 0, db: Session = Depends(database.get_db))->Dict[str,Any]:
     """Get list of completed games"""
     try:
         games = db.query(models.GameRecord).order_by(models.GameRecord.completed_at.desc()).offset(offset).limit(limit).all()
@@ -2883,7 +2883,7 @@ async def get_game_history(limit: int = 10, offset: int = 0, db: Session = Depen
         raise HTTPException(status_code=500, detail=f"Error retrieving game history: {str(e)}")
 
 @app.get("/games/{game_id}/details")
-async def get_game_details(game_id: str, db: Session = Depends(database.get_db)):
+async def get_game_details(game_id: str, db: Session = Depends(database.get_db))->Dict[str,Any]:
     """Get detailed game results including player performances and hole-by-hole scores"""
     try:
         # Get game record
@@ -2999,7 +2999,7 @@ UNIFIED_ACTION_TYPES = {
 
 
 @app.post("/game/action")
-async def legacy_game_action(action: Dict[str, Any]):
+async def legacy_game_action(action: Dict[str, Any])->Dict[str,Any]:
     """Legacy game action endpoint that delegates to unified handlers when available."""
     try:
         # Handle both "action" and "action_type" field names for compatibility
@@ -3054,7 +3054,7 @@ def start_game():
         raise HTTPException(status_code=500, detail="Failed to start game")
 
 @app.post("/game/setup")
-def setup_game(setup_data: Dict[str, Any]):
+def setup_game(setup_data: Dict[str, Any])->Dict[str,Any]:
     """Setup game with players (legacy endpoint)"""
     try:
         players = setup_data.get("players", [])
@@ -3075,7 +3075,7 @@ def setup_game(setup_data: Dict[str, Any]):
 
 # Unified Action API - Main Game Logic Endpoint
 @app.post("/wgp/{game_id}/action", response_model=ActionResponse)
-async def unified_action(game_id: str, action: ActionRequest, db: Session = Depends(database.get_db)):
+async def unified_action(game_id: str, action: ActionRequest, db: Session = Depends(database.get_db))->Dict[str,Any]:
     """Unified action endpoint for all Wolf Goat Pig game interactions"""
     try:
         # Get the specific game instance for this game_id
@@ -4578,7 +4578,7 @@ class ShotRangeAnalysisRequest(BaseModel):
 
 
 @app.post("/wgp/shot-range-analysis")
-async def get_shot_range_analysis(request: ShotRangeAnalysisRequest):
+async def get_shot_range_analysis(request: ShotRangeAnalysisRequest)->Dict[str,Any]:
     """Get poker-style shot range analysis for decision making"""
     try:
         # Perform shot range analysis
@@ -4640,7 +4640,7 @@ class OddsCalculationResponse(BaseModel):
 
 
 @app.post("/wgp/calculate-odds", response_model=OddsCalculationResponse)
-async def calculate_real_time_odds(request: OddsCalculationRequest):
+async def calculate_real_time_odds(request: OddsCalculationRequest)->Dict[str,Any]:
     """
     Calculate real-time betting odds and probabilities.
     Provides comprehensive analysis for strategic decision making.
@@ -4824,7 +4824,7 @@ async def get_current_betting_opportunities():
 
 
 @app.post("/wgp/quick-odds")
-async def calculate_quick_odds(players_data: List[Dict[str, Any]] = Body(...)):
+async def calculate_quick_odds(players_data: List[Dict[str, Any]] = Body(...))->Dict[str,Any]:
     """
     Quick odds calculation for immediate feedback.
     Optimized for sub-50ms response time.
