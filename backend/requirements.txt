@@ -26,6 +26,10 @@ pytest-mock>=3.11.1
 pytest-html>=4.1.1
 behave>=1.2.6
 
+# Type checking
+mypy>=1.8.0
+types-requests>=2.31.0
+
 # Logging and monitoring (optional but recommended)
 structlog>=23.2.0
 
