@@ -4,15 +4,20 @@ Detects when players earn badges and manages badge awarding logic.
 """
 
 from datetime import datetime
+from typing import Any, Callable, Dict, List, Optional, cast
+
+from sqlalchemy import and_
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, func
-from typing import List, Dict, Any, Optional, Callable, cast
-import json
 
 from .models import (
-    Badge, PlayerBadgeEarned, BadgeProgress, BadgeSeries,
-    PlayerSeriesProgress, SeasonalBadge, PlayerStatistics,
-    GameRecord, GamePlayerResult, PlayerProfile
+    Badge,
+    BadgeProgress,
+    BadgeSeries,
+    GamePlayerResult,
+    GameRecord,
+    PlayerBadgeEarned,
+    PlayerSeriesProgress,
+    PlayerStatistics,
 )
 
 
@@ -445,7 +450,7 @@ class BadgeEngine:
             self.db.commit()
             self.db.refresh(progress)
 
-        return cast(BadgeProgress, progress)
+        return cast('BadgeProgress', progress)
 
     def _update_progression_badges(self, player_profile_id: int, stats: PlayerStatistics) -> None:
         """Update progress for all progression badges"""

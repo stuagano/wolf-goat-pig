@@ -4,7 +4,8 @@ Game State Validator for Wolf Goat Pig.
 Validates game state transitions, player actions, and game flow.
 """
 
-from typing import List, Optional
+from typing import List
+
 from .exceptions import GameStateValidationError
 
 

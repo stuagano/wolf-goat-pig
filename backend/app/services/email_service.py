@@ -4,16 +4,17 @@ Unified Email Service for Wolf Goat Pig Application
 Handles all email functionality using a provider-based strategy (SMTP or Gmail OAuth2).
 """
 
-import os
 import logging
+import os
 import re
-from typing import List, Optional, Dict, Any
-from jinja2 import Template
-import emails
 from abc import ABC, abstractmethod
+from typing import Any, Dict, Optional
+
+import emails
+from jinja2 import Template
 
 # Import the Gmail OAuth2 provider
-from .providers.gmail_oauth2_provider import GmailOAuth2Provider, create_gmail_oauth2_provider
+from .providers.gmail_oauth2_provider import create_gmail_oauth2_provider
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +88,7 @@ class SMTPEmailProvider(EmailProvider):
 
 class EmailService:
     """A unified service for sending emails using a configured provider."""
-    
+
     def __init__(self):
         self.provider: Optional[EmailProvider] = self._get_configured_provider()
         if not self.provider:
@@ -96,11 +97,11 @@ class EmailService:
     def _get_configured_provider(self) -> Optional[EmailProvider]:
         """Determines which email provider to use based on environment variables."""
         email_provider_type = os.getenv("EMAIL_PROVIDER", "smtp").lower()
-        
+
         if email_provider_type == "gmail_oauth2":
             logger.info("Using Gmail OAuth2 email provider.")
             return create_gmail_oauth2_provider()
-        
+
         logger.info("Using SMTP email provider.")
         return SMTPEmailProvider()
 
@@ -117,7 +118,7 @@ class EmailService:
         """Sends a test email to verify the current provider's configuration."""
         provider_name = self.provider.__class__.__name__ if self.provider else "None"
         subject = f"Wolf Goat Pig - Test Email ({provider_name})"
-        
+
         html_body = f"""
         <html><body>
             <h2>Wolf Goat Pig Email Test</h2>
@@ -157,7 +158,7 @@ class EmailService:
         """
         template = Template(self._get_base_template())
         html_body = template.render(subject="Golf Signup Confirmed", content=content)
-        
+
         return self._send_email(
             to_email=to_email,
             subject=f"You're signed up for Wolf Goat Pig - {signup_date}",

@@ -1,20 +1,21 @@
-from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Any
 import logging
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
+
 from sqlalchemy.orm import Session, joinedload
 
-from ..models import Course, Hole
 from ..database import SessionLocal
+from ..models import Course, Hole
 
 logger = logging.getLogger(__name__)
 
 @dataclass
 class CourseManager:
     """Manages golf course data by interacting directly with the database."""
-    
+
     selected_course_name: Optional[str] = None
     selected_course_id: Optional[int] = None
-    
+
     # In-memory cache for the currently selected course
     _course_cache: Dict[int, Course] = field(default_factory=dict)
 
@@ -123,7 +124,7 @@ class CourseManager:
                     **hole_data
                 )
                 db.add(new_hole)
-            
+
             db.commit()
             db.refresh(new_course)
             logger.info(f"Created new course: {new_course.name}")
@@ -161,4 +162,4 @@ def get_course_manager() -> CourseManager:
         courses = _course_manager_instance.get_courses()
         if courses:
             _course_manager_instance.load_course(courses[0]['name'])
-    return _course_manager_instance 
+    return _course_manager_instance

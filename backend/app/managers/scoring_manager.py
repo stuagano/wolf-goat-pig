@@ -15,12 +15,11 @@ Integrates with HandicapValidator for handicap calculations.
 """
 
 import logging
-from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple
 
-from ..wolf_goat_pig import WolfGoatPigGame, Player
-
-from ..validators import HandicapValidator, HandicapValidationError
+from ..validators import HandicapValidationError, HandicapValidator
+from ..wolf_goat_pig import WolfGoatPigGame
 
 logger = logging.getLogger(__name__)
 

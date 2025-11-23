@@ -4,14 +4,14 @@ Implements OAuth2 authentication for sending emails via Gmail API.
 This provider is intended to be used by the unified EmailService.
 """
 
-import os
-import logging
-import pickle
-from pathlib import Path
-from typing import Dict, Any, Optional
 import base64
-from email.mime.text import MIMEText
+import logging
+import os
+import pickle
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from pathlib import Path
+from typing import Any, Dict, Optional
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -27,16 +27,16 @@ CREDENTIALS_FILE = 'gmail_credentials.json'
 
 class GmailOAuth2Provider:
     """Provider for sending emails using Gmail API with OAuth2 authentication."""
-    
+
     def __init__(self, from_email: str, from_name: str, data_dir: Path):
         self.creds: Optional[Credentials] = None
         self.service = None
         self.from_email = from_email
         self.from_name = from_name
-        
+
         self.token_path = data_dir / TOKEN_FILE
         self.credentials_path = data_dir / CREDENTIALS_FILE
-        
+
         self.token_path.parent.mkdir(parents=True, exist_ok=True)
         self.load_credentials()
 
@@ -46,7 +46,7 @@ class GmailOAuth2Provider:
             if self.token_path.exists():
                 with open(self.token_path, 'rb') as token:
                     self.creds = pickle.load(token)
-            
+
             if not self.creds or not self.creds.valid:
                 if self.creds and self.creds.expired and self.creds.refresh_token:
                     logger.info("Refreshing expired OAuth2 token.")
@@ -55,7 +55,7 @@ class GmailOAuth2Provider:
                 else:
                     logger.warning("OAuth2 credentials not found or invalid. Authorization required.")
                     return False
-            
+
             self._initialize_service()
             return True
         except Exception as e:
@@ -139,7 +139,7 @@ class GmailOAuth2Provider:
         if not self.is_configured:
             logger.error("Gmail OAuth2 provider is not configured. Cannot send email.")
             return False
-        
+
         try:
             message = self._create_message(to_email, subject, html_body, text_body)
             self.service.users().messages().send(userId='me', body=message).execute()
@@ -162,7 +162,7 @@ class GmailOAuth2Provider:
         if body_text:
             message.attach(MIMEText(body_text, 'plain'))
         message.attach(MIMEText(body_html, 'html'))
-        
+
         raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
         return {'raw': raw_message}
 
@@ -182,14 +182,14 @@ def create_gmail_oauth2_provider() -> Optional[GmailOAuth2Provider]:
     """Factory function to create a GmailOAuth2Provider instance."""
     from_email = os.getenv("FROM_EMAIL")
     from_name = os.getenv("FROM_NAME", "Wolf Goat Pig")
-    
+
     if not from_email:
         logger.warning("FROM_EMAIL environment variable is not set. Cannot create Gmail OAuth2 provider.")
         return None
 
     # Use a common data directory for all services
     data_dir = Path(__file__).parent.parent.parent.parent / 'data'
-    
+
     return GmailOAuth2Provider(
         from_email=from_email,
         from_name=from_name,

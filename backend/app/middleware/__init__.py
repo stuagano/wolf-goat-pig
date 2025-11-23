@@ -7,8 +7,8 @@ Contains:
 - Logging configuration
 """
 
-from .rate_limiting import rate_limiter, RateLimiter
-from .caching import sheet_sync_cache, analytics_cache, leaderboard_cache, SimpleCache
+from .caching import SimpleCache, analytics_cache, leaderboard_cache, sheet_sync_cache
+from .rate_limiting import RateLimiter, rate_limiter
 
 __all__ = [
     'rate_limiter',

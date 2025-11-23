@@ -6,7 +6,7 @@ and creates individual Hole records for each hole.
 """
 
 import logging
-from datetime import datetime
+
 from sqlalchemy.orm import Session
 
 from ..database import SessionLocal

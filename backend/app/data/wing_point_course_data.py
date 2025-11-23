@@ -318,7 +318,7 @@ def get_hole_data(hole_number: int, tee_box: str = "white") -> dict:
     """Get data for a specific hole"""
     if hole_number < 1 or hole_number > 18:
         raise ValueError(f"Invalid hole number: {hole_number}")
-    
+
     hole = WING_POINT_COURSE_DATA["holes"][hole_number - 1]
     return {
         "number": hole["hole_number"],
@@ -339,7 +339,7 @@ def get_nine_hole_par(front: bool = True) -> int:
 
 def get_total_yards(tee_box: str = "white") -> int:
     """Get total yardage for a tee box"""
-    return sum(h["yards"].get(tee_box, h["yards"]["white"]) 
+    return sum(h["yards"].get(tee_box, h["yards"]["white"])
                for h in WING_POINT_COURSE_DATA["holes"])
 
 def is_vinnie_variation_hole(hole_number: int) -> bool:
@@ -359,7 +359,7 @@ def is_hoepfinger_hole(hole_number: int, game_type: str = "4_man") -> bool:
 def get_strategic_value(hole_number: int) -> str:
     """Get strategic betting advice for a hole"""
     hole = WING_POINT_COURSE_DATA["holes"][hole_number - 1]
-    
+
     if hole_number in WING_POINT_COURSE_DATA["wgp_specific"]["risk_reward_holes"]:
         return "HIGH_RISK_REWARD"
     elif hole["handicap_men"] <= 4:

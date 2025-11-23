@@ -4,6 +4,7 @@ Please use the unified EmailService from `backend.app.services.email_service`.
 """
 
 import logging
+
 from .email_service import get_email_service
 
 logger = logging.getLogger(__name__)

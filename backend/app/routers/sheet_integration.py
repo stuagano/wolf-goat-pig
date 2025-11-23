@@ -6,18 +6,19 @@ Google Sheets integration endpoints for syncing player data and leaderboards.
 Rate limited to prevent excessive API calls.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Header
-from sqlalchemy.orm import Session
-from typing import List, Dict, Optional, Any
-from datetime import datetime
 import logging
-import httpx
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from ..database import get_db
+import httpx
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from sqlalchemy.orm import Session
+
 from .. import models, schemas
-from ..services.player_service import PlayerService
-from ..middleware.rate_limiting import rate_limiter
+from ..database import get_db
 from ..middleware.caching import sheet_sync_cache
+from ..middleware.rate_limiting import rate_limiter
+from ..services.player_service import PlayerService
 
 logger = logging.getLogger("app.routers.sheet_integration")
 
@@ -196,7 +197,6 @@ async def sync_wgp_sheet_data(
             logger.info(f"Returning cached sheet sync data (CSV: {csv_url[:50]}...)")
             return dict(cached_result)
 
-        from collections import defaultdict
 
         # Fetch the CSV data (follow redirects for Google Sheets export URLs)
         async with httpx.AsyncClient(follow_redirects=True) as client:

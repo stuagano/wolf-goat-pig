@@ -1,7 +1,7 @@
+from datetime import datetime
+
 from .database import SessionLocal, init_db
 from .models import Course
-from datetime import datetime
-import json
 
 # Realistic golf course data with proper yards, descriptions, and stroke indexes
 DEFAULT_COURSES = [
@@ -511,16 +511,16 @@ def main():
     """Seed the database with default golf courses."""
     init_db()
     db = SessionLocal()
-    
+
     try:
         for course_data in DEFAULT_COURSES:
             # Check if course already exists
             existing_course = db.query(Course).filter_by(name=course_data["name"]).first()
-            
+
             if existing_course:
                 print(f"Course '{course_data['name']}' already exists, skipping...")
                 continue
-            
+
             # Create new course
             course = Course(
                 name=course_data["name"],
@@ -532,7 +532,7 @@ def main():
                 created_at=datetime.now().isoformat(),
                 updated_at=datetime.now().isoformat()
             )
-            
+
             db.add(course)
             db.flush() # Flush to get the ID for the course before adding holes
 
@@ -548,10 +548,10 @@ def main():
                     tee_box=hole_detail.get("tee_box", "white")
                 )
                 db.add(hole)
-        
+
         db.commit()
         print(f"\nSuccessfully seeded {len(DEFAULT_COURSES)} courses!")
-        
+
         # Print summary statistics
         print("\nCourse Summary:")
         for course_data in DEFAULT_COURSES:
@@ -559,13 +559,13 @@ def main():
             par_4_count = sum(1 for hole in course_data["holes_data"] if hole["par"] == 4)
             par_5_count = sum(1 for hole in course_data["holes_data"] if hole["par"] == 5)
             avg_yards = course_data["total_yards"] / 18
-            
+
             print(f"  {course_data['name']}:")
             print(f"    Par: {course_data['total_par']} ({par_3_count} par 3s, {par_4_count} par 4s, {par_5_count} par 5s)")
             print(f"    Yards: {course_data['total_yards']} (avg: {avg_yards:.1f} per hole)")
             print(f"    Rating: {course_data.get('course_rating', 'N/A')} / {course_data.get('slope_rating', 'N/A')}")
             print()
-            
+
     except Exception as e:
         db.rollback()
         print(f"Error seeding courses: {e}")
@@ -574,4 +574,4 @@ def main():
         db.close()
 
 if __name__ == "__main__":
-    main() 
+    main()

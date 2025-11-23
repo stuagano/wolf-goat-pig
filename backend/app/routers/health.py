@@ -4,16 +4,17 @@ Health Check Router
 System health monitoring endpoints.
 """
 
-from typing import Dict, Any
-from fastapi import APIRouter, HTTPException
-from sqlalchemy import text
-from datetime import datetime
 import logging
 import os
+from datetime import datetime
+from typing import Any, Dict
+
+from fastapi import APIRouter, HTTPException
+from sqlalchemy import text
 
 from .. import database, models
-from ..wolf_goat_pig import WolfGoatPigGame
 from ..state.course_manager import CourseManager
+from ..wolf_goat_pig import WolfGoatPigGame
 
 logger = logging.getLogger("app.routers.health")
 

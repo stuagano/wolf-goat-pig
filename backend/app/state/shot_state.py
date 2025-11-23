@@ -1,5 +1,5 @@
-from typing import List, Dict, Optional, Any
 from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -159,7 +159,7 @@ class ShotState:
         self.phase = data.get("phase", "tee_shots")
         self.current_player_index = data.get("current_player_index", 0)
         self.pending_decisions = data.get("pending_decisions", [])
-        
+
         # Convert completed shots back to ShotStateEntry objects
         self.completed_shots = []
         for shot_data in data.get("completed_shots", []):
@@ -169,9 +169,9 @@ class ShotState:
                 probabilities=shot_data.get("probabilities")
             )
             self.completed_shots.append(shot)
-    
+
     def __repr__(self) -> str:
         return (f"ShotState(phase='{self.phase}', "
                 f"current_player_index={self.current_player_index}, "
                 f"completed_shots={len(self.completed_shots)}, "
-                f"pending_decisions={len(self.pending_decisions)})") 
+                f"pending_decisions={len(self.pending_decisions)})")

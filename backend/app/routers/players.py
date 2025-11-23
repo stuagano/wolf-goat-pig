@@ -4,16 +4,17 @@ Players Router
 Player profile management, statistics, analytics, availability, and preferences.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Header
-from sqlalchemy.orm import Session
-from typing import List, Dict, Optional, Any
-from datetime import datetime
 import logging
+from datetime import datetime
+from typing import Any, Dict, List
 
-from ..database import get_db, SessionLocal
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
+
 from .. import models, schemas
-from ..services.player_service import PlayerService
+from ..database import SessionLocal, get_db
 from ..services.auth_service import get_current_user
+from ..services.player_service import PlayerService
 
 logger = logging.getLogger("app.routers.players")
 
@@ -32,10 +33,10 @@ def create_player_profile(profile: schemas.PlayerProfileCreate) -> schemas.Playe
         db = SessionLocal()
         player_service = PlayerService(db)
         result = player_service.create_player_profile(profile)
-        
+
         logger.info(f"Created player profile: {result.name}")
         return result
-        
+
     except ValueError as e:
         logger.error(f"Validation error creating player profile: {e}")
         raise HTTPException(status_code=400, detail=str(e))
@@ -53,10 +54,10 @@ def get_all_player_profiles(active_only: bool = Query(True, description="Return 
         db = SessionLocal()
         player_service = PlayerService(db)
         profiles = player_service.get_all_player_profiles(active_only=active_only)
-        
+
         logger.info(f"Retrieved {len(profiles)} player profiles")
         return profiles
-        
+
     except Exception as e:
         logger.error(f"Error getting player profiles: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get player profiles: {str(e)}")
@@ -71,12 +72,12 @@ def get_player_profile(player_id: int) -> schemas.PlayerProfileResponse:
         db = SessionLocal()
         player_service = PlayerService(db)
         profile = player_service.get_player_profile(player_id)
-        
+
         if not profile:
             raise HTTPException(status_code=404, detail=f"Player {player_id} not found")
-        
+
         return profile
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -93,13 +94,13 @@ def update_player_profile(player_id: int, profile_update: schemas.PlayerProfileU
         db = SessionLocal()
         player_service = PlayerService(db)
         updated_profile = player_service.update_player_profile(player_id, profile_update)
-        
+
         if not updated_profile:
             raise HTTPException(status_code=404, detail=f"Player {player_id} not found")
-        
+
         logger.info(f"Updated player profile {player_id}")
         return updated_profile
-        
+
     except ValueError as e:
         logger.error(f"Validation error updating player profile: {e}")
         raise HTTPException(status_code=400, detail=str(e))
@@ -119,13 +120,13 @@ def delete_player_profile(player_id: int) -> Dict[str, str]:
         db = SessionLocal()
         player_service = PlayerService(db)
         success = player_service.delete_player_profile(player_id)
-        
+
         if not success:
             raise HTTPException(status_code=404, detail=f"Player {player_id} not found")
-        
+
         logger.info(f"Deleted player profile {player_id}")
         return {"message": f"Player {player_id} has been deleted"}
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -154,12 +155,12 @@ def get_player_profile_by_name(player_name: str) -> schemas.PlayerProfileRespons
         db = SessionLocal()
         player_service = PlayerService(db)
         profile = player_service.get_player_profile_by_name(player_name)
-        
+
         if not profile:
             raise HTTPException(status_code=404, detail=f"Player '{player_name}' not found")
-        
+
         return profile
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -178,12 +179,12 @@ def get_player_statistics(player_id: int) -> schemas.PlayerStatisticsResponse:
         db = SessionLocal()
         player_service = PlayerService(db)
         stats = player_service.get_player_statistics(player_id)
-        
+
         if not stats:
             raise HTTPException(status_code=404, detail=f"Statistics for player {player_id} not found")
-        
+
         return stats
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -200,12 +201,12 @@ def get_player_analytics(player_id: int) -> schemas.PlayerPerformanceAnalytics:
         db = SessionLocal()
         player_service = PlayerService(db)
         analytics = player_service.get_player_performance_analytics(player_id)
-        
+
         if not analytics:
             raise HTTPException(status_code=404, detail=f"Analytics for player {player_id} not found")
-        
+
         return analytics
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -221,12 +222,12 @@ def get_player_profile_with_stats(player_id: int) -> schemas.PlayerProfileWithSt
     try:
         db = SessionLocal()
         player_service = PlayerService(db)
-        
+
         # Get profile
         profile = player_service.get_player_profile(player_id)
         if not profile:
             raise HTTPException(status_code=404, detail=f"Player {player_id} not found")
-        
+
         # Get statistics
         stats = player_service.get_player_statistics(player_id)
         if not stats:
@@ -241,16 +242,16 @@ def get_player_profile_with_stats(player_id: int) -> schemas.PlayerProfileWithSt
                 best_hole_performance=[], worst_hole_performance=[],
                 performance_trends=[], last_updated=datetime.now().isoformat()
             )
-        
+
         # Get recent achievements (would need to implement this query)
         recent_achievements: List[Any] = []  # Placeholder
-        
+
         return schemas.PlayerProfileWithStats(
             profile=profile,
             statistics=stats,
             recent_achievements=recent_achievements
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -268,16 +269,16 @@ def get_player_advanced_metrics(player_id: int) -> Dict[str, Any]:
     try:
         db = SessionLocal()
         from ..services.statistics_service import StatisticsService
-        
+
         stats_service = StatisticsService(db)
         metrics = stats_service.get_advanced_player_metrics(player_id)
-        
+
         return {
             "player_id": player_id,
             "metrics": metrics,
             "generated_at": datetime.now().isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"Error getting advanced metrics for player {player_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get advanced metrics: {str(e)}")
@@ -294,17 +295,17 @@ def get_player_trends(
     try:
         db = SessionLocal()
         from ..services.statistics_service import StatisticsService
-        
+
         stats_service = StatisticsService(db)
         trends = stats_service.get_performance_trends(player_id, days=days)
-        
+
         return {
             "player_id": player_id,
             "period_days": days,
             "trends": trends,
             "generated_at": datetime.now().isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"Error getting trends for player {player_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get player trends: {str(e)}")
@@ -318,16 +319,16 @@ def get_player_insights(player_id: int) -> Dict[str, Any]:
     try:
         db = SessionLocal()
         from ..services.statistics_service import StatisticsService
-        
+
         stats_service = StatisticsService(db)
         insights = stats_service.get_player_insights(player_id)
-        
+
         return {
             "player_id": player_id,
             "insights": [insight.__dict__ for insight in insights],
             "generated_at": datetime.now().isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"Error getting insights for player {player_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get player insights: {str(e)}")
@@ -341,16 +342,16 @@ def get_player_skill_rating(player_id: int) -> Dict[str, Any]:
     try:
         db = SessionLocal()
         from ..services.statistics_service import StatisticsService
-        
+
         stats_service = StatisticsService(db)
         rating = stats_service.calculate_skill_rating(player_id)
-        
+
         return {
             "player_id": player_id,
             "skill_rating": rating,
             "calculated_at": datetime.now().isoformat()
         }
-        
+
     except Exception as e:
         logger.error(f"Error getting skill rating for player {player_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get skill rating: {str(e)}")
@@ -365,13 +366,13 @@ async def get_my_availability(current_user: models.PlayerProfile = Depends(get_c
     """Get current user's weekly availability."""
     try:
         db = SessionLocal()
-        
+
         availability = db.query(models.PlayerAvailability).filter(
             models.PlayerAvailability.player_profile_id == current_user.id
         ).all()
-        
+
         return [schemas.PlayerAvailabilityResponse.from_orm(a) for a in availability]
-        
+
     except Exception as e:
         logger.error(f"Error getting availability for user {current_user.id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get availability: {str(e)}")
@@ -387,16 +388,16 @@ async def set_my_availability(
     """Set or update current user's availability for a specific day."""
     try:
         db = SessionLocal()
-        
+
         # Override the player_profile_id with the current user's ID
         availability.player_profile_id = current_user.id
-        
+
         # Check if availability already exists for this day
         existing = db.query(models.PlayerAvailability).filter(
             models.PlayerAvailability.player_profile_id == current_user.id,
             models.PlayerAvailability.day_of_week == availability.day_of_week
         ).first()
-        
+
         if existing:
             # Update existing
             existing.available_from_time = availability.available_from_time
@@ -404,10 +405,10 @@ async def set_my_availability(
             existing.is_available = availability.is_available
             existing.notes = availability.notes
             existing.updated_at = datetime.now().isoformat()
-            
+
             db.commit()
             db.refresh(existing)
-            
+
             logger.info(f"Updated availability for user {current_user.id}, day {availability.day_of_week}")
             return schemas.PlayerAvailabilityResponse.from_orm(existing)
         else:
@@ -422,14 +423,14 @@ async def set_my_availability(
                 created_at=datetime.now().isoformat(),
                 updated_at=datetime.now().isoformat()
             )
-            
+
             db.add(db_availability)
             db.commit()
             db.refresh(db_availability)
-            
+
             logger.info(f"Created availability for user {current_user.id}, day {availability.day_of_week}")
             return schemas.PlayerAvailabilityResponse.from_orm(db_availability)
-        
+
     except Exception as e:
         db.rollback()
         logger.error(f"Error setting availability for user {current_user.id}: {e}")
@@ -443,13 +444,13 @@ def get_player_availability(player_id: int) -> List[schemas.PlayerAvailabilityRe
     """Get a player's weekly availability."""
     try:
         db = SessionLocal()
-        
+
         availability = db.query(models.PlayerAvailability).filter(
             models.PlayerAvailability.player_profile_id == player_id
         ).order_by(models.PlayerAvailability.day_of_week).all()
-        
+
         return [schemas.PlayerAvailabilityResponse.from_orm(avail) for avail in availability]
-        
+
     except Exception as e:
         logger.error(f"Error getting availability for player {player_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get availability: {str(e)}")
@@ -462,10 +463,10 @@ def get_all_players_availability() -> List[Dict[str, Any]]:
     """Get all players' weekly availability with their names."""
     try:
         db = SessionLocal()
-        
+
         # Get all players with their availability
         players_with_availability = db.query(models.PlayerProfile).all()
-        
+
         result = []
         for player in players_with_availability:
             player_data = {
@@ -474,12 +475,12 @@ def get_all_players_availability() -> List[Dict[str, Any]]:
                 "email": player.email,
                 "availability": []
             }
-            
+
             # Get this player's availability
             availability = db.query(models.PlayerAvailability).filter(
                 models.PlayerAvailability.player_profile_id == player.id
             ).all()
-            
+
             for avail in availability:
                 player_data["availability"].append({
                     "day_of_week": avail.day_of_week,
@@ -488,11 +489,11 @@ def get_all_players_availability() -> List[Dict[str, Any]]:
                     "available_to_time": avail.available_to_time,
                     "notes": avail.notes
                 })
-            
+
             result.append(player_data)
-        
+
         return result
-        
+
     except Exception as e:
         logger.error(f"Error getting all players availability: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get availability: {str(e)}")
@@ -505,13 +506,13 @@ def set_player_availability(player_id: int, availability: schemas.PlayerAvailabi
     """Set or update a player's availability for a specific day."""
     try:
         db = SessionLocal()
-        
+
         # Check if availability already exists for this day
         existing = db.query(models.PlayerAvailability).filter(
             models.PlayerAvailability.player_profile_id == player_id,
             models.PlayerAvailability.day_of_week == availability.day_of_week
         ).first()
-        
+
         if existing:
             # Update existing
             existing.available_from_time = availability.available_from_time
@@ -519,10 +520,10 @@ def set_player_availability(player_id: int, availability: schemas.PlayerAvailabi
             existing.is_available = availability.is_available
             existing.notes = availability.notes
             existing.updated_at = datetime.now().isoformat()
-            
+
             db.commit()
             db.refresh(existing)
-            
+
             logger.info(f"Updated availability for player {player_id}, day {availability.day_of_week}")
             return schemas.PlayerAvailabilityResponse.from_orm(existing)
         else:
@@ -537,14 +538,14 @@ def set_player_availability(player_id: int, availability: schemas.PlayerAvailabi
                 created_at=datetime.now().isoformat(),
                 updated_at=datetime.now().isoformat()
             )
-            
+
             db.add(db_availability)
             db.commit()
             db.refresh(db_availability)
-            
+
             logger.info(f"Created availability for player {player_id}, day {availability.day_of_week}")
             return schemas.PlayerAvailabilityResponse.from_orm(db_availability)
-        
+
     except Exception as e:
         db.rollback()
         logger.error(f"Error setting availability for player {player_id}: {e}")
@@ -560,11 +561,11 @@ def get_email_preferences(player_id: int) -> schemas.EmailPreferencesResponse:
     """Get a player's email preferences."""
     try:
         db = SessionLocal()
-        
+
         preferences = db.query(models.EmailPreferences).filter(
             models.EmailPreferences.player_profile_id == player_id
         ).first()
-        
+
         if not preferences:
             # Create default preferences
             preferences = models.EmailPreferences(
@@ -575,9 +576,9 @@ def get_email_preferences(player_id: int) -> schemas.EmailPreferencesResponse:
             db.add(preferences)
             db.commit()
             db.refresh(preferences)
-            
+
         return schemas.EmailPreferencesResponse.from_orm(preferences)
-        
+
     except Exception as e:
         logger.error(f"Error getting email preferences for player {player_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get email preferences: {str(e)}")
@@ -590,14 +591,14 @@ def update_email_preferences(player_id: int, preferences_update: schemas.EmailPr
     """Update a player's email preferences."""
     try:
         db = SessionLocal()
-        
+
         preferences = db.query(models.EmailPreferences).filter(
             models.EmailPreferences.player_profile_id == player_id
         ).first()
-        
+
         if not preferences:
             raise HTTPException(status_code=404, detail="Email preferences not found")
-        
+
         # Update fields
         if preferences_update.daily_signups_enabled is not None:
             preferences.daily_signups_enabled = preferences_update.daily_signups_enabled
@@ -613,15 +614,15 @@ def update_email_preferences(player_id: int, preferences_update: schemas.EmailPr
             preferences.email_frequency = preferences_update.email_frequency
         if preferences_update.preferred_notification_time is not None:
             preferences.preferred_notification_time = preferences_update.preferred_notification_time
-            
+
         preferences.updated_at = datetime.now().isoformat()
-        
+
         db.commit()
         db.refresh(preferences)
-        
+
         logger.info(f"Updated email preferences for player {player_id}")
         return schemas.EmailPreferencesResponse.from_orm(preferences)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -641,7 +642,7 @@ async def get_my_email_preferences(current_user: models.PlayerProfile = Depends(
         prefs = db.query(models.EmailPreferences).filter(
             models.EmailPreferences.player_profile_id == current_user.id
         ).first()
-        
+
         if not prefs:
             # Create default preferences
             prefs = models.EmailPreferences(
@@ -652,7 +653,7 @@ async def get_my_email_preferences(current_user: models.PlayerProfile = Depends(
             db.add(prefs)
             db.commit()
             db.refresh(prefs)
-        
+
         return schemas.EmailPreferencesResponse(
             id=prefs.id,
             player_profile_id=prefs.player_profile_id,
@@ -683,14 +684,14 @@ async def update_my_email_preferences(
         prefs = db.query(models.EmailPreferences).filter(
             models.EmailPreferences.player_profile_id == current_user.id
         ).first()
-        
+
         if not prefs:
             prefs = models.EmailPreferences(
                 player_profile_id=current_user.id,
                 created_at=datetime.now().isoformat()
             )
             db.add(prefs)
-        
+
         # Update preferences
         update_data = preferences_update.dict(exclude_unset=True)
         for field, value in update_data.items():
@@ -699,13 +700,13 @@ async def update_my_email_preferences(
                 if isinstance(value, bool):
                     value = 1 if value else 0
                 setattr(prefs, field, value)
-        
+
         prefs.updated_at = datetime.now().isoformat()
         db.commit()
         db.refresh(prefs)
-        
+
         logger.info(f"Updated email preferences for user {current_user.id}")
-        
+
         return schemas.EmailPreferencesResponse(
             id=prefs.id,
             player_profile_id=prefs.player_profile_id,

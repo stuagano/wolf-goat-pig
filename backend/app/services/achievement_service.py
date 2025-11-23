@@ -12,17 +12,19 @@ Features:
 - Migration from PlayerAchievement to Badge system
 """
 
-from typing import List, Optional, Dict, Any
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, desc
-from datetime import datetime
 import logging
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from ..models import (
-    PlayerProfile, Badge, PlayerBadgeEarned, BadgeProgress,
-    PlayerAchievement, BadgeSeries, PlayerSeriesProgress
-)
+from sqlalchemy import and_, desc
+from sqlalchemy.orm import Session
+
 from ..badge_engine import BadgeEngine
+from ..models import (
+    Badge,
+    PlayerAchievement,
+    PlayerBadgeEarned,
+)
 
 logger = logging.getLogger(__name__)
 

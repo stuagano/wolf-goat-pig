@@ -4,13 +4,14 @@ Persistence Mixin for Wolf Goat Pig Game State
 Provides database save/load functionality that can be mixed into any game engine class.
 Extracted from GameState to enable persistence in WolfGoatPigGame.
 """
-import json
 import uuid
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
+
 from sqlalchemy.orm import Session
+
 from ..database import SessionLocal
-from ..models import GameStateModel, GameRecord, GamePlayerResult
+from ..models import GamePlayerResult, GameRecord, GameStateModel
 
 
 class PersistenceMixin:

@@ -4,10 +4,11 @@ Rate limiting middleware for API endpoints.
 Prevents excessive calls to expensive operations like Google Sheets sync.
 """
 
-from datetime import datetime, timedelta
-from typing import Optional, Dict
-from fastapi import HTTPException
 import logging
+from datetime import datetime, timedelta
+from typing import Dict, Optional
+
+from fastapi import HTTPException
 
 logger = logging.getLogger("app.rate_limiting")
 

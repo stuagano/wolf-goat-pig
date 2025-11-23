@@ -4,8 +4,8 @@ Example Usage of NotificationService
 This file demonstrates how to use the NotificationService in your application.
 """
 
-from typing import Any
 from sqlalchemy.orm import Session
+
 
 # Example 1: Send a notification to a player
 def example_send_notification(db: Session) -> None:

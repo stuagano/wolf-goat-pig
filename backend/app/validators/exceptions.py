@@ -5,7 +5,7 @@ Provides specific exception types for different validation failures,
 making error handling more precise and informative.
 """
 
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 
 class ValidationError(Exception):

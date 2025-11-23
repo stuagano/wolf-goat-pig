@@ -3,10 +3,10 @@ Timeline enhancements for Wolf-Goat-Pig simulation
 Adds proper timeline tracking and poker-style betting visualization
 """
 
-from typing import Dict, List, Any, Optional
-from datetime import datetime
-from dataclasses import dataclass, field
 import logging
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -20,20 +20,20 @@ class EnhancedTimelineEvent:
     details: Dict[str, Any] = field(default_factory=dict)
     player_name: Optional[str] = None
     icon: Optional[str] = None  # Visual icon for the event
-    
+
     def to_display_dict(self) -> Dict[str, Any]:
         """Convert to display-friendly format"""
         # Calculate time ago
         now = datetime.now()
         time_diff = now - self.timestamp
-        
+
         if time_diff.seconds < 60:
             time_ago = f"{time_diff.seconds}s ago"
         elif time_diff.seconds < 3600:
             time_ago = f"{time_diff.seconds // 60}m ago"
         else:
             time_ago = f"{time_diff.seconds // 3600}h ago"
-        
+
         return {
             'id': self.id,
             'time_ago': time_ago,
@@ -44,7 +44,7 @@ class EnhancedTimelineEvent:
             'icon': self.icon or self._get_icon_for_type(),
             'details': self.details
         }
-    
+
     def _get_icon_for_type(self) -> str:
         """Get appropriate icon for event type"""
         icons = {
@@ -67,12 +67,12 @@ class EnhancedTimelineEvent:
 
 class SimulationTimelineManager:
     """Manages timeline events for the simulation"""
-    
+
     def __init__(self):
         self.events: List[EnhancedTimelineEvent] = []
         self.event_counter = 0
-    
-    def add_event(self, event_type: str, description: str, 
+
+    def add_event(self, event_type: str, description: str,
                   player_name: Optional[str] = None,
                   details: Optional[Dict[str, Any]] = None,
                   icon: Optional[str] = None) -> EnhancedTimelineEvent:
@@ -90,35 +90,35 @@ class SimulationTimelineManager:
         self.events.append(event)
         logger.info(f"Timeline event: {description}")
         return event
-    
+
     def get_recent_events(self, limit: int = 10) -> List[Dict[str, Any]]:
         """Get recent events in reverse chronological order"""
         # Return most recent events first
         sorted_events = sorted(self.events, key=lambda e: e.timestamp, reverse=True)
         return [event.to_display_dict() for event in sorted_events[:limit]]
-    
+
     def get_all_events(self) -> List[Dict[str, Any]]:
         """Get all events in reverse chronological order"""
         sorted_events = sorted(self.events, key=lambda e: e.timestamp, reverse=True)
         return [event.to_display_dict() for event in sorted_events]
-    
+
     def clear_events(self):
         """Clear all events (for new hole/game)"""
         self.events = []
         self.event_counter = 0
 
-def enhance_simulation_with_timeline(simulation):
+def enhance_simulation_with_timeline(simulation: Any) -> Any:
     """Enhance an existing simulation with timeline tracking"""
     if not hasattr(simulation, 'timeline_manager'):
         simulation.timeline_manager = SimulationTimelineManager()
-    
+
     # Wrap key methods to add timeline tracking
     original_request_partner = simulation.request_partner
     def tracked_request_partner(captain_id, partner_id):
         result = original_request_partner(captain_id, partner_id)
         captain = next((p for p in simulation.players if p.id == captain_id), None)
         partner = next((p for p in simulation.players if p.id == partner_id), None)
-        
+
         if captain and partner:
             simulation.timeline_manager.add_event(
                 'partnership',
@@ -128,13 +128,13 @@ def enhance_simulation_with_timeline(simulation):
             )
         return result
     simulation.request_partner = tracked_request_partner
-    
+
     # Track solo decisions
     original_go_solo = simulation.go_solo
     def tracked_go_solo(captain_id):
         result = original_go_solo(captain_id)
         captain = next((p for p in simulation.players if p.id == captain_id), None)
-        
+
         if captain:
             simulation.timeline_manager.add_event(
                 'solo',
@@ -144,13 +144,13 @@ def enhance_simulation_with_timeline(simulation):
             )
         return result
     simulation.go_solo = tracked_go_solo
-    
+
     # Track shots
     original_simulate_shot = simulation.simulate_shot
     def tracked_simulate_shot(player_id):
         result = original_simulate_shot(player_id)
         player = next((p for p in simulation.players if p.id == player_id), None)
-        
+
         if player and 'shot_detail' in result:
             detail = result['shot_detail']
             simulation.timeline_manager.add_event(
@@ -161,22 +161,22 @@ def enhance_simulation_with_timeline(simulation):
             )
         return result
     simulation.simulate_shot = tracked_simulate_shot
-    
+
     return simulation
 
-def format_poker_betting_state(simulation) -> Dict[str, Any]:
+def format_poker_betting_state(simulation: Any) -> Dict[str, Any]:
     """Format the current state in poker-style betting terms"""
     if not simulation.hole_progression:
         return {}
-    
+
     hole_state = simulation.hole_progression
     betting = hole_state.betting
-    
+
     # Calculate pot size
     pot_size = betting.current_wager * len(simulation.players)
     if betting.doubled:
         pot_size *= 2
-    
+
     # Determine betting phase (like poker streets)
     phase = "pre-flop"  # Before tee shots
     if hole_state.tee_shots_complete > 0:
@@ -185,7 +185,7 @@ def format_poker_betting_state(simulation) -> Dict[str, Any]:
         phase = "turn"  # Mid-hole
     if any(hole_state.balls_in_hole):
         phase = "river"  # Near completion
-    
+
     return {
         'pot_size': pot_size,
         'base_bet': betting.base_wager,
@@ -198,16 +198,16 @@ def format_poker_betting_state(simulation) -> Dict[str, Any]:
         'can_fold': True  # Players can always concede
     }
 
-def create_betting_options(simulation, player_id: str) -> List[Dict[str, Any]]:
+def create_betting_options(simulation: Any, player_id: str) -> List[Dict[str, Any]]:
     """Create poker-style betting options for a player"""
-    options = []
-    
+    options: List[Dict[str, Any]] = []
+
     if not simulation.hole_progression:
         return options
-    
+
     hole_state = simulation.hole_progression
     betting = hole_state.betting
-    
+
     # Captain options
     if player_id == hole_state.hitting_order[0] and not hole_state.partnership_deadline_passed:
         options.extend([
@@ -225,7 +225,7 @@ def create_betting_options(simulation, player_id: str) -> List[Dict[str, Any]]:
                 'multiplier': 2
             }
         ])
-    
+
     # Betting options (like poker)
     if not hole_state.wagering_closed:
         if not betting.doubled:
@@ -236,14 +236,14 @@ def create_betting_options(simulation, player_id: str) -> List[Dict[str, Any]]:
                 'icon': '📈',
                 'amount': betting.current_wager * 2
             })
-        
+
         options.append({
             'action': 'check',
             'label': 'Check',
             'description': 'Continue without raising',
             'icon': '✅'
         })
-    
+
     # Always can concede (fold)
     options.append({
         'action': 'concede',
@@ -251,5 +251,5 @@ def create_betting_options(simulation, player_id: str) -> List[Dict[str, Any]]:
         'description': 'Give up the hole',
         'icon': '🚫'
     })
-    
+
     return options

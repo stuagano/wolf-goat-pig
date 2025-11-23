@@ -1,7 +1,8 @@
 # backend/app/routes/betting_events.py
+from typing import Any, Dict, List
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import List, Any, Dict
 
 router = APIRouter()
 

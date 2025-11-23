@@ -7,4 +7,4 @@ the fundamental entities in the golf simulation system.
 
 from .player import Player
 
-__all__ = ['Player'] 
+__all__ = ['Player']

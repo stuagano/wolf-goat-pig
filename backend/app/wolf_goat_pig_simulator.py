@@ -8,11 +8,11 @@ The WolfGoatPigSimulator class extends WolfGoatPigGame with simulation-specific
 methods while maintaining all core game tracking functionality.
 """
 
-import random
-from typing import Dict, List, Optional, Any
 import logging
+import random
+from typing import Any, Dict, List, Optional
 
-from .wolf_goat_pig import WolfGoatPigGame, Player, WGPShotResult, WGPBettingOpportunity
+from .wolf_goat_pig import Player, WGPShotResult, WolfGoatPigGame
 
 logger = logging.getLogger(__name__)
 
@@ -42,16 +42,16 @@ class WolfGoatPigSimulator(WolfGoatPigGame):
         shot = sim.simulate_shot(player_id="p1")
         ```
     """
-    
+
     def __init__(self, *args, **kwargs):
         """Initialize the simulator with all game engine capabilities."""
         super().__init__(*args, **kwargs)
         logger.info(f"Initialized WolfGoatPigSimulator for game {self.game_id}")
-    
+
     # =========================================================================
     # MONTE CARLO SIMULATION
     # =========================================================================
-    
+
     def run_monte_carlo_simulation(
         self,
         iterations: int = 1000,
@@ -71,26 +71,26 @@ class WolfGoatPigSimulator(WolfGoatPigGame):
             - confidence_intervals: Dict[player_id, Tuple[float, float]]
         """
         logger.info(f"Running Monte Carlo simulation with {iterations} iterations")
-        
+
         # Save current game state
         saved_state = self._save_simulation_state()
-        
+
         results = {
             "iterations": iterations,
             "win_probabilities": {},
             "expected_values": {},
             "outcomes": []
         }
-        
+
         # Run simulations
         for i in range(iterations):
             # Restore state for each iteration
             self._restore_simulation_state(saved_state)
-            
+
             # Simulate hole completion
             outcome = self._simulate_hole_completion()
             results["outcomes"].append(outcome)
-        
+
         # Calculate statistics
         results["win_probabilities"] = self._calculate_win_probabilities(
             results["outcomes"]
@@ -98,13 +98,13 @@ class WolfGoatPigSimulator(WolfGoatPigGame):
         results["expected_values"] = self._calculate_expected_values(
             results["outcomes"]
         )
-        
+
         # Restore original state
         self._restore_simulation_state(saved_state)
-        
-        logger.info(f"Monte Carlo simulation complete")
+
+        logger.info("Monte Carlo simulation complete")
         return results
-    
+
     def _save_simulation_state(self) -> Dict[str, Any]:
         """Save current game state for simulation."""
         return {
@@ -120,7 +120,7 @@ class WolfGoatPigSimulator(WolfGoatPigGame):
             "current_hole": self.current_hole,
             "hole_states": self.hole_states.copy() if hasattr(self, 'hole_states') else {}
         }
-    
+
     def _restore_simulation_state(self, state: Dict[str, Any]) -> None:
         """Restore game state from saved state."""
         for player_data in state["players"]:
@@ -128,11 +128,11 @@ class WolfGoatPigSimulator(WolfGoatPigGame):
             player.points = player_data["points"]
             player.float_used = player_data["float_used"]
             player.solo_count = player_data["solo_count"]
-        
+
         self.current_hole = state["current_hole"]
         if hasattr(self, 'hole_states'):
             self.hole_states = state["hole_states"].copy()
-    
+
     def _simulate_hole_completion(self) -> Dict[str, Any]:
         """Simulate completion of current hole."""
         # Simulate shots for all players
@@ -143,15 +143,15 @@ class WolfGoatPigSimulator(WolfGoatPigGame):
                 "total_strokes": len(shots),
                 "shots": shots
             }
-        
+
         return hole_results
-    
+
     def _simulate_player_hole(self, player: Player) -> List[WGPShotResult]:
         """Simulate all shots for a player on current hole."""
         shots = []
         distance_remaining = 400  # Starting distance (yards)
         shot_number = 1
-        
+
         while distance_remaining > 0 and shot_number < 10:  # Max 10 shots
             shot = self._simulate_player_shot(
                 player_id=player.id,
@@ -160,51 +160,51 @@ class WolfGoatPigSimulator(WolfGoatPigGame):
                 distance_to_pin=distance_remaining
             )
             shots.append(shot)
-            
+
             if shot.made_shot:
                 break
-            
+
             distance_remaining = shot.distance_to_pin
             shot_number += 1
-        
+
         return shots
-    
+
     def _calculate_win_probabilities(self, outcomes: List[Dict]) -> Dict[str, float]:
         """Calculate win probability for each player."""
         win_counts = {p.id: 0 for p in self.players}
-        
+
         for outcome in outcomes:
             # Determine winner(s) based on strokes
             min_strokes = min(
-                outcome[pid]["total_strokes"] 
+                outcome[pid]["total_strokes"]
                 for pid in outcome.keys()
             )
             winners = [
                 pid for pid, data in outcome.items()
                 if data["total_strokes"] == min_strokes
             ]
-            
+
             # Award fractional wins for ties
             for winner in winners:
                 win_counts[winner] += 1.0 / len(winners)
-        
+
         # Convert to probabilities
         total = len(outcomes)
         return {
-            pid: count / total 
+            pid: count / total
             for pid, count in win_counts.items()
         }
-    
+
     def _calculate_expected_values(self, outcomes: List[Dict]) -> Dict[str, float]:
         """Calculate expected value for each player."""
         # Simplified EV calculation
         # In real implementation, this would factor in betting state
         return {p.id: 0.0 for p in self.players}
-    
+
     # =========================================================================
     # SHOT SIMULATION
     # =========================================================================
-    
+
     def simulate_shot(
         self,
         player_id: str,
@@ -223,14 +223,14 @@ class WolfGoatPigSimulator(WolfGoatPigGame):
             WGPShotResult with simulated outcome
         """
         player = next(p for p in self.players if p.id == player_id)
-        
+
         # Use provided values or determine from game state
         if distance_to_pin is None:
             distance_to_pin = 400.0  # Default starting distance
-        
+
         if lie_type is None:
             lie_type = "tee" if distance_to_pin > 300 else "fairway"
-        
+
         return self._simulate_player_shot(
             player_id=player_id,
             handicap=player.handicap,
@@ -238,7 +238,7 @@ class WolfGoatPigSimulator(WolfGoatPigGame):
             distance_to_pin=distance_to_pin,
             lie_type=lie_type
         )
-    
+
     def _simulate_player_shot(
         self,
         player_id: str,
@@ -262,7 +262,7 @@ class WolfGoatPigSimulator(WolfGoatPigGame):
         """
         # Determine shot quality based on handicap and lie
         shot_quality = self._determine_shot_quality(handicap, lie_type)
-        
+
         # Calculate new distance based on quality
         if distance_to_pin <= 100:
             # Short game
@@ -278,15 +278,15 @@ class WolfGoatPigSimulator(WolfGoatPigGame):
             new_distance = self._simulate_approach_shot(
                 handicap, distance_to_pin, lie_type
             )
-        
+
         # Determine if shot was holed
         made_shot = new_distance <= 0.5 or (
             distance_to_pin <= 3 and random.random() < 0.7
         )
-        
+
         # Determine next lie type
         next_lie = self._determine_lie_type(shot_quality, distance_to_pin)
-        
+
         return WGPShotResult(
             player_id=player_id,
             shot_number=shot_number,
@@ -296,7 +296,7 @@ class WolfGoatPigSimulator(WolfGoatPigGame):
             made_shot=made_shot,
             penalty_strokes=0
         )
-    
+
     def _determine_shot_quality(self, handicap: float, lie_type: str) -> str:
         """
         Determine shot quality based on handicap and lie.
@@ -310,7 +310,7 @@ class WolfGoatPigSimulator(WolfGoatPigGame):
         """
         # Base probability on handicap (lower handicap = better shots)
         skill_factor = max(0, 1 - (handicap / 30))
-        
+
         # Adjust for lie difficulty
         lie_difficulty = {
             "tee": 0.9,
@@ -319,9 +319,9 @@ class WolfGoatPigSimulator(WolfGoatPigGame):
             "rough": 0.7,
             "sand": 0.5
         }
-        
+
         adjusted_skill = skill_factor * lie_difficulty.get(lie_type, 1.0)
-        
+
         # Determine quality
         rand = random.random()
         if rand < adjusted_skill * 0.2:
@@ -334,7 +334,7 @@ class WolfGoatPigSimulator(WolfGoatPigGame):
             return "poor"
         else:
             return "terrible"
-    
+
     def _simulate_tee_shot_distance(self, handicap: float, hole_par: int) -> float:
         """
         Simulate tee shot distance based on handicap and hole par.
@@ -365,7 +365,7 @@ class WolfGoatPigSimulator(WolfGoatPigGame):
                 return random.uniform(220, 320)  # Still manageable
             else:
                 return random.uniform(280, 380)  # Longer approach needed
-    
+
     def _simulate_approach_shot(
         self,
         handicap: float,
@@ -380,7 +380,7 @@ class WolfGoatPigSimulator(WolfGoatPigGame):
         # Short game (under 100 yards) - different logic
         if prev_distance <= 100:
             return self._simulate_short_game_shot(handicap, prev_distance, lie_type)
-        
+
         # Full shots (over 100 yards)
         if handicap <= 5:
             if prev_distance > 200:
@@ -397,18 +397,18 @@ class WolfGoatPigSimulator(WolfGoatPigGame):
                 advance_distance = random.uniform(40, 80)
             else:
                 advance_distance = random.uniform(20, 50)
-        
+
         # Adjust for lie difficulty
         lie_penalty = 1.0
         if lie_type == "rough":
             lie_penalty = 0.8
         elif lie_type == "sand":
             lie_penalty = 0.6
-        
+
         # Calculate new distance
         new_distance = max(0, prev_distance - (advance_distance * lie_penalty))
         return new_distance
-    
+
     def _simulate_short_game_shot(
         self,
         handicap: float,
@@ -428,7 +428,7 @@ class WolfGoatPigSimulator(WolfGoatPigGame):
                 return random.uniform(0, 2) if random.random() > 0.75 else 0
             else:
                 return random.uniform(0, 3) if random.random() > 0.6 else 0
-                
+
         elif distance <= 15:
             # Putting range - should get close to hole
             if handicap <= 5:
@@ -437,11 +437,11 @@ class WolfGoatPigSimulator(WolfGoatPigGame):
                 return random.uniform(0, 5)  # Usually within 5 feet
             else:
                 return random.uniform(0, 8)  # Within 8 feet
-                
+
         elif distance <= 40:
             # Chipping/short pitch range
             skill_factor = max(0.1, 1 - (handicap / 25))
-            
+
             if lie_type == "green":
                 # On green - putting
                 if handicap <= 5:
@@ -458,26 +458,26 @@ class WolfGoatPigSimulator(WolfGoatPigGame):
                 elif lie_type == "rough":
                     base_result *= 1.2
                 return min(base_result, distance * 0.8)
-                
+
         else:
             # 40-100 yard range - pitch shots
             skill_factor = max(0.2, 1 - (handicap / 30))
-            
+
             if handicap <= 5:
                 target_range = random.uniform(3, 15)  # Get it close
             elif handicap <= 15:
                 target_range = random.uniform(5, 25)  # Pretty close
             else:
                 target_range = random.uniform(8, 35)  # Somewhere on green
-                
+
             # Adjust for lie
             if lie_type == "sand":
                 target_range *= 1.4
             elif lie_type == "rough":
                 target_range *= 1.2
-                
+
             return min(target_range, distance * 0.9)
-    
+
     def _determine_lie_type(self, shot_quality: str, distance: float) -> str:
         """
         Determine lie type based on shot quality and distance.
@@ -486,7 +486,7 @@ class WolfGoatPigSimulator(WolfGoatPigGame):
         """
         if distance <= 20:
             return "green"
-        
+
         if shot_quality == "excellent":
             return random.choice(["fairway", "fairway", "fairway", "green"])
         elif shot_quality == "good":

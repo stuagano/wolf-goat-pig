@@ -10,7 +10,9 @@ Usage:
 """
 
 import logging
+
 from sqlalchemy import text
+
 from .database import engine
 
 # Configure logging

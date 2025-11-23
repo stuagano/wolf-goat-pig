@@ -5,17 +5,18 @@ Course management and import functionality, including course CRUD operations,
 course import from external sources, and course preview functionality.
 """
 
-from fastapi import APIRouter, HTTPException, Path, UploadFile, File
-from typing import Dict, List, Any
-from datetime import datetime
-import logging
 import json
+import logging
 import traceback
+from datetime import datetime
+from typing import Any, Dict
 
+from fastapi import APIRouter, File, HTTPException, Path, UploadFile
+
+from .. import models, schemas
+from ..course_import import import_course_by_name, import_course_from_json
 from ..database import SessionLocal
 from ..state.course_manager import CourseManager
-from ..course_import import import_course_by_name, import_course_from_json
-from .. import schemas, models
 
 logger = logging.getLogger("app.routers.courses")
 

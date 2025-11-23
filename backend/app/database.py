@@ -1,10 +1,11 @@
+import logging
+import os
+from collections.abc import Generator
+from contextlib import contextmanager
+
 from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
-from contextlib import contextmanager
-from typing import Generator
-import os
-import logging
+from sqlalchemy.orm import Session, sessionmaker
 
 logger = logging.getLogger(__name__)
 
@@ -104,12 +105,11 @@ def init_db():
     """Initialize database tables"""
     try:
         # Import all models to ensure they're registered with SQLAlchemy
-        from . import models
-        
+
         # Create all tables
         Base.metadata.create_all(bind=engine)
         logger.info("Database initialized successfully")
-        
+
         # Test database connection
         db = SessionLocal()
         try:
@@ -120,7 +120,7 @@ def init_db():
             raise
         finally:
             db.close()
-            
+
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
-        raise 
+        raise

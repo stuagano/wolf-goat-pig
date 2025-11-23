@@ -4,13 +4,14 @@ Initializes database with all required data for proper simulation bootstrapping.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional
-from sqlalchemy.orm import Session
+
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from .database import SessionLocal, init_db
-from .models import Course, Hole, Rule, PlayerProfile, GameRecord, GamePlayerResult
+from .models import Course, Hole, PlayerProfile, Rule
 from .seed_courses import DEFAULT_COURSES
 from .seed_rules import RULES
 
@@ -173,49 +174,49 @@ def seed_courses(db: Session) -> int:
 def seed_rules(db: Session) -> int:
     """Seed database with Wolf-Goat-Pig rules."""
     rules_added = 0
-    
+
     try:
         for rule_data in RULES:
             # Check if rule already exists
             existing_rule = db.query(Rule).filter_by(title=rule_data["title"]).first()
-            
+
             if existing_rule:
                 logger.debug(f"Rule '{rule_data['title']}' already exists, skipping...")
                 continue
-            
+
             # Create new rule
             rule = Rule(
                 title=rule_data["title"],
                 description=rule_data["description"]
             )
-            
+
             db.add(rule)
             rules_added += 1
             logger.debug(f"Added rule: {rule_data['title']}")
-        
+
         db.commit()
         logger.info(f"Successfully seeded {rules_added} rules!")
-        
+
     except Exception as e:
         db.rollback()
         logger.error(f"Error seeding rules: {e}")
         raise
-    
+
     return rules_added
 
 def seed_ai_personalities(db: Session) -> int:
     """Seed database with AI player personalities."""
     personalities_added = 0
-    
+
     try:
         for personality in DEFAULT_AI_PERSONALITIES:
             # Check if player profile already exists
             existing_player = db.query(PlayerProfile).filter_by(name=personality["name"]).first()
-            
+
             if existing_player:
                 logger.debug(f"Player '{personality['name']}' already exists, skipping...")
                 continue
-            
+
             # Create new AI player profile
             player = PlayerProfile(
                 name=personality["name"],
@@ -230,14 +231,14 @@ def seed_ai_personalities(db: Session) -> int:
                 created_at=datetime.now().isoformat(),
                 updated_at=datetime.now().isoformat()
             )
-            
+
             db.add(player)
             personalities_added += 1
             logger.info(f"Added AI personality: {personality['name']} ({personality['playing_style']} style)")
-        
+
         db.commit()
         logger.info(f"Successfully seeded {personalities_added} AI personalities!")
-        
+
     except Exception as e:
         db.rollback()
         logger.error(f"Error seeding AI personalities: {e}")
@@ -254,11 +255,11 @@ def create_default_human_player(db: Session) -> Optional[PlayerProfile]:
             .filter(PlayerProfile.is_ai == 0)
             .count()
         )
-        
+
         if human_players > 0:
             logger.info("Human players already exist, skipping default creation...")
             return None
-        
+
         # Create default human player
         default_human = PlayerProfile(
             name="Player",
@@ -270,13 +271,13 @@ def create_default_human_player(db: Session) -> Optional[PlayerProfile]:
             created_at=datetime.now().isoformat(),
             updated_at=datetime.now().isoformat()
         )
-        
+
         db.add(default_human)
         db.commit()
-        
+
         logger.info("Created default human player profile")
         return default_human
-        
+
     except Exception as e:
         db.rollback()
         logger.error(f"Error creating default human player: {e}")
@@ -285,7 +286,7 @@ def create_default_human_player(db: Session) -> Optional[PlayerProfile]:
 def verify_seeded_data(db: Session) -> dict:
     """Verify that all essential data has been seeded correctly."""
     verification_results = {}
-    
+
     try:
         # Check courses
         course_count = db.query(Course).count()
@@ -294,7 +295,7 @@ def verify_seeded_data(db: Session) -> dict:
             "status": "success" if course_count >= 3 else "warning",
             "message": f"Found {course_count} courses" if course_count >= 3 else f"Only {course_count} courses found, expected at least 3"
         }
-        
+
         # Check rules
         rule_count = db.query(Rule).count()
         verification_results["rules"] = {
@@ -302,7 +303,7 @@ def verify_seeded_data(db: Session) -> dict:
             "status": "success" if rule_count >= 10 else "warning",
             "message": f"Found {rule_count} rules" if rule_count >= 10 else f"Only {rule_count} rules found, expected at least 10"
         }
-        
+
         # Check AI personalities
         ai_player_count = (
             db.query(PlayerProfile)
@@ -314,7 +315,7 @@ def verify_seeded_data(db: Session) -> dict:
             "status": "success" if ai_player_count >= 4 else "warning",
             "message": f"Found {ai_player_count} AI personalities" if ai_player_count >= 4 else f"Only {ai_player_count} AI personalities found, expected at least 4"
         }
-        
+
         # Check human players
         human_player_count = (
             db.query(PlayerProfile)
@@ -326,33 +327,33 @@ def verify_seeded_data(db: Session) -> dict:
             "status": "success" if human_player_count >= 1 else "info",
             "message": f"Found {human_player_count} human players" if human_player_count >= 1 else "No human players found (will use default)"
         }
-        
+
         # Sample games check (disabled)
         verification_results["sample_games"] = {
             "count": 0,
             "status": "skipped",
             "message": "Sample games disabled - use real gameplay for data"
         }
-        
+
         # Overall status (only check critical components)
         all_critical_success = all(
             result["status"] in ["success", "info", "skipped"]
             for key, result in verification_results.items()
             if key in ["courses", "rules", "ai_personalities"]
         )
-        
+
         verification_results["overall"] = {
             "status": "success" if all_critical_success else "warning",
             "message": "All critical data seeded successfully" if all_critical_success else "Some critical data may be missing"
         }
-        
+
     except Exception as e:
         logger.error(f"Error verifying seeded data: {e}")
         verification_results["overall"] = {
             "status": "error",
             "message": f"Verification failed: {str(e)}"
         }
-    
+
     return verification_results
 
 def seed_all_data(force_reseed: bool = False) -> dict:
@@ -366,28 +367,28 @@ def seed_all_data(force_reseed: bool = False) -> dict:
         Dictionary with seeding results and statistics
     """
     logger.info("Starting comprehensive data seeding...")
-    
+
     # Initialize database
     try:
         init_db()
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
         return {"status": "error", "message": f"Database initialization failed: {str(e)}"}
-    
+
     db = SessionLocal()
     seeding_results = {
         "status": "success",
         "timestamp": datetime.now().isoformat(),
         "results": {}
     }
-    
+
     try:
         # Verify database connection
         if not verify_database_connection(db):
             raise Exception("Database connection verification failed")
-        
+
         logger.info("Database connection verified successfully")
-        
+
         # Seed courses
         logger.info("Seeding courses...")
         courses_added = seed_courses(db)
@@ -413,7 +414,7 @@ def seed_all_data(force_reseed: bool = False) -> dict:
             "added": rules_added,
             "status": "success"
         }
-        
+
         # Seed AI personalities
         logger.info("Seeding AI personalities...")
         personalities_added = seed_ai_personalities(db)
@@ -421,7 +422,7 @@ def seed_all_data(force_reseed: bool = False) -> dict:
             "added": personalities_added,
             "status": "success"
         }
-        
+
         # Create default human player if needed
         logger.info("Creating default human player if needed...")
         default_human = create_default_human_player(db)
@@ -429,7 +430,7 @@ def seed_all_data(force_reseed: bool = False) -> dict:
             "created": default_human is not None,
             "status": "success"
         }
-        
+
         # Sample games seeding disabled (not needed)
         logger.info("Skipping sample games (disabled - not needed for app)")
         seeding_results["results"]["sample_games"] = {
@@ -437,12 +438,12 @@ def seed_all_data(force_reseed: bool = False) -> dict:
             "status": "skipped",
             "message": "Sample games disabled - use real gameplay for test data"
         }
-        
+
         # Verify all seeded data
         logger.info("Verifying seeded data...")
         verification_results = verify_seeded_data(db)
         seeding_results["verification"] = verification_results
-        
+
         # Set overall status based on verification
         if verification_results["overall"]["status"] == "error":
             seeding_results["status"] = "error"
@@ -452,9 +453,9 @@ def seed_all_data(force_reseed: bool = False) -> dict:
             seeding_results["message"] = "Seeding completed with warnings"
         else:
             seeding_results["message"] = "All data seeded successfully"
-        
+
         logger.info(f"Data seeding completed with status: {seeding_results['status']}")
-        
+
     except Exception as e:
         db.rollback()
         logger.error(f"Critical error during data seeding: {e}")
@@ -464,29 +465,29 @@ def seed_all_data(force_reseed: bool = False) -> dict:
             "timestamp": datetime.now().isoformat(),
             "results": {}
         }
-    
+
     finally:
         db.close()
-    
+
     return seeding_results
 
 def get_seeding_status() -> dict:
     """Get the current status of seeded data without re-seeding."""
     logger.debug("Checking seeding status...")
-    
+
     db = SessionLocal()
     try:
         if not verify_database_connection(db):
             return {"status": "error", "message": "Database connection failed"}
-        
+
         verification_results = verify_seeded_data(db)
-        
+
         return {
             "status": "success",
             "timestamp": datetime.now().isoformat(),
             "verification": verification_results
         }
-        
+
     except Exception as e:
         logger.error(f"Error checking seeding status: {e}")
         return {
@@ -494,22 +495,22 @@ def get_seeding_status() -> dict:
             "message": f"Status check failed: {str(e)}",
             "timestamp": datetime.now().isoformat()
         }
-    
+
     finally:
         db.close()
 
 def main():
     """Command-line entry point for seeding script."""
     import sys
-    
+
     # Configure logging for command-line usage
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
-    
+
     force_reseed = "--force" in sys.argv
-    
+
     if "--status" in sys.argv:
         # Just check status
         status = get_seeding_status()
@@ -519,24 +520,24 @@ def main():
                 if component != "overall":
                     print(f"  {component}: {result['message']}")
         sys.exit(0 if status["status"] == "success" else 1)
-    
+
     # Run full seeding
     results = seed_all_data(force_reseed=force_reseed)
-    
+
     print(f"Seeding Results: {results['status']}")
     print(f"Message: {results.get('message', 'No message')}")
-    
+
     if "results" in results:
         print("\nComponent Results:")
         for component, result in results["results"].items():
             print(f"  {component}: {result.get('added', 0)} added, status: {result['status']}")
-    
+
     if "verification" in results:
         print("\nVerification Results:")
         for component, result in results["verification"].items():
             if component != "overall":
                 print(f"  {component}: {result['message']}")
-    
+
     sys.exit(0 if results["status"] in ["success", "warning"] else 1)
 
 if __name__ == "__main__":

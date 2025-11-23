@@ -1,10 +1,10 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey
+
+from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
-from .database import Base
 from sqlalchemy.types import JSON
-from sqlalchemy.dialects.postgresql import UUID
-import uuid
-import os
+
+from .database import Base
+
 
 # Helper function to get correct UUID column type based on database
 def get_uuid_column():
@@ -327,7 +327,7 @@ class MatchSuggestion(Base):
     notification_sent_at = Column(String, nullable=True)
     created_at = Column(String)
     expires_at = Column(String)  # When this suggestion expires
-    
+
 class MatchPlayer(Base):
     __tablename__ = "match_players"
     id = Column(Integer, primary_key=True, index=True)
@@ -448,4 +448,4 @@ class Notification(Base):
     message = Column(String)  # Notification message content
     data = Column(JSON, nullable=True)  # Optional additional data as JSON
     is_read = Column(Boolean, default=False, index=True)  # Read status
-    created_at = Column(String, index=True)  # ISO timestamp when notification was created 
+    created_at = Column(String, index=True)  # ISO timestamp when notification was created

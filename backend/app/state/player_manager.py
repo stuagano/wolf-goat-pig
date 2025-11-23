@@ -1,5 +1,7 @@
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
+
 from ..domain.player import Player
+
 
 class PlayerManager:
     """
@@ -43,4 +45,4 @@ class PlayerManager:
         self.captain_id = data.get("captain_id", self.hitting_order[0] if self.hitting_order else None)
 
     def __repr__(self):
-        return f"PlayerManager(players={len(self.players)}, captain_id={self.captain_id})" 
+        return f"PlayerManager(players={len(self.players)}, captain_id={self.captain_id})"

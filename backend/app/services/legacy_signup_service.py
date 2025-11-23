@@ -33,7 +33,6 @@ from typing import Any, Dict, Optional
 
 import httpx
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -109,7 +108,7 @@ class LegacySignupConfig:
     cancel_action_value: Optional[str] = "cancel"
 
     @classmethod
-    def from_env(cls) -> "LegacySignupConfig":
+    def from_env(cls) -> LegacySignupConfig:
         """Construct configuration from process environment variables."""
 
         payload_format = os.getenv("LEGACY_SIGNUP_PAYLOAD_FORMAT", "form").strip().lower()
