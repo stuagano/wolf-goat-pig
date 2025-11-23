@@ -201,7 +201,7 @@ class PostHoleAnalyzer:
             similar_scenarios_to_practice=self._suggest_practice_scenarios(hole_state, decision_points)
         )
     
-    def _determine_winner(self, hole_state) -> Tuple[str, int]:
+    def _determine_winner(self, hole_state: Any) -> Tuple[str, int]:
         """Determine who won the hole and how many quarters"""
         # Implementation based on hole_state.teams and scores
         if hole_state.teams.type == "solo":
@@ -231,7 +231,7 @@ class PostHoleAnalyzer:
         
         return "tie", 0
     
-    def _analyze_decisions(self, hole_state, timeline_events) -> List[DecisionPoint]:
+    def _analyze_decisions(self, hole_state: Any, timeline_events: Any) -> List[DecisionPoint]:
         """Analyze all decision points during the hole"""
         decisions = []
         
@@ -254,7 +254,7 @@ class PostHoleAnalyzer:
         
         return decisions
     
-    def _analyze_partnership(self, hole_state, timeline_events) -> Optional[PartnershipAnalysis]:
+    def _analyze_partnership(self, hole_state: Any, timeline_events: Any) -> Optional[PartnershipAnalysis]:
         """Analyze partnership formation and success"""
         if hole_state.teams.type not in ["partners", "solo"]:
             return None
@@ -300,14 +300,14 @@ class PostHoleAnalyzer:
         
         return None
     
-    def _analyze_betting(self, hole_state, timeline_events) -> BettingAnalysis:
+    def _analyze_betting(self, hole_state: Any, timeline_events: Any) -> BettingAnalysis:
         """Analyze betting decisions and outcomes"""
         doubles_offered = 0
         doubles_accepted = 0
         doubles_declined = 0
         duncan_used = hole_state.betting.duncan_invoked
         missed_opportunities = []
-        costly_mistakes = []
+        costly_mistakes: List[Any] = []
         
         for event in timeline_events:
             if event.type == "double_offer":
@@ -334,7 +334,7 @@ class PostHoleAnalyzer:
             net_quarter_impact=self._calculate_betting_impact(hole_state)
         )
     
-    def _analyze_shots(self, hole_state, timeline_events) -> ShotAnalysis:
+    def _analyze_shots(self, hole_state: Any, timeline_events: Any) -> ShotAnalysis:
         """Analyze shot selection and execution"""
         shot_quality_dist = {"excellent": 0, "good": 0, "average": 0, "poor": 0, "terrible": 0}
         clutch_shots = []
@@ -365,7 +365,7 @@ class PostHoleAnalyzer:
             pressure_performance=self._calculate_pressure_performance(clutch_shots)
         )
     
-    def _identify_key_moments(self, timeline_events, hole_state) -> List[KeyMoment]:
+    def _identify_key_moments(self, timeline_events: Any, hole_state: Any) -> List[KeyMoment]:
         """Identify the most important moments of the hole"""
         key_moments = []
         
@@ -383,7 +383,7 @@ class PostHoleAnalyzer:
         return sorted(key_moments, key=lambda x: abs(x.quarters_swing), reverse=True)[:3]
     
     # Helper methods
-    def _evaluate_decision_quality(self, event, hole_state) -> Tuple[DecisionQuality, str]:
+    def _evaluate_decision_quality(self, event: Any, hole_state: Any) -> Tuple[DecisionQuality, str]:
         """Evaluate the quality of a decision"""
         # Simplified logic - would be more complex in practice
         if event.details.get("outcome") == "won":
@@ -392,7 +392,7 @@ class PostHoleAnalyzer:
             return DecisionQuality.POOR, "Decision contributed to losing the hole"
         return DecisionQuality.NEUTRAL, "Decision had neutral impact"
     
-    def _calculate_performance_score(self, decisions, partnership, betting, shots) -> float:
+    def _calculate_performance_score(self, decisions: Any, partnership: Any, betting: Any, shots: Any) -> float:
         """Calculate overall performance score 0-100"""
         score = 50.0  # Start at average
         
@@ -413,7 +413,7 @@ class PostHoleAnalyzer:
         
         return max(0, min(100, score))
     
-    def _calculate_decision_score(self, decisions) -> float:
+    def _calculate_decision_score(self, decisions: Any) -> float:
         """Calculate decision-making score 0-100"""
         if not decisions:
             return 50.0
@@ -429,7 +429,7 @@ class PostHoleAnalyzer:
         total = sum(quality_values[d.quality] for d in decisions)
         return total / len(decisions)
     
-    def _calculate_risk_score(self, betting, partnership) -> float:
+    def _calculate_risk_score(self, betting: Any, partnership: Any) -> float:
         """Calculate risk management score 0-100"""
         score = 50.0
         
@@ -441,7 +441,7 @@ class PostHoleAnalyzer:
         
         return max(0, min(100, score))
     
-    def _generate_learning_points(self, decisions, partnership, betting, key_moments) -> List[str]:
+    def _generate_learning_points(self, decisions: Any, partnership: Any, betting: Any, key_moments: Any) -> List[str]:
         """Generate key learning points from the hole"""
         points = []
         
@@ -460,7 +460,7 @@ class PostHoleAnalyzer:
         
         return points[:5]  # Limit to top 5 points
     
-    def _generate_tips(self, decisions, partnership, betting, shots) -> List[str]:
+    def _generate_tips(self, decisions: Any, partnership: Any, betting: Any, shots: Any) -> List[str]:
         """Generate improvement tips"""
         tips = []
         
@@ -483,7 +483,7 @@ class PostHoleAnalyzer:
         values = {"excellent": 5, "good": 4, "average": 3, "poor": 2, "terrible": 1}
         return values.get(quality, 3)
     
-    def _calculate_pressure_performance(self, clutch_shots) -> float:
+    def _calculate_pressure_performance(self, clutch_shots: Any) -> float:
         """Calculate performance under pressure"""
         if not clutch_shots:
             return 0.5
@@ -491,12 +491,12 @@ class PostHoleAnalyzer:
         good_clutch = sum(1 for s in clutch_shots if s["quality"] in ["excellent", "good"])
         return good_clutch / len(clutch_shots)
     
-    def _is_key_moment(self, event) -> bool:
+    def _is_key_moment(self, event: Any) -> bool:
         """Determine if an event is a key moment"""
         return event.type in ["double_accepted", "double_declined", "partnership_formed", "solo_decision"] or \
                (event.type == "shot" and event.details.get("holed", False))
     
-    def _determine_impact_level(self, event) -> str:
+    def _determine_impact_level(self, event: Any) -> str:
         """Determine the impact level of an event"""
         quarters = abs(event.details.get("quarters_impact", 0))
         if quarters >= 4:
@@ -505,7 +505,7 @@ class PostHoleAnalyzer:
             return "significant"
         return "minor"
     
-    def _identify_biggest_mistake(self, decisions) -> Optional[str]:
+    def _identify_biggest_mistake(self, decisions: Any) -> Optional[str]:
         """Identify the biggest mistake made"""
         poor_decisions = [d for d in decisions if d.quality in [DecisionQuality.POOR, DecisionQuality.TERRIBLE]]
         if poor_decisions:
@@ -513,7 +513,7 @@ class PostHoleAnalyzer:
             return f"{worst.decision_type}: {worst.explanation}"
         return None
     
-    def _identify_best_decision(self, decisions) -> Optional[str]:
+    def _identify_best_decision(self, decisions: Any) -> Optional[str]:
         """Identify the best decision made"""
         good_decisions = [d for d in decisions if d.quality in [DecisionQuality.EXCELLENT, DecisionQuality.GOOD]]
         if good_decisions:
@@ -521,7 +521,7 @@ class PostHoleAnalyzer:
             return f"{best.decision_type}: {best.explanation}"
         return None
     
-    def _suggest_practice_scenarios(self, hole_state, decisions) -> List[str]:
+    def _suggest_practice_scenarios(self, hole_state: Any, decisions: Any) -> List[str]:
         """Suggest similar scenarios to practice"""
         scenarios = []
         
@@ -533,7 +533,7 @@ class PostHoleAnalyzer:
         
         return scenarios[:2]
     
-    def _generate_ai_comparison(self, hole_state, decisions) -> Dict[str, Any]:
+    def _generate_ai_comparison(self, hole_state: Any, decisions: Any) -> Dict[str, Any]:
         """Generate comparison with what AI would have done"""
         return {
             "different_decisions": 2,
@@ -541,7 +541,7 @@ class PostHoleAnalyzer:
             "key_difference": "AI would have partnered after first shot instead of second"
         }
     
-    def _generate_historical_comparison(self, hole_number, performance, decisions) -> Dict[str, Any]:
+    def _generate_historical_comparison(self, hole_number: Any, performance: Any, decisions: Any) -> Dict[str, Any]:
         """Compare with historical performance on this hole"""
         return {
             "avg_performance_this_hole": 65.0,
@@ -550,42 +550,42 @@ class PostHoleAnalyzer:
             "common_mistakes_this_hole": ["Going solo too often", "Missing double opportunities"]
         }
     
-    def _calculate_partnership_chemistry(self, captain_id, partner_id) -> float:
+    def _calculate_partnership_chemistry(self, captain_id: Any, partner_id: Any) -> float:
         """Calculate chemistry between partners"""
         # Simplified - would use historical data
         return 0.7
     
-    def _was_partnership_successful(self, hole_state) -> bool:
+    def _was_partnership_successful(self, hole_state: Any) -> bool:
         """Determine if partnership was successful"""
         winner, _ = self._determine_winner(hole_state)
         return winner == "team1" and hole_state.teams.captain in hole_state.teams.team1
     
-    def _was_solo_successful(self, hole_state) -> bool:
+    def _was_solo_successful(self, hole_state: Any) -> bool:
         """Determine if going solo was successful"""
         winner, _ = self._determine_winner(hole_state)
         return winner == "solo_player"
     
-    def _get_alternative_partners(self, hole_state, timeline_events) -> List[Dict[str, Any]]:
+    def _get_alternative_partners(self, hole_state: Any, timeline_events: Any) -> List[Dict[str, Any]]:
         """Get list of alternative partnership options"""
         return []  # Simplified
     
-    def _was_optimal_partner(self, hole_state, partnership_event) -> bool:
+    def _was_optimal_partner(self, hole_state: Any, partnership_event: Any) -> bool:
         """Determine if the partner choice was optimal"""
         return True  # Simplified
     
-    def _was_solo_optimal(self, hole_state) -> bool:
+    def _was_solo_optimal(self, hole_state: Any) -> bool:
         """Determine if going solo was optimal"""
         return hole_state.teams.type == "solo" and self._was_solo_successful(hole_state)
     
-    def _explain_partnership_decision(self, hole_state, partnership_event) -> str:
+    def _explain_partnership_decision(self, hole_state: Any, partnership_event: Any) -> str:
         """Explain the partnership decision"""
         return "Partnership formed after evaluating tee shots"
     
-    def _explain_solo_decision(self, hole_state) -> str:
+    def _explain_solo_decision(self, hole_state: Any) -> str:
         """Explain the solo decision"""
         return "Captain chose to go solo for higher risk/reward"
     
-    def _was_double_offered_after(self, shot_event, timeline_events) -> bool:
+    def _was_double_offered_after(self, shot_event: Any, timeline_events: Any) -> bool:
         """Check if a double was offered after a shot"""
         shot_time = shot_event.timestamp
         for event in timeline_events:
@@ -593,16 +593,16 @@ class PostHoleAnalyzer:
                 return True
         return False
     
-    def _evaluate_betting_timing(self, timeline_events) -> str:
+    def _evaluate_betting_timing(self, timeline_events: Any) -> str:
         """Evaluate the timing of betting decisions"""
         return "good"  # Simplified
     
-    def _calculate_aggression_rating(self, offered, accepted) -> float:
+    def _calculate_aggression_rating(self, offered: Any, accepted: Any) -> float:
         """Calculate betting aggression rating"""
         if offered == 0:
             return 0.3
-        return min(1.0, (offered + accepted) / 4)
+        return float(min(1.0, (offered + accepted) / 4))
     
-    def _calculate_betting_impact(self, hole_state) -> int:
+    def _calculate_betting_impact(self, hole_state: Any) -> int:
         """Calculate net quarter impact from betting"""
-        return hole_state.betting.current_wager - hole_state.betting.base_wager
+        return int(hole_state.betting.current_wager - hole_state.betting.base_wager)
