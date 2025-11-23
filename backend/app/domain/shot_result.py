@@ -106,24 +106,28 @@ class ShotResult:
         """Assess the quality of the current position."""
         if self._position_quality is None:
             self._calculate_position_quality()
+        assert self._position_quality is not None
         return self._position_quality
 
     def get_scoring_probability(self) -> Dict[str, Any]:
         """Calculate scoring probability from this position."""
         if self._scoring_probability is None:
             self._calculate_scoring_probability()
+        assert self._scoring_probability is not None
         return self._scoring_probability
 
     def get_partnership_value(self) -> Dict[str, Any]:
         """Calculate the strategic value of partnering with this player."""
         if self._partnership_value is None:
             self._calculate_partnership_value()
+        assert self._partnership_value is not None
         return self._partnership_value
 
     def get_shot_range_analysis(self) -> Dict[str, Any]:
         """Get poker-style range analysis for next shot."""
         if self._shot_range_analysis is None:
             self._calculate_shot_range_analysis()
+        assert self._shot_range_analysis is not None
         return self._shot_range_analysis
 
     def _calculate_position_quality(self) -> None:
@@ -374,7 +378,7 @@ class ShotResult:
                 f"lie='{self.lie}', remaining={self.remaining}, "
                 f"quality='{self.shot_quality}', penalty={self.penalty})")
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: object) -> bool:
         """Equality comparison based on shot characteristics."""
         if not isinstance(other, ShotResult):
             return False

@@ -6,6 +6,8 @@ This file demonstrates how to use the NotificationService in your application.
 
 from sqlalchemy.orm import Session
 
+from app.services.notification_service import get_notification_service
+
 
 # Example 1: Send a notification to a player
 def example_send_notification(db: Session) -> None:
