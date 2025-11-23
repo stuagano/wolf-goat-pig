@@ -4,11 +4,11 @@ Example Usage of NotificationService
 This file demonstrates how to use the NotificationService in your application.
 """
 
-from notification_service import get_notification_service
+from typing import Any
 from sqlalchemy.orm import Session
 
 # Example 1: Send a notification to a player
-def example_send_notification(db: Session):
+def example_send_notification(db: Session) -> None:
     """Send a single notification to a player."""
     notification_service = get_notification_service()
 
@@ -24,7 +24,7 @@ def example_send_notification(db: Session):
 
 
 # Example 2: Get all notifications for a player
-def example_get_notifications(db: Session):
+def example_get_notifications(db: Session) -> None:
     """Get all notifications for a player."""
     notification_service = get_notification_service()
 
@@ -47,7 +47,7 @@ def example_get_notifications(db: Session):
 
 
 # Example 3: Mark notification as read
-def example_mark_as_read(db: Session):
+def example_mark_as_read(db: Session) -> None:
     """Mark a notification as read."""
     notification_service = get_notification_service()
 
@@ -60,7 +60,7 @@ def example_mark_as_read(db: Session):
 
 
 # Example 4: Mark all notifications as read
-def example_mark_all_as_read(db: Session):
+def example_mark_all_as_read(db: Session) -> None:
     """Mark all player notifications as read."""
     notification_service = get_notification_service()
 
@@ -73,7 +73,7 @@ def example_mark_all_as_read(db: Session):
 
 
 # Example 5: Get unread count
-def example_get_unread_count(db: Session):
+def example_get_unread_count(db: Session) -> None:
     """Get count of unread notifications."""
     notification_service = get_notification_service()
 
@@ -86,7 +86,7 @@ def example_get_unread_count(db: Session):
 
 
 # Example 6: Broadcast to all players in a game
-def example_broadcast_to_game(db: Session):
+def example_broadcast_to_game(db: Session) -> None:
     """Broadcast a notification to all players in a game."""
     notification_service = get_notification_service()
 
@@ -102,7 +102,7 @@ def example_broadcast_to_game(db: Session):
 
 
 # Example 7: Delete a notification
-def example_delete_notification(db: Session):
+def example_delete_notification(db: Session) -> None:
     """Delete a specific notification."""
     notification_service = get_notification_service()
 
@@ -115,7 +115,7 @@ def example_delete_notification(db: Session):
 
 
 # Example 8: Delete old notifications
-def example_delete_old_notifications(db: Session):
+def example_delete_old_notifications(db: Session) -> None:
     """Delete notifications older than 30 days."""
     notification_service = get_notification_service()
 
@@ -129,7 +129,7 @@ def example_delete_old_notifications(db: Session):
 
 
 # Example 9: Send achievement notification with rich data
-def example_achievement_notification(db: Session):
+def example_achievement_notification(db: Session) -> None:
     """Send an achievement earned notification with additional data."""
     notification_service = get_notification_service()
 
@@ -151,7 +151,7 @@ def example_achievement_notification(db: Session):
 
 
 # Example 10: Send partnership notification
-def example_partnership_notification(db: Session):
+def example_partnership_notification(db: Session) -> None:
     """Send a partnership formed notification."""
     notification_service = get_notification_service()
 
@@ -174,7 +174,7 @@ def example_partnership_notification(db: Session):
 
 
 # Example 11: Integration with game lifecycle
-def example_game_lifecycle_integration(db: Session, game_id: str):
+def example_game_lifecycle_integration(db: Session, game_id: str) -> None:
     """Example of how to integrate with game lifecycle events."""
     notification_service = get_notification_service()
 
@@ -198,7 +198,7 @@ def example_game_lifecycle_integration(db: Session, game_id: str):
 
 
 # Example 12: Integration with betting system
-def example_betting_integration(db: Session, game_id: str):
+def example_betting_integration(db: Session, game_id: str) -> None:
     """Example of how to integrate with betting events."""
     notification_service = get_notification_service()
 
