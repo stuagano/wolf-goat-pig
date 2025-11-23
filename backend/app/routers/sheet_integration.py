@@ -32,7 +32,7 @@ router = APIRouter(
 async def analyze_sheet_structure(
     sheet_headers: List[str],
     db: Session = Depends(get_db)
-):
+) -> Dict[str, Any]:
     """
     Analyze Google Sheets structure and suggest column mappings.
 
@@ -59,7 +59,7 @@ async def analyze_sheet_structure(
             elif 'date' in header_lower:
                 mapping["db_field"] = "last_played"
             else:
-                mapping["db_field"] = None
+                mapping["db_field"] = ""
 
             column_mappings.append(mapping)
 
@@ -80,7 +80,7 @@ async def analyze_sheet_structure(
 async def create_leaderboard_from_sheet(
     sheet_data: List[Dict],
     db: Session = Depends(get_db)
-):
+) -> Dict[str, Any]:
     """
     Transform Google Sheets data into leaderboard format.
 
@@ -109,7 +109,7 @@ async def create_leaderboard_from_sheet(
 async def sync_sheet_data(
     request: Dict,
     db: Session = Depends(get_db)
-):
+) -> Dict[str, Any]:
     """
     Generic sheet data sync endpoint.
 
@@ -134,7 +134,7 @@ async def sync_sheet_data(
 def export_current_data_for_sheet(
     sheet_headers: List[str] = Query(...),
     db: Session = Depends(get_db)
-):
+) -> Dict[str, Any]:
     """
     Export current database data in sheet format.
 
@@ -165,7 +165,7 @@ async def sync_wgp_sheet_data(
     request: Dict[str, str],
     db: Session = Depends(get_db),
     x_scheduled_job: Optional[str] = Header(None)
-):
+) -> Dict[str, Any]:
     """
     Sync Wolf Goat Pig specific sheet data format.
 
@@ -482,7 +482,7 @@ async def sync_wgp_sheet_data(
 
 
 @router.post("/fetch-google-sheet")
-async def fetch_google_sheet(request: Dict[str, str]):
+async def fetch_google_sheet(request: Dict[str, str]) -> Dict[str, Any]:
     """
     Fetch raw data from Google Sheets.
 
@@ -535,7 +535,7 @@ async def fetch_google_sheet(request: Dict[str, str]):
 
 
 @router.post("/compare-data")
-async def compare_sheet_to_db_data(request: Dict, db: Session = Depends(get_db)):
+async def compare_sheet_to_db_data(request: Dict, db: Session = Depends(get_db)) -> Dict[str, Any]:
     """
     Compare Google Sheets data with current database data.
 
