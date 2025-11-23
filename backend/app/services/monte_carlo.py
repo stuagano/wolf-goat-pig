@@ -6,7 +6,7 @@ Provides high-accuracy probability calculations through simulation.
 import random
 import time
 import numpy as np
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, List, Tuple, Optional, Any, Union
 from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import statistics
@@ -43,9 +43,9 @@ class MonteCarloEngine:
 
     def __init__(self, params: Optional[SimulationParams] = None):
         self.params = params or SimulationParams()
-        self.random_seed = None
-        
-    def set_seed(self, seed: int):
+        self.random_seed: Optional[int] = None
+
+    def set_seed(self, seed: int) -> None:
         """Set random seed for reproducible results"""
         self.random_seed = seed
         random.seed(seed)
@@ -435,8 +435,9 @@ class MonteCarloEngine:
             if captain:
                 captain_score = hole_scores[captain.id]
                 opponent_scores = [hole_scores[p.id] for p in players if not p.is_captain]
-                best_opponent_score = min(opponent_scores) if opponent_scores else float('inf')
-                
+                best_opponent_score: Union[int, float] = min(opponent_scores) if opponent_scores else float('inf')
+
+                winning_score: Union[int, float]
                 if captain_score < best_opponent_score:
                     winner = "captain"
                     winning_score = captain_score
@@ -513,7 +514,7 @@ class MonteCarloEngine:
             )
         
         # Count wins by player/team
-        win_counts = {}
+        win_counts: Dict[str, int] = {}
         all_winners = []
         
         for result in results:
@@ -577,8 +578,8 @@ class MonteCarloEngine:
             return False
         
         # Calculate win rates for both periods
-        recent_counts = {}
-        previous_counts = {}
+        recent_counts: Dict[str, int] = {}
+        previous_counts: Dict[str, int] = {}
         
         for winner in recent_winners:
             recent_counts[winner] = recent_counts.get(winner, 0) + 1
@@ -587,7 +588,7 @@ class MonteCarloEngine:
             previous_counts[winner] = previous_counts.get(winner, 0) + 1
         
         # Check if win rates are stable
-        max_difference = 0
+        max_difference: float = 0.0
         all_winners = set(recent_counts.keys()) | set(previous_counts.keys())
         
         for winner in all_winners:
@@ -604,7 +605,7 @@ class MonteCarloEngine:
             return False
         
         # Consider converged if all confidence intervals are narrow enough
-        max_ci_width = 0
+        max_ci_width: float = 0.0
         for ci_lower, ci_upper in confidence_intervals.values():
             width = ci_upper - ci_lower
             max_ci_width = max(max_ci_width, width)
@@ -613,17 +614,17 @@ class MonteCarloEngine:
 
     def _calculate_score_distributions(self, results: List[Dict[str, Any]]) -> Dict[str, Dict[str, float]]:
         """Calculate score distribution for each player"""
-        player_scores = {}
-        
+        player_scores: Dict[str, List[int]] = {}
+
         for result in results:
             for player_id, score in result["scores"].items():
                 if player_id not in player_scores:
                     player_scores[player_id] = []
                 player_scores[player_id].append(score)
-        
+
         distributions = {}
         for player_id, scores in player_scores.items():
-            score_counts = {}
+            score_counts: Dict[str, int] = {}
             for score in scores:
                 score_counts[str(score)] = score_counts.get(str(score), 0) + 1
             
@@ -636,7 +637,7 @@ class MonteCarloEngine:
 
     def _calculate_average_scores(self, results: List[Dict[str, Any]]) -> Dict[str, float]:
         """Calculate average scores for each player"""
-        player_scores = {}
+        player_scores: Dict[str, List[int]] = {}
         
         for result in results:
             for player_id, score in result["scores"].items():
