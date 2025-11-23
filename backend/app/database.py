@@ -14,7 +14,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 # Check if we're using PostgreSQL or SQLite
 is_postgresql = DATABASE_URL and (DATABASE_URL.startswith("postgres://") or DATABASE_URL.startswith("postgresql://"))
 
-if is_postgresql:
+if is_postgresql and DATABASE_URL:
     # Production database (PostgreSQL)
     if DATABASE_URL.startswith("postgres://"):
         # Fix for newer SQLAlchemy versions
