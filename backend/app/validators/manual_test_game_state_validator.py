@@ -4,7 +4,7 @@ Test suite demonstrating GameStateValidator usage.
 Run with: pytest test_game_state_validator.py -v
 """
 
-import pytest
+import pytest  # type: ignore[import-not-found]
 
 from .exceptions import GameStateValidationError, PartnershipValidationError
 from .game_state_validator import GameStateValidator

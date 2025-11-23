@@ -3,7 +3,8 @@ import logging
 import os
 import random
 import traceback
-from datetime import datetime
+import uuid
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
@@ -28,7 +29,7 @@ from .routes.betting_events import router as betting_events_router
 
 # Email scheduler will be initialized on-demand to prevent startup blocking
 # from .services.email_scheduler import email_scheduler
-from .services.email_service import get_email_service
+from .services.email_service import SMTPEmailProvider, get_email_service
 from .services.game_lifecycle_service import get_game_lifecycle_service
 from .services.leaderboard_service import get_leaderboard_service
 from .services.legacy_signup_service import get_legacy_signup_service
@@ -8458,12 +8459,19 @@ async def get_email_service_status():
     try:
         email_service = get_email_service()
 
+        # Check if provider is SMTP-based
+        smtp_info = {}
+        if isinstance(email_service.provider, SMTPEmailProvider):
+            smtp_info = {
+                "smtp_host": email_service.provider.smtp_host or 'Not set',
+                "smtp_port": email_service.provider.smtp_port or 'Not set',
+                "from_email": email_service.provider.from_email or 'Not set',
+                "from_name": email_service.provider.from_name or 'Not set',
+            }
+
         return {
-            "configured": email_service.is_configured,
-            "smtp_host": email_service.smtp_config.get('host', 'Not set'),
-            "smtp_port": email_service.smtp_config.get('port', 'Not set'),
-            "from_email": email_service.from_email or 'Not set',
-            "from_name": email_service.from_name or 'Not set',
+            "configured": email_service.is_configured(),
+            **smtp_info,
             "missing_config": [
                 key for key in ['SMTP_USER', 'SMTP_PASSWORD', 'SMTP_HOST']
                 if not os.getenv(key)
