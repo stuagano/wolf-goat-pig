@@ -97,6 +97,7 @@ class ScoringManager:
     """
 
     _instance = None
+    _initialized: bool
 
     def __new__(cls):
         """Implement singleton pattern."""
@@ -153,7 +154,7 @@ class ScoringManager:
                 f"strokes={handicap_strokes}, net={net_score}"
             )
 
-            return net_score
+            return int(net_score)
 
         except HandicapValidationError as e:
             logger.error(f"Error calculating hole score: {e.message}")
@@ -518,8 +519,8 @@ class ScoringManager:
             {'p1': 2, 'p2': -2}
         """
         try:
-            player_totals = {}
-            holes_won = {}
+            player_totals: Dict[str, float] = {}
+            holes_won: Dict[str, int] = {}
             holes_halved = 0
             total_carryover = 0.0
 
@@ -637,7 +638,7 @@ class ScoringManager:
                 # Calculate net score
                 net_score = self.calculate_hole_score(
                     gross_score=gross_score,
-                    handicap_strokes=strokes_received
+                    handicap_strokes=int(strokes_received)
                 )
 
                 net_scores[player_id] = net_score

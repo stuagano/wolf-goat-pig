@@ -120,6 +120,8 @@ class GHINService:
                 logger.info(f"Synced handicap for player {player.name}: {handicap_data.get('handicap_index')}")
                 return handicap_data
 
+            return None
+
         except Exception as e:
             logger.error(f"Failed to sync handicap for player {player_id}: {e}")
             self.db.rollback()
@@ -262,7 +264,8 @@ class GHINService:
         async with httpx.AsyncClient() as client:
             response = await client.get(url, headers=headers, params=params)
             response.raise_for_status()
-            return response.json()
+            result: dict[str, Any] = response.json()
+            return result
 
     def get_player_ghin_data(self, player_id: int) -> Optional[Dict[str, Any]]:
         """
@@ -340,7 +343,7 @@ class GHINService:
 
             players_with_stats = query.limit(limit).all()
 
-            enhanced_leaderboard = []
+            enhanced_leaderboard: list[dict[str, Any]] = []
             for profile, stats in players_with_stats:
                 # Calculate win percentage
                 win_percentage = (stats.games_won / max(1, stats.games_played)) * 100
@@ -420,7 +423,7 @@ class GHINService:
                         # Continue with next player even if this one fails
                         continue
 
-                return [vars(player) for player in basic_leaderboard]
+                return [dict(vars(player)) for player in basic_leaderboard]
             except Exception as fallback_error:
                 logger.error(f"Failed to get fallback leaderboard: {fallback_error}")
                 # Ensure transaction is rolled back before returning
@@ -500,4 +503,5 @@ class GHINService:
         async with httpx.AsyncClient() as client:
             response = await client.get(url, headers=headers)
             response.raise_for_status()
-            return response.json()
+            result: list[dict[str, Any]] = response.json()
+            return result

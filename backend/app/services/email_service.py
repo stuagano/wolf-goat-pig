@@ -100,7 +100,7 @@ class EmailService:
 
         if email_provider_type == "gmail_oauth2":
             logger.info("Using Gmail OAuth2 email provider.")
-            return create_gmail_oauth2_provider()
+            return create_gmail_oauth2_provider()  # type: ignore[return-value]
 
         logger.info("Using SMTP email provider.")
         return SMTPEmailProvider()
@@ -109,7 +109,7 @@ class EmailService:
         return self.provider is not None and self.provider.is_configured()
 
     def _send_email(self, to_email: str, subject: str, html_body: str, text_body: Optional[str] = None) -> bool:
-        if not self.is_configured():
+        if not self.is_configured() or self.provider is None:
             logger.error("Email service is not configured. Cannot send email.")
             return False
         return self.provider.send_email(to_email, subject, html_body, text_body)
@@ -165,7 +165,61 @@ class EmailService:
             html_body=html_body
         )
 
-    # ... (other template-based email methods like send_daily_signup_reminder, send_weekly_summary, etc.)
+    def send_daily_signup_reminder(self, to_email: str, player_name: str, available_dates: list[str]) -> bool:
+        """Sends a daily signup reminder email."""
+        dates_list = "".join([f"<li>{date}</li>" for date in available_dates])
+        content = f"""
+        <h2>Golf Signup Reminder</h2>
+        <p>Hi {player_name},</p>
+        <p>Don't forget to sign up for upcoming Wolf Goat Pig games:</p>
+        <ul>{dates_list}</ul>
+        """
+        template = Template(self._get_base_template())
+        html_body = template.render(subject="Golf Signup Reminder", content=content)
+
+        return self._send_email(
+            to_email=to_email,
+            subject="Wolf Goat Pig - Signup Reminder",
+            html_body=html_body
+        )
+
+    def send_weekly_summary(self, to_email: str, player_name: str, summary_data: dict[str, Any]) -> bool:
+        """Sends a weekly summary email."""
+        content = f"""
+        <h2>Your Weekly Golf Summary</h2>
+        <p>Hi {player_name},</p>
+        <p>Here's your weekly performance summary:</p>
+        <ul>
+            <li>Games played: {summary_data.get('games_played', 0)}</li>
+            <li>Total earnings: ${summary_data.get('total_earnings', 0):.2f}</li>
+            <li>Win rate: {summary_data.get('win_rate', 0):.1f}%</li>
+        </ul>
+        """
+        template = Template(self._get_base_template())
+        html_body = template.render(subject="Weekly Golf Summary", content=content)
+
+        return self._send_email(
+            to_email=to_email,
+            subject="Wolf Goat Pig - Weekly Summary",
+            html_body=html_body
+        )
+
+    def send_game_invitation(self, to_email: str, player_name: str, inviter_name: str, game_date: str) -> bool:
+        """Sends a game invitation email."""
+        content = f"""
+        <h2>You're Invited!</h2>
+        <p>Hi {player_name},</p>
+        <p>{inviter_name} has invited you to play Wolf Goat Pig on <strong>{game_date}</strong>.</p>
+        <p>Join the game and have fun!</p>
+        """
+        template = Template(self._get_base_template())
+        html_body = template.render(subject="Game Invitation", content=content)
+
+        return self._send_email(
+            to_email=to_email,
+            subject=f"Wolf Goat Pig - Game Invitation for {game_date}",
+            html_body=html_body
+        )
 
     def get_provider_status(self) -> Dict[str, Any]:
         """Returns the configuration status of the current provider."""

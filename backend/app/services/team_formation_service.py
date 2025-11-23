@@ -236,7 +236,11 @@ class TeamFormationService:
 
         # Add average handicap info if available
         if formation_method == "balanced":
-            handicaps = [team.get("average_handicap") for team in teams if team.get("average_handicap")]
+            handicaps: list[float] = []
+            for team in teams:
+                avg_handicap = team.get("average_handicap")
+                if avg_handicap is not None:
+                    handicaps.append(float(avg_handicap))
             if handicaps:
                 summary["average_team_handicap"] = round(sum(handicaps) / len(handicaps), 1)
                 summary["handicap_range"] = {
@@ -257,17 +261,15 @@ class TeamFormationService:
         Returns:
             Validation result dictionary
         """
-        validation = {
-            "is_valid": True,
-            "errors": [],
-            "warnings": []
-        }
+        errors: list[str] = []
+        warnings: list[str] = []
+        is_valid = True
 
         # Check each team has exactly 4 players
         for i, team in enumerate(teams):
             if len(team["players"]) != 4:
-                validation["is_valid"] = False
-                validation["errors"].append(f"Team {i+1} has {len(team['players'])} players, expected 4")
+                is_valid = False
+                errors.append(f"Team {i+1} has {len(team['players'])} players, expected 4")
 
         # Check for duplicate players across teams
         all_player_ids = []
@@ -275,13 +277,19 @@ class TeamFormationService:
             for player in team["players"]:
                 player_id = player.get("id") or player.get("player_profile_id")
                 if player_id in all_player_ids:
-                    validation["is_valid"] = False
-                    validation["errors"].append(f"Player ID {player_id} appears in multiple teams")
+                    is_valid = False
+                    errors.append(f"Player ID {player_id} appears in multiple teams")
                 all_player_ids.append(player_id)
 
         # Check team formation timestamp consistency
         creation_times = [team.get("created_at") for team in teams if team.get("created_at")]
         if len(set(creation_times)) > 1:
-            validation["warnings"].append("Teams have different creation timestamps")
+            warnings.append("Teams have different creation timestamps")
+
+        validation = {
+            "is_valid": is_valid,
+            "errors": errors,
+            "warnings": warnings
+        }
 
         return validation

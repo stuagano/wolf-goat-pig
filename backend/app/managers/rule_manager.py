@@ -10,7 +10,7 @@ methods that encapsulate complex game logic.
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 from ..validators import (
     BettingValidationError,
@@ -933,7 +933,7 @@ class RuleManager:
                         validate=False  # Already validated above
                     )
 
-                    strokes_by_player[player_id] = strokes
+                    strokes_by_player[player_id] = int(strokes)
 
                 except HandicapValidationError as e:
                     logger.error(f"Handicap validation failed for {player_id}: {e.message}")
@@ -1059,7 +1059,7 @@ class RuleManager:
             hole_state = self._get_current_hole_state(game_state)
 
             # Initialize result
-            result = {
+            result: Dict[str, Any] = {
                 "should_offer": False,
                 "context": [],
                 "action": None
@@ -1341,14 +1341,14 @@ class RuleManager:
         current_hole = game_state.get("current_hole")
 
         if current_hole is not None:
-            return current_hole
+            return cast(Dict[str, Any], current_hole)
 
         # Alternative: get from holes array
         holes = game_state.get("holes", [])
         current_hole_number = game_state.get("current_hole_number", 1)
 
         if holes and 0 < current_hole_number <= len(holes):
-            return holes[current_hole_number - 1]
+            return cast(Dict[str, Any], holes[current_hole_number - 1])
 
         # No active hole found
         raise RuleViolationError(

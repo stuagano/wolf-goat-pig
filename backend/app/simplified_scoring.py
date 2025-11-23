@@ -70,7 +70,7 @@ class SimplifiedScoring:
                 hole_number=hole_number,
                 scores=scores,
                 wager=wager,
-                team_type=teams.get("type"),
+                team_type=teams.get("type", "solo"),
                 winners=result.get("winners", []),
                 points_awarded=result["points_changes"]
             )

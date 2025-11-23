@@ -5,7 +5,7 @@ Initializes database with all required data for proper simulation bootstrapping.
 
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -145,7 +145,7 @@ def seed_courses(db: Session) -> int:
             db.flush()  # Flush to get the course ID
 
             # Create Hole records for each hole
-            holes_data = course_data["holes_data"]
+            holes_data: List[Dict[str, Any]] = course_data["holes_data"]  # type: ignore[assignment]
             for hole_data in holes_data:
                 hole = Hole(
                     course_id=course.id,
@@ -376,7 +376,7 @@ def seed_all_data(force_reseed: bool = False) -> dict:
         return {"status": "error", "message": f"Database initialization failed: {str(e)}"}
 
     db = SessionLocal()
-    seeding_results = {
+    seeding_results: Dict[str, Any] = {
         "status": "success",
         "timestamp": datetime.now().isoformat(),
         "results": {}

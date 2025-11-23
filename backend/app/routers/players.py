@@ -6,7 +6,7 @@ Player profile management, statistics, analytics, availability, and preferences.
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -142,7 +142,7 @@ def delete_player_profile(player_id: int) -> Dict[str, str]:
 def get_all_players(
     active_only: bool = Query(True, description="Only return active players"),
     db: Session = Depends(get_db)
-):
+) -> List[schemas.PlayerProfileResponse]:
     """Get all player profiles."""
     player_service = PlayerService(db)
     return player_service.get_all_player_profiles(active_only=active_only)
@@ -410,7 +410,7 @@ async def set_my_availability(
             db.refresh(existing)
 
             logger.info(f"Updated availability for user {current_user.id}, day {availability.day_of_week}")
-            return schemas.PlayerAvailabilityResponse.from_orm(existing)
+            return cast(schemas.PlayerAvailabilityResponse, schemas.PlayerAvailabilityResponse.from_orm(existing))
         else:
             # Create new
             db_availability = models.PlayerAvailability(
@@ -429,7 +429,7 @@ async def set_my_availability(
             db.refresh(db_availability)
 
             logger.info(f"Created availability for user {current_user.id}, day {availability.day_of_week}")
-            return schemas.PlayerAvailabilityResponse.from_orm(db_availability)
+            return cast(schemas.PlayerAvailabilityResponse, schemas.PlayerAvailabilityResponse.from_orm(db_availability))
 
     except Exception as e:
         db.rollback()
@@ -525,7 +525,7 @@ def set_player_availability(player_id: int, availability: schemas.PlayerAvailabi
             db.refresh(existing)
 
             logger.info(f"Updated availability for player {player_id}, day {availability.day_of_week}")
-            return schemas.PlayerAvailabilityResponse.from_orm(existing)
+            return cast(schemas.PlayerAvailabilityResponse, schemas.PlayerAvailabilityResponse.from_orm(existing))
         else:
             # Create new
             db_availability = models.PlayerAvailability(
@@ -544,7 +544,7 @@ def set_player_availability(player_id: int, availability: schemas.PlayerAvailabi
             db.refresh(db_availability)
 
             logger.info(f"Created availability for player {player_id}, day {availability.day_of_week}")
-            return schemas.PlayerAvailabilityResponse.from_orm(db_availability)
+            return cast(schemas.PlayerAvailabilityResponse, schemas.PlayerAvailabilityResponse.from_orm(db_availability))
 
     except Exception as e:
         db.rollback()
@@ -577,7 +577,7 @@ def get_email_preferences(player_id: int) -> schemas.EmailPreferencesResponse:
             db.commit()
             db.refresh(preferences)
 
-        return schemas.EmailPreferencesResponse.from_orm(preferences)
+        return cast(schemas.EmailPreferencesResponse, schemas.EmailPreferencesResponse.from_orm(preferences))
 
     except Exception as e:
         logger.error(f"Error getting email preferences for player {player_id}: {e}")
@@ -621,7 +621,7 @@ def update_email_preferences(player_id: int, preferences_update: schemas.EmailPr
         db.refresh(preferences)
 
         logger.info(f"Updated email preferences for player {player_id}")
-        return schemas.EmailPreferencesResponse.from_orm(preferences)
+        return cast(schemas.EmailPreferencesResponse, schemas.EmailPreferencesResponse.from_orm(preferences))
 
     except HTTPException:
         raise

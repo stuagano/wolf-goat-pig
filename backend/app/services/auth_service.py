@@ -54,7 +54,7 @@ class AuthService:
                 jwks_client = jwt.PyJWKClient(jwks_url)
                 signing_key = jwks_client.get_signing_key_from_jwt(token)
 
-                payload = jwt.decode(
+                payload: dict[str, Any] = jwt.decode(
                     token,
                     signing_key.key,
                     algorithms=AUTH0_ALGORITHMS,
@@ -140,7 +140,7 @@ class AuthService:
                 db.commit()
                 logger.info(f"Updated player profile for {player.name}")
 
-        return player
+        return player  # type: ignore[no-any-return]
 
     @staticmethod
     def link_auth0_to_player(db: Session, auth0_id: str, player_id: int) -> bool:

@@ -48,6 +48,7 @@ class NotificationService:
     """
 
     _instance = None
+    _initialized: bool
 
     def __new__(cls):
         """Implement singleton pattern."""
@@ -427,7 +428,7 @@ class NotificationService:
 
             logger.debug(f"Player {player_id} has {count} unread notifications")
 
-            return count
+            return int(count)
 
         except Exception as e:
             logger.error(

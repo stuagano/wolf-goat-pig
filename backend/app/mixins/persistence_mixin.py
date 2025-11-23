@@ -27,7 +27,7 @@ class PersistenceMixin:
     - _deserialize(data: Dict[str, Any]): Restore game state from dict
     """
 
-    def __init_persistence__(self, game_id: Optional[str] = None):
+    def __init_persistence__(self, game_id: Optional[str] = None) -> None:
         """
         Initialize persistence layer. Call this from your __init__.
 
@@ -133,7 +133,7 @@ class PersistenceMixin:
             f"{self.__class__.__name__} must implement _serialize()"
         )
 
-    def _deserialize(self, data: Dict[str, Any]):
+    def _deserialize(self, data: Dict[str, Any]) -> None:
         """
         Restore game state from dictionary.
 

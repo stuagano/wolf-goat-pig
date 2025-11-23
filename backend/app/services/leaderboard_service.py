@@ -405,7 +405,7 @@ class LeaderboardService:
                 detail=f"Failed to retrieve monthly leaderboard: {str(e)}"
             )
 
-    def refresh_leaderboard_cache(self) -> Dict[str, int]:
+    def refresh_leaderboard_cache(self) -> Dict[str, Any]:
         """
         Refresh the leaderboard cache by clearing all cached data.
 

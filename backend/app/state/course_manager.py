@@ -41,7 +41,7 @@ class CourseManager:
             return None
         return self._course_cache.get(self.selected_course_id)
 
-    def refresh_course(self, course_id: int):
+    def refresh_course(self, course_id: int) -> None:
         """Reloads a course from the database to refresh the cache."""
         db: Session = SessionLocal()
         try:

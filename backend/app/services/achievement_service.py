@@ -241,7 +241,8 @@ class AchievementService:
             # For progression badges, check progress
             if badge.trigger_type in ['career_milestone', 'progression']:
                 progress = self.calculate_badge_progress(player_profile_id, badge_name)
-                return progress.get('progress_percentage', 0) >= 100
+                progress_percentage: float = progress.get('progress_percentage', 0)
+                return progress_percentage >= 100
 
             # For other badge types, return True (actual eligibility determined by BadgeEngine)
             return True
@@ -512,7 +513,7 @@ class AchievementService:
 # SINGLETON PATTERN
 # ====================================================================================
 
-_achievement_service_instance = None
+_achievement_service_instance: Optional[AchievementService] = None
 
 
 def get_achievement_service(db: Session) -> AchievementService:

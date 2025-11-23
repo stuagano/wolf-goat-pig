@@ -2,7 +2,7 @@
 API Routes for Achievement Badge System
 """
 
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -89,7 +89,7 @@ def get_available_badges(
     category: Optional[str] = None,
     rarity: Optional[str] = None,
     db: Session = Depends(get_db)
-):
+) -> List[Badge]:
     """
     Get all available badges with optional filtering.
     Query params:
@@ -104,7 +104,7 @@ def get_available_badges(
     if rarity:
         query = query.filter(Badge.rarity == rarity)
 
-    badges = query.order_by(
+    badges: List[Badge] = query.order_by(
         # Sort by rarity tier, then by name
         func.case(
             (Badge.rarity == 'mythic', 5),
@@ -124,7 +124,7 @@ def get_player_earned_badges(
     player_id: int,
     showcase_only: bool = False,
     db: Session = Depends(get_db)
-):
+) -> List[Dict[str, Any]]:
     """
     Get all badges earned by a player.
     - showcase_only: Return only badges in player's showcase (top 6)
@@ -158,7 +158,7 @@ def get_player_badge_progress(
     player_id: int,
     include_completed: bool = False,
     db: Session = Depends(get_db)
-):
+) -> List[Dict[str, Any]]:
     """
     Get player's progress toward unearned badges.
     - include_completed: Include badges already earned
@@ -195,7 +195,7 @@ def get_player_badge_progress(
 
 
 @router.get("/player/{player_id}/stats")
-def get_player_badge_stats(player_id: int, db: Session = Depends(get_db)):
+def get_player_badge_stats(player_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Get summary statistics about player's badge collection"""
     earned_count = db.query(PlayerBadgeEarned).filter(
         PlayerBadgeEarned.player_profile_id == player_id
@@ -240,7 +240,7 @@ def get_player_badge_stats(player_id: int, db: Session = Depends(get_db)):
 # ====================================================================================
 
 @router.get("/series", response_model=List[SeriesResponse])
-def get_badge_series(db: Session = Depends(get_db)):
+def get_badge_series(db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
     """Get all badge series/collections"""
     series_list = db.query(BadgeSeries).filter(
         BadgeSeries.is_active == True
@@ -266,7 +266,7 @@ def get_badge_series(db: Session = Depends(get_db)):
 
 
 @router.get("/series/player/{player_id}", response_model=List[SeriesResponse])
-def get_player_series_progress(player_id: int, db: Session = Depends(get_db)):
+def get_player_series_progress(player_id: int, db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
     """Get player's progress on all badge series"""
     series_list = db.query(BadgeSeries).filter(
         BadgeSeries.is_active == True
@@ -304,7 +304,7 @@ def get_player_series_progress(player_id: int, db: Session = Depends(get_db)):
 # ====================================================================================
 
 @router.get("/leaderboard/badge/{badge_id}", response_model=List[BadgeLeaderboardEntry])
-def get_badge_leaderboard(badge_id: int, limit: int = 100, db: Session = Depends(get_db)):
+def get_badge_leaderboard(badge_id: int, limit: int = 100, db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
     """
     Get leaderboard for a specific badge (who has it, serial numbers).
     Useful for rare badges to see who the elite owners are.
@@ -337,7 +337,7 @@ def get_badge_leaderboard(badge_id: int, limit: int = 100, db: Session = Depends
 
 
 @router.get("/leaderboard/top-collectors")
-def get_top_collectors(limit: int = 50, db: Session = Depends(get_db)):
+def get_top_collectors(limit: int = 50, db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
     """Get players with most badges earned"""
     top_collectors = db.query(
         PlayerProfile.id,
@@ -385,7 +385,7 @@ def manually_check_achievements(
     player_id: int,
     game_record_id: int,
     db: Session = Depends(get_db)
-):
+) -> Dict[str, Any]:
     """
     Manually trigger badge achievement check for a player/game.
     Useful for testing or retroactive badge awards.
@@ -407,7 +407,7 @@ def manually_check_achievements(
 
 
 @router.get("/admin/badge/{badge_id}/holders")
-def get_badge_holders(badge_id: int, db: Session = Depends(get_db)):
+def get_badge_holders(badge_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Get detailed information about who holds a specific badge"""
     holders = db.query(
         PlayerBadgeEarned, PlayerProfile.name, PlayerProfile.email

@@ -4,6 +4,7 @@ This script checks if Wing Point exists in the database and updates it if the pa
 """
 import logging
 from datetime import datetime
+from typing import Any, Dict, List
 
 from .database import SessionLocal
 from .models import Course
@@ -11,7 +12,7 @@ from .models import Course
 logger = logging.getLogger(__name__)
 
 # Correct Wing Point data from wing_point_course_data.py (white tees)
-CORRECT_WING_POINT_DATA = [
+CORRECT_WING_POINT_DATA: List[Dict[str, Any]] = [
     {"hole_number": 1, "par": 5, "yards": 429, "stroke_index": 5, "description": "Opening Drive - gentle starting hole, slight dogleg right"},
     {"hole_number": 2, "par": 3, "yards": 158, "stroke_index": 15, "description": "Short Iron - downhill par 3 with bunkers guarding the green"},
     {"hole_number": 3, "par": 4, "yards": 310, "stroke_index": 1, "description": "The Challenge - handicap 1, tough dogleg left requiring precision"},

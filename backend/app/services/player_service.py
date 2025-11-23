@@ -77,7 +77,7 @@ class PlayerService:
 
             logger.info(f"Created player profile for {profile_data.name} with ID {player_profile.id}")
 
-            return PlayerProfileResponse.model_validate(player_profile)
+            return PlayerProfileResponse.model_validate(player_profile)  # type: ignore[no-any-return]
 
         except Exception as e:
             self.db.rollback()
@@ -92,7 +92,7 @@ class PlayerService:
             ).first()
 
             if player:
-                return PlayerProfileResponse.model_validate(player)
+                return PlayerProfileResponse.model_validate(player)  # type: ignore[no-any-return]
             return None
 
         except Exception as e:
@@ -107,7 +107,7 @@ class PlayerService:
             ).first()
 
             if player:
-                return PlayerProfileResponse.model_validate(player)
+                return PlayerProfileResponse.model_validate(player)  # type: ignore[no-any-return]
             return None
 
         except Exception as e:
@@ -164,7 +164,7 @@ class PlayerService:
             self.db.refresh(player)
 
             logger.info(f"Updated player profile {player_id}")
-            return PlayerProfileResponse.model_validate(player)
+            return PlayerProfileResponse.model_validate(player)  # type: ignore[no-any-return]
 
         except Exception as e:
             self.db.rollback()
@@ -198,7 +198,7 @@ class PlayerService:
             ).first()
 
             if stats:
-                return PlayerStatisticsResponse.model_validate(stats)
+                return PlayerStatisticsResponse.model_validate(stats)  # type: ignore[no-any-return]
             return None
 
         except Exception as e:
@@ -411,8 +411,8 @@ class PlayerService:
         if not results:
             return 0.0
 
-        positions = [result.final_position for result in results]
-        return sum(positions) / len(positions)
+        positions: list[int] = [result.final_position for result in results]
+        return float(sum(positions) / len(positions))
 
     def _calculate_recent_form(self, player_id: int, games: int = 5) -> str:
         """Calculate recent form based on last N games."""
@@ -579,7 +579,7 @@ class PlayerService:
     def check_and_award_achievements(self, player_id: int, game_result: GamePlayerResultCreate) -> List[str]:
         """Check for new achievements and award them."""
         try:
-            awarded_achievements = []
+            awarded_achievements: list[str] = []
 
             # Get current stats
             stats = self.get_player_statistics(player_id)

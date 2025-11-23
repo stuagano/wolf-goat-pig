@@ -16,7 +16,7 @@ from typing import Any, Dict, Optional
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
-from googleapiclient.discovery import build
+from googleapiclient.discovery import build, Resource
 from googleapiclient.errors import HttpError
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ class GmailOAuth2Provider:
 
     def __init__(self, from_email: str, from_name: str, data_dir: Path):
         self.creds: Optional[Credentials] = None
-        self.service = None
+        self.service: Optional[Resource] = None
         self.from_email = from_email
         self.from_name = from_name
 
@@ -103,7 +103,7 @@ class GmailOAuth2Provider:
                 include_granted_scopes='true',
                 prompt='consent'
             )
-            return auth_url
+            return str(auth_url)
         except Exception as e:
             logger.error(f"Error generating auth URL: {e}")
             return None
@@ -136,7 +136,7 @@ class GmailOAuth2Provider:
 
     def send_email(self, to_email: str, subject: str, html_body: str, text_body: Optional[str] = None) -> bool:
         """Send an email using the Gmail API."""
-        if not self.is_configured:
+        if not self.is_configured or self.service is None:
             logger.error("Gmail OAuth2 provider is not configured. Cannot send email.")
             return False
 

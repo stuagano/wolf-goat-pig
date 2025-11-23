@@ -75,7 +75,7 @@ class WolfGoatPigSimulator(WolfGoatPigGame):
         # Save current game state
         saved_state = self._save_simulation_state()
 
-        results = {
+        results: Dict[str, Any] = {
             "iterations": iterations,
             "win_probabilities": {},
             "expected_values": {},
@@ -164,14 +164,14 @@ class WolfGoatPigSimulator(WolfGoatPigGame):
             if shot.made_shot:
                 break
 
-            distance_remaining = shot.distance_to_pin
+            distance_remaining = int(shot.distance_to_pin)
             shot_number += 1
 
         return shots
 
     def _calculate_win_probabilities(self, outcomes: List[Dict]) -> Dict[str, float]:
         """Calculate win probability for each player."""
-        win_counts = {p.id: 0 for p in self.players}
+        win_counts = {p.id: 0.0 for p in self.players}
 
         for outcome in outcomes:
             # Determine winner(s) based on strokes

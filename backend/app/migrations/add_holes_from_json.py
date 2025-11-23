@@ -6,6 +6,7 @@ and creates individual Hole records for each hole.
 """
 
 import logging
+from typing import Any, Dict
 
 from sqlalchemy.orm import Session
 
@@ -15,7 +16,7 @@ from ..models import Course, Hole
 logger = logging.getLogger(__name__)
 
 
-def migrate_holes_from_json(db: Session = None):
+def migrate_holes_from_json(db: Session = None) -> Dict[str, Any]:
     """
     Migrate hole data from JSON to individual Hole records.
 

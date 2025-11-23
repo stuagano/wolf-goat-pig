@@ -4,6 +4,7 @@ Run this script to populate the badge system with all available badges.
 """
 
 from datetime import datetime
+from typing import Any, cast
 
 from sqlalchemy.orm import Session
 
@@ -11,7 +12,7 @@ from .database import SessionLocal
 from .models import Badge, BadgeSeries, SeasonalBadge
 
 
-def seed_badges(db: Session):
+def seed_badges(db: Session) -> None:
     """Seed all badges into the database"""
 
     # Clear existing badges if reseeding
@@ -273,7 +274,7 @@ def seed_badges(db: Session):
             },
             trigger_type='career_milestone',
             max_supply=None,
-            points_value=tier_data['threshold'] // 10,
+            points_value=cast(int, tier_data['threshold']) // 10,
             tier=tier_data['tier'],
             is_active=True,
             created_at=created_at
@@ -311,7 +312,7 @@ def seed_badges(db: Session):
             },
             trigger_type='career_milestone',
             max_supply=None,
-            points_value=tier_data['threshold'] * 2,
+            points_value=cast(int, tier_data['threshold']) * 2,
             tier=tier_data['tier'],
             is_active=True,
             created_at=created_at
@@ -342,7 +343,7 @@ def seed_badges(db: Session):
             },
             trigger_type='career_milestone',
             max_supply=None,
-            points_value=tier_data['threshold'] // 5,
+            points_value=cast(int, tier_data['threshold']) // 5,
             tier=tier_data['tier'],
             is_active=True,
             created_at=created_at
@@ -362,17 +363,17 @@ def seed_badges(db: Session):
         badge = Badge(
             badge_id=badge_id_counter,
             name=wr_data['name'],
-            description=f"{int(wr_data['rate']*100)}% win rate (minimum 100 holes played)",
+            description=f"{int(cast(float, wr_data['rate'])*100)}% win rate (minimum 100 holes played)",
             category='progression',
             rarity=wr_data['rarity'],
-            image_url=f"/badges/winrate-{int(wr_data['rate']*100)}.png",
+            image_url=f"/badges/winrate-{int(cast(float, wr_data['rate'])*100)}.png",
             trigger_condition={
                 'type': 'win_rate_badge',
                 'win_rate': wr_data['rate']
             },
             trigger_type='career_milestone',
             max_supply=None,
-            points_value=int(wr_data['rate'] * 1000),
+            points_value=int(cast(float, wr_data['rate']) * 1000),
             is_active=True,
             created_at=created_at
         )

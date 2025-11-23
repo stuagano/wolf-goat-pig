@@ -98,7 +98,7 @@ class EmailScheduler:
         finally:
             db.close()
 
-    def _send_daily_reminders(self, time_slot: str):
+    def _send_daily_reminders(self, time_slot: str) -> None:
         """Send daily signup reminders to users who have opted in"""
         db = self._get_db()
 

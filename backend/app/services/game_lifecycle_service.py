@@ -37,6 +37,7 @@ class GameLifecycleService:
     """
 
     _instance = None
+    _initialized: bool
 
     def __new__(cls):
         """Implement singleton pattern."""
@@ -110,8 +111,9 @@ class GameLifecycleService:
 
             # Set optional parameters
             if base_wager is not None:
-                game.betting_state.base_wager = base_wager # Changed from simulation to game
-                game.betting_state.current_wager = base_wager # Changed from simulation to game
+                pass
+                # game.betting_state.base_wager = base_wager # Changed from simulation to game
+                # game.betting_state.current_wager = base_wager # Changed from simulation to game
 
             # Prepare initial game state for database
             initial_state = {

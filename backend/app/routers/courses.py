@@ -82,10 +82,12 @@ def get_fallback_courses():
 # Course Management Endpoints
 
 @router.get("")
-def get_courses():
+def get_courses() -> Dict[str, Any]:
     """Get all available courses with robust fallback handling"""
     try:
-        courses = course_manager.get_courses()
+        courses_list = course_manager.get_courses()
+        # Convert list to dict format for backward compatibility
+        courses: Dict[str, Any] = {c["name"]: c for c in courses_list} if courses_list else {}
 
         # Ensure we always return at least one default course
         if not courses:
@@ -97,9 +99,12 @@ def get_courses():
                 seeding_status = get_seeding_status()
 
                 if seeding_status["status"] == "success":
-                    # Reinitialize course manager
-                    course_manager.__init__()
-                    courses = course_manager.get_courses()
+                    # Create new course manager instance to reload from database
+                    from ..state.course_manager import CourseManager
+                    new_manager = CourseManager()
+                    courses_list = new_manager.get_courses()
+                    # Convert list to dict format expected by the function
+                    courses = {c["name"]: c for c in courses_list} if courses_list else {}
 
                     if courses:
                         logger.info(f"Successfully reloaded {len(courses)} courses from database")
@@ -131,17 +136,16 @@ def get_courses():
 def get_course_by_id(course_id: int) -> Dict[str, Any]:
     """Get a specific course by ID (index in courses list)"""
     try:
-        courses = course_manager.get_courses()
-        if not courses:
+        courses_list = course_manager.get_courses()
+        if not courses_list:
             raise HTTPException(status_code=404, detail="No courses available")
 
-        # Convert courses dict to list and get by index
-        course_list = list(courses.values())
-        if course_id >= len(course_list) or course_id < 0:
+        # Get by index
+        if course_id >= len(courses_list) or course_id < 0:
             raise HTTPException(status_code=404, detail="Course not found")
 
         # Return the course at the specified index
-        course = course_list[course_id]
+        course: Dict[str, Any] = courses_list[course_id]
         return course
 
     except HTTPException:
@@ -198,9 +202,6 @@ def add_course(course: schemas.CourseCreate) -> Dict[str, Any]:
 
         db.commit()
         db.refresh(db_course)
-
-        # Also add to in-memory course manager for current session
-        course_manager.add_course(course.name, holes)
 
         logger.info(f"Created course '{course.name}' with {len(holes)} holes in database (ID: {db_course.id})")
 
@@ -270,10 +271,6 @@ def update_course(course_name: str, course_update: schemas.CourseUpdate) -> Dict
         db.commit()
         db.refresh(db_course)
 
-        # Update in-memory course manager
-        if "holes" in update_dict:
-            course_manager.update_course(course_name, update_dict["holes"])
-
         logger.info(f"Updated course '{course_name}' and its holes in database (ID: {db_course.id})")
 
         return {
@@ -311,9 +308,6 @@ def delete_course(course_name: str = Path(...)) -> Dict[str, str]:
         db.delete(db_course)
         db.commit()
 
-        # Also remove from in-memory course manager
-        course_manager.delete_course(course_name)
-
         logger.info(f"Deleted course '{course_name}' from database")
 
         return {
@@ -338,7 +332,26 @@ async def import_course_by_search(request: schemas.CourseImportRequest) -> Dict[
     """Search and import a course by name"""
     try:
         result = await import_course_by_name(request.course_name, request.state, request.city)
-        return result
+        if result is None:
+            raise HTTPException(status_code=404, detail="Course not found")
+
+        # Convert CourseImportData to dict
+        return {
+            "name": result.name,
+            "description": result.description,
+            "total_par": result.total_par,
+            "total_yards": result.total_yards,
+            "course_rating": result.course_rating,
+            "slope_rating": result.slope_rating,
+            "holes_data": result.holes_data,
+            "source": result.source,
+            "last_updated": result.last_updated,
+            "location": result.location,
+            "website": result.website,
+            "phone": result.phone
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error importing course by search: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to import course: {str(e)}")
@@ -348,14 +361,33 @@ async def import_course_by_search(request: schemas.CourseImportRequest) -> Dict[
 async def import_course_from_file(file: UploadFile = File(...)) -> Dict[str, Any]:
     """Import a course from uploaded JSON file"""
     try:
-        if not file.filename.endswith('.json'):
+        if not file.filename or not file.filename.endswith('.json'):
             raise HTTPException(status_code=400, detail="File must be a JSON file")
 
         content = await file.read()
         course_data = json.loads(content.decode('utf-8'))
 
         result = await import_course_from_json(course_data)
-        return result
+        if result is None:
+            raise HTTPException(status_code=400, detail="Invalid course data")
+
+        # Convert CourseImportData to dict
+        return {
+            "name": result.name,
+            "description": result.description,
+            "total_par": result.total_par,
+            "total_yards": result.total_yards,
+            "course_rating": result.course_rating,
+            "slope_rating": result.slope_rating,
+            "holes_data": result.holes_data,
+            "source": result.source,
+            "last_updated": result.last_updated,
+            "location": result.location,
+            "website": result.website,
+            "phone": result.phone
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error importing course from file: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to import course: {str(e)}")
