@@ -168,8 +168,8 @@ class StatisticsService:
                     GamePlayerResult.created_at >= cutoff_date
                 )
             ).order_by(GamePlayerResult.created_at).all()
-            
-            trends = {
+
+            trends: Dict[str, List[TrendPoint]] = {
                 "earnings": [],
                 "position": [],
                 "betting_success": [],
@@ -220,7 +220,7 @@ class StatisticsService:
     def get_player_insights(self, player_id: int) -> List[InsightRecommendation]:
         """Generate personalized insights and recommendations."""
         try:
-            insights = []
+            insights: List[InsightRecommendation] = []
             
             # Get player metrics
             metrics = self.get_advanced_player_metrics(player_id)
@@ -426,9 +426,9 @@ class StatisticsService:
                 base_query = base_query.filter(GamePlayerResult.player_profile_id == player_id)
             
             results = base_query.all()
-            
+
             # Group by game mode and player count
-            mode_analytics = defaultdict(lambda: {
+            mode_analytics: Dict[str, Dict[str, Any]] = defaultdict(lambda: {
                 "games_played": 0,
                 "total_earnings": 0.0,
                 "wins": 0,
@@ -587,8 +587,8 @@ class StatisticsService:
         
         # Convert to 0-100 score (inverse of variance, scaled)
         consistency_score = max(0, 100 - (variance * 25))
-        
-        return min(100, consistency_score)
+
+        return float(min(100, consistency_score))
     
     def _get_recent_position_variance(self, player_id: int) -> Dict[str, Any]:
         """Get variance in recent finishing positions."""
