@@ -50,6 +50,9 @@ from .wolf_goat_pig import Player, WolfGoatPigGame
 # Global variable for email scheduler (initialized on demand)
 email_scheduler = None
 
+# Global variable for wgp_simulation (used in some endpoints)
+wgp_simulation: Optional[WolfGoatPigGame] = None
+
 # Configure logging
 logger = logging.getLogger(__name__)
 
