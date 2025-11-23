@@ -75,27 +75,27 @@ class GameStateValidator:
     def validate_transition(self, from_state: Dict[str, Any], to_state: Dict[str, Any]) -> List[str]:
         """Validate a state transition"""
         errors = []
-        
+
         from_phase = from_state.get('phase')
         to_phase = to_state.get('phase')
-        
+
         # Check valid transition
-        valid_next_phases = self.VALID_TRANSITIONS.get(from_phase, [])
+        valid_next_phases = self.VALID_TRANSITIONS.get(from_phase, []) if from_phase else []
         if to_phase not in valid_next_phases:
             errors.append(f"Invalid transition: {from_phase} -> {to_phase}")
         
         # Validate hole progression
         from_hole = from_state.get('hole_number')
         to_hole = to_state.get('hole_number')
-        
+
         if to_phase == 'captain_selection' and from_phase == 'hole_complete':
-            if to_hole != from_hole + 1:
+            if from_hole is not None and to_hole is not None and to_hole != from_hole + 1:
                 errors.append(f"Hole should increment after completion: {from_hole} -> {to_hole}")
         elif to_hole != from_hole:
             errors.append(f"Hole changed unexpectedly: {from_hole} -> {to_hole}")
         
         # Validate captain rotation
-        if to_phase == 'captain_selection':
+        if to_phase == 'captain_selection' and to_hole is not None:
             players = to_state.get('players', [])
             captain_id = to_state.get('captain_id')
             expected_captain_idx = (to_hole - 1) % 4

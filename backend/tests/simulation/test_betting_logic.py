@@ -19,7 +19,7 @@ class BettingState:
     option_invoked: bool
     duncan_invoked: bool
     tunkarri_invoked: bool
-    joes_special_value: int = None
+    joes_special_value: int | None = None
     
 class BettingRulesEngine:
     """Validates and tests betting rules"""
@@ -54,16 +54,16 @@ class BettingRulesEngine:
         
         return True
     
-    def _get_furthest_player(self, game_state: Dict) -> str:
+    def _get_furthest_player(self, game_state: Dict) -> str | None:
         """Get player furthest from hole"""
         max_distance = -1
         furthest = None
-        
+
         for player_id, position in game_state['ball_positions'].items():
             if not position['holed'] and position['distance'] > max_distance:
                 max_distance = position['distance']
                 furthest = player_id
-        
+
         return furthest
     
     def apply_karl_marx(self, hole_scores: Dict[str, int]) -> bool:

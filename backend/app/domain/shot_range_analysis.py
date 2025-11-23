@@ -486,7 +486,7 @@ class ShotRangeAnalyzer:
     @staticmethod
     def _generate_strategic_advice(
         matrix: ShotRangeMatrix,
-        recommended: ShotRange,
+        recommended: ShotRange | None,
         player_style: RiskProfile,
         game_situation: Dict
     ) -> List[str]:
