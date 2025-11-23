@@ -3408,7 +3408,7 @@ async def handle_play_shot(game: WolfGoatPigGame, payload: Dict[str, Any] = None
         is_tee_shot = next_player not in hole_state.ball_positions or hole_state.ball_positions[next_player].shot_count == 1
         if is_tee_shot:
             # Create a WGPShotResult object from the shot_result dictionary
-            from app.wolf_goat_pig_simulation import WGPShotResult
+            from archived.game_engine.wolf_goat_pig_simulation import WGPShotResult
             shot_obj = WGPShotResult(
                 player_id=shot_result.get("player_id", next_player),
                 shot_number=shot_result.get("shot_number", 1),
