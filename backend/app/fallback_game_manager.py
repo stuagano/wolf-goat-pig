@@ -7,10 +7,10 @@ or the database is temporarily unavailable.
 """
 
 import logging
-from typing import Dict, Optional, List
-from datetime import datetime
 import random
 import string
+from datetime import datetime
+from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

@@ -4,10 +4,11 @@ Database session management helpers.
 Provides utilities for proper database session lifecycle management in FastAPI.
 """
 
-from functools import wraps
-from sqlalchemy.orm import Session
-from typing import Callable
 import logging
+from functools import wraps
+from typing import Callable
+
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,7 @@ def with_db_session(func: Callable) -> Callable:
         try:
             result = func(*args, **kwargs)
             return result
-        except Exception as e:
+        except Exception:
             if created_session:
                 db.rollback()
             raise

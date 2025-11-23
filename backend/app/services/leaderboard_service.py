@@ -17,19 +17,16 @@ Features:
 - Multiple leaderboard metrics
 """
 
-from typing import List, Dict, Any, Optional, Tuple
-from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, desc, case
-from datetime import datetime, timedelta
-from fastapi import HTTPException
 import logging
-from collections import defaultdict
 import time
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Tuple
 
-from ..models import (
-    PlayerProfile, PlayerStatistics, GameRecord, GamePlayerResult,
-    PlayerAchievement, PlayerBadgeEarned
-)
+from fastapi import HTTPException
+from sqlalchemy import and_, case, desc, func
+from sqlalchemy.orm import Session
+
+from ..models import GamePlayerResult, PlayerAchievement, PlayerBadgeEarned, PlayerProfile, PlayerStatistics
 
 logger = logging.getLogger(__name__)
 

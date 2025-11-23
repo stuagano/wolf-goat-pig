@@ -3,10 +3,13 @@ Badge System Seeds - Initialize all badges in the database
 Run this script to populate the badge system with all available badges.
 """
 
+from datetime import datetime
+
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
-from .models import Badge, BadgeSeries, SeasonalBadge
+
 from .database import SessionLocal
+from .models import Badge, BadgeSeries, SeasonalBadge
+
 
 def seed_badges(db: Session):
     """Seed all badges into the database"""
@@ -536,8 +539,8 @@ def seed_badges(db: Session):
     print(f"✅ Successfully seeded {badge_id_counter - 1} badges!")
     print(f"   - Achievement badges: {len(achievement_badges)}")
     print(f"   - Progression badges: {len(earnings_tiers) + len(games_tiers) + len(holes_tiers) + len(winrate_badges)}")
-    print(f"   - Four Horsemen series: 5 badges (4 + completion)")
-    print(f"   - Seasonal badges: 1")
+    print("   - Four Horsemen series: 5 badges (4 + completion)")
+    print("   - Seasonal badges: 1")
 
 
 def run_seed():

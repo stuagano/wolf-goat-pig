@@ -4,9 +4,9 @@ Simple in-memory caching for expensive operations.
 For production, consider using Redis for distributed caching.
 """
 
-from datetime import datetime, timedelta
-from typing import Any, Optional, Dict
 import logging
+from datetime import datetime, timedelta
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger("app.caching")
 
@@ -64,7 +64,7 @@ class SimpleCache:
         )
         return value
 
-    def set(self, key: str, value: Any):
+    def set(self, key: str, value: Any) -> None:
         """
         Store value in cache with current timestamp.
 
@@ -75,7 +75,7 @@ class SimpleCache:
         self.cache[key] = (value, datetime.now())
         logger.debug(f"Cache SET for key: {key}")
 
-    def invalidate(self, key: str):
+    def invalidate(self, key: str) -> None:
         """
         Manually invalidate a cache entry.
 

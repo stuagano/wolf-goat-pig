@@ -5,8 +5,9 @@ Run with: pytest test_game_state_validator.py -v
 """
 
 import pytest
-from .game_state_validator import GameStateValidator
+
 from .exceptions import GameStateValidationError, PartnershipValidationError
+from .game_state_validator import GameStateValidator
 
 
 class TestGameInitialization:

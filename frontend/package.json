@@ -21,6 +21,7 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "lint": "eslint src/**/*.{js,jsx}",
+    "typecheck": "tsc --noEmit",
     "vercel-build": "react-scripts build",
     "prepare": "husky",
     "test:e2e": "playwright test --config tests/e2e/playwright.config.js",

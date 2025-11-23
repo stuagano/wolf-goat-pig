@@ -1,6 +1,8 @@
-from pydantic import BaseModel, field_validator
-from typing import List, Optional, Dict, Any
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, field_validator
+
 
 class Rule(BaseModel):
     id: int
@@ -51,22 +53,22 @@ class CourseCreate(BaseModel):
     def validate_holes(cls, v):
         if len(v) != 18:
             raise ValueError('Course must have exactly 18 holes')
-        
+
         # Check for unique handicaps
         handicaps = [hole.handicap for hole in v]
         if len(set(handicaps)) != 18:
             raise ValueError('All handicaps must be unique (1-18)')
-        
+
         # Check for unique hole numbers
         hole_numbers = [hole.hole_number for hole in v]
         if sorted(hole_numbers) != list(range(1, 19)):
             raise ValueError('Hole numbers must be 1-18 and unique')
-        
+
         # Validate total par
         total_par = sum(hole.par for hole in v)
         if not 70 <= total_par <= 74:
             raise ValueError('Total par must be between 70 and 74')
-        
+
         return v
 
     @field_validator('name')
@@ -103,19 +105,19 @@ class CourseUpdate(BaseModel):
             # Same validation as CourseCreate
             if len(v) != 18:
                 raise ValueError('Course must have exactly 18 holes')
-            
+
             handicaps = [hole.handicap for hole in v]
             if len(set(handicaps)) != 18:
                 raise ValueError('All handicaps must be unique (1-18)')
-            
+
             hole_numbers = [hole.hole_number for hole in v]
             if sorted(hole_numbers) != list(range(1, 19)):
                 raise ValueError('Hole numbers must be 1-18 and unique')
-            
+
             total_par = sum(hole.par for hole in v)
             if not 70 <= total_par <= 74:
                 raise ValueError('Total par must be between 70 and 74')
-        
+
         return v
 
 class CourseList(BaseModel):
@@ -513,7 +515,7 @@ class DailySignupSummary(BaseModel):
 class WeeklySignupView(BaseModel):
     week_start: str  # YYYY-MM-DD for the Monday
     daily_summaries: List[DailySignupSummary]
-    
+
 class PlayerWithAvailability(BaseModel):
     profile: PlayerProfileResponse
     availability: List[PlayerAvailabilityResponse]
@@ -539,7 +541,7 @@ class DailyMessageResponse(BaseModel):
     is_active: int
     created_at: str
     updated_at: str
-    
+
     class Config:
         from_attributes = True
 
@@ -652,4 +654,4 @@ class JoinGameRequest(BaseModel):
             raise ValueError('Handicap cannot be negative')
         if v > 54:
             raise ValueError('Handicap cannot exceed 54')
-        return v 
+        return v

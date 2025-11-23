@@ -11,17 +11,14 @@ Features:
 - Export functionality for migration validation
 """
 
-from typing import List, Dict, Any, Optional
-from sqlalchemy.orm import Session
-from sqlalchemy import func, desc, asc
-from datetime import datetime
 import logging
-import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from ..models import (
-    PlayerProfile, PlayerStatistics, GameRecord, GamePlayerResult
-)
+from sqlalchemy.orm import Session
+
+from ..models import PlayerProfile, PlayerStatistics
 from .statistics_service import StatisticsService
 
 logger = logging.getLogger(__name__)
@@ -39,15 +36,15 @@ class SheetDataRow:
     """Represents a row of data from the Google Sheet."""
     raw_data: Dict[str, Any]
     mapped_data: Dict[str, Any]
-    validation_errors: List[str] = None
+    validation_errors: List[str] = field(default_factory=list)
 
 class SheetIntegrationService:
     """Service for integrating Google Sheets data with the application."""
-    
+
     def __init__(self, db: Session):
         self.db = db
         self.stats_service = StatisticsService(db)
-        
+
         # Default column mappings (can be customized based on actual sheet structure)
         self.default_column_mappings = [
             SheetColumnMapping("Player Name", "player_name", "text"),
@@ -64,57 +61,57 @@ class SheetIntegrationService:
             SheetColumnMapping("Solo Attempts", "solo_attempts", "number"),
             SheetColumnMapping("Solo Wins", "solo_wins", "number"),
         ]
-    
+
     def create_column_mappings(self, sheet_headers: List[str]) -> List[SheetColumnMapping]:
         """Create column mappings based on sheet headers."""
         mappings = []
-        
+
         # Try to match sheet headers to known patterns
         for header in sheet_headers:
             header_lower = header.lower().strip()
-            
+
             # Player identification
             if any(pattern in header_lower for pattern in ["player", "name", "golfer"]):
                 mappings.append(SheetColumnMapping(header, "player_name", "text"))
-            
+
             # Game counts
             elif any(pattern in header_lower for pattern in ["games played", "rounds played", "total games"]):
                 mappings.append(SheetColumnMapping(header, "games_played", "number"))
             elif any(pattern in header_lower for pattern in ["games won", "wins", "victories"]):
                 mappings.append(SheetColumnMapping(header, "games_won", "number"))
-            
+
             # Win rates
             elif any(pattern in header_lower for pattern in ["win rate", "win %", "win percentage"]):
                 mappings.append(SheetColumnMapping(header, "win_rate", "percentage", "percentage_to_decimal"))
-            
+
             # Earnings
             elif any(pattern in header_lower for pattern in ["total earnings", "total winnings", "earnings"]):
                 mappings.append(SheetColumnMapping(header, "total_earnings", "currency", "currency_to_float"))
             elif any(pattern in header_lower for pattern in ["avg earnings", "average earnings", "earnings per game"]):
                 mappings.append(SheetColumnMapping(header, "avg_earnings_per_game", "currency", "currency_to_float"))
-            
+
             # Performance metrics
             elif any(pattern in header_lower for pattern in ["best finish", "best position"]):
                 mappings.append(SheetColumnMapping(header, "best_finish", "number"))
             elif any(pattern in header_lower for pattern in ["holes won", "holes victory"]):
                 mappings.append(SheetColumnMapping(header, "holes_won", "number"))
-            
+
             # Partnership data
             elif any(pattern in header_lower for pattern in ["partnerships", "team ups"]):
                 mappings.append(SheetColumnMapping(header, "partnerships_formed", "number"))
             elif any(pattern in header_lower for pattern in ["partnership success", "team success"]):
                 mappings.append(SheetColumnMapping(header, "partnership_success_rate", "percentage", "percentage_to_decimal"))
-            
+
             # Betting data
             elif any(pattern in header_lower for pattern in ["betting success", "bet success", "betting %"]):
                 mappings.append(SheetColumnMapping(header, "betting_success_rate", "percentage", "percentage_to_decimal"))
-            
+
             # Solo play
             elif any(pattern in header_lower for pattern in ["solo attempts", "solo tries"]):
                 mappings.append(SheetColumnMapping(header, "solo_attempts", "number"))
             elif any(pattern in header_lower for pattern in ["solo wins", "solo victories"]):
                 mappings.append(SheetColumnMapping(header, "solo_wins", "number"))
-            
+
             # If no match found, create a generic mapping
             else:
                 # Determine data type based on header patterns
@@ -130,21 +127,21 @@ class SheetIntegrationService:
                 else:
                     data_type = "text"
                     transformation = None
-                
+
                 mappings.append(SheetColumnMapping(
-                    header, 
+                    header,
                     header.lower().replace(" ", "_").replace("-", "_"),
                     data_type,
                     transformation
                 ))
-        
+
         return mappings
-    
+
     def transform_data_value(self, value: Any, transformation: Optional[str]) -> Any:
         """Apply data transformation based on transformation type."""
         if value is None or value == "":
             return None
-            
+
         try:
             if transformation == "percentage_to_decimal":
                 # Handle percentage strings like "85%" or "0.85" or 85
@@ -152,38 +149,38 @@ class SheetIntegrationService:
                     value = value.strip().replace("%", "")
                     return float(value) / 100 if float(value) > 1 else float(value)
                 return float(value) / 100 if value > 1 else float(value)
-            
+
             elif transformation == "currency_to_float":
                 # Handle currency strings like "$123.45" or "123.45"
                 if isinstance(value, str):
                     value = value.strip().replace("$", "").replace(",", "")
                 return float(value)
-            
+
             elif transformation == "string_to_date":
                 # Handle date strings
                 if isinstance(value, str):
                     return datetime.strptime(value, "%Y-%m-%d").isoformat()
                 return value
-            
+
             elif transformation == "number":
                 return int(float(value))
-            
+
             else:
                 return value
-                
+
         except (ValueError, TypeError) as e:
             logger.warning(f"Failed to transform value {value} with {transformation}: {e}")
             return value
-    
+
     def validate_sheet_row(self, row_data: Dict[str, Any], mappings: List[SheetColumnMapping]) -> SheetDataRow:
         """Validate and transform a row of sheet data."""
         errors = []
         mapped_data = {}
-        
+
         for mapping in mappings:
             if mapping.sheet_column in row_data:
                 raw_value = row_data[mapping.sheet_column]
-                
+
                 try:
                     transformed_value = self.transform_data_value(raw_value, mapping.transformation)
                     mapped_data[mapping.db_field] = transformed_value
@@ -192,39 +189,39 @@ class SheetIntegrationService:
                     mapped_data[mapping.db_field] = raw_value
             else:
                 errors.append(f"Missing column: {mapping.sheet_column}")
-        
+
         return SheetDataRow(
             raw_data=row_data,
             mapped_data=mapped_data,
-            validation_errors=errors if errors else None
+            validation_errors=errors if errors else []
         )
-    
-    def create_leaderboard_from_sheet_data(self, sheet_data: List[Dict[str, Any]], 
+
+    def create_leaderboard_from_sheet_data(self, sheet_data: List[Dict[str, Any]],
                                          mappings: List[SheetColumnMapping]) -> List[Dict[str, Any]]:
         """Create a leaderboard from sheet data."""
         validated_rows = []
-        
+
         for row in sheet_data:
             validated_row = self.validate_sheet_row(row, mappings)
             if not validated_row.validation_errors:
                 validated_rows.append(validated_row.mapped_data)
             else:
                 logger.warning(f"Row validation errors: {validated_row.validation_errors}")
-        
+
         # Sort by total earnings (or primary metric)
         if validated_rows and "total_earnings" in validated_rows[0]:
             validated_rows.sort(key=lambda x: x.get("total_earnings", 0), reverse=True)
-        
+
         # Add ranks
         for rank, row in enumerate(validated_rows, 1):
             row["rank"] = rank
-        
+
         return validated_rows
-    
+
     def sync_sheet_data_to_database(self, sheet_data: List[Dict[str, Any]],
                                    mappings: List[SheetColumnMapping]) -> Dict[str, Any]:
         """Sync sheet data to the database (create/update player profiles and statistics)."""
-        results = {
+        results: Dict[str, Any] = {
             "players_processed": 0,
             "players_created": 0,
             "players_updated": 0,
@@ -314,7 +311,7 @@ class SheetIntegrationService:
             results["errors"].append({"general_error": str(e)})
 
         return results
-    
+
     def export_current_data_to_sheet_format(self, mappings: List[SheetColumnMapping]) -> List[Dict[str, Any]]:
         """Export current database data in sheet format for comparison."""
         try:
@@ -322,20 +319,20 @@ class SheetIntegrationService:
             query = self.db.query(PlayerProfile, PlayerStatistics).join(
                 PlayerStatistics, PlayerProfile.id == PlayerStatistics.player_id
             ).filter(PlayerProfile.is_active == 1)
-            
+
             results = query.all()
             sheet_data = []
-            
+
             for player, stats in results:
                 row = {}
-                
+
                 # Map database fields back to sheet columns
                 for mapping in mappings:
                     if mapping.db_field == "player_name":
                         row[mapping.sheet_column] = player.name
                     elif hasattr(stats, mapping.db_field):
                         value = getattr(stats, mapping.db_field)
-                        
+
                         # Apply reverse transformation for display
                         if mapping.transformation == "percentage_to_decimal" and value:
                             row[mapping.sheet_column] = f"{value * 100:.1f}%"
@@ -345,25 +342,25 @@ class SheetIntegrationService:
                             row[mapping.sheet_column] = value
                     else:
                         row[mapping.sheet_column] = None
-                
+
                 sheet_data.append(row)
-            
+
             # Sort by total earnings or primary metric
-            sheet_data.sort(key=lambda x: float(str(x.get("Total Earnings", "0")).replace("$", "").replace(",", "")), 
+            sheet_data.sort(key=lambda x: float(str(x.get("Total Earnings", "0")).replace("$", "").replace(",", "")),
                           reverse=True)
-            
+
             return sheet_data
-            
+
         except Exception as e:
             logger.error(f"Error exporting data to sheet format: {e}")
             return []
-    
-    def generate_sheet_comparison_report(self, 
-                                       current_data: List[Dict[str, Any]], 
+
+    def generate_sheet_comparison_report(self,
+                                       current_data: List[Dict[str, Any]],
                                        sheet_data: List[Dict[str, Any]],
                                        mappings: List[SheetColumnMapping]) -> Dict[str, Any]:
         """Generate a comparison report between current database and sheet data."""
-        report = {
+        report: Dict[str, Any] = {
             "summary": {
                 "database_players": len(current_data),
                 "sheet_players": len(sheet_data),
@@ -374,48 +371,48 @@ class SheetIntegrationService:
             },
             "detailed_comparison": []
         }
-        
+
         try:
             # Create lookup dictionaries
             db_players = {row.get("Player Name", "").lower(): row for row in current_data}
             sheet_players = {row.get("Player Name", "").lower(): row for row in sheet_data}
-            
+
             # Find common players and differences
             all_players = set(db_players.keys()) | set(sheet_players.keys())
-            
+
             for player_name in all_players:
                 if player_name in db_players and player_name in sheet_players:
                     report["summary"]["common_players"] += 1
-                    
+
                     # Compare data for common players
                     db_row = db_players[player_name]
                     sheet_row = sheet_players[player_name]
                     differences = []
-                    
+
                     for mapping in mappings:
                         db_value = db_row.get(mapping.sheet_column)
                         sheet_value = sheet_row.get(mapping.sheet_column)
-                        
+
                         if str(db_value) != str(sheet_value):
                             differences.append({
                                 "field": mapping.sheet_column,
                                 "database_value": db_value,
                                 "sheet_value": sheet_value
                             })
-                    
+
                     if differences:
                         report["detailed_comparison"].append({
                             "player": player_name,
                             "differences": differences
                         })
-                
+
                 elif player_name in db_players:
                     report["summary"]["database_only"].append(player_name)
                 else:
                     report["summary"]["sheet_only"].append(player_name)
-            
+
             return report
-            
+
         except Exception as e:
             logger.error(f"Error generating comparison report: {e}")
             report["error"] = str(e)

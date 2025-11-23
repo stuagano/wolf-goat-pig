@@ -6,10 +6,9 @@ in the main WolfGoatPigGame class. It focuses on essential scoring
 mechanics while reducing the serialization overhead.
 """
 
-from .wolf_goat_pig import WolfGoatPigGame, Player
-from typing import Dict, List, Any, Optional
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
+from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -22,19 +21,19 @@ class SimpleHoleResult:
     team_type: str  # "solo" or "partners"
     winners: List[str]
     points_awarded: Dict[str, int]  # player_id -> points change
-    
+
 class SimplifiedScoring:
     """
     Simplified scoring system that reduces complexity while maintaining
     core Wolf Goat Pig game mechanics.
     """
-    
+
     def __init__(self, players: List[Dict[str, Any]]):
         """Initialize with basic player information"""
         self.players = {p["id"]: {"name": p["name"], "points": 0} for p in players}
         self.hole_results: Dict[int, SimpleHoleResult] = {}
-    
-    def enter_hole_scores(self, hole_number: int, scores: Dict[str, int], 
+
+    def enter_hole_scores(self, hole_number: int, scores: Dict[str, int],
                          teams: Dict[str, Any], wager: int = 1) -> Dict[str, Any]:
         """
         Simplified hole scoring that focuses on core mechanics.
@@ -52,7 +51,7 @@ class SimplifiedScoring:
             # Validate inputs
             if not scores:
                 return {"error": "No scores provided"}
-            
+
             # Determine winners and calculate points
             if teams.get("type") == "solo":
                 result = self._calculate_solo_points(scores, teams, wager)
@@ -60,12 +59,12 @@ class SimplifiedScoring:
                 result = self._calculate_partners_points(scores, teams, wager)
             else:
                 return {"error": f"Invalid team type: {teams.get('type')}"}
-            
+
             # Update player points
             for player_id, point_change in result["points_changes"].items():
                 if player_id in self.players:
                     self.players[player_id]["points"] += point_change
-            
+
             # Store simplified hole result
             hole_result = SimpleHoleResult(
                 hole_number=hole_number,
@@ -76,7 +75,7 @@ class SimplifiedScoring:
                 points_awarded=result["points_changes"]
             )
             self.hole_results[hole_number] = hole_result
-            
+
             return {
                 "success": True,
                 "message": result.get("message", "Hole scored successfully"),
@@ -88,29 +87,29 @@ class SimplifiedScoring:
                     "wager": wager
                 }
             }
-            
+
         except Exception as e:
             logger.error(f"Error in simplified hole scoring: {e}")
             return {"error": f"Scoring failed: {str(e)}"}
-    
-    def _calculate_solo_points(self, scores: Dict[str, int], teams: Dict[str, Any], 
+
+    def _calculate_solo_points(self, scores: Dict[str, int], teams: Dict[str, Any],
                               wager: int) -> Dict[str, Any]:
         """Calculate points for solo play (one vs all others)"""
         solo_player = teams.get("solo_player")
         if not solo_player or solo_player not in scores:
             return {"error": "Invalid solo player configuration"}
-        
+
         solo_score = scores[solo_player]
-        other_players = [pid for pid in scores.keys() if pid != solo_player]
-        
+        other_players = [pid for pid in scores if pid != solo_player]
+
         if not other_players:
             return {"error": "No opponent players found"}
-        
+
         # Best opponent score
         best_opponent_score = min(scores[pid] for pid in other_players)
-        
-        points_changes = {pid: 0 for pid in scores.keys()}
-        
+
+        points_changes = dict.fromkeys(scores.keys(), 0)
+
         if solo_score < best_opponent_score:
             # Solo player wins
             points_changes[solo_player] = wager * len(other_players)
@@ -118,7 +117,7 @@ class SimplifiedScoring:
                 points_changes[opponent] = -wager
             winners = [solo_player]
             message = f"{solo_player} wins solo against {len(other_players)} opponents!"
-            
+
         elif solo_score > best_opponent_score:
             # Opponents win
             points_changes[solo_player] = -wager * len(other_players)
@@ -126,34 +125,34 @@ class SimplifiedScoring:
                 points_changes[opponent] = wager
             winners = other_players
             message = f"Opponents defeat solo player {solo_player}"
-            
+
         else:
             # Tie - no points awarded
             winners = []
             message = "Hole tied - no points awarded"
-        
+
         return {
             "points_changes": points_changes,
             "winners": winners,
             "message": message,
             "halved": len(winners) == 0
         }
-    
-    def _calculate_partners_points(self, scores: Dict[str, int], teams: Dict[str, Any], 
+
+    def _calculate_partners_points(self, scores: Dict[str, int], teams: Dict[str, Any],
                                   wager: int) -> Dict[str, Any]:
         """Calculate points for partner play (two teams of two)"""
         team1 = teams.get("team1", [])
         team2 = teams.get("team2", [])
-        
+
         if not team1 or not team2:
             return {"error": "Invalid team configuration"}
-        
+
         # Best ball scoring for each team
         team1_score = min(scores[pid] for pid in team1 if pid in scores)
         team2_score = min(scores[pid] for pid in team2 if pid in scores)
-        
-        points_changes = {pid: 0 for pid in scores.keys()}
-        
+
+        points_changes = dict.fromkeys(scores.keys(), 0)
+
         if team1_score < team2_score:
             # Team 1 wins
             for player in team1:
@@ -161,8 +160,8 @@ class SimplifiedScoring:
             for player in team2:
                 points_changes[player] = -wager
             winners = team1
-            message = f"Team 1 wins the hole"
-            
+            message = "Team 1 wins the hole"
+
         elif team2_score < team1_score:
             # Team 2 wins
             for player in team2:
@@ -170,20 +169,20 @@ class SimplifiedScoring:
             for player in team1:
                 points_changes[player] = -wager
             winners = team2
-            message = f"Team 2 wins the hole"
-            
+            message = "Team 2 wins the hole"
+
         else:
             # Tie - no points awarded
             winners = []
             message = "Hole tied - no points awarded"
-        
+
         return {
             "points_changes": points_changes,
             "winners": winners,
             "message": message,
             "halved": len(winners) == 0
         }
-    
+
     def get_game_summary(self) -> Dict[str, Any]:
         """Get a simple game summary with current standings"""
         return {
@@ -196,7 +195,7 @@ class SimplifiedScoring:
                 reverse=True
             )
         }
-    
+
     def get_hole_history(self) -> List[Dict[str, Any]]:
         """Get simplified hole-by-hole results"""
         history = []

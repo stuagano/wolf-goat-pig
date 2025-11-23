@@ -5,7 +5,7 @@ Provides specific exception types for different validation failures,
 making error handling more precise and informative.
 """
 
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 
 class ValidationError(Exception):
@@ -17,6 +17,10 @@ class ValidationError(Exception):
         field: Optional field name that failed validation
         details: Optional dictionary with additional context
     """
+
+    message: str
+    field: Optional[str]
+    details: Dict[str, Any]
 
     def __init__(
         self,
@@ -31,7 +35,7 @@ class ValidationError(Exception):
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert exception to dictionary for API responses."""
-        result = {"error": self.message}
+        result: Dict[str, Any] = {"error": self.message}
         if self.field:
             result["field"] = self.field
         if self.details:

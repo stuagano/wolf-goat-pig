@@ -1,5 +1,5 @@
-from typing import List, Dict, Optional, Any
 from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -36,8 +36,8 @@ class ShotState:
         self.current_player_index += 1
         return self.current_player_index < self._get_phase_player_count()
 
-    def add_completed_shot(self, player_id: str, shot_result: Dict[str, Any], 
-                          probabilities: Optional[Dict[str, Any]] = None):
+    def add_completed_shot(self, player_id: str, shot_result: Dict[str, Any],
+                          probabilities: Optional[Dict[str, Any]] = None) -> None:
         """Add a completed shot to the sequence"""
         shot = ShotStateEntry(
             player_id=player_id,
@@ -63,7 +63,7 @@ class ShotState:
             return self._get_next_approach_player(hitting_order)
         return None
 
-    def advance_phase(self, new_phase: str):
+    def advance_phase(self, new_phase: str) -> None:
         """Advance to a new phase of shot play"""
         self.phase = new_phase
         self.current_player_index = 0
@@ -88,11 +88,11 @@ class ShotState:
             "pending_decisions": self.pending_decisions
         }
 
-    def add_pending_decision(self, decision: Dict[str, Any]):
+    def add_pending_decision(self, decision: Dict[str, Any]) -> None:
         """Add a decision that needs to be made"""
         self.pending_decisions.append(decision)
 
-    def clear_pending_decisions(self):
+    def clear_pending_decisions(self) -> None:
         """Clear all pending decisions (after they're resolved)"""
         self.pending_decisions = []
 
@@ -154,12 +154,12 @@ class ShotState:
             "pending_decisions": self.pending_decisions
         }
 
-    def from_dict(self, data: Dict[str, Any]):
+    def from_dict(self, data: Dict[str, Any]) -> None:
         """Deserialize shot state from dictionary"""
         self.phase = data.get("phase", "tee_shots")
         self.current_player_index = data.get("current_player_index", 0)
         self.pending_decisions = data.get("pending_decisions", [])
-        
+
         # Convert completed shots back to ShotStateEntry objects
         self.completed_shots = []
         for shot_data in data.get("completed_shots", []):
@@ -169,9 +169,9 @@ class ShotState:
                 probabilities=shot_data.get("probabilities")
             )
             self.completed_shots.append(shot)
-    
+
     def __repr__(self) -> str:
         return (f"ShotState(phase='{self.phase}', "
                 f"current_player_index={self.current_player_index}, "
                 f"completed_shots={len(self.completed_shots)}, "
-                f"pending_decisions={len(self.pending_decisions)})") 
+                f"pending_decisions={len(self.pending_decisions)})")

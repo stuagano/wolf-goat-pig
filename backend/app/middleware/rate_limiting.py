@@ -4,10 +4,11 @@ Rate limiting middleware for API endpoints.
 Prevents excessive calls to expensive operations like Google Sheets sync.
 """
 
-from datetime import datetime, timedelta
-from typing import Optional, Dict
-from fastapi import HTTPException
 import logging
+from datetime import datetime, timedelta
+from typing import Dict, Optional
+
+from fastapi import HTTPException
 
 logger = logging.getLogger("app.rate_limiting")
 
@@ -89,7 +90,7 @@ class RateLimiter:
 
         return True
 
-    def reset(self, key: str, client_id: Optional[str] = None):
+    def reset(self, key: str, client_id: Optional[str] = None) -> None:
         """Reset rate limit for a specific key."""
         rate_key = f"{key}:{client_id or 'system'}"
         if rate_key in self.last_request:

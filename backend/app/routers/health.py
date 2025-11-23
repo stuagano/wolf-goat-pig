@@ -4,15 +4,17 @@ Health Check Router
 System health monitoring endpoints.
 """
 
-from fastapi import APIRouter, HTTPException
-from sqlalchemy import text
-from datetime import datetime
 import logging
 import os
+from datetime import datetime
+from typing import Any, Dict
+
+from fastapi import APIRouter, HTTPException
+from sqlalchemy import text
 
 from .. import database, models
-from ..wolf_goat_pig import WolfGoatPigGame
 from ..state.course_manager import CourseManager
+from ..wolf_goat_pig import WolfGoatPigGame
 
 logger = logging.getLogger("app.routers.health")
 
@@ -25,9 +27,9 @@ router = APIRouter(
 
 
 @router.get("/health")
-def health_check():
+def health_check() -> Dict[str, Any]:
     """Comprehensive health check endpoint verifying all critical systems"""
-    health_status = {
+    health_status: Dict[str, Any] = {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "environment": os.getenv("ENVIRONMENT", "unknown"),

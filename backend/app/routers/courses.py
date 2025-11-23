@@ -5,17 +5,18 @@ Course management and import functionality, including course CRUD operations,
 course import from external sources, and course preview functionality.
 """
 
-from fastapi import APIRouter, HTTPException, Path, UploadFile, File
-from typing import Dict, List, Any
-from datetime import datetime
-import logging
 import json
+import logging
 import traceback
+from datetime import datetime
+from typing import Any, Dict
 
+from fastapi import APIRouter, File, HTTPException, Path, UploadFile
+
+from .. import models, schemas
+from ..course_import import import_course_by_name, import_course_from_json
 from ..database import SessionLocal
 from ..state.course_manager import CourseManager
-from ..course_import import import_course_by_name, import_course_from_json
-from .. import schemas, models
 
 logger = logging.getLogger("app.routers.courses")
 
@@ -127,7 +128,7 @@ def get_courses():
 
 
 @router.get("/{course_id}")
-def get_course_by_id(course_id: int):
+def get_course_by_id(course_id: int) -> Dict[str, Any]:
     """Get a specific course by ID (index in courses list)"""
     try:
         courses = course_manager.get_courses()
@@ -151,7 +152,7 @@ def get_course_by_id(course_id: int):
 
 
 @router.post("", response_model=dict)
-def add_course(course: schemas.CourseCreate):
+def add_course(course: schemas.CourseCreate) -> Dict[str, Any]:
     """Add a new course - persists to database with Hole records"""
     db = SessionLocal()
     try:
@@ -226,7 +227,7 @@ def add_course(course: schemas.CourseCreate):
 
 
 @router.put("/{course_name}")
-def update_course(course_name: str, course_update: schemas.CourseUpdate):
+def update_course(course_name: str, course_update: schemas.CourseUpdate) -> Dict[str, Any]:
     """Update an existing course - persists to database and updates Hole records"""
     db = SessionLocal()
     try:
@@ -297,7 +298,7 @@ def update_course(course_name: str, course_update: schemas.CourseUpdate):
 
 
 @router.delete("/{course_name}")
-def delete_course(course_name: str = Path(...)):
+def delete_course(course_name: str = Path(...)) -> Dict[str, str]:
     """Delete a course - removes from database"""
     db = SessionLocal()
     try:
@@ -333,7 +334,7 @@ def delete_course(course_name: str = Path(...)):
 # Course Import Endpoints
 
 @router.post("/import/search")
-async def import_course_by_search(request: schemas.CourseImportRequest):
+async def import_course_by_search(request: schemas.CourseImportRequest) -> Dict[str, Any]:
     """Search and import a course by name"""
     try:
         result = await import_course_by_name(request.course_name, request.state, request.city)
@@ -344,7 +345,7 @@ async def import_course_by_search(request: schemas.CourseImportRequest):
 
 
 @router.post("/import/file")
-async def import_course_from_file(file: UploadFile = File(...)):
+async def import_course_from_file(file: UploadFile = File(...)) -> Dict[str, Any]:
     """Import a course from uploaded JSON file"""
     try:
         if not file.filename.endswith('.json'):
@@ -384,7 +385,7 @@ def get_import_sources():
 
 
 @router.post("/import/preview")
-async def preview_course_import(request: schemas.CourseImportRequest):
+async def preview_course_import(request: schemas.CourseImportRequest) -> Dict[str, Any]:
     """Preview course data before importing"""
     try:
         # This would typically search the external database and return preview data

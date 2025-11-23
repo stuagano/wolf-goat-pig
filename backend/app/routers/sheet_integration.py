@@ -6,18 +6,19 @@ Google Sheets integration endpoints for syncing player data and leaderboards.
 Rate limited to prevent excessive API calls.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Header
-from sqlalchemy.orm import Session
-from typing import List, Dict, Optional
-from datetime import datetime
 import logging
-import httpx
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from ..database import get_db
+import httpx
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from sqlalchemy.orm import Session
+
 from .. import models, schemas
-from ..services.player_service import PlayerService
-from ..middleware.rate_limiting import rate_limiter
+from ..database import get_db
 from ..middleware.caching import sheet_sync_cache
+from ..middleware.rate_limiting import rate_limiter
+from ..services.player_service import PlayerService
 
 logger = logging.getLogger("app.routers.sheet_integration")
 
@@ -32,7 +33,7 @@ router = APIRouter(
 async def analyze_sheet_structure(
     sheet_headers: List[str],
     db: Session = Depends(get_db)
-):
+) -> Dict[str, Any]:
     """
     Analyze Google Sheets structure and suggest column mappings.
 
@@ -59,7 +60,7 @@ async def analyze_sheet_structure(
             elif 'date' in header_lower:
                 mapping["db_field"] = "last_played"
             else:
-                mapping["db_field"] = None
+                mapping["db_field"] = ""
 
             column_mappings.append(mapping)
 
@@ -80,7 +81,7 @@ async def analyze_sheet_structure(
 async def create_leaderboard_from_sheet(
     sheet_data: List[Dict],
     db: Session = Depends(get_db)
-):
+) -> Dict[str, Any]:
     """
     Transform Google Sheets data into leaderboard format.
 
@@ -90,7 +91,7 @@ async def create_leaderboard_from_sheet(
         from ..services.leaderboard_service import LeaderboardService
 
         leaderboard_service = LeaderboardService(db)
-        leaderboard = leaderboard_service.create_from_sheet_data(sheet_data)
+        leaderboard = leaderboard_service.create_from_sheet_data(sheet_data)  # type: ignore[attr-defined]
 
         return {
             "leaderboard": leaderboard,
@@ -109,7 +110,7 @@ async def create_leaderboard_from_sheet(
 async def sync_sheet_data(
     request: Dict,
     db: Session = Depends(get_db)
-):
+) -> Dict[str, Any]:
     """
     Generic sheet data sync endpoint.
 
@@ -119,9 +120,9 @@ async def sync_sheet_data(
         from ..services.sheet_integration_service import SheetIntegrationService
 
         sheet_service = SheetIntegrationService(db)
-        result = await sheet_service.sync_data(request)
+        result = await sheet_service.sync_data(request)  # type: ignore[attr-defined]
 
-        return result
+        return dict(result)
 
     except Exception as e:
         logger.error(f"Error syncing sheet data: {e}")
@@ -134,7 +135,7 @@ async def sync_sheet_data(
 def export_current_data_for_sheet(
     sheet_headers: List[str] = Query(...),
     db: Session = Depends(get_db)
-):
+) -> Dict[str, Any]:
     """
     Export current database data in sheet format.
 
@@ -144,7 +145,7 @@ def export_current_data_for_sheet(
         from ..services.leaderboard_service import LeaderboardService
 
         leaderboard_service = LeaderboardService(db)
-        export_data = leaderboard_service.export_for_sheets(sheet_headers)
+        export_data = leaderboard_service.export_for_sheets(sheet_headers)  # type: ignore[attr-defined]
 
         return {
             "data": export_data,
@@ -165,7 +166,7 @@ async def sync_wgp_sheet_data(
     request: Dict[str, str],
     db: Session = Depends(get_db),
     x_scheduled_job: Optional[str] = Header(None)
-):
+) -> Dict[str, Any]:
     """
     Sync Wolf Goat Pig specific sheet data format.
 
@@ -194,9 +195,8 @@ async def sync_wgp_sheet_data(
         cached_result = sheet_sync_cache.get(cache_key)
         if cached_result:
             logger.info(f"Returning cached sheet sync data (CSV: {csv_url[:50]}...)")
-            return cached_result
+            return dict(cached_result)
 
-        from collections import defaultdict
 
         # Fetch the CSV data (follow redirects for Google Sheets export URLs)
         async with httpx.AsyncClient(follow_redirects=True) as client:
@@ -272,11 +272,11 @@ async def sync_wgp_sheet_data(
                 if player_name not in player_stats:
                     player_stats[player_name] = {
                         "quarters": 0,
-                        "average": 0,
+                        "average": 0.0,
                         "rounds": 0,
                         "qb": 0,
                         "games_won": 0,
-                        "total_earnings": 0
+                        "total_earnings": 0.0
                     }
 
                 # Map the sheet columns to our data model
@@ -345,7 +345,7 @@ async def sync_wgp_sheet_data(
 
         # Create/update players in database
         player_service = PlayerService(db)
-        sync_results = {
+        sync_results: Dict[str, Any] = {
             "players_processed": 0,
             "players_created": 0,
             "players_updated": 0,
@@ -482,7 +482,7 @@ async def sync_wgp_sheet_data(
 
 
 @router.post("/fetch-google-sheet")
-async def fetch_google_sheet(request: Dict[str, str]):
+async def fetch_google_sheet(request: Dict[str, str]) -> Dict[str, Any]:
     """
     Fetch raw data from Google Sheets.
 
@@ -535,7 +535,7 @@ async def fetch_google_sheet(request: Dict[str, str]):
 
 
 @router.post("/compare-data")
-async def compare_sheet_to_db_data(request: Dict, db: Session = Depends(get_db)):
+async def compare_sheet_to_db_data(request: Dict, db: Session = Depends(get_db)) -> Dict[str, Any]:
     """
     Compare Google Sheets data with current database data.
 
@@ -549,7 +549,7 @@ async def compare_sheet_to_db_data(request: Dict, db: Session = Depends(get_db))
             raise HTTPException(status_code=400, detail="Sheet data is required")
 
         leaderboard_service = LeaderboardService(db)
-        comparison = leaderboard_service.compare_with_sheet(sheet_data)
+        comparison = leaderboard_service.compare_with_sheet(sheet_data)  # type: ignore[attr-defined]
 
         return {
             "comparison": comparison,

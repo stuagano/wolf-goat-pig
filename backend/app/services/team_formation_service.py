@@ -3,17 +3,16 @@ Random team formation service for creating balanced 4-player groups from daily s
 Handles scenarios where more than 4 players are signed up for a given day.
 """
 
-from typing import List, Dict, Optional, Tuple
-from random import Random, SystemRandom
 import logging
 from datetime import datetime
-from itertools import combinations
+from random import Random, SystemRandom
+from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 class TeamFormationService:
     """Service for creating random team formations from daily signups."""
-    
+
     @staticmethod
     def generate_random_teams(
         players: List[Dict],
@@ -35,7 +34,7 @@ class TeamFormationService:
         if len(players) < 4:
             logger.warning(f"Not enough players for team formation: {len(players)} < 4")
             return []
-        
+
         # Build a local random number generator so we don't mutate global state
         if rng is not None:
             local_rng = rng
@@ -48,15 +47,15 @@ class TeamFormationService:
         # Create a copy to avoid modifying original list
         available_players = players.copy()
         local_rng.shuffle(available_players)
-        
+
         teams = []
         team_number = 1
-        
+
         # Create teams of 4 players
         while len(available_players) >= 4:
             team_players = available_players[:4]
             available_players = available_players[4:]
-            
+
             team = {
                 "team_id": team_number,
                 "players": team_players,
@@ -65,17 +64,17 @@ class TeamFormationService:
             }
             teams.append(team)
             team_number += 1
-            
+
             # Check if we've reached max teams limit
             if max_teams and len(teams) >= max_teams:
                 break
-        
+
         # Log remaining players who couldn't form a complete team
         if available_players:
             logger.info(f"Remaining players not assigned to teams: {len(available_players)}")
-        
+
         return teams
-    
+
     @staticmethod
     def create_team_pairings_with_rotations(
         players: List[Dict],
@@ -95,9 +94,9 @@ class TeamFormationService:
         """
         if len(players) < 4:
             return []
-        
+
         rotations = []
-        
+
         if seed is not None:
             rotation_seed_generator = Random(seed)
         else:
@@ -113,7 +112,7 @@ class TeamFormationService:
                 max_teams=None,
                 rng=rotation_rng
             )
-            
+
             if teams:
                 rotations.append({
                     "rotation_number": rotation + 1,
@@ -122,9 +121,9 @@ class TeamFormationService:
                     "total_teams": len(teams),
                     "total_players_assigned": len(teams) * 4
                 })
-        
+
         return rotations
-    
+
     @staticmethod
     def generate_balanced_teams(
         players: List[Dict],
@@ -144,7 +143,7 @@ class TeamFormationService:
         """
         if len(players) < 4:
             return []
-        
+
         # Use deterministic randomness when we need to shuffle similarly skilled players
         if seed is not None:
             balancing_rng = Random(seed)
@@ -170,10 +169,10 @@ class TeamFormationService:
         # Combine lists and sort by skill
         all_players = players_with_skill + players_without_skill
         all_players.sort(key=lambda p: p.get(skill_key, 18.0))
-        
+
         teams = []
         team_number = 1
-        
+
         # Snake draft approach for balanced teams
         while len(all_players) >= 4:
             # Take players from different skill levels
@@ -181,7 +180,7 @@ class TeamFormationService:
                 # Take best, worst, middle-low, middle-high
                 team_players = [
                     all_players.pop(0),      # Best player
-                    all_players.pop(-1),     # Worst player  
+                    all_players.pop(-1),     # Worst player
                     all_players.pop(len(all_players)//2),  # Middle player
                     all_players.pop(len(all_players)//2)   # Another middle player
                 ]
@@ -189,10 +188,10 @@ class TeamFormationService:
                 # Just take first 4 remaining players
                 team_players = all_players[:4]
                 all_players = all_players[4:]
-            
+
             # Calculate team average handicap
             team_avg_handicap = sum(p.get(skill_key, 18.0) for p in team_players) / 4
-            
+
             team = {
                 "team_id": team_number,
                 "players": team_players,
@@ -202,9 +201,9 @@ class TeamFormationService:
             }
             teams.append(team)
             team_number += 1
-        
+
         return teams
-    
+
     @staticmethod
     def create_team_summary(teams: List[Dict]) -> Dict:
         """
@@ -223,10 +222,10 @@ class TeamFormationService:
                 "formation_method": None,
                 "created_at": datetime.now().isoformat()
             }
-        
+
         total_players = sum(len(team["players"]) for team in teams)
         formation_method = teams[0].get("formation_method", "unknown")
-        
+
         summary = {
             "total_teams": len(teams),
             "total_players_assigned": total_players,
@@ -234,7 +233,7 @@ class TeamFormationService:
             "created_at": datetime.now().isoformat(),
             "teams": teams
         }
-        
+
         # Add average handicap info if available
         if formation_method == "balanced":
             handicaps = [team.get("average_handicap") for team in teams if team.get("average_handicap")]
@@ -244,9 +243,9 @@ class TeamFormationService:
                     "min": min(handicaps),
                     "max": max(handicaps)
                 }
-        
+
         return summary
-    
+
     @staticmethod
     def validate_team_formation(teams: List[Dict]) -> Dict:
         """
@@ -263,13 +262,13 @@ class TeamFormationService:
             "errors": [],
             "warnings": []
         }
-        
+
         # Check each team has exactly 4 players
         for i, team in enumerate(teams):
             if len(team["players"]) != 4:
                 validation["is_valid"] = False
                 validation["errors"].append(f"Team {i+1} has {len(team['players'])} players, expected 4")
-        
+
         # Check for duplicate players across teams
         all_player_ids = []
         for team in teams:
@@ -279,10 +278,10 @@ class TeamFormationService:
                     validation["is_valid"] = False
                     validation["errors"].append(f"Player ID {player_id} appears in multiple teams")
                 all_player_ids.append(player_id)
-        
+
         # Check team formation timestamp consistency
         creation_times = [team.get("created_at") for team in teams if team.get("created_at")]
         if len(set(creation_times)) > 1:
             validation["warnings"].append("Teams have different creation timestamps")
-        
+
         return validation

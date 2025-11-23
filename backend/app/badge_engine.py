@@ -4,15 +4,20 @@ Detects when players earn badges and manages badge awarding logic.
 """
 
 from datetime import datetime
+from typing import Any, Callable, Dict, List, Optional, cast
+
+from sqlalchemy import and_
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, func
-from typing import List, Dict, Any, Optional
-import json
 
 from .models import (
-    Badge, PlayerBadgeEarned, BadgeProgress, BadgeSeries,
-    PlayerSeriesProgress, SeasonalBadge, PlayerStatistics,
-    GameRecord, GamePlayerResult, PlayerProfile
+    Badge,
+    BadgeProgress,
+    BadgeSeries,
+    GamePlayerResult,
+    GameRecord,
+    PlayerBadgeEarned,
+    PlayerSeriesProgress,
+    PlayerStatistics,
 )
 
 
@@ -23,7 +28,7 @@ class BadgeEngine:
         self.db = db
         self.badge_checkers = self._initialize_badge_checkers()
 
-    def _initialize_badge_checkers(self) -> Dict[str, callable]:
+    def _initialize_badge_checkers(self) -> Dict[str, Callable[..., Any]]:
         """Map badge trigger types to their checker functions"""
         return {
             # Achievement Badges - One-time unlocks
@@ -70,7 +75,7 @@ class BadgeEngine:
         Check all possible badge achievements after a game completes.
         Returns list of newly earned badges.
         """
-        earned_badges = []
+        earned_badges: List[PlayerBadgeEarned] = []
 
         # Get game data
         game_record = self.db.query(GameRecord).filter_by(id=game_record_id).first()
@@ -162,7 +167,7 @@ class BadgeEngine:
     def _check_first_solo_win(self, player_id: int, stats: PlayerStatistics,
                              result: GamePlayerResult, game: GameRecord, badge: Badge) -> bool:
         """Badge: Lone Wolf - Win your first solo hole"""
-        return stats.solo_wins >= 1
+        return bool(stats.solo_wins >= 1)
 
     def _check_triple_solo_streak(self, player_id: int, stats: PlayerStatistics,
                                   result: GamePlayerResult, game: GameRecord, badge: Badge) -> bool:
@@ -187,7 +192,7 @@ class BadgeEngine:
     def _check_career_solo_50(self, player_id: int, stats: PlayerStatistics,
                              result: GamePlayerResult, game: GameRecord, badge: Badge) -> bool:
         """Badge: Wolf Pack Leader - Win 50 solo holes (career)"""
-        return stats.solo_wins >= 50
+        return bool(stats.solo_wins >= 50)
 
     def _check_solo_all_18(self, player_id: int, stats: PlayerStatistics,
                           result: GamePlayerResult, game: GameRecord, badge: Badge) -> bool:
@@ -213,14 +218,14 @@ class BadgeEngine:
                                 result: GamePlayerResult, game: GameRecord, badge: Badge) -> bool:
         """Badge: Dynamic Duo - Win 5 partnership holes with same partner"""
         # This would need more complex tracking - simplified here
-        return stats.partnerships_won >= 5
+        return bool(stats.partnerships_won >= 5)
 
     def _check_perfect_partnership_rate(self, player_id: int, stats: PlayerStatistics,
                                        result: GamePlayerResult, game: GameRecord, badge: Badge) -> bool:
         """Badge: Perfect Partnership - 100% partnership success rate (min 10 holes)"""
         if stats.partnerships_formed < 10:
             return False
-        return stats.partnership_success_rate >= 1.0
+        return bool(stats.partnership_success_rate >= 1.0)
 
     def _check_partnership_streak_20(self, player_id: int, stats: PlayerStatistics,
                                     result: GamePlayerResult, game: GameRecord, badge: Badge) -> bool:
@@ -247,14 +252,14 @@ class BadgeEngine:
     def _check_big_earner_100(self, player_id: int, stats: PlayerStatistics,
                             result: GamePlayerResult, game: GameRecord, badge: Badge) -> bool:
         """Badge: The Gambler - Win 100 quarters in a single game"""
-        return result.total_earnings >= 100
+        return bool(result.total_earnings >= 100)
 
     def _check_karl_marx_50(self, player_id: int, stats: PlayerStatistics,
                           result: GamePlayerResult, game: GameRecord, badge: Badge) -> bool:
         """Badge: Karl Marx's Favorite - Receive 50 quarters via Karl Marx rule (career)"""
         # Would need specific tracking in progress_data
         progress = self._get_or_create_progress(player_id, badge.id)
-        return progress.current_progress >= 50
+        return bool(progress.current_progress >= 50)
 
     def _check_hole_in_one(self, player_id: int, stats: PlayerStatistics,
                          result: GamePlayerResult, game: GameRecord, badge: Badge) -> bool:
@@ -268,14 +273,14 @@ class BadgeEngine:
     def _check_perfect_game(self, player_id: int, stats: PlayerStatistics,
                           result: GamePlayerResult, game: GameRecord, badge: Badge) -> bool:
         """Badge: Perfect Game - Win every hole in a game"""
-        return result.holes_won >= 18
+        return bool(result.holes_won >= 18)
 
     def _check_comeback_20(self, player_id: int, stats: PlayerStatistics,
                          result: GamePlayerResult, game: GameRecord, badge: Badge) -> bool:
         """Badge: Lazarus - Come back from 20+ quarters down to win"""
         performance_metrics = result.performance_metrics or {}
         max_deficit = performance_metrics.get('max_deficit', 0)
-        return max_deficit >= 20 and result.final_position == 1
+        return bool(max_deficit >= 20 and result.final_position == 1)
 
     # ====================================================================================
     # PROGRESSION BADGES - Career Milestones
@@ -285,19 +290,19 @@ class BadgeEngine:
                                  result: GamePlayerResult, game: GameRecord, badge: Badge) -> bool:
         """Check career earnings milestones (Bronze: 100, Silver: 500, Gold: 2000, etc.)"""
         threshold = badge.trigger_condition.get('earnings_threshold', 0)
-        return stats.total_earnings >= threshold
+        return bool(stats.total_earnings >= threshold)
 
     def _check_games_played_milestone(self, player_id: int, stats: PlayerStatistics,
                                      result: GamePlayerResult, game: GameRecord, badge: Badge) -> bool:
         """Check games played milestones"""
         threshold = badge.trigger_condition.get('games_threshold', 0)
-        return stats.games_played >= threshold
+        return bool(stats.games_played >= threshold)
 
     def _check_holes_won_milestone(self, player_id: int, stats: PlayerStatistics,
                                   result: GamePlayerResult, game: GameRecord, badge: Badge) -> bool:
         """Check holes won milestones"""
         threshold = badge.trigger_condition.get('holes_threshold', 0)
-        return stats.holes_won >= threshold
+        return bool(stats.holes_won >= threshold)
 
     def _check_win_rate_badge(self, player_id: int, stats: PlayerStatistics,
                             result: GamePlayerResult, game: GameRecord, badge: Badge) -> bool:
@@ -307,7 +312,7 @@ class BadgeEngine:
 
         win_rate_threshold = badge.trigger_condition.get('win_rate', 0)
         actual_win_rate = stats.holes_won / stats.holes_played if stats.holes_played > 0 else 0
-        return actual_win_rate >= win_rate_threshold
+        return bool(actual_win_rate >= win_rate_threshold)
 
     # ====================================================================================
     # SERIES BADGES - Four Horsemen
@@ -332,7 +337,7 @@ class BadgeEngine:
         progress.updated_at = datetime.utcnow().isoformat()
         self.db.commit()
 
-        return progress.current_progress >= 10
+        return bool(progress.current_progress >= 10)
 
     def _check_four_horsemen_famine(self, player_id: int, stats: PlayerStatistics,
                                    result: GamePlayerResult, game: GameRecord, badge: Badge) -> bool:
@@ -417,7 +422,7 @@ class BadgeEngine:
                 PlayerBadgeEarned.badge_id == badge_id
             )
         ).count()
-        return count > 0
+        return bool(count > 0)
 
     def _get_or_create_progress(self, player_profile_id: int, badge_id: int) -> BadgeProgress:
         """Get or create badge progress tracking"""
@@ -445,14 +450,14 @@ class BadgeEngine:
             self.db.commit()
             self.db.refresh(progress)
 
-        return progress
+        return cast('BadgeProgress', progress)
 
-    def _update_progression_badges(self, player_profile_id: int, stats: PlayerStatistics):
+    def _update_progression_badges(self, player_profile_id: int, stats: PlayerStatistics) -> None:
         """Update progress for all progression badges"""
         progression_badges = self.db.query(Badge).filter(
             and_(
-                NFTBadge.trigger_type == 'career_milestone',
-                NFTBadge.is_active == True
+                Badge.trigger_type == 'career_milestone',
+                Badge.is_active == True
             )
         ).all()
 
@@ -484,7 +489,7 @@ class BadgeEngine:
             progress.updated_at = datetime.utcnow().isoformat()
             self.db.commit()
 
-    def _check_series_completion(self, player_profile_id: int, newly_earned_badge: Badge):
+    def _check_series_completion(self, player_profile_id: int, newly_earned_badge: Badge) -> None:
         """Check if earning this badge completes a series"""
         if not newly_earned_badge.series_id:
             return

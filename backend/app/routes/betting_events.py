@@ -1,7 +1,8 @@
 # backend/app/routes/betting_events.py
+from typing import Any, Dict, List
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import List, Any, Dict
 
 router = APIRouter()
 
@@ -34,7 +35,7 @@ class BettingEventsResponse(BaseModel):
     corrections: List[Dict[str, Any]] = []
 
 @router.post("/api/games/{game_id}/betting-events", response_model=BettingEventsResponse)
-async def create_betting_events(game_id: str, payload: BettingEventsPayload):
+async def create_betting_events(game_id: str, payload: BettingEventsPayload) -> BettingEventsResponse:
     """
     Store betting events for a game.
     Validates event types and returns confirmed event IDs.

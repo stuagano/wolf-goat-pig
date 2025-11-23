@@ -19,11 +19,12 @@ Notification types supported:
 - hole_complete: Hole has been completed
 """
 
-from fastapi import HTTPException
-from typing import List, Optional, Dict, Any
-from sqlalchemy.orm import Session
-from datetime import datetime
 import logging
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from fastapi import HTTPException
+from sqlalchemy.orm import Session
 
 from ..models import Notification
 

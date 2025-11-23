@@ -5,7 +5,6 @@ Validates all betting-related rules including doubles, Duncan, carry-overs,
 and wager calculations.
 """
 
-from typing import Optional
 from .exceptions import BettingValidationError
 
 

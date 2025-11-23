@@ -2,20 +2,16 @@
 API Routes for Achievement Badge System
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, desc, func
-from typing import List, Optional, Dict, Any
-from pydantic import BaseModel
-from datetime import datetime
+from typing import List, Optional
 
-from .database import get_db
-from .models import (
-    Badge, PlayerBadgeEarned, BadgeProgress, BadgeSeries,
-    PlayerSeriesProgress, SeasonalBadge,
-    PlayerProfile, PlayerStatistics
-)
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy import and_, desc, func
+from sqlalchemy.orm import Session
+
 from .badge_engine import BadgeEngine
+from .database import get_db
+from .models import Badge, BadgeProgress, BadgeSeries, PlayerBadgeEarned, PlayerProfile, PlayerSeriesProgress
 
 router = APIRouter(prefix="/api/badges", tags=["badges"])
 

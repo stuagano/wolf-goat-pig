@@ -9,15 +9,16 @@ This service handles all game lifecycle operations including:
 - Game cleanup operations
 """
 
-from fastapi import HTTPException
-from typing import List, Optional, Dict, Any, Tuple
-from sqlalchemy.orm import Session
-import uuid
 import logging
+import uuid
 from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
 
-from ..wolf_goat_pig import WolfGoatPigGame, Player
+from fastapi import HTTPException
+from sqlalchemy.orm import Session
+
 from ..models import GameStateModel
+from ..wolf_goat_pig import Player, WolfGoatPigGame
 
 logger = logging.getLogger(__name__)
 
@@ -203,7 +204,7 @@ class GameLifecycleService:
             # Reconstruct simulation from database state
             # Initialize game engine (will load state from DB via PersistenceMixin)
             game = WolfGoatPigGame(game_id=game_id)
-            
+
             # Verify the game was loaded successfully
             if not hasattr(game, '_loaded_from_db') or not game._loaded_from_db:
                 logger.error(f"Failed to load game {game_id} from database")
@@ -317,7 +318,7 @@ class GameLifecycleService:
             if game_record.game_status != "in_progress":
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Can only pause games that are in progress"
+                    detail="Can only pause games that are in progress"
                 )
 
             # Update status
@@ -373,7 +374,7 @@ class GameLifecycleService:
             if game_record.game_status != "paused":
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Can only resume games that are paused"
+                    detail="Can only resume games that are paused"
                 )
 
             # Update status

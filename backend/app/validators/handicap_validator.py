@@ -7,8 +7,8 @@ Player, StrokeAdvantage, and various service classes.
 """
 
 import logging
-import warnings
-from typing import List, Dict, Any, Optional, Union
+from typing import Any, Dict, List, Optional, Union
+
 from .exceptions import HandicapValidationError
 
 logger = logging.getLogger(__name__)
@@ -67,7 +67,7 @@ class HandicapValidator:
             # Validate handicap range using existing validator
             HandicapValidator.validate_handicap(handicap_float)
             return handicap_float
-        except (ValueError, TypeError) as e:
+        except (ValueError, TypeError):
             if player_name:
                 logger.warning(f"Invalid handicap for {player_name}, using {DEFAULT_HANDICAP}")
             else:
@@ -202,7 +202,7 @@ class HandicapValidator:
 
         full_handicap = int(course_handicap)
         fractional_part = course_handicap - full_handicap
-        
+
         total_strokes = 0.0
 
         # --- Base Allocation (First 18 strokes) ---
@@ -236,14 +236,14 @@ class HandicapValidator:
             extra_full_strokes = full_handicap - 18
             # Convert to half strokes: 1 extra stroke = 2 half strokes
             extra_half_strokes = extra_full_strokes * 2
-            
+
             # Distribute extra half strokes wrapping around from 1
             # Each pass through 1-18 consumes 18 half strokes
-            
+
             # Full passes (0.5 added to all holes)
             full_passes = extra_half_strokes // 18
             total_strokes += full_passes * 0.5
-            
+
             # Remaining half strokes
             remainder = extra_half_strokes % 18
             if stroke_index <= remainder:
@@ -256,12 +256,12 @@ class HandicapValidator:
         # Or does it just apply to hole (full_handicap + 1)?
         # Given the wrap-around logic for >18, "next hole" is complex.
         # Simple interpretation: Treat fractional as one more "half stroke" in the sequence.
-        
+
         if fractional_part >= 0.5:
             # Determine which hole gets the fractional half stroke
             # For H <= 18, it's hole (full_handicap + 1)
             # For H > 18, it's the next hole in the extra_half_strokes sequence
-            
+
             target_hole = 0
             if full_handicap < 18:
                 target_hole = full_handicap + 1
@@ -273,7 +273,7 @@ class HandicapValidator:
                 # The fractional half stroke goes to the hole at position (extra_halves + 1)
                 # wrapped around 1-18
                 target_hole = (extra_halves % 18) + 1
-            
+
             if stroke_index == target_hole:
                 total_strokes += 0.5
 
