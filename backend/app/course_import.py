@@ -28,7 +28,7 @@ class CourseImportData:
     total_yards: int = 0
     course_rating: Optional[float] = None
     slope_rating: Optional[float] = None
-    holes_data: List[Dict[str, Any]] = None
+    holes_data: Optional[List[Dict[str, Any]]] = None
     source: str = "unknown"
     last_updated: Optional[str] = None
     location: Optional[str] = None
@@ -51,7 +51,7 @@ class CourseImporter:
             "thegrint_api_key": os.getenv("THEGRINT_API_KEY", "")
         }
     
-    async def import_course_by_name(self, course_name: str, state: str = None, city: str = None) -> Optional[CourseImportData]:
+    async def import_course_by_name(self, course_name: str, state: Optional[str] = None, city: Optional[str] = None) -> Optional[CourseImportData]:
         """
         Import course data by name, trying multiple sources
         
@@ -86,7 +86,7 @@ class CourseImporter:
         logger.error(f"Failed to import course {course_name} from any source")
         return None
     
-    async def _try_usga_search(self, course_name: str, state: str = None, city: str = None) -> Optional[CourseImportData]:
+    async def _try_usga_search(self, course_name: str, state: Optional[str] = None, city: Optional[str] = None) -> Optional[CourseImportData]:
         """Search USGA course database"""
         if not self.api_keys["usga_api_key"]:
             logger.warning("USGA API key not configured")
@@ -117,7 +117,7 @@ class CourseImporter:
         
         return None
     
-    async def _try_ghin_search(self, course_name: str, state: str = None, city: str = None) -> Optional[CourseImportData]:
+    async def _try_ghin_search(self, course_name: str, state: Optional[str] = None, city: Optional[str] = None) -> Optional[CourseImportData]:
         """Search GHIN course database"""
         try:
             # GHIN course search endpoint
@@ -144,7 +144,7 @@ class CourseImporter:
         
         return None
     
-    async def _try_golf_now_search(self, course_name: str, state: str = None, city: str = None) -> Optional[CourseImportData]:
+    async def _try_golf_now_search(self, course_name: str, state: Optional[str] = None, city: Optional[str] = None) -> Optional[CourseImportData]:
         """Search GolfNow course database"""
         if not self.api_keys["golf_now_api_key"]:
             logger.warning("GolfNow API key not configured")
@@ -179,7 +179,7 @@ class CourseImporter:
         
         return None
     
-    async def _try_thegrint_search(self, course_name: str, state: str = None, city: str = None) -> Optional[CourseImportData]:
+    async def _try_thegrint_search(self, course_name: str, state: Optional[str] = None, city: Optional[str] = None) -> Optional[CourseImportData]:
         """Search TheGrint course database"""
         if not self.api_keys["thegrint_api_key"]:
             logger.warning("TheGrint API key not configured")
@@ -233,7 +233,7 @@ class CourseImporter:
             total_yards += hole.get("yards", 0)
         
         return CourseImportData(
-            name=course_data.get("name"),
+            name=course_data.get("name", "Unknown Course"),
             description=course_data.get("description"),
             total_par=course_data.get("total_par", 72),
             total_yards=total_yards,
@@ -266,7 +266,7 @@ class CourseImporter:
             total_yards += hole.get("yards", 0)
         
         return CourseImportData(
-            name=course_data.get("name"),
+            name=course_data.get("name", "Unknown Course"),
             description=course_data.get("description"),
             total_par=course_data.get("total_par", 72),
             total_yards=total_yards,
@@ -299,7 +299,7 @@ class CourseImporter:
             total_yards += hole.get("yards", 0)
         
         return CourseImportData(
-            name=course_data.get("name"),
+            name=course_data.get("name", "Unknown Course"),
             description=course_data.get("description"),
             total_par=course_data.get("total_par", 72),
             total_yards=total_yards,
@@ -332,7 +332,7 @@ class CourseImporter:
             total_yards += hole.get("yards", 0)
         
         return CourseImportData(
-            name=course_data.get("name"),
+            name=course_data.get("name", "Unknown Course"),
             description=course_data.get("description"),
             total_par=course_data.get("total_par", 72),
             total_yards=total_yards,
@@ -435,7 +435,7 @@ class CourseImporter:
         await self.session.aclose()
 
 # Convenience functions for easy use
-async def import_course_by_name(course_name: str, state: str = None, city: str = None) -> Optional[CourseImportData]:
+async def import_course_by_name(course_name: str, state: Optional[str] = None, city: Optional[str] = None) -> Optional[CourseImportData]:
     """Import a course by name from external sources"""
     importer = CourseImporter()
     try:
