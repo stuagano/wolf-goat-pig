@@ -6,7 +6,7 @@ Player profile management, statistics, analytics, availability, and preferences.
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from sqlalchemy.orm import Session
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from datetime import datetime
 import logging
 
@@ -26,7 +26,7 @@ router = APIRouter(
 # Player Profile CRUD Endpoints
 
 @router.post("", response_model=schemas.PlayerProfileResponse)
-def create_player_profile(profile: schemas.PlayerProfileCreate):
+def create_player_profile(profile: schemas.PlayerProfileCreate) -> schemas.PlayerProfileResponse:
     """Create a new player profile."""
     try:
         db = SessionLocal()
@@ -47,7 +47,7 @@ def create_player_profile(profile: schemas.PlayerProfileCreate):
 
 
 @router.get("", response_model=List[schemas.PlayerProfileResponse])
-def get_all_player_profiles(active_only: bool = Query(True, description="Return only active profiles")):
+def get_all_player_profiles(active_only: bool = Query(True, description="Return only active profiles")) -> List[schemas.PlayerProfileResponse]:
     """Get all player profiles."""
     try:
         db = SessionLocal()
@@ -65,7 +65,7 @@ def get_all_player_profiles(active_only: bool = Query(True, description="Return 
 
 
 @router.get("/{player_id}", response_model=schemas.PlayerProfileResponse)
-def get_player_profile(player_id: int):
+def get_player_profile(player_id: int) -> schemas.PlayerProfileResponse:
     """Get a specific player profile."""
     try:
         db = SessionLocal()
@@ -87,7 +87,7 @@ def get_player_profile(player_id: int):
 
 
 @router.put("/{player_id}", response_model=schemas.PlayerProfileResponse)
-def update_player_profile(player_id: int, profile_update: schemas.PlayerProfileUpdate):
+def update_player_profile(player_id: int, profile_update: schemas.PlayerProfileUpdate) -> schemas.PlayerProfileResponse:
     """Update a player profile."""
     try:
         db = SessionLocal()
@@ -113,7 +113,7 @@ def update_player_profile(player_id: int, profile_update: schemas.PlayerProfileU
 
 
 @router.delete("/{player_id}")
-def delete_player_profile(player_id: int):
+def delete_player_profile(player_id: int) -> Dict[str, str]:
     """Delete (deactivate) a player profile."""
     try:
         db = SessionLocal()
@@ -148,7 +148,7 @@ def get_all_players(
 
 
 @router.get("/name/{player_name}", response_model=schemas.PlayerProfileResponse)
-def get_player_profile_by_name(player_name: str):
+def get_player_profile_by_name(player_name: str) -> schemas.PlayerProfileResponse:
     """Get a player profile by name."""
     try:
         db = SessionLocal()
@@ -172,7 +172,7 @@ def get_player_profile_by_name(player_name: str):
 # Player Statistics Endpoints
 
 @router.get("/{player_id}/statistics", response_model=schemas.PlayerStatisticsResponse)
-def get_player_statistics(player_id: int):
+def get_player_statistics(player_id: int) -> schemas.PlayerStatisticsResponse:
     """Get player statistics."""
     try:
         db = SessionLocal()
@@ -194,7 +194,7 @@ def get_player_statistics(player_id: int):
 
 
 @router.get("/{player_id}/analytics", response_model=schemas.PlayerPerformanceAnalytics)
-def get_player_analytics(player_id: int):
+def get_player_analytics(player_id: int) -> schemas.PlayerPerformanceAnalytics:
     """Get comprehensive player performance analytics."""
     try:
         db = SessionLocal()
@@ -216,7 +216,7 @@ def get_player_analytics(player_id: int):
 
 
 @router.get("/{player_id}/profile-with-stats", response_model=schemas.PlayerProfileWithStats)
-def get_player_profile_with_stats(player_id: int):
+def get_player_profile_with_stats(player_id: int) -> schemas.PlayerProfileWithStats:
     """Get player profile combined with statistics and achievements."""
     try:
         db = SessionLocal()
@@ -243,7 +243,7 @@ def get_player_profile_with_stats(player_id: int):
             )
         
         # Get recent achievements (would need to implement this query)
-        recent_achievements = []  # Placeholder
+        recent_achievements: List[Any] = []  # Placeholder
         
         return schemas.PlayerProfileWithStats(
             profile=profile,
@@ -263,7 +263,7 @@ def get_player_profile_with_stats(player_id: int):
 # Advanced Analytics Endpoints
 
 @router.get("/{player_id}/advanced-metrics")
-def get_player_advanced_metrics(player_id: int):
+def get_player_advanced_metrics(player_id: int) -> Dict[str, Any]:
     """Get advanced performance metrics for a player."""
     try:
         db = SessionLocal()
@@ -287,9 +287,9 @@ def get_player_advanced_metrics(player_id: int):
 
 @router.get("/{player_id}/trends")
 def get_player_trends(
-    player_id: int, 
+    player_id: int,
     days: int = Query(30, ge=7, le=365, description="Number of days to analyze")
-):
+) -> Dict[str, Any]:
     """Get performance trends for a player."""
     try:
         db = SessionLocal()
@@ -313,7 +313,7 @@ def get_player_trends(
 
 
 @router.get("/{player_id}/insights")
-def get_player_insights(player_id: int):
+def get_player_insights(player_id: int) -> Dict[str, Any]:
     """Get personalized insights and recommendations for a player."""
     try:
         db = SessionLocal()
@@ -336,7 +336,7 @@ def get_player_insights(player_id: int):
 
 
 @router.get("/{player_id}/skill-rating")
-def get_player_skill_rating(player_id: int):
+def get_player_skill_rating(player_id: int) -> Dict[str, Any]:
     """Get skill rating for a player."""
     try:
         db = SessionLocal()
@@ -361,7 +361,7 @@ def get_player_skill_rating(player_id: int):
 # Player Availability Endpoints
 
 @router.get("/me/availability", response_model=List[schemas.PlayerAvailabilityResponse])
-async def get_my_availability(current_user: models.PlayerProfile = Depends(get_current_user)):
+async def get_my_availability(current_user: models.PlayerProfile = Depends(get_current_user)) -> List[schemas.PlayerAvailabilityResponse]:
     """Get current user's weekly availability."""
     try:
         db = SessionLocal()
@@ -383,7 +383,7 @@ async def get_my_availability(current_user: models.PlayerProfile = Depends(get_c
 async def set_my_availability(
     availability: schemas.PlayerAvailabilityCreate,
     current_user: models.PlayerProfile = Depends(get_current_user)
-):
+) -> schemas.PlayerAvailabilityResponse:
     """Set or update current user's availability for a specific day."""
     try:
         db = SessionLocal()
@@ -439,7 +439,7 @@ async def set_my_availability(
 
 
 @router.get("/{player_id}/availability", response_model=List[schemas.PlayerAvailabilityResponse])
-def get_player_availability(player_id: int):
+def get_player_availability(player_id: int) -> List[schemas.PlayerAvailabilityResponse]:
     """Get a player's weekly availability."""
     try:
         db = SessionLocal()
@@ -458,7 +458,7 @@ def get_player_availability(player_id: int):
 
 
 @router.get("/availability/all", response_model=List[Dict])
-def get_all_players_availability():
+def get_all_players_availability() -> List[Dict[str, Any]]:
     """Get all players' weekly availability with their names."""
     try:
         db = SessionLocal()
@@ -501,7 +501,7 @@ def get_all_players_availability():
 
 
 @router.post("/{player_id}/availability", response_model=schemas.PlayerAvailabilityResponse)
-def set_player_availability(player_id: int, availability: schemas.PlayerAvailabilityCreate):
+def set_player_availability(player_id: int, availability: schemas.PlayerAvailabilityCreate) -> schemas.PlayerAvailabilityResponse:
     """Set or update a player's availability for a specific day."""
     try:
         db = SessionLocal()
@@ -556,7 +556,7 @@ def set_player_availability(player_id: int, availability: schemas.PlayerAvailabi
 # Email Preferences Endpoints
 
 @router.get("/{player_id}/email-preferences", response_model=schemas.EmailPreferencesResponse)
-def get_email_preferences(player_id: int):
+def get_email_preferences(player_id: int) -> schemas.EmailPreferencesResponse:
     """Get a player's email preferences."""
     try:
         db = SessionLocal()
@@ -586,7 +586,7 @@ def get_email_preferences(player_id: int):
 
 
 @router.put("/{player_id}/email-preferences", response_model=schemas.EmailPreferencesResponse)
-def update_email_preferences(player_id: int, preferences_update: schemas.EmailPreferencesUpdate):
+def update_email_preferences(player_id: int, preferences_update: schemas.EmailPreferencesUpdate) -> schemas.EmailPreferencesResponse:
     """Update a player's email preferences."""
     try:
         db = SessionLocal()
@@ -633,7 +633,7 @@ def update_email_preferences(player_id: int, preferences_update: schemas.EmailPr
 
 
 @router.get("/me/email-preferences", response_model=schemas.EmailPreferencesResponse)
-async def get_my_email_preferences(current_user: models.PlayerProfile = Depends(get_current_user)):
+async def get_my_email_preferences(current_user: models.PlayerProfile = Depends(get_current_user)) -> schemas.EmailPreferencesResponse:
     """Get current user's email preferences"""
     db = SessionLocal()
     try:
@@ -675,7 +675,7 @@ async def get_my_email_preferences(current_user: models.PlayerProfile = Depends(
 async def update_my_email_preferences(
     preferences_update: schemas.EmailPreferencesUpdate,
     current_user: models.PlayerProfile = Depends(get_current_user)
-):
+) -> schemas.EmailPreferencesResponse:
     """Update current user's email preferences"""
     db = SessionLocal()
     try:
