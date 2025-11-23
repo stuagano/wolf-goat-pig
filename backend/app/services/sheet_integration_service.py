@@ -17,7 +17,7 @@ from sqlalchemy import func, desc, asc
 from datetime import datetime
 import logging
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from ..models import (
     PlayerProfile, PlayerStatistics, GameRecord, GamePlayerResult
@@ -39,7 +39,7 @@ class SheetDataRow:
     """Represents a row of data from the Google Sheet."""
     raw_data: Dict[str, Any]
     mapped_data: Dict[str, Any]
-    validation_errors: List[str] = None
+    validation_errors: List[str] = field(default_factory=list)
 
 class SheetIntegrationService:
     """Service for integrating Google Sheets data with the application."""
@@ -196,7 +196,7 @@ class SheetIntegrationService:
         return SheetDataRow(
             raw_data=row_data,
             mapped_data=mapped_data,
-            validation_errors=errors if errors else None
+            validation_errors=errors if errors else []
         )
     
     def create_leaderboard_from_sheet_data(self, sheet_data: List[Dict[str, Any]], 
@@ -224,7 +224,7 @@ class SheetIntegrationService:
     def sync_sheet_data_to_database(self, sheet_data: List[Dict[str, Any]],
                                    mappings: List[SheetColumnMapping]) -> Dict[str, Any]:
         """Sync sheet data to the database (create/update player profiles and statistics)."""
-        results = {
+        results: Dict[str, Any] = {
             "players_processed": 0,
             "players_created": 0,
             "players_updated": 0,
@@ -358,12 +358,12 @@ class SheetIntegrationService:
             logger.error(f"Error exporting data to sheet format: {e}")
             return []
     
-    def generate_sheet_comparison_report(self, 
-                                       current_data: List[Dict[str, Any]], 
+    def generate_sheet_comparison_report(self,
+                                       current_data: List[Dict[str, Any]],
                                        sheet_data: List[Dict[str, Any]],
                                        mappings: List[SheetColumnMapping]) -> Dict[str, Any]:
         """Generate a comparison report between current database and sheet data."""
-        report = {
+        report: Dict[str, Any] = {
             "summary": {
                 "database_players": len(current_data),
                 "sheet_players": len(sheet_data),
