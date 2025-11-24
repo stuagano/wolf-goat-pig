@@ -44,7 +44,8 @@ interface InteractionNeeded {
     description?: string;
   }>;
   message?: string;
-  [key: string]: any;
+  // Allow additional properties from API while maintaining type safety
+  [key: string]: unknown;
 }
 
 interface SimulationDecisionPanelProps {
