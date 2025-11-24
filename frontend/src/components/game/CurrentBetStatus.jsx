@@ -1,5 +1,6 @@
 // frontend/src/components/game/CurrentBetStatus.jsx
 import React from 'react';
+import PropTypes from 'prop-types';
 import { useTheme } from '../../theme/Provider';
 
 const CurrentBetStatus = ({ state }) => {
@@ -71,6 +72,17 @@ const CurrentBetStatus = ({ state }) => {
       )}
     </div>
   );
+};
+
+CurrentBetStatus.propTypes = {
+  state: PropTypes.shape({
+    wager: PropTypes.number,
+    multiplier: PropTypes.number,
+    doubleHistory: PropTypes.arrayOf(PropTypes.shape({
+      from: PropTypes.string,
+      accepted: PropTypes.bool,
+    })),
+  }).isRequired,
 };
 
 export default CurrentBetStatus;

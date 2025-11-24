@@ -1,5 +1,6 @@
 // frontend/src/components/game/BettingHistory.jsx
 import React, { useState } from 'react';
+import PropTypes from 'prop-types';
 import { useTheme } from '../../theme/Provider';
 
 const BettingHistory = ({ eventHistory }) => {
@@ -98,6 +99,26 @@ const BettingHistory = ({ eventHistory }) => {
       </div>
     </div>
   );
+};
+
+BettingHistory.propTypes = {
+  eventHistory: PropTypes.shape({
+    current: PropTypes.arrayOf(PropTypes.shape({
+      type: PropTypes.string,
+      actor: PropTypes.string,
+      timestamp: PropTypes.string,
+    })),
+    lastHole: PropTypes.arrayOf(PropTypes.shape({
+      type: PropTypes.string,
+      actor: PropTypes.string,
+      timestamp: PropTypes.string,
+    })),
+    game: PropTypes.arrayOf(PropTypes.shape({
+      type: PropTypes.string,
+      actor: PropTypes.string,
+      timestamp: PropTypes.string,
+    })),
+  }).isRequired,
 };
 
 export default BettingHistory;

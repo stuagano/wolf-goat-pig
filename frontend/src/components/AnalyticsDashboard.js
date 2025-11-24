@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import PropTypes from 'prop-types';
 
 const COLORS = {
   primary: '#2c3e50',
@@ -557,6 +558,11 @@ const AnalyticsDashboard = ({ gameId, onBack }) => {
       </div>
     </div>
   );
+};
+
+AnalyticsDashboard.propTypes = {
+  gameId: PropTypes.string.isRequired,
+  onBack: PropTypes.func.isRequired,
 };
 
 export default AnalyticsDashboard;
