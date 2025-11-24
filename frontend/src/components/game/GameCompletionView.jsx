@@ -1,5 +1,6 @@
 // frontend/src/components/game/GameCompletionView.jsx
 import React from 'react';
+import PropTypes from 'prop-types';
 import { useTheme } from '../../theme/Provider';
 
 /**
@@ -312,6 +313,22 @@ const GameCompletionView = ({ players, playerStandings, holeHistory, onNewGame }
       </div>
     </div>
   );
+};
+
+GameCompletionView.propTypes = {
+  players: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    name: PropTypes.string.isRequired,
+  })).isRequired,
+  playerStandings: PropTypes.objectOf(PropTypes.shape({
+    quarters: PropTypes.number.isRequired,
+    id: PropTypes.string,
+    name: PropTypes.string,
+  })).isRequired,
+  holeHistory: PropTypes.arrayOf(PropTypes.shape({
+    gross_scores: PropTypes.objectOf(PropTypes.number),
+  })).isRequired,
+  onNewGame: PropTypes.func.isRequired,
 };
 
 export default GameCompletionView;

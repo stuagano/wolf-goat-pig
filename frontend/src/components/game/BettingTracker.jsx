@@ -1,5 +1,6 @@
 // frontend/src/components/game/BettingTracker.jsx
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { useTheme } from '../../theme/Provider';
 import useBettingState from '../../hooks/useBettingState';
 import CurrentBetStatus from './CurrentBetStatus';
@@ -185,5 +186,13 @@ if (typeof document !== 'undefined') {
     document.head.appendChild(styleSheet);
   }
 }
+
+BettingTracker.propTypes = {
+  gameState: PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    current_hole: PropTypes.number,
+  }).isRequired,
+  currentPlayer: PropTypes.string,
+};
 
 export default BettingTracker;
