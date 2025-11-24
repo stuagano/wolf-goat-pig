@@ -4,8 +4,9 @@ This demonstrates how much simpler the scoring becomes.
 """
 
 import json
+from typing import Any, Dict
 
-from simplified_scoring import SimplifiedScoring
+from .simplified_scoring import SimplifiedScoring
 
 
 def test_simplified_scoring():
@@ -37,7 +38,7 @@ def test_simplified_scoring():
     # Test Hole 2: Partners play
     print("\n--- Hole 2: Partners Play ---")
     scores = {"p1": 5, "p2": 4, "p3": 4, "p4": 6}  # Team 2 (Charlie+Diana) wins
-    teams = {"type": "partners", "team1": ["p1", "p2"], "team2": ["p3", "p4"]}
+    teams: Dict[str, Any] = {"type": "partners", "team1": ["p1", "p2"], "team2": ["p3", "p4"]}
     wager = 1
 
     result = game.enter_hole_scores(2, scores, teams, wager)
@@ -46,7 +47,7 @@ def test_simplified_scoring():
     # Test Hole 3: Tied hole
     print("\n--- Hole 3: Tied Hole ---")
     scores = {"p1": 4, "p2": 5, "p3": 4, "p4": 5}  # Teams tied
-    teams = {"type": "partners", "team1": ["p1", "p2"], "team2": ["p3", "p4"]}
+    teams: Dict[str, Any] = {"type": "partners", "team1": ["p1", "p2"], "team2": ["p3", "p4"]}
     wager = 1
 
     result = game.enter_hole_scores(3, scores, teams, wager)

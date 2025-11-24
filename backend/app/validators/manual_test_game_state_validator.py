@@ -4,7 +4,7 @@ Test suite demonstrating GameStateValidator usage.
 Run with: pytest test_game_state_validator.py -v
 """
 
-import pytest
+import pytest  # type: ignore[import-not-found]
 
 from .exceptions import GameStateValidationError, PartnershipValidationError
 from .game_state_validator import GameStateValidator
@@ -562,16 +562,13 @@ if __name__ == "__main__":
     # Test 3: Partnership validation
     print("✓ Test 3: Partnership validation")
     try:
-        GameStateValidator.validate_partnership_request(
+        GameStateValidator.validate_partnership_formation(
             captain_id="p1",
             partner_id="p1",  # Can't partner with self
-            players=["p1", "p2", "p3", "p4"],
-            tee_shots_complete=4,
-            partnership_deadline_passed=False,
-            current_team_type=None
+            tee_shots_complete=False
         )
         print("  ERROR: Should have raised exception")
-    except PartnershipValidationError as e:
+    except GameStateValidationError as e:
         print(f"  Correctly caught: {e.message}")
 
     print()

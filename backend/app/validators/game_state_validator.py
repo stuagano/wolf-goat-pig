@@ -4,7 +4,7 @@ Game State Validator for Wolf Goat Pig.
 Validates game state transitions, player actions, and game flow.
 """
 
-from typing import List
+from typing import Any, Dict, List, Optional
 
 from .exceptions import GameStateValidationError
 
@@ -76,6 +76,62 @@ class GameStateValidator:
                 "4, 5, or 6 players required",
                 field="player_count",
                 details={"value": player_count, "valid_counts": [4, 5, 6]}
+            )
+
+    @classmethod
+    def validate_game_initialization(
+        cls,
+        players: List[Dict[str, Any]],
+        course: Optional[Dict[str, Any]]
+    ) -> None:
+        """
+        Validate game initialization parameters.
+
+        Args:
+            players: List of player dictionaries
+            course: Course configuration dictionary
+
+        Raises:
+            GameStateValidationError: If initialization parameters are invalid
+        """
+        # Validate player count
+        if not players:
+            raise GameStateValidationError(
+                "Players list cannot be empty",
+                field="players",
+                details={"player_count": 0}
+            )
+
+        if len(players) != 4:
+            raise GameStateValidationError(
+                "Game requires exactly 4 players",
+                field="players",
+                details={"player_count": len(players), "required": 4}
+            )
+
+        # Check for duplicate player IDs
+        player_ids = [p.get("id") for p in players]
+        if len(player_ids) != len(set(player_ids)):
+            duplicates = [pid for pid in player_ids if player_ids.count(pid) > 1]
+            raise GameStateValidationError(
+                f"Duplicate player ID found: {duplicates[0]}",
+                field="players",
+                details={"duplicate_ids": list(set(duplicates))}
+            )
+
+        # Validate course
+        if course is None:
+            raise GameStateValidationError(
+                "Course information is required",
+                field="course",
+                details={"course": None}
+            )
+
+        if not isinstance(course, dict):
+            raise GameStateValidationError(
+                "Course must be a dictionary",
+                field="course",
+                details={"type": type(course).__name__}
             )
 
     @classmethod

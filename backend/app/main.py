@@ -3,7 +3,8 @@ import logging
 import os
 import random
 import traceback
-from datetime import datetime
+import uuid
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
@@ -28,7 +29,7 @@ from .routes.betting_events import router as betting_events_router
 
 # Email scheduler will be initialized on-demand to prevent startup blocking
 # from .services.email_scheduler import email_scheduler
-from .services.email_service import get_email_service
+from .services.email_service import SMTPEmailProvider, get_email_service
 from .services.game_lifecycle_service import get_game_lifecycle_service
 from .services.leaderboard_service import get_leaderboard_service
 from .services.legacy_signup_service import get_legacy_signup_service
@@ -3407,7 +3408,7 @@ async def handle_play_shot(game: WolfGoatPigGame, payload: Dict[str, Any] = None
         is_tee_shot = next_player not in hole_state.ball_positions or hole_state.ball_positions[next_player].shot_count == 1
         if is_tee_shot:
             # Create a WGPShotResult object from the shot_result dictionary
-            from app.wolf_goat_pig_simulation import WGPShotResult
+            from archived.game_engine.wolf_goat_pig_simulation import WGPShotResult
             shot_obj = WGPShotResult(
                 player_id=shot_result.get("player_id", next_player),
                 shot_number=shot_result.get("shot_number", 1),
@@ -8458,12 +8459,19 @@ async def get_email_service_status():
     try:
         email_service = get_email_service()
 
+        # Check if provider is SMTP-based
+        smtp_info = {}
+        if isinstance(email_service.provider, SMTPEmailProvider):
+            smtp_info = {
+                "smtp_host": email_service.provider.smtp_host or 'Not set',
+                "smtp_port": email_service.provider.smtp_port or 'Not set',
+                "from_email": email_service.provider.from_email or 'Not set',
+                "from_name": email_service.provider.from_name or 'Not set',
+            }
+
         return {
-            "configured": email_service.is_configured,
-            "smtp_host": email_service.smtp_config.get('host', 'Not set'),
-            "smtp_port": email_service.smtp_config.get('port', 'Not set'),
-            "from_email": email_service.from_email or 'Not set',
-            "from_name": email_service.from_name or 'Not set',
+            "configured": email_service.is_configured(),
+            **smtp_info,
             "missing_config": [
                 key for key in ['SMTP_USER', 'SMTP_PASSWORD', 'SMTP_HOST']
                 if not os.getenv(key)

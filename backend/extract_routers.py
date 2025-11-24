@@ -8,6 +8,7 @@ It preserves all imports, dependencies, and docstrings.
 
 import re
 import os
+import sys
 from pathlib import Path
 from datetime import datetime
 
@@ -324,6 +325,6 @@ __all__ = [{', '.join(repr(name) for name in router_names)}]
         print(f"\n❌ Error: {e}")
         import traceback
         traceback.print_exc()
-        return 1
+        sys.exit(1)
 
-    return 0
+    sys.exit(0)

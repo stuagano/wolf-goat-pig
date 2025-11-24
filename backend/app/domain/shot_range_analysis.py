@@ -286,7 +286,7 @@ class ShotRangeMatrix:
                 self.exploitative_range = max(conservative_ranges,
                                             key=lambda r: r.success_probability)
 
-    def get_recommended_range(self, player_style: RiskProfile) -> ShotRange:
+    def get_recommended_range(self, player_style: RiskProfile) -> Optional[ShotRange]:
         """Get recommended shot range based on player style"""
         if not self.ranges:
             return None
@@ -342,29 +342,29 @@ class ShotRangeMatrix:
 
     def _has_hazards(self) -> bool:
         """Check if hazards are in play"""
-        return self.game_situation.get("hazards_present", False)
+        return bool(self.game_situation.get("hazards_present", False))
 
     def _has_risk_reward_opportunity(self) -> bool:
         """Check if risk/reward play is available"""
-        return self.game_situation.get("risk_reward_available", True)
+        return bool(self.game_situation.get("risk_reward_available", True))
 
     def _allows_hero_shot(self) -> bool:
         """Check if hero shot is possible"""
         return (self.player_handicap <= 10 and
-                self.game_situation.get("hero_shot_possible", False))
+                bool(self.game_situation.get("hero_shot_possible", False)))
 
     def _is_pressure_situation(self) -> bool:
         """Check if this is a high-pressure situation"""
-        return (self.game_situation.get("hole_number", 1) >= 16 or
-                self.game_situation.get("match_critical", False))
+        return (bool(self.game_situation.get("hole_number", 1) >= 16) or
+                bool(self.game_situation.get("match_critical", False)))
 
     def _opponents_play_scared(self) -> bool:
         """Check if opponents tend to play conservatively"""
-        return self.game_situation.get("opponent_style", "") == "conservative"
+        return bool(self.game_situation.get("opponent_style", "") == "conservative")
 
     def _opponents_are_aggressive(self) -> bool:
         """Check if opponents tend to play aggressively"""
-        return self.game_situation.get("opponent_style", "") == "aggressive"
+        return bool(self.game_situation.get("opponent_style", "") == "aggressive")
 
 
 class ShotRangeAnalyzer:
@@ -486,7 +486,7 @@ class ShotRangeAnalyzer:
     @staticmethod
     def _generate_strategic_advice(
         matrix: ShotRangeMatrix,
-        recommended: ShotRange,
+        recommended: ShotRange | None,
         player_style: RiskProfile,
         game_situation: Dict
     ) -> List[str]:
@@ -531,7 +531,7 @@ def analyze_shot_decision(
     hole_number: int,
     team_situation: str = "solo",
     score_differential: int = 0,
-    opponent_styles: List[str] = None
+    opponent_styles: Optional[List[str]] = None
 ) -> Dict[str, Any]:
     """Main entry point for shot range analysis"""
 
