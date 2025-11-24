@@ -521,22 +521,36 @@ const SimpleScorekeeper = ({
   };
 
   // Calculate stroke allocation for all holes using Creecher Feature logic
+  // Strokes are calculated relative to the player with the lowest handicap (match play format)
   const strokeAllocation = useMemo(() => {
     if (!courseData?.holes) return {};
 
     const allocation = {};
 
-    const getStrokesForHole = (handicap, strokeIndex) => {
-      if (!handicap || handicap <= 0) return 0;
+    // Calculate net handicaps relative to lowest handicap player
+    const playerHandicaps = localPlayers.reduce((acc, player) => {
+      acc[player.id] = player.handicap || 0;
+      return acc;
+    }, {});
 
-      const fullHandicap = Math.floor(handicap);
-      const hasFractional = (handicap % 1) >= 0.5;
+    const lowestHandicap = Math.min(...Object.values(playerHandicaps));
+
+    const netHandicaps = {};
+    Object.entries(playerHandicaps).forEach(([playerId, handicap]) => {
+      netHandicaps[playerId] = Math.max(0, handicap - lowestHandicap);
+    });
+
+    const getStrokesForHole = (netHandicap, strokeIndex) => {
+      if (!netHandicap || netHandicap <= 0) return 0;
+
+      const fullHandicap = Math.floor(netHandicap);
+      const hasFractional = (netHandicap % 1) >= 0.5;
 
       // Creecher Feature implementation
-      if (handicap <= 6) {
+      if (netHandicap <= 6) {
         // All allocated holes get 0.5
         return strokeIndex <= fullHandicap ? 0.5 : 0;
-      } else if (handicap <= 18) {
+      } else if (netHandicap <= 18) {
         // Easiest 6 of allocated holes get 0.5, rest get 1.0
         if (strokeIndex <= fullHandicap) {
           const easiestSix = Array.from({ length: fullHandicap }, (_, idx) => fullHandicap - idx);
@@ -575,10 +589,12 @@ const SimpleScorekeeper = ({
 
     localPlayers.forEach(player => {
       allocation[player.id] = {};
+      const netHandicap = netHandicaps[player.id];
+
       for (let holeNum = 1; holeNum <= 18; holeNum++) {
         const holeData = courseData.holes.find(h => h.hole_number === holeNum);
         if (holeData?.handicap) {
-          allocation[player.id][holeNum] = getStrokesForHole(player.handicap || 0, holeData.handicap);
+          allocation[player.id][holeNum] = getStrokesForHole(netHandicap, holeData.handicap);
         }
       }
     });
@@ -744,16 +760,29 @@ const SimpleScorekeeper = ({
 
       {/* Stroke Allocation Display - Shows who gets strokes on this hole */}
       {!isHoepfinger && rotationOrder.length > 0 && (() => {
-        // Calculate stroke allocation for current hole using Creecher Feature logic
-        const getStrokesForHole = (handicap, strokeIndex) => {
-          if (!handicap || !strokeIndex) return 0;
+        // Calculate net handicaps relative to lowest handicap player (match play format)
+        const playerHandicaps = players.reduce((acc, player) => {
+          acc[player.id] = player.handicap || 0;
+          return acc;
+        }, {});
 
-          const fullStrokes = Math.floor(handicap);
-          const hasHalfStroke = (handicap - fullStrokes) >= 0.5;
+        const lowestHandicap = Math.min(...Object.values(playerHandicaps));
+
+        const netHandicaps = {};
+        Object.entries(playerHandicaps).forEach(([playerId, handicap]) => {
+          netHandicaps[playerId] = Math.max(0, handicap - lowestHandicap);
+        });
+
+        // Calculate stroke allocation for current hole using Creecher Feature logic
+        const getStrokesForHole = (netHandicap, strokeIndex) => {
+          if (!netHandicap || !strokeIndex) return 0;
+
+          const fullStrokes = Math.floor(netHandicap);
+          const hasHalfStroke = (netHandicap - fullStrokes) >= 0.5;
 
           // Creecher Feature: For handicaps >18, easiest holes get ONLY half strokes
-          if (handicap > 18 && strokeIndex >= 13 && strokeIndex <= 18) {
-            const creecherStrokes = Math.min(Math.floor(handicap - 18), 6);
+          if (netHandicap > 18 && strokeIndex >= 13 && strokeIndex <= 18) {
+            const creecherStrokes = Math.min(Math.floor(netHandicap - 18), 6);
             const easiestHoles = [18, 17, 16, 15, 14, 13];
             if (easiestHoles.slice(0, creecherStrokes).includes(strokeIndex)) {
               return 0.5;
@@ -784,7 +813,7 @@ const SimpleScorekeeper = ({
         const playersWithStrokes = players
           .map(player => ({
             ...player,
-            strokes: getStrokesForHole(player.handicap || 0, strokeIndex)
+            strokes: getStrokesForHole(netHandicaps[player.id], strokeIndex)
           }))
           .filter(p => p.strokes > 0);
 

@@ -893,7 +893,8 @@ class RuleManager:
         """
         Calculate handicap strokes for each player on a specific hole.
 
-        Uses USGA stroke allocation rules via HandicapValidator.
+        Uses match play format where strokes are calculated relative to
+        the player with the lowest handicap in the group.
 
         Args:
             hole_number: Current hole number (1-18)
@@ -910,7 +911,7 @@ class RuleManager:
             >>> handicaps = {"player_1": 18.0, "player_2": 10.0, "player_3": 5.0}
             >>> strokes = manager.apply_handicap_strokes(1, handicaps, 3)
             >>> print(strokes)
-            {'player_1': 1, 'player_2': 1, 'player_3': 0}
+            {'player_1': 1, 'player_2': 0.5, 'player_3': 0}
         """
         try:
             # Validate hole number
@@ -919,16 +920,22 @@ class RuleManager:
             # Validate stroke index
             HandicapValidator.validate_stroke_index(hole_stroke_index)
 
+            # Calculate net handicaps relative to lowest handicap player
+            net_handicaps = HandicapValidator.calculate_net_handicaps(player_handicaps)
+
             strokes_by_player: Dict[str, int] = {}
 
-            for player_id, handicap in player_handicaps.items():
+            for player_id, original_handicap in player_handicaps.items():
                 try:
                     # Validate handicap
-                    HandicapValidator.validate_handicap(handicap)
+                    HandicapValidator.validate_handicap(original_handicap)
+
+                    # Get net handicap (relative to lowest player)
+                    net_handicap = net_handicaps.get(player_id, 0.0)
 
                     # Calculate strokes using validator (with Creecher Feature support)
                     strokes = HandicapValidator.calculate_strokes_received_with_creecher(
-                        handicap,
+                        net_handicap,
                         hole_stroke_index,
                         validate=False  # Already validated above
                     )
@@ -940,7 +947,7 @@ class RuleManager:
                     raise RuleViolationError(
                         f"Invalid handicap for player {player_id}: {e.message}",
                         field="handicap",
-                        details={"player_id": player_id, "handicap": handicap}
+                        details={"player_id": player_id, "handicap": original_handicap}
                     )
 
             logger.debug(f"Handicap strokes for hole {hole_number}: {strokes_by_player}")
