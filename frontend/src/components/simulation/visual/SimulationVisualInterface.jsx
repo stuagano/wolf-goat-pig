@@ -40,6 +40,8 @@ const SimulationVisualInterface = ({
           players={gameState?.players || []}
           holeHistory={gameState?.hole_history || []}
           currentHole={gameState?.current_hole || 1}
+          courseHoles={gameState?.course_holes || []}
+          strokeAllocation={gameState?.stroke_allocation || {}}
           onEditHole={onEditHole}
         />
       </div>
