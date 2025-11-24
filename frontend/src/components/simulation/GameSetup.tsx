@@ -290,7 +290,7 @@ const GameSetup: React.FC<GameSetupProps> = ({
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", padding: 20 }}>
       <Card>
-        <h2 style={{ color: theme.colors.primary, marginBottom: theme.spacing }}>
+        <h2 style={{ color: theme.colors.primary, marginBottom: 16 }}>
           🎮 Wolf Goat Pig Simulation Mode
         </h2>
         <p style={{ marginBottom: 20 }}>
@@ -312,40 +312,52 @@ const GameSetup: React.FC<GameSetupProps> = ({
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             <Input
               label="Your Name:"
+              placeholder="Enter your name"
               value={humanPlayer.name}
-              onChange={(e) => setHumanPlayer({...humanPlayer, name: e.target.value})}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setHumanPlayer({...humanPlayer, name: e.target.value})}
+              error=""
+              id="human-name"
             />
             <Input
               label="Your Handicap:"
               type="number"
+              placeholder="0"
               value={humanPlayer.handicap}
-              onChange={(e) => setHumanPlayer({...humanPlayer, handicap: e.target.value})}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setHumanPlayer({...humanPlayer, handicap: e.target.value})}
+              error=""
+              id="human-handicap"
             />
           </div>
           
-          <Button 
+          <Button
             variant="secondary"
             size="small"
             onClick={() => openGhinLookup("human")}
-            style={{ marginTop: theme.spacing }}
+            style={{ marginTop: 16 }}
           >
             Lookup GHIN Handicap
           </Button>
           
           {ghinLookupSlot === "human" && (
-            <Card variant="info" style={{ marginTop: theme.spacing }}>
+            <Card variant="info" style={{ marginTop: 16 }}>
               <h4>GHIN Handicap Lookup</h4>
               <Input
+                label=""
                 placeholder="First Name (optional)"
                 value={ghinLookupFirstName}
-                onChange={e => setGhinLookupFirstName(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGhinLookupFirstName(e.target.value)}
+                error=""
+                id="ghin-firstname-human"
               />
               <Input
+                label=""
                 placeholder="Last Name (required)"
                 value={ghinLookupLastName}
-                onChange={e => setGhinLookupLastName(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGhinLookupLastName(e.target.value)}
+                error=""
+                id="ghin-lastname-human"
               />
-              <div style={{ display: 'flex', gap: theme.spacing, marginTop: theme.spacing }}>
+              <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
                 <Button 
                   size="small"
                   onClick={doGhinLookup} 
@@ -366,7 +378,7 @@ const GameSetup: React.FC<GameSetupProps> = ({
               {ghinLookupError && <div style={{ color: theme.colors.error, marginTop: 8 }}>{ghinLookupError}</div>}
               
               {ghinLookupResults.length > 0 && (
-                <div style={{ marginTop: theme.spacing }}>
+                <div style={{ marginTop: 16 }}>
                   <h5>Results:</h5>
                   {ghinLookupResults.map((g, idx) => (
                     <div 
@@ -393,7 +405,7 @@ const GameSetup: React.FC<GameSetupProps> = ({
 
         {/* Computer Players Setup */}
         <Card>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <h3 style={{ margin: 0 }}>Computer Opponents</h3>
             <Button
               variant="primary"
@@ -409,60 +421,74 @@ const GameSetup: React.FC<GameSetupProps> = ({
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                 <Input
                   label="Name:"
+                  placeholder="Enter name"
                   value={player.name}
-                  onChange={(e) => {
-                    setComputerPlayers(players => players.map((p, i) => 
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    setComputerPlayers(players => players.map((p, i) =>
                       i === index ? { ...p, name: e.target.value } : p
                     ));
                   }}
+                  error=""
+                  id={`comp-${index}-name`}
                 />
                 <Input
                   label="Handicap:"
                   type="number"
+                  placeholder="0"
                   value={player.handicap}
-                  onChange={(e) => {
-                    setComputerPlayers(players => players.map((p, i) => 
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    setComputerPlayers(players => players.map((p, i) =>
                       i === index ? { ...p, handicap: e.target.value } : p
                     ));
                   }}
+                  error=""
+                  id={`comp-${index}-handicap`}
                 />
               </div>
-              
+
               <Select
                 label="Personality:"
                 value={player.personality}
-                onChange={(e) => {
-                  setComputerPlayers(players => players.map((p, i) => 
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                  setComputerPlayers(players => players.map((p, i) =>
                     i === index ? { ...p, personality: e.target.value } : p
                   ));
                 }}
                 options={personalities.map(p => ({ value: p.id, label: p.name }))}
                 placeholder="Select personality..."
+                error=""
+                id={`comp-${index}-personality`}
               />
               
-              <Button 
+              <Button
                 variant="secondary"
                 size="small"
                 onClick={() => openGhinLookup(`comp${index+1}`)}
-                style={{ marginTop: theme.spacing }}
+                style={{ marginTop: 16 }}
               >
                 Lookup GHIN Handicap
               </Button>
-              
+
               {ghinLookupSlot === `comp${index+1}` && (
-                <Card variant="info" style={{ marginTop: theme.spacing }}>
+                <Card variant="info" style={{ marginTop: 16 }}>
                   <h4>GHIN Handicap Lookup</h4>
                   <Input
+                    label=""
                     placeholder="First Name (optional)"
                     value={ghinLookupFirstName}
-                    onChange={e => setGhinLookupFirstName(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGhinLookupFirstName(e.target.value)}
+                    error=""
+                    id={`ghin-firstname-comp${index+1}`}
                   />
                   <Input
+                    label=""
                     placeholder="Last Name (required)"
                     value={ghinLookupLastName}
-                    onChange={e => setGhinLookupLastName(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGhinLookupLastName(e.target.value)}
+                    error=""
+                    id={`ghin-lastname-comp${index+1}`}
                   />
-                  <div style={{ display: 'flex', gap: theme.spacing, marginTop: theme.spacing }}>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
                     <Button 
                       size="small"
                       onClick={doGhinLookup} 
@@ -483,7 +509,7 @@ const GameSetup: React.FC<GameSetupProps> = ({
                   {ghinLookupError && <div style={{ color: theme.colors.error, marginTop: 8 }}>{ghinLookupError}</div>}
                   
                   {ghinLookupResults.length > 0 && (
-                    <div style={{ marginTop: theme.spacing }}>
+                    <div style={{ marginTop: 16 }}>
                       <h5>Results:</h5>
                       {ghinLookupResults.map((g, idx) => (
                         <div 
@@ -507,9 +533,9 @@ const GameSetup: React.FC<GameSetupProps> = ({
                 </Card>
               )}
               
-              <div style={{ marginTop: theme.spacing }}>
+              <div style={{ marginTop: 16 }}>
                 <span style={{ fontSize: 14, color: theme.colors.textSecondary }}>Quick select:</span>
-                <div style={{ display: 'flex', gap: theme.spacing, marginTop: theme.spacing, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                   {suggestedOpponents.map((opponent, oppIdx) => (
                     <Button
                       key={oppIdx}
@@ -531,17 +557,19 @@ const GameSetup: React.FC<GameSetupProps> = ({
           <Select
             label="Select Course:"
             value={selectedCourse || ''}
-            onChange={(e) => setSelectedCourse(e.target.value)}
-            options={Object.keys(courses).map(courseId => ({ 
-              value: courseId, 
-              label: courses[courseId]?.name || courseId 
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedCourse(e.target.value)}
+            options={Object.keys(courses).map(courseId => ({
+              value: courseId,
+              label: courses[courseId]?.name || courseId
             }))}
             placeholder="Choose a course..."
+            error=""
+            id="course-select"
           />
         </Card>
 
         {/* Start Game Button */}
-        <div style={{ textAlign: 'center', marginTop: theme.spacing }}>
+        <div style={{ textAlign: 'center', marginTop: 16 }}>
           <Button
             variant="primary"
             size="large"
