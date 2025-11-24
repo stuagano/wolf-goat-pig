@@ -110,10 +110,22 @@ GameStateWidget.propTypes = {
     current_shot_number: PropTypes.number,
     hole_complete: PropTypes.bool,
     wagering_closed: PropTypes.bool,
-    teams: PropTypes.object,
-    betting: PropTypes.object,
-    ball_positions: PropTypes.object,
-    stroke_advantages: PropTypes.object
+    teams: PropTypes.shape({
+      type: PropTypes.string,
+      team1: PropTypes.arrayOf(PropTypes.string),
+      team2: PropTypes.arrayOf(PropTypes.string),
+    }),
+    betting: PropTypes.shape({
+      base_wager: PropTypes.number,
+      current_wager: PropTypes.number,
+      doubled: PropTypes.bool,
+      redoubled: PropTypes.bool,
+    }),
+    ball_positions: PropTypes.objectOf(PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.object
+    ])),
+    stroke_advantages: PropTypes.objectOf(PropTypes.number)
   }),
   players: PropTypes.arrayOf(PropTypes.shape({
     id: PropTypes.string.isRequired,

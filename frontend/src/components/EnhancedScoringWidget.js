@@ -70,10 +70,10 @@ const EnhancedScoringWidget = ({ gameState, holeState, onScoreUpdate, onAction }
 
     if (holeState.teams.type === 'partners') {
       const team1Score = Math.min(
-        ...holeState.teams.team1.map(pid => scores[pid] || 999).filter(s => s !== 999)
+        ...(holeState.teams.team1 || []).map(pid => scores[pid] || 999).filter(s => s !== 999)
       );
       const team2Score = Math.min(
-        ...holeState.teams.team2.map(pid => scores[pid] || 999).filter(s => s !== 999)
+        ...(holeState.teams.team2 || []).map(pid => scores[pid] || 999).filter(s => s !== 999)
       );
       
       return {
@@ -86,7 +86,7 @@ const EnhancedScoringWidget = ({ gameState, holeState, onScoreUpdate, onAction }
     if (holeState.teams.type === 'solo') {
       const soloScore = scores[holeState.teams.solo_player] || null;
       const opponentScore = Math.min(
-        ...holeState.teams.opponents.map(pid => scores[pid] || 999).filter(s => s !== 999)
+        ...(holeState.teams.opponents || []).map(pid => scores[pid] || 999).filter(s => s !== 999)
       );
       
       return {

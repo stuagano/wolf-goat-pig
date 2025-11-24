@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useMemo, useCallback } from 'react';
 import { useTheme } from '../../theme/Provider';
 import { Button, Card } from '../ui';
@@ -29,6 +28,8 @@ interface GameState {
   betting?: BettingState;
   hole_state?: HoleState;
   current_hole?: number;
+  interactionNeeded?: InteractionNeeded | null;
+  hasNextShot?: boolean;
 }
 
 interface InteractionNeeded {
@@ -67,8 +68,8 @@ const SimulationDecisionPanel: React.FC<SimulationDecisionPanelProps> = ({
 }) => {
   const theme = useTheme();
 
-  const effectiveInteraction = interactionNeeded ?? (gameState as any)?.interactionNeeded ?? null;
-  const shotAvailable = hasNextShot ?? (gameState as any)?.hasNextShot ?? false;
+  const effectiveInteraction = interactionNeeded ?? gameState?.interactionNeeded ?? null;
+  const shotAvailable = hasNextShot ?? gameState?.hasNextShot ?? false;
 
   const players: Player[] = useMemo(() => gameState?.players ?? [], [gameState?.players]);
 

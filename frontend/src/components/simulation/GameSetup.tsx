@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../theme/Provider';
 import { Button, Card, Input, Select } from '../ui';
@@ -99,10 +98,10 @@ const GameSetup: React.FC<GameSetupProps> = ({
           throw new Error('Invalid courses data format');
         }
         setCourses(data);
-        
+
         // Auto-select first course if none selected
         if (!selectedCourse && Object.keys(data).length > 0) {
-          setSelectedCourse(Object.keys(data));
+          setSelectedCourse(Object.keys(data)[0]);
         }
       })
       .catch(error => {
@@ -233,7 +232,7 @@ const GameSetup: React.FC<GameSetupProps> = ({
       const data: GhinGolfer[] = await res.json();
       setGhinLookupResults(data);
       if (data.length === 0) setGhinLookupError("No golfers found");
-    } catch (err: any) {
+    } catch (err) {
       setGhinLookupError("Lookup failed");
     } finally {
       setGhinLookupLoading(false);

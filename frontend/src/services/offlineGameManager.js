@@ -20,6 +20,11 @@ const generateJoinCode = () => {
 
 /**
  * Create a game offline without backend
+ * @param {Object} gameConfig - The game configuration
+ * @param {Array<{id: string, name: string, handicap: number}>} gameConfig.players - Array of player objects
+ * @param {number} [gameConfig.player_count=4] - Number of players in the game
+ * @param {string} [gameConfig.course_name='Default Course'] - Name of the course
+ * @returns {Object} The initial game state object
  */
 export const createOfflineGame = (gameConfig) => {
   const now = new Date().toISOString();
@@ -73,6 +78,9 @@ export const createOfflineGame = (gameConfig) => {
 
 /**
  * Update offline game state
+ * @param {Object} currentState - The current game state
+ * @param {Object} update - Object containing fields to update
+ * @returns {Object} The updated game state with new timestamp
  */
 export const updateOfflineGame = (currentState, update) => {
   return {
@@ -84,6 +92,13 @@ export const updateOfflineGame = (currentState, update) => {
 
 /**
  * Complete a hole in offline mode
+ * @param {Object} currentState - The current game state
+ * @param {Object} holeData - Data about the completed hole
+ * @param {number} holeData.hole_number - The hole number that was completed
+ * @param {Object} holeData.player_scores - Map of player IDs to their scores
+ * @param {string} holeData.winner - The ID of the player who won
+ * @param {number} holeData.wager - The wager amount for this hole
+ * @returns {Object} The updated game state with hole completion recorded
  */
 export const completeOfflineHole = (currentState, holeData) => {
   const { hole_number, player_scores, winner, wager } = holeData;

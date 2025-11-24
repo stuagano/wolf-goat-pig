@@ -122,14 +122,37 @@ const SimulationVisualInterface = ({
 };
 
 SimulationVisualInterface.propTypes = {
-  gameState: PropTypes.object,
-  shotState: PropTypes.object,
-  shotProbabilities: PropTypes.object,
-  interactionNeeded: PropTypes.object,
+  gameState: PropTypes.shape({
+    players: PropTypes.arrayOf(PropTypes.shape({
+      id: PropTypes.string,
+      name: PropTypes.string,
+      handicap: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+      is_human: PropTypes.bool,
+      points: PropTypes.number,
+    })),
+    hole_history: PropTypes.array,
+    current_hole: PropTypes.number,
+    course_holes: PropTypes.array,
+    stroke_allocation: PropTypes.object,
+    hole_info: PropTypes.object,
+  }),
+  shotState: PropTypes.shape({
+    current_player: PropTypes.string,
+    shot_number: PropTypes.number,
+  }),
+  shotProbabilities: PropTypes.objectOf(PropTypes.number),
+  interactionNeeded: PropTypes.shape({
+    type: PropTypes.string,
+    message: PropTypes.string,
+    options: PropTypes.array,
+  }),
   hasNextShot: PropTypes.bool,
   loading: PropTypes.bool,
-  pokerState: PropTypes.object,
-  feedback: PropTypes.array,
+  pokerState: PropTypes.shape({
+    current_wager: PropTypes.number,
+    betting_events: PropTypes.array,
+  }),
+  feedback: PropTypes.arrayOf(PropTypes.string),
   onMakeDecision: PropTypes.func,
   onNextShot: PropTypes.func,
   onNextHole: PropTypes.func,
