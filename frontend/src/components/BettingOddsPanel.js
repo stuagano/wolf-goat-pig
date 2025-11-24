@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import PropTypes from 'prop-types';
 import { Card } from './ui';
 import ProbabilityVisualization from './ProbabilityVisualization';
 import EducationalTooltip, { BettingConcepts, generateStrategicInsight, ContextualHelp } from './EducationalTooltip';
@@ -870,6 +871,36 @@ const AnalysisView = ({ oddsData, gameState, calculationHistory }) => {
       )}
     </div>
   );
+};
+
+BettingOddsPanel.propTypes = {
+  gameState: PropTypes.shape({
+    players: PropTypes.arrayOf(PropTypes.shape({
+      id: PropTypes.string.isRequired,
+      name: PropTypes.string.isRequired,
+      handicap: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+      current_score: PropTypes.number,
+      shots_taken: PropTypes.number,
+      distance_to_pin: PropTypes.number,
+      lie_type: PropTypes.string,
+      is_captain: PropTypes.bool,
+      team_id: PropTypes.string,
+    })),
+    active: PropTypes.bool,
+    current_hole: PropTypes.number,
+    current_hole_par: PropTypes.number,
+    hole_difficulty: PropTypes.number,
+    teams: PropTypes.shape({
+      type: PropTypes.string,
+    }),
+    current_wager: PropTypes.number,
+    is_doubled: PropTypes.bool,
+    line_of_scrimmage_passed: PropTypes.bool,
+  }),
+  onBettingAction: PropTypes.func,
+  autoUpdate: PropTypes.bool,
+  refreshInterval: PropTypes.number,
+  showEducationalTooltips: PropTypes.bool,
 };
 
 export default BettingOddsPanel;

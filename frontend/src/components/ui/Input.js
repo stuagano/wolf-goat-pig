@@ -1,4 +1,5 @@
 import React, { useId } from 'react';
+import PropTypes from 'prop-types';
 import { useTheme } from '../../theme/Provider';
 
 const Input = ({
@@ -106,6 +107,21 @@ const Input = ({
       )}
     </div>
   );
+};
+
+Input.propTypes = {
+  label: PropTypes.string,
+  error: PropTypes.string,
+  disabled: PropTypes.bool,
+  type: PropTypes.string,
+  placeholder: PropTypes.string,
+  value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  onChange: PropTypes.func,
+  style: PropTypes.object,
+  inputStyle: PropTypes.object,
+  id: PropTypes.string,
+  variant: PropTypes.oneOf(['default', 'inline']),
+  browserProtection: PropTypes.bool,
 };
 
 export default Input;

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import CourseImport from './CourseImport';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
@@ -390,5 +391,10 @@ function CourseManager({ onClose, onCoursesChanged }) {
     </div>
   );
 }
+
+CourseManager.propTypes = {
+  onClose: PropTypes.func.isRequired,
+  onCoursesChanged: PropTypes.func,
+};
 
 export default CourseManager; 

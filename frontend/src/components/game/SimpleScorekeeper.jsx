@@ -1,5 +1,6 @@
 // frontend/src/components/game/SimpleScorekeeper.jsx
 import React, { useState, useEffect, useMemo } from 'react';
+import PropTypes from 'prop-types';
 import { useTheme } from '../../theme/Provider';
 import { Input } from '../ui';
 import GameCompletionView from './GameCompletionView';
@@ -18,6 +19,11 @@ const PlayerName = ({ name, isAuthenticated }) => (
     {isAuthenticated && <span style={{ marginLeft: '4px', fontSize: '12px' }}>🔒</span>}
   </>
 );
+
+PlayerName.propTypes = {
+  name: PropTypes.string.isRequired,
+  isAuthenticated: PropTypes.bool,
+};
 
 /**
  * Simplified scorekeeper component - no game engine, just direct data entry
@@ -2141,6 +2147,19 @@ const SimpleScorekeeper = ({
       )}
     </div>
   );
+};
+
+SimpleScorekeeper.propTypes = {
+  gameId: PropTypes.string.isRequired,
+  players: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    name: PropTypes.string.isRequired,
+    handicap: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    user_id: PropTypes.string,
+  })).isRequired,
+  baseWager: PropTypes.number,
+  initialHoleHistory: PropTypes.arrayOf(PropTypes.object),
+  initialCurrentHole: PropTypes.number,
 };
 
 export default SimpleScorekeeper;

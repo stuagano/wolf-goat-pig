@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { useTheme } from '../../theme/Provider';
 
 const BettingControls = ({ state, actions, currentPlayer }) => {
@@ -76,6 +77,21 @@ const BettingControls = ({ state, actions, currentPlayer }) => {
       )}
     </div>
   );
+};
+
+BettingControls.propTypes = {
+  state: PropTypes.shape({
+    pendingAction: PropTypes.shape({
+      type: PropTypes.string,
+      from: PropTypes.string,
+    }),
+  }).isRequired,
+  actions: PropTypes.shape({
+    respondToDouble: PropTypes.func,
+    offerDouble: PropTypes.func,
+    pass: PropTypes.func,
+  }).isRequired,
+  currentPlayer: PropTypes.string.isRequired,
 };
 
 export default BettingControls;

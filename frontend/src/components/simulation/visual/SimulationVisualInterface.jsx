@@ -122,14 +122,59 @@ const SimulationVisualInterface = ({
 };
 
 SimulationVisualInterface.propTypes = {
-  gameState: PropTypes.object,
-  shotState: PropTypes.object,
-  shotProbabilities: PropTypes.object,
-  interactionNeeded: PropTypes.object,
+  gameState: PropTypes.shape({
+    players: PropTypes.arrayOf(PropTypes.shape({
+      id: PropTypes.string,
+      name: PropTypes.string,
+      handicap: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+      is_human: PropTypes.bool,
+      points: PropTypes.number,
+    })),
+    hole_history: PropTypes.arrayOf(PropTypes.shape({
+      hole_number: PropTypes.number,
+      gross_scores: PropTypes.object,
+      teams: PropTypes.object,
+    })),
+    current_hole: PropTypes.number,
+    course_holes: PropTypes.arrayOf(PropTypes.shape({
+      hole_number: PropTypes.number,
+      par: PropTypes.number,
+      yards: PropTypes.number,
+      stroke_index: PropTypes.number,
+    })),
+    stroke_allocation: PropTypes.objectOf(PropTypes.object),
+    hole_info: PropTypes.shape({
+      hole_number: PropTypes.number,
+      par: PropTypes.number,
+      yards: PropTypes.number,
+      description: PropTypes.string,
+    }),
+  }),
+  shotState: PropTypes.shape({
+    current_player: PropTypes.string,
+    shot_number: PropTypes.number,
+  }),
+  shotProbabilities: PropTypes.objectOf(PropTypes.number),
+  interactionNeeded: PropTypes.shape({
+    type: PropTypes.string,
+    message: PropTypes.string,
+    options: PropTypes.arrayOf(PropTypes.shape({
+      action: PropTypes.string,
+      label: PropTypes.string,
+      description: PropTypes.string,
+    })),
+  }),
   hasNextShot: PropTypes.bool,
   loading: PropTypes.bool,
-  pokerState: PropTypes.object,
-  feedback: PropTypes.array,
+  pokerState: PropTypes.shape({
+    current_wager: PropTypes.number,
+    betting_events: PropTypes.arrayOf(PropTypes.shape({
+      type: PropTypes.string,
+      timestamp: PropTypes.string,
+      player_id: PropTypes.string,
+    })),
+  }),
+  feedback: PropTypes.arrayOf(PropTypes.string),
   onMakeDecision: PropTypes.func,
   onNextShot: PropTypes.func,
   onNextHole: PropTypes.func,

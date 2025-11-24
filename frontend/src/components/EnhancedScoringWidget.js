@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { useTheme } from '../theme/Provider';
 
 const EnhancedScoringWidget = ({ gameState, holeState, onScoreUpdate, onAction }) => {
@@ -70,10 +71,10 @@ const EnhancedScoringWidget = ({ gameState, holeState, onScoreUpdate, onAction }
 
     if (holeState.teams.type === 'partners') {
       const team1Score = Math.min(
-        ...holeState.teams.team1.map(pid => scores[pid] || 999).filter(s => s !== 999)
+        ...(holeState.teams.team1 || []).map(pid => scores[pid] || 999).filter(s => s !== 999)
       );
       const team2Score = Math.min(
-        ...holeState.teams.team2.map(pid => scores[pid] || 999).filter(s => s !== 999)
+        ...(holeState.teams.team2 || []).map(pid => scores[pid] || 999).filter(s => s !== 999)
       );
       
       return {
@@ -86,7 +87,7 @@ const EnhancedScoringWidget = ({ gameState, holeState, onScoreUpdate, onAction }
     if (holeState.teams.type === 'solo') {
       const soloScore = scores[holeState.teams.solo_player] || null;
       const opponentScore = Math.min(
-        ...holeState.teams.opponents.map(pid => scores[pid] || 999).filter(s => s !== 999)
+        ...(holeState.teams.opponents || []).map(pid => scores[pid] || 999).filter(s => s !== 999)
       );
       
       return {
@@ -500,6 +501,30 @@ const EnhancedScoringWidget = ({ gameState, holeState, onScoreUpdate, onAction }
       }} />
     </div>
   );
+};
+
+EnhancedScoringWidget.propTypes = {
+  gameState: PropTypes.shape({
+    players: PropTypes.arrayOf(PropTypes.shape({
+      id: PropTypes.string.isRequired,
+      name: PropTypes.string.isRequired,
+      handicap: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    })),
+  }),
+  holeState: PropTypes.shape({
+    teams: PropTypes.shape({
+      type: PropTypes.string,
+      team1: PropTypes.arrayOf(PropTypes.string),
+      team2: PropTypes.arrayOf(PropTypes.string),
+      solo_player: PropTypes.string,
+      opponents: PropTypes.arrayOf(PropTypes.string),
+    }),
+    ball_positions: PropTypes.objectOf(PropTypes.shape({
+      final_score: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    })),
+  }),
+  onScoreUpdate: PropTypes.func,
+  onAction: PropTypes.func,
 };
 
 export default EnhancedScoringWidget;

@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 
 const HoleVisualization = ({ holeState, players, gameState }) => {
   if (!holeState || !players) return null;
@@ -426,6 +427,29 @@ const HoleVisualization = ({ holeState, players, gameState }) => {
       </div>
     </div>
   );
+};
+
+HoleVisualization.propTypes = {
+  holeState: PropTypes.shape({
+    hole_par: PropTypes.number,
+    hole_yardage: PropTypes.number,
+    hole_handicap: PropTypes.number,
+    hole_description: PropTypes.string,
+    betting: PropTypes.shape({
+      current_wager: PropTypes.number,
+    }),
+  }),
+  players: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    name: PropTypes.string.isRequired,
+  })),
+  gameState: PropTypes.shape({
+    current_hole: PropTypes.number,
+    hole_par: PropTypes.number,
+    hole_distance: PropTypes.number,
+    hole_stroke_index: PropTypes.number,
+    hole_description: PropTypes.string,
+  }),
 };
 
 export default HoleVisualization;
