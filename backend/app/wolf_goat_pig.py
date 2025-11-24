@@ -194,21 +194,31 @@ class HoleState:
             self.hole_difficulty = "Easy"
 
     def calculate_stroke_advantages(self, players: List['Player']):
-        """Calculate stroke advantages for all players on this hole"""
+        """
+        Calculate stroke advantages for all players on this hole.
+
+        Strokes are calculated relative to the player with the lowest handicap,
+        following match play format where the best player gives strokes to others.
+        """
         self.stroke_advantages = {}
 
+        # Calculate net handicaps relative to lowest handicap player
+        player_handicaps = {player.id: player.handicap for player in players}
+        net_handicaps = HandicapValidator.calculate_net_handicaps(player_handicaps)
+
         for player in players:
-            # Calculate strokes received based on handicap and stroke index
-            strokes_received = self._calculate_strokes_received(player.handicap, self.stroke_index)
+            # Use net handicap (relative to lowest) for stroke calculation
+            net_handicap = net_handicaps.get(player.id, 0.0)
+            strokes_received = self._calculate_strokes_received(net_handicap, self.stroke_index)
 
             self.stroke_advantages[player.id] = StrokeAdvantage(
                 player_id=player.id,
-                handicap=player.handicap,
+                handicap=player.handicap,  # Store original handicap for reference
                 strokes_received=strokes_received,
                 stroke_index=self.stroke_index
             )
 
-    def _calculate_strokes_received(self, handicap: float, stroke_index: int) -> float:
+    def _calculate_strokes_received(self, net_handicap: float, stroke_index: int) -> float:
         """
         Calculate strokes received on this hole with Creecher Feature support.
 
@@ -216,7 +226,7 @@ class HoleState:
         the Wolf-Goat-Pig house rule for half strokes.
 
         Args:
-            handicap: Player's course handicap
+            net_handicap: Player's NET handicap relative to lowest handicap player
             stroke_index: Hole's stroke index (1-18)
 
         Returns:
@@ -225,7 +235,7 @@ class HoleState:
         try:
             # Use HandicapValidator with Creecher Feature support
             strokes = HandicapValidator.calculate_strokes_received_with_creecher(
-                handicap,
+                net_handicap,
                 stroke_index,
                 validate=True
             )
@@ -1809,6 +1819,9 @@ class WolfGoatPigGame(PersistenceMixin):
         This allows the scorecard to display which holes each player gets strokes on
         before those holes are played (traditional golf scorecard functionality).
 
+        Strokes are calculated relative to the player with the lowest handicap,
+        following match play format where the best player gives strokes to others.
+
         Returns:
             Dictionary mapping player_id -> {hole_number: strokes_received}
             Example: {
@@ -1821,8 +1834,13 @@ class WolfGoatPigGame(PersistenceMixin):
         if not self.course_manager:
             return stroke_allocation
 
+        # Calculate net handicaps relative to lowest handicap player
+        player_handicaps = {player.id: player.handicap for player in self.players}
+        net_handicaps = HandicapValidator.calculate_net_handicaps(player_handicaps)
+
         for player in self.players:
             player_strokes = {}
+            net_handicap = net_handicaps.get(player.id, 0.0)
 
             # Calculate strokes for all 18 holes
             for hole_num in range(1, 19):
@@ -1831,9 +1849,9 @@ class WolfGoatPigGame(PersistenceMixin):
                     hole_info = self.course_manager.get_hole_info(hole_num)
                     stroke_index = hole_info.get("stroke_index", hole_num)
 
-                    # Calculate strokes received using Creecher Feature
+                    # Calculate strokes received using Creecher Feature with net handicap
                     strokes = HandicapValidator.calculate_strokes_received_with_creecher(
-                        player.handicap,
+                        net_handicap,
                         stroke_index,
                         validate=True
                     )

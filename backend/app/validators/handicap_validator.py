@@ -101,6 +101,40 @@ class HandicapValidator:
         """
         return max(1, 10 - int(handicap))
 
+    @staticmethod
+    def calculate_net_handicaps(player_handicaps: Dict[str, float]) -> Dict[str, float]:
+        """
+        Calculate net handicaps relative to the lowest handicap player.
+
+        In match play, strokes are given relative to the best player in the group,
+        not based on absolute course handicaps. This makes the game dynamic and fair.
+
+        Example:
+            Players with handicaps {5, 10, 15, 20}:
+            - Player with 5 (lowest) gets 0 net strokes
+            - Player with 10 gets 5 net strokes
+            - Player with 15 gets 10 net strokes
+            - Player with 20 gets 15 net strokes
+
+        Args:
+            player_handicaps: Dictionary mapping player IDs to their course handicaps
+
+        Returns:
+            Dictionary mapping player IDs to their net handicaps (relative to lowest)
+        """
+        if not player_handicaps:
+            return {}
+
+        # Find the lowest handicap in the group
+        lowest_handicap = min(player_handicaps.values())
+
+        # Calculate net handicaps relative to the lowest
+        net_handicaps = {}
+        for player_id, handicap in player_handicaps.items():
+            net_handicaps[player_id] = max(0.0, handicap - lowest_handicap)
+
+        return net_handicaps
+
     @classmethod
     def validate_handicap(cls, handicap: float, field_name: str = "handicap") -> None:
         """
@@ -178,6 +212,10 @@ class HandicapValidator:
         The Creecher Feature is a Wolf-Goat-Pig house rule that awards half strokes
         on certain holes to provide more granular handicapping.
 
+        IMPORTANT: In match play, this should be called with the NET handicap (relative
+        to the lowest handicap player in the group), not the absolute course handicap.
+        Use calculate_net_handicaps() first to get relative handicaps.
+
         Official Rules:
         1. Players with net handicap <= 6: Play all their handicap holes at half strokes.
         2. Players with net handicap > 6 and <= 18: Play their easiest 6 handicap holes
@@ -189,7 +227,8 @@ class HandicapValidator:
              (These extra half strokes wrap around starting from the hardest holes).
 
         Args:
-            course_handicap: Player's course handicap (can be fractional)
+            course_handicap: Player's NET handicap relative to lowest handicap player
+                           (can be fractional). Use calculate_net_handicaps() to get this.
             stroke_index: Hole's stroke index (1-18, where 1 is hardest)
             validate: Whether to validate inputs first
 

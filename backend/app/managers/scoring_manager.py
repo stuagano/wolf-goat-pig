@@ -587,9 +587,9 @@ class ScoringManager:
         """
         Calculate handicap-adjusted scores for all players on a hole.
 
-        Uses USGA stroke allocation rules to determine how many strokes
-        each player receives based on their handicap and the hole's
-        stroke index.
+        Uses USGA stroke allocation rules with match play format:
+        strokes are calculated relative to the player with the lowest
+        handicap in the group.
 
         Args:
             gross_scores: Dictionary of player_id -> gross score
@@ -617,19 +617,24 @@ class ScoringManager:
             # Validate hole stroke index
             HandicapValidator.validate_stroke_index(hole_stroke_index)
 
+            # Calculate net handicaps relative to lowest handicap player
+            net_handicaps = HandicapValidator.calculate_net_handicaps(handicaps)
+
             net_scores = {}
 
             for player_id in gross_scores:
                 # Get player data
                 gross_score = gross_scores[player_id]
-                handicap = handicaps.get(player_id, 0.0)
+                net_handicap = net_handicaps.get(player_id, 0.0)
 
-                # Validate handicap
-                HandicapValidator.validate_handicap(handicap)
+                # Validate original handicap for logging
+                original_handicap = handicaps.get(player_id, 0.0)
+                HandicapValidator.validate_handicap(original_handicap)
 
                 # Calculate strokes received on this hole (with Creecher Feature support)
+                # Use net handicap (relative to lowest player)
                 strokes_received = HandicapValidator.calculate_strokes_received_with_creecher(
-                    course_handicap=handicap,
+                    course_handicap=net_handicap,
                     stroke_index=hole_stroke_index,
                     validate=True
                 )
@@ -644,8 +649,8 @@ class ScoringManager:
 
                 logger.debug(
                     f"Player {player_id}: gross={gross_score}, "
-                    f"handicap={handicap}, strokes={strokes_received}, "
-                    f"net={net_score}"
+                    f"original_handicap={original_handicap}, net_handicap={net_handicap}, "
+                    f"strokes={strokes_received}, net={net_score}"
                 )
 
             return net_scores

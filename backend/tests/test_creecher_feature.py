@@ -13,10 +13,81 @@ Official Rules:
    - Play holes 1-12 at full stroke.
    - Receive an additional 1/2 stroke on two holes for every 1 stroke > 18.
      (These extra half strokes wrap around starting from the hardest holes).
+
+IMPORTANT: In match play, strokes are calculated relative to the lowest handicap
+player. Use calculate_net_handicaps() first to get relative handicaps, then pass
+those to calculate_strokes_received_with_creecher().
 """
 
 import pytest
 from app.validators import HandicapValidator, HandicapValidationError
+
+
+class TestNetHandicapCalculation:
+    """Test calculation of net handicaps relative to lowest player."""
+
+    def test_net_handicaps_basic(self):
+        """Test basic net handicap calculation."""
+        player_handicaps = {
+            "player1": 5.0,
+            "player2": 10.0,
+            "player3": 15.0,
+            "player4": 20.0
+        }
+
+        net_handicaps = HandicapValidator.calculate_net_handicaps(player_handicaps)
+
+        assert net_handicaps["player1"] == 0.0  # Lowest gets 0
+        assert net_handicaps["player2"] == 5.0  # 10 - 5
+        assert net_handicaps["player3"] == 10.0  # 15 - 5
+        assert net_handicaps["player4"] == 15.0  # 20 - 5
+
+    def test_net_handicaps_with_equal_lowest(self):
+        """Test when multiple players have the same lowest handicap."""
+        player_handicaps = {
+            "player1": 10.0,
+            "player2": 10.0,
+            "player3": 15.0
+        }
+
+        net_handicaps = HandicapValidator.calculate_net_handicaps(player_handicaps)
+
+        assert net_handicaps["player1"] == 0.0
+        assert net_handicaps["player2"] == 0.0
+        assert net_handicaps["player3"] == 5.0
+
+    def test_net_handicaps_all_equal(self):
+        """Test when all players have the same handicap."""
+        player_handicaps = {
+            "player1": 15.0,
+            "player2": 15.0,
+            "player3": 15.0
+        }
+
+        net_handicaps = HandicapValidator.calculate_net_handicaps(player_handicaps)
+
+        assert net_handicaps["player1"] == 0.0
+        assert net_handicaps["player2"] == 0.0
+        assert net_handicaps["player3"] == 0.0
+
+    def test_net_handicaps_with_fractional(self):
+        """Test net handicap calculation with fractional handicaps."""
+        player_handicaps = {
+            "player1": 5.5,
+            "player2": 10.5,
+            "player3": 15.5
+        }
+
+        net_handicaps = HandicapValidator.calculate_net_handicaps(player_handicaps)
+
+        assert net_handicaps["player1"] == 0.0
+        assert net_handicaps["player2"] == 5.0  # 10.5 - 5.5
+        assert net_handicaps["player3"] == 10.0  # 15.5 - 5.5
+
+    def test_net_handicaps_empty_dict(self):
+        """Test with empty player dictionary."""
+        net_handicaps = HandicapValidator.calculate_net_handicaps({})
+        assert net_handicaps == {}
 
 
 class TestCreecherFeatureLowHandicaps:
