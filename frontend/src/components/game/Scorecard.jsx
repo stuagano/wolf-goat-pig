@@ -578,79 +578,65 @@ const Scorecard = ({
       ))}
 
       {isCollapsed && (
-        <div style={{ padding: '16px' }}>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: '12px',
-            maxWidth: '800px',
-            margin: '0 auto'
-          }}>
-            {Array.isArray(players) && players.map(player => {
-              if (!player || !player.id) return null;
+        <div style={{
+          display: 'flex',
+          flexWrap: 'nowrap',
+          gap: '16px',
+          overflowX: 'auto',
+          padding: '8px 4px'
+        }}>
+          {Array.isArray(players) && players.map(player => {
+            if (!player || !player.id) return null;
 
-              const totals = calculateTotals(player.id);
-              const isHuman = player.is_human || player.id === 'human';
-              const playerName = typeof player.name === 'string' ? player.name : 'Unknown';
+            const totals = calculateTotals(player.id);
+            const isHuman = player.is_human || player.id === 'human';
+            const playerName = typeof player.name === 'string' ? player.name : 'Unknown';
 
-              return (
-                <div
-                  key={player.id}
-                  style={{
-                    padding: '12px',
-                    backgroundColor: theme.colors.backgroundSecondary,
-                    borderRadius: '8px',
-                    borderLeft: isHuman ? '3px solid rgba(33, 150, 243, 0.5)' : 'none'
-                  }}
-                >
-                  <div style={{
-                    fontWeight: 'bold',
-                    fontSize: '14px',
-                    marginBottom: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}>
-                    {isHuman ? '👤' : '🤖'} {playerName}
-                    {player.handicap != null && <span style={{ fontSize: '12px', opacity: 0.7 }}>({player.handicap})</span>}
-                  </div>
-                  <div style={{ fontSize: '12px', color: theme.colors.textSecondary, marginBottom: '4px' }}>
-                    Quarters:
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                    <div>
-                      <span style={{ color: theme.colors.textSecondary, marginRight: '4px' }}>OUT:</span>
-                      <span style={{
-                        fontWeight: 'bold',
-                        color: totals.front9 > 0 ? '#4CAF50' : totals.front9 < 0 ? '#f44336' : 'inherit'
-                      }}>
-                        {totals.front9 !== 0 ? (totals.front9 > 0 ? `+${totals.front9}` : totals.front9) : '-'}
-                      </span>
-                    </div>
-                    <div>
-                      <span style={{ color: theme.colors.textSecondary, marginRight: '4px' }}>IN:</span>
-                      <span style={{
-                        fontWeight: 'bold',
-                        color: totals.back9 > 0 ? '#4CAF50' : totals.back9 < 0 ? '#f44336' : 'inherit'
-                      }}>
-                        {totals.back9 !== 0 ? (totals.back9 > 0 ? `+${totals.back9}` : totals.back9) : '-'}
-                      </span>
-                    </div>
-                    <div>
-                      <span style={{ color: theme.colors.textSecondary, marginRight: '4px' }}>TOT:</span>
-                      <span style={{
-                        fontWeight: 'bold',
-                        fontSize: '14px',
-                        color: totals.total > 0 ? '#4CAF50' : totals.total < 0 ? '#f44336' : 'inherit'
-                      }}>
-                        {totals.total !== 0 ? (totals.total > 0 ? `+${totals.total}` : totals.total) : '-'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+            return (
+              <div
+                key={player.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '4px 8px',
+                  backgroundColor: isHuman ? 'rgba(33, 150, 243, 0.1)' : 'transparent',
+                  borderRadius: '6px',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0
+                }}
+              >
+                <span style={{ fontWeight: 'bold', fontSize: '13px' }}>
+                  {isHuman ? '👤' : '🤖'} {playerName}
+                  {player.handicap != null && <span style={{ fontSize: '11px', opacity: 0.7, marginLeft: '2px' }}>({player.handicap})</span>}
+                </span>
+                <span style={{ color: theme.colors.textSecondary, fontSize: '11px' }}>OUT:</span>
+                <span style={{
+                  fontWeight: 'bold',
+                  fontSize: '13px',
+                  color: totals.front9 > 0 ? '#4CAF50' : totals.front9 < 0 ? '#f44336' : 'inherit'
+                }}>
+                  {totals.front9 !== 0 ? (totals.front9 > 0 ? `+${totals.front9}` : totals.front9) : '-'}
+                </span>
+                <span style={{ color: theme.colors.textSecondary, fontSize: '11px' }}>IN:</span>
+                <span style={{
+                  fontWeight: 'bold',
+                  fontSize: '13px',
+                  color: totals.back9 > 0 ? '#4CAF50' : totals.back9 < 0 ? '#f44336' : 'inherit'
+                }}>
+                  {totals.back9 !== 0 ? (totals.back9 > 0 ? `+${totals.back9}` : totals.back9) : '-'}
+                </span>
+                <span style={{ color: theme.colors.textSecondary, fontSize: '11px' }}>TOT:</span>
+                <span style={{
+                  fontWeight: 'bold',
+                  fontSize: '14px',
+                  color: totals.total > 0 ? '#4CAF50' : totals.total < 0 ? '#f44336' : 'inherit'
+                }}>
+                  {totals.total !== 0 ? (totals.total > 0 ? `+${totals.total}` : totals.total) : '-'}
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
 
