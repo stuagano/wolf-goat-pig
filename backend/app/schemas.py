@@ -1,16 +1,15 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class Rule(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     title: str
     description: str
-
-    class Config:
-        from_attributes = True
 
 class HoleInfo(BaseModel):
     hole_number: int
@@ -79,6 +78,8 @@ class CourseCreate(BaseModel):
         return v.strip()
 
 class CourseResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str
     description: Optional[str]
@@ -89,9 +90,6 @@ class CourseResponse(BaseModel):
     holes: List[HoleInfo]
     created_at: str
     updated_at: str
-
-    class Config:
-        from_attributes = True
 
 class CourseUpdate(BaseModel):
     name: Optional[str] = None
@@ -209,17 +207,18 @@ class PlayerProfileResponse(PlayerProfileBase):
     id: int
     created_at: str
     updated_at: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
+
     last_played: Optional[str] = None
     is_active: bool = True
     is_ai: bool = False
     playing_style: Optional[str] = None
     description: Optional[str] = None
 
-    class Config:
-        from_attributes = True
-
 # Player Statistics Schemas
 class PlayerStatisticsResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     player_id: int
     games_played: int
@@ -250,9 +249,6 @@ class PlayerStatisticsResponse(BaseModel):
     performance_trends: List[Dict[str, Any]]
     last_updated: str
 
-    class Config:
-        from_attributes = True
-
 # Game Record Schemas
 class GameRecordCreate(BaseModel):
     game_id: str
@@ -267,6 +263,8 @@ class GameRecordUpdate(BaseModel):
     final_scores: Optional[Dict[str, Any]] = None
 
 class GameRecordResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     game_id: str
     course_name: str
@@ -278,9 +276,6 @@ class GameRecordResponse(BaseModel):
     completed_at: Optional[str]
     game_settings: Dict[str, Any]
     final_scores: Dict[str, Any]
-
-    class Config:
-        from_attributes = True
 
 # Game Player Result Schemas
 class GamePlayerResultCreate(BaseModel):
@@ -301,6 +296,8 @@ class GamePlayerResultCreate(BaseModel):
     performance_metrics: Optional[Dict[str, Any]] = None
 
 class GamePlayerResultResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     game_record_id: int
     player_profile_id: int
@@ -319,11 +316,11 @@ class GamePlayerResultResponse(BaseModel):
     performance_metrics: Dict[str, Any]
     created_at: str
 
-    class Config:
-        from_attributes = True
 
 # Player Achievement Schemas
 class PlayerAchievementResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     player_profile_id: int
     achievement_type: str
@@ -332,9 +329,6 @@ class PlayerAchievementResponse(BaseModel):
     earned_date: str
     game_record_id: Optional[int]
     achievement_data: Dict[str, Any]
-
-    class Config:
-        from_attributes = True
 
 # Composite Schemas
 class PlayerProfileWithStats(BaseModel):
@@ -405,6 +399,8 @@ class DailySignupUpdate(BaseModel):
     status: Optional[str] = None
 
 class DailySignupResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     date: str
     player_profile_id: int
@@ -415,9 +411,6 @@ class DailySignupResponse(BaseModel):
     status: str
     created_at: str
     updated_at: str
-
-    class Config:
-        from_attributes = True
 
 class PlayerAvailabilityCreate(BaseModel):
     player_profile_id: int
@@ -441,6 +434,8 @@ class PlayerAvailabilityUpdate(BaseModel):
     notes: Optional[str] = None
 
 class PlayerAvailabilityResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     player_profile_id: int
     day_of_week: int
@@ -450,9 +445,6 @@ class PlayerAvailabilityResponse(BaseModel):
     notes: Optional[str]
     created_at: str
     updated_at: str
-
-    class Config:
-        from_attributes = True
 
 class EmailPreferencesCreate(BaseModel):
     player_profile_id: int
@@ -491,6 +483,8 @@ class EmailPreferencesUpdate(BaseModel):
         return v
 
 class EmailPreferencesResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     player_profile_id: int
     daily_signups_enabled: bool
@@ -502,9 +496,6 @@ class EmailPreferencesResponse(BaseModel):
     preferred_notification_time: str
     created_at: str
     updated_at: str
-
-    class Config:
-        from_attributes = True
 
 # Composite schemas for frontend
 class DailySignupSummary(BaseModel):
@@ -532,6 +523,8 @@ class DailyMessageUpdate(BaseModel):
     message: Optional[str] = None
 
 class DailyMessageResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     date: str
     player_profile_id: int
@@ -541,9 +534,6 @@ class DailyMessageResponse(BaseModel):
     is_active: int
     created_at: str
     updated_at: str
-
-    class Config:
-        from_attributes = True
 
 # Extended daily summary to include messages
 class DailySignupWithMessages(BaseModel):
@@ -616,6 +606,8 @@ class GameBannerUpdate(BaseModel):
         return v
 
 class GameBannerResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     title: Optional[str]
     message: str
@@ -627,9 +619,6 @@ class GameBannerResponse(BaseModel):
     dismissible: bool
     created_at: str
     updated_at: Optional[str]
-
-    class Config:
-        from_attributes = True
 
 # Join Game Schemas
 class JoinGameRequest(BaseModel):

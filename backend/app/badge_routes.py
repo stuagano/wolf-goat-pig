@@ -5,7 +5,7 @@ API Routes for Achievement Badge System
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import and_, desc, func
 from sqlalchemy.orm import Session
 
@@ -21,6 +21,8 @@ router = APIRouter(prefix="/api/badges", tags=["badges"])
 # ====================================================================================
 
 class BadgeResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     badge_id: int
     name: str
@@ -34,33 +36,30 @@ class BadgeResponse(BaseModel):
     tier: Optional[int]
     series_id: Optional[int]
 
-    class Config:
-        from_attributes = True
-
 
 class EarnedBadgeResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     badge: BadgeResponse
     earned_at: str
     serial_number: int
     game_record_id: Optional[int]
 
-    class Config:
-        from_attributes = True
-
 
 class BadgeProgressResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     badge: BadgeResponse
     current_progress: int
     target_progress: int
     progress_percentage: float
     last_progress_date: Optional[str]
 
-    class Config:
-        from_attributes = True
-
 
 class SeriesResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str
     description: str
@@ -68,9 +67,6 @@ class SeriesResponse(BaseModel):
     badges_earned: int
     is_completed: bool
     completion_badge: Optional[BadgeResponse]
-
-    class Config:
-        from_attributes = True
 
 
 class BadgeLeaderboardEntry(BaseModel):

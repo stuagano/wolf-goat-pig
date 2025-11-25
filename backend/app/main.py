@@ -4,6 +4,7 @@ import os
 import random
 import traceback
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -192,12 +193,70 @@ class RotationSelectionRequest(BaseModel):
     selected_position: int = Field(..., ge=1, le=5, description="Desired position in rotation (1-5)")
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown events."""
+    global email_scheduler
+
+    # Startup
+    logger.info("🐺 Wolf Goat Pig API starting up...")
+    logger.info(f"ENVIRONMENT: {os.getenv('ENVIRONMENT')}")
+
+    # Initialize database
+    try:
+        database.init_db()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+        raise
+
+    # Initialize email scheduler if enabled
+    if os.getenv("ENABLE_EMAIL_NOTIFICATIONS", "true").lower() == "true":
+        try:
+            logger.info("📧 Initializing email scheduler...")
+            result = await initialize_email_scheduler()
+            if result["status"] == "success":
+                logger.info("✅ Email scheduler initialized")
+            else:
+                logger.warning(f"⚠️ Email scheduler: {result['message']}")
+        except Exception as e:
+            logger.error(f"❌ Email scheduler initialization failed: {e}")
+    else:
+        logger.info("📧 Email notifications disabled")
+
+    logger.info("🚀 Wolf Goat Pig API startup completed successfully!")
+
+    yield  # Application runs here
+
+    # Shutdown
+    logger.info("🛑 Wolf Goat Pig API shutting down...")
+
+    # Stop email scheduler if it was started
+    try:
+        if email_scheduler is not None and hasattr(email_scheduler, 'stop'):
+            email_scheduler.stop()
+            logger.info("📧 Email scheduler stopped successfully")
+    except Exception as e:
+        logger.error(f"Failed to stop email scheduler: {str(e)}")
+
+    # Close database connections gracefully
+    try:
+        if database.engine:
+            database.engine.dispose()
+            logger.info("🗄️ Database connections closed successfully")
+    except Exception as e:
+        logger.error(f"Failed to close database connections: {str(e)}")
+
+    logger.info("✅ Shutdown complete")
+
+
 app = FastAPI(
     title="Wolf Goat Pig Golf Simulation API",
     description="A comprehensive golf betting simulation API with unified Action API",
     version="1.0.0",
     docs_url="/docs" if os.getenv("ENVIRONMENT") != "production" else None,
-    redoc_url="/redoc" if os.getenv("ENVIRONMENT") != "production" else None
+    redoc_url="/redoc" if os.getenv("ENVIRONMENT") != "production" else None,
+    lifespan=lifespan
 )
 
 ENABLE_TEST_ENDPOINTS = os.getenv("ENABLE_TEST_ENDPOINTS", "false").lower() in {"1", "true", "yes"}
@@ -305,59 +364,6 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
         status_code=500,
         content={"error": "Internal server error", "detail": str(exc)}
     )
-
-@app.on_event("startup")
-async def startup():
-    """Simplified startup event handler for E2E tests."""
-    logger.info("🐺 Wolf Goat Pig API starting up...")
-    logger.info(f"ENVIRONMENT: {os.getenv('ENVIRONMENT')}")
-
-    # Initialize database, but don't run migrations or seed data
-    try:
-        database.init_db()
-        logger.info("Database initialized successfully")
-    except Exception as e:
-        logger.error(f"Failed to initialize database: {e}")
-        raise
-
-    # Initialize email scheduler if enabled
-    if os.getenv("ENABLE_EMAIL_NOTIFICATIONS", "true").lower() == "true":
-        try:
-            logger.info("📧 Initializing email scheduler...")
-            result = await initialize_email_scheduler()
-            if result["status"] == "success":
-                logger.info("✅ Email scheduler initialized")
-            else:
-                logger.warning(f"⚠️ Email scheduler: {result['message']}")
-        except Exception as e:
-            logger.error(f"❌ Email scheduler initialization failed: {e}")
-    else:
-        logger.info("📧 Email notifications disabled")
-
-    logger.info("🚀 Wolf Goat Pig API startup completed successfully!")
-
-@app.on_event("shutdown")
-async def shutdown():
-    """Comprehensive cleanup on shutdown with graceful handling"""
-    logger.info("🛑 Wolf Goat Pig API shutting down...")
-
-    # Stop email scheduler if it was started
-    try:
-        if email_scheduler is not None and hasattr(email_scheduler, 'stop'):
-            email_scheduler.stop()
-            logger.info("📧 Email scheduler stopped successfully")
-    except Exception as e:
-        logger.error(f"Failed to stop email scheduler: {str(e)}")
-
-    # Close database connections gracefully
-    try:
-        if database.engine:
-            database.engine.dispose()
-            logger.info("🗄️ Database connections closed successfully")
-    except Exception as e:
-        logger.error(f"Failed to close database connections: {str(e)}")
-
-    logger.info("✅ Shutdown complete")
 
 async def run_seeding_process():
     """Run the data seeding process during startup."""
@@ -5111,7 +5117,7 @@ async def get_odds_history(game_id: str, hole_number: Optional[int] = None):
 @app.get("/leaderboard", response_model=List[schemas.LeaderboardEntry])
 def get_leaderboard(
     limit: int = Query(100, ge=1, le=100),  # Default to 100 to show all players
-    sort: str = Query("desc", regex="^(asc|desc)$")  # Add sort parameter
+    sort: str = Query("desc", pattern="^(asc|desc)$")  # Add sort parameter
 ):
     """Get the player leaderboard. Uses LeaderboardService for consolidated leaderboard logic."""
     try:
