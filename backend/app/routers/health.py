@@ -1,7 +1,11 @@
 """
-Health Check Router
+Health Check Router (Refactored)
 
 System health monitoring endpoints.
+
+Uses new utility patterns:
+- @handle_api_errors decorator for consistent error handling
+- with_db_session context manager for database access
 """
 
 import logging
@@ -14,6 +18,7 @@ from sqlalchemy import text
 
 from .. import database, models
 from ..state.course_manager import CourseManager
+from ..utils.api_helpers import handle_api_errors, managed_session
 from ..wolf_goat_pig import WolfGoatPigGame
 
 logger = logging.getLogger("app.routers.health")
@@ -26,7 +31,170 @@ router = APIRouter(
 )
 
 
+def _check_database(health_status: Dict[str, Any]) -> bool:
+    """Check database connectivity"""
+    try:
+        with managed_session() as db:
+            db.execute(text("SELECT 1"))
+            health_status["components"]["database"] = {
+                "status": "healthy",
+                "message": "Database connection successful"
+            }
+            return True
+    except Exception as e:
+        logger.error(f"Database health check failed: {e}")
+        health_status["components"]["database"] = {
+            "status": "unhealthy",
+            "message": f"Database connection failed: {str(e)}"
+        }
+        return False
+
+
+def _check_courses(health_status: Dict[str, Any], is_initial_deployment: bool) -> bool:
+    """Check course data availability"""
+    try:
+        courses = course_manager.get_courses()
+        course_count = len(courses) if courses else 0
+
+        if course_count >= 1:
+            health_status["components"]["courses"] = {
+                "status": "healthy",
+                "message": f"{course_count} courses available",
+                "courses": [c["name"] for c in courses] if courses else []
+            }
+            return True
+        else:
+            health_status["components"]["courses"] = {
+                "status": "warning" if is_initial_deployment else "unhealthy",
+                "message": "No courses available (may be initializing)"
+            }
+            return is_initial_deployment
+    except Exception as e:
+        logger.error(f"Course availability check failed: {e}")
+        health_status["components"]["courses"] = {
+            "status": "warning" if is_initial_deployment else "unhealthy",
+            "message": f"Course check failed: {str(e)}"
+        }
+        return is_initial_deployment
+
+
+def _check_rules(health_status: Dict[str, Any]) -> bool:
+    """Check rules availability"""
+    try:
+        with managed_session() as db:
+            rule_count = db.query(models.Rule).count()
+
+            if rule_count >= 5:  # Minimum reasonable number of rules
+                health_status["components"]["rules"] = {
+                    "status": "healthy",
+                    "message": f"{rule_count} rules loaded"
+                }
+            else:
+                health_status["components"]["rules"] = {
+                    "status": "warning",
+                    "message": f"Only {rule_count} rules found, may be incomplete"
+                }
+            return True
+    except Exception as e:
+        logger.error(f"Rules availability check failed: {e}")
+        health_status["components"]["rules"] = {
+            "status": "warning",
+            "message": f"Rules check error: {str(e)}"
+        }
+        return True  # Rules check doesn't fail health
+
+
+def _check_ai_players(health_status: Dict[str, Any], is_initial_deployment: bool) -> bool:
+    """Check AI players availability"""
+    try:
+        with managed_session() as db:
+            ai_player_count = (
+                db.query(models.PlayerProfile)
+                .filter(models.PlayerProfile.is_ai == 1)
+                .filter(models.PlayerProfile.is_active == 1)
+                .count()
+            )
+
+            if ai_player_count >= 4:  # Need at least 4 for a game
+                health_status["components"]["ai_players"] = {
+                    "status": "healthy",
+                    "message": f"{ai_player_count} AI players available"
+                }
+                return True
+            elif ai_player_count >= 1:
+                health_status["components"]["ai_players"] = {
+                    "status": "warning",
+                    "message": f"Only {ai_player_count} AI players available, need at least 4 for full game"
+                }
+                return True
+            else:
+                health_status["components"]["ai_players"] = {
+                    "status": "warning",
+                    "message": "No AI players available (may be initializing)"
+                }
+                return is_initial_deployment
+    except Exception as e:
+        logger.error(f"AI players availability check failed: {e}")
+        health_status["components"]["ai_players"] = {
+            "status": "warning",
+            "message": f"AI players check failed: {str(e)}"
+        }
+        return True
+
+
+def _check_simulation(health_status: Dict[str, Any], is_initial_deployment: bool) -> bool:
+    """Check simulation engine initialization"""
+    try:
+        # Check if we can instantiate the game engine
+        _game = WolfGoatPigGame(player_count=4)
+        health_status["components"]["simulation"] = {
+            "status": "healthy",
+            "message": "Simulation engine operational"
+        }
+        return True
+    except Exception as e:
+        logger.error(f"Simulation initialization test failed: {e}")
+        health_status["components"]["simulation"] = {
+            "status": "warning" if is_initial_deployment else "unhealthy",
+            "message": f"Simulation test failed: {str(e)}"
+        }
+        return is_initial_deployment
+
+
+def _check_data_seeding(health_status: Dict[str, Any]) -> bool:
+    """Check data seeding status"""
+    try:
+        from ..seed_data import get_seeding_status
+        seeding_status = get_seeding_status()
+
+        if seeding_status["status"] == "success":
+            overall_verification = seeding_status.get("verification", {}).get("overall", {})
+            if overall_verification.get("status") == "success":
+                health_status["components"]["data_seeding"] = {
+                    "status": "healthy",
+                    "message": "All required data properly seeded"
+                }
+            else:
+                health_status["components"]["data_seeding"] = {
+                    "status": "warning",
+                    "message": "Some seeded data may be incomplete"
+                }
+        else:
+            health_status["components"]["data_seeding"] = {
+                "status": "warning",
+                "message": f"Data seeding status: {seeding_status.get('message', 'Unknown')}"
+            }
+    except Exception as e:
+        logger.error(f"Data seeding status check failed: {e}")
+        health_status["components"]["data_seeding"] = {
+            "status": "warning",
+            "message": f"Seeding status check failed: {str(e)}"
+        }
+    return True  # Seeding check doesn't fail health
+
+
 @router.get("/health")
+@handle_api_errors(operation_name="health check")
 def health_check() -> Dict[str, Any]:
     """Comprehensive health check endpoint verifying all critical systems"""
     health_status: Dict[str, Any] = {
@@ -39,195 +207,33 @@ def health_check() -> Dict[str, Any]:
 
     # During initial deployment, be more lenient with health checks
     is_initial_deployment = os.getenv("ENVIRONMENT") == "production"
-    overall_healthy = True
 
-    try:
-        # 1. Database connectivity test
-        db = database.SessionLocal()
-        try:
-            db.execute(text("SELECT 1"))
-            health_status["components"]["database"] = {
-                "status": "healthy",
-                "message": "Database connection successful"
-            }
-        except Exception as e:
-            logger.error(f"Database health check failed: {e}")
-            health_status["components"]["database"] = {
-                "status": "unhealthy",
-                "message": f"Database connection failed: {str(e)}"
-            }
-            overall_healthy = False
-        finally:
-            db.close()
+    # Run all health checks
+    checks = [
+        _check_database(health_status),
+        _check_courses(health_status, is_initial_deployment),
+        _check_rules(health_status),
+        _check_ai_players(health_status, is_initial_deployment),
+        _check_simulation(health_status, is_initial_deployment),
+        _check_data_seeding(health_status),
+    ]
 
-        # 2. Course data availability check
-        try:
-            courses = course_manager.get_courses()
-            course_count = len(courses) if courses else 0
+    overall_healthy = all(checks)
 
-            if course_count >= 1:
-                health_status["components"]["courses"] = {
-                    "status": "healthy",
-                    "message": f"{course_count} courses available",
-                    "courses": [c["name"] for c in courses] if courses else []
-                }
-            else:
-                health_status["components"]["courses"] = {
-                    "status": "warning" if is_initial_deployment else "unhealthy",
-                    "message": "No courses available (may be initializing)"
-                }
-                if not is_initial_deployment:
-                    overall_healthy = False
-
-        except Exception as e:
-            logger.error(f"Course availability check failed: {e}")
-            health_status["components"]["courses"] = {
-                "status": "warning" if is_initial_deployment else "unhealthy",
-                "message": f"Course check failed: {str(e)}"
-            }
-            if not is_initial_deployment:
-                overall_healthy = False
-
-        # 3. Rules availability check
-        try:
-            db = database.SessionLocal()
-            try:
-                rule_count = db.query(models.Rule).count()
-
-                if rule_count >= 5:  # Minimum reasonable number of rules
-                    health_status["components"]["rules"] = {
-                        "status": "healthy",
-                        "message": f"{rule_count} rules loaded"
-                    }
-                else:
-                    health_status["components"]["rules"] = {
-                        "status": "warning",
-                        "message": f"Only {rule_count} rules found, may be incomplete"
-                    }
-            except Exception as e:
-                health_status["components"]["rules"] = {
-                    "status": "warning",
-                    "message": f"Rules check failed: {str(e)}"
-                }
-            finally:
-                db.close()
-
-        except Exception as e:
-            logger.error(f"Rules availability check failed: {e}")
-            health_status["components"]["rules"] = {
-                "status": "warning",
-                "message": f"Rules check error: {str(e)}"
-            }
-
-        # 4. AI Players availability check
-        try:
-            db = database.SessionLocal()
-            try:
-                ai_player_count = (
-                    db.query(models.PlayerProfile)
-                    .filter(models.PlayerProfile.is_ai == 1)
-                    .filter(models.PlayerProfile.is_active == 1)
-                    .count()
-                )
-
-                if ai_player_count >= 4:  # Need at least 4 for a game
-                    health_status["components"]["ai_players"] = {
-                        "status": "healthy",
-                        "message": f"{ai_player_count} AI players available"
-                    }
-                elif ai_player_count >= 1:
-                    health_status["components"]["ai_players"] = {
-                        "status": "warning",
-                        "message": f"Only {ai_player_count} AI players available, need at least 4 for full game"
-                    }
-                else:
-                    health_status["components"]["ai_players"] = {
-                        "status": "warning",
-                        "message": "No AI players available (may be initializing)"
-                    }
-                    # Don't fail health check for missing AI players during initial deployment
-                    if not is_initial_deployment:
-                        overall_healthy = False
-            finally:
-                db.close()
-
-        except Exception as e:
-            logger.error(f"AI players availability check failed: {e}")
-            health_status["components"]["ai_players"] = {
-                "status": "warning",
-                "message": f"AI players check failed: {str(e)}"
-            }
-
-        # 5. Simulation initialization test
-        try:
-            # Check if we can instantiate the game engine
-            game = WolfGoatPigGame(player_count=4)
-            health_status["components"]["simulation"] = {
-                "status": "healthy",
-                "message": "Simulation engine operational"
-            }
-        except Exception as e:
-            logger.error(f"Simulation initialization test failed: {e}")
-            health_status["components"]["simulation"] = {
-                "status": "warning" if is_initial_deployment else "unhealthy",
-                "message": f"Simulation test failed: {str(e)}"
-            }
-            if not is_initial_deployment:
-                overall_healthy = False
-
-
-        # 7. Import seeding status check
-        try:
-            from ..seed_data import get_seeding_status
-            seeding_status = get_seeding_status()
-
-            if seeding_status["status"] == "success":
-                overall_verification = seeding_status.get("verification", {}).get("overall", {})
-                if overall_verification.get("status") == "success":
-                    health_status["components"]["data_seeding"] = {
-                        "status": "healthy",
-                        "message": "All required data properly seeded"
-                    }
-                else:
-                    health_status["components"]["data_seeding"] = {
-                        "status": "warning",
-                        "message": "Some seeded data may be incomplete"
-                    }
-            else:
-                health_status["components"]["data_seeding"] = {
-                    "status": "warning",
-                    "message": f"Data seeding status: {seeding_status.get('message', 'Unknown')}"
-                }
-
-        except Exception as e:
-            logger.error(f"Data seeding status check failed: {e}")
-            health_status["components"]["data_seeding"] = {
-                "status": "warning",
-                "message": f"Seeding status check failed: {str(e)}"
-            }
-
-        # Set overall status
-        if not overall_healthy:
-            health_status["status"] = "unhealthy"
-            raise HTTPException(status_code=503, detail="Critical system components are unhealthy")
-
-        # Check for warnings
-        warning_count = sum(1 for comp in health_status["components"].values()
-                          if comp["status"] == "warning")
-
-        if warning_count > 0:
-            health_status["status"] = "degraded"
-            health_status["warnings"] = f"{warning_count} component(s) with warnings"
-
-        return health_status
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Health check failed: {e}")
+    # Set overall status
+    if not overall_healthy:
         health_status["status"] = "unhealthy"
-        health_status["error"] = str(e)
-        raise HTTPException(status_code=503, detail=f"Health check failed: {str(e)}")
+        raise HTTPException(status_code=503, detail="Critical system components are unhealthy")
+
+    # Check for warnings
+    warning_count = sum(1 for comp in health_status["components"].values()
+                      if comp["status"] == "warning")
+
+    if warning_count > 0:
+        health_status["status"] = "degraded"
+        health_status["warnings"] = f"{warning_count} component(s) with warnings"
+
+    return health_status
 
 
 @router.get("/healthz")

@@ -1,22 +1,28 @@
 """
-Courses Router
+Courses Router (Refactored)
 
 Course management and import functionality, including course CRUD operations,
 course import from external sources, and course preview functionality.
+
+Uses new utility patterns:
+- @handle_api_errors decorator for consistent error handling
+- Dependency injection for database sessions
 """
 
 import json
 import logging
 import traceback
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict
 
-from fastapi import APIRouter, File, HTTPException, Path, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Path, UploadFile
+from sqlalchemy.orm import Session
 
 from .. import models, schemas
 from ..course_import import import_course_by_name, import_course_from_json
-from ..database import SessionLocal
+from ..database import get_db
 from ..state.course_manager import CourseManager
+from ..utils.api_helpers import handle_api_errors, ApiResponse
 
 logger = logging.getLogger("app.routers.courses")
 
@@ -79,7 +85,9 @@ def get_fallback_courses():
     }
 
 
+# ============================================================================
 # Course Management Endpoints
+# ============================================================================
 
 @router.get("")
 def get_courses():
@@ -91,13 +99,11 @@ def get_courses():
         if not courses:
             logger.warning("No courses found in game state, attempting to reload from database")
 
-            # Try to reload from database
             try:
                 from ..seed_data import get_seeding_status
                 seeding_status = get_seeding_status()
 
                 if seeding_status["status"] == "success":
-                    # Reinitialize course manager
                     course_manager.__init__()
                     courses = course_manager.get_courses()
 
@@ -120,70 +126,119 @@ def get_courses():
     except Exception as e:
         logger.error(f"Critical error getting courses: {e}")
         logger.error(traceback.format_exc())
-
-        # Always return fallback course to prevent frontend failure
         courses = get_fallback_courses()
         logger.warning("Returning fallback courses due to critical error")
         return courses
 
 
 @router.get("/{course_id}")
+@handle_api_errors(operation_name="get course by ID")
 def get_course_by_id(course_id: int) -> Dict[str, Any]:
     """Get a specific course by ID (index in courses list)"""
-    try:
-        courses = course_manager.get_courses()
-        if not courses:
-            raise HTTPException(status_code=404, detail="No courses available")
+    courses = course_manager.get_courses()
+    if not courses:
+        raise HTTPException(status_code=404, detail="No courses available")
 
-        # Convert courses dict to list and get by index
-        course_list = list(courses.values())
-        if course_id >= len(course_list) or course_id < 0:
-            raise HTTPException(status_code=404, detail="Course not found")
+    course_list = list(courses.values())
+    if course_id >= len(course_list) or course_id < 0:
+        raise HTTPException(status_code=404, detail="Course not found")
 
-        # Return the course at the specified index
-        course = course_list[course_id]
-        return course
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting course by ID {course_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get course: {str(e)}")
+    return course_list[course_id]
 
 
 @router.post("", response_model=dict)
-def add_course(course: schemas.CourseCreate) -> Dict[str, Any]:
+@handle_api_errors(operation_name="add course")
+def add_course(
+    course: schemas.CourseCreate,
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
     """Add a new course - persists to database with Hole records"""
-    db = SessionLocal()
-    try:
-        course_dict = course.dict()
+    course_dict = course.dict()
 
-        # Check if course already exists
-        existing_course = db.query(models.Course).filter(models.Course.name == course.name).first()
-        if existing_course:
-            raise HTTPException(status_code=400, detail=f"Course '{course.name}' already exists")
+    # Check if course already exists
+    existing_course = db.query(models.Course).filter(models.Course.name == course.name).first()
+    if existing_course:
+        raise ValueError(f"Course '{course.name}' already exists")
 
-        # Calculate course statistics
-        holes = course_dict.get("holes", [])
-        total_par = sum(h.get("par", 0) for h in holes)
-        total_yards = sum(h.get("yards", 0) for h in holes)
+    # Calculate course statistics
+    holes = course_dict.get("holes", [])
+    total_par = sum(h.get("par", 0) for h in holes)
+    total_yards = sum(h.get("yards", 0) for h in holes)
 
-        # Create database record
-        now = datetime.utcnow().isoformat()
-        db_course = models.Course(
-            name=course.name,
-            description=course_dict.get("description", ""),
-            total_par=total_par,
-            total_yards=total_yards,
-            holes_data=holes,  # Keep for backward compatibility
-            created_at=now,
-            updated_at=now
+    # Create database record
+    now = datetime.now(timezone.utc).isoformat()
+    db_course = models.Course(
+        name=course.name,
+        description=course_dict.get("description", ""),
+        total_par=total_par,
+        total_yards=total_yards,
+        holes_data=holes,
+        created_at=now,
+        updated_at=now
+    )
+
+    db.add(db_course)
+    db.flush()
+
+    # Create Hole records for each hole
+    for hole_data in holes:
+        db_hole = models.Hole(
+            course_id=db_course.id,
+            hole_number=hole_data.get("hole_number"),
+            par=hole_data.get("par"),
+            yards=hole_data.get("yards"),
+            handicap=hole_data.get("handicap"),
+            description=hole_data.get("description"),
+            tee_box=hole_data.get("tee_box", "regular")
         )
+        db.add(db_hole)
 
-        db.add(db_course)
-        db.flush()  # Flush to get the course ID
+    db.commit()
+    db.refresh(db_course)
 
-        # Create Hole records for each hole
+    # Also add to in-memory course manager
+    course_manager.add_course(course.name, holes)
+
+    logger.info(f"Created course '{course.name}' with {len(holes)} holes (ID: {db_course.id})")
+
+    return ApiResponse.success(
+        data={
+            "id": db_course.id,
+            "name": db_course.name,
+            "total_par": total_par,
+            "total_yards": total_yards,
+            "hole_count": len(holes)
+        },
+        message=f"Course '{course.name}' added successfully"
+    )
+
+
+@router.put("/{course_name}")
+@handle_api_errors(operation_name="update course")
+def update_course(
+    course_name: str,
+    course_update: schemas.CourseUpdate,
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Update an existing course - persists to database and updates Hole records"""
+    db_course = db.query(models.Course).filter(models.Course.name == course_name).first()
+    if not db_course:
+        raise HTTPException(status_code=404, detail=f"Course '{course_name}' not found")
+
+    update_dict = course_update.dict(exclude_unset=True)
+
+    if "name" in update_dict:
+        db_course.name = update_dict["name"]
+    if "description" in update_dict:
+        db_course.description = update_dict["description"]
+    if "holes" in update_dict:
+        holes = update_dict["holes"]
+        db_course.holes_data = holes
+        db_course.total_par = sum(h.get("par", 0) for h in holes)
+        db_course.total_yards = sum(h.get("yards", 0) for h in holes)
+
+        # Update Hole records - delete existing and create new ones
+        db.query(models.Hole).filter(models.Hole.course_id == db_course.id).delete()
         for hole_data in holes:
             db_hole = models.Hole(
                 course_id=db_course.id,
@@ -196,213 +251,110 @@ def add_course(course: schemas.CourseCreate) -> Dict[str, Any]:
             )
             db.add(db_hole)
 
-        db.commit()
-        db.refresh(db_course)
+    db_course.updated_at = datetime.now(timezone.utc).isoformat()
 
-        # Also add to in-memory course manager for current session
-        course_manager.add_course(course.name, holes)
+    db.commit()
+    db.refresh(db_course)
 
-        logger.info(f"Created course '{course.name}' with {len(holes)} holes in database (ID: {db_course.id})")
+    # Update in-memory course manager
+    if "holes" in update_dict:
+        course_manager.update_course(course_name, update_dict["holes"])
 
-        return {
-            "status": "success",
-            "message": f"Course '{course.name}' added successfully",
-            "data": {
-                "id": db_course.id,
-                "name": db_course.name,
-                "total_par": total_par,
-                "total_yards": total_yards,
-                "hole_count": len(holes)
-            }
-        }
-    except HTTPException:
-        db.rollback()
-        raise
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Error adding course: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to add course: {str(e)}")
-    finally:
-        db.close()
+    logger.info(f"Updated course '{course_name}' (ID: {db_course.id})")
 
-
-@router.put("/{course_name}")
-def update_course(course_name: str, course_update: schemas.CourseUpdate) -> Dict[str, Any]:
-    """Update an existing course - persists to database and updates Hole records"""
-    db = SessionLocal()
-    try:
-        # Find the course in database
-        db_course = db.query(models.Course).filter(models.Course.name == course_name).first()
-        if not db_course:
-            raise HTTPException(status_code=404, detail=f"Course '{course_name}' not found")
-
-        # Get update data
-        update_dict = course_update.dict(exclude_unset=True)
-
-        # Update fields
-        if "name" in update_dict:
-            db_course.name = update_dict["name"]
-        if "description" in update_dict:
-            db_course.description = update_dict["description"]
-        if "holes" in update_dict:
-            holes = update_dict["holes"]
-            db_course.holes_data = holes  # Keep for backward compatibility
-            # Recalculate statistics
-            db_course.total_par = sum(h.get("par", 0) for h in holes)
-            db_course.total_yards = sum(h.get("yards", 0) for h in holes)
-
-            # Update Hole records - delete existing and create new ones
-            db.query(models.Hole).filter(models.Hole.course_id == db_course.id).delete()
-            for hole_data in holes:
-                db_hole = models.Hole(
-                    course_id=db_course.id,
-                    hole_number=hole_data.get("hole_number"),
-                    par=hole_data.get("par"),
-                    yards=hole_data.get("yards"),
-                    handicap=hole_data.get("handicap"),
-                    description=hole_data.get("description"),
-                    tee_box=hole_data.get("tee_box", "regular")
-                )
-                db.add(db_hole)
-
-        db_course.updated_at = datetime.utcnow().isoformat()
-
-        db.commit()
-        db.refresh(db_course)
-
-        # Update in-memory course manager
-        if "holes" in update_dict:
-            course_manager.update_course(course_name, update_dict["holes"])
-
-        logger.info(f"Updated course '{course_name}' and its holes in database (ID: {db_course.id})")
-
-        return {
-            "status": "success",
-            "message": f"Course '{course_name}' updated successfully",
-            "data": {
-                "id": db_course.id,
-                "name": db_course.name,
-                "total_par": db_course.total_par,
-                "total_yards": db_course.total_yards
-            }
-        }
-    except HTTPException:
-        db.rollback()
-        raise
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Error updating course: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to update course: {str(e)}")
-    finally:
-        db.close()
+    return ApiResponse.success(
+        data={
+            "id": db_course.id,
+            "name": db_course.name,
+            "total_par": db_course.total_par,
+            "total_yards": db_course.total_yards
+        },
+        message=f"Course '{course_name}' updated successfully"
+    )
 
 
 @router.delete("/{course_name}")
-def delete_course(course_name: str = Path(...)) -> Dict[str, str]:
+@handle_api_errors(operation_name="delete course")
+def delete_course(
+    course_name: str = Path(...),
+    db: Session = Depends(get_db)
+) -> Dict[str, str]:
     """Delete a course - removes from database"""
-    db = SessionLocal()
-    try:
-        # Find the course in database
-        db_course = db.query(models.Course).filter(models.Course.name == course_name).first()
-        if not db_course:
-            raise HTTPException(status_code=404, detail=f"Course '{course_name}' not found")
+    db_course = db.query(models.Course).filter(models.Course.name == course_name).first()
+    if not db_course:
+        raise HTTPException(status_code=404, detail=f"Course '{course_name}' not found")
 
-        # Delete from database
-        db.delete(db_course)
-        db.commit()
+    db.delete(db_course)
+    db.commit()
 
-        # Also remove from in-memory course manager
-        course_manager.delete_course(course_name)
+    # Also remove from in-memory course manager
+    course_manager.delete_course(course_name)
 
-        logger.info(f"Deleted course '{course_name}' from database")
+    logger.info(f"Deleted course '{course_name}' from database")
 
-        return {
-            "status": "success",
-            "message": f"Course '{course_name}' deleted successfully"
-        }
-    except HTTPException:
-        db.rollback()
-        raise
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Error deleting course: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to delete course: {str(e)}")
-    finally:
-        db.close()
+    return ApiResponse.success(message=f"Course '{course_name}' deleted successfully")
 
 
+# ============================================================================
 # Course Import Endpoints
+# ============================================================================
 
 @router.post("/import/search")
+@handle_api_errors(operation_name="import course by search")
 async def import_course_by_search(request: schemas.CourseImportRequest) -> Dict[str, Any]:
     """Search and import a course by name"""
-    try:
-        result = await import_course_by_name(request.course_name, request.state, request.city)
-        return result
-    except Exception as e:
-        logger.error(f"Error importing course by search: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to import course: {str(e)}")
+    result = await import_course_by_name(request.course_name, request.state, request.city)
+    return result
 
 
 @router.post("/import/file")
+@handle_api_errors(operation_name="import course from file")
 async def import_course_from_file(file: UploadFile = File(...)) -> Dict[str, Any]:
     """Import a course from uploaded JSON file"""
-    try:
-        if not file.filename.endswith('.json'):
-            raise HTTPException(status_code=400, detail="File must be a JSON file")
+    if not file.filename.endswith('.json'):
+        raise ValueError("File must be a JSON file")
 
-        content = await file.read()
-        course_data = json.loads(content.decode('utf-8'))
+    content = await file.read()
+    course_data = json.loads(content.decode('utf-8'))
 
-        result = await import_course_from_json(course_data)
-        return result
-    except Exception as e:
-        logger.error(f"Error importing course from file: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to import course: {str(e)}")
+    result = await import_course_from_json(course_data)
+    return result
 
 
 @router.get("/import/sources")
+@handle_api_errors(operation_name="get import sources")
 def get_import_sources():
     """Get available course import sources"""
-    try:
-        return {
-            "sources": [
-                {
-                    "name": "USGA Course Database",
-                    "description": "Official USGA course database with ratings and slopes",
-                    "endpoint": "/courses/import/search"
-                },
-                {
-                    "name": "JSON File Upload",
-                    "description": "Upload custom course data in JSON format",
-                    "endpoint": "/courses/import/file"
-                }
-            ]
-        }
-    except Exception as e:
-        logger.error(f"Error getting import sources: {e}")
-        raise HTTPException(status_code=500, detail="Failed to get import sources")
+    return {
+        "sources": [
+            {
+                "name": "USGA Course Database",
+                "description": "Official USGA course database with ratings and slopes",
+                "endpoint": "/courses/import/search"
+            },
+            {
+                "name": "JSON File Upload",
+                "description": "Upload custom course data in JSON format",
+                "endpoint": "/courses/import/file"
+            }
+        ]
+    }
 
 
 @router.post("/import/preview")
+@handle_api_errors(operation_name="preview course import")
 async def preview_course_import(request: schemas.CourseImportRequest) -> Dict[str, Any]:
     """Preview course data before importing"""
-    try:
-        # This would typically search the external database and return preview data
-        # For now, return a mock preview
-        return {
-            "course_name": request.course_name,
-            "preview_data": {
-                "holes": 18,
-                "par": 72,
-                "rating": 72.5,
-                "slope": 135,
-                "sample_holes": [
-                    {"hole": 1, "par": 4, "yards": 400, "handicap": 7},
-                    {"hole": 2, "par": 3, "yards": 175, "handicap": 15}
-                ]
-            }
+    return {
+        "course_name": request.course_name,
+        "preview_data": {
+            "holes": 18,
+            "par": 72,
+            "rating": 72.5,
+            "slope": 135,
+            "sample_holes": [
+                {"hole": 1, "par": 4, "yards": 400, "handicap": 7},
+                {"hole": 2, "par": 3, "yards": 175, "handicap": 15}
+            ]
         }
-    except Exception as e:
-        logger.error(f"Error previewing course import: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to preview course: {str(e)}")
+    }
