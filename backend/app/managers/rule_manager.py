@@ -923,7 +923,7 @@ class RuleManager:
             # Calculate net handicaps relative to lowest handicap player
             net_handicaps = HandicapValidator.calculate_net_handicaps(player_handicaps)
 
-            strokes_by_player: Dict[str, int] = {}
+            strokes_by_player: Dict[str, float] = {}
 
             for player_id, original_handicap in player_handicaps.items():
                 try:
@@ -1066,7 +1066,7 @@ class RuleManager:
             hole_state = self._get_current_hole_state(game_state)
 
             # Initialize result
-            result = {
+            result: Dict[str, Any] = {
                 "should_offer": False,
                 "context": [],
                 "action": None
@@ -1348,14 +1348,15 @@ class RuleManager:
         current_hole = game_state.get("current_hole")
 
         if current_hole is not None:
-            return current_hole
+            return dict(current_hole) if not isinstance(current_hole, dict) else current_hole
 
         # Alternative: get from holes array
         holes = game_state.get("holes", [])
         current_hole_number = game_state.get("current_hole_number", 1)
 
         if holes and 0 < current_hole_number <= len(holes):
-            return holes[current_hole_number - 1]
+            hole = holes[current_hole_number - 1]
+            return dict(hole) if not isinstance(hole, dict) else hole
 
         # No active hole found
         raise RuleViolationError(

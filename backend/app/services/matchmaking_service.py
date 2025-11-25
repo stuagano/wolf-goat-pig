@@ -273,7 +273,7 @@ Happy golfing! ⛳
             if isinstance(match_date, str):
                 match_date = datetime.fromisoformat(match_date)
 
-            if match_date > cutoff_date:
+            if match_date is not None and match_date > cutoff_date:
                 for player in past_match.get('players', []):
                     recently_matched.add(player['player_id'])
 
