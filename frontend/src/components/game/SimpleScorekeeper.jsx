@@ -53,7 +53,21 @@ const SimpleScorekeeper = ({
   const [optionInvokedBy, setOptionInvokedBy] = useState(null); // Player ID who triggered option
 
   // Rotation tracking (Phase 1)
-  const [rotationOrder, setRotationOrder] = useState(players.map(p => p.id));
+  // Sort players by tee_order if available, otherwise use original order
+  const [rotationOrder, setRotationOrder] = useState(() => {
+    const sortedPlayers = [...players].sort((a, b) => {
+      // If both have tee_order, sort by it
+      if (a.tee_order != null && b.tee_order != null) {
+        return a.tee_order - b.tee_order;
+      }
+      // If only one has tee_order, prioritize it
+      if (a.tee_order != null) return -1;
+      if (b.tee_order != null) return 1;
+      // Otherwise maintain original order
+      return 0;
+    });
+    return sortedPlayers.map(p => p.id);
+  });
   const [captainIndex, setCaptainIndex] = useState(0);
   const [isHoepfinger, setIsHoepfinger] = useState(false);
   const [goatId, setGoatId] = useState(null);

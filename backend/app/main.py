@@ -2465,7 +2465,8 @@ async def get_game_lobby(game_id: str, db: Session = Depends(database.get_db))->
                     "handicap": p.handicap,
                     "is_authenticated": p.user_id is not None,
                     "join_status": p.join_status,
-                    "joined_at": p.joined_at
+                    "joined_at": p.joined_at,
+                    "tee_order": p.tee_order
                 }
                 for p in players
             ],
@@ -2868,7 +2869,8 @@ async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_
                     {
                         "id": p.player_slot_id,
                         "name": p.player_name,
-                        "handicap": p.handicap
+                        "handicap": p.handicap,
+                        "tee_order": p.tee_order
                     }
                     for p in players
                 ],
