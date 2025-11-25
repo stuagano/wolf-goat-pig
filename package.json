@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Golf wagering simulation with FastAPI backend and React frontend",
   "dependencies": {
-    "@anthropic-ai/claude-code": "^1.0.61"
+    "@anthropic-ai/claude-code": "^2.0.53"
   },
   "scripts": {
     "prepare": "husky",
