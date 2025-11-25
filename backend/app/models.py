@@ -110,6 +110,7 @@ class GamePlayer(Base):
     player_profile_id = Column(Integer, nullable=True)  # References PlayerProfile.id
     player_name = Column(String)  # Display name
     handicap = Column(Float, nullable=False, default=18.0)  # Handicap index (0-54)
+    tee_order = Column(Integer, nullable=True)  # Playing order: 0, 1, 2, 3 (first to tee, etc.)
     join_status = Column(String, default="pending")  # pending, joined, ready
     joined_at = Column(String, nullable=True)
     created_at = Column(String)

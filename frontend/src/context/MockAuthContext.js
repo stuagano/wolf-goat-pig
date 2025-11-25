@@ -5,6 +5,7 @@ const MockAuthContext = createContext();
 export const useAuth = () => {
   return {
     isAuthenticated: true,
+    isLoading: false,
     user: { name: 'Test User', email: 'test@example.com' },
     loginWithRedirect: () => Promise.resolve(),
     logout: () => Promise.resolve(),
@@ -14,6 +15,7 @@ export const useAuth = () => {
 export const MockAuthProvider = ({ children }) => {
   const value = {
     isAuthenticated: true,
+    isLoading: false,
     user: { name: 'Test User', email: 'test@example.com' },
     loginWithRedirect: () => Promise.resolve(),
     logout: () => Promise.resolve(),

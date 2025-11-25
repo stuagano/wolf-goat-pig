@@ -457,6 +457,20 @@ async def run_migrations() -> Dict[str, Any]:
                 migrations_applied.append("game_status column")
                 logging.info("  ✅ Added game_status column")
 
+            # Migration 7: Add tee_order column to game_players if missing
+            if 'game_players' in inspector.get_table_names():
+                player_columns = [col['name'] for col in inspector.get_columns('game_players')]
+                if 'tee_order' not in player_columns:
+                    logging.info("  Adding tee_order column to game_players...")
+                    if is_postgresql:
+                        db.execute(text("ALTER TABLE game_players ADD COLUMN tee_order INTEGER"))
+                        db.execute(text("CREATE INDEX IF NOT EXISTS idx_game_players_tee_order ON game_players(game_id, tee_order)"))
+                    else:
+                        db.execute(text("ALTER TABLE game_players ADD COLUMN tee_order INTEGER"))
+                        db.execute(text("CREATE INDEX IF NOT EXISTS idx_game_players_tee_order ON game_players(game_id, tee_order)"))
+                    migrations_applied.append("tee_order column to game_players")
+                    logging.info("  ✅ Added tee_order column to game_players")
+
             db.commit()
 
             if migrations_applied:

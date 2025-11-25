@@ -832,9 +832,9 @@ class WolfGoatPigGame(PersistenceMixin):
         self.hole_states[hole_number] = hole_state
 
     def _random_hitting_order(self) -> List[str]:
-        """Determine random hitting order for first hole (tossing tees)"""
+        """Use hitting order from player list (determined by tee toss in frontend)"""
+        # Players are already in tee order from the database (set via frontend tee toss)
         player_ids = [p.id for p in self.players]
-        random.shuffle(player_ids)
         return player_ids
 
     def _rotate_hitting_order(self, hole_number: int) -> List[str]:

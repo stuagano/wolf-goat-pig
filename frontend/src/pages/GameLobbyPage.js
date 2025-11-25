@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTheme } from '../theme/Provider';
 import CommissionerChat from '../components/CommissionerChat';
+import TeeTossModal from '../components/game/TeeTossModal';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -21,6 +22,9 @@ function GameLobbyPage() {
   const [addingPlayer, setAddingPlayer] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState(null); // {player_slot_id, field: 'name' or 'handicap', value}
   const [deletingPlayer, setDeletingPlayer] = useState(null);
+  const [showTeeToss, setShowTeeToss] = useState(false);
+  const [teeOrderSet, setTeeOrderSet] = useState(false);
+  const [settingTeeOrder, setSettingTeeOrder] = useState(false);
 
   // Poll lobby status every 2 seconds
   useEffect(() => {
@@ -35,6 +39,11 @@ function GameLobbyPage() {
         const data = await response.json();
         setLobby(data);
         setError('');
+
+        // Check if tee order is set
+        if (data.tee_order_set !== undefined) {
+          setTeeOrderSet(data.tee_order_set);
+        }
 
         // Update session in localStorage to keep it fresh
         const currentSession = localStorage.getItem(`wgp_session_${gameId}`);
@@ -209,6 +218,42 @@ function GameLobbyPage() {
     }
   };
 
+  const handleSetTeeOrder = async (orderedPlayers) => {
+    setSettingTeeOrder(true);
+    setError('');
+
+    try {
+      console.log('Ordered players received:', orderedPlayers);
+
+      // Map ordered players to their slot IDs
+      const playerOrder = orderedPlayers.map(player => player.player_slot_id || player.id);
+      console.log('Player order to send:', playerOrder);
+
+      const response = await fetch(`${API_URL}/games/${gameId}/tee-order`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ player_order: playerOrder })
+      });
+
+      const data = await response.json();
+      console.log('Response from backend:', data);
+
+      if (!response.ok) {
+        throw new Error(data.detail || 'Failed to set tee order');
+      }
+
+      setTeeOrderSet(true);
+      setShowTeeToss(false);
+      // Refresh will happen via polling
+
+    } catch (err) {
+      console.error('Error setting tee order:', err);
+      setError(err.message || 'Failed to set tee order');
+    } finally {
+      setSettingTeeOrder(false);
+    }
+  };
+
   if (loading) {
     return (
       <div style={{
@@ -251,7 +296,16 @@ function GameLobbyPage() {
     );
   }
 
-  const canStart = lobby?.players_joined >= 2 && lobby?.players_joined <= lobby?.max_players;
+  const canStart = lobby?.players_joined >= 2 && lobby?.players_joined <= lobby?.max_players && teeOrderSet;
+  const canSetTeeOrder = lobby?.players_joined >= 2 && !teeOrderSet;
+
+  // Convert lobby players to format expected by TeeTossModal
+  const playersForToss = lobby?.players ? lobby.players.map(p => ({
+    id: p.player_slot_id,
+    player_slot_id: p.player_slot_id,
+    name: p.player_name,
+    handicap: p.handicap
+  })) : [];
 
   return (
     <div style={{
@@ -663,6 +717,42 @@ function GameLobbyPage() {
           </div>
         )}
 
+        {/* Set Tee Order Button */}
+        {canSetTeeOrder && (
+          <button
+            onClick={() => setShowTeeToss(true)}
+            style={{
+              ...theme.buttonStyle,
+              width: '100%',
+              fontSize: 18,
+              padding: '16px 24px',
+              background: theme.colors.primary,
+              marginBottom: 16
+            }}
+          >
+            🎯 Set Tee Order (Toss Tees)
+          </button>
+        )}
+
+        {/* Tee Order Status */}
+        {teeOrderSet && (
+          <div style={{
+            background: '#e8f5e9',
+            border: '2px solid ' + theme.colors.success,
+            borderRadius: 8,
+            padding: 16,
+            marginBottom: 16,
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: 18, fontWeight: 600, color: theme.colors.success, marginBottom: 4 }}>
+              ✓ Tee Order Set!
+            </div>
+            <div style={{ fontSize: 14, color: theme.colors.textSecondary }}>
+              Ready to start the game
+            </div>
+          </div>
+        )}
+
         {/* Start Game Button (for creator or anyone in dev mode) */}
         <button
           onClick={startGame}
@@ -676,7 +766,7 @@ function GameLobbyPage() {
             cursor: (!canStart || starting) ? 'not-allowed' : 'pointer'
           }}
         >
-          {starting ? 'Starting Game...' : canStart ? '🚀 Start Game' : `Need ${Math.max(2 - lobby?.players_joined, 0)} More Player(s)`}
+          {starting ? 'Starting Game...' : canStart ? '🚀 Start Game' : !teeOrderSet ? '⚠️ Set Tee Order First' : `Need ${Math.max(2 - lobby?.players_joined, 0)} More Player(s)`}
         </button>
 
         {/* Instructions */}
@@ -713,6 +803,16 @@ function GameLobbyPage() {
           multiple browser windows (or incognito) to simulate different players joining!
         </div>
       </div>
+
+      {/* Tee Toss Modal */}
+      {showTeeToss && (
+        <TeeTossModal
+          players={playersForToss}
+          onClose={() => setShowTeeToss(false)}
+          onOrderComplete={handleSetTeeOrder}
+        />
+      )}
+
       <CommissionerChat gameState={null} />
     </div>
   );

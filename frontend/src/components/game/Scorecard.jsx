@@ -30,6 +30,7 @@ const Scorecard = ({
   const [viewMode, setViewMode] = useState('scorecard'); // 'scorecard' or 'standings'
   const [editingPlayerName, setEditingPlayerName] = useState(null);
   const [editPlayerNameValue, setEditPlayerNameValue] = useState('');
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Debug logging with safe array/object access
   useEffect(() => {
@@ -66,13 +67,29 @@ const Scorecard = ({
     return typeof strokes === 'number' ? strokes : 0;
   };
 
+  // Get golf score indicator based on score relative to par
+  const getScoreIndicator = (strokes, par) => {
+    if (!strokes || !par) return null;
+
+    const diff = strokes - par;
+
+    if (diff <= -2) return { symbol: '⊚', color: '#4CAF50', label: 'Eagle or better', shape: 'circle' }; // Double circle
+    if (diff === -1) return { symbol: '○', color: '#4CAF50', label: 'Birdie', shape: 'circle' }; // Circle
+    if (diff === 0) return { symbol: null, color: '#000', label: 'Par', shape: 'none' }; // Plain number
+    if (diff === 1) return { symbol: '□', color: '#f44336', label: 'Bogey', shape: 'square' }; // Square
+    if (diff === 2) return { symbol: '⊡', color: '#f44336', label: 'Double Bogey', shape: 'square' }; // Double square
+    if (diff >= 3) return { symbol: '△', color: '#f44336', label: 'Triple Bogey+', shape: 'triangle' }; // Triangle
+
+    return null;
+  };
+
   // Get hole data for a player
   const getHoleData = (holeNumber, playerId) => {
-    if (!Array.isArray(holeHistory)) return { quarters: null, strokes: null };
-    if (typeof holeNumber !== 'number' || !playerId) return { quarters: null, strokes: null };
+    if (!Array.isArray(holeHistory)) return { quarters: null, strokes: null, quartersBreakdown: {} };
+    if (typeof holeNumber !== 'number' || !playerId) return { quarters: null, strokes: null, quartersBreakdown: {} };
 
     const holeData = holeHistory.find(h => h && typeof h.hole === 'number' && h.hole === holeNumber);
-    if (!holeData) return { quarters: null, strokes: null };
+    if (!holeData) return { quarters: null, strokes: null, quartersBreakdown: {} };
 
     const pointsDelta = (holeData.points_delta && typeof holeData.points_delta === 'object')
       ? holeData.points_delta
@@ -80,17 +97,21 @@ const Scorecard = ({
     const grossScores = (holeData.gross_scores && typeof holeData.gross_scores === 'object')
       ? holeData.gross_scores
       : {};
+    const quartersBreakdown = (holeData.quarters_breakdown && typeof holeData.quarters_breakdown === 'object')
+      ? holeData.quarters_breakdown[playerId] || {}
+      : {};
 
     const quarters = pointsDelta[playerId];
     const strokes = grossScores[playerId];
 
     return {
       quarters: typeof quarters === 'number' ? quarters : null,
-      strokes: typeof strokes === 'number' ? strokes : null
+      strokes: typeof strokes === 'number' ? strokes : null,
+      quartersBreakdown: quartersBreakdown
     };
   };
 
-  // Calculate front 9, back 9, and total
+  // Calculate front 9, back 9, and total quarters
   const calculateTotals = (playerId) => {
     if (!playerId) return { front9: 0, back9: 0, total: 0 };
 
@@ -108,6 +129,25 @@ const Scorecard = ({
 
     return { front9, back9, total: front9 + back9 };
   };
+
+  // Calculate golf score (strokes) totals
+  const calculateStrokeTotals = (playerId) => {
+    if (!playerId) return { front9: 0, back9: 0, total: 0 };
+
+    const front9 = holes.slice(0, 9).reduce((sum, hole) => {
+      const { strokes } = getHoleData(hole, playerId);
+      return sum + (typeof strokes === 'number' ? strokes : 0);
+    }, 0);
+
+    const back9 = holes.slice(9, 18).reduce((sum, hole) => {
+      const { strokes } = getHoleData(hole, playerId);
+      return sum + (typeof strokes === 'number' ? strokes : 0);
+    }, 0);
+
+    return { front9, back9, total: front9 + back9 };
+  };
+
+  // Note: calculateOpponentTotals removed as we're now using simplified 2-row layout
 
   // Handle clicking on a hole cell to edit
   const handleCellClick = (hole, playerId) => {
@@ -252,94 +292,301 @@ const Scorecard = ({
   return (
     <Card style={{ height: '100%', overflow: 'auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-        <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold' }}>
-          📊 SCORECARD
+        <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', cursor: 'pointer' }} onClick={() => setIsCollapsed(!isCollapsed)}>
+          {isCollapsed ? '▶' : '▼'} 📊 SCORECARD
         </h3>
-        {/* View toggle button - only show in simulation mode (when captainId is provided) */}
-        {captainId && (
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {/* Collapse/Expand button */}
           <Button
             variant="secondary"
-            onClick={() => setViewMode(viewMode === 'scorecard' ? 'standings' : 'scorecard')}
+            onClick={() => setIsCollapsed(!isCollapsed)}
             style={{ padding: '6px 12px', fontSize: '12px' }}
           >
-            {viewMode === 'scorecard' ? '📊 Standings' : '📋 Scorecard'}
+            {isCollapsed ? 'Expand' : 'Minimize'}
           </Button>
-        )}
+          {/* View toggle button - only show in simulation mode (when captainId is provided) */}
+          {captainId && (
+            <Button
+              variant="secondary"
+              onClick={() => setViewMode(viewMode === 'scorecard' ? 'standings' : 'scorecard')}
+              style={{ padding: '6px 12px', fontSize: '12px' }}
+            >
+              {viewMode === 'scorecard' ? '📊 Standings' : '📋 Scorecard'}
+            </Button>
+          )}
+        </div>
       </div>
 
-      {viewMode === 'standings' ? (
+      {!isCollapsed && (viewMode === 'standings' ? (
         <StandingsView />
       ) : (
         <div style={{ overflowX: 'auto' }}>
-        <table style={{
-          width: '100%',
-          borderCollapse: 'collapse',
-          fontSize: '12px',
-          minWidth: '500px'
-        }}>
-          <thead>
-            <tr style={{ backgroundColor: theme.colors.backgroundSecondary }}>
-              <th style={headerCellStyle}>HOLE</th>
-              {holes.map(hole => (
-                <th
-                  key={hole}
-                  style={{
-                    ...headerCellStyle,
-                    backgroundColor: hole === currentHole ? 'rgba(255, 215, 0, 0.2)' : 'transparent',
-                    fontWeight: hole === currentHole ? 'bold' : 'normal',
-                    color: hole === currentHole ? '#FFD700' : 'inherit'
-                  }}
-                >
-                  {hole}
-                </th>
-              ))}
-              <th style={headerCellStyle}>OUT</th>
-              <th style={headerCellStyle}>IN</th>
-              <th style={headerCellStyle}>TOT</th>
-            </tr>
-            {Array.isArray(courseHoles) && courseHoles.length > 0 && (
-              <>
-                <tr style={{ backgroundColor: 'rgba(0, 0, 0, 0.02)' }}>
-                  <td style={{ ...cellStyle, fontWeight: 'bold', fontSize: '10px' }}>PAR</td>
-                  {holes.map(hole => {
-                    const holeInfo = getCourseHoleInfo(hole);
-                    const par = holeInfo && typeof holeInfo.par === 'number' ? holeInfo.par : '-';
-                    return (
-                      <td key={`par-${hole}`} style={{ ...cellStyle, fontSize: '10px', textAlign: 'center' }}>
-                        {par}
-                      </td>
-                    );
-                  })}
-                  <td style={{ ...totalCellStyle, fontSize: '10px' }}>
-                    {courseHoles.slice(0, 9).reduce((sum, h) => sum + (h && typeof h.par === 'number' ? h.par : 0), 0)}
-                  </td>
-                  <td style={{ ...totalCellStyle, fontSize: '10px' }}>
-                    {courseHoles.slice(9, 18).reduce((sum, h) => sum + (h && typeof h.par === 'number' ? h.par : 0), 0)}
-                  </td>
-                  <td style={{ ...totalCellStyle, fontWeight: 'bold', fontSize: '10px' }}>
-                    {courseHoles.reduce((sum, h) => sum + (h && typeof h.par === 'number' ? h.par : 0), 0)}
-                  </td>
-                </tr>
-                <tr style={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }}>
-                  <td style={{ ...cellStyle, fontWeight: 'bold', fontSize: '9px' }}>HDCP</td>
-                  {holes.map(hole => {
-                    const holeInfo = getCourseHoleInfo(hole);
-                    const handicap = holeInfo && typeof holeInfo.handicap === 'number' ? holeInfo.handicap : '-';
-                    return (
-                      <td key={`hdcp-${hole}`} style={{ ...cellStyle, fontSize: '9px', textAlign: 'center' }}>
-                        {handicap}
-                      </td>
-                    );
-                  })}
-                  <td style={{ ...totalCellStyle, fontSize: '9px' }}>-</td>
-                  <td style={{ ...totalCellStyle, fontSize: '9px' }}>-</td>
-                  <td style={{ ...totalCellStyle, fontSize: '9px' }}>-</td>
-                </tr>
-              </>
-            )}
-          </thead>
-          <tbody>
-            {Array.isArray(players) && players.map((player, idx) => {
+          <table style={{
+            width: '100%',
+            borderCollapse: 'collapse',
+            fontSize: '12px',
+            minWidth: '500px'
+          }}>
+            <thead>
+              <tr style={{ backgroundColor: theme.colors.backgroundSecondary }}>
+                <th style={headerCellStyle}>HOLE</th>
+                {holes.map(hole => (
+                  <th
+                    key={hole}
+                    style={{
+                      ...headerCellStyle,
+                      backgroundColor: hole === currentHole ? 'rgba(255, 215, 0, 0.2)' : 'transparent',
+                      fontWeight: hole === currentHole ? 'bold' : 'normal',
+                      color: hole === currentHole ? '#FFD700' : 'inherit'
+                    }}
+                  >
+                    {hole}
+                  </th>
+                ))}
+                <th style={headerCellStyle}>OUT</th>
+                <th style={headerCellStyle}>IN</th>
+                <th style={headerCellStyle}>TOT</th>
+              </tr>
+              {Array.isArray(courseHoles) && courseHoles.length > 0 && (
+                <>
+                  <tr style={{ backgroundColor: 'rgba(0, 0, 0, 0.02)' }}>
+                    <td style={{ ...cellStyle, fontWeight: 'bold', fontSize: '10px' }}>PAR</td>
+                    {holes.map(hole => {
+                      const holeInfo = getCourseHoleInfo(hole);
+                      const par = holeInfo && typeof holeInfo.par === 'number' ? holeInfo.par : '-';
+                      return (
+                        <td key={`par-${hole}`} style={{ ...cellStyle, fontSize: '10px', textAlign: 'center' }}>
+                          {par}
+                        </td>
+                      );
+                    })}
+                    <td style={{ ...totalCellStyle, fontSize: '10px' }}>
+                      {courseHoles.slice(0, 9).reduce((sum, h) => sum + (h && typeof h.par === 'number' ? h.par : 0), 0)}
+                    </td>
+                    <td style={{ ...totalCellStyle, fontSize: '10px' }}>
+                      {courseHoles.slice(9, 18).reduce((sum, h) => sum + (h && typeof h.par === 'number' ? h.par : 0), 0)}
+                    </td>
+                    <td style={{ ...totalCellStyle, fontWeight: 'bold', fontSize: '10px' }}>
+                      {courseHoles.reduce((sum, h) => sum + (h && typeof h.par === 'number' ? h.par : 0), 0)}
+                    </td>
+                  </tr>
+                  <tr style={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }}>
+                    <td style={{ ...cellStyle, fontWeight: 'bold', fontSize: '9px' }}>HDCP</td>
+                    {holes.map(hole => {
+                      const holeInfo = getCourseHoleInfo(hole);
+                      const handicap = holeInfo && typeof holeInfo.handicap === 'number' ? holeInfo.handicap : '-';
+                      return (
+                        <td key={`hdcp-${hole}`} style={{ ...cellStyle, fontSize: '9px', textAlign: 'center' }}>
+                          {handicap}
+                        </td>
+                      );
+                    })}
+                    <td style={{ ...totalCellStyle, fontSize: '9px' }}>-</td>
+                    <td style={{ ...totalCellStyle, fontSize: '9px' }}>-</td>
+                    <td style={{ ...totalCellStyle, fontSize: '9px' }}>-</td>
+                  </tr>
+                </>
+              )}
+            </thead>
+            <tbody>
+              {Array.isArray(players) && players.flatMap((player, idx) => {
+                if (!player || !player.id) return [];
+
+                const totals = calculateTotals(player.id);
+                const isHuman = player.is_human || player.id === 'human';
+                const playerName = typeof player.name === 'string' ? player.name : 'Unknown';
+
+                // A reusable function to render a data row
+                const renderRow = (label, dataFn, totalsFn) => (
+                  <tr key={`${player.id}-${label.toLowerCase().replace(/ /g, '-')}`} style={{
+                    backgroundColor: idx % 2 === 0 ? 'rgba(0, 0, 0, 0.02)' : 'transparent',
+                    borderLeft: isHuman ? '3px solid rgba(33, 150, 243, 0.5)' : 'none'
+                  }}>
+                    <td style={{ ...cellStyle, fontSize: '10px', fontStyle: 'italic', color: theme.colors.textSecondary, paddingTop: '2px' }}>
+                      {label}
+                    </td>
+                    {holes.map(hole => {
+                      const value = dataFn(hole);
+                      const isCurrentHole = hole === currentHole;
+                      const isCompleted = hole < currentHole || (Array.isArray(holeHistory) && holeHistory.find(h => h && h.hole === hole));
+
+                      return (
+                        <td
+                          key={hole}
+                          style={{
+                            ...cellStyle,
+                            backgroundColor: isCurrentHole ? 'rgba(255, 215, 0, 0.1)' : 'transparent',
+                            fontSize: '10px',
+                            fontWeight: '500',
+                            cursor: isCurrentHole || isCompleted ? 'pointer' : 'default',
+                            paddingTop: '2px'
+                          }}
+                          onClick={() => handleCellClick(hole, player.id)}
+                        >
+                          {value !== null && value !== 0 ? (
+                            <span style={{ color: value > 0 ? '#4CAF50' : '#f44336' }}>
+                              {value > 0 ? `+${value}` : value}
+                            </span>
+                          ) : (
+                            <span style={{ color: theme.colors.textSecondary }}>·</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                    <td style={{
+                      ...totalCellStyle,
+                      fontWeight: 'bold',
+                      fontSize: '11px',
+                      paddingTop: '2px',
+                      color: totalsFn && totalsFn().front9 > 0 ? '#4CAF50' : totalsFn && totalsFn().front9 < 0 ? '#f44336' : 'inherit'
+                    }}>
+                      {totalsFn ? (totalsFn().front9 !== 0 ? (totalsFn().front9 > 0 ? `+${totalsFn().front9}` : totalsFn().front9) : '-') : ''}
+                    </td>
+                    <td style={{
+                      ...totalCellStyle,
+                      fontWeight: 'bold',
+                      fontSize: '11px',
+                      paddingTop: '2px',
+                      color: totalsFn && totalsFn().back9 > 0 ? '#4CAF50' : totalsFn && totalsFn().back9 < 0 ? '#f44336' : 'inherit'
+                    }}>
+                      {totalsFn ? (totalsFn().back9 !== 0 ? (totalsFn().back9 > 0 ? `+${totalsFn().back9}` : totalsFn().back9) : '-') : ''}
+                    </td>
+                    <td style={{
+                      ...totalCellStyle,
+                      fontWeight: 'bold',
+                      fontSize: '12px',
+                      paddingTop: '2px',
+                      color: totalsFn && totalsFn().total > 0 ? '#4CAF50' : totalsFn && totalsFn().total < 0 ? '#f44336' : 'inherit'
+                    }}>
+                      {totalsFn ? (totalsFn().total !== 0 ? (totalsFn().total > 0 ? `+${totalsFn().total}` : totalsFn().total) : '-') : ''}
+                    </td>
+                  </tr>
+                );
+
+                const strokeTotals = calculateStrokeTotals(player.id);
+
+                return [
+                  // Strokes row (Main player row)
+                  <tr key={`${player.id}-strokes`} style={{
+                    backgroundColor: idx % 2 === 0 ? 'rgba(0, 0, 0, 0.02)' : 'transparent',
+                    borderLeft: isHuman ? '3px solid rgba(33, 150, 243, 0.5)' : 'none',
+                    borderTop: idx > 0 ? `2px solid ${theme.colors.border}`: 'none'
+                  }}>
+                    <td style={{ ...cellStyle, fontSize: '10px', fontStyle: 'italic', color: theme.colors.textSecondary, paddingTop: '2px' }}>
+                      <div style={{ fontWeight: 'bold', fontSize: '11px', marginBottom: '2px', cursor: onPlayerNameChange ? 'pointer' : 'default' }}
+                        onClick={() => onPlayerNameChange && handlePlayerNameClick(player.id, player.name)}
+                        title={onPlayerNameChange ? 'Click to edit name' : ''}
+                      >
+                        {isHuman ? '👤 ' : '🤖 '}
+                        {playerName}
+                        {player.handicap != null && <span style={{ fontSize: '10px', marginLeft: '4px', opacity: 0.7 }}>({player.handicap})</span>}
+                        {onPlayerNameChange && <span style={{ fontSize: '10px', marginLeft: '4px', opacity: 0.5 }}>✏️</span>}
+                      </div>
+                      <div>Score</div>
+                    </td>
+                    {holes.map(hole => {
+                      const { strokes } = getHoleData(hole, player.id);
+                      const isCurrentHole = hole === currentHole;
+                      const isCompleted = hole < currentHole || (Array.isArray(holeHistory) && holeHistory.find(h => h && h.hole === hole));
+                      const strokesReceived = getStrokesReceived(player.id, hole);
+                      const holeInfo = getCourseHoleInfo(hole);
+                      const holePar = holeInfo?.par;
+                      const indicator = getScoreIndicator(strokes, holePar);
+
+                      return (
+                        <td
+                          key={hole}
+                          style={{
+                            ...cellStyle,
+                            backgroundColor: isCurrentHole ? 'rgba(255, 215, 0, 0.1)' : 'transparent',
+                            fontWeight: strokes ? 'bold' : 'normal',
+                            cursor: isCurrentHole || isCompleted ? 'pointer' : 'default',
+                            position: 'relative',
+                            paddingBottom: '2px'
+                          }}
+                          title={isCurrentHole || isCompleted ? 'Click to edit' : ''}
+                          onClick={() => handleCellClick(hole, player.id)}
+                        >
+                          {isCompleted ? (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
+                              {indicator?.symbol ? (
+                                <span
+                                  style={{
+                                    color: indicator.color,
+                                    border: `1.5px solid ${indicator.color}`,
+                                    borderRadius: indicator.shape === 'circle' ? '50%' : indicator.shape === 'square' ? '2px' : '0%',
+                                    padding: '1px 4px',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    minWidth: '18px',
+                                    height: '18px',
+                                    fontSize: '11px',
+                                    fontWeight: 'bold',
+                                    lineHeight: '1'
+                                  }}
+                                  title={indicator.label}
+                                >
+                                  {strokes}
+                                </span>
+                              ) : (
+                                <span style={{ color: '#000', fontSize: '11px', fontWeight: 'bold' }}>{strokes || '-'}</span>
+                              )}
+                              {strokesReceived === 1 && (
+                                <span style={{ color: theme.colors.accent, fontSize: '8px', marginLeft: '1px' }} title="Gets 1 stroke">●</span>
+                              )}
+                              {strokesReceived === 0.5 && (
+                                <span style={{ color: theme.colors.warning, fontSize: '8px', marginLeft: '1px' }} title="Gets 0.5 stroke">◐</span>
+                              )}
+                              {strokesReceived > 1 && (
+                                <span style={{ color: theme.colors.accent, fontSize: '7px', marginLeft: '1px' }} title={`Gets ${strokesReceived} strokes`}>●{strokesReceived}</span>
+                              )}
+                            </div>
+                          ) : (
+                            strokesReceived > 0 && (
+                              <div style={{ fontSize: '10px', color: theme.colors.textSecondary }}>
+                                {strokesReceived === 1 && <span title="Gets 1 stroke">●</span>}
+                                {strokesReceived === 0.5 && <span title="Gets 0.5 stroke">◐</span>}
+                                {strokesReceived > 1 && <span title={`Gets ${strokesReceived} strokes`}>●{strokesReceived}</span>}
+                              </div>
+                            )
+                          )}
+                        </td>
+                      );
+                    })}
+                    <td style={{ ...totalCellStyle, fontWeight: 'bold', fontSize: '11px', paddingBottom: '2px' }}>
+                      {strokeTotals.front9 > 0 ? strokeTotals.front9 : '-'}
+                    </td>
+                    <td style={{ ...totalCellStyle, fontWeight: 'bold', fontSize: '11px', paddingBottom: '2px' }}>
+                      {strokeTotals.back9 > 0 ? strokeTotals.back9 : '-'}
+                    </td>
+                    <td style={{ ...totalCellStyle, fontWeight: 'bold', fontSize: '12px', paddingBottom: '2px' }}>
+                      {strokeTotals.total > 0 ? strokeTotals.total : '-'}
+                    </td>
+                  </tr>,
+
+                  // Quarters Row
+                  renderRow("Quarters", (hole) => {
+                    const { quarters } = getHoleData(hole, player.id);
+                    return quarters;
+                  }, () => totals)
+                ];
+              })}
+            </tbody>
+          </table>
+        </div>
+      ))}
+
+      {isCollapsed && (
+        <div style={{ padding: '16px' }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '12px',
+            maxWidth: '800px',
+            margin: '0 auto'
+          }}>
+            {Array.isArray(players) && players.map(player => {
               if (!player || !player.id) return null;
 
               const totals = calculateTotals(player.id);
@@ -347,95 +594,64 @@ const Scorecard = ({
               const playerName = typeof player.name === 'string' ? player.name : 'Unknown';
 
               return (
-                <tr key={player.id} style={{
-                  backgroundColor: idx % 2 === 0 ? 'rgba(0, 0, 0, 0.02)' : 'transparent',
-                  borderLeft: isHuman ? '3px solid rgba(33, 150, 243, 0.5)' : 'none'
-                }}>
-                  <td
-                    style={{
-                      ...cellStyle,
-                      fontWeight: 'bold',
-                      maxWidth: '100px',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      cursor: onPlayerNameChange ? 'pointer' : 'default',
-                      position: 'relative'
-                    }}
-                    onClick={() => onPlayerNameChange && handlePlayerNameClick(player.id, player.name)}
-                    title={onPlayerNameChange ? 'Click to edit name' : ''}
-                  >
-                    {isHuman ? '👤 ' : '🤖 '}
-                    {playerName}
-                    {onPlayerNameChange && <span style={{ fontSize: '10px', marginLeft: '4px', opacity: 0.5 }}>✏️</span>}
-                  </td>
-                  {holes.map(hole => {
-                    const { quarters, strokes } = getHoleData(hole, player.id);
-                    const isCurrentHole = hole === currentHole;
-                    const isCompleted = hole < currentHole || (Array.isArray(holeHistory) && holeHistory.find(h => h && h.hole === hole));
-                    const strokesReceived = getStrokesReceived(player.id, hole);
-
-                    return (
-                      <td
-                        key={hole}
-                        style={{
-                          ...cellStyle,
-                          backgroundColor: isCurrentHole ? 'rgba(255, 215, 0, 0.1)' : 'transparent',
-                          fontWeight: (quarters && quarters !== 0) || strokes ? 'bold' : 'normal',
-                          color: quarters > 0 ? '#4CAF50' : quarters < 0 ? '#f44336' : theme.colors.textSecondary,
-                          cursor: isCurrentHole || isCompleted ? 'pointer' : 'default',
-                          position: 'relative'
-                        }}
-                        title={isCurrentHole || isCompleted ? 'Click to edit' : ''}
-                        onClick={() => handleCellClick(hole, player.id)}
-                      >
-                        {isCompleted ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: '1.2' }}>
-                            <div style={{ fontSize: '11px', fontWeight: 'bold' }}>
-                              {strokes || '-'}
-                              {strokesReceived === 1 && (
-                                <span style={{ color: theme.colors.accent, marginLeft: '2px' }} title="Gets 1 stroke">●</span>
-                              )}
-                              {strokesReceived === 0.5 && (
-                                <span style={{ color: theme.colors.warning, marginLeft: '2px' }} title="Gets 0.5 stroke">◐</span>
-                              )}
-                              {strokesReceived > 1 && (
-                                <span style={{ color: theme.colors.accent, marginLeft: '2px', fontSize: '8px' }} title={`Gets ${strokesReceived} strokes`}>●{strokesReceived}</span>
-                              )}
-                            </div>
-                            <div style={{ fontSize: '9px', marginTop: '2px' }}>
-                              {quarters !== null && quarters !== 0 ? (
-                                quarters > 0 ? `+${quarters}` : quarters
-                              ) : '·'}
-                            </div>
-                          </div>
-                        ) : (
-                          strokesReceived > 0 && (
-                            <div style={{ fontSize: '10px', color: theme.colors.textSecondary }}>
-                              {strokesReceived === 1 && <span title="Gets 1 stroke">●</span>}
-                              {strokesReceived === 0.5 && <span title="Gets 0.5 stroke">◐</span>}
-                              {strokesReceived > 1 && <span title={`Gets ${strokesReceived} strokes`}>●{strokesReceived}</span>}
-                            </div>
-                          )
-                        )}
-                      </td>
-                    );
-                  })}
-                  <td style={{ ...totalCellStyle, fontWeight: 'bold' }}>
-                    {totals.front9 !== 0 ? (totals.front9 > 0 ? `+${totals.front9}` : totals.front9) : '-'}
-                  </td>
-                  <td style={{ ...totalCellStyle, fontWeight: 'bold' }}>
-                    {totals.back9 !== 0 ? (totals.back9 > 0 ? `+${totals.back9}` : totals.back9) : '-'}
-                  </td>
-                  <td style={{ ...totalCellStyle, fontWeight: 'bold', fontSize: '14px' }}>
-                    {totals.total !== 0 ? (totals.total > 0 ? `+${totals.total}` : totals.total) : '-'}
-                  </td>
-                </tr>
+                <div
+                  key={player.id}
+                  style={{
+                    padding: '12px',
+                    backgroundColor: theme.colors.backgroundSecondary,
+                    borderRadius: '8px',
+                    borderLeft: isHuman ? '3px solid rgba(33, 150, 243, 0.5)' : 'none'
+                  }}
+                >
+                  <div style={{
+                    fontWeight: 'bold',
+                    fontSize: '14px',
+                    marginBottom: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}>
+                    {isHuman ? '👤' : '🤖'} {playerName}
+                    {player.handicap != null && <span style={{ fontSize: '12px', opacity: 0.7 }}>({player.handicap})</span>}
+                  </div>
+                  <div style={{ fontSize: '12px', color: theme.colors.textSecondary, marginBottom: '4px' }}>
+                    Quarters:
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                    <div>
+                      <span style={{ color: theme.colors.textSecondary, marginRight: '4px' }}>OUT:</span>
+                      <span style={{
+                        fontWeight: 'bold',
+                        color: totals.front9 > 0 ? '#4CAF50' : totals.front9 < 0 ? '#f44336' : 'inherit'
+                      }}>
+                        {totals.front9 !== 0 ? (totals.front9 > 0 ? `+${totals.front9}` : totals.front9) : '-'}
+                      </span>
+                    </div>
+                    <div>
+                      <span style={{ color: theme.colors.textSecondary, marginRight: '4px' }}>IN:</span>
+                      <span style={{
+                        fontWeight: 'bold',
+                        color: totals.back9 > 0 ? '#4CAF50' : totals.back9 < 0 ? '#f44336' : 'inherit'
+                      }}>
+                        {totals.back9 !== 0 ? (totals.back9 > 0 ? `+${totals.back9}` : totals.back9) : '-'}
+                      </span>
+                    </div>
+                    <div>
+                      <span style={{ color: theme.colors.textSecondary, marginRight: '4px' }}>TOT:</span>
+                      <span style={{
+                        fontWeight: 'bold',
+                        fontSize: '14px',
+                        color: totals.total > 0 ? '#4CAF50' : totals.total < 0 ? '#f44336' : 'inherit'
+                      }}>
+                        {totals.total !== 0 ? (totals.total > 0 ? `+${totals.total}` : totals.total) : '-'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               );
             })}
-          </tbody>
-        </table>
-      </div>
+          </div>
+        </div>
       )}
 
       {/* Edit Hole Modal */}
@@ -458,7 +674,7 @@ const Scorecard = ({
             padding: '24px'
           }}>
             <h3 style={{ marginTop: 0, marginBottom: '16px' }}>
-              Edit Hole {editingHole} - {Array.isArray(players) && players.find(p => p && p.id === editingPlayer)?.name || 'Unknown'}
+              Edit Hole {editingHole} - {(Array.isArray(players) && players.find(p => p && p.id === editingPlayer)?.name) || 'Unknown'}
             </h3>
 
             <div style={{ marginBottom: '16px' }}>

@@ -3,7 +3,7 @@
  * Provides offline capability for golf course use where cell signal is poor
  */
 
-const CACHE_NAME = 'wgp-cache-v1';
+const CACHE_NAME = 'wgp-cache-v2';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -89,8 +89,21 @@ self.addEventListener('fetch', (event) => {
           return response;
         }).catch((error) => {
           console.error('[SW] Fetch failed:', error);
-          // Return offline page or cached response if available
-          return caches.match('/index.html');
+          // For navigation requests, return the cached index.html
+          if (event.request.mode === 'navigate') {
+            return caches.match('/index.html').then((response) => {
+              return response || new Response('Offline - Please check your connection', {
+                status: 503,
+                statusText: 'Service Unavailable',
+                headers: new Headers({ 'Content-Type': 'text/html' })
+              });
+            });
+          }
+          // For other requests, just fail gracefully
+          return new Response('Network error', {
+            status: 408,
+            statusText: 'Request Timeout'
+          });
         });
       })
   );

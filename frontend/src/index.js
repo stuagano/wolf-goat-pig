@@ -14,12 +14,16 @@ root.render(
 );
 
 // Register service worker for PWA offline capability
-serviceWorkerRegistration.register({
-  onSuccess: (registration) => {
-    console.log('[PWA] Service worker registered successfully:', registration);
-  },
-  onUpdate: (registration) => {
-    console.log('[PWA] New content available; please refresh.');
-    // Optionally show update notification to user
-  }
-}); 
+// Disabled in development to avoid reload loops
+if (process.env.NODE_ENV === 'production') {
+  serviceWorkerRegistration.register({
+    onSuccess: (registration) => {
+      console.log('[PWA] Service worker registered successfully:', registration);
+    },
+    onUpdate: (registration) => {
+      console.log('[PWA] New content available; please refresh.');
+    }
+  });
+} else {
+  console.log('[DEV] Service worker disabled in development mode');
+} 
