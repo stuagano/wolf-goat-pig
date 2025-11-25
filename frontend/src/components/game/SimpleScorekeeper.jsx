@@ -976,100 +976,228 @@ const SimpleScorekeeper = ({
           <div style={{
             background: theme.colors.paper,
             borderRadius: '8px',
-            padding: '12px',
+            padding: '16px',
             marginBottom: '12px',
-            border: `1px solid ${theme.colors.border}`
+            border: `2px solid ${theme.colors.border}`,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
           }}>
-            <div style={{ fontSize: '12px', color: theme.colors.textSecondary, marginBottom: '8px' }}>
-              Betting by: <strong>{eligiblePlayer?.name}</strong>
+            {/* Header */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '12px',
+              paddingBottom: '12px',
+              borderBottom: `1px solid ${theme.colors.border}`
+            }}>
+              <div>
+                <div style={{ fontSize: '11px', color: theme.colors.textSecondary, marginBottom: '4px' }}>
+                  Betting by
+                </div>
+                <div style={{ fontSize: '14px', fontWeight: 'bold', color: theme.colors.textPrimary }}>
+                  {eligiblePlayer?.name}
+                </div>
+              </div>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '6px 12px',
+                background: theme.colors.backgroundSecondary,
+                borderRadius: '6px'
+              }}>
+                <span style={{ fontSize: '11px', color: theme.colors.textSecondary }}>
+                  {teamMode === 'partners' ? '👥 Partners' : '🎯 Solo'}
+                </span>
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
+
+            {/* Current Wager Display */}
+            <div style={{
+              textAlign: 'center',
+              marginBottom: '16px'
+            }}>
+              <div style={{ fontSize: '12px', color: theme.colors.textSecondary, marginBottom: '4px' }}>
+                Current Wager
+              </div>
+              <div style={{ fontSize: '32px', fontWeight: 'bold', color: theme.colors.primary }}>
+                {currentWager}Q
+              </div>
+            </div>
+
+            {/* Active Modifiers */}
+            {(carryOver || (optionActive && !optionTurnedOff) || vinniesVariation || joesSpecialWager) && (
+              <div style={{
+                fontSize: '10px',
+                color: theme.colors.textSecondary,
+                display: 'flex',
+                gap: '6px',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+                marginBottom: '16px'
+              }}>
+                {carryOver && <span style={{ padding: '3px 8px', background: '#fff3e0', borderRadius: '4px', color: '#FF5722', fontWeight: 'bold' }}>Carry-Over ×2</span>}
+                {optionActive && !optionTurnedOff && <span style={{ padding: '3px 8px', background: '#e3f2fd', borderRadius: '4px', color: '#2196F3', fontWeight: 'bold' }}>Option ×2</span>}
+                {vinniesVariation && <span style={{ padding: '3px 8px', background: '#f3e5f5', borderRadius: '4px', color: '#9C27B0', fontWeight: 'bold' }}>Vinnie's ×2</span>}
+                {joesSpecialWager && <span style={{ padding: '3px 8px', background: '#fff3e0', borderRadius: '4px', color: '#F57C00', fontWeight: 'bold' }}>Joe's Special</span>}
+              </div>
+            )}
+
+            {/* Betting Controls */}
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              {/* Decrement Button */}
+              <button
+                onClick={() => setCurrentWager(Math.max(nextHoleWager, currentWager - 1))}
+                disabled={currentWager <= nextHoleWager}
+                style={{
+                  flex: '0 0 48px',
+                  height: '48px',
+                  borderRadius: '8px',
+                  background: currentWager <= nextHoleWager ? theme.colors.backgroundSecondary : '#f5f5f5',
+                  border: `2px solid ${theme.colors.border}`,
+                  fontSize: '24px',
+                  fontWeight: 'bold',
+                  color: currentWager <= nextHoleWager ? theme.colors.textSecondary : theme.colors.textPrimary,
+                  cursor: currentWager <= nextHoleWager ? 'not-allowed' : 'pointer',
+                  opacity: currentWager <= nextHoleWager ? 0.5 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                −
+              </button>
+
+              {/* Increment Button */}
+              <button
+                onClick={() => setCurrentWager(currentWager + 1)}
+                style={{
+                  flex: '0 0 48px',
+                  height: '48px',
+                  borderRadius: '8px',
+                  background: '#f5f5f5',
+                  border: `2px solid ${theme.colors.border}`,
+                  fontSize: '24px',
+                  fontWeight: 'bold',
+                  color: theme.colors.textPrimary,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                +
+              </button>
+
+              {/* Double Button */}
               <button
                 onClick={() => setCurrentWager(currentWager * 2)}
                 style={{
                   flex: 1,
-                  padding: '8px',
-                  borderRadius: '6px',
-                  background: '#4CAF50',
-                  color: 'white',
+                  minWidth: '100px',
+                  height: '48px',
+                  borderRadius: '8px',
+                  background: 'linear-gradient(135deg, #4CAF50, #45a049)',
                   border: 'none',
-                  fontSize: '13px',
+                  fontSize: '16px',
                   fontWeight: 'bold',
-                  cursor: 'pointer'
-                }}
-              >
-                ×2
-              </button>
-              <button
-                onClick={() => setCurrentWager(nextHoleWager * 4)}
-                style={{
-                  flex: 1,
-                  padding: '8px',
-                  borderRadius: '6px',
-                  background: '#FF9800',
                   color: 'white',
-                  border: 'none',
-                  fontSize: '13px',
-                  fontWeight: 'bold',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(76, 175, 80, 0.3)',
+                  transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => {
+                  e.target.style.transform = 'translateY(-2px)';
+                  e.target.style.boxShadow = '0 4px 12px rgba(76, 175, 80, 0.4)';
+                }}
+                onMouseOut={(e) => {
+                  e.target.style.transform = 'translateY(0)';
+                  e.target.style.boxShadow = '0 2px 8px rgba(76, 175, 80, 0.3)';
                 }}
               >
-                ×4
+                Double
               </button>
-              <button
-                onClick={() => setCurrentWager(nextHoleWager * 8)}
-                style={{
-                  flex: 1,
-                  padding: '8px',
-                  borderRadius: '6px',
-                  background: '#F44336',
-                  color: 'white',
-                  border: 'none',
-                  fontSize: '13px',
-                  fontWeight: 'bold',
-                  cursor: 'pointer'
-                }}
-              >
-                ×8
-              </button>
-              <button
-                onClick={() => setCurrentWager(nextHoleWager)}
-                style={{
-                  flex: 1,
-                  padding: '8px',
-                  borderRadius: '6px',
-                  background: theme.colors.backgroundSecondary,
-                  border: `1px solid ${theme.colors.border}`,
-                  fontSize: '13px',
-                  fontWeight: 'bold',
-                  cursor: 'pointer'
-                }}
-              >
-                Reset
-              </button>
+
+              {/* High Stakes Quick Actions (shown when wager >= 8Q) */}
+              {currentWager >= 8 && (
+                <>
+                  <button
+                    onClick={() => setCurrentWager(Math.floor(currentWager / 2))}
+                    style={{
+                      flex: '0 0 48px',
+                      height: '48px',
+                      borderRadius: '8px',
+                      background: '#fff3e0',
+                      border: '2px solid #FF9800',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      color: '#F57C00',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseOver={(e) => {
+                      e.target.style.background = '#ffe0b2';
+                    }}
+                    onMouseOut={(e) => {
+                      e.target.style.background = '#fff3e0';
+                    }}
+                    title="Halve the wager"
+                  >
+                    ÷2
+                  </button>
+                  <button
+                    onClick={() => setCurrentWager(nextHoleWager)}
+                    style={{
+                      flex: '0 0 auto',
+                      padding: '0 16px',
+                      height: '48px',
+                      borderRadius: '8px',
+                      background: theme.colors.backgroundSecondary,
+                      border: `2px solid ${theme.colors.border}`,
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      color: theme.colors.textPrimary,
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseOver={(e) => {
+                      e.target.style.background = '#e0e0e0';
+                    }}
+                    onMouseOut={(e) => {
+                      e.target.style.background = theme.colors.backgroundSecondary;
+                    }}
+                    title={`Reset to base wager (${nextHoleWager}Q)`}
+                  >
+                    Reset ({nextHoleWager}Q)
+                  </button>
+                </>
+              )}
             </div>
-            <Input
-              type="number"
-              min={nextHoleWager}
-              step={nextHoleWager}
-              value={currentWager}
-              onChange={(e) => {
-                const value = parseInt(e.target.value, 10);
-                if (value >= nextHoleWager) {
-                  setCurrentWager(value);
-                }
-              }}
-              variant="inline"
-              inputStyle={{
-                width: '100%',
-                padding: '8px',
-                fontSize: '14px',
-                border: `1px solid ${theme.colors.border}`,
-                borderRadius: '6px',
-                textAlign: 'center'
-              }}
-              placeholder="Custom wager"
-            />
+
+            {/* Turn Off Option Button */}
+            {optionActive && !optionTurnedOff && goatId && (
+              <button
+                onClick={() => setOptionTurnedOff(true)}
+                style={{
+                  width: '100%',
+                  marginTop: '8px',
+                  padding: '8px',
+                  borderRadius: '6px',
+                  background: '#ffebee',
+                  border: '1px solid #f44336',
+                  fontSize: '12px',
+                  color: '#d32f2f',
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                Turn Off Option
+              </button>
+            )}
           </div>
         );
       })()}
@@ -1218,84 +1346,6 @@ const SimpleScorekeeper = ({
           </div>
         </div>
       )}
-
-      {/* Simplified Wager Display */}
-      <div style={{
-        background: theme.colors.paper,
-        borderRadius: '8px',
-        padding: '12px',
-        marginBottom: '12px',
-        border: `1px solid ${theme.colors.border}`
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 'bold', color: theme.colors.textPrimary }}>
-            Current Wager
-          </div>
-          <div style={{ fontSize: '24px', fontWeight: 'bold', color: theme.colors.primary }}>
-            {currentWager}Q
-          </div>
-        </div>
-
-        {/* Active Modifiers */}
-        {(carryOver || (optionActive && !optionTurnedOff) || vinniesVariation || joesSpecialWager) && (
-          <div style={{ fontSize: '11px', color: theme.colors.textSecondary, display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {carryOver && <span style={{ padding: '2px 6px', background: '#fff3e0', borderRadius: '4px', color: '#FF5722' }}>Carry-Over ×2</span>}
-            {optionActive && !optionTurnedOff && <span style={{ padding: '2px 6px', background: '#e3f2fd', borderRadius: '4px', color: '#2196F3' }}>Option ×2</span>}
-            {vinniesVariation && <span style={{ padding: '2px 6px', background: '#f3e5f5', borderRadius: '4px', color: '#9C27B0' }}>Vinnie's ×2</span>}
-            {joesSpecialWager && <span style={{ padding: '2px 6px', background: '#fff3e0', borderRadius: '4px', color: '#F57C00' }}>Joe's Special</span>}
-          </div>
-        )}
-
-        {/* Mode & Betting Controls */}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '8px', paddingTop: '8px', borderTop: `1px solid ${theme.colors.border}` }}>
-          <div style={{ fontSize: '11px', color: theme.colors.textSecondary, flex: 1 }}>
-            {teamMode === 'partners' ? '👥 Partners' : '🎯 Solo'}
-          </div>
-          <button
-            onClick={() => setCurrentWager(Math.max(1, currentWager / 2))}
-            style={{
-              padding: '6px 12px',
-              borderRadius: '6px',
-              background: theme.colors.backgroundSecondary,
-              border: `1px solid ${theme.colors.border}`,
-              fontSize: '12px',
-              cursor: 'pointer'
-            }}
-          >
-            ÷2
-          </button>
-          <button
-            onClick={() => setCurrentWager(currentWager * 2)}
-            style={{
-              padding: '6px 12px',
-              borderRadius: '6px',
-              background: theme.colors.backgroundSecondary,
-              border: `1px solid ${theme.colors.border}`,
-              fontSize: '12px',
-              cursor: 'pointer'
-            }}
-          >
-            ×2
-          </button>
-          {optionActive && !optionTurnedOff && goatId && (
-            <button
-              onClick={() => setOptionTurnedOff(true)}
-              style={{
-                padding: '6px 12px',
-                borderRadius: '6px',
-                background: '#ffebee',
-                border: '1px solid #f44336',
-                fontSize: '11px',
-                color: '#d32f2f',
-                cursor: 'pointer',
-                fontWeight: 'bold'
-              }}
-            >
-              Turn Off Option
-            </button>
-          )}
-        </div>
-      </div>
 
 
       {/* Float & Option Tracking */}

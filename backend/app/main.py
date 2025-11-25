@@ -4,11 +4,24 @@ import os
 import random
 import traceback
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
-from fastapi import Body, Depends, FastAPI, File, Header, HTTPException, Path, Query, Request, UploadFile
+from fastapi import (
+    Body,
+    Depends,
+    FastAPI,
+    File,
+    Header,
+    HTTPException,
+    Path,
+    Query,
+    Request,
+    UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -21,6 +34,7 @@ from .badge_routes import router as badge_router
 from .domain.shot_range_analysis import analyze_shot_decision
 from .managers.rule_manager import RuleManager, RuleViolationError
 from .managers.scoring_manager import get_scoring_manager
+from .managers.websocket_manager import manager as websocket_manager
 from .post_hole_analytics import PostHoleAnalyzer
 
 # Import routers
@@ -1403,6 +1417,43 @@ async def complete_hole(
                 f"Hole {request.hole_number}, Total: {points_total}, Points: {points_delta}"
             )
 
+        # Calculate per-opponent quarters breakdown for display purposes
+        # This helps show individual matchup results in the scorecard
+        quarters_breakdown = {}
+        for player_id in points_delta.keys():
+            quarters_breakdown[player_id] = {}
+
+            # For partners mode: quarters are split based on team matchups
+            if request.teams.type == "partners":
+                # Each player on team1 plays against each player on team2
+                if player_id in request.teams.team1:
+                    # This player is on team1, their opponents are team2
+                    opponent_count = len(request.teams.team2)
+                    if opponent_count > 0:
+                        quarters_per_opponent = points_delta[player_id] / opponent_count
+                        for opp_id in request.teams.team2:
+                            quarters_breakdown[player_id][opp_id] = quarters_per_opponent
+                elif player_id in request.teams.team2:
+                    # This player is on team2, their opponents are team1
+                    opponent_count = len(request.teams.team1)
+                    if opponent_count > 0:
+                        quarters_per_opponent = points_delta[player_id] / opponent_count
+                        for opp_id in request.teams.team1:
+                            quarters_breakdown[player_id][opp_id] = quarters_per_opponent
+
+            # For solo mode: quarters are already per-opponent
+            elif request.teams.type == "solo":
+                if player_id == request.teams.captain:
+                    # Solo player plays against each opponent individually
+                    opponent_count = len(request.teams.opponents)
+                    if opponent_count > 0:
+                        quarters_per_opponent = points_delta[player_id] / opponent_count
+                        for opp_id in request.teams.opponents:
+                            quarters_breakdown[player_id][opp_id] = quarters_per_opponent
+                else:
+                    # Regular opponent vs the solo player
+                    quarters_breakdown[player_id][request.teams.captain] = points_delta[player_id]
+
         # Create hole result
         hole_result = {
             "hole": request.hole_number,
@@ -1421,6 +1472,7 @@ async def complete_hole(
             "gross_scores": request.scores,
             "hole_par": request.hole_par,
             "points_delta": points_delta,
+            "quarters_breakdown": quarters_breakdown,  # Per-opponent quarters for scorecard display
             "float_invoked_by": request.float_invoked_by,
             "option_invoked_by": request.option_invoked_by,
             "carry_over_applied": request.carry_over_applied,
@@ -1531,6 +1583,7 @@ async def complete_hole(
 
         logger.info(f"Completed hole {request.hole_number} for game {game_id}")
 
+        await websocket_manager.broadcast(json.dumps({"game_state": game_state}), game_id)
         return {
             "success": True,
             "game_state": game_state,
@@ -1806,6 +1859,37 @@ async def update_hole(
             logger.info(f"Manual points override for player {override.player_id}: {override.quarters}")
             points_delta[override.player_id] = override.quarters
 
+        # Calculate per-opponent quarters breakdown for display purposes
+        quarters_breakdown = {}
+        for player_id in points_delta.keys():
+            quarters_breakdown[player_id] = {}
+
+            # For partners mode: quarters are split based on team matchups
+            if request.teams.type == "partners":
+                if player_id in request.teams.team1:
+                    opponent_count = len(request.teams.team2)
+                    if opponent_count > 0:
+                        quarters_per_opponent = points_delta[player_id] / opponent_count
+                        for opp_id in request.teams.team2:
+                            quarters_breakdown[player_id][opp_id] = quarters_per_opponent
+                elif player_id in request.teams.team2:
+                    opponent_count = len(request.teams.team1)
+                    if opponent_count > 0:
+                        quarters_per_opponent = points_delta[player_id] / opponent_count
+                        for opp_id in request.teams.team1:
+                            quarters_breakdown[player_id][opp_id] = quarters_per_opponent
+
+            # For solo mode: quarters are already per-opponent
+            elif request.teams.type == "solo":
+                if player_id == request.teams.captain:
+                    opponent_count = len(request.teams.opponents)
+                    if opponent_count > 0:
+                        quarters_per_opponent = points_delta[player_id] / opponent_count
+                        for opp_id in request.teams.opponents:
+                            quarters_breakdown[player_id][opp_id] = quarters_per_opponent
+                else:
+                    quarters_breakdown[player_id][request.teams.captain] = points_delta[player_id]
+
         # Create updated hole result
         hole_result = {
             "hole": hole_number,
@@ -1824,6 +1908,7 @@ async def update_hole(
             "gross_scores": request.scores,
             "hole_par": request.hole_par,
             "points_delta": points_delta,
+            "quarters_breakdown": quarters_breakdown,
             "float_invoked_by": request.float_invoked_by,
             "option_invoked_by": request.option_invoked_by,
             "carry_over_applied": request.carry_over_applied,
@@ -1871,11 +1956,12 @@ async def update_hole(
 
         logger.info(f"Updated hole {hole_number} for game {game_id}")
 
+        await websocket_manager.broadcast(json.dumps({"game_state": game_state}), game_id)
         return {
             "success": True,
             "game_state": game_state,
             "hole_result": hole_result,
-            "message": f"Hole {hole_number} updated successfully"
+            "message": f"Hole {hole_number} updated successfully",
         }
 
     except HTTPException:
@@ -2366,6 +2452,7 @@ async def get_game_lobby(game_id: str, db: Session = Depends(database.get_db))->
             "max_players": max_players,
             "players_joined": len(players),
             "ready_to_start": len(players) >= 2 and len(players) <= max_players,
+            "tee_order_set": game.state.get("tee_order_set", False),
             "players": [
                 {
                     "player_slot_id": p.player_slot_id,
@@ -2384,6 +2471,81 @@ async def get_game_lobby(game_id: str, db: Session = Depends(database.get_db))->
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving game lobby: {str(e)}")
 
+@app.patch("/games/{game_id}/tee-order")
+async def set_tee_order(
+    game_id: str,
+    request: Dict[str, Any],
+    db: Session = Depends(database.get_db)
+) -> Dict[str, Any]:
+    """Set the tee order for the game based on tee toss results"""
+    try:
+        game = db.query(models.GameStateModel).filter(
+            models.GameStateModel.game_id == game_id
+        ).first()
+
+        if not game:
+            raise HTTPException(status_code=404, detail="Game not found")
+
+        if game.game_status != "setup":
+            raise HTTPException(status_code=400, detail="Cannot set tee order after game has started")
+
+        player_order = request.get("player_order", [])
+        if not player_order:
+            raise HTTPException(status_code=400, detail="player_order is required")
+
+        # Validate all players exist and get them
+        players = db.query(models.GamePlayer).filter(
+            models.GamePlayer.game_id == game_id
+        ).all()
+
+        player_dict = {p.player_slot_id: p for p in players}
+
+        # Validate that all players in the game are in the order
+        if len(player_order) != len(players):
+            raise HTTPException(
+                status_code=400,
+                detail=f"player_order must include all {len(players)} players"
+            )
+
+        # Validate all player IDs exist
+        for player_slot_id in player_order:
+            if player_slot_id not in player_dict:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid player_slot_id: {player_slot_id}"
+                )
+
+        # Set tee_order field for each player (0 = first to tee, 1 = second, etc.)
+        # This preserves player_slot_id and stores the tee order separately
+        for tee_position, player_slot_id in enumerate(player_order):
+            player = player_dict[player_slot_id]
+            player.tee_order = tee_position
+
+        # Mark tee order as set in game state
+        game.state["tee_order_set"] = True
+        game.updated_at = datetime.now(timezone.utc)
+
+        # Tell SQLAlchemy the JSON field has changed
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(game, "state")
+
+        db.commit()
+
+        logger.info(f"Tee order set for game {game_id}: {player_order}")
+
+        return {
+            "status": "success",
+            "message": "Tee order set successfully",
+            "player_order": player_order
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error setting tee order: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error setting tee order: {str(e)}")
+
 @app.post("/games/{game_id}/start")
 async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get_db))->Dict[str,Any]:
     """Start a game from the lobby - initializes WGP simulation"""
@@ -2400,9 +2562,13 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
         if game.game_status != "setup":
             raise HTTPException(status_code=400, detail="Game has already been started")
 
+        # Check if tee order has been set
+        if not game.state.get("tee_order_set", False):
+            raise HTTPException(status_code=400, detail="Tee order must be set before starting the game")
+
         players = db.query(models.GamePlayer).filter(
             models.GamePlayer.game_id == game_id
-        ).order_by(models.GamePlayer.player_slot_id).all()
+        ).order_by(models.GamePlayer.tee_order).all()
 
         if len(players) < 2:
             raise HTTPException(status_code=400, detail="Need at least 2 players to start")
@@ -2748,10 +2914,10 @@ async def perform_game_action_by_id(
                 raise HTTPException(status_code=400, detail="Game has not been started yet")
 
             # Restore game simulation from database
-            # Get players from database
+            # Get players from database in tee order
             players = db.query(models.GamePlayer).filter(
                 models.GamePlayer.game_id == game_id
-            ).order_by(models.GamePlayer.player_slot_id).all()
+            ).order_by(models.GamePlayer.tee_order).all()
 
             # Create Player objects
             wgp_players = []
@@ -2831,7 +2997,14 @@ async def perform_game_action_by_id(
                     game.state["game_status"] = "completed"
 
                 db.commit()
-                logger.info(f"Saved state for game {game_id} after action {action_request.action_type}")
+                logger.info(
+                    f"Saved state for game {game_id} after action {action_request.action_type}"
+                )
+
+                # Broadcast the updated game state
+                await websocket_manager.broadcast(
+                    json.dumps({"game_state": game.state}), game_id
+                )
 
             return response
 
@@ -9028,6 +9201,22 @@ async def get_simplified_hole_history(game_id: str):
     except Exception as e:
         logger.error(f"Error getting hole history: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get history: {str(e)}")
+
+
+@app.websocket("/ws/{game_id}")
+async def websocket_endpoint(websocket: WebSocket, game_id: str):
+    await websocket_manager.connect(websocket, game_id)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            await websocket_manager.broadcast(
+                f"Message from client for game {game_id}: {data}", game_id
+            )
+    except WebSocketDisconnect:
+        websocket_manager.disconnect(websocket, game_id)
+        await websocket_manager.broadcast(
+            f"A client disconnected from game {game_id}", game_id
+        )
 
 
 @app.get("/", response_class=HTMLResponse)
