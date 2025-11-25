@@ -25,9 +25,10 @@ class CourseManager:
         try:
             course = db.query(Course).options(joinedload(Course.holes)).filter(Course.name == course_name).first()
             if course:
-                self._course_cache[course.id] = course
-                self.selected_course_name = course.name
-                self.selected_course_id = course.id
+                course_id = int(course.id)
+                self._course_cache[course_id] = course
+                self.selected_course_name = str(course.name)
+                self.selected_course_id = int(course.id)
                 logger.info(f"Successfully loaded and cached course: {course_name}")
                 return True
             logger.warning(f"Course '{course_name}' not found in the database.")
@@ -41,14 +42,17 @@ class CourseManager:
             return None
         return self._course_cache.get(self.selected_course_id)
 
-    def refresh_course(self, course_id: int):
+    def refresh_course(self, course_id: int) -> bool:
         """Reloads a course from the database to refresh the cache."""
         db: Session = SessionLocal()
         try:
             course = db.query(Course).options(joinedload(Course.holes)).get(course_id)
             if course:
-                self._course_cache[course.id] = course
+                cached_course_id = int(course.id)
+                self._course_cache[cached_course_id] = course
                 logger.info(f"Refreshed course '{course.name}' from database.")
+                return True
+            return False
         finally:
             db.close()
 

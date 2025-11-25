@@ -1346,7 +1346,7 @@ class WolfGoatPigGame(PersistenceMixin):
         }
 
         if teams.type == "partners":
-            team_analysis.update({
+            team_analysis_update: Dict[str, Any] = {
                 "team1": [self._get_player_name(pid) for pid in teams.team1],
                 "team2": [self._get_player_name(pid) for pid in teams.team2],
                 "partnership_formed": True,
@@ -1354,13 +1354,15 @@ class WolfGoatPigGame(PersistenceMixin):
                     "captain_partner": self._get_player_name(teams.team1[1]) if len(teams.team1) > 1 else None,
                     "opposition": [self._get_player_name(pid) for pid in teams.team2]
                 }
-            })
+            }
+            team_analysis.update(team_analysis_update)
         elif teams.type == "solo":
-            team_analysis.update({
+            team_analysis_update_solo: Dict[str, Any] = {
                 "solo_player": self._get_player_name(teams.solo_player),
                 "opponents": [self._get_player_name(pid) for pid in teams.opponents],
                 "solo_risk_level": "HIGH" if hole_state.betting.current_wager > 2 else "MEDIUM"
-            })
+            }
+            team_analysis.update(team_analysis_update_solo)
 
         return team_analysis
 
@@ -1368,30 +1370,31 @@ class WolfGoatPigGame(PersistenceMixin):
         """Analyze all betting activity on the hole"""
         betting = hole_state.betting
 
-        betting_summary = {
+        special_rules_list: List[str] = []
+        betting_summary: Dict[str, Any] = {
             "starting_wager": betting.base_wager,
             "final_wager": betting.current_wager,
             "wager_multiplier": betting.current_wager / betting.base_wager,
-            "special_rules_invoked": []
+            "special_rules_invoked": special_rules_list
         }
 
         # Check which special rules were used
         if betting.duncan_invoked:
-            betting_summary["special_rules_invoked"].append("The Duncan (3-for-2 odds)")
+            special_rules_list.append("The Duncan (3-for-2 odds)")
         if betting.tunkarri_invoked:
-            betting_summary["special_rules_invoked"].append("The Tunkarri (Aardvark solo)")
+            special_rules_list.append("The Tunkarri (Aardvark solo)")
         if betting.big_dick_invoked:
-            betting_summary["special_rules_invoked"].append("The Big Dick (18th hole)")
+            special_rules_list.append("The Big Dick (18th hole)")
         if betting.option_invoked:
-            betting_summary["special_rules_invoked"].append("The Option (losing captain)")
+            special_rules_list.append("The Option (losing captain)")
         if betting.float_invoked:
-            betting_summary["special_rules_invoked"].append("The Float (captain's choice)")
+            special_rules_list.append("The Float (captain's choice)")
         if betting.joes_special_value:
-            betting_summary["special_rules_invoked"].append(f"Joe's Special ({betting.joes_special_value} quarters)")
+            special_rules_list.append(f"Joe's Special ({betting.joes_special_value} quarters)")
         if betting.carry_over:
-            betting_summary["special_rules_invoked"].append("Carry-over from previous hole")
+            special_rules_list.append("Carry-over from previous hole")
         if betting.ping_pong_count > 0:
-            betting_summary["special_rules_invoked"].append(f"Ping Pong Aardvark ({betting.ping_pong_count}x)")
+            special_rules_list.append(f"Ping Pong Aardvark ({betting.ping_pong_count}x)")
 
         return betting_summary
 
@@ -1403,29 +1406,35 @@ class WolfGoatPigGame(PersistenceMixin):
         scores = hole_state.scores
 
         # Calculate net scores with handicaps
-        net_scores = {}
+        net_scores: Dict[str, int] = {}
         for player_id, gross_score in scores.items():
+            if gross_score is None:
+                continue
             stroke_advantage = hole_state.stroke_advantages.get(player_id, 0)
             if isinstance(stroke_advantage, (int, float)):
-                net_scores[player_id] = gross_score - stroke_advantage
+                net_scores[player_id] = gross_score - int(stroke_advantage)
             else:
                 net_scores[player_id] = gross_score
 
-        # Find best performances
-        best_gross = min(scores.values())
-        best_net = min(net_scores.values())
-        best_gross_players = [pid for pid, score in scores.items() if score == best_gross]
+        # Find best performances - filter out None values
+        valid_scores = {pid: score for pid, score in scores.items() if score is not None}
+        if not valid_scores:
+            return {"scores_entered": False}
+
+        best_gross = min(valid_scores.values())
+        best_net = min(net_scores.values()) if net_scores else best_gross
+        best_gross_players = [pid for pid, score in valid_scores.items() if score == best_gross]
         best_net_players = [pid for pid, score in net_scores.items() if score == best_net]
 
         return {
             "scores_entered": True,
-            "gross_scores": {pid: scores[pid] for pid in scores},
+            "gross_scores": {pid: valid_scores[pid] for pid in valid_scores},
             "net_scores": net_scores,
             "best_gross_score": best_gross,
             "best_net_score": best_net,
             "best_gross_players": [self._get_player_name(pid) for pid in best_gross_players],
             "best_net_players": [self._get_player_name(pid) for pid in best_net_players],
-            "score_spread": max(scores.values()) - min(scores.values())
+            "score_spread": max(valid_scores.values()) - min(valid_scores.values())
         }
 
     def _analyze_point_distribution(self, hole_state: HoleState) -> Dict[str, Any]:
@@ -1524,10 +1533,15 @@ class WolfGoatPigGame(PersistenceMixin):
 
         # Calculate performance relative to handicap and field
         for player_id, score in scores.items():
+            if score is None:
+                continue
             player_name = self._get_player_name(player_id)
 
-            # Simple rating system
-            field_average = sum(scores.values()) / len(scores)
+            # Simple rating system - filter None values
+            valid_scores = [s for s in scores.values() if s is not None]
+            if not valid_scores:
+                continue
+            field_average = sum(valid_scores) / len(valid_scores)
             relative_performance = field_average - score  # Positive is better than average
 
             if relative_performance >= 2:
@@ -1812,7 +1826,10 @@ class WolfGoatPigGame(PersistenceMixin):
 
         for hole_num in range(1, 19):
             try:
-                hole_info = self.course_manager.get_hole_info(hole_num)
+                if hasattr(self.course_manager, 'get_hole_info'):
+                    hole_info = self.course_manager.get_hole_info(hole_num)
+                else:
+                    raise AttributeError("course_manager does not have get_hole_info method")
                 holes_info.append({
                     "hole": hole_num,
                     "par": hole_info.get("par", 4),
@@ -1857,7 +1874,7 @@ class WolfGoatPigGame(PersistenceMixin):
                 "player2": {1: 0.5, 2: 0.0, 3: 0.0, ...}
             }
         """
-        stroke_allocation: Dict[str, int] = {}
+        stroke_allocation: Dict[str, Dict[int, float]] = {}
 
         if not self.course_manager:
             return stroke_allocation
@@ -1867,14 +1884,17 @@ class WolfGoatPigGame(PersistenceMixin):
         net_handicaps = HandicapValidator.calculate_net_handicaps(player_handicaps)
 
         for player in self.players:
-            player_strokes = {}
+            player_strokes: Dict[int, float] = {}
             net_handicap = net_handicaps.get(player.id, 0.0)
 
             # Calculate strokes for all 18 holes
             for hole_num in range(1, 19):
                 try:
                     # Get stroke index for this hole
-                    hole_info = self.course_manager.get_hole_info(hole_num)
+                    if hasattr(self.course_manager, 'get_hole_info'):
+                        hole_info = self.course_manager.get_hole_info(hole_num)
+                    else:
+                        raise AttributeError("course_manager does not have get_hole_info method")
                     stroke_index = hole_info.get("stroke_index", hole_num)
 
                     # Calculate strokes received using Creecher Feature with net handicap
@@ -2129,14 +2149,18 @@ class WolfGoatPigGame(PersistenceMixin):
         elif hole_state.teams.type == "solo":
             if offering_player == hole_state.teams.solo_player:
                 # Solo player wins
-                points_result["points_changes"][offering_player] = wager * len(hole_state.teams.opponents)
+                points_changes_dict = cast(Dict[str, int], points_result["points_changes"])
+                points_changes_dict[offering_player] = wager * len(hole_state.teams.opponents)
                 for opp in hole_state.teams.opponents:
-                    points_result["points_changes"][opp] = -wager
+                    points_changes_dict[opp] = -wager
             else:
                 # Opponents win
-                points_result["points_changes"][hole_state.teams.solo_player] = -wager * len(hole_state.teams.opponents)
+                points_changes_dict = cast(Dict[str, int], points_result["points_changes"])
+                solo_player_id = hole_state.teams.solo_player
+                if solo_player_id:
+                    points_changes_dict[solo_player_id] = -wager * len(hole_state.teams.opponents)
                 for opp in hole_state.teams.opponents:
-                    points_result["points_changes"][opp] = wager
+                    points_changes_dict[opp] = wager
 
         return points_result
 
@@ -2146,10 +2170,13 @@ class WolfGoatPigGame(PersistenceMixin):
         betting = hole_state.betting
         teams = hole_state.teams
 
+        # Filter out None values from scores
+        valid_scores: Dict[str, int] = {pid: score for pid, score in scores.items() if score is not None}
+
         if teams.type == "partners":
-            return self._calculate_partners_points(scores, teams, betting)
+            return self._calculate_partners_points(valid_scores, teams, betting)
         elif teams.type == "solo":
-            return self._calculate_solo_points(scores, teams, betting)
+            return self._calculate_solo_points(valid_scores, teams, betting)
         else:
             raise ValueError(f"Invalid team type for points calculation: {teams.type}")
 
@@ -2198,6 +2225,8 @@ class WolfGoatPigGame(PersistenceMixin):
         solo_player = teams.solo_player
         opponents = teams.opponents
 
+        if solo_player is None:
+            raise ValueError("Solo player cannot be None")
         solo_score = scores[solo_player]
         opponent_score = min(scores[pid] for pid in opponents)
 
@@ -2218,7 +2247,7 @@ class WolfGoatPigGame(PersistenceMixin):
             for opp in opponents:
                 points_changes[opp] = wager
 
-            winners = opponents
+            winners_list: List[str] = list(opponents)
             message = f"Opponents defeat {self._get_player_name(solo_player)}"
 
         else:
@@ -2232,13 +2261,17 @@ class WolfGoatPigGame(PersistenceMixin):
         # Apply special rule multipliers
         if betting.duncan_invoked or betting.tunkarri_invoked:
             # 3 for 2 rule
-            for winner in winners:
+            # Use winners_list if defined, otherwise use winners
+            winner_ids = winners_list if 'winners_list' in locals() else winners
+            for winner in winner_ids:
                 if points_changes[winner] > 0:
                     points_changes[winner] = int(points_changes[winner] * 1.5)
 
+        # Return with correct winners variable
+        final_winners = winners_list if 'winners_list' in locals() else winners
         return {
             "halved": False,
-            "winners": winners,
+            "winners": final_winners,
             "points_changes": points_changes,
             "message": message
         }
@@ -2501,10 +2534,11 @@ class WolfGoatPigGame(PersistenceMixin):
         }
 
     # Helper methods for shot progression
-    def _determine_shot_order(self):
+    def _determine_shot_order(self) -> None:
         """Determine order for shot-by-shot play"""
         hole_state = self.hole_states[self.current_hole]
-        self.hole_progression.current_shot_order = hole_state.hitting_order.copy()
+        if self.hole_progression is not None:
+            self.hole_progression.current_shot_order = hole_state.hitting_order.copy()
 
         # Initialize shot tracking for all players in hitting order
         for player_id in hole_state.hitting_order:
@@ -2748,7 +2782,7 @@ class WolfGoatPigGame(PersistenceMixin):
         }
         return tendencies.get(personality, "Unknown")
 
-    def _update_next_player_to_hit(self, hole_state, shot_result: WGPShotResult):
+    def _update_next_player_to_hit(self, hole_state: HoleState, shot_result: WGPShotResult) -> None:
         """Update the next player to hit based on game state"""
         if shot_result.made_shot or hole_state.hole_complete:
             hole_state.next_player_to_hit = None
@@ -2769,7 +2803,7 @@ class WolfGoatPigGame(PersistenceMixin):
             hole_state.next_player_to_hit = None
         else:
             # All tee shots complete - find player farthest from pin who hasn't holed out and hasn't exceeded shot limit
-            farthest_distance = 0
+            farthest_distance: float = 0.0
             next_player = None
 
             for player_id in hole_state.hitting_order:
@@ -3379,22 +3413,22 @@ class WolfGoatPigGame(PersistenceMixin):
                 "trend_direction": trend_direction,
                 "best_hole": max(points_history) if points_history else 0,
                 "worst_hole": min(points_history) if points_history else 0,
-                "consistency": self._calculate_consistency(points_history)
+                "consistency": self._calculate_consistency([float(p) for p in points_history])
             }
 
         return trends
 
     def _get_betting_analysis(self) -> Dict[str, Any]:
         """Analyze betting patterns and success rates"""
-        analysis = {
-            "wager_escalation": [],
-            "special_rules_frequency": {},
+        total_wagers: List[int] = []
+        special_rules_count: Dict[str, int] = {}
+
+        analysis: Dict[str, Any] = {
+            "wager_escalation": total_wagers,
+            "special_rules_frequency": special_rules_count,
             "success_rates": {},
             "risk_reward_analysis": {}
         }
-
-        total_wagers = []
-        special_rules_count: Dict[str, int] = {}
 
         for hole_num, hole_state in self.hole_states.items():
             if hole_state.hole_complete:
@@ -3433,7 +3467,8 @@ class WolfGoatPigGame(PersistenceMixin):
                         if player_points > 0:
                             partnership_wins += 1
 
-            analysis["success_rates"][player.id] = {
+            success_rates_dict = cast(Dict[str, Any], analysis["success_rates"])
+            success_rates_dict[player.id] = {
                 "name": player.name,
                 "solo_success_rate": solo_wins / max(1, solo_attempts),
                 "partnership_success_rate": partnership_wins / max(1, partnership_attempts),
@@ -3441,8 +3476,7 @@ class WolfGoatPigGame(PersistenceMixin):
                 "partnership_attempts": partnership_attempts
             }
 
-        analysis["wager_escalation"] = total_wagers
-        analysis["special_rules_frequency"] = special_rules_count
+        # These were already set in initialization, just update if needed
         analysis["average_wager"] = sum(total_wagers) / max(1, len(total_wagers))
         analysis["max_wager"] = max(total_wagers) if total_wagers else 0
 
@@ -3695,7 +3729,7 @@ class WolfGoatPigGame(PersistenceMixin):
             # Return a minimal state to avoid crashing
             return {"game_id": self.game_id, "error": str(e)}
 
-    def _deserialize(self, data: Dict[str, Any]):
+    def _deserialize(self, data: Dict[str, Any]) -> None:
         """
         Restore complete game state from dictionary.
         Required by PersistenceMixin for database persistence.
@@ -3816,8 +3850,7 @@ class WolfGoatPigGame(PersistenceMixin):
                     ))
 
                 self.hole_progression = WGPHoleProgression(
-                    hole_number=self.current_hole,
-                    betting_state=self.hole_states[self.current_hole].betting if self.current_hole in self.hole_states else BettingState()
+                    hole_number=self.current_hole
                 )
                 self.hole_progression.timeline_events = timeline_events
                 self.hole_progression.betting_opportunities = hole_prog_data.get('betting_decisions', [])
@@ -3858,8 +3891,11 @@ class WolfGoatPigGame(PersistenceMixin):
 
     def _get_game_metadata(self) -> Dict[str, Any]:
         """Get game metadata for completion record. Used by PersistenceMixin."""
+        course_name = 'Unknown'
+        if self.course_manager and hasattr(self.course_manager, 'selected_course'):
+            course_name = self.course_manager.selected_course
         return {
-            'course_name': self.course_manager.selected_course if self.course_manager else 'Unknown',
+            'course_name': course_name,
             'player_count': self.player_count,
             'total_holes_played': len(self.hole_states),
             'settings': {

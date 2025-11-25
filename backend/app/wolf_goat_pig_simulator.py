@@ -83,20 +83,23 @@ class WolfGoatPigSimulator(WolfGoatPigGame):
         }
 
         # Run simulations
+        outcomes: List[Dict[str, Any]] = []
         for i in range(iterations):
             # Restore state for each iteration
             self._restore_simulation_state(saved_state)
 
             # Simulate hole completion
             outcome = self._simulate_hole_completion()
-            results["outcomes"].append(outcome)
+            outcomes.append(outcome)
+
+        results["outcomes"] = outcomes
 
         # Calculate statistics
         results["win_probabilities"] = self._calculate_win_probabilities(
-            results["outcomes"]
+            outcomes
         )
         results["expected_values"] = self._calculate_expected_values(
-            results["outcomes"]
+            outcomes
         )
 
         # Restore original state
@@ -136,7 +139,7 @@ class WolfGoatPigSimulator(WolfGoatPigGame):
     def _simulate_hole_completion(self) -> Dict[str, Any]:
         """Simulate completion of current hole."""
         # Simulate shots for all players
-        hole_results = {}
+        hole_results: Dict[str, Any] = {}
         for player in self.players:
             shots = self._simulate_player_hole(player)
             hole_results[player.id] = {
@@ -149,7 +152,7 @@ class WolfGoatPigSimulator(WolfGoatPigGame):
     def _simulate_player_hole(self, player: Player) -> List[WGPShotResult]:
         """Simulate all shots for a player on current hole."""
         shots = []
-        distance_remaining = 400  # Starting distance (yards)
+        distance_remaining: float = 400.0  # Starting distance (yards)
         shot_number = 1
 
         while distance_remaining > 0 and shot_number < 10:  # Max 10 shots
@@ -171,7 +174,7 @@ class WolfGoatPigSimulator(WolfGoatPigGame):
 
     def _calculate_win_probabilities(self, outcomes: List[Dict]) -> Dict[str, float]:
         """Calculate win probability for each player."""
-        win_counts = {p.id: 0 for p in self.players}
+        win_counts: Dict[str, float] = {p.id: 0.0 for p in self.players}
 
         for outcome in outcomes:
             # Determine winner(s) based on strokes
@@ -186,12 +189,12 @@ class WolfGoatPigSimulator(WolfGoatPigGame):
 
             # Award fractional wins for ties
             for winner in winners:
-                win_counts[winner] += 1.0 / len(winners)
+                win_counts[winner] += 1.0 / float(len(winners))
 
         # Convert to probabilities
-        total = len(outcomes)
+        total = float(len(outcomes))
         return {
-            pid: count / total
+            pid: float(count) / total
             for pid, count in win_counts.items()
         }
 

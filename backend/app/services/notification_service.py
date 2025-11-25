@@ -49,6 +49,8 @@ class NotificationService:
 
     _instance = None
 
+    _initialized: bool
+
     def __new__(cls):
         """Implement singleton pattern."""
         if cls._instance is None:
@@ -261,7 +263,7 @@ class NotificationService:
                 )
 
             # Update read status
-            notification.is_read = True
+            setattr(notification, 'is_read', True)
             db.commit()
             db.refresh(notification)
 
@@ -320,7 +322,7 @@ class NotificationService:
 
             # Mark all as read
             for notification in unread_notifications:
-                notification.is_read = True
+                setattr(notification, 'is_read', True)
 
             db.commit()
 
@@ -486,7 +488,7 @@ class NotificationService:
                 if game_player.player_profile_id:
                     try:
                         self.send_notification(
-                            player_id=game_player.player_profile_id,
+                            player_id=int(game_player.player_profile_id),
                             notification_type=notification_type,
                             message=message,
                             db=db,

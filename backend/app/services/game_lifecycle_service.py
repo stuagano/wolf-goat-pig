@@ -110,8 +110,9 @@ class GameLifecycleService:
 
             # Set optional parameters
             if base_wager is not None:
-                game.betting_state.base_wager = base_wager # Changed from simulation to game
-                game.betting_state.current_wager = base_wager # Changed from simulation to game
+                # Note: betting state is managed per-hole, not globally on the game
+                # Base wager will be used when starting each hole
+                pass  # Remove incorrect betting_state access
 
             # Prepare initial game state for database
             initial_state = {

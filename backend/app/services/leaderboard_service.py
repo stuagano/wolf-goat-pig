@@ -23,7 +23,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import HTTPException
-from sqlalchemy import and_, case, desc, func
+from sqlalchemy import and_, case, cast, desc, func, Float
 from sqlalchemy.orm import Session
 
 from ..models import GamePlayerResult, PlayerAchievement, PlayerBadgeEarned, PlayerProfile, PlayerStatistics
@@ -405,7 +405,7 @@ class LeaderboardService:
                 detail=f"Failed to retrieve monthly leaderboard: {str(e)}"
             )
 
-    def refresh_leaderboard_cache(self) -> Dict[str, int]:
+    def refresh_leaderboard_cache(self) -> Dict[str, Any]:
         """
         Refresh the leaderboard cache by clearing all cached data.
 
@@ -523,7 +523,8 @@ class LeaderboardService:
             results_query = results_query.order_by(desc('total_earnings'))
         elif leaderboard_type == 'win_rate':
             results_query = results_query.order_by(
-                desc(func.cast('wins', float) / func.cast('games_played', float))
+                desc(cast(func.sum(case((GamePlayerResult.final_position == 1, 1), else_=0)), Float) /
+                     cast(func.count(GamePlayerResult.id), Float))
             )
         elif leaderboard_type == 'games_played':
             results_query = results_query.order_by(desc('games_played'))
@@ -624,8 +625,8 @@ class LeaderboardService:
                 PlayerStatistics.games_played >= 5  # Minimum games for win rate
             )
         ).order_by(
-            desc(func.cast(PlayerStatistics.games_won, float) /
-                 func.cast(PlayerStatistics.games_played, float))
+            desc(cast(PlayerStatistics.games_won, Float) /
+                 cast(PlayerStatistics.games_played, Float))
         ).limit(limit).offset(offset)
 
         results = query.all()

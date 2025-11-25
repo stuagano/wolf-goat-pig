@@ -5,7 +5,7 @@ Authentication Service for linking Auth0 users to PlayerProfile records
 import logging
 import os
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Dict, Generator
 
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -29,7 +29,7 @@ class AuthService:
     """Service for handling authentication and user management"""
 
     @staticmethod
-    def get_db() -> Session:
+    def get_db() -> Generator[Session, None, None]:
         """Get a database session"""
         db = SessionLocal()
         try:
@@ -61,7 +61,7 @@ class AuthService:
                     audience=AUTH0_API_AUDIENCE,
                     issuer=f"https://{AUTH0_DOMAIN}/"
                 )
-                return payload
+                return dict(payload)
             else:
                 # Development mode - allow mock authentication
                 logger.warning("Using mock authentication - development mode only")
@@ -136,7 +136,7 @@ class AuthService:
                 update_needed = True
 
             if update_needed:
-                player.updated_at = datetime.now().isoformat()
+                setattr(player, 'updated_at', datetime.now().isoformat())
                 db.commit()
                 logger.info(f"Updated player profile for {player.name}")
 
@@ -157,10 +157,10 @@ class AuthService:
 
             # Store Auth0 ID in preferences
             if not player.preferences:
-                player.preferences = {}
+                setattr(player, 'preferences', {})
 
             player.preferences["auth0_id"] = auth0_id
-            player.updated_at = datetime.now().isoformat()
+            setattr(player, 'updated_at', datetime.now().isoformat())
 
             db.commit()
             logger.info(f"Linked Auth0 account {auth0_id} to player {player.name}")

@@ -642,7 +642,7 @@ class ScoringManager:
                 # Calculate net score
                 net_score = self.calculate_hole_score(
                     gross_score=gross_score,
-                    handicap_strokes=strokes_received
+                    handicap_strokes=int(strokes_received)
                 )
 
                 net_scores[player_id] = net_score

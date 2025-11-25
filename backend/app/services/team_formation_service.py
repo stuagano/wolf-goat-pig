@@ -237,7 +237,7 @@ class TeamFormationService:
         # Add average handicap info if available
         if formation_method == "balanced":
             handicaps: List[float] = [
-                float(team.get("average_handicap"))
+                float(team.get("average_handicap", 0))
                 for team in teams
                 if team.get("average_handicap") is not None
             ]

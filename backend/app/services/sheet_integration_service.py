@@ -284,7 +284,7 @@ class SheetIntegrationService:
                         if field != "player_name" and hasattr(stats, field) and value is not None:
                             setattr(stats, field, value)
 
-                    stats.last_updated = datetime.now().isoformat()
+                    setattr(stats, 'last_updated', datetime.now().isoformat())
                     results["players_updated"] += 1
                     results["players_processed"] += 1
 

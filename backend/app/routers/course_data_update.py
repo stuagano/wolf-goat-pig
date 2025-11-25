@@ -37,7 +37,7 @@ async def update_game_course_data(
         if not game:
             raise HTTPException(status_code=404, detail=f"Game {game_id} not found")
 
-        game_state = game.state or {}
+        game_state: Dict[str, Any] = dict(game.state) if game.state else {}
 
         # Check if game has hole history
         hole_history = game_state.get("hole_history", [])
@@ -104,14 +104,14 @@ async def update_game_course_data(
         total_holes_configured = len(holes_config)
 
         # Save updated game state (always save to add holes_config)
-        game.state = game_state
+        setattr(game, 'state', game_state)
 
         # Mark state as modified for SQLAlchemy to detect JSON changes
         from sqlalchemy.orm.attributes import flag_modified
         flag_modified(game, "state")
 
         from datetime import datetime, timezone
-        game.updated_at = datetime.now(timezone.utc).isoformat()
+        setattr(game, 'updated_at', datetime.now(timezone.utc).isoformat())
 
         db.commit()
         db.refresh(game)
@@ -189,7 +189,7 @@ async def update_all_games_course_data(
         game_details = []
 
         for game in games:
-            game_state = game.state or {}
+            game_state: Dict[str, Any] = dict(game.state) if game.state else {}
             hole_history = game_state.get("hole_history", [])
 
             holes_updated_this_game = 0
@@ -221,13 +221,13 @@ async def update_all_games_course_data(
             game_state["holes_config"] = holes_config_template
 
             # Save game state (always save to add holes_config)
-            game.state = game_state
+            setattr(game, 'state', game_state)
 
             from sqlalchemy.orm.attributes import flag_modified
             flag_modified(game, "state")
 
             from datetime import datetime, timezone
-            game.updated_at = datetime.now(timezone.utc).isoformat()
+            setattr(game, 'updated_at', datetime.now(timezone.utc).isoformat())
 
             games_updated += 1
             total_holes_updated += holes_updated_this_game

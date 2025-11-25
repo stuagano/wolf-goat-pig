@@ -14,7 +14,7 @@ import emails
 from jinja2 import Template
 
 # Import the Gmail OAuth2 provider
-from .providers.gmail_oauth2_provider import create_gmail_oauth2_provider
+from .providers.gmail_oauth2_provider import create_gmail_oauth2_provider, GmailOAuth2Provider
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +100,9 @@ class EmailService:
 
         if email_provider_type == "gmail_oauth2":
             logger.info("Using Gmail OAuth2 email provider.")
-            return create_gmail_oauth2_provider()
+            gmail_provider = create_gmail_oauth2_provider()
+            # GmailOAuth2Provider is a subtype of EmailProvider
+            return gmail_provider  # type: ignore
 
         logger.info("Using SMTP email provider.")
         return SMTPEmailProvider()
@@ -112,7 +114,9 @@ class EmailService:
         if not self.is_configured():
             logger.error("Email service is not configured. Cannot send email.")
             return False
-        return self.provider.send_email(to_email, subject, html_body, text_body)
+        if self.provider is not None:
+            return self.provider.send_email(to_email, subject, html_body, text_body)
+        return False
 
     def send_test_email(self, to_email: str, admin_name: str = "Admin") -> bool:
         """Sends a test email to verify the current provider's configuration."""

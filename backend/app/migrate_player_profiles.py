@@ -259,7 +259,8 @@ def verify_migration(engine):
         # Test a sample query
         if profile_count > 0:
             sample_profile = db.query(PlayerProfile).first()
-            logger.info(f"Sample profile: {sample_profile.name} (Handicap: {sample_profile.handicap})")
+            if sample_profile is not None:
+                logger.info(f"Sample profile: {sample_profile.name} (Handicap: {sample_profile.handicap})")
 
         db.close()
 

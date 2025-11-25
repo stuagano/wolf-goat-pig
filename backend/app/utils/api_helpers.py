@@ -10,6 +10,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from functools import wraps
 from typing import Any, Callable, Dict, Generator, Optional, TypeVar, Union
+import asyncio
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -44,7 +45,7 @@ def handle_api_errors(
         def create_player(profile: PlayerCreate, db: Session = Depends(get_db)):
             return player_service.create(profile)
     """
-    def decorator(func: Callable[..., T]) -> Callable[..., T]:
+    def decorator(func: Callable[..., T]) -> Union[Callable[..., T], Callable[..., Any]]:
         @wraps(func)
         def sync_wrapper(*args: Any, **kwargs: Any) -> T:
             try:
@@ -70,7 +71,8 @@ def handle_api_errors(
         @wraps(func)
         async def async_wrapper(*args: Any, **kwargs: Any) -> T:
             try:
-                return await func(*args, **kwargs)
+                result = await func(*args, **kwargs)  # type: ignore
+                return result  # type: ignore
             except ValueError as e:
                 if log_errors:
                     logger.error(f"Validation error in {operation_name}: {e}")
@@ -90,7 +92,6 @@ def handle_api_errors(
                 )
 
         # Return appropriate wrapper based on function type
-        import asyncio
         if asyncio.iscoroutinefunction(func):
             return async_wrapper
         return sync_wrapper

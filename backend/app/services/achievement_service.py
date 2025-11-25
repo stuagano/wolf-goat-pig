@@ -93,7 +93,7 @@ class AchievementService:
             # Award the badge using BadgeEngine
             earned_badge = self.badge_engine._award_badge(
                 player_profile_id=player_profile_id,
-                badge_id=badge.id,
+                badge_id=int(badge.id),
                 game_record_id=game_record_id
             )
 
@@ -241,7 +241,8 @@ class AchievementService:
             # For progression badges, check progress
             if badge.trigger_type in ['career_milestone', 'progression']:
                 progress = self.calculate_badge_progress(player_profile_id, badge_name)
-                return progress.get('progress_percentage', 0) >= 100
+                progress_pct = progress.get('progress_percentage', 0)
+                return bool(progress_pct >= 100)
 
             # For other badge types, return True (actual eligibility determined by BadgeEngine)
             return True
@@ -297,7 +298,7 @@ class AchievementService:
             # Get or create progress record
             progress = self.badge_engine._get_or_create_progress(
                 player_profile_id=player_profile_id,
-                badge_id=badge.id
+                badge_id=int(badge.id)
             )
 
             # Build response
@@ -472,7 +473,7 @@ class AchievementService:
 
             for achievement in achievements:
                 # Check if there's a corresponding badge
-                badge_name = achievement_to_badge_map.get(achievement.achievement_type)
+                badge_name = achievement_to_badge_map.get(str(achievement.achievement_type))
 
                 if not badge_name:
                     logger.debug(
@@ -484,7 +485,7 @@ class AchievementService:
                 result = self.award_badge(
                     player_profile_id=player_profile_id,
                     badge_name=badge_name,
-                    game_record_id=achievement.game_record_id
+                    game_record_id=int(achievement.game_record_id) if achievement.game_record_id else None
                 )
 
                 if result:
@@ -512,7 +513,7 @@ class AchievementService:
 # SINGLETON PATTERN
 # ====================================================================================
 
-_achievement_service_instance = None
+_achievement_service_instance: Optional[AchievementService] = None
 
 
 def get_achievement_service(db: Session) -> AchievementService:
@@ -530,9 +531,9 @@ def get_achievement_service(db: Session) -> AchievementService:
     if _achievement_service_instance is None:
         _achievement_service_instance = AchievementService(db)
         logger.info("Created new AchievementService singleton instance")
-    else:
-        # Update the database session for the existing instance
-        _achievement_service_instance.db = db
-        _achievement_service_instance.badge_engine.db = db
+        return _achievement_service_instance
 
+    # Update the database session for the existing instance
+    _achievement_service_instance.db = db
+    _achievement_service_instance.badge_engine.db = db
     return _achievement_service_instance

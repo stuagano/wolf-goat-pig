@@ -103,7 +103,7 @@ class GmailOAuth2Provider:
                 include_granted_scopes='true',
                 prompt='consent'
             )
-            return auth_url
+            return str(auth_url)
         except Exception as e:
             logger.error(f"Error generating auth URL: {e}")
             return None
@@ -132,7 +132,9 @@ class GmailOAuth2Provider:
     @property
     def is_configured(self) -> bool:
         """Check if the provider is fully configured and ready to send emails."""
-        return self.service is not None and self.creds is not None and self.creds.valid
+        return (self.service is not None and
+                self.creds is not None and
+                self.creds.valid)  # type: ignore[unreachable]
 
     def send_email(self, to_email: str, subject: str, html_body: str, text_body: Optional[str] = None) -> bool:
         """Send an email using the Gmail API."""
@@ -142,7 +144,8 @@ class GmailOAuth2Provider:
 
         try:
             message = self._create_message(to_email, subject, html_body, text_body)
-            self.service.users().messages().send(userId='me', body=message).execute()
+            # At this point, is_configured is True, so service is not None
+            self.service.users().messages().send(userId='me', body=message).execute()  # type: ignore
             logger.info(f"Email sent successfully to {to_email} via Gmail.")
             return True
         except HttpError as error:
