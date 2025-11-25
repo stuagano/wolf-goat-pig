@@ -117,7 +117,7 @@ class BaseValidator:
     @classmethod
     def validate_range(
         cls,
-        value: Union[int, float],
+        value: Optional[Union[int, float]],
         min_val: Optional[Union[int, float]] = None,
         max_val: Optional[Union[int, float]] = None,
         field: str = "value",
@@ -221,7 +221,7 @@ class BaseValidator:
     @classmethod
     def validate_length(
         cls,
-        value: Union[str, list, dict],
+        value: Optional[Union[str, list, dict]],
         min_length: Optional[int] = None,
         max_length: Optional[int] = None,
         field: str = "value"
@@ -260,7 +260,7 @@ class BaseValidator:
     @classmethod
     def validate_positive(
         cls,
-        value: Union[int, float],
+        value: Optional[Union[int, float]],
         field: str = "value",
         allow_zero: bool = False
     ) -> None:
@@ -296,7 +296,7 @@ class BaseValidator:
     @classmethod
     def validate_pattern(
         cls,
-        value: str,
+        value: Optional[str],
         pattern: str,
         field: str = "value",
         pattern_description: Optional[str] = None

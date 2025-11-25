@@ -6,7 +6,7 @@ Handles scenarios where more than 4 players are signed up for a given day.
 import logging
 from datetime import datetime
 from random import Random, SystemRandom
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
