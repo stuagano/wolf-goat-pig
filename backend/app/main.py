@@ -35,6 +35,7 @@ from .domain.shot_range_analysis import analyze_shot_decision
 from .managers.rule_manager import RuleManager, RuleViolationError
 from .managers.scoring_manager import get_scoring_manager
 from .managers.websocket_manager import manager as websocket_manager
+from .migrations_routes import router as migrations_router
 from .post_hole_analytics import PostHoleAnalyzer
 
 # Import routers
@@ -265,6 +266,9 @@ app.include_router(badge_router)
 
 # Include betting events routes
 app.include_router(betting_events_router)
+
+# Include migrations management routes
+app.include_router(migrations_router)
 
 # Include modular routers
 app.include_router(health.router)
