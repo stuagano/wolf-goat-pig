@@ -47,8 +47,18 @@ python3 -c "from app.database import engine, Base; from app import models; Base.
 4. Update this README with the new migration
 5. Document migration in commit message
 
+## Automatic Migration on Startup
+
+The `startup.py` script automatically runs migrations on application startup:
+- Checks for missing columns in existing tables
+- Applies migrations from the `run_migrations()` function
+- Includes the `tee_order` column migration for `game_players` table
+
+This ensures production databases are automatically updated when the service restarts.
+
 ## Notes
 
 - Production uses PostgreSQL (`SERIAL` for auto-increment)
 - Local dev uses SQLite (`AUTOINCREMENT` for auto-increment)
 - Always use `IF NOT EXISTS` and `ADD COLUMN IF NOT EXISTS` for idempotency
+- Migrations run automatically on service restart via `startup.py`
