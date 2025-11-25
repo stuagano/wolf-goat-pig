@@ -69,13 +69,13 @@ class BootstrapManager:
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         """
         Initialize the BootstrapManager with configuration.
-        
+
         Args:
             config: Optional configuration dictionary
         """
         self.config = config or {}
         self.logger = logging.getLogger(__name__)
-        self.startup_results = {
+        self.startup_results: Dict[str, Optional[Dict[str, Any]]] = {
             "environment": None,
             "dependencies": None,
             "database": None,
@@ -259,20 +259,20 @@ class BootstrapManager:
 
 def validate_environment() -> Dict[str, Any]:
     """Validate and set up environment variables."""
-    env_status = {
+    env_status: Dict[str, Any] = {
         "valid": True,
         "warnings": [],
         "errors": [],
         "config": {}
     }
-    
+
     # Get environment
     environment = os.getenv("ENVIRONMENT", "development")
     env_status["config"]["environment"] = environment
-    
+
     # Validate required environment variables
-    required_vars = []
-    optional_vars = {
+    required_vars: List[str] = []
+    optional_vars: Dict[str, Optional[str]] = {
         "DATABASE_URL": None,
         "SKIP_SEEDING": "false",
         "LOG_LEVEL": "INFO",
@@ -300,40 +300,40 @@ def validate_environment() -> Dict[str, Any]:
     if environment == "production":
         if not os.getenv("DATABASE_URL"):
             env_status["warnings"].append("Production environment without DATABASE_URL - using SQLite")
-        
+
         # Security checks for production
-        security_warnings = []
+        security_warnings: List[str] = []
         if os.getenv("DEBUG", "false").lower() == "true":
             security_warnings.append("DEBUG should not be enabled in production")
-        
+
         for warning in security_warnings:
             env_status["warnings"].append(f"Security: {warning}")
-    
+
     return env_status
 
 
 def check_dependencies() -> Dict[str, Any]:
     """Check that all required dependencies are available."""
-    dep_status = {
+    dep_status: Dict[str, Any] = {
         "valid": True,
         "missing": [],
         "versions": {},
         "optional_missing": []
     }
-    
+
     # Core required packages for basic functionality
-    required_packages = [
+    required_packages: List[str] = [
         "sqlalchemy",
         "pydantic"
     ]
-    
+
     # Optional packages that are needed for full functionality
-    optional_packages = [
+    optional_packages: List[str] = [
         "fastapi",
-        "uvicorn", 
+        "uvicorn",
         "httpx"
     ]
-    
+
     # Check required packages
     for package in required_packages:
         try:
@@ -343,7 +343,7 @@ def check_dependencies() -> Dict[str, Any]:
         except ImportError:
             dep_status["missing"].append(package)
             dep_status["valid"] = False
-    
+
     # Check optional packages (won't fail bootstrap if missing)
     for package in optional_packages:
         try:
@@ -353,13 +353,13 @@ def check_dependencies() -> Dict[str, Any]:
         except ImportError:
             dep_status["optional_missing"].append(package)
             # Don't mark as invalid for optional packages
-    
+
     return dep_status
 
 
 async def run_migrations() -> Dict[str, Any]:
     """Run database migrations to ensure schema is up-to-date."""
-    migration_result = {
+    migration_result: Dict[str, Any] = {
         "success": False,
         "message": "",
         "migrations_applied": []
@@ -369,6 +369,7 @@ async def run_migrations() -> Dict[str, Any]:
         import os
         from app.database import SessionLocal, engine
         from sqlalchemy import text, inspect
+        from sqlalchemy.engine import Inspector
 
         database_url = os.getenv('DATABASE_URL', '')
         is_postgresql = 'postgresql://' in database_url or 'postgres://' in database_url
@@ -376,17 +377,20 @@ async def run_migrations() -> Dict[str, Any]:
         db = SessionLocal()
         try:
             # Check if game_state table exists
-            inspector = inspect(engine)
-            if 'game_state' not in inspector.get_table_names():
+            inspector: Inspector = inspect(engine)
+            tables: List[str] = inspector.get_table_names()
+            if 'game_state' not in tables:
                 migration_result["success"] = True
                 migration_result["message"] = "game_state table does not exist yet, will be created by init_db"
                 return migration_result
 
             # Get existing columns
-            columns = [col['name'] for col in inspector.get_columns('game_state')]
+            from typing import cast
+            columns_info = cast(List[Dict[str, Any]], inspector.get_columns('game_state'))
+            columns: List[str] = [col['name'] for col in columns_info]
             logging.debug(f"Existing game_state columns: {columns}")
 
-            migrations_applied = []
+            migrations_applied: List[str] = []
 
             # Migration 1: Add game_id column if missing
             if 'game_id' not in columns:
@@ -458,8 +462,9 @@ async def run_migrations() -> Dict[str, Any]:
                 logging.info("  ✅ Added game_status column")
 
             # Migration 7: Add tee_order column to game_players if missing
-            if 'game_players' in inspector.get_table_names():
-                player_columns = [col['name'] for col in inspector.get_columns('game_players')]
+            if 'game_players' in tables:
+                player_columns_info = cast(List[Dict[str, Any]], inspector.get_columns('game_players'))
+                player_columns: List[str] = [col['name'] for col in player_columns_info]
                 if 'tee_order' not in player_columns:
                     logging.info("  Adding tee_order column to game_players...")
                     if is_postgresql:
@@ -498,7 +503,7 @@ async def run_migrations() -> Dict[str, Any]:
 
 async def initialize_database() -> Dict[str, Any]:
     """Initialize the database and verify connection."""
-    db_status = {
+    db_status: Dict[str, Any] = {
         "initialized": False,
         "connected": False,
         "migrated": False,
@@ -585,7 +590,7 @@ async def run_data_seeding(force_reseed: bool = False) -> Dict[str, Any]:
 
 async def verify_application_health() -> Dict[str, Any]:
     """Verify that all application systems are healthy."""
-    health_status = {
+    health_status: Dict[str, Any] = {
         "healthy": True,
         "components": {},
         "warnings": []
@@ -764,17 +769,17 @@ def seed_data(force_reseed: bool = False) -> Dict[str, Any]:
 def verify_health() -> Dict[str, Any]:
     """
     Health verification function that checks system health synchronously.
-    
+
     This function provides a synchronous interface to health checking
     for bootstrap testing scenarios where async is not available.
-    
+
     Returns:
         Dictionary with health status and component details
     """
     logger = logging.getLogger(__name__)
     logger.info("🏥 Checking application health...")
-    
-    health_status = {
+
+    health_status: Dict[str, Any] = {
         "healthy": True,
         "components": {},
         "warnings": [],
@@ -902,9 +907,9 @@ async def main():
     # Handle bootstrap test mode
     if args.bootstrap_test:
         logging.info("🧪 Running bootstrap components test...")
-        
+
         # Test each component independently
-        test_results = {}
+        test_results: Dict[str, str] = {}
         
         # Test 1: BootstrapManager class availability
         try:
@@ -945,10 +950,10 @@ async def main():
         
         # Summary
         logging.info("🧪 Bootstrap components test results:")
-        all_passed = True
-        for component, result in test_results.items():
-            logging.info(f"  {component}: {result}")
-            if "❌" in result:
+        all_passed: bool = True
+        for component, test_result in test_results.items():
+            logging.info(f"  {component}: {test_result}")
+            if "❌" in test_result:
                 all_passed = False
         
         if all_passed:
@@ -1092,19 +1097,19 @@ async def main():
     start_server(host=args.host, port=args.port, reload=reload)
 
 
-def run_bootstrap_test():
+def run_bootstrap_test() -> bool:
     """
     Standalone function to test bootstrap components.
     This can be called directly for testing purposes.
     """
     setup_logging("INFO")
-    
+
     logging.info("🧪 Running standalone bootstrap components test...")
-    
+
     # Test results
-    test_results = {
+    test_results: Dict[str, bool] = {
         "bootstrap_manager": False,
-        "seed_data": False, 
+        "seed_data": False,
         "verify_health": False
     }
     

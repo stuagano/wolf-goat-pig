@@ -11,7 +11,7 @@ This service handles:
 import logging
 import os
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Union, cast
 
 import httpx  # Added httpx for API calls
 from sqlalchemy import and_, desc
@@ -76,30 +76,31 @@ class GHINService:
     async def sync_player_handicap(self, player_id: int) -> Optional[Dict[str, Any]]:
         """
         Sync a single player's handicap from GHIN.
-        
+
         Args:
             player_id: Local player profile ID
-            
+
         Returns:
             Dict with handicap data or None if failed
         """
+        if not self.is_available():
+            logger.error("GHIN service is not initialized or available.")
+            return None
+
         try:
             player = self.db.query(PlayerProfile).filter(PlayerProfile.id == player_id).first()
             if not player or not player.ghin_id:
                 logger.warning(f"Player {player_id} has no GHIN ID configured")
                 return None
 
-            if not self.is_available():
-                logger.error("GHIN service is not initialized or available.")
-                return None
-
-            # Use the actual GHIN API call
-            handicap_data = await self._fetch_handicap_from_ghin(player.ghin_id)
+            # Use the actual GHIN API call - convert Column to str
+            ghin_id_str = str(player.ghin_id)
+            handicap_data = await self._fetch_handicap_from_ghin(ghin_id_str)
 
             if handicap_data:
-                # Update player profile with latest handicap
-                player.handicap = handicap_data.get('handicap_index', player.handicap)
-                player.ghin_last_updated = datetime.now().isoformat()
+                # Update player profile with latest handicap - use setattr to avoid Column type errors
+                setattr(player, 'handicap', handicap_data.get('handicap_index', player.handicap))
+                setattr(player, 'ghin_last_updated', datetime.now().isoformat())
 
                 # Store handicap history
                 handicap_history = GHINHandicapHistory(
@@ -119,6 +120,9 @@ class GHINService:
 
                 logger.info(f"Synced handicap for player {player.name}: {handicap_data.get('handicap_index')}")
                 return handicap_data
+
+            # If handicap_data is None, return None
+            return None
 
         except Exception as e:
             logger.error(f"Failed to sync handicap for player {player_id}: {e}")
@@ -146,8 +150,9 @@ class GHINService:
                 logger.error("GHIN service is not initialized or available.")
                 return []
 
-            # Use the actual GHIN API call
-            scores_data = await self._fetch_scores_from_ghin(player.ghin_id, days_back)
+            # Use the actual GHIN API call - convert Column to str
+            ghin_id_str = str(player.ghin_id)
+            scores_data = await self._fetch_scores_from_ghin(ghin_id_str, days_back)
 
             synced_scores = []
             for score_data in scores_data:
@@ -218,7 +223,9 @@ class GHINService:
 
             for player in players_with_ghin:
                 try:
-                    result = await self.sync_player_handicap(player.id)
+                    # Convert Column to int
+                    player_id_int = int(player.id)
+                    result = await self.sync_player_handicap(player_id_int)
                     if result:
                         synced_count += 1
                     else:
@@ -249,12 +256,11 @@ class GHINService:
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
         url = f"{self.GHIN_API_BASE_URL}/golfer_search"
 
-        params = {
+        params: Dict[str, Union[str, int, float, bool, None]] = {
             "last_name": last_name,
             "page": page,
             "per_page": per_page,
-            "from_ghin": "true",
-            "per_page": 100
+            "from_ghin": "true"
         }
         if first_name:
             params["first_name"] = first_name
@@ -262,7 +268,7 @@ class GHINService:
         async with httpx.AsyncClient() as client:
             response = await client.get(url, headers=headers, params=params)
             response.raise_for_status()
-            return response.json()
+            return cast(Dict[str, Any], response.json())
 
     def get_player_ghin_data(self, player_id: int) -> Optional[Dict[str, Any]]:
         """
@@ -322,10 +328,10 @@ class GHINService:
         """
         Get leaderboard data enhanced with GHIN information.
         Uses stored handicap data even if GHIN API is unavailable.
-        
+
         Args:
             limit: Maximum number of players to return
-            
+
         Returns:
             List of player records with GHIN data integrated
         """
@@ -340,7 +346,7 @@ class GHINService:
 
             players_with_stats = query.limit(limit).all()
 
-            enhanced_leaderboard = []
+            enhanced_leaderboard: List[Dict[str, Any]] = []
             for profile, stats in players_with_stats:
                 # Calculate win percentage
                 win_percentage = (stats.games_won / max(1, stats.games_played)) * 100
@@ -407,9 +413,10 @@ class GHINService:
                     try:
                         profile = self.db.query(PlayerProfile).filter(PlayerProfile.name == player.player_name).first()
                         if profile:
-                            player.handicap = profile.handicap
-                            player.ghin_id = profile.ghin_id
-                            player.ghin_last_updated = profile.ghin_last_updated
+                            # Use setattr to add attributes dynamically to LeaderboardEntry
+                            setattr(player, 'handicap', profile.handicap)
+                            setattr(player, 'ghin_id', profile.ghin_id)
+                            setattr(player, 'ghin_last_updated', profile.ghin_last_updated)
                     except Exception as query_error:
                         logger.warning(f"Failed to query profile for player {player.player_name}: {query_error}")
                         # Rollback transaction to clear error state before continuing
@@ -500,4 +507,4 @@ class GHINService:
         async with httpx.AsyncClient() as client:
             response = await client.get(url, headers=headers)
             response.raise_for_status()
-            return response.json()
+            return cast(List[Dict[str, Any]], response.json())

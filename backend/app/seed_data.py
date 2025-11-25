@@ -5,7 +5,7 @@ Initializes database with all required data for proper simulation bootstrapping.
 
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import Any, Dict, List, Optional, cast
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -145,7 +145,7 @@ def seed_courses(db: Session) -> int:
             db.flush()  # Flush to get the course ID
 
             # Create Hole records for each hole
-            holes_data = course_data["holes_data"]
+            holes_data = cast(List[Dict[str, Any]], course_data["holes_data"])
             for hole_data in holes_data:
                 hole = Hole(
                     course_id=course.id,
@@ -392,7 +392,8 @@ def seed_all_data(force_reseed: bool = False) -> dict:
         # Seed courses
         logger.info("Seeding courses...")
         courses_added = seed_courses(db)
-        seeding_results["results"]["courses"] = {
+        results_dict = cast(Dict[str, Any], seeding_results["results"])
+        results_dict["courses"] = {
             "added": courses_added,
             "status": "success"
         }
@@ -410,7 +411,7 @@ def seed_all_data(force_reseed: bool = False) -> dict:
         # Seed rules
         logger.info("Seeding rules...")
         rules_added = seed_rules(db)
-        seeding_results["results"]["rules"] = {
+        results_dict["rules"] = {
             "added": rules_added,
             "status": "success"
         }
@@ -418,7 +419,7 @@ def seed_all_data(force_reseed: bool = False) -> dict:
         # Seed AI personalities
         logger.info("Seeding AI personalities...")
         personalities_added = seed_ai_personalities(db)
-        seeding_results["results"]["ai_personalities"] = {
+        results_dict["ai_personalities"] = {
             "added": personalities_added,
             "status": "success"
         }
@@ -426,14 +427,14 @@ def seed_all_data(force_reseed: bool = False) -> dict:
         # Create default human player if needed
         logger.info("Creating default human player if needed...")
         default_human = create_default_human_player(db)
-        seeding_results["results"]["default_human"] = {
+        results_dict["default_human"] = {
             "created": default_human is not None,
             "status": "success"
         }
 
         # Sample games seeding disabled (not needed)
         logger.info("Skipping sample games (disabled - not needed for app)")
-        seeding_results["results"]["sample_games"] = {
+        results_dict["sample_games"] = {
             "added": 0,
             "status": "skipped",
             "message": "Sample games disabled - use real gameplay for test data"

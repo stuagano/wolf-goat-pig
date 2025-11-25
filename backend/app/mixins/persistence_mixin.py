@@ -6,7 +6,7 @@ Extracted from GameState to enable persistence in WolfGoatPigGame.
 """
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast
 
 from sqlalchemy.orm import Session
 
@@ -27,7 +27,7 @@ class PersistenceMixin:
     - _deserialize(data: Dict[str, Any]): Restore game state from dict
     """
 
-    def __init_persistence__(self, game_id: Optional[str] = None):
+    def __init_persistence__(self, game_id: Optional[str] = None) -> None:
         """
         Initialize persistence layer. Call this from your __init__.
 
@@ -63,9 +63,9 @@ class PersistenceMixin:
             current_time = datetime.now(timezone.utc).isoformat()
 
             if obj:
-                # Update existing
-                obj.state = state_json
-                obj.updated_at = current_time
+                # Update existing - use setattr to avoid Column type errors
+                setattr(obj, 'state', state_json)
+                setattr(obj, 'updated_at', current_time)
             else:
                 # Create new
                 obj = GameStateModel(
@@ -105,12 +105,13 @@ class PersistenceMixin:
             ).first()
 
             if obj and obj.state:
-                # Restore state from DB
-                self._deserialize(obj.state)
+                # Restore state from DB - cast to proper type
+                state_data = cast(Dict[str, Any], obj.state)
+                self._deserialize(state_data)
 
-                # Preserve DB metadata
-                self.game_id = obj.game_id
-                self._game_start_time = obj.created_at
+                # Preserve DB metadata - use str() to convert Column types
+                self.game_id = str(obj.game_id)
+                self._game_start_time = str(obj.created_at)
             else:
                 # New game - keep generated game_id, start fresh
                 pass
@@ -133,7 +134,7 @@ class PersistenceMixin:
             f"{self.__class__.__name__} must implement _serialize()"
         )
 
-    def _deserialize(self, data: Dict[str, Any]):
+    def _deserialize(self, data: Dict[str, Any]) -> None:
         """
         Restore game state from dictionary.
 

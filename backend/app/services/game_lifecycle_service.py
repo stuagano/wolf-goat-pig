@@ -12,7 +12,7 @@ This service handles all game lifecycle operations including:
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -36,22 +36,22 @@ class GameLifecycleService:
     the application.
     """
 
-    _instance = None
+    _instance: Optional["GameLifecycleService"] = None
 
-    def __new__(cls):
+    def __new__(cls) -> "GameLifecycleService":
         """Implement singleton pattern."""
         if cls._instance is None:
             cls._instance = super(GameLifecycleService, cls).__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the service with empty active games cache."""
-        if self._initialized:
+        if getattr(self, '_initialized', False):
             return
 
         self._active_games: Dict[str, WolfGoatPigGame] = {}
-        self._initialized = True
+        self._initialized: bool = True
         logger.info("GameLifecycleService initialized")
 
     def create_game(
@@ -265,10 +265,12 @@ class GameLifecycleService:
                     detail=f"Cannot start game in '{game_record.game_status}' status"
                 )
 
-            # Update status
-            game_record.game_status = "in_progress"
-            game_record.state["game_status"] = "in_progress"
-            game_record.updated_at = datetime.now(timezone.utc).isoformat()
+            # Update status - use setattr to avoid Column type errors
+            setattr(game_record, 'game_status', "in_progress")
+            if game_record.state:
+                state_dict = cast(Dict[str, Any], game_record.state)
+                state_dict["game_status"] = "in_progress"
+            setattr(game_record, 'updated_at', datetime.now(timezone.utc).isoformat())
 
             db.commit()
 
@@ -321,10 +323,12 @@ class GameLifecycleService:
                     detail="Can only pause games that are in progress"
                 )
 
-            # Update status
-            game_record.game_status = "paused"
-            game_record.state["game_status"] = "paused"
-            game_record.updated_at = datetime.now(timezone.utc).isoformat()
+            # Update status - use setattr to avoid Column type errors
+            setattr(game_record, 'game_status', "paused")
+            if game_record.state:
+                state_dict = cast(Dict[str, Any], game_record.state)
+                state_dict["game_status"] = "paused"
+            setattr(game_record, 'updated_at', datetime.now(timezone.utc).isoformat())
 
             db.commit()
 
@@ -377,10 +381,12 @@ class GameLifecycleService:
                     detail="Can only resume games that are paused"
                 )
 
-            # Update status
-            game_record.game_status = "in_progress"
-            game_record.state["game_status"] = "in_progress"
-            game_record.updated_at = datetime.now(timezone.utc).isoformat()
+            # Update status - use setattr to avoid Column type errors
+            setattr(game_record, 'game_status', "in_progress")
+            if game_record.state:
+                state_dict = cast(Dict[str, Any], game_record.state)
+                state_dict["game_status"] = "in_progress"
+            setattr(game_record, 'updated_at', datetime.now(timezone.utc).isoformat())
 
             db.commit()
 
@@ -452,11 +458,13 @@ class GameLifecycleService:
                         "handicap": player.handicap
                     }
 
-            # Update database record
-            game_record.game_status = "completed"
-            game_record.state["game_status"] = "completed"
-            game_record.state["final_stats"] = final_stats
-            game_record.updated_at = datetime.now(timezone.utc).isoformat()
+            # Update database record - use setattr to avoid Column type errors
+            setattr(game_record, 'game_status', "completed")
+            if game_record.state:
+                state_dict = cast(Dict[str, Any], game_record.state)
+                state_dict["game_status"] = "completed"
+                state_dict["final_stats"] = final_stats
+            setattr(game_record, 'updated_at', datetime.now(timezone.utc).isoformat())
 
             db.commit()
 

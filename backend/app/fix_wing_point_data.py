@@ -4,6 +4,7 @@ This script checks if Wing Point exists in the database and updates it if the pa
 """
 import logging
 from datetime import datetime
+from typing import Any, Dict, List, cast
 
 from .database import SessionLocal
 from .models import Course
@@ -11,7 +12,7 @@ from .models import Course
 logger = logging.getLogger(__name__)
 
 # Correct Wing Point data from wing_point_course_data.py (white tees)
-CORRECT_WING_POINT_DATA = [
+CORRECT_WING_POINT_DATA: List[Dict[str, Any]] = [
     {"hole_number": 1, "par": 5, "yards": 429, "stroke_index": 5, "description": "Opening Drive - gentle starting hole, slight dogleg right"},
     {"hole_number": 2, "par": 3, "yards": 158, "stroke_index": 15, "description": "Short Iron - downhill par 3 with bunkers guarding the green"},
     {"hole_number": 3, "par": 4, "yards": 310, "stroke_index": 1, "description": "The Challenge - handicap 1, tough dogleg left requiring precision"},
@@ -54,13 +55,13 @@ def fix_wing_point_course():
                 correct_total_par = sum(h["par"] for h in CORRECT_WING_POINT_DATA)
                 correct_total_yards = sum(h["yards"] for h in CORRECT_WING_POINT_DATA)
 
-                # Update the course
-                wing_point.holes_data = CORRECT_WING_POINT_DATA
-                wing_point.total_par = correct_total_par
-                wing_point.total_yards = correct_total_yards
-                wing_point.course_rating = 67.4
-                wing_point.slope_rating = 120
-                wing_point.updated_at = datetime.now().isoformat()
+                # Update the course - use setattr to avoid Column type errors
+                setattr(wing_point, 'holes_data', CORRECT_WING_POINT_DATA)
+                setattr(wing_point, 'total_par', correct_total_par)
+                setattr(wing_point, 'total_yards', correct_total_yards)
+                setattr(wing_point, 'course_rating', 67.4)
+                setattr(wing_point, 'slope_rating', 120)
+                setattr(wing_point, 'updated_at', datetime.now().isoformat())
 
                 db.commit()
                 logger.info(f"✅ Wing Point course updated successfully! Hole 1 par is now {CORRECT_WING_POINT_DATA[0]['par']}")

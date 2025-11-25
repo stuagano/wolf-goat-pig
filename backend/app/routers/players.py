@@ -14,7 +14,7 @@ To migrate: Replace players.py with this file after testing.
 
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, cast
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
@@ -169,8 +169,8 @@ def get_player_profile_with_stats(
     """Get player profile combined with statistics and achievements."""
     player_service = PlayerService(db)
 
-    profile = player_service.get_player_profile(player_id)
-    require_not_none(profile, "Player", player_id)
+    profile_result = player_service.get_player_profile(player_id)
+    profile = require_not_none(profile_result, "Player", player_id)
 
     stats = player_service.get_player_statistics(player_id)
     if not stats:
@@ -301,7 +301,7 @@ async def set_my_availability(
 ) -> schemas.PlayerAvailabilityResponse:
     """Set or update current user's availability for a specific day."""
     # Override the player_profile_id with the current user's ID
-    availability.player_profile_id = current_user.id
+    availability.player_profile_id = cast(int, current_user.id)
 
     existing = db.query(models.PlayerAvailability).filter(
         models.PlayerAvailability.player_profile_id == current_user.id,
@@ -311,11 +311,11 @@ async def set_my_availability(
     now = datetime.now(timezone.utc).isoformat()
 
     if existing:
-        existing.available_from_time = availability.available_from_time
-        existing.available_to_time = availability.available_to_time
-        existing.is_available = availability.is_available
-        existing.notes = availability.notes
-        existing.updated_at = now
+        existing.available_from_time = availability.available_from_time  # type: ignore
+        existing.available_to_time = availability.available_to_time  # type: ignore
+        existing.is_available = availability.is_available  # type: ignore
+        existing.notes = availability.notes  # type: ignore
+        existing.updated_at = now  # type: ignore
         db.commit()
         db.refresh(existing)
         logger.info(f"Updated availability for user {current_user.id}, day {availability.day_of_week}")
@@ -361,9 +361,9 @@ def get_all_players_availability(
     """Get all players' weekly availability with their names."""
     players_with_availability = db.query(models.PlayerProfile).all()
 
-    result = []
+    result: List[Dict[str, Any]] = []
     for player in players_with_availability:
-        player_data = {
+        player_data: Dict[str, Any] = {
             "player_id": player.id,
             "player_name": player.name,
             "email": player.email,
@@ -404,11 +404,11 @@ def set_player_availability(
     now = datetime.now(timezone.utc).isoformat()
 
     if existing:
-        existing.available_from_time = availability.available_from_time
-        existing.available_to_time = availability.available_to_time
-        existing.is_available = availability.is_available
-        existing.notes = availability.notes
-        existing.updated_at = now
+        existing.available_from_time = availability.available_from_time  # type: ignore
+        existing.available_to_time = availability.available_to_time  # type: ignore
+        existing.is_available = availability.is_available  # type: ignore
+        existing.notes = availability.notes  # type: ignore
+        existing.updated_at = now  # type: ignore
         db.commit()
         db.refresh(existing)
         logger.info(f"Updated availability for player {player_id}, day {availability.day_of_week}")
@@ -471,11 +471,11 @@ def update_email_preferences(
     db: Session = Depends(get_db)
 ) -> schemas.EmailPreferencesResponse:
     """Update a player's email preferences."""
-    preferences = db.query(models.EmailPreferences).filter(
+    preferences_result = db.query(models.EmailPreferences).filter(
         models.EmailPreferences.player_profile_id == player_id
     ).first()
 
-    require_not_none(preferences, "Email preferences for player", player_id)
+    preferences = require_not_none(preferences_result, "Email preferences for player", player_id)
 
     # Update fields that are provided
     update_data = preferences_update.dict(exclude_unset=True)
@@ -483,7 +483,7 @@ def update_email_preferences(
         if hasattr(preferences, field):
             setattr(preferences, field, value)
 
-    preferences.updated_at = datetime.now(timezone.utc).isoformat()
+    preferences.updated_at = datetime.now(timezone.utc).isoformat()  # type: ignore
     db.commit()
     db.refresh(preferences)
 
@@ -515,15 +515,17 @@ async def get_my_email_preferences(
         db.refresh(prefs)
 
     return schemas.EmailPreferencesResponse(
-        id=prefs.id,
-        player_profile_id=prefs.player_profile_id,
+        id=cast(int, prefs.id),
+        player_profile_id=cast(int, prefs.player_profile_id),
         daily_signups_enabled=bool(prefs.daily_signups_enabled),
         signup_confirmations_enabled=bool(prefs.signup_confirmations_enabled),
         signup_reminders_enabled=bool(prefs.signup_reminders_enabled),
         game_invitations_enabled=bool(prefs.game_invitations_enabled),
         weekly_summary_enabled=bool(prefs.weekly_summary_enabled),
-        email_frequency=prefs.email_frequency,
-        preferred_notification_time=prefs.preferred_notification_time
+        email_frequency=cast(str, prefs.email_frequency),
+        preferred_notification_time=cast(str, prefs.preferred_notification_time),
+        created_at=cast(str, prefs.created_at),
+        updated_at=cast(str, prefs.updated_at)
     )
 
 
@@ -556,20 +558,22 @@ async def update_my_email_preferences(
                 value = 1 if value else 0
             setattr(prefs, field, value)
 
-    prefs.updated_at = now
+    prefs.updated_at = now  # type: ignore
     db.commit()
     db.refresh(prefs)
 
     logger.info(f"Updated email preferences for user {current_user.id}")
 
     return schemas.EmailPreferencesResponse(
-        id=prefs.id,
-        player_profile_id=prefs.player_profile_id,
+        id=cast(int, prefs.id),
+        player_profile_id=cast(int, prefs.player_profile_id),
         daily_signups_enabled=bool(prefs.daily_signups_enabled),
         signup_confirmations_enabled=bool(prefs.signup_confirmations_enabled),
         signup_reminders_enabled=bool(prefs.signup_reminders_enabled),
         game_invitations_enabled=bool(prefs.game_invitations_enabled),
         weekly_summary_enabled=bool(prefs.weekly_summary_enabled),
-        email_frequency=prefs.email_frequency,
-        preferred_notification_time=prefs.preferred_notification_time
+        email_frequency=cast(str, prefs.email_frequency),
+        preferred_notification_time=cast(str, prefs.preferred_notification_time),
+        created_at=cast(str, prefs.created_at),
+        updated_at=cast(str, prefs.updated_at)
     )

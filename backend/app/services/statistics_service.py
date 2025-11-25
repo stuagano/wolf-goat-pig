@@ -76,8 +76,8 @@ class StatisticsService:
             metrics = {}
 
             # Win Rate Analysis
-            win_rate = (player_stats.games_won / max(1, player_stats.games_played)) * 100
-            win_rates = [(s.games_won / max(1, s.games_played)) * 100 for s in all_stats]
+            win_rate = (float(player_stats.games_won) / max(1, int(player_stats.games_played))) * 100
+            win_rates = [(float(s.games_won) / max(1, int(s.games_played))) * 100 for s in all_stats]
             win_rate_percentile = self._calculate_percentile(win_rate, win_rates)
             win_rate_trend = self._analyze_win_rate_trend(player_id)
 
@@ -86,13 +86,13 @@ class StatisticsService:
                 value=win_rate,
                 percentile=win_rate_percentile,
                 trend=win_rate_trend,
-                confidence=0.8 if player_stats.games_played >= 20 else 0.5,
+                confidence=0.8 if int(player_stats.games_played) >= 20 else 0.5,
                 description=f"You win {win_rate:.1f}% of your games"
             )
 
             # Earnings Efficiency
-            earnings_per_game = player_stats.total_earnings / max(1, player_stats.games_played)
-            all_earnings_per_game = [s.total_earnings / max(1, s.games_played) for s in all_stats]
+            earnings_per_game = float(player_stats.total_earnings) / max(1, int(player_stats.games_played))
+            all_earnings_per_game = [float(s.total_earnings) / max(1, int(s.games_played)) for s in all_stats]
             earnings_percentile = self._calculate_percentile(earnings_per_game, all_earnings_per_game)
             earnings_trend = self._analyze_earnings_trend(player_id)
 
@@ -101,13 +101,13 @@ class StatisticsService:
                 value=earnings_per_game,
                 percentile=earnings_percentile,
                 trend=earnings_trend,
-                confidence=0.9 if player_stats.games_played >= 15 else 0.6,
+                confidence=0.9 if int(player_stats.games_played) >= 15 else 0.6,
                 description=f"You earn {earnings_per_game:.2f} quarters per game on average"
             )
 
             # Betting Accuracy
-            betting_accuracy = player_stats.betting_success_rate * 100
-            all_betting_accuracy = [s.betting_success_rate * 100 for s in all_stats if s.total_bets > 0]
+            betting_accuracy = float(player_stats.betting_success_rate) * 100
+            all_betting_accuracy = [float(s.betting_success_rate) * 100 for s in all_stats if int(s.total_bets) > 0]
             betting_percentile = self._calculate_percentile(betting_accuracy, all_betting_accuracy)
 
             metrics["betting_accuracy"] = PerformanceMetric(
@@ -115,13 +115,13 @@ class StatisticsService:
                 value=betting_accuracy,
                 percentile=betting_percentile,
                 trend="stable",  # Would need more detailed analysis
-                confidence=0.8 if player_stats.total_bets >= 50 else 0.4,
+                confidence=0.8 if int(player_stats.total_bets) >= 50 else 0.4,
                 description=f"You make successful bets {betting_accuracy:.1f}% of the time"
             )
 
             # Partnership Synergy
-            partnership_success = player_stats.partnership_success_rate * 100
-            all_partnership_success = [s.partnership_success_rate * 100 for s in all_stats if s.partnerships_formed > 0]
+            partnership_success = float(player_stats.partnership_success_rate) * 100
+            all_partnership_success = [float(s.partnership_success_rate) * 100 for s in all_stats if int(s.partnerships_formed) > 0]
             partnership_percentile = self._calculate_percentile(partnership_success, all_partnership_success)
 
             metrics["partnership_synergy"] = PerformanceMetric(
@@ -129,13 +129,13 @@ class StatisticsService:
                 value=partnership_success,
                 percentile=partnership_percentile,
                 trend="stable",
-                confidence=0.7 if player_stats.partnerships_formed >= 10 else 0.3,
+                confidence=0.7 if int(player_stats.partnerships_formed) >= 10 else 0.3,
                 description=f"Your partnerships succeed {partnership_success:.1f}% of the time"
             )
 
             # Consistency Score (inverse of variance)
-            consistency_score = self._calculate_consistency_score(player_id)
-            all_consistency = [self._calculate_consistency_score(s.player_id) for s in all_stats]
+            consistency_score = self._calculate_consistency_score(int(player_stats.player_id))
+            all_consistency = [self._calculate_consistency_score(int(s.player_id)) for s in all_stats]
             consistency_percentile = self._calculate_percentile(consistency_score, all_consistency)
 
             metrics["consistency"] = PerformanceMetric(
@@ -143,7 +143,7 @@ class StatisticsService:
                 value=consistency_score,
                 percentile=consistency_percentile,
                 trend="stable",
-                confidence=0.8 if player_stats.games_played >= 25 else 0.5,
+                confidence=0.8 if int(player_stats.games_played) >= 25 else 0.5,
                 description=f"Your consistency score is {consistency_score:.1f}/100"
             )
 
@@ -174,29 +174,29 @@ class StatisticsService:
             }
 
             for result in results:
-                timestamp = result.created_at
+                timestamp = str(result.created_at)
 
                 # Earnings trend
                 trends["earnings"].append(TrendPoint(
                     timestamp=timestamp,
-                    value=result.total_earnings,
+                    value=float(result.total_earnings),
                     game_id=str(result.game_record_id),
-                    context={"position": result.final_position}
+                    context={"position": int(result.final_position)}
                 ))
 
                 # Position trend (inverted for better visualization)
                 trends["position"].append(TrendPoint(
                     timestamp=timestamp,
-                    value=5 - result.final_position,  # Invert so higher is better
+                    value=float(5 - int(result.final_position)),  # Invert so higher is better
                     game_id=str(result.game_record_id),
-                    context={"actual_position": result.final_position}
+                    context={"actual_position": int(result.final_position)}
                 ))
 
                 # Betting success trend
                 betting_rate = result.successful_bets / max(1, result.total_bets)
                 trends["betting_success"].append(TrendPoint(
                     timestamp=timestamp,
-                    value=betting_rate * 100,
+                    value=float(betting_rate * 100),
                     game_id=str(result.game_record_id),
                     context={"successful_bets": result.successful_bets, "total_bets": result.total_bets}
                 ))
@@ -204,7 +204,7 @@ class StatisticsService:
                 # Holes won trend
                 trends["holes_won"].append(TrendPoint(
                     timestamp=timestamp,
-                    value=result.holes_won,
+                    value=float(result.holes_won),
                     game_id=str(result.game_record_id)
                 ))
 
@@ -352,9 +352,10 @@ class StatisticsService:
         """Get comparative leaderboard for different metrics."""
         try:
             # Define available metrics and their queries
+            from sqlalchemy import Float
             metric_queries = {
                 "total_earnings": (PlayerStatistics.total_earnings, desc),
-                "win_rate": (func.cast(PlayerStatistics.games_won, float) / func.cast(PlayerStatistics.games_played, float), desc),
+                "win_rate": (func.cast(PlayerStatistics.games_won, Float) / func.cast(PlayerStatistics.games_played, Float), desc),
                 "avg_earnings": (PlayerStatistics.avg_earnings_per_hole, desc),
                 "betting_success": (PlayerStatistics.betting_success_rate, desc),
                 "partnership_success": (PlayerStatistics.partnership_success_rate, desc),
@@ -472,21 +473,21 @@ class StatisticsService:
             base_rating = 1200.0  # Starting rating
 
             # Win rate component (max 400 points)
-            win_rate = player_stats.games_won / max(1, player_stats.games_played)
+            win_rate = float(player_stats.games_won) / max(1, int(player_stats.games_played))
             win_rating = (win_rate - 0.25) * 800  # Scale so 25% = 0, 100% = 600
 
             # Earnings component (max 300 points)
-            avg_earnings = player_stats.avg_earnings_per_hole
+            avg_earnings = float(player_stats.avg_earnings_per_hole)
             earnings_rating = min(avg_earnings * 30, 300)  # Cap at 300 points
 
             # Betting component (max 200 points)
-            betting_rating = (player_stats.betting_success_rate - 0.5) * 400  # 50% = 0, 100% = 200
+            betting_rating = (float(player_stats.betting_success_rate) - 0.5) * 400  # 50% = 0, 100% = 200
 
             # Partnership component (max 100 points)
-            partnership_rating = (player_stats.partnership_success_rate - 0.5) * 200  # 50% = 0, 100% = 100
+            partnership_rating = (float(player_stats.partnership_success_rate) - 0.5) * 200  # 50% = 0, 100% = 100
 
             # Experience multiplier
-            experience_factor = min(player_stats.games_played / 50.0, 1.0)  # Full weight at 50+ games
+            experience_factor = min(int(player_stats.games_played) / 50.0, 1.0)  # Full weight at 50+ games
 
             # Calculate overall rating
             overall_rating = base_rating + (
@@ -494,7 +495,7 @@ class StatisticsService:
             )
 
             # Confidence based on games played
-            confidence = min(player_stats.games_played / 25.0, 1.0)  # Full confidence at 25+ games
+            confidence = min(int(player_stats.games_played) / 25.0, 1.0)  # Full confidence at 25+ games
 
             return {
                 "overall": round(overall_rating, 1),
@@ -503,7 +504,7 @@ class StatisticsService:
                 "betting_component": round(betting_rating * experience_factor, 1),
                 "partnership_component": round(partnership_rating * experience_factor, 1),
                 "confidence": round(confidence, 2),
-                "games_played": player_stats.games_played
+                "games_played": int(player_stats.games_played)
             }
 
         except Exception as e:

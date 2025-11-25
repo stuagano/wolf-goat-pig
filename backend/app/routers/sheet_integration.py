@@ -366,14 +366,13 @@ async def sync_wgp_sheet_data(
                     # Create new player
                     player_data = schemas.PlayerProfileCreate(
                         name=player_name,
-                        handicap=10.0,  # Default handicap
-                        email=f"{player_name.lower().replace(' ', '.')}@wgp.com"
+                        handicap=10.0  # Default handicap
                     )
                     new_player = player_service.create_player_profile(player_data)
                     sync_results["players_created"] += 1
-                    player_id = new_player.id
+                    player_id = int(new_player.id)
                 else:
-                    player_id = existing_player.id
+                    player_id = int(existing_player.id)
                     sync_results["players_updated"] += 1
 
                 # Update or create statistics record
@@ -386,26 +385,27 @@ async def sync_wgp_sheet_data(
                     player_stats_record = models.PlayerStatistics(player_id=player_id)
                     db.add(player_stats_record)
 
-                # Update statistics with sheet data
-                player_stats_record.games_played = stats.get("rounds", 0)
-                player_stats_record.total_earnings = stats.get("total_earnings", 0)
+                # Update statistics with sheet data - use setattr to avoid Column type errors
+                setattr(player_stats_record, 'games_played', float(stats.get("rounds", 0)))
+                setattr(player_stats_record, 'total_earnings', float(stats.get("total_earnings", 0)))
 
                 # Calculate win percentage based on average earnings per game
                 if stats.get("rounds", 0) > 0 and stats.get("average", 0) > 0:
                     # If average is positive, estimate wins based on that
                     # Assuming positive average means winning more often
-                    estimated_win_rate = min(100, max(0, (stats.get("average", 0) + 50) / 100 * 50))
-                    player_stats_record.win_percentage = estimated_win_rate
-                    player_stats_record.games_won = int(stats.get("rounds", 0) * estimated_win_rate / 100)
+                    avg_val = float(stats.get("average", 0))
+                    estimated_win_rate = min(100, max(0, (avg_val + 50) / 100 * 50))
+                    setattr(player_stats_record, 'win_percentage', estimated_win_rate)
+                    setattr(player_stats_record, 'games_won', int(stats.get("rounds", 0) * estimated_win_rate / 100))
                 else:
-                    player_stats_record.win_percentage = 0
-                    player_stats_record.games_won = 0
+                    setattr(player_stats_record, 'win_percentage', 0.0)
+                    setattr(player_stats_record, 'games_won', 0)
 
                 # Store additional metrics
-                player_stats_record.avg_earnings_per_game = stats.get("average", 0)
+                setattr(player_stats_record, 'avg_earnings_per_game', float(stats.get("average", 0)))
 
                 # Update timestamp
-                player_stats_record.last_updated = datetime.now().isoformat()
+                setattr(player_stats_record, 'last_updated', datetime.now().isoformat())
 
                 # Try to fetch GHIN data if player has GHIN ID
                 ghin_data = None

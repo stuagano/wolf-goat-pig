@@ -7,7 +7,8 @@ Useful for manual schema changes during development and deployment.
 from fastapi import APIRouter, HTTPException, Depends, Header
 from sqlalchemy import text, inspect
 from sqlalchemy.orm import Session
-from typing import Dict, Any, List, Optional
+from sqlalchemy.engine.reflection import Inspector
+from typing import Dict, Any, List, Optional, cast
 import logging
 import os
 
@@ -47,7 +48,7 @@ async def get_migration_status(
         X-Admin-Key: Admin key for authentication
     """
     try:
-        inspector = inspect(db.bind)
+        inspector = cast(Inspector, inspect(db.bind))
 
         # Get all tables
         tables = inspector.get_table_names()
@@ -180,7 +181,7 @@ async def run_all_migrations(
 
 def _add_tee_order_migration(db: Session) -> Dict[str, Any]:
     """Add tee_order column to game_players table."""
-    inspector = inspect(db.bind)
+    inspector = cast(Inspector, inspect(db.bind))
 
     # Check if game_players table exists
     if 'game_players' not in inspector.get_table_names():
@@ -196,7 +197,7 @@ def _add_tee_order_migration(db: Session) -> Dict[str, Any]:
 
     if 'tee_order' not in columns:
         # Add tee_order column
-        if 'postgresql' in str(db.bind.dialect):
+        if db.bind and 'postgresql' in str(db.bind.dialect):
             db.execute(text("ALTER TABLE game_players ADD COLUMN tee_order INTEGER"))
         else:
             db.execute(text("ALTER TABLE game_players ADD COLUMN tee_order INTEGER"))
@@ -220,7 +221,7 @@ def _add_tee_order_migration(db: Session) -> Dict[str, Any]:
 
 def _add_game_id_migration(db: Session) -> Dict[str, Any]:
     """Add game_id column to game_state table."""
-    inspector = inspect(db.bind)
+    inspector = cast(Inspector, inspect(db.bind))
 
     if 'game_state' not in inspector.get_table_names():
         return {"message": "game_state table does not exist", "changes": []}
@@ -240,7 +241,7 @@ def _add_game_id_migration(db: Session) -> Dict[str, Any]:
 
 def _add_timestamps_migration(db: Session) -> Dict[str, Any]:
     """Add created_at and updated_at columns to game_state table."""
-    inspector = inspect(db.bind)
+    inspector = cast(Inspector, inspect(db.bind))
 
     if 'game_state' not in inspector.get_table_names():
         return {"message": "game_state table does not exist", "changes": []}
@@ -249,14 +250,14 @@ def _add_timestamps_migration(db: Session) -> Dict[str, Any]:
     changes = []
 
     if 'created_at' not in columns:
-        if 'postgresql' in str(db.bind.dialect):
+        if db.bind and 'postgresql' in str(db.bind.dialect):
             db.execute(text("ALTER TABLE game_state ADD COLUMN created_at TIMESTAMP"))
         else:
             db.execute(text("ALTER TABLE game_state ADD COLUMN created_at VARCHAR"))
         changes.append("Added created_at column to game_state")
 
     if 'updated_at' not in columns:
-        if 'postgresql' in str(db.bind.dialect):
+        if db.bind and 'postgresql' in str(db.bind.dialect):
             db.execute(text("ALTER TABLE game_state ADD COLUMN updated_at TIMESTAMP"))
         else:
             db.execute(text("ALTER TABLE game_state ADD COLUMN updated_at VARCHAR"))
@@ -270,7 +271,7 @@ def _add_timestamps_migration(db: Session) -> Dict[str, Any]:
 
 def _add_join_code_migration(db: Session) -> Dict[str, Any]:
     """Add join_code column to game_state table."""
-    inspector = inspect(db.bind)
+    inspector = cast(Inspector, inspect(db.bind))
 
     if 'game_state' not in inspector.get_table_names():
         return {"message": "game_state table does not exist", "changes": []}
@@ -290,7 +291,7 @@ def _add_join_code_migration(db: Session) -> Dict[str, Any]:
 
 def _add_creator_user_id_migration(db: Session) -> Dict[str, Any]:
     """Add creator_user_id column to game_state table."""
-    inspector = inspect(db.bind)
+    inspector = cast(Inspector, inspect(db.bind))
 
     if 'game_state' not in inspector.get_table_names():
         return {"message": "game_state table does not exist", "changes": []}
@@ -309,7 +310,7 @@ def _add_creator_user_id_migration(db: Session) -> Dict[str, Any]:
 
 def _add_game_status_migration(db: Session) -> Dict[str, Any]:
     """Add game_status column to game_state table."""
-    inspector = inspect(db.bind)
+    inspector = cast(Inspector, inspect(db.bind))
 
     if 'game_state' not in inspector.get_table_names():
         return {"message": "game_state table does not exist", "changes": []}

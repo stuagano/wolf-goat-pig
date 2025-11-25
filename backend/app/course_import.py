@@ -10,7 +10,7 @@ import logging
 import os
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Union, cast
 
 import httpx
 
@@ -97,7 +97,7 @@ class CourseImporter:
         try:
             # USGA API endpoint (hypothetical - would need real endpoint)
             url = "https://api.usga.org/v1/courses/search"
-            params = {
+            params: Dict[str, Union[str, int, float, bool, None]] = {
                 "name": course_name,
                 "api_key": self.api_keys["usga_api_key"]
             }
@@ -124,7 +124,7 @@ class CourseImporter:
         try:
             # GHIN course search endpoint
             url = "https://api2.ghin.com/api/v1/courses/search.json"
-            params = {
+            params: Dict[str, Union[str, int, float, bool, None]] = {
                 "name": course_name,
                 "limit": 10
             }
@@ -159,7 +159,7 @@ class CourseImporter:
                 "Authorization": f"Bearer {self.api_keys['golf_now_api_key']}",
                 "Content-Type": "application/json"
             }
-            params = {
+            params: Dict[str, Union[str, int, float, bool, None]] = {
                 "name": course_name,
                 "limit": 10
             }
@@ -194,7 +194,7 @@ class CourseImporter:
                 "Authorization": f"Bearer {self.api_keys['thegrint_api_key']}",
                 "Content-Type": "application/json"
             }
-            params = {
+            params: Dict[str, Union[str, int, float, bool, None]] = {
                 "name": course_name,
                 "limit": 10
             }
@@ -397,14 +397,17 @@ class CourseImporter:
             existing_course = db.query(Course).filter_by(name=course_data.name).first()
             if existing_course:
                 logger.info(f"Course {course_data.name} already exists, updating...")
-                # Update existing course
-                existing_course.description = course_data.description
-                existing_course.total_par = course_data.total_par
-                existing_course.total_yards = course_data.total_yards
-                existing_course.course_rating = course_data.course_rating
-                existing_course.slope_rating = course_data.slope_rating
-                existing_course.holes_data = course_data.holes_data
-                existing_course.updated_at = datetime.now().isoformat()
+                # Update existing course - use setattr to avoid Column type errors
+                if course_data.description is not None:
+                    setattr(existing_course, 'description', course_data.description)
+                setattr(existing_course, 'total_par', course_data.total_par)
+                setattr(existing_course, 'total_yards', course_data.total_yards)
+                if course_data.course_rating is not None:
+                    setattr(existing_course, 'course_rating', course_data.course_rating)
+                if course_data.slope_rating is not None:
+                    setattr(existing_course, 'slope_rating', course_data.slope_rating)
+                setattr(existing_course, 'holes_data', course_data.holes_data)
+                setattr(existing_course, 'updated_at', datetime.now().isoformat())
             else:
                 # Create new course
                 new_course = Course(

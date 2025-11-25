@@ -1,7 +1,8 @@
 from datetime import datetime
+from typing import Any, Dict, List
 
 from .database import SessionLocal, init_db
-from .models import Course
+from .models import Course, Hole
 
 # Realistic golf course data with proper yards, descriptions, and stroke indexes
 DEFAULT_COURSES = [
@@ -316,7 +317,7 @@ DEFAULT_COURSES = [
     {
         "name": "Executive Course",
         "description": "Shorter executive course perfect for quick rounds and beginners. Emphasis on short game and putting.",
-        "total_par": sum(hole['par'] for hole in [
+        "total_par": sum(hole['par'] for hole in [  # type: ignore
             { "hole_number": 1, "par": 4, "yards": 320, "stroke_index": 9, "description": "Short opening hole with wide fairway. Good for building confidence.", "tee_box": "forward" },
             { "hole_number": 2, "par": 3, "yards": 140, "stroke_index": 17, "description": "Short par 3 with large green. Good for practicing irons.", "tee_box": "forward" },
             { "hole_number": 3, "par": 4, "yards": 350, "stroke_index": 5, "description": "Straightaway par 4 with minimal hazards. Fairway is generous.", "tee_box": "forward" },
@@ -336,7 +337,7 @@ DEFAULT_COURSES = [
             { "hole_number": 17, "par": 4, "yards": 135, "stroke_index": 18, "description": "Shortest hole on the course. Good for practicing short irons.", "tee_box": "forward" },
             { "hole_number": 18, "par": 4, "yards": 350, "stroke_index": 10, "description": "Finishing hole with water hazard and dramatic green setting.", "tee_box": "forward" }
         ]),
-        "total_yards": sum(hole['yards'] for hole in [
+        "total_yards": sum(hole['yards'] for hole in [  # type: ignore
             { "hole_number": 1, "par": 4, "yards": 320, "stroke_index": 9, "description": "Short opening hole with wide fairway. Good for building confidence.", "tee_box": "forward" },
             { "hole_number": 2, "par": 3, "yards": 140, "stroke_index": 17, "description": "Short par 3 with large green. Good for practicing irons.", "tee_box": "forward" },
             { "hole_number": 3, "par": 4, "yards": 350, "stroke_index": 5, "description": "Straightaway par 4 with minimal hazards. Fairway is generous.", "tee_box": "forward" },
@@ -537,7 +538,8 @@ def main():
             db.flush() # Flush to get the ID for the course before adding holes
 
             # Add holes for the course
-            for hole_detail in course_data["holes_data"]:
+            holes_data = course_data.get("holes_data", [])
+            for hole_detail in holes_data:  # type: ignore
                 hole = Hole(
                     course_id=course.id,
                     hole_number=hole_detail["hole_number"],
@@ -555,10 +557,12 @@ def main():
         # Print summary statistics
         print("\nCourse Summary:")
         for course_data in DEFAULT_COURSES:
-            par_3_count = sum(1 for hole in course_data["holes_data"] if hole["par"] == 3)
-            par_4_count = sum(1 for hole in course_data["holes_data"] if hole["par"] == 4)
-            par_5_count = sum(1 for hole in course_data["holes_data"] if hole["par"] == 5)
-            avg_yards = course_data["total_yards"] / 18
+            holes_data = course_data.get("holes_data", [])
+            par_3_count = sum(1 for hole in holes_data if hole["par"] == 3)  # type: ignore
+            par_4_count = sum(1 for hole in holes_data if hole["par"] == 4)  # type: ignore
+            par_5_count = sum(1 for hole in holes_data if hole["par"] == 5)  # type: ignore
+            total_yards = course_data.get("total_yards", 0)
+            avg_yards = total_yards / 18 if isinstance(total_yards, (int, float)) else 0
 
             print(f"  {course_data['name']}:")
             print(f"    Par: {course_data['total_par']} ({par_3_count} par 3s, {par_4_count} par 4s, {par_5_count} par 5s)")

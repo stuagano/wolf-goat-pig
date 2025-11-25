@@ -13,7 +13,7 @@ import json
 import logging
 import traceback
 from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional, Union, cast
 
 from fastapi import APIRouter, Depends, File, HTTPException, Path, UploadFile
 from sqlalchemy.orm import Session
@@ -35,7 +35,7 @@ router = APIRouter(
 course_manager = CourseManager()
 
 
-def get_fallback_courses():
+def get_fallback_courses() -> Dict[str, Any]:
     """Provide fallback course data when database/seeding fails"""
     return {
         "Emergency Course": {
@@ -90,10 +90,11 @@ def get_fallback_courses():
 # ============================================================================
 
 @router.get("")
-def get_courses():
+def get_courses() -> Any:
     """Get all available courses with robust fallback handling"""
+    global course_manager
     try:
-        courses = course_manager.get_courses()
+        courses: Any = course_manager.get_courses()
 
         # Ensure we always return at least one default course
         if not courses:
@@ -104,7 +105,8 @@ def get_courses():
                 seeding_status = get_seeding_status()
 
                 if seeding_status["status"] == "success":
-                    course_manager.__init__()
+                    # Reinitialize by creating a new instance
+                    course_manager = CourseManager()
                     courses = course_manager.get_courses()
 
                     if courses:
@@ -120,7 +122,9 @@ def get_courses():
                 logger.error(f"Failed to reload courses from database: {reload_error}")
                 courses = get_fallback_courses()
 
-        logger.info(f"Retrieved {len(courses)} courses: {list(courses.keys())}")
+        # Handle both dict types
+        if isinstance(courses, dict):
+            logger.info(f"Retrieved {len(courses)} courses: {list(courses.keys())}")
         return courses
 
     except Exception as e:
@@ -135,15 +139,17 @@ def get_courses():
 @handle_api_errors(operation_name="get course by ID")
 def get_course_by_id(course_id: int) -> Dict[str, Any]:
     """Get a specific course by ID (index in courses list)"""
-    courses = course_manager.get_courses()
+    courses: Any = course_manager.get_courses()
     if not courses:
         raise HTTPException(status_code=404, detail="No courses available")
 
-    course_list = list(courses.values())
-    if course_id >= len(course_list) or course_id < 0:
-        raise HTTPException(status_code=404, detail="Course not found")
-
-    return course_list[course_id]
+    if isinstance(courses, dict):
+        course_list = list(courses.values())
+        if course_id >= len(course_list) or course_id < 0:
+            raise HTTPException(status_code=404, detail="Course not found")
+        return cast(Dict[str, Any], course_list[course_id])
+    else:
+        raise HTTPException(status_code=500, detail="Invalid courses data structure")
 
 
 @router.post("", response_model=dict)
@@ -197,7 +203,7 @@ def add_course(
     db.refresh(db_course)
 
     # Also add to in-memory course manager
-    course_manager.add_course(course.name, holes)
+    course_manager.add_course(course.name, holes)  # type: ignore
 
     logger.info(f"Created course '{course.name}' with {len(holes)} holes (ID: {db_course.id})")
 
@@ -251,14 +257,14 @@ def update_course(
             )
             db.add(db_hole)
 
-    db_course.updated_at = datetime.now(timezone.utc).isoformat()
+    db_course.updated_at = datetime.now(timezone.utc).isoformat()  # type: ignore
 
     db.commit()
     db.refresh(db_course)
 
     # Update in-memory course manager
     if "holes" in update_dict:
-        course_manager.update_course(course_name, update_dict["holes"])
+        course_manager.update_course(course_name, update_dict["holes"])  # type: ignore
 
     logger.info(f"Updated course '{course_name}' (ID: {db_course.id})")
 
@@ -288,7 +294,7 @@ def delete_course(
     db.commit()
 
     # Also remove from in-memory course manager
-    course_manager.delete_course(course_name)
+    course_manager.delete_course(course_name)  # type: ignore
 
     logger.info(f"Deleted course '{course_name}' from database")
 
@@ -304,26 +310,27 @@ def delete_course(
 async def import_course_by_search(request: schemas.CourseImportRequest) -> Dict[str, Any]:
     """Search and import a course by name"""
     result = await import_course_by_name(request.course_name, request.state, request.city)
-    return result
+    return cast(Dict[str, Any], result if result else {})
 
 
 @router.post("/import/file")
 @handle_api_errors(operation_name="import course from file")
 async def import_course_from_file(file: UploadFile = File(...)) -> Dict[str, Any]:
     """Import a course from uploaded JSON file"""
-    if not file.filename.endswith('.json'):
+    filename = file.filename or ""
+    if not filename.endswith('.json'):
         raise ValueError("File must be a JSON file")
 
     content = await file.read()
     course_data = json.loads(content.decode('utf-8'))
 
     result = await import_course_from_json(course_data)
-    return result
+    return cast(Dict[str, Any], result if result else {})
 
 
 @router.get("/import/sources")
 @handle_api_errors(operation_name="get import sources")
-def get_import_sources():
+def get_import_sources() -> Dict[str, Any]:
     """Get available course import sources"""
     return {
         "sources": [

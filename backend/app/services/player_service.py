@@ -146,19 +146,19 @@ class PlayerService:
                 ).first()
                 if existing_player:
                     raise ValueError(f"Player with name '{update_data.name}' already exists")
-                player.name = update_data.name
+                setattr(player, 'name', update_data.name)
 
             if update_data.handicap is not None:
-                player.handicap = update_data.handicap
+                setattr(player, 'handicap', update_data.handicap)
 
             if update_data.avatar_url is not None:
-                player.avatar_url = update_data.avatar_url
+                setattr(player, 'avatar_url', update_data.avatar_url)
 
             if update_data.preferences is not None:
-                player.preferences = update_data.preferences
+                setattr(player, 'preferences', update_data.preferences)
 
             if update_data.last_played is not None:
-                player.last_played = update_data.last_played
+                setattr(player, 'last_played', update_data.last_played)
 
             self.db.commit()
             self.db.refresh(player)
@@ -178,7 +178,7 @@ class PlayerService:
             if not player:
                 return False
 
-            player.is_active = 0
+            setattr(player, 'is_active', 0)
             self.db.commit()
 
             logger.info(f"Deleted (deactivated) player profile {player_id}")
@@ -210,7 +210,7 @@ class PlayerService:
         try:
             player = self.db.query(PlayerProfile).filter(PlayerProfile.id == player_id).first()
             if player:
-                player.last_played = datetime.now().isoformat()
+                setattr(player, 'last_played', datetime.now().isoformat())
                 self.db.commit()
 
         except Exception as e:
@@ -223,7 +223,7 @@ class PlayerService:
         try:
             # Create game player result record
             result_record = GamePlayerResult(**game_result.model_dump())
-            result_record.created_at = datetime.now().isoformat()
+            setattr(result_record, 'created_at', datetime.now().isoformat())
             self.db.add(result_record)
 
             # Update player statistics
@@ -254,34 +254,34 @@ class PlayerService:
             self.db.flush()
 
         # Update game counts
-        stats.games_played += 1
+        setattr(stats, 'games_played', int(stats.games_played) + 1)
         if game_result.final_position == 1:
-            stats.games_won += 1
+            setattr(stats, 'games_won', int(stats.games_won) + 1)
 
         # Update earnings
-        stats.total_earnings += game_result.total_earnings
-        stats.holes_played += len(game_result.hole_scores or {})
-        stats.holes_won += game_result.holes_won
+        setattr(stats, 'total_earnings', float(stats.total_earnings) + game_result.total_earnings)
+        setattr(stats, 'holes_played', int(stats.holes_played) + len(game_result.hole_scores or {}))
+        setattr(stats, 'holes_won', int(stats.holes_won) + game_result.holes_won)
 
         # Calculate average earnings per hole
-        if stats.holes_played > 0:
-            stats.avg_earnings_per_hole = stats.total_earnings / stats.holes_played
+        if int(stats.holes_played) > 0:
+            setattr(stats, 'avg_earnings_per_hole', float(stats.total_earnings) / int(stats.holes_played))
 
         # Update betting statistics
-        stats.successful_bets += game_result.successful_bets
-        stats.total_bets += game_result.total_bets
-        if stats.total_bets > 0:
-            stats.betting_success_rate = stats.successful_bets / stats.total_bets
+        setattr(stats, 'successful_bets', int(stats.successful_bets) + game_result.successful_bets)
+        setattr(stats, 'total_bets', int(stats.total_bets) + game_result.total_bets)
+        if int(stats.total_bets) > 0:
+            setattr(stats, 'betting_success_rate', float(stats.successful_bets) / int(stats.total_bets))
 
         # Update partnership statistics
-        stats.partnerships_formed += game_result.partnerships_formed
-        stats.partnerships_won += game_result.partnerships_won
-        if stats.partnerships_formed > 0:
-            stats.partnership_success_rate = stats.partnerships_won / stats.partnerships_formed
+        setattr(stats, 'partnerships_formed', int(stats.partnerships_formed) + game_result.partnerships_formed)
+        setattr(stats, 'partnerships_won', int(stats.partnerships_won) + game_result.partnerships_won)
+        if int(stats.partnerships_formed) > 0:
+            setattr(stats, 'partnership_success_rate', float(stats.partnerships_won) / int(stats.partnerships_formed))
 
         # Update solo statistics
-        stats.solo_attempts += game_result.solo_attempts
-        stats.solo_wins += game_result.solo_wins
+        setattr(stats, 'solo_attempts', int(stats.solo_attempts) + game_result.solo_attempts)
+        setattr(stats, 'solo_wins', int(stats.solo_wins) + game_result.solo_wins)
 
         # Update score performance statistics (eagles, birdies, pars, bogeys, etc.)
         if game_result.performance_metrics:
@@ -302,15 +302,15 @@ class PlayerService:
             "betting_success": game_result.successful_bets / max(1, game_result.total_bets)
         }
 
-        trends = stats.performance_trends or []
+        trends: List[Any] = list(stats.performance_trends) if stats.performance_trends else []
         trends.append(performance_point)
 
         # Keep only last 50 games for performance
         if len(trends) > 50:
             trends = trends[-50:]
 
-        stats.performance_trends = trends
-        stats.last_updated = datetime.now().isoformat()
+        setattr(stats, 'performance_trends', trends)
+        setattr(stats, 'last_updated', datetime.now().isoformat())
 
     # Analytics and Insights
     def get_player_performance_analytics(self, player_id: int) -> Optional[PlayerPerformanceAnalytics]:
@@ -411,8 +411,8 @@ class PlayerService:
         if not results:
             return 0.0
 
-        positions = [result.final_position for result in results]
-        return sum(positions) / len(positions)
+        positions = [int(result.final_position) for result in results]
+        return float(sum(positions) / len(positions))
 
     def _calculate_recent_form(self, player_id: int, games: int = 5) -> str:
         """Calculate recent form based on last N games."""
@@ -533,11 +533,11 @@ class PlayerService:
                 return {"status": "insufficient_data"}
 
             # Calculate percentiles
-            earnings_values = sorted([s.total_earnings for s in all_stats])
-            win_rates = sorted([(s.games_won / max(1, s.games_played)) for s in all_stats])
+            earnings_values = sorted([float(s.total_earnings) for s in all_stats])
+            win_rates = sorted([float(s.games_won) / max(1, int(s.games_played)) for s in all_stats])
 
-            player_earnings_percentile = self._calculate_percentile(stats.total_earnings, earnings_values)
-            player_win_rate = stats.games_won / max(1, stats.games_played)
+            player_earnings_percentile = self._calculate_percentile(float(stats.total_earnings), earnings_values)
+            player_win_rate = float(stats.games_won) / max(1, int(stats.games_played))
             player_win_rate_percentile = self._calculate_percentile(player_win_rate, win_rates)
 
             return {
@@ -579,7 +579,7 @@ class PlayerService:
     def check_and_award_achievements(self, player_id: int, game_result: GamePlayerResultCreate) -> List[str]:
         """Check for new achievements and award them."""
         try:
-            awarded_achievements = []
+            awarded_achievements: List[str] = []
 
             # Get current stats
             stats = self.get_player_statistics(player_id)

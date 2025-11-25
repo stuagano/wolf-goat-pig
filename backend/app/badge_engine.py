@@ -4,7 +4,7 @@ Detects when players earn badges and manages badge awarding logic.
 """
 
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional, cast
+from typing import Any, Callable, Dict, List, Optional, Union, cast
 
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
@@ -106,7 +106,7 @@ class BadgeEngine:
         # Check each badge
         for badge in active_badges:
             # Skip if player already has this badge (for one-time achievements)
-            if badge.trigger_type == 'one_time' and self._player_has_badge(player_profile_id, badge.id):
+            if badge.trigger_type == 'one_time' and self._player_has_badge(player_profile_id, int(badge.id)):
                 continue
 
             # Check if badge trigger condition is in our checkers
@@ -119,7 +119,7 @@ class BadgeEngine:
                     # Award the badge
                     earned_badge = self._award_badge(
                         player_profile_id=player_profile_id,
-                        badge_id=badge.id,
+                        badge_id=int(badge.id),
                         game_record_id=game_record_id
                     )
                     if earned_badge:
@@ -147,14 +147,15 @@ class BadgeEngine:
         ).all()
 
         for badge in badges:
-            if self._player_has_badge(player_profile_id, badge.id):
+            if self._player_has_badge(player_profile_id, int(badge.id)):
                 continue
 
             # Check specific event criteria
-            if self._check_event_criteria(badge.trigger_condition, event_data):
+            trigger_cond: Dict[Any, Any] = badge.trigger_condition if isinstance(badge.trigger_condition, dict) else {}  # type: ignore[unreachable]
+            if self._check_event_criteria(trigger_cond, event_data):
                 return self._award_badge(
                     player_profile_id=player_profile_id,
-                    badge_id=badge.id,
+                    badge_id=int(badge.id),
                     game_record_id=event_data.get('game_record_id')
                 )
 
@@ -176,7 +177,7 @@ class BadgeEngine:
             return False
 
         # Check betting history for consecutive solo wins
-        betting_history = result.betting_history or []
+        betting_history: List[Any] = result.betting_history if isinstance(result.betting_history, list) else []  # type: ignore[unreachable]
         consecutive_solo_wins = 0
         max_streak = 0
 
@@ -200,7 +201,7 @@ class BadgeEngine:
         if result.solo_attempts < 18:
             return False
 
-        betting_history = result.betting_history or []
+        betting_history: List[Any] = result.betting_history if isinstance(result.betting_history, list) else []  # type: ignore[unreachable]
 
         # Check if all holes were solo and all won
         solo_count = 0
@@ -236,14 +237,14 @@ class BadgeEngine:
     def _check_high_roller(self, player_id: int, stats: PlayerStatistics,
                           result: GamePlayerResult, game: GameRecord, badge: Badge) -> bool:
         """Badge: High Roller - Accept 5 doubles in a single game"""
-        betting_history = result.betting_history or []
-        doubles_accepted = sum(1 for h in betting_history if h.get('accepted_double'))
+        betting_history: List[Any] = result.betting_history if isinstance(result.betting_history, list) else []  # type: ignore[unreachable]
+        doubles_accepted: int = sum(1 for h in betting_history if h.get('accepted_double'))
         return doubles_accepted >= 5
 
     def _check_win_redoubled(self, player_id: int, stats: PlayerStatistics,
                            result: GamePlayerResult, game: GameRecord, badge: Badge) -> bool:
         """Badge: Pressure Player - Win a redoubled hole (4x+ wager)"""
-        betting_history = result.betting_history or []
+        betting_history: List[Any] = result.betting_history if isinstance(result.betting_history, list) else []  # type: ignore[unreachable]
         for hole in betting_history:
             if hole.get('won') and hole.get('wager_multiplier', 1) >= 4:
                 return True
@@ -258,13 +259,13 @@ class BadgeEngine:
                           result: GamePlayerResult, game: GameRecord, badge: Badge) -> bool:
         """Badge: Karl Marx's Favorite - Receive 50 quarters via Karl Marx rule (career)"""
         # Would need specific tracking in progress_data
-        progress = self._get_or_create_progress(player_id, badge.id)
+        progress = self._get_or_create_progress(player_id, int(badge.id))
         return bool(progress.current_progress >= 50)
 
     def _check_hole_in_one(self, player_id: int, stats: PlayerStatistics,
                          result: GamePlayerResult, game: GameRecord, badge: Badge) -> bool:
         """Badge: Unicorn - Make a hole-in-one"""
-        hole_scores = result.hole_scores or {}
+        hole_scores: Dict[str, Any] = result.hole_scores if isinstance(result.hole_scores, dict) else {}  # type: ignore[unreachable]
         for hole_num, score_data in hole_scores.items():
             if score_data.get('score') == 1:
                 return True
@@ -278,7 +279,7 @@ class BadgeEngine:
     def _check_comeback_20(self, player_id: int, stats: PlayerStatistics,
                          result: GamePlayerResult, game: GameRecord, badge: Badge) -> bool:
         """Badge: Lazarus - Come back from 20+ quarters down to win"""
-        performance_metrics = result.performance_metrics or {}
+        performance_metrics: Dict[str, Any] = result.performance_metrics if isinstance(result.performance_metrics, dict) else {}  # type: ignore[unreachable]
         max_deficit = performance_metrics.get('max_deficit', 0)
         return bool(max_deficit >= 20 and result.final_position == 1)
 
@@ -322,28 +323,28 @@ class BadgeEngine:
                                 result: GamePlayerResult, game: GameRecord, badge: Badge) -> bool:
         """Badge: War - Win 10 redoubled holes (career)"""
         # Need to track redoubled wins in progress
-        progress = self._get_or_create_progress(player_id, badge.id)
+        progress = self._get_or_create_progress(player_id, int(badge.id))
 
         # Check current game for redoubled wins
-        betting_history = result.betting_history or []
-        redoubled_wins_this_game = sum(
+        betting_history: List[Any] = result.betting_history if isinstance(result.betting_history, list) else []  # type: ignore[unreachable]
+        redoubled_wins_this_game: int = sum(
             1 for h in betting_history
             if h.get('won') and h.get('wager_multiplier', 1) >= 4
         )
 
-        progress.current_progress += redoubled_wins_this_game
-        progress.target_progress = 10
-        progress.progress_percentage = (progress.current_progress / 10) * 100
-        progress.updated_at = datetime.now(timezone.utc).isoformat()
+        setattr(progress, 'current_progress', int(progress.current_progress) + redoubled_wins_this_game)
+        setattr(progress, 'target_progress', 10)
+        setattr(progress, 'progress_percentage', float((int(progress.current_progress) / 10) * 100))
+        setattr(progress, 'updated_at', datetime.now(timezone.utc).isoformat())
         self.db.commit()
 
-        return bool(progress.current_progress >= 10)
+        return bool(int(progress.current_progress) >= 10)
 
     def _check_four_horsemen_famine(self, player_id: int, stats: PlayerStatistics,
                                    result: GamePlayerResult, game: GameRecord, badge: Badge) -> bool:
         """Badge: Famine - Bankrupt opponent (reduce to -50 quarters)"""
         # Check if any opponent reached -50 quarters in this game
-        final_scores = game.final_scores or {}
+        final_scores: Dict[str, Any] = game.final_scores if isinstance(game.final_scores, dict) else {}  # type: ignore[unreachable]
         for player_name, score_data in final_scores.items():
             if score_data.get('earnings', 0) <= -50:
                 return True
@@ -370,7 +371,7 @@ class BadgeEngine:
         if result.solo_attempts < 18:
             return False
 
-        final_scores = game.final_scores or {}
+        final_scores: Dict[str, Any] = game.final_scores if isinstance(game.final_scores, dict) else {}  # type: ignore[unreachable]
         opponents = [s for name, s in final_scores.items()
                     if s.get('player_id') != player_id]
 
@@ -405,8 +406,8 @@ class BadgeEngine:
         )
 
         # Update badge supply
-        badge.current_supply += 1
-        badge.updated_at = datetime.now(timezone.utc).isoformat()
+        setattr(badge, 'current_supply', int(badge.current_supply) + 1)
+        setattr(badge, 'updated_at', datetime.now(timezone.utc).isoformat())
 
         self.db.add(earned)
         self.db.commit()
@@ -450,7 +451,7 @@ class BadgeEngine:
             self.db.commit()
             self.db.refresh(progress)
 
-        return cast('BadgeProgress', progress)
+        return progress
 
     def _update_progression_badges(self, player_profile_id: int, stats: PlayerStatistics) -> None:
         """Update progress for all progression badges"""
@@ -462,31 +463,31 @@ class BadgeEngine:
         ).all()
 
         for badge in progression_badges:
-            if self._player_has_badge(player_profile_id, badge.id):
+            if self._player_has_badge(player_profile_id, int(badge.id)):
                 continue
 
-            progress = self._get_or_create_progress(player_profile_id, badge.id)
+            progress = self._get_or_create_progress(player_profile_id, int(badge.id))
 
             # Update progress based on badge type
             trigger = badge.trigger_condition.get('type') if badge.trigger_condition else None
 
             if trigger == 'earnings_milestone':
-                progress.current_progress = int(stats.total_earnings)
-                progress.target_progress = badge.trigger_condition.get('earnings_threshold', 0)
+                setattr(progress, 'current_progress', int(float(stats.total_earnings)))
+                setattr(progress, 'target_progress', badge.trigger_condition.get('earnings_threshold', 0))
             elif trigger == 'games_played_milestone':
-                progress.current_progress = stats.games_played
-                progress.target_progress = badge.trigger_condition.get('games_threshold', 0)
+                setattr(progress, 'current_progress', int(stats.games_played))
+                setattr(progress, 'target_progress', badge.trigger_condition.get('games_threshold', 0))
             elif trigger == 'holes_won_milestone':
-                progress.current_progress = stats.holes_won
-                progress.target_progress = badge.trigger_condition.get('holes_threshold', 0)
+                setattr(progress, 'current_progress', int(stats.holes_won))
+                setattr(progress, 'target_progress', badge.trigger_condition.get('holes_threshold', 0))
 
-            if progress.target_progress > 0:
-                progress.progress_percentage = min(
-                    (progress.current_progress / progress.target_progress) * 100,
+            if int(progress.target_progress) > 0:
+                setattr(progress, 'progress_percentage', float(min(
+                    (int(progress.current_progress) / int(progress.target_progress)) * 100,
                     100.0
-                )
+                )))
 
-            progress.updated_at = datetime.now(timezone.utc).isoformat()
+            setattr(progress, 'updated_at', datetime.now(timezone.utc).isoformat())
             self.db.commit()
 
     def _check_series_completion(self, player_profile_id: int, newly_earned_badge: Badge) -> None:
@@ -521,28 +522,28 @@ class BadgeEngine:
         if not series_progress:
             series_progress = PlayerSeriesProgress(
                 player_profile_id=player_profile_id,
-                series_id=series.id,
+                series_id=int(series.id),
                 badges_earned=earned_count,
-                badges_needed=series.badge_count,
+                badges_needed=int(series.badge_count),
                 is_completed=False,
                 created_at=datetime.now(timezone.utc).isoformat(),
                 updated_at=datetime.now(timezone.utc).isoformat()
             )
             self.db.add(series_progress)
         else:
-            series_progress.badges_earned = earned_count
-            series_progress.updated_at = datetime.now(timezone.utc).isoformat()
+            setattr(series_progress, 'badges_earned', earned_count)
+            setattr(series_progress, 'updated_at', datetime.now(timezone.utc).isoformat())
 
         # Check if series is complete
-        if earned_count >= series.badge_count and not series_progress.is_completed:
-            series_progress.is_completed = True
-            series_progress.completed_at = datetime.now(timezone.utc).isoformat()
+        if earned_count >= int(series.badge_count) and not series_progress.is_completed:
+            setattr(series_progress, 'is_completed', True)
+            setattr(series_progress, 'completed_at', datetime.now(timezone.utc).isoformat())
 
             # Award completion badge if one exists
             if series.completion_badge_id:
                 self._award_badge(
                     player_profile_id=player_profile_id,
-                    badge_id=series.completion_badge_id
+                    badge_id=int(series.completion_badge_id)
                 )
 
         self.db.commit()

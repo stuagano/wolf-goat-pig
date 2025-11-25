@@ -96,21 +96,21 @@ class ScoringManager:
         points = manager.calculate_match_points(winning_team, losing_team, wager)
     """
 
-    _instance = None
+    _instance: Optional["ScoringManager"] = None
 
-    def __new__(cls):
+    def __new__(cls) -> "ScoringManager":
         """Implement singleton pattern."""
         if cls._instance is None:
             cls._instance = super(ScoringManager, cls).__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, game_engine: Optional[WolfGoatPigGame] = None):
+    def __init__(self, game_engine: Optional[WolfGoatPigGame] = None) -> None:
         """Initialize the scoring manager."""
-        if self._initialized:
+        if getattr(self, '_initialized', False):
             return
 
-        self._initialized = True
+        self._initialized: bool = True
         logger.info("ScoringManager initialized")
 
     def calculate_hole_score(
@@ -153,7 +153,7 @@ class ScoringManager:
                 f"strokes={handicap_strokes}, net={net_score}"
             )
 
-            return net_score
+            return int(net_score)
 
         except HandicapValidationError as e:
             logger.error(f"Error calculating hole score: {e.message}")
@@ -518,8 +518,8 @@ class ScoringManager:
             {'p1': 2, 'p2': -2}
         """
         try:
-            player_totals = {}
-            holes_won = {}
+            player_totals: Dict[str, float] = {}
+            holes_won: Dict[str, int] = {}
             holes_halved = 0
             total_carryover = 0.0
 
@@ -540,11 +540,11 @@ class ScoringManager:
                 # Aggregate points
                 for player_id, points in result.points_changes.items():
                     if player_id not in player_totals:
-                        player_totals[player_id] = 0
-                    player_totals[player_id] += points
+                        player_totals[player_id] = 0.0
+                    player_totals[player_id] += float(points)
 
             # Create standings (sorted by total, descending)
-            standings = sorted(
+            standings: List[Tuple[str, float]] = sorted(
                 player_totals.items(),
                 key=lambda x: x[1],
                 reverse=True
