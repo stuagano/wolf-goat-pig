@@ -2106,11 +2106,13 @@ async def get_next_rotation(  # type: ignore
 
         # Get last hole's rotation
         hole_history = game_state.get("hole_history", [])
+        is_first_hole = len(hole_history) == 0
+
         if hole_history:
             last_hole = hole_history[-1]
             last_rotation = last_hole.get("rotation_order", [p["id"] for p in game_state["players"]])  # type: ignore
         else:
-            # First hole - use player order
+            # First hole - use player order (sorted by tee_order)
             last_rotation = [p["id"] for p in game_state["players"]]  # type: ignore
 
         if is_hoepfinger:
@@ -2131,8 +2133,12 @@ async def get_next_rotation(  # type: ignore
                 "message": "Goat selects hitting position"
             }
         else:
-            # Normal rotation: shift left by 1
-            new_rotation = last_rotation[1:] + [last_rotation[0]]
+            if is_first_hole:
+                # First hole - use initial tee order without rotation
+                new_rotation = last_rotation
+            else:
+                # Normal rotation: shift left by 1 from previous hole
+                new_rotation = last_rotation[1:] + [last_rotation[0]]
 
             return {
                 "is_hoepfinger": False,
