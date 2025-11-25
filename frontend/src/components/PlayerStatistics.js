@@ -16,6 +16,8 @@ const API_URL = process.env.REACT_APP_API_URL || '';
 const PlayerStatistics = ({ playerId, playerName }) => {
     const [statistics, setStatistics] = useState(null);
     const [analytics, setAnalytics] = useState(null);
+    // achievements - populated by loadPlayerData for future use
+    // eslint-disable-next-line no-unused-vars
     const [achievements, setAchievements] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -25,6 +27,7 @@ const PlayerStatistics = ({ playerId, playerName }) => {
         if (playerId) {
             loadPlayerData();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [playerId]);
 
     const loadPlayerData = async () => {

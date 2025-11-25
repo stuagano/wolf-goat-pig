@@ -15,6 +15,7 @@ const Routes = ({ children }) => <>{children}</>;
 const Route = ({ element }) => element ?? null;
 
 const Link = ({ to, children, ...rest }) => (
+  // eslint-disable-next-line jsx-a11y/anchor-is-valid
   <a href={typeof to === 'string' ? to : '#'} {...rest}>
     {children}
   </a>

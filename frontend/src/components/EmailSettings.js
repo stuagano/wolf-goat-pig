@@ -11,6 +11,7 @@ const EmailSettings = () => {
   useEffect(() => {
     checkEmailStatus();
     checkSchedulerStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const checkEmailStatus = async () => {

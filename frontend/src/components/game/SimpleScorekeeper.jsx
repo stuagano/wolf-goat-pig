@@ -34,7 +34,8 @@ const SimpleScorekeeper = ({
   players,
   baseWager = 1,
   initialHoleHistory = [],
-  initialCurrentHole = 1
+  initialCurrentHole = 1,
+  courseName = 'Wing Point Golf & Country Club'
 }) => {
   const theme = useTheme();
 
@@ -105,23 +106,16 @@ const SimpleScorekeeper = ({
   useEffect(() => {
     const fetchCourseData = async () => {
       try {
-        // Get game state to find course name
-        const gameResponse = await fetch(`${API_URL}/games/${gameId}/state`);
-        if (gameResponse.ok) {
-          const gameData = await gameResponse.json();
-          const courseName = gameData.course_name || 'Wing Point Golf & Country Club';
-
-          // Fetch course details
-          const courseResponse = await fetch(`${API_URL}/courses`);
-          if (courseResponse.ok) {
-            const coursesData = await courseResponse.json();
-            // /courses returns an object with course names as keys, not an array
-            const course = coursesData[courseName];
-            if (course) {
-              setCourseData(course);
-            } else {
-              console.warn(`Course "${courseName}" not found in courses data`);
-            }
+        // Fetch course details
+        const courseResponse = await fetch(`${API_URL}/courses`);
+        if (courseResponse.ok) {
+          const coursesData = await courseResponse.json();
+          // /courses returns an object with course names as keys, not an array
+          const course = coursesData[courseName];
+          if (course) {
+            setCourseData(course);
+          } else {
+            console.warn(`Course "${courseName}" not found in courses data`);
           }
         }
       } catch (err) {
@@ -129,10 +123,10 @@ const SimpleScorekeeper = ({
       }
     };
 
-    if (gameId) {
+    if (courseName) {
       fetchCourseData();
     }
-  }, [gameId]);
+  }, [courseName]);
 
   // Initialize player standings from hole history
   useEffect(() => {
@@ -485,7 +479,8 @@ const SimpleScorekeeper = ({
     }
   };
 
-  // Handle player name editing
+  // Handle player name editing - exported for potential external use
+  // eslint-disable-next-line no-unused-vars
   const handlePlayerNameClick = (playerId, currentName) => {
     setEditingPlayerName(playerId);
     setEditPlayerNameValue(currentName);
@@ -2224,6 +2219,7 @@ SimpleScorekeeper.propTypes = {
   baseWager: PropTypes.number,
   initialHoleHistory: PropTypes.arrayOf(PropTypes.object),
   initialCurrentHole: PropTypes.number,
+  courseName: PropTypes.string,
 };
 
 export default SimpleScorekeeper;

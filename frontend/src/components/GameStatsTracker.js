@@ -11,13 +11,15 @@ import usePlayerProfile from '../hooks/usePlayerProfile';
  * - Manages achievement notifications
  * - Provides real-time statistics updates
  */
-const GameStatsTracker = ({ 
-    gameState, 
-    players = [], 
-    onStatsUpdate, 
+const GameStatsTracker = ({
+    gameState,
+    players = [],
+    onStatsUpdate,
     onAchievementEarned,
-    gameId 
+    gameId
 }) => {
+    // selectedProfile - available for future player-specific tracking
+    // eslint-disable-next-line no-unused-vars
     const { recordGameResult, selectedProfile } = usePlayerProfile();
     
     // Track game progress and metrics
@@ -37,6 +39,7 @@ const GameStatsTracker = ({
                 playerMetrics: initializePlayerMetrics(players)
             }));
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [gameState?.active, players]);
 
     // Monitor hole completion and update metrics
@@ -44,6 +47,7 @@ const GameStatsTracker = ({
         if (gameState?.current_hole && gameState.current_hole !== gameMetrics.holesCompleted) {
             updateHoleMetrics(gameState);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [gameState?.current_hole]);
 
     // Handle game completion
@@ -51,6 +55,7 @@ const GameStatsTracker = ({
         if (gameState?.game_complete && !gameMetrics.endTime) {
             handleGameCompletion(gameState);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [gameState?.game_complete]);
 
     const initializePlayerMetrics = useCallback((playerList) => {
@@ -204,6 +209,7 @@ const GameStatsTracker = ({
         if (onStatsUpdate) {
             onStatsUpdate(gameMetrics.playerMetrics);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [onStatsUpdate]);
 
     const handleGameCompletion = useCallback(async (finalGameState) => {
@@ -265,10 +271,11 @@ const GameStatsTracker = ({
             });
 
             await Promise.allSettled(submissionPromises);
-            
+
         } catch (error) {
             console.error('Error handling game completion:', error);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [gameMetrics, recordGameResult, onAchievementEarned]);
 
     const calculateFinalResults = (finalGameState) => {

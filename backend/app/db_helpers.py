@@ -5,8 +5,9 @@ Provides utilities for proper database session lifecycle management in FastAPI.
 """
 
 import logging
+from contextlib import contextmanager
 from functools import wraps
-from typing import Callable
+from typing import Callable, Generator
 
 from sqlalchemy.orm import Session
 
@@ -54,7 +55,8 @@ def with_db_session(func: Callable) -> Callable:
 
 
 # Alternative: Context manager approach (preferred)
-def get_db_session() -> Session:
+@contextmanager
+def get_db_session() -> Generator[Session, None, None]:
     """
     Context manager for database sessions.
 
@@ -66,4 +68,5 @@ def get_db_session() -> Session:
             # session automatically closed after with block
     """
     from .database import get_isolated_session
-    return get_isolated_session()
+    with get_isolated_session() as session:
+        yield session

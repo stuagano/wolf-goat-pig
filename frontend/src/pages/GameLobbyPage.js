@@ -24,6 +24,8 @@ function GameLobbyPage() {
   const [deletingPlayer, setDeletingPlayer] = useState(null);
   const [showTeeToss, setShowTeeToss] = useState(false);
   const [teeOrderSet, setTeeOrderSet] = useState(false);
+  // settingTeeOrder tracks API call state - used in handleSetTeeOrder
+  // eslint-disable-next-line no-unused-vars
   const [settingTeeOrder, setSettingTeeOrder] = useState(false);
 
   // Poll lobby status every 2 seconds

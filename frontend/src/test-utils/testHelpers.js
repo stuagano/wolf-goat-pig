@@ -579,7 +579,7 @@ export const setupTestEnvironment = () => {
   };
 };
 
-export default {
+const testHelpers = {
   TestWrapper,
   renderWithContext,
   mockFetch,
@@ -602,3 +602,5 @@ export default {
   customMatchers,
   setupTestEnvironment
 };
+
+export default testHelpers;

@@ -191,7 +191,7 @@ export const syncOfflineGame = async (gameState, apiUrl) => {
   }
 };
 
-export default {
+const offlineGameManager = {
   createOfflineGame,
   updateOfflineGame,
   completeOfflineHole,
@@ -200,3 +200,5 @@ export default {
   generateGameId,
   generateJoinCode
 };
+
+export default offlineGameManager;

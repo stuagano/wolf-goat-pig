@@ -136,6 +136,7 @@ const SimpleScorekeeperPage = () => {
   const players = gameData.players || [];
   const holeHistory = gameData.hole_history || [];
   const currentHoleNumber = gameData.current_hole || 1;
+  const courseName = gameData.course_name || 'Wing Point Golf & Country Club';
 
   return (
     <div>
@@ -204,6 +205,7 @@ const SimpleScorekeeperPage = () => {
         baseWager={baseWager}
         initialHoleHistory={holeHistory}
         initialCurrentHole={currentHoleNumber}
+        courseName={courseName}
       />
     </div>
   );

@@ -8,7 +8,7 @@ mechanics while reducing the serialization overhead.
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class SimpleHoleResult:
     hole_number: int
     scores: Dict[str, int]  # player_id -> score
     wager: int
-    team_type: str  # "solo" or "partners"
+    team_type: str  # "solo" or "partners" - defaults to "partners" if None
     winners: List[str]
     points_awarded: Dict[str, int]  # player_id -> points change
 
@@ -70,7 +70,7 @@ class SimplifiedScoring:
                 hole_number=hole_number,
                 scores=scores,
                 wager=wager,
-                team_type=teams.get("type"),
+                team_type=teams.get("type") or "partners",
                 winners=result.get("winners", []),
                 points_awarded=result["points_changes"]
             )

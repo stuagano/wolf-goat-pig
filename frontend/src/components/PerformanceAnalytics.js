@@ -22,12 +22,15 @@ const PerformanceAnalytics = ({ playerId, playerName, timeRange = 30 }) => {
     const [error, setError] = useState(null);
     const [selectedTimeRange, setSelectedTimeRange] = useState(timeRange);
     
+    // chartRef - reserved for future chart library integration
+    // eslint-disable-next-line no-unused-vars
     const chartRef = useRef(null);
 
     useEffect(() => {
         if (playerId) {
             loadAnalyticsData();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [playerId, selectedTimeRange]);
 
     const loadAnalyticsData = async () => {

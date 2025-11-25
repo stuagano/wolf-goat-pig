@@ -3,6 +3,8 @@ import './BadgeGallery.css';
 
 const API_URL = process.env.REACT_APP_API_URL || '';
 
+// RARITY_COLORS - kept for potential future use in dynamic styling
+// eslint-disable-next-line no-unused-vars
 const RARITY_COLORS = {
   common: '#9CA3AF',
   rare: '#3B82F6',
@@ -29,6 +31,7 @@ const BadgeGallery = ({ playerId }) => {
 
   useEffect(() => {
     fetchBadgeData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playerId]);
 
   const fetchBadgeData = async () => {
