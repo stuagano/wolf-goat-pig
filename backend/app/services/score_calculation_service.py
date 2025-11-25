@@ -53,15 +53,18 @@ class HoleResult:
 class TeamConfig:
     """Configuration for team-based scoring."""
     team_type: TeamType
-    team1: List[str] = None
-    team2: List[str] = None
+    team1: Optional[List[str]] = None
+    team2: Optional[List[str]] = None
     solo_player: Optional[str] = None
-    opponents: List[str] = None
+    opponents: Optional[List[str]] = None
 
-    def __post_init__(self):
-        self.team1 = self.team1 or []
-        self.team2 = self.team2 or []
-        self.opponents = self.opponents or []
+    def __post_init__(self) -> None:
+        if self.team1 is None:
+            self.team1 = []
+        if self.team2 is None:
+            self.team2 = []
+        if self.opponents is None:
+            self.opponents = []
 
 
 class ScoreCalculationService:
@@ -199,15 +202,17 @@ class ScoreCalculationService:
         if team_config.team_type == TeamType.PARTNERS:
             result = self._calculate_partners_points(
                 scores=scores,
-                team1=team_config.team1,
-                team2=team_config.team2,
+                team1=team_config.team1 or [],
+                team2=team_config.team2 or [],
                 wager=wager
             )
         elif team_config.team_type == TeamType.SOLO:
+            if team_config.solo_player is None:
+                raise ValueError("solo_player required for SOLO team type")
             result = self._calculate_solo_points(
                 scores=scores,
                 solo_player=team_config.solo_player,
-                opponents=team_config.opponents,
+                opponents=team_config.opponents or [],
                 wager=wager
             )
         elif team_config.team_type == TeamType.ALL_VS_ALL:

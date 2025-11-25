@@ -5,7 +5,7 @@ Provides a base validator class and common validation methods
 to eliminate duplicate validation logic across the codebase.
 """
 
-from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union
+from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union, cast
 
 T = TypeVar("T")
 
@@ -57,7 +57,21 @@ class BaseValidator:
     """
 
     # Default error class - can be overridden in subclasses
-    error_class: Type[Exception] = ValidationError
+    error_class: Type[ValidationError] = ValidationError
+
+    @classmethod
+    def _raise_error(
+        cls,
+        message: str,
+        field: Optional[str] = None,
+        details: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """
+        Raise a validation error using the configured error class.
+
+        This helper method avoids mypy issues with keyword arguments.
+        """
+        raise ValidationError(message, field=field, details=details)
 
     @classmethod
     def validate_type(
@@ -82,7 +96,7 @@ class BaseValidator:
         if value is None:
             if allow_none:
                 return
-            raise cls.error_class(
+            raise ValidationError(
                 f"{field} is required",
                 field=field,
                 details={"value": value}
@@ -94,7 +108,7 @@ class BaseValidator:
                 if isinstance(expected_type, type)
                 else str(expected_type)
             )
-            raise cls.error_class(
+            raise ValidationError(
                 f"{field} must be {type_name}",
                 field=field,
                 details={"value": value, "type": type(value).__name__}
@@ -127,13 +141,13 @@ class BaseValidator:
 
         if min_val is not None:
             if inclusive and value < min_val:
-                raise cls.error_class(
+                raise ValidationError(
                     f"{field} must be >= {min_val}",
                     field=field,
                     details={"value": value, "min": min_val}
                 )
             elif not inclusive and value <= min_val:
-                raise cls.error_class(
+                raise ValidationError(
                     f"{field} must be > {min_val}",
                     field=field,
                     details={"value": value, "min": min_val}
@@ -141,13 +155,13 @@ class BaseValidator:
 
         if max_val is not None:
             if inclusive and value > max_val:
-                raise cls.error_class(
+                raise ValidationError(
                     f"{field} must be <= {max_val}",
                     field=field,
                     details={"value": value, "max": max_val}
                 )
             elif not inclusive and value >= max_val:
-                raise cls.error_class(
+                raise ValidationError(
                     f"{field} must be < {max_val}",
                     field=field,
                     details={"value": value, "max": max_val}
@@ -175,7 +189,7 @@ class BaseValidator:
             return
 
         if value not in allowed_values:
-            raise cls.error_class(
+            raise ValidationError(
                 f"{field} must be one of {allowed_values}",
                 field=field,
                 details={"value": value, "allowed": allowed_values}
@@ -198,7 +212,7 @@ class BaseValidator:
             ValidationError: If value is empty
         """
         if value is None or value == "" or value == [] or value == {}:
-            raise cls.error_class(
+            raise ValidationError(
                 f"{field} cannot be empty",
                 field=field,
                 details={"value": value}
@@ -230,14 +244,14 @@ class BaseValidator:
         length = len(value)
 
         if min_length is not None and length < min_length:
-            raise cls.error_class(
+            raise ValidationError(
                 f"{field} must be at least {min_length} characters/items",
                 field=field,
                 details={"value": value, "length": length, "min_length": min_length}
             )
 
         if max_length is not None and length > max_length:
-            raise cls.error_class(
+            raise ValidationError(
                 f"{field} must be at most {max_length} characters/items",
                 field=field,
                 details={"value": value, "length": length, "max_length": max_length}
@@ -266,14 +280,14 @@ class BaseValidator:
 
         if allow_zero:
             if value < 0:
-                raise cls.error_class(
+                raise ValidationError(
                     f"{field} must be non-negative",
                     field=field,
                     details={"value": value}
                 )
         else:
             if value <= 0:
-                raise cls.error_class(
+                raise ValidationError(
                     f"{field} must be positive",
                     field=field,
                     details={"value": value}
@@ -306,7 +320,7 @@ class BaseValidator:
 
         if not re.match(pattern, value):
             description = pattern_description or f"pattern {pattern}"
-            raise cls.error_class(
+            raise ValidationError(
                 f"{field} must match {description}",
                 field=field,
                 details={"value": value, "pattern": pattern}
