@@ -3614,6 +3614,27 @@ class WolfGoatPigGame(PersistenceMixin):
                     "selected_course_id": self.course_manager.selected_course_id,
                 }
 
+            # Serialize hole_progression safely
+            hole_progression_state = None
+            if hasattr(self, 'hole_progression') and self.hole_progression:
+                hole_progression_state = {
+                    "hole_number": self.hole_progression.hole_number,
+                    "timeline_events": [
+                        {
+                            "id": e.id,
+                            "timestamp": e.timestamp.isoformat() if hasattr(e.timestamp, 'isoformat') else str(e.timestamp),
+                            "type": e.type,
+                            "description": e.description,
+                            "details": e.details,
+                            "player_id": e.player_id,
+                            "player_name": e.player_name
+                        }
+                        for e in self.hole_progression.timeline_events
+                    ],
+                    "betting_decisions": getattr(self.hole_progression, 'betting_decisions', []),
+                    "hole_complete": self.hole_progression.hole_complete
+                }
+
             state = {
                 "game_id": self.game_id,
                 "player_count": self.player_count,
@@ -3629,7 +3650,9 @@ class WolfGoatPigGame(PersistenceMixin):
                 "computer_players": list(self.computer_players.keys()),
                 "shot_simulation_mode": self.shot_simulation_mode,
                 "hoepfinger_start_hole": self.hoepfinger_start_hole,
-                "vinnie_variation_start": self.vinnie_variation_start
+                "vinnie_variation_start": self.vinnie_variation_start,
+                "betting_analysis_enabled": getattr(self, 'betting_analysis_enabled', True),
+                "hole_progression": hole_progression_state
             }
             return state
         except Exception as e:
@@ -3668,7 +3691,7 @@ class WolfGoatPigGame(PersistenceMixin):
                     name=p['name'],
                     handicap=p['handicap'],
                     points=p.get('points', 0),
-                    float_used=p.get('float_used', False),
+                    float_used=p.get('float_used', 0),
                     solo_count=p.get('solo_count', 0),
                     goat_position_history=p.get('goat_position_history', [])
                 )
@@ -3706,22 +3729,40 @@ class WolfGoatPigGame(PersistenceMixin):
                     if pos_data:
                         ball_positions[player_id] = BallPosition(**pos_data)
 
-                # Create hole state
+                # Restore stroke advantages
+                stroke_advantages_data = hs_data.get('stroke_advantages', {})
+                stroke_advantages = {}
+                for player_id, sa_data in stroke_advantages_data.items():
+                    if sa_data:
+                        stroke_advantages[player_id] = StrokeAdvantage(**sa_data)
+
+                # Create hole state with all fields
                 self.hole_states[hole_num] = HoleState(
+                    hole_number=hole_num,
                     hitting_order=hs_data.get('hitting_order', []),
                     teams=teams,
                     betting=betting,
                     ball_positions=ball_positions,
+                    current_order_of_play=hs_data.get('current_order_of_play', []),
+                    line_of_scrimmage=hs_data.get('line_of_scrimmage'),
+                    next_player_to_hit=hs_data.get('next_player_to_hit'),
+                    stroke_advantages=stroke_advantages,
+                    hole_par=hs_data.get('hole_par', 4),
+                    stroke_index=hs_data.get('stroke_index', 10),
+                    hole_yardage=hs_data.get('hole_yardage', 400),
+                    hole_difficulty=hs_data.get('hole_difficulty', 'Medium'),
                     scores=hs_data.get('scores', {}),
-                    status=hs_data.get('status', 'in_progress'),
-                    winner=hs_data.get('winner'),
+                    shots_completed=hs_data.get('shots_completed', {}),
+                    balls_in_hole=hs_data.get('balls_in_hole', []),
+                    concessions=hs_data.get('concessions', {}),
                     points_awarded=hs_data.get('points_awarded', {}),
-                    wagering_closed=hs_data.get('wagering_closed', False)
+                    current_shot_number=hs_data.get('current_shot_number', 1),
+                    hole_complete=hs_data.get('hole_complete', False),
+                    wagering_closed=hs_data.get('wagering_closed', False),
+                    tee_shots_complete=hs_data.get('tee_shots_complete', 0),
+                    partnership_deadline_passed=hs_data.get('partnership_deadline_passed', False),
+                    invitation_windows=hs_data.get('invitation_windows', {})
                 )
-
-                # Restore concession fields
-                self.hole_states[hole_num].conceded = hs_data.get('conceded', False)
-                self.hole_states[hole_num].conceding_player = hs_data.get('conceding_player')
 
             # Restore hole progression
             hole_prog_data = data.get('hole_progression')
@@ -3752,9 +3793,17 @@ class WolfGoatPigGame(PersistenceMixin):
             else:
                 from .state.course_manager import CourseManager
                 self.course_manager = CourseManager()
-                course_name = data.get('course_name')
-                if course_name:
-                    self.course_manager.load_course(course_name)
+                # Check for course_manager state from serialization
+                course_manager_data = data.get('course_manager')
+                if course_manager_data:
+                    course_name = course_manager_data.get('selected_course_name')
+                    if course_name:
+                        self.course_manager.load_course(course_name)
+                else:
+                    # Fallback for legacy data format
+                    course_name = data.get('course_name')
+                    if course_name:
+                        self.course_manager.load_course(course_name)
 
             # Initialize empty computer players dict
             self.computer_players = {}
