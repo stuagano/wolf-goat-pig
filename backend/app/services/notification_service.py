@@ -20,7 +20,7 @@ Notification types supported:
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional
 
 from fastapi import HTTPException
@@ -121,7 +121,7 @@ class NotificationService:
                 message=message,
                 data=data or {},
                 is_read=False,
-                created_at=datetime.utcnow().isoformat()
+                created_at=datetime.now(timezone.utc).isoformat()
             )
 
             db.add(notification)
@@ -544,10 +544,8 @@ class NotificationService:
             HTTPException: If deletion fails
         """
         try:
-            from datetime import timedelta
-
             # Calculate cutoff date
-            cutoff_date = (datetime.utcnow() - timedelta(days=days_old)).isoformat()
+            cutoff_date = (datetime.now(timezone.utc) - timedelta(days=days_old)).isoformat()
 
             # Get old notifications
             old_notifications = db.query(Notification).filter(

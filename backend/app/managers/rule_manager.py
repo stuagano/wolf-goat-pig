@@ -889,7 +889,7 @@ class RuleManager:
         hole_number: int,
         player_handicaps: Dict[str, float],
         hole_stroke_index: int
-    ) -> Dict[str, int]:
+    ) -> Dict[str, float]:
         """
         Calculate handicap strokes for each player on a specific hole.
 

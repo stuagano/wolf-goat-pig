@@ -117,7 +117,7 @@ class TestCreateGame:
         # Arrange
         mock_uuid.return_value = Mock()
         mock_uuid.return_value.__str__ = Mock(return_value="test-game-id")
-        mock_datetime.utcnow.return_value.isoformat.return_value = "2024-11-03T00:00:00"
+        mock_datetime.now.return_value.isoformat.return_value = "2024-11-03T00:00:00"
         mock_sim_class.return_value = mock_simulation
 
         # Act
@@ -151,7 +151,7 @@ class TestCreateGame:
         # Arrange
         mock_uuid.return_value = Mock()
         mock_uuid.return_value.__str__ = Mock(return_value="test-game-id")
-        mock_datetime.utcnow.return_value.isoformat.return_value = "2024-11-03T00:00:00"
+        mock_datetime.now.return_value.isoformat.return_value = "2024-11-03T00:00:00"
         mock_sim_class.return_value = mock_simulation
 
         # Act
@@ -238,7 +238,7 @@ class TestCreateGame:
         # Arrange
         mock_uuid.return_value = Mock()
         mock_uuid.return_value.__str__ = Mock(return_value="test-game-id")
-        mock_datetime.utcnow.return_value.isoformat.return_value = "2024-11-03T00:00:00"
+        mock_datetime.now.return_value.isoformat.return_value = "2024-11-03T00:00:00"
         mock_sim_class.return_value = mock_simulation
 
         # Act
@@ -264,7 +264,7 @@ class TestCreateGame:
                   for i in range(1, 7)]
         mock_uuid.return_value = Mock()
         mock_uuid.return_value.__str__ = Mock(return_value="test-game-id")
-        mock_datetime.utcnow.return_value.isoformat.return_value = "2024-11-03T00:00:00"
+        mock_datetime.now.return_value.isoformat.return_value = "2024-11-03T00:00:00"
         mock_sim_class.return_value = mock_simulation
 
         # Act
@@ -400,7 +400,7 @@ class TestStartGame:
         game_id = "test-game-id"
         service._active_games[game_id] = mock_simulation
         mock_game_record.game_status = "setup"
-        mock_datetime.utcnow.return_value.isoformat.return_value = "2024-11-03T01:00:00"
+        mock_datetime.now.return_value.isoformat.return_value = "2024-11-03T01:00:00"
         mock_db.query.return_value.filter.return_value.first.return_value = mock_game_record
 
         # Act
@@ -491,7 +491,7 @@ class TestPauseGame:
         game_id = "test-game-id"
         service._active_games[game_id] = mock_simulation
         mock_game_record.game_status = "in_progress"
-        mock_datetime.utcnow.return_value.isoformat.return_value = "2024-11-03T02:00:00"
+        mock_datetime.now.return_value.isoformat.return_value = "2024-11-03T02:00:00"
         mock_db.query.return_value.filter.return_value.first.return_value = mock_game_record
 
         # Act
@@ -581,7 +581,7 @@ class TestResumeGame:
         game_id = "test-game-id"
         service._active_games[game_id] = mock_simulation
         mock_game_record.game_status = "paused"
-        mock_datetime.utcnow.return_value.isoformat.return_value = "2024-11-03T03:00:00"
+        mock_datetime.now.return_value.isoformat.return_value = "2024-11-03T03:00:00"
         mock_db.query.return_value.filter.return_value.first.return_value = mock_game_record
 
         # Act
@@ -673,7 +673,7 @@ class TestCompleteGame:
         mock_simulation.players = sample_players
         service._active_games[game_id] = mock_simulation
         mock_game_record.game_status = "in_progress"
-        mock_datetime.utcnow.return_value.isoformat.return_value = "2024-11-03T04:00:00"
+        mock_datetime.now.return_value.isoformat.return_value = "2024-11-03T04:00:00"
         mock_db.query.return_value.filter.return_value.first.return_value = mock_game_record
 
         # Act
@@ -697,7 +697,7 @@ class TestCompleteGame:
         game_id = "test-game-id"
         service._active_games[game_id] = mock_simulation
         mock_game_record.game_status = "completed"
-        mock_datetime.utcnow.return_value.isoformat.return_value = "2024-11-03T04:00:00"
+        mock_datetime.now.return_value.isoformat.return_value = "2024-11-03T04:00:00"
         mock_db.query.return_value.filter.return_value.first.return_value = mock_game_record
 
         # Act
@@ -729,7 +729,7 @@ class TestCompleteGame:
         service._active_games[game_id] = mock_simulation
         mock_game_record.game_status = "in_progress"
         mock_game_record.state["course_name"] = "Pebble Beach"
-        mock_datetime.utcnow.return_value.isoformat.return_value = "2024-11-03T04:00:00"
+        mock_datetime.now.return_value.isoformat.return_value = "2024-11-03T04:00:00"
         mock_db.query.return_value.filter.return_value.first.return_value = mock_game_record
 
         # Act
@@ -748,7 +748,7 @@ class TestCompleteGame:
         service._active_games[game_id] = mock_simulation
         mock_game_record.game_status = "in_progress"
         mock_game_record.state["base_wager"] = 5
-        mock_datetime.utcnow.return_value.isoformat.return_value = "2024-11-03T04:00:00"
+        mock_datetime.now.return_value.isoformat.return_value = "2024-11-03T04:00:00"
         mock_db.query.return_value.filter.return_value.first.return_value = mock_game_record
 
         # Act
@@ -784,7 +784,7 @@ class TestCompleteGame:
         mock_simulation.players = sample_players
         service._active_games[game_id] = mock_simulation
         mock_game_record.game_status = "in_progress"
-        mock_datetime.utcnow.return_value.isoformat.return_value = "2024-11-03T04:00:00"
+        mock_datetime.now.return_value.isoformat.return_value = "2024-11-03T04:00:00"
         mock_db.query.return_value.filter.return_value.first.return_value = mock_game_record
 
         # Act
@@ -1042,7 +1042,7 @@ class TestIntegration:
         game_id = "test-game-id"
         mock_uuid.return_value = Mock()
         mock_uuid.return_value.__str__ = Mock(return_value=game_id)
-        mock_datetime.utcnow.return_value.isoformat.return_value = "2024-11-03T00:00:00"
+        mock_datetime.now.return_value.isoformat.return_value = "2024-11-03T00:00:00"
         mock_sim_class.return_value = mock_simulation
         mock_simulation.players = sample_players
         mock_game_record.game_id = game_id
@@ -1089,7 +1089,7 @@ class TestIntegration:
             game_ids.append(gid)
             mock_uuid.return_value = Mock()
             mock_uuid.return_value.__str__ = Mock(return_value=gid)
-            mock_datetime.utcnow.return_value.isoformat.return_value = "2024-11-03T00:00:00"
+            mock_datetime.now.return_value.isoformat.return_value = "2024-11-03T00:00:00"
             mock_sim_class.return_value = mock_simulation
 
             # Act: Create game

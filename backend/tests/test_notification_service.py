@@ -11,7 +11,7 @@ Tests the core functionality of the NotificationService including:
 """
 
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from fastapi import HTTPException
@@ -46,7 +46,7 @@ def test_player(db):
         name="Test Player",
         email="test@example.com",
         handicap=18.0,
-        created_at=datetime.utcnow().isoformat()
+        created_at=datetime.now(timezone.utc).isoformat()
     )
     db.add(player)
     db.commit()
@@ -66,7 +66,7 @@ def test_game_players(db, test_player):
             name=f"Player {i+2}",
             email=f"player{i+2}@example.com",
             handicap=18.0,
-            created_at=datetime.utcnow().isoformat()
+            created_at=datetime.now(timezone.utc).isoformat()
         )
         db.add(player)
         players.append(player)
@@ -85,7 +85,7 @@ def test_game_players(db, test_player):
             player_name=player.name,
             handicap=player.handicap,
             join_status="joined",
-            created_at=datetime.utcnow().isoformat()
+            created_at=datetime.now(timezone.utc).isoformat()
         )
         db.add(game_player)
 
@@ -343,7 +343,7 @@ class TestNotificationService:
 
         # Manually set some as old (modify created_at)
         from datetime import timedelta
-        old_date = (datetime.utcnow() - timedelta(days=60)).isoformat()
+        old_date = (datetime.now(timezone.utc) - timedelta(days=60)).isoformat()
 
         notifications = db.query(Notification).filter(
             Notification.player_profile_id == test_player.id

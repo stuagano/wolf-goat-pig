@@ -3,20 +3,20 @@ from typing import Dict, List
 from fastapi import WebSocket
 
 class WebSocketManager:
-    def __init__(self):
+    def __init__(self) -> None:
         self.active_connections: Dict[str, List[WebSocket]] = {}
 
-    async def connect(self, websocket: WebSocket, game_id: str):
+    async def connect(self, websocket: WebSocket, game_id: str) -> None:
         await websocket.accept()
         if game_id not in self.active_connections:
             self.active_connections[game_id] = []
         self.active_connections[game_id].append(websocket)
 
-    def disconnect(self, websocket: WebSocket, game_id: str):
+    def disconnect(self, websocket: WebSocket, game_id: str) -> None:
         if game_id in self.active_connections:
             self.active_connections[game_id].remove(websocket)
 
-    async def broadcast(self, message: str, game_id: str):
+    async def broadcast(self, message: str, game_id: str) -> None:
         if game_id in self.active_connections:
             for connection in self.active_connections[game_id]:
                 await connection.send_text(message)
