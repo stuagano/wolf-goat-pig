@@ -253,6 +253,7 @@ app.add_middleware(
         "Content-Type",
         "Authorization",
         "X-Admin-Email",
+        "X-Admin-Key",
         "X-Requested-With",
         "Origin",
         "Access-Control-Request-Method",

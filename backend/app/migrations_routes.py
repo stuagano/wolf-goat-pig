@@ -60,9 +60,20 @@ async def get_migration_status(
                 columns = inspector.get_columns(table_name)
                 indexes = inspector.get_indexes(table_name)
 
+                # Serialize column details to make them JSON-compatible
+                serialized_columns = []
+                for col in columns:
+                    serialized_col = {
+                        "name": col['name'],
+                        "type": str(col['type']),
+                        "nullable": col.get('nullable', True),
+                        "default": str(col.get('default')) if col.get('default') is not None else None
+                    }
+                    serialized_columns.append(serialized_col)
+
                 table_info[table_name] = {
                     "columns": [col['name'] for col in columns],
-                    "column_details": columns,
+                    "column_details": serialized_columns,
                     "indexes": [idx['name'] for idx in indexes]
                 }
 

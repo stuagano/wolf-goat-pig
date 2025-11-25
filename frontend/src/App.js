@@ -22,6 +22,7 @@ import SignupPage from "./pages/SignupPage";
 import AboutPage from "./pages/AboutPage";
 import RulesPage from "./pages/RulesPage";
 import AdminPage from "./pages/AdminPage";
+import DatabaseMigrations from "./components/admin/DatabaseMigrations";
 import CreateGamePage from "./pages/CreateGamePage";
 import JoinGamePage from "./pages/JoinGamePage";
 import GameLobbyPage from "./pages/GameLobbyPage";
@@ -265,6 +266,11 @@ function App() {
           <Route path="/admin" element={
             <ProtectedRoute>
               <AdminPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/migrations" element={
+            <ProtectedRoute>
+              <DatabaseMigrations />
             </ProtectedRoute>
           } />
           <Route path="/join" element={<JoinGamePage />} />
