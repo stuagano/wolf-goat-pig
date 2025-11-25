@@ -2842,6 +2842,22 @@ async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_
             simulation = service._active_games[game_id]
             state = simulation.get_game_state()
             state["game_id"] = game_id
+
+            # Enrich players with tee_order from database
+            db_players = db.query(models.GamePlayer).filter(
+                models.GamePlayer.game_id == game_id
+            ).all()
+
+            # Create a mapping of player_slot_id to tee_order
+            tee_order_map = {p.player_slot_id: p.tee_order for p in db_players}
+
+            # Add tee_order to each player in the state
+            if "players" in state:
+                for player in state["players"]:
+                    player_id = player.get("id")
+                    if player_id in tee_order_map:
+                        player["tee_order"] = tee_order_map[player_id]
+
             return state
 
         # Otherwise, fetch from database
