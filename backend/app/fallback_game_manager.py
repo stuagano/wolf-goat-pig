@@ -9,7 +9,7 @@ or the database is temporarily unavailable.
 import logging
 import random
 import string
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -64,7 +64,7 @@ class FallbackGameManager:
         if not join_code:
             join_code = self.generate_join_code()
 
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         game = {
             "id": len(self.games) + 1,  # Auto-increment ID
@@ -106,7 +106,7 @@ class FallbackGameManager:
             if key != 'id' and key != 'game_id':  # Don't allow changing these
                 game[key] = value
 
-        game['updated_at'] = datetime.utcnow().isoformat()
+        game['updated_at'] = datetime.now(timezone.utc).isoformat()
 
         logger.debug(f"Updated fallback game: {game_id}")
         return game

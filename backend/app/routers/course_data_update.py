@@ -110,8 +110,8 @@ async def update_game_course_data(
         from sqlalchemy.orm.attributes import flag_modified
         flag_modified(game, "state")
 
-        from datetime import datetime
-        game.updated_at = datetime.utcnow().isoformat()
+        from datetime import datetime, timezone
+        game.updated_at = datetime.now(timezone.utc).isoformat()
 
         db.commit()
         db.refresh(game)
@@ -226,8 +226,8 @@ async def update_all_games_course_data(
             from sqlalchemy.orm.attributes import flag_modified
             flag_modified(game, "state")
 
-            from datetime import datetime
-            game.updated_at = datetime.utcnow().isoformat()
+            from datetime import datetime, timezone
+            game.updated_at = datetime.now(timezone.utc).isoformat()
 
             games_updated += 1
             total_holes_updated += holes_updated_this_game

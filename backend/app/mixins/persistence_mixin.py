@@ -5,7 +5,7 @@ Provides database save/load functionality that can be mixed into any game engine
 Extracted from GameState to enable persistence in WolfGoatPigGame.
 """
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from sqlalchemy.orm import Session
@@ -36,7 +36,7 @@ class PersistenceMixin:
         """
         self.game_id = game_id or str(uuid.uuid4())
         self._db_session: Session = SessionLocal()
-        self._game_start_time = datetime.utcnow().isoformat()
+        self._game_start_time = datetime.now(timezone.utc).isoformat()
         self._game_completed = False
 
         # Try to load existing game from DB
@@ -60,7 +60,7 @@ class PersistenceMixin:
                 GameStateModel.game_id == self.game_id
             ).first()
 
-            current_time = datetime.utcnow().isoformat()
+            current_time = datetime.now(timezone.utc).isoformat()
 
             if obj:
                 # Update existing
@@ -161,11 +161,11 @@ class PersistenceMixin:
 
         try:
             session = self._db_session
-            current_time = datetime.utcnow().isoformat()
+            current_time = datetime.now(timezone.utc).isoformat()
 
             # Calculate game duration
             start_time = datetime.fromisoformat(self._game_start_time)
-            end_time = datetime.utcnow()
+            end_time = datetime.now(timezone.utc)
             duration_minutes = int((end_time - start_time).total_seconds() / 60)
 
             # Get final scores - subclass must provide this via _get_final_scores()

@@ -3,7 +3,7 @@ Badge System Seeds - Initialize all badges in the database
 Run this script to populate the badge system with all available badges.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
@@ -21,7 +21,7 @@ def seed_badges(db: Session):
     # db.commit()
 
     badge_id_counter = 1
-    created_at = datetime.utcnow().isoformat()
+    created_at = datetime.now(timezone.utc).isoformat()
 
     # ====================================================================================
     # ACHIEVEMENT BADGES - One-Time Unlocks

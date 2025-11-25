@@ -497,7 +497,7 @@ async def create_game_with_join_code(
 
         # Create game with unique ID
         game_id = str(uuid.uuid4())
-        current_time = datetime.utcnow().isoformat()
+        current_time = datetime.now(timezone.utc).isoformat()
 
         # Initial game state
         initial_state = {
@@ -568,7 +568,7 @@ async def create_test_game(
     # Generate 6-character join code
     join_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
     game_id = str(uuid.uuid4())
-    current_time = datetime.utcnow().isoformat()
+    current_time = datetime.now(timezone.utc).isoformat()
 
     # Create mock players
     mock_players = [
@@ -793,7 +793,7 @@ async def update_player_name(
                         break
 
                 game.state = state
-                game.updated_at = datetime.utcnow().isoformat()
+                game.updated_at = datetime.now(timezone.utc).isoformat()
 
                 # Also update GamePlayer record
                 game_player = db.query(models.GamePlayer).filter(
@@ -880,7 +880,7 @@ async def remove_player(
         players = state.get("players", [])
         state["players"] = [p for p in players if p.get("id") != player_slot_id]
         game.state = state
-        game.updated_at = datetime.utcnow().isoformat()
+        game.updated_at = datetime.now(timezone.utc).isoformat()
 
         db.commit()
 
@@ -969,7 +969,7 @@ async def update_player_handicap(
                 break
 
         game.state = state
-        game.updated_at = datetime.utcnow().isoformat()
+        game.updated_at = datetime.now(timezone.utc).isoformat()
 
         db.commit()
 
@@ -1553,7 +1553,7 @@ async def complete_hole(
 
         # Update game state in database
         game.state = game_state
-        game.updated_at = datetime.utcnow().isoformat()
+        game.updated_at = datetime.now(timezone.utc).isoformat()
 
         # Mark state as modified for SQLAlchemy to detect changes in JSON field
         from sqlalchemy.orm.attributes import flag_modified
@@ -1951,7 +1951,7 @@ async def update_hole(
 
         # Update game state in database
         game.state = game_state
-        game.updated_at = datetime.utcnow().isoformat()
+        game.updated_at = datetime.now(timezone.utc).isoformat()
 
         from sqlalchemy.orm.attributes import flag_modified
         flag_modified(game, "state")
@@ -2040,7 +2040,7 @@ async def delete_hole(
 
         # Update game state in database
         game.state = game_state
-        game.updated_at = datetime.utcnow().isoformat()
+        game.updated_at = datetime.now(timezone.utc).isoformat()
 
         from sqlalchemy.orm.attributes import flag_modified
         flag_modified(game, "state")
@@ -2385,7 +2385,7 @@ async def join_game_with_code(
 
         # Assign player slot
         player_slot_id = f"p{len(current_players) + 1}"
-        current_time = datetime.utcnow().isoformat()
+        current_time = datetime.now(timezone.utc).isoformat()
 
         # Ensure handicap is valid - use default if None
         player_handicap = request.handicap if request.handicap is not None else 18.0
@@ -2647,7 +2647,7 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
 
         # Update database game state
         game.game_status = "in_progress"
-        game.updated_at = datetime.utcnow().isoformat()
+        game.updated_at = datetime.now(timezone.utc).isoformat()
         game.state = initial_state
         game.state["game_status"] = "in_progress"
         game.state["started_at"] = game.updated_at
@@ -3012,7 +3012,7 @@ async def perform_game_action_by_id(
             if game:
                 game.state = simulation.get_game_state()
                 game.state["game_id"] = game_id
-                game.updated_at = datetime.utcnow().isoformat()
+                game.updated_at = datetime.now(timezone.utc).isoformat()
 
                 # Check if game is completed
                 if simulation.current_hole > 18:
@@ -6333,8 +6333,8 @@ async def create_or_update_banner(
             text_color=banner_data.text_color,
             show_icon=banner_data.show_icon,
             dismissible=banner_data.dismissible,
-            created_at=datetime.utcnow().isoformat(),
-            updated_at=datetime.utcnow().isoformat()
+            created_at=datetime.now(timezone.utc).isoformat(),
+            updated_at=datetime.now(timezone.utc).isoformat()
         )
 
         db.add(new_banner)
@@ -6391,7 +6391,7 @@ async def update_banner(
         for field, value in update_data.items():
             setattr(banner, field, value)
 
-        banner.updated_at = datetime.utcnow().isoformat()
+        banner.updated_at = datetime.now(timezone.utc).isoformat()
 
         db.commit()
         db.refresh(banner)
@@ -7922,7 +7922,7 @@ def save_simulation_results(request: dict):
         #     result = models.SimulationResult(
         #         players=final_scores,
         #         course_name=game_state.get("course_name"),
-        #         created_at=datetime.utcnow()
+        #         created_at=datetime.now(timezone.utc)
         #     )
         #     db.add(result)
         #     db.commit()
@@ -9325,7 +9325,7 @@ async def serve_homepage():
             <li><a href="{frontend_url}" target="_blank" rel="noopener">Open the production app</a></li>
             {docs_link}
           </ul>
-          <p class="meta">Last checked: {datetime.utcnow().isoformat()}Z</p>
+          <p class="meta">Last checked: {datetime.now(timezone.utc).isoformat()}Z</p>
         </main>
       </body>
     </html>
