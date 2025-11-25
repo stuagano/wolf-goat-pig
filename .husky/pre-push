@@ -16,19 +16,6 @@ CHECKS_PASSED=true
 
 # Check 1: Backend tests
 echo "Running backend tests..."
-DB_BACKUP_DIR=".git/prepush-db"
-mkdir -p "$DB_BACKUP_DIR"
-DB_FILES=("wolf_goat_pig.db" "backend/wolf_goat_pig.db" "frontend/wolf_goat_pig.db")
-
-for path in "${DB_FILES[@]}"; do
-    if [ -f "$path" ]; then
-        backup_name=$(echo "$path" | tr '/' '_')
-        cp "$path" "$DB_BACKUP_DIR/$backup_name"
-        rm -f "$path"
-    fi
-done
-
-echo "Running backend tests..."
 if cd backend && source venv/bin/activate && pytest; then
     echo -e "${GREEN}✓ Backend tests passed${NC}"
     cd ..
@@ -37,14 +24,6 @@ else
     CHECKS_PASSED=false
     cd ..
 fi
-
-for path in "${DB_FILES[@]}"; do
-    backup_name=$(echo "$path" | tr '/' '_')
-    if [ -f "$DB_BACKUP_DIR/$backup_name" ]; then
-        mv "$DB_BACKUP_DIR/$backup_name" "$path"
-    fi
-done
-rm -rf "$DB_BACKUP_DIR"
 
 # Check 2: Frontend build
 echo "Checking frontend build..."
