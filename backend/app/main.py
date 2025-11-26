@@ -24,7 +24,7 @@ from fastapi import (
     WebSocketDisconnect,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from sqlalchemy import text
@@ -9254,6 +9254,12 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):  # type: ignor
         await websocket_manager.broadcast(
             f"A client disconnected from game {game_id}", game_id
         )
+
+
+@app.head("/")
+async def head_root():
+    """Handle HEAD requests for health checks (e.g., Render)."""
+    return Response(status_code=200)
 
 
 @app.get("/", response_class=HTMLResponse)
