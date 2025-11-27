@@ -18,7 +18,6 @@ import { act } from 'react-dom/test-utils';
 
 // Test utilities and providers
 import { ThemeProvider } from '../../theme/Provider';
-import { GameProvider } from '../../context/GameProvider';
 import { TutorialContext } from '../../context/TutorialContext';
 
 // Component under test
@@ -379,13 +378,11 @@ const mockGameState = {
   }
 };
 
-const TestWrapper = ({ children, gameState = mockGameState }) => (
+const TestWrapper = ({ children }) => (
   <ThemeProvider>
-    <GameProvider initialState={{ gameState }}>
-      <TutorialContext.Provider value={{ isActive: false }}>
-        {children}
-      </TutorialContext.Provider>
-    </GameProvider>
+    <TutorialContext.Provider value={{ isActive: false }}>
+      {children}
+    </TutorialContext.Provider>
   </ThemeProvider>
 );
 

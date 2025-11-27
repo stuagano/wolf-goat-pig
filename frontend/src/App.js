@@ -11,7 +11,7 @@ import SheetIntegrationDashboard from "./components/SheetIntegrationDashboard";
 import GoogleSheetsLiveSync from "./components/GoogleSheetsLiveSync";
 import Leaderboard from "./components/Leaderboard";
 import { ThemeProvider, useTheme } from "./theme/Provider";
-import { GameProvider, SheetSyncProvider } from "./context";
+import { SheetSyncProvider } from "./context";
 import { MockAuthProvider } from "./context/MockAuthContext";
 import { AuthProvider } from "./context/AuthContext";
 import { TutorialProvider } from "./context/TutorialContext";
@@ -296,14 +296,12 @@ const AppWithProviders = () => {
   return (
     <AuthProviderComponent>
       <SheetSyncProvider>
-        <GameProvider>
-          <TutorialProvider>
+        <TutorialProvider>
           <ThemeProvider>
             <App />
           </ThemeProvider>
         </TutorialProvider>
-      </GameProvider>
-    </SheetSyncProvider>
+      </SheetSyncProvider>
     </AuthProviderComponent>
   );
 };

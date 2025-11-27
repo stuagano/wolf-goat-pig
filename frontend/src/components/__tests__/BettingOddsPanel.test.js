@@ -19,7 +19,6 @@ import { act } from 'react-dom/test-utils';
 
 // Test utilities and providers
 import { ThemeProvider } from '../../theme/Provider';
-import { GameProvider } from '../../context/GameProvider';
 
 // Component under test
 import BettingOddsPanel from '../BettingOddsPanel';
@@ -194,9 +193,7 @@ const mockOddsResponse = {
 
 const TestWrapper = ({ children }) => (
   <ThemeProvider>
-    <GameProvider>
-      {children}
-    </GameProvider>
+    {children}
   </ThemeProvider>
 );
 
