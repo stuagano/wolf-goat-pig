@@ -171,6 +171,18 @@ class PlayerStatistics(Base):
     partnerships_won = Column(Integer, default=0)
     solo_attempts = Column(Integer, default=0)
     solo_wins = Column(Integer, default=0)
+    # Special event tracking
+    ping_pong_count = Column(Integer, default=0)  # Total ping pong events initiated
+    ping_pong_wins = Column(Integer, default=0)  # Wins when ping ponged
+    invisible_aardvark_appearances = Column(Integer, default=0)  # Times in invisible aardvark role
+    invisible_aardvark_wins = Column(Integer, default=0)  # Wins when in invisible aardvark role
+    # Specific solo type tracking
+    duncan_attempts = Column(Integer, default=0)  # Captain went solo (The Duncan)
+    duncan_wins = Column(Integer, default=0)
+    tunkarri_attempts = Column(Integer, default=0)  # Aardvark went solo (The Tunkarri)
+    tunkarri_wins = Column(Integer, default=0)
+    big_dick_attempts = Column(Integer, default=0)  # 18th hole solo by points leader
+    big_dick_wins = Column(Integer, default=0)
     # Score performance tracking (eagles, birdies, pars, etc.)
     eagles = Column(Integer, default=0)  # 2 or more under par
     birdies = Column(Integer, default=0)  # 1 under par
@@ -214,6 +226,18 @@ class GamePlayerResult(Base):
     partnerships_won = Column(Integer, default=0)
     solo_attempts = Column(Integer, default=0)
     solo_wins = Column(Integer, default=0)
+    # Special event tracking per game
+    ping_pongs = Column(Integer, default=0)  # Number of ping pongs this game
+    ping_pongs_won = Column(Integer, default=0)  # Ping pong wins this game
+    invisible_aardvark_holes = Column(Integer, default=0)  # Holes played as invisible aardvark
+    invisible_aardvark_holes_won = Column(Integer, default=0)  # Holes won as invisible aardvark
+    # Specific solo types per game
+    duncan_attempts = Column(Integer, default=0)  # Captain solo attempts this game
+    duncan_wins = Column(Integer, default=0)
+    tunkarri_attempts = Column(Integer, default=0)  # Aardvark solo attempts this game
+    tunkarri_wins = Column(Integer, default=0)
+    big_dick_attempts = Column(Integer, default=0)  # 18th hole solo attempts this game
+    big_dick_wins = Column(Integer, default=0)
     hole_scores = Column(JSON, default=dict)  # Hole-by-hole scores
     betting_history = Column(JSON, default=list)  # Detailed betting decisions
     performance_metrics = Column(JSON, default=dict)  # Advanced metrics

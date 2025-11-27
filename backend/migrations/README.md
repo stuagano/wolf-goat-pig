@@ -38,6 +38,7 @@ python3 -c "from app.database import engine, Base; from app import models; Base.
 - `add_join_codes_and_player_linking.sql` - SQLite version (for local dev)
 - `add_join_codes_postgres.sql` - PostgreSQL version (for production)
 - `add_tee_order_to_game_players.sql` - Adds `tee_order` column to `game_players` table (PostgreSQL)
+- `add_special_event_stats.sql` - Adds ping pong, invisible aardvark, and solo type tracking columns
 
 ## Creating New Migrations
 

@@ -476,6 +476,47 @@ async def run_migrations() -> Dict[str, Any]:
                     migrations_applied.append("tee_order column to game_players")
                     logging.info("  ✅ Added tee_order column to game_players")
 
+            # Migration 8: Add special event stats to player_statistics
+            if 'player_statistics' in tables:
+                stats_columns_info = cast(List[Dict[str, Any]], inspector.get_columns('player_statistics'))
+                stats_columns: List[str] = [col['name'] for col in stats_columns_info]
+
+                # Ping pong tracking
+                if 'ping_pong_count' not in stats_columns:
+                    logging.info("  Adding special event stats columns to player_statistics...")
+                    db.execute(text("ALTER TABLE player_statistics ADD COLUMN ping_pong_count INTEGER DEFAULT 0"))
+                    db.execute(text("ALTER TABLE player_statistics ADD COLUMN ping_pong_wins INTEGER DEFAULT 0"))
+                    db.execute(text("ALTER TABLE player_statistics ADD COLUMN invisible_aardvark_appearances INTEGER DEFAULT 0"))
+                    db.execute(text("ALTER TABLE player_statistics ADD COLUMN invisible_aardvark_wins INTEGER DEFAULT 0"))
+                    db.execute(text("ALTER TABLE player_statistics ADD COLUMN duncan_attempts INTEGER DEFAULT 0"))
+                    db.execute(text("ALTER TABLE player_statistics ADD COLUMN duncan_wins INTEGER DEFAULT 0"))
+                    db.execute(text("ALTER TABLE player_statistics ADD COLUMN tunkarri_attempts INTEGER DEFAULT 0"))
+                    db.execute(text("ALTER TABLE player_statistics ADD COLUMN tunkarri_wins INTEGER DEFAULT 0"))
+                    db.execute(text("ALTER TABLE player_statistics ADD COLUMN big_dick_attempts INTEGER DEFAULT 0"))
+                    db.execute(text("ALTER TABLE player_statistics ADD COLUMN big_dick_wins INTEGER DEFAULT 0"))
+                    migrations_applied.append("special event stats columns to player_statistics")
+                    logging.info("  ✅ Added special event stats columns to player_statistics")
+
+            # Migration 9: Add special event stats to game_player_results
+            if 'game_player_results' in tables:
+                results_columns_info = cast(List[Dict[str, Any]], inspector.get_columns('game_player_results'))
+                results_columns: List[str] = [col['name'] for col in results_columns_info]
+
+                if 'ping_pongs' not in results_columns:
+                    logging.info("  Adding special event stats columns to game_player_results...")
+                    db.execute(text("ALTER TABLE game_player_results ADD COLUMN ping_pongs INTEGER DEFAULT 0"))
+                    db.execute(text("ALTER TABLE game_player_results ADD COLUMN ping_pongs_won INTEGER DEFAULT 0"))
+                    db.execute(text("ALTER TABLE game_player_results ADD COLUMN invisible_aardvark_holes INTEGER DEFAULT 0"))
+                    db.execute(text("ALTER TABLE game_player_results ADD COLUMN invisible_aardvark_holes_won INTEGER DEFAULT 0"))
+                    db.execute(text("ALTER TABLE game_player_results ADD COLUMN duncan_attempts INTEGER DEFAULT 0"))
+                    db.execute(text("ALTER TABLE game_player_results ADD COLUMN duncan_wins INTEGER DEFAULT 0"))
+                    db.execute(text("ALTER TABLE game_player_results ADD COLUMN tunkarri_attempts INTEGER DEFAULT 0"))
+                    db.execute(text("ALTER TABLE game_player_results ADD COLUMN tunkarri_wins INTEGER DEFAULT 0"))
+                    db.execute(text("ALTER TABLE game_player_results ADD COLUMN big_dick_attempts INTEGER DEFAULT 0"))
+                    db.execute(text("ALTER TABLE game_player_results ADD COLUMN big_dick_wins INTEGER DEFAULT 0"))
+                    migrations_applied.append("special event stats columns to game_player_results")
+                    logging.info("  ✅ Added special event stats columns to game_player_results")
+
             db.commit()
 
             if migrations_applied:
