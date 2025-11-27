@@ -675,7 +675,8 @@ class WolfGoatPigGame(PersistenceMixin):
         if not self.course_manager.get_selected_course():
             courses = self.course_manager.get_courses()
             if courses:
-                self.course_manager.load_course(courses[0]['name'])
+                first_course_name = next(iter(courses.keys()))
+                self.course_manager.load_course(first_course_name)
 
         logger.info(f"Course manager type: {type(self.course_manager)}")
         logger.info(f"Course manager attributes: {dir(self.course_manager)}")

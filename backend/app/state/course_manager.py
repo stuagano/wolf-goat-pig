@@ -56,13 +56,13 @@ class CourseManager:
         finally:
             db.close()
 
-    def get_courses(self) -> List[Dict[str, Any]]:
-        """Returns a list of all courses from the database."""
+    def get_courses(self) -> Dict[str, Dict[str, Any]]:
+        """Returns a dict of all courses from the database, keyed by course name."""
         db: Session = SessionLocal()
         try:
             courses = db.query(Course).all()
-            return [
-                {
+            return {
+                c.name: {
                     "id": c.id,
                     "name": c.name,
                     "description": c.description,
@@ -72,7 +72,7 @@ class CourseManager:
                     "slope": c.slope_rating,
                 }
                 for c in courses
-            ]
+            }
         finally:
             db.close()
 
@@ -165,5 +165,6 @@ def get_course_manager() -> CourseManager:
         # Load a default course on first initialization
         courses = _course_manager_instance.get_courses()
         if courses:
-            _course_manager_instance.load_course(courses[0]['name'])
+            first_course_name = next(iter(courses.keys()))
+            _course_manager_instance.load_course(first_course_name)
     return _course_manager_instance

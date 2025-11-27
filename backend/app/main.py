@@ -2626,7 +2626,7 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
             course_manager = CourseManager()
             if course_name:
                 available_courses = course_manager.get_courses()
-                if course_name in [c['name'] for c in available_courses]:
+                if course_name in available_courses:
                     course_manager.load_course(course_name)
                     logger.info(f"Loaded course '{course_name}' for game {game_id}")
                 else:
