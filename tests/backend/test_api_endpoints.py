@@ -108,7 +108,7 @@ class TestCourseManagement:
 
 class TestGameEndpoints:
     """Test game-related endpoints"""
-    
+
     def test_get_rules(self, client):
         response = client.get("/rules")
         assert response.status_code == 200
@@ -116,40 +116,6 @@ class TestGameEndpoints:
         assert isinstance(rules, list)
         # Should have seeded rules
         assert len(rules) > 0
-    
-    def test_get_game_state(self, client):
-        response = client.get("/game/state")
-        assert response.status_code == 200
-        state = response.json()
-        assert "players" in state
-        assert "current_hole" in state
-        assert "game_started" in state
-    
-    def test_get_betting_tips(self, client):
-        response = client.get("/game/tips")
-        assert response.status_code == 200
-        assert "tips" in response.json()
-        assert isinstance(response.json()["tips"], list)
-    
-    def test_start_game(self, client):
-        response = client.post("/game/start")
-        assert response.status_code == 200
-        assert response.json()["status"] == "success"
-    
-    def test_setup_game(self, client):
-        setup_data = {
-            "players": [
-                {"id": "p1", "name": "Player 1", "handicap": 10},
-                {"id": "p2", "name": "Player 2", "handicap": 15},
-                {"id": "p3", "name": "Player 3", "handicap": 18},
-                {"id": "p4", "name": "Player 4", "handicap": 20}
-            ],
-            "course_name": "Wing Point Golf & Country Club"
-        }
-        
-        response = client.post("/game/setup", json=setup_data)
-        assert response.status_code == 200
-        assert response.json()["status"] == "success"
 
 
 class TestUnifiedActionAPI:

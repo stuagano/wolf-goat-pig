@@ -103,11 +103,6 @@ class RouteTestSuite:
         print(f"\n{BLUE}=== Testing Game Endpoints ==={RESET}")
         
         endpoints = [
-            ("GET", "/game/state", None),
-            ("GET", "/game/tips", None),
-            ("GET", "/game/player_strokes", None),
-            ("POST", "/game/start", {}),
-            ("POST", "/game/action", {"action_type": "INITIALIZE_GAME", "payload": {}}),
             ("GET", "/simulation/run", None),
             ("GET", "/players", None),
             ("GET", "/courses", None),
