@@ -60,7 +60,7 @@ def _check_courses(health_status: Dict[str, Any], is_initial_deployment: bool) -
             health_status["components"]["courses"] = {
                 "status": "healthy",
                 "message": f"{course_count} courses available",
-                "courses": [c["name"] for c in courses] if courses else []
+                "courses": list(courses.keys()) if courses else []
             }
             return True
         else:
