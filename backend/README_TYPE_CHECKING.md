@@ -19,15 +19,13 @@ pre-commit run mypy --all-files
 
 ## What Does This Prevent?
 
-The type checker would have caught the bug where `get_courses()` returns a list but was treated as a dict:
+The type checker would have caught bugs like treating data as the wrong type:
 
 ```python
-# ❌ This causes: 'list' object has no attribute 'keys'
-courses = get_courses()  # Returns List[Dict[str, Any]]
-list(courses.keys())      # Type error! courses is a list, not a dict
-
-# ✅ Correct approach
-[c["name"] for c in courses]
+# ✅ get_courses() now returns Dict[str, Dict[str, Any]] keyed by course name
+courses = get_courses()  # Returns Dict[str, Dict[str, Any]]
+list(courses.keys())      # Works! Returns list of course names
+course_name in courses    # Works! Check if course exists
 ```
 
 ## Configuration
