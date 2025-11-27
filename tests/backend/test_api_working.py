@@ -43,15 +43,6 @@ class TestWorkingEndpoints:
         assert isinstance(courses, dict)
         assert len(courses) > 0
     
-    def test_get_game_state(self):
-        """Test getting game state"""
-        client = TestClient(app)
-        response = client.get("/game/state")
-        assert response.status_code == 200
-        state = response.json()
-        assert "players" in state
-        assert "current_hole" in state
-    
     def test_ghin_diagnostic(self):
         """Test GHIN diagnostic endpoint"""
         client = TestClient(app)

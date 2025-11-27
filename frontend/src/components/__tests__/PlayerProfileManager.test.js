@@ -4,7 +4,6 @@ import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 
 import { ThemeProvider } from '../../theme/Provider';
-import { GameProvider } from '../../context/GameProvider';
 import PlayerProfileManager from '../PlayerProfileManager';
 
 global.fetch = jest.fn();
@@ -33,7 +32,7 @@ const mockProfiles = [
 
 const TestWrapper = ({ children }) => (
   <ThemeProvider>
-    <GameProvider>{children}</GameProvider>
+    {children}
   </ThemeProvider>
 );
 

@@ -35,7 +35,8 @@ const SimpleScorekeeper = ({
   baseWager = 1,
   initialHoleHistory = [],
   initialCurrentHole = 1,
-  courseName = 'Wing Point Golf & Country Club'
+  courseName = 'Wing Point Golf & Country Club',
+  initialStrokeAllocation = null
 }) => {
   const theme = useTheme();
 
@@ -535,9 +536,15 @@ const SimpleScorekeeper = ({
     setEditPlayerNameValue('');
   };
 
-  // Calculate stroke allocation for all holes using Creecher Feature logic
-  // Strokes are calculated relative to the player with the lowest handicap (match play format)
+  // Use stroke allocation from backend if provided (preferred - calculated with Creecher Feature rules)
+  // Falls back to local calculation only if backend data is not available
   const strokeAllocation = useMemo(() => {
+    // If we have stroke allocation from the backend, use it (it's more accurate)
+    if (initialStrokeAllocation && Object.keys(initialStrokeAllocation).length > 0) {
+      return initialStrokeAllocation;
+    }
+
+    // Fallback: calculate locally if backend didn't provide stroke allocation
     if (!courseData?.holes) return {};
 
     const allocation = {};
@@ -615,7 +622,7 @@ const SimpleScorekeeper = ({
     });
 
     return allocation;
-  }, [courseData, localPlayers]);
+  }, [courseData, localPlayers, initialStrokeAllocation]);
 
   // Handler for editing a hole from the scorecard
   const handleEditHoleFromScorecard = ({ hole, playerId, strokes, quarters }) => {
@@ -2220,6 +2227,7 @@ SimpleScorekeeper.propTypes = {
   initialHoleHistory: PropTypes.arrayOf(PropTypes.object),
   initialCurrentHole: PropTypes.number,
   courseName: PropTypes.string,
+  initialStrokeAllocation: PropTypes.object,
 };
 
 export default SimpleScorekeeper;

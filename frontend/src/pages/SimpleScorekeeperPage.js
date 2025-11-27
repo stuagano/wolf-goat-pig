@@ -137,6 +137,7 @@ const SimpleScorekeeperPage = () => {
   const holeHistory = gameData.hole_history || [];
   const currentHoleNumber = gameData.current_hole || 1;
   const courseName = gameData.course_name || 'Wing Point Golf & Country Club';
+  const strokeAllocation = gameData.stroke_allocation || {};
 
   return (
     <div>
@@ -206,6 +207,7 @@ const SimpleScorekeeperPage = () => {
         initialHoleHistory={holeHistory}
         initialCurrentHole={currentHoleNumber}
         courseName={courseName}
+        initialStrokeAllocation={strokeAllocation}
       />
     </div>
   );

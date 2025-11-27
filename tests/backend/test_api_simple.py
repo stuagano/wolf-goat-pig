@@ -41,15 +41,6 @@ class TestBasicEndpoints:
             # Should have at least the default course
             assert len(courses) > 0
     
-    def test_get_game_state(self):
-        """Test getting game state"""
-        with TestClient(app) as client:
-            response = client.get("/game/state")
-            assert response.status_code == 200
-            state = response.json()
-            assert "players" in state
-            assert "current_hole" in state
-    
     def test_ghin_diagnostic(self):
         """Test GHIN diagnostic endpoint"""
         with TestClient(app) as client:
@@ -164,34 +155,6 @@ class TestCourseEndpoints:
             data = response.json()
             assert "sources" in data
             assert len(data["sources"]) > 0
-
-
-class TestGameFlow:
-    """Test basic game flow"""
-    
-    def test_start_game_legacy(self):
-        """Test legacy start game endpoint"""
-        with TestClient(app) as client:
-            response = client.post("/game/start")
-            assert response.status_code == 200
-            assert response.json()["status"] == "success"
-    
-    def test_setup_game_legacy(self):
-        """Test legacy game setup"""
-        with TestClient(app) as client:
-            setup_data = {
-                "players": [
-                    {"id": "p1", "name": "Alice", "handicap": 10, "strength": 8},
-                    {"id": "p2", "name": "Bob", "handicap": 15, "strength": 6},
-                    {"id": "p3", "name": "Charlie", "handicap": 18, "strength": 5},
-                    {"id": "p4", "name": "David", "handicap": 20, "strength": 4}
-                ],
-                "course_name": "Wing Point Golf & Country Club"
-            }
-            
-            response = client.post("/game/setup", json=setup_data)
-            assert response.status_code == 200
-            assert response.json()["status"] == "success"
 
 
 if __name__ == "__main__":

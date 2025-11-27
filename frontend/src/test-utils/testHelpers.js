@@ -8,29 +8,24 @@
 import React from 'react';
 import { render } from '@testing-library/react';
 import { ThemeProvider } from '../../theme/Provider';
-import { GameProvider } from '../../context/GameProvider';
 import { TutorialContext } from '../../context/TutorialContext';
 
 // Common test wrapper that provides all necessary contexts
-export const TestWrapper = ({ 
-  children, 
-  gameState = null,
+export const TestWrapper = ({
+  children,
   tutorialState = { isActive: false, currentModule: null },
   theme = 'default'
 }) => (
   <ThemeProvider theme={theme}>
-    <GameProvider initialState={gameState ? { gameState } : undefined}>
-      <TutorialContext.Provider value={tutorialState}>
-        {children}
-      </TutorialContext.Provider>
-    </GameProvider>
+    <TutorialContext.Provider value={tutorialState}>
+      {children}
+    </TutorialContext.Provider>
   </ThemeProvider>
 );
 
 // Render component with full context wrapper
 export const renderWithContext = (ui, options = {}) => {
   const {
-    gameState,
     tutorialState,
     theme,
     ...renderOptions
@@ -38,8 +33,7 @@ export const renderWithContext = (ui, options = {}) => {
 
   return render(ui, {
     wrapper: ({ children }) => (
-      <TestWrapper 
-        gameState={gameState}
+      <TestWrapper
         tutorialState={tutorialState}
         theme={theme}
       >
