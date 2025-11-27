@@ -235,6 +235,18 @@ class PlayerStatisticsResponse(BaseModel):
     partnerships_won: int
     solo_attempts: int
     solo_wins: int
+    # Special event stats
+    ping_pong_count: int = 0
+    ping_pong_wins: int = 0
+    invisible_aardvark_appearances: int = 0
+    invisible_aardvark_wins: int = 0
+    # Specific solo type stats
+    duncan_attempts: int = 0
+    duncan_wins: int = 0
+    tunkarri_attempts: int = 0
+    tunkarri_wins: int = 0
+    big_dick_attempts: int = 0
+    big_dick_wins: int = 0
     # Score performance metrics
     eagles: int = 0
     birdies: int = 0
@@ -291,6 +303,18 @@ class GamePlayerResultCreate(BaseModel):
     partnerships_won: int = 0
     solo_attempts: int = 0
     solo_wins: int = 0
+    # Special event tracking per game
+    ping_pongs: int = 0
+    ping_pongs_won: int = 0
+    invisible_aardvark_holes: int = 0
+    invisible_aardvark_holes_won: int = 0
+    # Specific solo types per game
+    duncan_attempts: int = 0
+    duncan_wins: int = 0
+    tunkarri_attempts: int = 0
+    tunkarri_wins: int = 0
+    big_dick_attempts: int = 0
+    big_dick_wins: int = 0
     hole_scores: Optional[Dict[str, Any]] = None
     betting_history: Optional[List[Dict[str, Any]]] = None
     performance_metrics: Optional[Dict[str, Any]] = None
@@ -311,6 +335,18 @@ class GamePlayerResultResponse(BaseModel):
     partnerships_won: int
     solo_attempts: int
     solo_wins: int
+    # Special event tracking per game
+    ping_pongs: int = 0
+    ping_pongs_won: int = 0
+    invisible_aardvark_holes: int = 0
+    invisible_aardvark_holes_won: int = 0
+    # Specific solo types per game
+    duncan_attempts: int = 0
+    duncan_wins: int = 0
+    tunkarri_attempts: int = 0
+    tunkarri_wins: int = 0
+    big_dick_attempts: int = 0
+    big_dick_wins: int = 0
     hole_scores: Dict[str, Any]
     betting_history: List[Dict[str, Any]]
     performance_metrics: Dict[str, Any]

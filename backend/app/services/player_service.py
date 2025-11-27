@@ -283,6 +283,35 @@ class PlayerService:
         setattr(stats, 'solo_attempts', int(stats.solo_attempts) + game_result.solo_attempts)
         setattr(stats, 'solo_wins', int(stats.solo_wins) + game_result.solo_wins)
 
+        # Update special event statistics
+        # Ping pong tracking
+        ping_pongs = getattr(game_result, 'ping_pongs', 0) or 0
+        ping_pongs_won = getattr(game_result, 'ping_pongs_won', 0) or 0
+        setattr(stats, 'ping_pong_count', int(stats.ping_pong_count or 0) + ping_pongs)
+        setattr(stats, 'ping_pong_wins', int(stats.ping_pong_wins or 0) + ping_pongs_won)
+
+        # Invisible aardvark tracking
+        invisible_holes = getattr(game_result, 'invisible_aardvark_holes', 0) or 0
+        invisible_wins = getattr(game_result, 'invisible_aardvark_holes_won', 0) or 0
+        setattr(stats, 'invisible_aardvark_appearances', int(stats.invisible_aardvark_appearances or 0) + invisible_holes)
+        setattr(stats, 'invisible_aardvark_wins', int(stats.invisible_aardvark_wins or 0) + invisible_wins)
+
+        # Specific solo type tracking (The Duncan, The Tunkarri, Big Dick)
+        duncan_attempts = getattr(game_result, 'duncan_attempts', 0) or 0
+        duncan_wins = getattr(game_result, 'duncan_wins', 0) or 0
+        setattr(stats, 'duncan_attempts', int(stats.duncan_attempts or 0) + duncan_attempts)
+        setattr(stats, 'duncan_wins', int(stats.duncan_wins or 0) + duncan_wins)
+
+        tunkarri_attempts = getattr(game_result, 'tunkarri_attempts', 0) or 0
+        tunkarri_wins = getattr(game_result, 'tunkarri_wins', 0) or 0
+        setattr(stats, 'tunkarri_attempts', int(stats.tunkarri_attempts or 0) + tunkarri_attempts)
+        setattr(stats, 'tunkarri_wins', int(stats.tunkarri_wins or 0) + tunkarri_wins)
+
+        big_dick_attempts = getattr(game_result, 'big_dick_attempts', 0) or 0
+        big_dick_wins = getattr(game_result, 'big_dick_wins', 0) or 0
+        setattr(stats, 'big_dick_attempts', int(stats.big_dick_attempts or 0) + big_dick_attempts)
+        setattr(stats, 'big_dick_wins', int(stats.big_dick_wins or 0) + big_dick_wins)
+
         # Update score performance statistics (eagles, birdies, pars, bogeys, etc.)
         if game_result.performance_metrics:
             score_perf = game_result.performance_metrics.get('score_performance', {})
