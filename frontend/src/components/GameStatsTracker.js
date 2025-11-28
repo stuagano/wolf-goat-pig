@@ -90,7 +90,29 @@ const GameStatsTracker = ({
                     bogeys: 0,        // 1 over par
                     double_bogeys: 0, // 2 over par
                     worse: 0          // 3+ over par
-                }
+                },
+                // Special event tracking
+                special_events: {
+                    ping_pongs: 0,           // Total ping pong events initiated
+                    ping_pongs_won: 0,       // Wins when ping ponged
+                    invisible_aardvark_holes: 0,     // Times in invisible aardvark role
+                    invisible_aardvark_holes_won: 0, // Wins when invisible aardvark
+                    duncan_attempts: 0,      // Captain went solo (The Duncan)
+                    duncan_wins: 0,
+                    tunkarri_attempts: 0,    // Aardvark went solo (The Tunkarri)
+                    tunkarri_wins: 0,
+                    big_dick_attempts: 0,    // 18th hole solo by points leader
+                    big_dick_wins: 0
+                },
+                // Streak tracking
+                current_win_streak: 0,
+                current_loss_streak: 0,
+                best_win_streak: 0,
+                // Role tracking
+                times_as_wolf: 0,
+                times_as_goat: 0,
+                times_as_pig: 0,
+                times_as_aardvark: 0
             };
         });
         return metrics;
@@ -171,14 +193,54 @@ const GameStatsTracker = ({
                             metrics.partnerships_won += 1;
                         }
                     }
-                    
+
                     // Track solo attempts
                     if (holeState.teams.solo_player === playerId) {
                         metrics.solo_attempts += 1;
-                        if (holeState.team_results?.winner === playerId) {
+                        const soloWon = holeState.team_results?.winner === playerId;
+                        if (soloWon) {
                             metrics.solo_wins += 1;
                         }
+
+                        // Track specific solo types
+                        const soloType = holeState.teams.solo_type || holeState.solo_type;
+                        if (soloType === 'duncan' || holeState.teams.captain_solo) {
+                            metrics.special_events.duncan_attempts += 1;
+                            if (soloWon) metrics.special_events.duncan_wins += 1;
+                        } else if (soloType === 'tunkarri' || holeState.teams.aardvark_solo) {
+                            metrics.special_events.tunkarri_attempts += 1;
+                            if (soloWon) metrics.special_events.tunkarri_wins += 1;
+                        } else if (soloType === 'big_dick' || (currentHole === 18 && holeState.teams.points_leader_solo)) {
+                            metrics.special_events.big_dick_attempts += 1;
+                            if (soloWon) metrics.special_events.big_dick_wins += 1;
+                        }
                     }
+
+                    // Track ping pong events
+                    if (holeState.teams.ping_pong && holeState.teams.ping_pong_initiator === playerId) {
+                        metrics.special_events.ping_pongs += 1;
+                        if (holeState.team_results?.winning_team?.includes(playerId)) {
+                            metrics.special_events.ping_pongs_won += 1;
+                        }
+                    }
+
+                    // Track invisible aardvark
+                    if (holeState.teams.invisible_aardvark === playerId ||
+                        holeState.teams.aardvark_invisible === playerId) {
+                        metrics.special_events.invisible_aardvark_holes += 1;
+                        if (holeState.team_results?.winner === playerId ||
+                            holeState.team_results?.winning_team?.includes(playerId)) {
+                            metrics.special_events.invisible_aardvark_holes_won += 1;
+                        }
+                    }
+                }
+
+                // Track player roles
+                if (holeState.roles) {
+                    if (holeState.roles.wolf === playerId) metrics.times_as_wolf += 1;
+                    if (holeState.roles.goat === playerId) metrics.times_as_goat += 1;
+                    if (holeState.roles.pig === playerId) metrics.times_as_pig += 1;
+                    if (holeState.roles.aardvark === playerId) metrics.times_as_aardvark += 1;
                 }
 
                 // Track shot performance
@@ -240,6 +302,17 @@ const GameStatsTracker = ({
                         partnerships_won: playerMetrics.partnerships_won,
                         solo_attempts: playerMetrics.solo_attempts,
                         solo_wins: playerMetrics.solo_wins,
+                        // Special event tracking
+                        ping_pongs: playerMetrics.special_events?.ping_pongs || 0,
+                        ping_pongs_won: playerMetrics.special_events?.ping_pongs_won || 0,
+                        invisible_aardvark_holes: playerMetrics.special_events?.invisible_aardvark_holes || 0,
+                        invisible_aardvark_holes_won: playerMetrics.special_events?.invisible_aardvark_holes_won || 0,
+                        duncan_attempts: playerMetrics.special_events?.duncan_attempts || 0,
+                        duncan_wins: playerMetrics.special_events?.duncan_wins || 0,
+                        tunkarri_attempts: playerMetrics.special_events?.tunkarri_attempts || 0,
+                        tunkarri_wins: playerMetrics.special_events?.tunkarri_wins || 0,
+                        big_dick_attempts: playerMetrics.special_events?.big_dick_attempts || 0,
+                        big_dick_wins: playerMetrics.special_events?.big_dick_wins || 0,
                         hole_scores: playerMetrics.hole_scores,
                         betting_history: playerMetrics.betting_history,
                         performance_metrics: {
@@ -247,7 +320,14 @@ const GameStatsTracker = ({
                             score_performance: playerMetrics.score_performance,
                             hole_pars: playerMetrics.hole_pars,
                             game_duration_minutes: calculateGameDuration(),
-                            course_name: finalGameState.course_name || 'Unknown'
+                            course_name: finalGameState.course_name || 'Unknown',
+                            // Role tracking
+                            times_as_wolf: playerMetrics.times_as_wolf || 0,
+                            times_as_goat: playerMetrics.times_as_goat || 0,
+                            times_as_pig: playerMetrics.times_as_pig || 0,
+                            times_as_aardvark: playerMetrics.times_as_aardvark || 0,
+                            // Streak tracking
+                            best_win_streak: playerMetrics.best_win_streak || 0
                         }
                     };
 

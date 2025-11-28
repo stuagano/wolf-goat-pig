@@ -611,3 +611,335 @@ class StatisticsService:
             "best_position": min(positions),
             "worst_position": max(positions)
         }
+
+    def get_head_to_head(self, player_id: int, opponent_id: int) -> Dict[str, Any]:
+        """Get head-to-head record between two players."""
+        try:
+            # Find games where both players participated
+            player_results = self.db.query(GamePlayerResult).filter(
+                GamePlayerResult.player_profile_id == player_id
+            ).all()
+
+            opponent_results = self.db.query(GamePlayerResult).filter(
+                GamePlayerResult.player_profile_id == opponent_id
+            ).all()
+
+            # Group by game_record_id
+            player_games = {r.game_record_id: r for r in player_results}
+            opponent_games = {r.game_record_id: r for r in opponent_results}
+
+            # Find common games
+            common_games = set(player_games.keys()) & set(opponent_games.keys())
+
+            if not common_games:
+                return {
+                    "status": "no_games",
+                    "games_together": 0,
+                    "message": "No games played together"
+                }
+
+            wins = 0
+            losses = 0
+            ties = 0
+            earnings_diff = 0.0
+
+            for game_id in common_games:
+                player_result = player_games[game_id]
+                opponent_result = opponent_games[game_id]
+
+                if player_result.final_position < opponent_result.final_position:
+                    wins += 1
+                elif player_result.final_position > opponent_result.final_position:
+                    losses += 1
+                else:
+                    ties += 1
+
+                earnings_diff += player_result.total_earnings - opponent_result.total_earnings
+
+            total_games = len(common_games)
+            return {
+                "status": "available",
+                "games_together": total_games,
+                "wins": wins,
+                "losses": losses,
+                "ties": ties,
+                "win_rate": (wins / total_games) * 100 if total_games > 0 else 0,
+                "earnings_differential": round(earnings_diff, 2),
+                "avg_earnings_diff_per_game": round(earnings_diff / total_games, 2) if total_games > 0 else 0
+            }
+
+        except Exception as e:
+            logger.error(f"Error getting head-to-head for players {player_id} vs {opponent_id}: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def get_all_head_to_head(self, player_id: int) -> Dict[str, Dict[str, Any]]:
+        """Get head-to-head records against all opponents."""
+        try:
+            # Get all games the player participated in
+            player_results = self.db.query(GamePlayerResult).filter(
+                GamePlayerResult.player_profile_id == player_id
+            ).all()
+
+            player_games = {r.game_record_id: r for r in player_results}
+            game_ids = list(player_games.keys())
+
+            if not game_ids:
+                return {}
+
+            # Get all opponents from those games
+            opponent_results = self.db.query(GamePlayerResult).filter(
+                and_(
+                    GamePlayerResult.game_record_id.in_(game_ids),
+                    GamePlayerResult.player_profile_id != player_id
+                )
+            ).all()
+
+            # Group opponent results by player
+            opponents_data: Dict[int, Dict[str, Any]] = defaultdict(lambda: {
+                "name": "",
+                "wins": 0,
+                "losses": 0,
+                "ties": 0,
+                "games_together": 0,
+                "earnings_diff": 0.0
+            })
+
+            for opp_result in opponent_results:
+                opp_id = opp_result.player_profile_id
+                game_id = opp_result.game_record_id
+
+                if game_id in player_games:
+                    player_result = player_games[game_id]
+                    opponents_data[opp_id]["name"] = opp_result.player_name
+                    opponents_data[opp_id]["games_together"] += 1
+
+                    if player_result.final_position < opp_result.final_position:
+                        opponents_data[opp_id]["wins"] += 1
+                    elif player_result.final_position > opp_result.final_position:
+                        opponents_data[opp_id]["losses"] += 1
+                    else:
+                        opponents_data[opp_id]["ties"] += 1
+
+                    opponents_data[opp_id]["earnings_diff"] += (
+                        player_result.total_earnings - opp_result.total_earnings
+                    )
+
+            # Format results
+            result = {}
+            for opp_id, data in opponents_data.items():
+                total_games = data["games_together"]
+                result[str(opp_id)] = {
+                    "opponent_name": data["name"],
+                    "games_together": total_games,
+                    "wins": data["wins"],
+                    "losses": data["losses"],
+                    "ties": data["ties"],
+                    "win_rate": (data["wins"] / total_games) * 100 if total_games > 0 else 0,
+                    "earnings_differential": round(data["earnings_diff"], 2)
+                }
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Error getting all head-to-head for player {player_id}: {e}")
+            return {}
+
+    def get_streak_analysis(self, player_id: int) -> Dict[str, Any]:
+        """Get detailed streak analysis for a player."""
+        try:
+            # Get recent game results ordered by date
+            results = self.db.query(GamePlayerResult).filter(
+                GamePlayerResult.player_profile_id == player_id
+            ).order_by(desc(GamePlayerResult.created_at)).limit(50).all()
+
+            if not results:
+                return {"status": "no_games"}
+
+            # Calculate current streak
+            current_streak_type = None
+            current_streak_count = 0
+
+            for i, result in enumerate(results):
+                is_win = result.final_position == 1
+                if i == 0:
+                    current_streak_type = "win" if is_win else "loss"
+                    current_streak_count = 1
+                elif (is_win and current_streak_type == "win") or (not is_win and current_streak_type == "loss"):
+                    current_streak_count += 1
+                else:
+                    break
+
+            # Find best and worst streaks in history
+            best_win_streak = 0
+            worst_loss_streak = 0
+            temp_win = 0
+            temp_loss = 0
+
+            # Reverse to process chronologically
+            for result in reversed(results):
+                is_win = result.final_position == 1
+                if is_win:
+                    temp_win += 1
+                    temp_loss = 0
+                    best_win_streak = max(best_win_streak, temp_win)
+                else:
+                    temp_loss += 1
+                    temp_win = 0
+                    worst_loss_streak = max(worst_loss_streak, temp_loss)
+
+            return {
+                "status": "available",
+                "current_streak": {
+                    "type": current_streak_type,
+                    "count": current_streak_count
+                },
+                "best_win_streak": best_win_streak,
+                "worst_loss_streak": worst_loss_streak,
+                "games_analyzed": len(results),
+                "recent_form": self._calculate_recent_form_string(results[:5])
+            }
+
+        except Exception as e:
+            logger.error(f"Error getting streak analysis for player {player_id}: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def _calculate_recent_form_string(self, results: List[GamePlayerResult]) -> str:
+        """Generate a form string like 'WWLWL' for recent games."""
+        form = ""
+        for result in results:
+            if result.final_position == 1:
+                form += "W"
+            elif result.final_position == 2:
+                form += "2"
+            elif result.final_position == 3:
+                form += "3"
+            else:
+                form += "L"
+        return form
+
+    def get_special_event_analytics(self, player_id: int) -> Dict[str, Any]:
+        """Get analytics for special events (ping pong, invisible aardvark, etc.)."""
+        try:
+            stats = self.db.query(PlayerStatistics).filter(
+                PlayerStatistics.player_id == player_id
+            ).first()
+
+            if not stats:
+                return {"status": "no_data"}
+
+            # Calculate success rates for each special event
+            ping_pong_rate = (int(stats.ping_pong_wins or 0) / max(1, int(stats.ping_pong_count or 0))) * 100
+            invisible_aardvark_rate = (int(stats.invisible_aardvark_wins or 0) / max(1, int(stats.invisible_aardvark_appearances or 0))) * 100
+            duncan_rate = (int(stats.duncan_wins or 0) / max(1, int(stats.duncan_attempts or 0))) * 100
+            tunkarri_rate = (int(stats.tunkarri_wins or 0) / max(1, int(stats.tunkarri_attempts or 0))) * 100
+            big_dick_rate = (int(stats.big_dick_wins or 0) / max(1, int(stats.big_dick_attempts or 0))) * 100
+
+            total_special_events = (
+                int(stats.ping_pong_count or 0) +
+                int(stats.invisible_aardvark_appearances or 0) +
+                int(stats.duncan_attempts or 0) +
+                int(stats.tunkarri_attempts or 0) +
+                int(stats.big_dick_attempts or 0)
+            )
+
+            total_special_wins = (
+                int(stats.ping_pong_wins or 0) +
+                int(stats.invisible_aardvark_wins or 0) +
+                int(stats.duncan_wins or 0) +
+                int(stats.tunkarri_wins or 0) +
+                int(stats.big_dick_wins or 0)
+            )
+
+            return {
+                "status": "available",
+                "ping_pong": {
+                    "count": int(stats.ping_pong_count or 0),
+                    "wins": int(stats.ping_pong_wins or 0),
+                    "success_rate": round(ping_pong_rate, 1)
+                },
+                "invisible_aardvark": {
+                    "appearances": int(stats.invisible_aardvark_appearances or 0),
+                    "wins": int(stats.invisible_aardvark_wins or 0),
+                    "success_rate": round(invisible_aardvark_rate, 1)
+                },
+                "duncan": {
+                    "attempts": int(stats.duncan_attempts or 0),
+                    "wins": int(stats.duncan_wins or 0),
+                    "success_rate": round(duncan_rate, 1)
+                },
+                "tunkarri": {
+                    "attempts": int(stats.tunkarri_attempts or 0),
+                    "wins": int(stats.tunkarri_wins or 0),
+                    "success_rate": round(tunkarri_rate, 1)
+                },
+                "big_dick": {
+                    "attempts": int(stats.big_dick_attempts or 0),
+                    "wins": int(stats.big_dick_wins or 0),
+                    "success_rate": round(big_dick_rate, 1)
+                },
+                "totals": {
+                    "total_events": total_special_events,
+                    "total_wins": total_special_wins,
+                    "overall_success_rate": round((total_special_wins / max(1, total_special_events)) * 100, 1)
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"Error getting special event analytics for player {player_id}: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def get_score_performance_analytics(self, player_id: int) -> Dict[str, Any]:
+        """Get detailed score performance analytics."""
+        try:
+            stats = self.db.query(PlayerStatistics).filter(
+                PlayerStatistics.player_id == player_id
+            ).first()
+
+            if not stats:
+                return {"status": "no_data"}
+
+            total_holes = int(stats.holes_played or 0)
+            eagles = int(stats.eagles or 0)
+            birdies = int(stats.birdies or 0)
+            pars = int(stats.pars or 0)
+            bogeys = int(stats.bogeys or 0)
+            double_bogeys = int(stats.double_bogeys or 0)
+            worse = int(stats.worse_than_double or 0)
+
+            # Calculate rates
+            par_or_better = eagles + birdies + pars
+            under_par = eagles + birdies
+            over_par = bogeys + double_bogeys + worse
+
+            return {
+                "status": "available",
+                "raw_counts": {
+                    "eagles": eagles,
+                    "birdies": birdies,
+                    "pars": pars,
+                    "bogeys": bogeys,
+                    "double_bogeys": double_bogeys,
+                    "worse_than_double": worse
+                },
+                "rates": {
+                    "eagle_rate": round((eagles / max(1, total_holes)) * 100, 2),
+                    "birdie_rate": round((birdies / max(1, total_holes)) * 100, 2),
+                    "par_rate": round((pars / max(1, total_holes)) * 100, 2),
+                    "bogey_rate": round((bogeys / max(1, total_holes)) * 100, 2),
+                    "double_bogey_rate": round((double_bogeys / max(1, total_holes)) * 100, 2),
+                    "worse_rate": round((worse / max(1, total_holes)) * 100, 2)
+                },
+                "summary": {
+                    "total_holes": total_holes,
+                    "par_or_better": par_or_better,
+                    "par_or_better_rate": round((par_or_better / max(1, total_holes)) * 100, 2),
+                    "under_par": under_par,
+                    "under_par_rate": round((under_par / max(1, total_holes)) * 100, 2),
+                    "over_par": over_par,
+                    "over_par_rate": round((over_par / max(1, total_holes)) * 100, 2)
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"Error getting score performance analytics for player {player_id}: {e}")
+            return {"status": "error", "message": str(e)}
