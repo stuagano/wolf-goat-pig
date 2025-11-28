@@ -63,9 +63,22 @@ const Scorecard = ({
     if (!playerId || typeof holeNumber !== 'number') return 0;
     const playerAllocation = strokeAllocation[playerId];
     if (!playerAllocation || typeof playerAllocation !== 'object') return 0;
-    const strokes = playerAllocation[holeNumber];
+    // Handle both string and number keys (JSON serialization converts int keys to strings)
+    const strokes = playerAllocation[holeNumber] ?? playerAllocation[String(holeNumber)];
     return typeof strokes === 'number' ? strokes : 0;
   };
+
+  // Helper function to check if a value is approximately equal to 0.5 (for half strokes)
+  const isHalfStroke = (value) => {
+    const fractional = value % 1;
+    return Math.abs(fractional - 0.5) < 0.01;
+  };
+
+  // Helper function to get full strokes (integer part)
+  const getFullStrokes = (value) => Math.floor(value);
+
+  // Helper function to check if value has a half-stroke component
+  const hasHalfStroke = (value) => isHalfStroke(value);
 
   // Get golf score indicator based on score relative to par
   const getScoreIndicator = (strokes, par) => {
@@ -532,22 +545,35 @@ const Scorecard = ({
                               ) : (
                                 <span style={{ color: '#000', fontSize: '11px', fontWeight: 'bold' }}>{strokes || '-'}</span>
                               )}
-                              {strokesReceived === 1 && (
-                                <span style={{ color: theme.colors.accent, fontSize: '8px', marginLeft: '1px' }} title="Gets 1 stroke">●</span>
-                              )}
-                              {strokesReceived === 0.5 && (
-                                <span style={{ color: theme.colors.warning, fontSize: '8px', marginLeft: '1px' }} title="Gets 0.5 stroke">◐</span>
-                              )}
-                              {strokesReceived > 1 && (
-                                <span style={{ color: theme.colors.accent, fontSize: '7px', marginLeft: '1px' }} title={`Gets ${strokesReceived} strokes`}>●{strokesReceived}</span>
+                              {/* Display stroke indicators - handle full strokes, half strokes, and combinations */}
+                              {strokesReceived > 0 && (
+                                <span style={{ marginLeft: '1px', display: 'inline-flex', alignItems: 'center' }}>
+                                  {/* Full stroke indicator (●) */}
+                                  {getFullStrokes(strokesReceived) >= 1 && (
+                                    <span style={{ color: theme.colors.accent, fontSize: '8px' }} title={`Gets ${getFullStrokes(strokesReceived)} full stroke(s)`}>
+                                      {getFullStrokes(strokesReceived) > 1 ? `●${getFullStrokes(strokesReceived)}` : '●'}
+                                    </span>
+                                  )}
+                                  {/* Half stroke indicator (◐) - for Creecher strokes */}
+                                  {hasHalfStroke(strokesReceived) && (
+                                    <span style={{ color: theme.colors.warning || '#FF9800', fontSize: '8px' }} title="Gets 0.5 stroke (Creecher)">◐</span>
+                                  )}
+                                </span>
                               )}
                             </div>
                           ) : (
                             strokesReceived > 0 && (
-                              <div style={{ fontSize: '10px', color: theme.colors.textSecondary }}>
-                                {strokesReceived === 1 && <span title="Gets 1 stroke">●</span>}
-                                {strokesReceived === 0.5 && <span title="Gets 0.5 stroke">◐</span>}
-                                {strokesReceived > 1 && <span title={`Gets ${strokesReceived} strokes`}>●{strokesReceived}</span>}
+                              <div style={{ fontSize: '10px', color: theme.colors.textSecondary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                {/* Full stroke indicator (●) */}
+                                {getFullStrokes(strokesReceived) >= 1 && (
+                                  <span title={`Gets ${getFullStrokes(strokesReceived)} full stroke(s)`}>
+                                    {getFullStrokes(strokesReceived) > 1 ? `●${getFullStrokes(strokesReceived)}` : '●'}
+                                  </span>
+                                )}
+                                {/* Half stroke indicator (◐) - for Creecher strokes */}
+                                {hasHalfStroke(strokesReceived) && (
+                                  <span style={{ color: theme.colors.warning || '#FF9800' }} title="Gets 0.5 stroke (Creecher)">◐</span>
+                                )}
                               </div>
                             )
                           )}
