@@ -299,6 +299,217 @@ const PlayerStatistics = ({ playerId, playerName }) => {
                             </div>
                         )}
                     </Card>
+
+                    {/* Streak Tracking */}
+                    <Card className="p-6">
+                        <h3 className="text-lg font-semibold mb-4">Streaks & Form</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="text-center p-3 bg-green-50 rounded-lg">
+                                <p className="text-2xl font-bold text-green-600">{statistics.current_win_streak || 0}</p>
+                                <p className="text-sm text-gray-600">Current Win Streak</p>
+                            </div>
+                            <div className="text-center p-3 bg-yellow-50 rounded-lg">
+                                <p className="text-2xl font-bold text-yellow-600">{statistics.best_win_streak || 0}</p>
+                                <p className="text-sm text-gray-600">Best Win Streak</p>
+                            </div>
+                            <div className="text-center p-3 bg-red-50 rounded-lg">
+                                <p className="text-2xl font-bold text-red-500">{statistics.current_loss_streak || 0}</p>
+                                <p className="text-sm text-gray-600">Current Loss Streak</p>
+                            </div>
+                            <div className="text-center p-3 bg-gray-50 rounded-lg">
+                                <p className="text-2xl font-bold text-gray-600">{statistics.worst_loss_streak || 0}</p>
+                                <p className="text-sm text-gray-600">Worst Loss Streak</p>
+                            </div>
+                        </div>
+                        {/* Role Distribution */}
+                        {(statistics.times_as_wolf || statistics.times_as_goat || statistics.times_as_pig || statistics.times_as_aardvark) > 0 && (
+                            <div className="mt-4 pt-4 border-t border-gray-200">
+                                <h4 className="font-medium text-gray-700 mb-3">Role Distribution</h4>
+                                <div className="grid grid-cols-4 gap-2 text-center">
+                                    <div>
+                                        <p className="text-lg font-bold text-gray-800">{statistics.times_as_wolf || 0}</p>
+                                        <p className="text-xs text-gray-500">Wolf</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-lg font-bold text-gray-800">{statistics.times_as_goat || 0}</p>
+                                        <p className="text-xs text-gray-500">Goat</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-lg font-bold text-gray-800">{statistics.times_as_pig || 0}</p>
+                                        <p className="text-xs text-gray-500">Pig</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-lg font-bold text-gray-800">{statistics.times_as_aardvark || 0}</p>
+                                        <p className="text-xs text-gray-500">Aardvark</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </Card>
+
+                    {/* Score Performance */}
+                    <Card className="p-6">
+                        <h3 className="text-lg font-semibold mb-4">Score Performance</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                            <div className="text-center p-3 bg-yellow-50 rounded-lg">
+                                <p className="text-2xl font-bold text-yellow-600">{statistics.eagles || 0}</p>
+                                <p className="text-sm text-gray-600">Eagles</p>
+                                <p className="text-xs text-gray-400">-2 or better</p>
+                            </div>
+                            <div className="text-center p-3 bg-green-50 rounded-lg">
+                                <p className="text-2xl font-bold text-green-600">{statistics.birdies || 0}</p>
+                                <p className="text-sm text-gray-600">Birdies</p>
+                                <p className="text-xs text-gray-400">-1</p>
+                            </div>
+                            <div className="text-center p-3 bg-blue-50 rounded-lg">
+                                <p className="text-2xl font-bold text-blue-600">{statistics.pars || 0}</p>
+                                <p className="text-sm text-gray-600">Pars</p>
+                                <p className="text-xs text-gray-400">Even</p>
+                            </div>
+                            <div className="text-center p-3 bg-orange-50 rounded-lg">
+                                <p className="text-2xl font-bold text-orange-600">{statistics.bogeys || 0}</p>
+                                <p className="text-sm text-gray-600">Bogeys</p>
+                                <p className="text-xs text-gray-400">+1</p>
+                            </div>
+                            <div className="text-center p-3 bg-red-50 rounded-lg">
+                                <p className="text-2xl font-bold text-red-500">{statistics.double_bogeys || 0}</p>
+                                <p className="text-sm text-gray-600">Double Bogeys</p>
+                                <p className="text-xs text-gray-400">+2</p>
+                            </div>
+                            <div className="text-center p-3 bg-red-100 rounded-lg">
+                                <p className="text-2xl font-bold text-red-700">{statistics.worse_than_double || 0}</p>
+                                <p className="text-sm text-gray-600">Worse</p>
+                                <p className="text-xs text-gray-400">+3 or more</p>
+                            </div>
+                        </div>
+                        {statistics.holes_played > 0 && (
+                            <div className="mt-4">
+                                <p className="text-sm text-gray-500 text-center">
+                                    Par or better: {formatPercentage(((statistics.eagles || 0) + (statistics.birdies || 0) + (statistics.pars || 0)) / statistics.holes_played)}
+                                    {' '}({(statistics.eagles || 0) + (statistics.birdies || 0) + (statistics.pars || 0)}/{statistics.holes_played} holes)
+                                </p>
+                            </div>
+                        )}
+                    </Card>
+
+                    {/* Special Events Statistics */}
+                    <Card className="p-6">
+                        <h3 className="text-lg font-semibold mb-4">Special Events</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {/* Ping Pong */}
+                            <div className="p-4 bg-indigo-50 rounded-lg">
+                                <h4 className="font-medium text-indigo-800 mb-2">Ping Pong</h4>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">Initiated</span>
+                                    <span className="font-semibold">{statistics.ping_pong_count || 0}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">Won</span>
+                                    <span className="font-semibold">{statistics.ping_pong_wins || 0}</span>
+                                </div>
+                                {(statistics.ping_pong_count || 0) > 0 && (
+                                    <div className="mt-2">
+                                        <div className="w-full bg-indigo-200 rounded-full h-1.5">
+                                            <div
+                                                className="bg-indigo-600 h-1.5 rounded-full"
+                                                style={{ width: `${((statistics.ping_pong_wins || 0) / (statistics.ping_pong_count || 1)) * 100}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Invisible Aardvark */}
+                            <div className="p-4 bg-amber-50 rounded-lg">
+                                <h4 className="font-medium text-amber-800 mb-2">Invisible Aardvark</h4>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">Appearances</span>
+                                    <span className="font-semibold">{statistics.invisible_aardvark_appearances || 0}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">Holes Won</span>
+                                    <span className="font-semibold">{statistics.invisible_aardvark_wins || 0}</span>
+                                </div>
+                                {(statistics.invisible_aardvark_appearances || 0) > 0 && (
+                                    <div className="mt-2">
+                                        <div className="w-full bg-amber-200 rounded-full h-1.5">
+                                            <div
+                                                className="bg-amber-600 h-1.5 rounded-full"
+                                                style={{ width: `${((statistics.invisible_aardvark_wins || 0) / (statistics.invisible_aardvark_appearances || 1)) * 100}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* The Duncan (Captain Solo) */}
+                            <div className="p-4 bg-cyan-50 rounded-lg">
+                                <h4 className="font-medium text-cyan-800 mb-2">The Duncan</h4>
+                                <p className="text-xs text-gray-500 mb-2">Captain goes solo</p>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">Attempts</span>
+                                    <span className="font-semibold">{statistics.duncan_attempts || 0}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">Wins</span>
+                                    <span className="font-semibold">{statistics.duncan_wins || 0}</span>
+                                </div>
+                            </div>
+
+                            {/* The Tunkarri (Aardvark Solo) */}
+                            <div className="p-4 bg-teal-50 rounded-lg">
+                                <h4 className="font-medium text-teal-800 mb-2">The Tunkarri</h4>
+                                <p className="text-xs text-gray-500 mb-2">Aardvark goes solo</p>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">Attempts</span>
+                                    <span className="font-semibold">{statistics.tunkarri_attempts || 0}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">Wins</span>
+                                    <span className="font-semibold">{statistics.tunkarri_wins || 0}</span>
+                                </div>
+                            </div>
+
+                            {/* Big Dick (18th Hole Solo) */}
+                            <div className="p-4 bg-rose-50 rounded-lg">
+                                <h4 className="font-medium text-rose-800 mb-2">Big Dick</h4>
+                                <p className="text-xs text-gray-500 mb-2">18th hole leader solo</p>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">Attempts</span>
+                                    <span className="font-semibold">{statistics.big_dick_attempts || 0}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">Wins</span>
+                                    <span className="font-semibold">{statistics.big_dick_wins || 0}</span>
+                                </div>
+                            </div>
+
+                            {/* Overall Special Events Summary */}
+                            <div className="p-4 bg-gray-50 rounded-lg">
+                                <h4 className="font-medium text-gray-800 mb-2">Summary</h4>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">Total Events</span>
+                                    <span className="font-semibold">
+                                        {(statistics.ping_pong_count || 0) +
+                                         (statistics.invisible_aardvark_appearances || 0) +
+                                         (statistics.duncan_attempts || 0) +
+                                         (statistics.tunkarri_attempts || 0) +
+                                         (statistics.big_dick_attempts || 0)}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">Total Wins</span>
+                                    <span className="font-semibold">
+                                        {(statistics.ping_pong_wins || 0) +
+                                         (statistics.invisible_aardvark_wins || 0) +
+                                         (statistics.duncan_wins || 0) +
+                                         (statistics.tunkarri_wins || 0) +
+                                         (statistics.big_dick_wins || 0)}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
                 </>
             )}
 

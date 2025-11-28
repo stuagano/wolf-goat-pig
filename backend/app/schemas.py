@@ -254,11 +254,22 @@ class PlayerStatisticsResponse(BaseModel):
     bogeys: int = 0
     double_bogeys: int = 0
     worse_than_double: int = 0
+    # Streak tracking
+    current_win_streak: int = 0
+    current_loss_streak: int = 0
+    best_win_streak: int = 0
+    worst_loss_streak: int = 0
+    # Role tracking
+    times_as_wolf: int = 0
+    times_as_goat: int = 0
+    times_as_pig: int = 0
+    times_as_aardvark: int = 0
     favorite_game_mode: str
     preferred_player_count: int
     best_hole_performance: List[Dict[str, Any]]
     worst_hole_performance: List[Dict[str, Any]]
     performance_trends: List[Dict[str, Any]]
+    head_to_head_records: Dict[str, Any] = {}
     last_updated: str
 
 # Game Record Schemas

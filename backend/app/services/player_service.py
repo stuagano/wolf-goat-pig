@@ -322,6 +322,33 @@ class PlayerService:
             stats.double_bogeys += score_perf.get('double_bogeys', 0)
             stats.worse_than_double += score_perf.get('worse', 0)
 
+        # Update streak tracking
+        is_win = game_result.final_position == 1
+        if is_win:
+            # Won: increment win streak, reset loss streak
+            current_win_streak = int(stats.current_win_streak or 0) + 1
+            setattr(stats, 'current_win_streak', current_win_streak)
+            setattr(stats, 'current_loss_streak', 0)
+            # Update best win streak if current is higher
+            if current_win_streak > int(stats.best_win_streak or 0):
+                setattr(stats, 'best_win_streak', current_win_streak)
+        else:
+            # Lost: increment loss streak, reset win streak
+            current_loss_streak = int(stats.current_loss_streak or 0) + 1
+            setattr(stats, 'current_loss_streak', current_loss_streak)
+            setattr(stats, 'current_win_streak', 0)
+            # Update worst loss streak if current is higher
+            if current_loss_streak > int(stats.worst_loss_streak or 0):
+                setattr(stats, 'worst_loss_streak', current_loss_streak)
+
+        # Update role tracking from performance_metrics
+        if game_result.performance_metrics:
+            role_data = game_result.performance_metrics
+            setattr(stats, 'times_as_wolf', int(stats.times_as_wolf or 0) + role_data.get('times_as_wolf', 0))
+            setattr(stats, 'times_as_goat', int(stats.times_as_goat or 0) + role_data.get('times_as_goat', 0))
+            setattr(stats, 'times_as_pig', int(stats.times_as_pig or 0) + role_data.get('times_as_pig', 0))
+            setattr(stats, 'times_as_aardvark', int(stats.times_as_aardvark or 0) + role_data.get('times_as_aardvark', 0))
+
         # Update performance trends
         performance_point = {
             "game_date": datetime.now().isoformat(),

@@ -190,11 +190,22 @@ class PlayerStatistics(Base):
     bogeys = Column(Integer, default=0)  # 1 over par
     double_bogeys = Column(Integer, default=0)  # 2 over par
     worse_than_double = Column(Integer, default=0)  # 3+ over par
+    # Streak tracking
+    current_win_streak = Column(Integer, default=0)  # Current consecutive wins
+    current_loss_streak = Column(Integer, default=0)  # Current consecutive losses
+    best_win_streak = Column(Integer, default=0)  # Best ever win streak
+    worst_loss_streak = Column(Integer, default=0)  # Worst ever loss streak
+    # Role tracking
+    times_as_wolf = Column(Integer, default=0)
+    times_as_goat = Column(Integer, default=0)
+    times_as_pig = Column(Integer, default=0)
+    times_as_aardvark = Column(Integer, default=0)
     favorite_game_mode = Column(String, default="wolf_goat_pig")
     preferred_player_count = Column(Integer, default=4)
     best_hole_performance = Column(JSON, default=list)  # Track best performing holes
     worst_hole_performance = Column(JSON, default=list)  # Track challenging holes
     performance_trends = Column(JSON, default=list)  # Historical performance data
+    head_to_head_records = Column(JSON, default=dict)  # Track records vs other players
     last_updated = Column(String)
 
 class GameRecord(Base):

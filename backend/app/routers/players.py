@@ -275,6 +275,97 @@ def get_player_skill_rating(
     )
 
 
+@router.get("/{player_id}/head-to-head/{opponent_id}")
+@handle_api_errors(operation_name="get head-to-head")
+def get_head_to_head(
+    player_id: int,
+    opponent_id: int,
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Get head-to-head record between two players."""
+    from ..services.statistics_service import StatisticsService
+
+    stats_service = StatisticsService(db)
+    h2h = stats_service.get_head_to_head(player_id, opponent_id)
+
+    return ApiResponse.success(
+        data={"player_id": player_id, "opponent_id": opponent_id, "head_to_head": h2h},
+        message="Head-to-head record retrieved"
+    )
+
+
+@router.get("/{player_id}/head-to-head")
+@handle_api_errors(operation_name="get all head-to-head records")
+def get_all_head_to_head(
+    player_id: int,
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Get head-to-head records against all opponents."""
+    from ..services.statistics_service import StatisticsService
+
+    stats_service = StatisticsService(db)
+    h2h_records = stats_service.get_all_head_to_head(player_id)
+
+    return ApiResponse.success(
+        data={"player_id": player_id, "opponents": h2h_records},
+        message="All head-to-head records retrieved"
+    )
+
+
+@router.get("/{player_id}/streaks")
+@handle_api_errors(operation_name="get streak analysis")
+def get_streak_analysis(
+    player_id: int,
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Get detailed streak analysis for a player."""
+    from ..services.statistics_service import StatisticsService
+
+    stats_service = StatisticsService(db)
+    streaks = stats_service.get_streak_analysis(player_id)
+
+    return ApiResponse.success(
+        data={"player_id": player_id, "streaks": streaks},
+        message="Streak analysis retrieved"
+    )
+
+
+@router.get("/{player_id}/special-events")
+@handle_api_errors(operation_name="get special event analytics")
+def get_special_event_analytics(
+    player_id: int,
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Get analytics for special events (ping pong, invisible aardvark, etc.)."""
+    from ..services.statistics_service import StatisticsService
+
+    stats_service = StatisticsService(db)
+    special_events = stats_service.get_special_event_analytics(player_id)
+
+    return ApiResponse.success(
+        data={"player_id": player_id, "special_events": special_events},
+        message="Special event analytics retrieved"
+    )
+
+
+@router.get("/{player_id}/score-performance")
+@handle_api_errors(operation_name="get score performance analytics")
+def get_score_performance_analytics(
+    player_id: int,
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Get detailed score performance analytics (eagles, birdies, pars, etc.)."""
+    from ..services.statistics_service import StatisticsService
+
+    stats_service = StatisticsService(db)
+    score_performance = stats_service.get_score_performance_analytics(player_id)
+
+    return ApiResponse.success(
+        data={"player_id": player_id, "score_performance": score_performance},
+        message="Score performance analytics retrieved"
+    )
+
+
 # ============================================================================
 # Player Availability Endpoints
 # ============================================================================
