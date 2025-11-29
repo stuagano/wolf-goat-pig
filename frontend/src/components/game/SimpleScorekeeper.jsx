@@ -759,37 +759,14 @@ const SimpleScorekeeper = ({
         )}
       </div>
 
-      {/* Header - Beautiful Gradient Banner */}
-      <div style={{
-        background: `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.accent})`,
-        color: 'white',
-        padding: '20px',
-        borderRadius: '16px 16px 0 0',
-        marginBottom: '2px',
-        textAlign: 'center',
-        boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-      }}>
-        <div style={{ fontSize: '18px', marginBottom: '8px', opacity: 0.9 }}>
-          Current Hole
-        </div>
-        <div data-testid="current-hole" style={{ fontSize: '48px', fontWeight: 'bold', lineHeight: 1 }}>
-          Hole {currentHole}
-        </div>
-        <div style={{ fontSize: '16px', marginTop: '8px', opacity: 0.9 }}>
-          Par {holePar}
-        </div>
-      </div>
-
-      {/* Stroke Allocation Display - Shows who gets strokes on this hole */}
-      {!isHoepfinger && rotationOrder.length > 0 && (() => {
-        // Calculate net handicaps relative to lowest handicap player (match play format)
+      {/* Enhanced Hole Title Section - Combines hole info, hitting order, and strokes */}
+      {(() => {
+        // Calculate stroke allocation data
         const playerHandicaps = players.reduce((acc, player) => {
           acc[player.id] = player.handicap || 0;
           return acc;
         }, {});
-
         const lowestHandicap = Math.min(...Object.values(playerHandicaps));
-
         const netHandicaps = {};
         Object.entries(playerHandicaps).forEach(([playerId, handicap]) => {
           netHandicaps[playerId] = Math.max(0, handicap - lowestHandicap);
@@ -798,7 +775,6 @@ const SimpleScorekeeper = ({
         // Calculate stroke allocation for current hole using Creecher Feature logic
         const getStrokesForHole = (netHandicap, strokeIndex) => {
           if (!netHandicap || !strokeIndex) return 0;
-
           const fullStrokes = Math.floor(netHandicap);
           const hasHalfStroke = (netHandicap - fullStrokes) >= 0.5;
 
@@ -824,139 +800,170 @@ const SimpleScorekeeper = ({
           return 0;
         };
 
-        // Get actual stroke index from course data (hole handicap/difficulty ranking)
-        // CRITICAL: Do NOT use currentHole as fallback - it's not the same as strokeIndex!
-        // strokeIndex = difficulty ranking (1=hardest, 18=easiest), currentHole = position on course
         const strokeIndex = courseData?.holes?.find(h => h.hole_number === currentHole)?.handicap;
 
-        // Don't show stroke allocation if course data isn't loaded yet (prevents wrong calculations)
-        if (!strokeIndex) return null;
-
-        const playersWithStrokes = players
-          .map(player => ({
-            ...player,
-            strokes: getStrokesForHole(netHandicaps[player.id], strokeIndex)
-          }))
-          .filter(p => p.strokes > 0);
-
-        if (playersWithStrokes.length === 0) return null;
+        // Build player stroke map for the hitting order display
+        const playerStrokesMap = {};
+        players.forEach(player => {
+          playerStrokesMap[player.id] = strokeIndex ? getStrokesForHole(netHandicaps[player.id], strokeIndex) : 0;
+        });
 
         return (
           <div style={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            borderRadius: '12px',
-            padding: '16px',
+            background: `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.accent})`,
+            color: 'white',
+            borderRadius: '16px',
             marginBottom: '16px',
-            boxShadow: '0 4px 6px rgba(0,0,0,0.15)',
-            border: '2px solid rgba(255,255,255,0.2)'
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            overflow: 'hidden'
           }}>
+            {/* Main Header Row */}
             <div style={{
-              fontSize: '14px',
-              fontWeight: 'bold',
-              marginBottom: '12px',
-              color: 'white',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
+              padding: '16px 20px',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px'
+              justifyContent: 'space-between',
+              borderBottom: '1px solid rgba(255,255,255,0.2)'
             }}>
-              ⛳ STROKES ON HOLE {currentHole}
-              <span style={{ fontSize: '11px', fontWeight: 'normal', opacity: 0.9 }}>
-                (Stroke Index: {strokeIndex})
-              </span>
-            </div>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {playersWithStrokes.map(player => (
-                <div
-                  key={player.id}
-                  style={{
-                    padding: '10px 16px',
-                    borderRadius: '10px',
-                    background: 'rgba(255, 255, 255, 0.95)',
-                    color: '#333',
-                    fontWeight: 'bold',
-                    fontSize: '15px',
-                    border: '2px solid rgba(255,255,255,0.3)',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}
-                >
-                  <span>{player.name}</span>
-                  <span style={{
-                    background: player.strokes === 0.5 ? '#FF9800' : '#4CAF50',
-                    color: 'white',
-                    padding: '4px 10px',
-                    borderRadius: '12px',
-                    fontSize: '13px',
-                    fontWeight: 'bold'
-                  }}>
-                    {player.strokes === 0.5 ? '½ STROKE' : player.strokes === 1 ? '1 STROKE' : `${player.strokes} STROKES`}
-                  </span>
+              {/* Left: Hole Number */}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                <div data-testid="current-hole" style={{ fontSize: '42px', fontWeight: 'bold', lineHeight: 1 }}>
+                  {currentHole}
                 </div>
-              ))}
+                <div style={{ fontSize: '14px', opacity: 0.9, textTransform: 'uppercase' }}>
+                  Hole
+                </div>
+              </div>
+
+              {/* Center: Par & Stroke Index */}
+              <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '11px', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Par</div>
+                  <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{holePar || '-'}</div>
+                </div>
+                {strokeIndex && (
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '11px', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>SI</div>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{strokeIndex}</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right: Wager */}
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '11px', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Wager</div>
+                <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{currentWager}q</div>
+              </div>
             </div>
-            <div style={{
-              marginTop: '10px',
-              padding: '8px 12px',
-              background: 'rgba(255,255,255,0.15)',
-              borderRadius: '6px',
-              fontSize: '11px',
-              color: 'white',
-              fontStyle: 'italic'
-            }}>
-              💡 Players receive strokes based on handicap and hole difficulty (stroke index)
-            </div>
+
+            {/* Hitting Order Row with Stroke Indicators */}
+            {!isHoepfinger && rotationOrder.length > 0 && (
+              <div style={{
+                padding: '12px 16px',
+                background: 'rgba(0,0,0,0.15)'
+              }}>
+                <div style={{
+                  fontSize: '10px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                  opacity: 0.8,
+                  marginBottom: '8px'
+                }}>
+                  Hitting Order
+                </div>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  {rotationOrder.map((playerId, index) => {
+                    const player = players.find(p => p.id === playerId);
+                    const isCaptain = index === captainIndex;
+                    const playerStrokes = playerStrokesMap[playerId] || 0;
+                    const hasFullStroke = playerStrokes >= 1;
+                    const hasHalfStroke = (playerStrokes % 1) >= 0.4;
+                    const fullStrokeCount = Math.floor(playerStrokes);
+
+                    return (
+                      <div
+                        key={playerId}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '6px 10px',
+                          borderRadius: '20px',
+                          background: isCaptain ? 'rgba(33, 150, 243, 0.9)' : 'rgba(255,255,255,0.2)',
+                          fontSize: '13px',
+                          fontWeight: isCaptain ? 'bold' : '500',
+                          border: isCaptain ? '2px solid rgba(255,255,255,0.5)' : '1px solid rgba(255,255,255,0.15)'
+                        }}
+                      >
+                        <span style={{
+                          fontSize: '11px',
+                          opacity: 0.8,
+                          fontWeight: 'bold',
+                          minWidth: '14px'
+                        }}>
+                          {index + 1}.
+                        </span>
+                        <span>{player?.name || playerId}</span>
+                        {isCaptain && <span>👑</span>}
+                        {/* Stroke indicators inline */}
+                        {hasFullStroke && (
+                          <span style={{
+                            background: '#4CAF50',
+                            color: 'white',
+                            padding: '2px 6px',
+                            borderRadius: '10px',
+                            fontSize: '10px',
+                            fontWeight: 'bold',
+                            marginLeft: '2px'
+                          }}>
+                            {fullStrokeCount > 1 ? `●${fullStrokeCount}` : '●'}
+                          </span>
+                        )}
+                        {hasHalfStroke && (
+                          <span style={{
+                            background: '#FF9800',
+                            color: 'white',
+                            padding: '2px 6px',
+                            borderRadius: '10px',
+                            fontSize: '10px',
+                            fontWeight: 'bold',
+                            marginLeft: hasFullStroke ? '2px' : '2px'
+                          }}>
+                            ◐
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Strokes Legend (compact, only if someone gets strokes) */}
+            {!isHoepfinger && strokeIndex && Object.values(playerStrokesMap).some(s => s > 0) && (
+              <div style={{
+                padding: '8px 16px',
+                background: 'rgba(0,0,0,0.1)',
+                fontSize: '11px',
+                opacity: 0.9,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                flexWrap: 'wrap'
+              }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ background: '#4CAF50', color: 'white', padding: '1px 5px', borderRadius: '8px', fontSize: '9px' }}>●</span>
+                  Full stroke
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ background: '#FF9800', color: 'white', padding: '1px 5px', borderRadius: '8px', fontSize: '9px' }}>◐</span>
+                  Half stroke (Creecher)
+                </span>
+              </div>
+            )}
           </div>
         );
       })()}
-
-      {/* Rotation Order Display */}
-      {!isHoepfinger && rotationOrder.length > 0 && (
-        <div style={{
-          background: theme.colors.paper,
-          borderRadius: '12px',
-          padding: '16px',
-          marginBottom: '16px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-        }}>
-          <div style={{
-            fontSize: '14px',
-            fontWeight: 'bold',
-            marginBottom: '12px',
-            color: theme.colors.textSecondary,
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px'
-          }}>
-            Hitting Order
-          </div>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {rotationOrder.map((playerId, index) => {
-              const player = players.find(p => p.id === playerId);
-              const isCaptain = index === captainIndex;
-              return (
-                <div
-                  key={playerId}
-                  style={{
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    background: isCaptain ? '#2196F3' : theme.colors.backgroundSecondary,
-                    color: isCaptain ? 'white' : theme.colors.textPrimary,
-                    fontWeight: isCaptain ? 'bold' : 'normal',
-                    fontSize: '14px',
-                    border: isCaptain ? '2px solid #1976D2' : 'none'
-                  }}
-                >
-                  {index + 1}. {player?.name || playerId}
-                  {isCaptain && ' 👑'}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* Simplified Betting Actions */}
       {!isHoepfinger && rotationOrder.length > 0 && !editingHole && (() => {
