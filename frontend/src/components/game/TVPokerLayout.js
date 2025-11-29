@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useTheme } from '../../theme/Provider';
 
 /**
@@ -12,7 +12,9 @@ const TVPokerLayout = ({
   onDecision,
   onPlayNextShot
 }) => {
+  // eslint-disable-next-line no-unused-vars
   const theme = useTheme();
+  // eslint-disable-next-line no-unused-vars
   const [selectedOption, setSelectedOption] = useState(null);
 
   // Handle shot progression button click

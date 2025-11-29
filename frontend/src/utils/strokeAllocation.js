@@ -155,10 +155,12 @@ export const formatStrokesDisplay = (strokes) => {
   return `${strokes} STROKES`;
 };
 
-export default {
+const strokeAllocation = {
   getStrokesForHole,
   calculateNetHandicaps,
   calculateStrokeAllocation,
   getPlayersWithStrokesOnHole,
   formatStrokesDisplay
 };
+
+export default strokeAllocation;

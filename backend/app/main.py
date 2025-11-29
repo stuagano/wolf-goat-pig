@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import random
+import time
 import traceback
 import uuid
 from contextlib import asynccontextmanager
@@ -793,15 +794,15 @@ async def update_player_name(  # type: ignore
             ).first()
 
             if game:
-                state = game.state or {}  # type: ignore
+                state = game.state or {}
                 players = state.get("players", [])
                 for player in players:
                     if player.get("id") == player_id:
                         player["name"] = new_name
                         break
 
-                game.state = state  # type: ignore
-                game.updated_at = datetime.now(timezone.utc).isoformat()  # type: ignore
+                game.state = state
+                game.updated_at = datetime.now(timezone.utc).isoformat()
 
                 # Also update GamePlayer record
                 game_player = db.query(models.GamePlayer).filter(
@@ -884,11 +885,11 @@ async def remove_player(  # type: ignore
         db.delete(game_player)
 
         # Remove from game state players array
-        state = game.state or {}  # type: ignore
+        state = game.state or {}
         players = state.get("players", [])
         state["players"] = [p for p in players if p.get("id") != player_slot_id]
-        game.state = state  # type: ignore
-        game.updated_at = datetime.now(timezone.utc).isoformat()  # type: ignore
+        game.state = state
+        game.updated_at = datetime.now(timezone.utc).isoformat()
 
         db.commit()
 
@@ -966,18 +967,18 @@ async def update_player_handicap(  # type: ignore
                 detail=f"Player {player_slot_id} not found in game"
             )
 
-        game_player.handicap = new_handicap  # type: ignore
+        game_player.handicap = new_handicap
 
         # Update in game state players array
-        state = game.state or {}  # type: ignore
+        state = game.state or {}
         players = state.get("players", [])
         for player in players:
             if player.get("id") == player_slot_id:
                 player["handicap"] = new_handicap
                 break
 
-        game.state = state  # type: ignore
-        game.updated_at = datetime.now(timezone.utc).isoformat()  # type: ignore
+        game.state = state
+        game.updated_at = datetime.now(timezone.utc).isoformat()
 
         db.commit()
 
@@ -1205,7 +1206,7 @@ async def complete_hole(  # type: ignore
                 )
 
         # Get current game state
-        game_state = game.state or {}  # type: ignore
+        game_state = game.state or {}
 
         # Validate Float usage (once per round per player)
         if request.float_invoked_by:
@@ -1536,12 +1537,12 @@ async def complete_hole(  # type: ignore
             game_state["players"] = []
 
         # Ensure all players from rotation_order are in game_state["players"]
-        existing_player_ids = {p.get("id") for p in game_state["players"]}  # type: ignore
+        existing_player_ids = {p.get("id") for p in game_state["players"]}
         for player_id in request.rotation_order:
             if player_id not in existing_player_ids:
                 game_state["players"].append({"id": player_id, "points": 0, "float_used": 0})
 
-        for player in game_state["players"]:  # type: ignore
+        for player in game_state["players"]:
             player_id = player.get("id")
             if player_id in points_delta:
                 if "points" not in player:
@@ -1560,8 +1561,8 @@ async def complete_hole(  # type: ignore
         game_state["current_hole"] = request.hole_number + 1
 
         # Update game state in database
-        game.state = game_state  # type: ignore
-        game.updated_at = datetime.now(timezone.utc).isoformat()  # type: ignore
+        game.state = game_state
+        game.updated_at = datetime.now(timezone.utc).isoformat()
 
         # Mark state as modified for SQLAlchemy to detect changes in JSON field
         from sqlalchemy.orm.attributes import flag_modified
@@ -1640,7 +1641,7 @@ async def update_hole(  # type: ignore
         if not game:
             raise HTTPException(status_code=404, detail="Game not found")
 
-        game_state = game.state or {}  # type: ignore
+        game_state = game.state or {}
 
         # Check if hole exists
         if "hole_history" not in game_state:
@@ -1946,7 +1947,7 @@ async def update_hole(  # type: ignore
         # (This ensures consistency if hole was modified)
         # Note: This is a simplified version - for full accuracy, would need to
         # recalculate Karl Marx distribution for each hole
-        for hole in game_state["hole_history"]:  # type: ignore
+        for hole in game_state["hole_history"]:
             points_delta = hole.get("points_delta", {})
             for player in game_state.get("players", []):
                 player_id = player.get("id")
@@ -1958,8 +1959,8 @@ async def update_hole(  # type: ignore
                     player["float_used"] += 1
 
         # Update game state in database
-        game.state = game_state  # type: ignore
-        game.updated_at = datetime.now(timezone.utc).isoformat()  # type: ignore
+        game.state = game_state
+        game.updated_at = datetime.now(timezone.utc).isoformat()
 
         from sqlalchemy.orm.attributes import flag_modified
         flag_modified(game, "state")
@@ -2004,7 +2005,7 @@ async def delete_hole(  # type: ignore
         if not game:
             raise HTTPException(status_code=404, detail="Game not found")
 
-        game_state = game.state or {}  # type: ignore
+        game_state = game.state or {}
 
         # Check if hole exists
         if "hole_history" not in game_state or not game_state["hole_history"]:
@@ -2031,7 +2032,7 @@ async def delete_hole(  # type: ignore
             player["float_used"] = 0
 
         # Replay remaining holes to recalculate totals
-        for hole in game_state["hole_history"]:  # type: ignore
+        for hole in game_state["hole_history"]:
             points_delta = hole.get("points_delta", {})
             for player in game_state.get("players", []):
                 player_id = player.get("id")
@@ -2043,12 +2044,12 @@ async def delete_hole(  # type: ignore
                     player["float_used"] += 1
 
         # Update current_hole if the deleted hole was the last one played
-        max_hole_played = max([h.get("hole", 0) for h in game_state["hole_history"]], default=0)  # type: ignore
+        max_hole_played = max([h.get("hole", 0) for h in game_state["hole_history"]], default=0)
         game_state["current_hole"] = max_hole_played + 1
 
         # Update game state in database
-        game.state = game_state  # type: ignore
-        game.updated_at = datetime.now(timezone.utc).isoformat()  # type: ignore
+        game.state = game_state
+        game.updated_at = datetime.now(timezone.utc).isoformat()
 
         from sqlalchemy.orm.attributes import flag_modified
         flag_modified(game, "state")
@@ -2091,7 +2092,7 @@ async def get_next_rotation(  # type: ignore
         if not game:
             raise HTTPException(status_code=404, detail="Game not found")
 
-        game_state = game.state or {}  # type: ignore
+        game_state = game.state or {}
         player_count = len(game_state.get("players", []))
         current_hole = game_state.get("current_hole", 1)
 
@@ -2110,16 +2111,16 @@ async def get_next_rotation(  # type: ignore
 
         if hole_history:
             last_hole = hole_history[-1]
-            last_rotation = last_hole.get("rotation_order", [p["id"] for p in game_state["players"]])  # type: ignore
+            last_rotation = last_hole.get("rotation_order", [p["id"] for p in game_state["players"]])
         else:
             # First hole - use player order (sorted by tee_order)
-            last_rotation = [p["id"] for p in game_state["players"]]  # type: ignore
+            last_rotation = [p["id"] for p in game_state["players"]]
 
         if is_hoepfinger:
             # Hoepfinger: Goat (furthest down) selects position
             # Calculate current standings
             standings = {}
-            for player in game_state["players"]:  # type: ignore
+            for player in game_state["players"]:
                 standings[player["id"]] = player.get("points", 0)
 
             goat_id = min(standings, key=standings.get)  # type: ignore
@@ -2170,7 +2171,7 @@ async def get_next_hole_wager(  # type: ignore
         if not game:
             raise HTTPException(status_code=404, detail="Game not found")
 
-        game_state = game.state or {}  # type: ignore
+        game_state = game.state or {}
         player_count = len(game_state.get("players", []))
 
         # Use provided current_hole or get from game state
@@ -2277,7 +2278,7 @@ async def select_rotation(  # type: ignore
         if not game:
             raise HTTPException(status_code=404, detail="Game not found")
 
-        game_state = game.state  # type: ignore
+        game_state = game.state
 
     if not game_state:
         raise HTTPException(status_code=404, detail="Game state not found")
@@ -2343,7 +2344,8 @@ async def select_rotation(  # type: ignore
         simulation._game_state = game_state  # type: ignore
     else:
         # Update database for stored games
-        game.state = game_state  # type: ignore
+        assert game is not None  # game is guaranteed non-None here (we returned 404 if None)
+        game.state = game_state
         db.commit()
 
     return {
@@ -2427,7 +2429,7 @@ async def join_game_with_code(  # type: ignore
             "user_id": request.user_id,
             "player_profile_id": request.player_profile_id
         })
-        game.updated_at = current_time  # type: ignore
+        game.updated_at = current_time
 
         db.commit()
         db.refresh(game_player)
@@ -2539,11 +2541,11 @@ async def set_tee_order(
         # This preserves player_slot_id and stores the tee order separately
         for tee_position, player_slot_id in enumerate(player_order):
             player = player_dict[player_slot_id]
-            player.tee_order = tee_position  # type: ignore
+            player.tee_order = tee_position
 
         # Mark tee order as set in game state
         game.state["tee_order_set"] = True
-        game.updated_at = datetime.now(timezone.utc)  # type: ignore
+        game.updated_at = datetime.now(timezone.utc)
 
         # Tell SQLAlchemy the JSON field has changed
         from sqlalchemy.orm.attributes import flag_modified
@@ -2607,9 +2609,9 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
                 )
 
             wgp_player = Player(
-                id=p.player_slot_id,  # type: ignore
-                name=p.player_name,  # type: ignore
-                handicap=player_handicap  # type: ignore
+                id=p.player_slot_id,
+                name=p.player_name,
+                handicap=player_handicap
             )
             wgp_players.append(wgp_player)
 
@@ -2660,9 +2662,9 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
         initial_state = simulation.get_game_state()
 
         # Update database game state
-        game.game_status = "in_progress"  # type: ignore
-        game.updated_at = datetime.now(timezone.utc).isoformat()  # type: ignore
-        game.state = initial_state  # type: ignore
+        game.game_status = "in_progress"
+        game.updated_at = datetime.now(timezone.utc).isoformat()
+        game.state = initial_state
         game.state["game_status"] = "in_progress"
         game.state["started_at"] = game.updated_at
         game.state["game_id"] = game_id  # Track game_id in state
@@ -2677,7 +2679,7 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
             if player.player_profile_id:  # Only send to registered players
                 try:
                     notification_service.send_notification(
-                        player_id=player.player_profile_id,  # type: ignore
+                        player_id=player.player_profile_id,
                         notification_type="game_start",
                         message=f"Game {game_id[:8]} has started with {len(players)} players!",
                         db=db,
@@ -2963,9 +2965,9 @@ async def perform_game_action_by_id(  # type: ignore
                 player_handicap = p.handicap if p.handicap is not None else 18.0
 
                 wgp_player = Player(
-                    id=p.player_slot_id,  # type: ignore
-                    name=p.player_name,  # type: ignore
-                    handicap=player_handicap  # type: ignore
+                    id=p.player_slot_id,
+                    name=p.player_name,
+                    handicap=player_handicap
                 )
                 wgp_players.append(wgp_player)
 
@@ -3024,13 +3026,13 @@ async def perform_game_action_by_id(  # type: ignore
             ).first()
 
             if game:
-                game.state = simulation.get_game_state()  # type: ignore
+                game.state = simulation.get_game_state()
                 game.state["game_id"] = game_id
-                game.updated_at = datetime.now(timezone.utc).isoformat()  # type: ignore
+                game.updated_at = datetime.now(timezone.utc).isoformat()
 
                 # Check if game is completed
                 if simulation.current_hole > 18:
-                    game.game_status = "completed"  # type: ignore
+                    game.game_status = "completed"
                     game.state["game_status"] = "completed"
 
                 db.commit()
@@ -3215,62 +3217,62 @@ async def unified_action(game_id: str, action: ActionRequest, db: Session = Depe
         # Route to appropriate handler based on action type
         # All handlers now receive the game instance instead of using global wgp_simulation
         if action_type == "INITIALIZE_GAME":
-            return await handle_initialize_game(game, payload)  # type: ignore
+            return await handle_initialize_game(game, payload)
         elif action_type == "PLAY_SHOT":
-            return await handle_play_shot(game, payload)  # type: ignore
+            return await handle_play_shot(game, payload)
         elif action_type == "REQUEST_PARTNERSHIP" or action_type == "REQUEST_PARTNER":
-            return await handle_request_partnership(game, payload)  # type: ignore
+            return await handle_request_partnership(game, payload)
         elif action_type == "RESPOND_PARTNERSHIP" or action_type == "ACCEPT_PARTNER" or action_type == "DECLINE_PARTNER":
-            return await handle_respond_partnership(game, payload)  # type: ignore
+            return await handle_respond_partnership(game, payload)
         elif action_type == "DECLARE_SOLO" or action_type == "GO_SOLO":
-            return await handle_declare_solo(game)  # type: ignore
+            return await handle_declare_solo(game)
         elif action_type == "OFFER_DOUBLE":
-            return await handle_offer_double(game, payload)  # type: ignore
+            return await handle_offer_double(game, payload)
         elif action_type == "ACCEPT_DOUBLE":
-            return await handle_accept_double(game, payload)  # type: ignore
+            return await handle_accept_double(game, payload)
         elif action_type == "INVOKE_FLOAT":
             # Frontend sends captain_id as direct field
             action_dict = action.model_dump() if hasattr(action, 'model_dump') else action.dict()
-            return await handle_invoke_float(game, action_dict)  # type: ignore
+            return await handle_invoke_float(game, action_dict)
         elif action_type == "TOGGLE_OPTION":
             # Frontend sends captain_id as direct field
             action_dict = action.model_dump() if hasattr(action, 'model_dump') else action.dict()
-            return await handle_toggle_option(game, action_dict)  # type: ignore
+            return await handle_toggle_option(game, action_dict)
         elif action_type == "FLUSH":
             # Flush = concede/fold the hole
             action_dict = action.model_dump() if hasattr(action, 'model_dump') else action.dict()
-            return await handle_flush(game, action_dict)  # type: ignore
+            return await handle_flush(game, action_dict)
         elif action_type == "CONCEDE_PUTT":
-            return await handle_concede_putt(game, payload)  # type: ignore
+            return await handle_concede_putt(game, payload)
         elif action_type == "ADVANCE_HOLE" or action_type == "NEXT_HOLE":
-            return await handle_advance_hole(game)  # type: ignore
+            return await handle_advance_hole(game)
         elif action_type == "OFFER_BIG_DICK":
-            return await handle_offer_big_dick(game, payload)  # type: ignore
+            return await handle_offer_big_dick(game, payload)
         elif action_type == "ACCEPT_BIG_DICK":
-            return await handle_accept_big_dick(game, payload)  # type: ignore
+            return await handle_accept_big_dick(game, payload)
         elif action_type == "AARDVARK_JOIN_REQUEST":
-            return await handle_aardvark_join_request(game, payload)  # type: ignore
+            return await handle_aardvark_join_request(game, payload)
         elif action_type == "AARDVARK_TOSS":
-            return await handle_aardvark_toss(game, payload)  # type: ignore
+            return await handle_aardvark_toss(game, payload)
         elif action_type == "AARDVARK_GO_SOLO":
-            return await handle_aardvark_go_solo(game, payload)  # type: ignore
+            return await handle_aardvark_go_solo(game, payload)
         elif action_type == "PING_PONG_AARDVARK":
-            return await handle_ping_pong_aardvark(game, payload)  # type: ignore
+            return await handle_ping_pong_aardvark(game, payload)
         elif action_type == "INVOKE_JOES_SPECIAL":
-            return await handle_joes_special(game, payload)  # type: ignore
+            return await handle_joes_special(game, payload)
         elif action_type == "GET_POST_HOLE_ANALYSIS":
-            return await handle_get_post_hole_analysis(game, payload)  # type: ignore
+            return await handle_get_post_hole_analysis(game, payload)
         elif action_type == "ENTER_HOLE_SCORES":
-            return await handle_enter_hole_scores(game, payload)  # type: ignore
+            return await handle_enter_hole_scores(game, payload)
         elif action_type == "GET_ADVANCED_ANALYTICS":
-            return await handle_get_advanced_analytics(game, payload)  # type: ignore
+            return await handle_get_advanced_analytics(game, payload)
         elif action_type == "COMPLETE_GAME":
-            return await handle_complete_game(game, payload)  # type: ignore
+            return await handle_complete_game(game, payload)
         elif action_type == "RECORD_NET_SCORE":
             # Handle score recording action from frontend
             # Frontend sends player_id and score as direct fields, not in payload
             action_dict = action.model_dump() if hasattr(action, 'model_dump') else action.dict()
-            return await handle_record_net_score(game, action_dict)  # type: ignore
+            return await handle_record_net_score(game, action_dict)
         elif action_type == "CALCULATE_HOLE_POINTS":
             # Handle calculate points action from frontend
             action_dict = action.model_dump() if hasattr(action, 'model_dump') else action.dict()
@@ -3323,7 +3325,7 @@ async def handle_initialize_game(game: WolfGoatPigGame, payload: Dict[str, Any])
                 logger.warning(f"Requested course '{course_name}' not available, using fallback")
                 # Use first available course or fallback
                 if available_courses:
-                    course_name = list(available_courses.keys())[0]  # type: ignore
+                    course_name = list(available_courses.keys())[0]
                     logger.info(f"Using available course: {course_name}")
                 else:
                     logger.error("No courses available, using emergency fallback")
@@ -4779,7 +4781,7 @@ async def calculate_real_time_odds(request: OddsCalculationRequest)->Dict[str,An
             create_player_state_from_game_data,
         )
 
-        start_time = time.time()  # type: ignore
+        start_time = time.time()
 
         # Convert request data to internal objects
         player_states = [create_player_state_from_game_data(p) for p in request.players]
@@ -4842,9 +4844,9 @@ async def calculate_real_time_odds(request: OddsCalculationRequest)->Dict[str,An
                 "payout_matrix": scenario.payout_matrix
             })
 
-        total_time = (time.time() - start_time) * 1000  # type: ignore
+        total_time = (time.time() - start_time) * 1000
 
-        return OddsCalculationResponse(  # type: ignore
+        return OddsCalculationResponse(
             timestamp=odds_result.timestamp,
             calculation_time_ms=total_time,
             player_probabilities=odds_result.player_probabilities,
@@ -4958,7 +4960,7 @@ async def calculate_quick_odds(players_data: List[Dict[str, Any]] = Body(...))->
     try:
         from .services.odds_calculator import HoleState, OddsCalculator, PlayerState, TeamConfiguration
 
-        start_time = time.time()  # type: ignore
+        start_time = time.time()
 
         # Simple validation
         if len(players_data) < 2:
@@ -4997,13 +4999,13 @@ async def calculate_quick_odds(players_data: List[Dict[str, Any]] = Body(...))->
                 "distance": player.distance_to_pin
             }
 
-        calculation_time = (time.time() - start_time) * 1000  # type: ignore
+        calculation_time = (time.time() - start_time) * 1000
 
         return {
             "probabilities": quick_probs,
             "calculation_time_ms": calculation_time,
             "method": "quick_analytical",
-            "timestamp": time.time()  # type: ignore
+            "timestamp": time.time()
         }
 
     except Exception as e:
@@ -5076,10 +5078,10 @@ def get_leaderboard(  # type: ignore
         for i, entry in enumerate(leaderboard, 1):
             total_earnings = entry.get("value", 0) if leaderboard_type == "total_earnings" else entry.get("total_earnings", 0)
             games = entry.get("games_played", 1)
-            entries.append(schemas.LeaderboardEntry(  # type: ignore
+            entries.append(schemas.LeaderboardEntry(
                 rank=entry.get("rank", i),
                 player_id=entry.get("player_id"),
-                player_name=entry.get("player_name"),  # type: ignore
+                player_name=entry.get("player_name"),
                 total_earnings=total_earnings,
                 games_played=games,
                 win_percentage=entry.get("win_percentage", 0) * 100 if entry.get("win_percentage", 0) <= 1 else entry.get("win_percentage", 0),
@@ -5147,7 +5149,7 @@ def get_game_stats():
 
         # Get course usage
         courses = course_manager.get_courses()
-        course_names = list(courses.keys()) if courses else []  # type: ignore
+        course_names = list(courses.keys()) if courses else []
 
         return {
             "total_games": total_games,
@@ -5621,7 +5623,7 @@ async def sync_wgp_sheet_data(request: Dict[str, str], db: Session = Depends(dat
 
         # Create/update players in database
         player_service = PlayerService(db)
-        sync_results = {
+        sync_results: Dict[str, Any] = {
             "players_processed": 0,
             "players_created": 0,
             "players_updated": 0,
@@ -5640,17 +5642,17 @@ async def sync_wgp_sheet_data(request: Dict[str, str], db: Session = Depends(dat
 
                 if not existing_player:
                     # Create new player
-                    player_data = schemas.PlayerProfileCreate(  # type: ignore
+                    player_data = schemas.PlayerProfileCreate(
                         name=player_name,
                         handicap=10.0,  # Default handicap
                         email=f"{player_name.lower().replace(' ', '.')}@wgp.com"
                     )
                     new_player = player_service.create_player_profile(player_data)
-                    sync_results["players_created"] += 1  # type: ignore
+                    sync_results["players_created"] += 1
                     player_id = new_player.id
                 else:
-                    player_id = existing_player.id  # type: ignore
-                    sync_results["players_updated"] += 1  # type: ignore
+                    player_id = existing_player.id
+                    sync_results["players_updated"] += 1
 
                 # Update or create statistics record
                 player_stats_record = db.query(models.PlayerStatistics).filter(
@@ -5663,8 +5665,8 @@ async def sync_wgp_sheet_data(request: Dict[str, str], db: Session = Depends(dat
                     db.add(player_stats_record)
 
                 # Update statistics with sheet data
-                player_stats_record.games_played = stats.get("rounds", 0)  # type: ignore
-                player_stats_record.total_earnings = stats.get("total_earnings", 0)  # type: ignore
+                player_stats_record.games_played = stats.get("rounds", 0)
+                player_stats_record.total_earnings = stats.get("total_earnings", 0)
 
                 # Calculate win percentage based on average earnings per game
                 if stats.get("rounds", 0) > 0 and stats.get("average", 0) > 0:
@@ -5672,16 +5674,16 @@ async def sync_wgp_sheet_data(request: Dict[str, str], db: Session = Depends(dat
                     # Assuming positive average means winning more often
                     estimated_win_rate = min(100, max(0, (stats.get("average", 0) + 50) / 100 * 50))
                     player_stats_record.win_percentage = estimated_win_rate
-                    player_stats_record.games_won = int(stats.get("rounds", 0) * estimated_win_rate / 100)  # type: ignore
+                    player_stats_record.games_won = int(stats.get("rounds", 0) * estimated_win_rate / 100)
                 else:
                     player_stats_record.win_percentage = 0
-                    player_stats_record.games_won = 0  # type: ignore
+                    player_stats_record.games_won = 0
 
                 # Store additional metrics
                 player_stats_record.avg_earnings_per_game = stats.get("average", 0)
 
                 # Update timestamp
-                player_stats_record.last_updated = datetime.now().isoformat()  # type: ignore
+                player_stats_record.last_updated = datetime.now().isoformat()
 
                 # Try to fetch GHIN data if player has GHIN ID
                 ghin_data = None
@@ -5716,11 +5718,11 @@ async def sync_wgp_sheet_data(request: Dict[str, str], db: Session = Depends(dat
 
                 db.commit()
 
-                sync_results["players_processed"] += 1  # type: ignore
+                sync_results["players_processed"] += 1
 
             except Exception as e:
                 db.rollback()  # CRITICAL: Roll back the failed transaction
-                sync_results["errors"].append(f"Error processing {player_name}: {str(e)}")  # type: ignore
+                sync_results["errors"].append(f"Error processing {player_name}: {str(e)}")
                 logger.error(f"Failed to process {player_name}, rolled back transaction: {e}")
                 continue
 
@@ -6156,7 +6158,7 @@ async def upload_gmail_credentials(file: UploadFile = File(...), x_admin_email: 
 
     try:
         # Validate file type
-        if not file.filename.endswith('.json'):  # type: ignore
+        if not file.filename.endswith('.json'):
             raise HTTPException(status_code=400, detail="File must be a JSON file")
 
         # Read and validate JSON content
@@ -6330,7 +6332,7 @@ async def update_banner(  # type: ignore
         for field, value in update_data.items():
             setattr(banner, field, value)
 
-        banner.updated_at = datetime.now(timezone.utc).isoformat()  # type: ignore
+        banner.updated_at = datetime.now(timezone.utc).isoformat()
 
         db.commit()
         db.refresh(banner)
@@ -6709,8 +6711,8 @@ def setup_simulation(request: Dict[str, Any]):  # type: ignore
             selected_course_name = None
             try:
                 courses = course_manager.get_courses()
-                if isinstance(courses, dict):  # type: ignore
-                    for candidate in course_lookup_candidates:  # type: ignore
+                if isinstance(courses, dict):
+                    for candidate in course_lookup_candidates:
                         if candidate in courses:
                             selected_course_name = candidate
                             break
@@ -6722,7 +6724,7 @@ def setup_simulation(request: Dict[str, Any]):  # type: ignore
                         if selected_course_name:
                             break
                 if selected_course_name:
-                    logger.info(f"Using course: {selected_course_name}")  # type: ignore
+                    logger.info(f"Using course: {selected_course_name}")
                     try:
                         wgp_simulation.course_manager.load_course(selected_course_name)  # type: ignore
                     except Exception as load_error:
@@ -8027,13 +8029,13 @@ def update_signup(signup_id: int, signup_update: schemas.DailySignupUpdate):  # 
 
         # Update fields
         if signup_update.preferred_start_time is not None:
-            db_signup.preferred_start_time = signup_update.preferred_start_time  # type: ignore
+            db_signup.preferred_start_time = signup_update.preferred_start_time
         if signup_update.notes is not None:
-            db_signup.notes = signup_update.notes  # type: ignore
+            db_signup.notes = signup_update.notes
         if signup_update.status is not None:
-            db_signup.status = signup_update.status  # type: ignore
+            db_signup.status = signup_update.status
 
-        db_signup.updated_at = datetime.now().isoformat()  # type: ignore
+        db_signup.updated_at = datetime.now().isoformat()
 
         db.commit()
         db.refresh(db_signup)
@@ -8069,8 +8071,8 @@ def cancel_signup(signup_id: int):  # type: ignore
         if not db_signup:
             raise HTTPException(status_code=404, detail="Sign-up not found")
 
-        db_signup.status = "cancelled"  # type: ignore
-        db_signup.updated_at = datetime.now().isoformat()  # type: ignore
+        db_signup.status = "cancelled"
+        db_signup.updated_at = datetime.now().isoformat()
 
         db.commit()
 
@@ -8210,8 +8212,8 @@ def update_message(message_id: int, message_update: schemas.DailyMessageUpdate):
             raise HTTPException(status_code=404, detail="Message not found")
 
         if message_update.message is not None:
-            db_message.message = message_update.message  # type: ignore
-            db_message.updated_at = datetime.now().isoformat()  # type: ignore
+            db_message.message = message_update.message
+            db_message.updated_at = datetime.now().isoformat()
 
         db.commit()
         db.refresh(db_message)
@@ -8239,8 +8241,8 @@ def delete_message(message_id: int):  # type: ignore
         if not db_message:
             raise HTTPException(status_code=404, detail="Message not found")
 
-        db_message.is_active = 0  # type: ignore
-        db_message.updated_at = datetime.now().isoformat()  # type: ignore
+        db_message.is_active = 0
+        db_message.updated_at = datetime.now().isoformat()
 
         db.commit()
 
@@ -8285,7 +8287,7 @@ def _build_player_payload(
             profiles = db.query(models.PlayerProfile).filter(  # type: ignore
                 models.PlayerProfile.id.in_(profile_ids)
             ).all()
-            handicap_lookup = {profile.id: profile.handicap for profile in profiles}  # type: ignore
+            handicap_lookup = {profile.id: profile.handicap for profile in profiles}
 
     for signup in signups:
         player_data: Dict[str, Any] = {
@@ -8298,7 +8300,7 @@ def _build_player_payload(
         }
 
         if include_handicap:
-            player_data["handicap"] = handicap_lookup.get(signup.player_profile_id, 18.0)  # type: ignore
+            player_data["handicap"] = handicap_lookup.get(signup.player_profile_id, 18.0)
 
         players.append(player_data)
 
@@ -8807,7 +8809,7 @@ def get_match_suggestions(  # type: ignore
             ).all()
 
             for avail in availability:
-                player_data["availability"].append({  # type: ignore
+                player_data["availability"].append({
                     "day_of_week": avail.day_of_week,
                     "is_available": avail.is_available,
                     "available_from_time": avail.available_from_time,
@@ -8931,8 +8933,8 @@ async def create_and_notify_matches():
                         )
 
                     # Mark as sent
-                    match.notification_sent = True  # type: ignore
-                    match.notification_sent_at = datetime.now().isoformat()  # type: ignore
+                    match.notification_sent = True
+                    match.notification_sent_at = datetime.now().isoformat()
                     db.commit()
 
                     notifications_sent.append({
@@ -9014,7 +9016,7 @@ async def get_table_content(schema_name: str, table_name: str, x_admin_email: Op
             raise HTTPException(status_code=404, detail=f"Table '{table_name}' not found in schema '{schema_name}'")
 
         query = text(f"SELECT * FROM {schema_name}.{table_name} LIMIT 100;")
-        result = db.execute(query).fetchall()  # type: ignore
+        result = db.execute(query).fetchall()
         columns = result[0].keys() if result else []
         rows = [dict(row._mapping) for row in result]
         return {"schema": schema_name, "table": table_name, "columns": list(columns), "rows": rows}

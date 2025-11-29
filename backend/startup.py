@@ -640,8 +640,8 @@ async def verify_application_health() -> Dict[str, Any]:
     try:
         # Import after environment is set up
         from app.database import SessionLocal
-        from app.game_state import game_state
-        from app.wolf_goat_pig_simulation import WolfGoatPigGame
+        from app.game_state import game_state  # type: ignore[import-not-found]
+        from app.wolf_goat_pig_simulation import WolfGoatPigGame  # type: ignore[import-not-found]
         from app.seed_data import get_seeding_status
         from sqlalchemy import text
         

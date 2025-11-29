@@ -16,6 +16,7 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
+import Button from '../Button';
 
 // Mock theme provider
 jest.mock('../../../theme/Provider', () => ({
@@ -53,8 +54,6 @@ jest.mock('../../../theme/Provider', () => ({
     }
   })
 }));
-
-import Button from '../Button';
 
 describe('Button Component', () => {
   let user;

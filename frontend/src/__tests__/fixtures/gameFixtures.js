@@ -801,7 +801,7 @@ describe('Game Fixtures Test Suite', () => {
   });
 });
 
-export default {
+const gameFixtures = {
   mockPlayerProfiles,
   mockGameStates,
   mockOddsResponses,
@@ -809,3 +809,5 @@ export default {
   mockCourseData,
   testUtils
 };
+
+export default gameFixtures;

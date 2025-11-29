@@ -1,7 +1,6 @@
 // frontend/src/components/game/__tests__/SimpleScorekeeper.betting.test.js
 import React from 'react';
-import { render, screen, fireEvent, within } from '@testing-library/react';
-import { ThemeProvider } from '../../../theme/Provider';
+import { render, screen, fireEvent } from '@testing-library/react';
 import SimpleScorekeeper from '../SimpleScorekeeper';
 
 // Mock ThemeProvider

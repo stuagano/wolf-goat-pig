@@ -57,7 +57,7 @@ describe('PlayerProfileManager', () => {
     mockOnProfileSelect = jest.fn();
     fetch.mockReset();
     fetch.mockImplementation(defaultProfilesResponse);
-    confirm.mockReset();
+    global.confirm.mockReset();
   });
 
   test('renders profiles after successful load', async () => {
