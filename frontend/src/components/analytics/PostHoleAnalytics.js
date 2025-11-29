@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Card from '../ui/Card';
 
 /**
@@ -7,10 +7,12 @@ import Card from '../ui/Card';
  */
 const PostHoleAnalytics = ({ analytics, onContinue, onReplay, onPracticeScenario }) => {
   const [activeTab, setActiveTab] = useState('overview');
+  // eslint-disable-next-line no-unused-vars
   const [expandedSections, setExpandedSections] = useState({});
 
   if (!analytics) return null;
 
+  // eslint-disable-next-line no-unused-vars
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
       ...prev,

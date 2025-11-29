@@ -257,7 +257,7 @@ def update_course(
             )
             db.add(db_hole)
 
-    db_course.updated_at = datetime.now(timezone.utc).isoformat()  # type: ignore
+    db_course.updated_at = datetime.now(timezone.utc).isoformat()
 
     db.commit()
     db.refresh(db_course)

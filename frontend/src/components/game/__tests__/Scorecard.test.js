@@ -1,6 +1,6 @@
 // frontend/src/components/game/__tests__/Scorecard.test.js
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import Scorecard from '../Scorecard';
 
 // Mock the useTheme hook

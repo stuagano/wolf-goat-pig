@@ -83,7 +83,7 @@ describe('DecisionButtons', () => {
   });
 
   test('shows no buttons when no action available', () => {
-    const { container } = renderWithTheme(
+    renderWithTheme(
       <DecisionButtons
         hasNextShot={false}
         interactionNeeded={null}

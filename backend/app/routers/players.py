@@ -402,11 +402,11 @@ async def set_my_availability(
     now = datetime.now(timezone.utc).isoformat()
 
     if existing:
-        existing.available_from_time = availability.available_from_time  # type: ignore
-        existing.available_to_time = availability.available_to_time  # type: ignore
-        existing.is_available = availability.is_available  # type: ignore
-        existing.notes = availability.notes  # type: ignore
-        existing.updated_at = now  # type: ignore
+        existing.available_from_time = availability.available_from_time
+        existing.available_to_time = availability.available_to_time
+        existing.is_available = availability.is_available
+        existing.notes = availability.notes
+        existing.updated_at = now
         db.commit()
         db.refresh(existing)
         logger.info(f"Updated availability for user {current_user.id}, day {availability.day_of_week}")
@@ -495,11 +495,11 @@ def set_player_availability(
     now = datetime.now(timezone.utc).isoformat()
 
     if existing:
-        existing.available_from_time = availability.available_from_time  # type: ignore
-        existing.available_to_time = availability.available_to_time  # type: ignore
-        existing.is_available = availability.is_available  # type: ignore
-        existing.notes = availability.notes  # type: ignore
-        existing.updated_at = now  # type: ignore
+        existing.available_from_time = availability.available_from_time
+        existing.available_to_time = availability.available_to_time
+        existing.is_available = availability.is_available
+        existing.notes = availability.notes
+        existing.updated_at = now
         db.commit()
         db.refresh(existing)
         logger.info(f"Updated availability for player {player_id}, day {availability.day_of_week}")
@@ -574,7 +574,7 @@ def update_email_preferences(
         if hasattr(preferences, field):
             setattr(preferences, field, value)
 
-    preferences.updated_at = datetime.now(timezone.utc).isoformat()  # type: ignore
+    preferences.updated_at = datetime.now(timezone.utc).isoformat()
     db.commit()
     db.refresh(preferences)
 
@@ -649,7 +649,7 @@ async def update_my_email_preferences(
                 value = 1 if value else 0
             setattr(prefs, field, value)
 
-    prefs.updated_at = now  # type: ignore
+    prefs.updated_at = now
     db.commit()
     db.refresh(prefs)
 

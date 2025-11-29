@@ -427,7 +427,7 @@ class GHINService:
                         # Continue with next player even if this one fails
                         continue
 
-                return [vars(player) for player in basic_leaderboard]
+                return [dict(vars(player)) for player in basic_leaderboard]
             except Exception as fallback_error:
                 logger.error(f"Failed to get fallback leaderboard: {fallback_error}")
                 # Ensure transaction is rolled back before returning

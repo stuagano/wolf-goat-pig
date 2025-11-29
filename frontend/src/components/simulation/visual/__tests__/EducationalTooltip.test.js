@@ -61,6 +61,7 @@ describe('EducationalTooltip', () => {
   });
 
   test('allows custom placement prop', async () => {
+    // eslint-disable-next-line no-unused-vars
     const user = userEvent.setup();
 
     renderWithTheme(

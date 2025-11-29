@@ -11,10 +11,9 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
-import { act } from 'react-dom/test-utils';
 
 // Test utilities and providers
 import { ThemeProvider } from '../../theme/Provider';

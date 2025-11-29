@@ -151,7 +151,7 @@ class BadgeEngine:
                 continue
 
             # Check specific event criteria
-            trigger_cond: Dict[Any, Any] = badge.trigger_condition if isinstance(badge.trigger_condition, dict) else {}  # type: ignore[unreachable]
+            trigger_cond: Dict[Any, Any] = badge.trigger_condition if isinstance(badge.trigger_condition, dict) else {}
             if self._check_event_criteria(trigger_cond, event_data):
                 return self._award_badge(
                     player_profile_id=player_profile_id,
@@ -177,7 +177,7 @@ class BadgeEngine:
             return False
 
         # Check betting history for consecutive solo wins
-        betting_history: List[Any] = result.betting_history if isinstance(result.betting_history, list) else []  # type: ignore[unreachable]
+        betting_history: List[Any] = result.betting_history if isinstance(result.betting_history, list) else []
         consecutive_solo_wins = 0
         max_streak = 0
 
@@ -201,7 +201,7 @@ class BadgeEngine:
         if result.solo_attempts < 18:
             return False
 
-        betting_history: List[Any] = result.betting_history if isinstance(result.betting_history, list) else []  # type: ignore[unreachable]
+        betting_history: List[Any] = result.betting_history if isinstance(result.betting_history, list) else []
 
         # Check if all holes were solo and all won
         solo_count = 0
@@ -237,14 +237,14 @@ class BadgeEngine:
     def _check_high_roller(self, player_id: int, stats: PlayerStatistics,
                           result: GamePlayerResult, game: GameRecord, badge: Badge) -> bool:
         """Badge: High Roller - Accept 5 doubles in a single game"""
-        betting_history: List[Any] = result.betting_history if isinstance(result.betting_history, list) else []  # type: ignore[unreachable]
+        betting_history: List[Any] = result.betting_history if isinstance(result.betting_history, list) else []
         doubles_accepted: int = sum(1 for h in betting_history if h.get('accepted_double'))
         return doubles_accepted >= 5
 
     def _check_win_redoubled(self, player_id: int, stats: PlayerStatistics,
                            result: GamePlayerResult, game: GameRecord, badge: Badge) -> bool:
         """Badge: Pressure Player - Win a redoubled hole (4x+ wager)"""
-        betting_history: List[Any] = result.betting_history if isinstance(result.betting_history, list) else []  # type: ignore[unreachable]
+        betting_history: List[Any] = result.betting_history if isinstance(result.betting_history, list) else []
         for hole in betting_history:
             if hole.get('won') and hole.get('wager_multiplier', 1) >= 4:
                 return True
@@ -265,7 +265,7 @@ class BadgeEngine:
     def _check_hole_in_one(self, player_id: int, stats: PlayerStatistics,
                          result: GamePlayerResult, game: GameRecord, badge: Badge) -> bool:
         """Badge: Unicorn - Make a hole-in-one"""
-        hole_scores: Dict[str, Any] = result.hole_scores if isinstance(result.hole_scores, dict) else {}  # type: ignore[unreachable]
+        hole_scores: Dict[str, Any] = result.hole_scores if isinstance(result.hole_scores, dict) else {}
         for hole_num, score_data in hole_scores.items():
             if score_data.get('score') == 1:
                 return True
@@ -279,7 +279,7 @@ class BadgeEngine:
     def _check_comeback_20(self, player_id: int, stats: PlayerStatistics,
                          result: GamePlayerResult, game: GameRecord, badge: Badge) -> bool:
         """Badge: Lazarus - Come back from 20+ quarters down to win"""
-        performance_metrics: Dict[str, Any] = result.performance_metrics if isinstance(result.performance_metrics, dict) else {}  # type: ignore[unreachable]
+        performance_metrics: Dict[str, Any] = result.performance_metrics if isinstance(result.performance_metrics, dict) else {}
         max_deficit = performance_metrics.get('max_deficit', 0)
         return bool(max_deficit >= 20 and result.final_position == 1)
 
@@ -326,7 +326,7 @@ class BadgeEngine:
         progress = self._get_or_create_progress(player_id, int(badge.id))
 
         # Check current game for redoubled wins
-        betting_history: List[Any] = result.betting_history if isinstance(result.betting_history, list) else []  # type: ignore[unreachable]
+        betting_history: List[Any] = result.betting_history if isinstance(result.betting_history, list) else []
         redoubled_wins_this_game: int = sum(
             1 for h in betting_history
             if h.get('won') and h.get('wager_multiplier', 1) >= 4
@@ -344,7 +344,7 @@ class BadgeEngine:
                                    result: GamePlayerResult, game: GameRecord, badge: Badge) -> bool:
         """Badge: Famine - Bankrupt opponent (reduce to -50 quarters)"""
         # Check if any opponent reached -50 quarters in this game
-        final_scores: Dict[str, Any] = game.final_scores if isinstance(game.final_scores, dict) else {}  # type: ignore[unreachable]
+        final_scores: Dict[str, Any] = game.final_scores if isinstance(game.final_scores, dict) else {}
         for player_name, score_data in final_scores.items():
             if score_data.get('earnings', 0) <= -50:
                 return True
@@ -371,7 +371,7 @@ class BadgeEngine:
         if result.solo_attempts < 18:
             return False
 
-        final_scores: Dict[str, Any] = game.final_scores if isinstance(game.final_scores, dict) else {}  # type: ignore[unreachable]
+        final_scores: Dict[str, Any] = game.final_scores if isinstance(game.final_scores, dict) else {}
         opponents = [s for name, s in final_scores.items()
                     if s.get('player_id') != player_id]
 
