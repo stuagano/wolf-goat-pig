@@ -19,6 +19,13 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
+    "test:ci": "react-scripts test --watchAll=false --ci",
+    "test:coverage": "react-scripts test --watchAll=false --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=html",
+    "test:coverage:ci": "react-scripts test --watchAll=false --ci --coverage --coverageReporters=text --coverageReporters=lcov",
+    "test:hooks": "react-scripts test --watchAll=false --testPathPattern=hooks/__tests__",
+    "test:services": "react-scripts test --watchAll=false --testPathPattern=services/__tests__",
+    "test:components": "react-scripts test --watchAll=false --testPathPattern=components/__tests__",
+    "test:game": "react-scripts test --watchAll=false --testPathPattern=components/game/__tests__",
     "eject": "react-scripts eject",
     "lint": "eslint src/**/*.{js,jsx}",
     "typecheck": "tsc --noEmit",
@@ -33,7 +40,22 @@
   "jest": {
     "transformIgnorePatterns": [
       "node_modules/(?!(uuid)/)"
-    ]
+    ],
+    "collectCoverageFrom": [
+      "src/**/*.{js,jsx}",
+      "!src/index.js",
+      "!src/reportWebVitals.js",
+      "!src/**/*.d.ts",
+      "!src/test-utils/**"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 20,
+        "functions": 20,
+        "lines": 20,
+        "statements": 20
+      }
+    }
   },
   "eslintConfig": {
     "extends": [
