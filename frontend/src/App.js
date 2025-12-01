@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Routes, Route, useNavigate, Navigate, useLocation } from "react-router-dom";
 import { useAuth0 } from "@auth0/auth0-react";
 import { MonteCarloSimulation } from "./components/simulation";
@@ -32,6 +32,8 @@ import ActiveGamesPage from "./pages/ActiveGamesPage";
 import CompletedGamesPage from "./pages/CompletedGamesPage";
 import Navigation from "./components/Navigation";
 import { BadgeNotificationManager } from "./components/BadgeNotification";
+import UpdateNotification from "./components/UpdateNotification";
+import { initCacheManager } from "./services/cacheManager";
 import "./styles/mobile-touch.css"; // Import mobile touch optimization styles
 
 const API_URL = process.env.REACT_APP_API_URL || "";
@@ -47,9 +49,14 @@ function App() {
   
   const [backendReady, setBackendReady] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
-  
+
   // Check if we're using mock auth
   const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === 'true';
+
+  // Initialize cache manager on app start
+  useEffect(() => {
+    initCacheManager();
+  }, []);
 
   const handleBackendReady = () => {
     setBackendReady(true);
@@ -216,6 +223,7 @@ function App() {
       <div>
         <Navigation />
         <BadgeNotificationManager />
+        <UpdateNotification />
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/game" element={<CreateGamePage />} />
