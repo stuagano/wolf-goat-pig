@@ -1,0 +1,5 @@
+{
+  "version": "1.0.0",
+  "buildTime": "2024-12-01T00:00:00.000Z",
+  "releaseNotes": "Initial version with cache busting support"
+}
