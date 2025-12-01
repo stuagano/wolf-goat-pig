@@ -31,6 +31,7 @@ import GameLobbyPage from "./pages/GameLobbyPage";
 import ActiveGamesPage from "./pages/ActiveGamesPage";
 import CompletedGamesPage from "./pages/CompletedGamesPage";
 import Navigation from "./components/Navigation";
+import AppFooter from "./components/AppFooter";
 import { BadgeNotificationManager } from "./components/BadgeNotification";
 import UpdateNotification from "./components/UpdateNotification";
 import { initCacheManager } from "./services/cacheManager";
@@ -220,76 +221,79 @@ function App() {
   // Main application
   return (
     <ThemeProvider>
-      <div>
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
         <Navigation />
         <BadgeNotificationManager />
         <UpdateNotification />
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/game" element={<CreateGamePage />} />
-          <Route path="/game/:gameId" element={<SimpleScorekeeperPage />} />
-          <Route path="/game-scorer" element={<GameScorerPage />} />
-          {/* Temporarily disabled - will revisit simulation mode later */}
-          {/* <Route path="/simulation" element={<SimulationMode />} /> */}
-          {/* <Route path="/scorer" element={<ScorerMode />} /> */}
-          <Route path="/monte-carlo" element={
-            <ProtectedRoute>
-              <MonteCarloSimulation />
-            </ProtectedRoute>
-          } />
-          <Route path="/analytics" element={
-            <ProtectedRoute>
-              <WGPAnalyticsDashboard />
-            </ProtectedRoute>
-          } />
-          <Route path="/analyzer" element={
-            <ProtectedRoute>
-              <ShotRangeAnalyzer />
-            </ProtectedRoute>
-          } />
-          <Route path="/signup" element={
-            <ProtectedRoute>
-              <SignupPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/feed-analyzer" element={
-            <ProtectedRoute>
-              <FeedAnalyzer />
-            </ProtectedRoute>
-          } />
-          <Route path="/leaderboard" element={<Leaderboard />} />
-          <Route path="/sheets" element={
-            <ProtectedRoute>
-              <SheetIntegrationDashboard />
-            </ProtectedRoute>
-          } />
-          <Route path="/live-sync" element={
-            <ProtectedRoute>
-              <GoogleSheetsLiveSync />
-            </ProtectedRoute>
-          } />
-          <Route path="/tutorial" element={<TutorialSystem onComplete={() => navigate('/game')} onExit={() => navigate('/')} />} />
-          <Route path="/about" element={<AboutPage />} />
-          <Route path="/rules" element={<RulesPage />} />
-          <Route path="/admin" element={
-            <ProtectedRoute>
-              <AdminPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/migrations" element={
-            <ProtectedRoute>
-              <DatabaseMigrations />
-            </ProtectedRoute>
-          } />
-          <Route path="/join" element={<JoinGamePage />} />
-          <Route path="/join/:code" element={<JoinGamePage />} />
-          <Route path="/lobby/:gameId" element={<GameLobbyPage />} />
-          <Route path="/games/active" element={<ActiveGamesPage />} />
-          <Route path="/games/completed" element={<CompletedGamesPage />} />
-          {/* Demo route removed from build */}
-          {/* <Route path="/test-multiplayer" element={<TestMultiplayerPage />} /> */}
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
+        <div style={{ flex: 1 }}>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/game" element={<CreateGamePage />} />
+            <Route path="/game/:gameId" element={<SimpleScorekeeperPage />} />
+            <Route path="/game-scorer" element={<GameScorerPage />} />
+            {/* Temporarily disabled - will revisit simulation mode later */}
+            {/* <Route path="/simulation" element={<SimulationMode />} /> */}
+            {/* <Route path="/scorer" element={<ScorerMode />} /> */}
+            <Route path="/monte-carlo" element={
+              <ProtectedRoute>
+                <MonteCarloSimulation />
+              </ProtectedRoute>
+            } />
+            <Route path="/analytics" element={
+              <ProtectedRoute>
+                <WGPAnalyticsDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/analyzer" element={
+              <ProtectedRoute>
+                <ShotRangeAnalyzer />
+              </ProtectedRoute>
+            } />
+            <Route path="/signup" element={
+              <ProtectedRoute>
+                <SignupPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/feed-analyzer" element={
+              <ProtectedRoute>
+                <FeedAnalyzer />
+              </ProtectedRoute>
+            } />
+            <Route path="/leaderboard" element={<Leaderboard />} />
+            <Route path="/sheets" element={
+              <ProtectedRoute>
+                <SheetIntegrationDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/live-sync" element={
+              <ProtectedRoute>
+                <GoogleSheetsLiveSync />
+              </ProtectedRoute>
+            } />
+            <Route path="/tutorial" element={<TutorialSystem onComplete={() => navigate('/game')} onExit={() => navigate('/')} />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/rules" element={<RulesPage />} />
+            <Route path="/admin" element={
+              <ProtectedRoute>
+                <AdminPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/migrations" element={
+              <ProtectedRoute>
+                <DatabaseMigrations />
+              </ProtectedRoute>
+            } />
+            <Route path="/join" element={<JoinGamePage />} />
+            <Route path="/join/:code" element={<JoinGamePage />} />
+            <Route path="/lobby/:gameId" element={<GameLobbyPage />} />
+            <Route path="/games/active" element={<ActiveGamesPage />} />
+            <Route path="/games/completed" element={<CompletedGamesPage />} />
+            {/* Demo route removed from build */}
+            {/* <Route path="/test-multiplayer" element={<TestMultiplayerPage />} /> */}
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </div>
+        <AppFooter />
       </div>
     </ThemeProvider>
   );

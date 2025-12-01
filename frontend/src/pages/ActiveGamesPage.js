@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui';
 import { useTheme } from '../theme/Provider';
 import CommissionerChat from '../components/CommissionerChat';
+import AppFooter from '../components/AppFooter';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -529,8 +530,25 @@ const ActiveGamesPage = () => {
             >
               🏠 Back to Home
             </button>
+            <button
+              onClick={() => window.location.reload()}
+              style={{
+                ...theme.buttonStyle,
+                background: 'transparent',
+                color: theme.colors.text,
+                border: `2px solid ${theme.colors.border}`,
+                padding: '12px 24px',
+                fontSize: '14px',
+                fontWeight: '600'
+              }}
+            >
+              🔄 Refresh Page
+            </button>
           </div>
         </Card>
+
+        {/* App Footer with Version Info */}
+        <AppFooter />
       </div>
       <CommissionerChat gameState={null} />
     </div>
