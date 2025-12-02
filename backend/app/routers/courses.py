@@ -91,13 +91,17 @@ def get_fallback_courses() -> Dict[str, Any]:
 
 @router.get("")
 def get_courses() -> Any:
-    """Get all available courses with robust fallback handling"""
+    """Get all available courses with robust fallback handling.
+
+    Returns course data WITH holes information for each course.
+    """
     global course_manager
     try:
-        courses: Any = course_manager.get_courses()
+        # First get the list of course names
+        courses_summary: Any = course_manager.get_courses()
 
         # Ensure we always return at least one default course
-        if not courses:
+        if not courses_summary:
             logger.warning("No courses found in game state, attempting to reload from database")
 
             try:
@@ -107,25 +111,36 @@ def get_courses() -> Any:
                 if seeding_status["status"] == "success":
                     # Reinitialize by creating a new instance
                     course_manager = CourseManager()
-                    courses = course_manager.get_courses()
+                    courses_summary = course_manager.get_courses()
 
-                    if courses:
-                        logger.info(f"Successfully reloaded {len(courses)} courses from database")
+                    if courses_summary:
+                        logger.info(f"Successfully reloaded {len(courses_summary)} courses from database")
                     else:
                         logger.warning("Course manager reinitialization failed, using fallback")
-                        courses = get_fallback_courses()
+                        return get_fallback_courses()
                 else:
                     logger.warning("Database seeding incomplete, using fallback courses")
-                    courses = get_fallback_courses()
+                    return get_fallback_courses()
 
             except Exception as reload_error:
                 logger.error(f"Failed to reload courses from database: {reload_error}")
-                courses = get_fallback_courses()
+                return get_fallback_courses()
 
-        # Handle both dict types
-        if isinstance(courses, dict):
-            logger.info(f"Retrieved {len(courses)} courses: {list(courses.keys())}")
-        return courses
+        # Now get detailed course data (with holes) for each course
+        if isinstance(courses_summary, dict):
+            courses_with_holes: Dict[str, Any] = {}
+            for course_name in courses_summary.keys():
+                course_details = course_manager.get_course_details(course_name)
+                if course_details:
+                    courses_with_holes[course_name] = course_details
+                else:
+                    # Fall back to summary data if details not available
+                    courses_with_holes[course_name] = courses_summary[course_name]
+
+            logger.info(f"Retrieved {len(courses_with_holes)} courses with holes data: {list(courses_with_holes.keys())}")
+            return courses_with_holes
+
+        return courses_summary
 
     except Exception as e:
         logger.error(f"Critical error getting courses: {e}")
