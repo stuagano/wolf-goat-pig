@@ -259,3 +259,88 @@ def readiness_check():
         "status": "ready",
         "timestamp": datetime.now().isoformat()
     }
+
+
+@router.post("/admin/seed-course-holes")
+@handle_api_errors(operation_name="seed course holes")
+def seed_course_holes() -> Dict[str, Any]:
+    """
+    Admin endpoint to seed holes for courses that are missing them.
+
+    This is a one-time fix for courses that were seeded without hole data.
+    It adds holes to existing courses using the DEFAULT_COURSES data.
+    """
+    from ..seed_courses import DEFAULT_COURSES
+
+    results: Dict[str, Any] = {
+        "status": "success",
+        "courses_updated": [],
+        "courses_skipped": [],
+        "errors": []
+    }
+
+    try:
+        with managed_session() as db:
+            for course_data in DEFAULT_COURSES:
+                course_name = course_data['name']
+                try:
+                    existing_course = db.query(models.Course).filter_by(name=course_name).first()
+
+                    if not existing_course:
+                        results["courses_skipped"].append({
+                            "name": course_name,
+                            "reason": "Course not found in database"
+                        })
+                        continue
+
+                    # Check if holes already exist
+                    existing_holes = db.query(models.Hole).filter(
+                        models.Hole.course_id == existing_course.id
+                    ).count()
+
+                    if existing_holes > 0:
+                        results["courses_skipped"].append({
+                            "name": course_name,
+                            "reason": f"Already has {existing_holes} holes"
+                        })
+                        continue
+
+                    # Add holes
+                    holes_data = course_data.get('holes_data', [])
+                    for hole_detail in holes_data:
+                        hole = models.Hole(
+                            course_id=existing_course.id,
+                            hole_number=hole_detail['hole_number'],
+                            par=hole_detail['par'],
+                            yards=hole_detail['yards'],
+                            handicap=hole_detail['stroke_index'],
+                            description=hole_detail.get('description'),
+                            tee_box=hole_detail.get('tee_box', 'white')
+                        )
+                        db.add(hole)
+
+                    results["courses_updated"].append({
+                        "name": course_name,
+                        "holes_added": len(holes_data)
+                    })
+                    logger.info(f"Added {len(holes_data)} holes to {course_name}")
+
+                except Exception as e:
+                    results["errors"].append({
+                        "course": course_name,
+                        "error": str(e)
+                    })
+                    logger.error(f"Error seeding holes for {course_name}: {e}")
+
+            db.commit()
+
+        if results["errors"]:
+            results["status"] = "partial"
+
+        return results
+
+    except Exception as e:
+        logger.error(f"Failed to seed course holes: {e}")
+        results["status"] = "error"
+        results["message"] = str(e)
+        return results
