@@ -338,8 +338,19 @@ const SimpleScorekeeper = ({
       // Calculate implicit team2 (players not in team1)
       const implicitTeam2 = players.filter(p => !team1.includes(p.id)).map(p => p.id);
 
-      if (team1.length !== implicitTeam2.length) {
-        return `Select exactly ${Math.floor(players.length / 2)} players for Team 1. Currently selected: ${team1.length}`;
+      // For 4 players: need exactly 2v2
+      // For 5 players: need 2v3 (either 2 or 3 on team1)
+      const is5PlayerGame = players.length === 5;
+      const validTeamSize = is5PlayerGame
+        ? (team1.length === 2 || team1.length === 3)
+        : team1.length === implicitTeam2.length;
+
+      if (!validTeamSize) {
+        if (is5PlayerGame) {
+          return `Select 2 or 3 players for Team 1 (5-player game). Currently selected: ${team1.length}`;
+        } else {
+          return `Select exactly ${Math.floor(players.length / 2)} players for Team 1. Currently selected: ${team1.length}`;
+        }
       }
     } else {
       if (!captain) {
@@ -1941,7 +1952,9 @@ const SimpleScorekeeper = ({
             color: theme.colors.textSecondary,
             fontStyle: 'italic'
           }}>
-            Click players to add them to Team 1. Remaining players will automatically be Team 2.
+            {players.length === 5
+              ? 'Click to select 2 or 3 players for Team 1. The rest will be Team 2.'
+              : 'Click players to add them to Team 1. Remaining players will automatically be Team 2.'}
           </p>
         )}
 

@@ -1820,7 +1820,7 @@ class WolfGoatPigGame(PersistenceMixin):
                 holes_info.append({
                     "hole": wp_hole["hole_number"],
                     "par": wp_hole["par"],
-                    "handicap": wp_hole["stroke_index"],
+                    "handicap": wp_hole.get("handicap", wp_hole.get("stroke_index", 1)),
                     "yards": wp_hole["yards"]
                 })
             return holes_info
@@ -1845,7 +1845,7 @@ class WolfGoatPigGame(PersistenceMixin):
                     holes_info.append({
                         "hole": hole_num,
                         "par": wp_hole["par"],
-                        "handicap": wp_hole["stroke_index"],
+                        "handicap": wp_hole.get("handicap", wp_hole.get("stroke_index", hole_num)),
                         "yards": wp_hole["yards"]
                     })
                 else:
