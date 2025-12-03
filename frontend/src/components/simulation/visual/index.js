@@ -2,6 +2,5 @@
 export { default as HoleVisualization } from './HoleVisualization';
 export { default as PlayersCard } from './PlayersCard';
 export { default as BettingCard } from './BettingCard';
-export { default as ShotContextCard } from './ShotContextCard';
-export { default as DecisionButtons } from './DecisionButtons';
-export { default as SimulationVisualInterface } from './SimulationVisualInterface';
+export { default as ProbabilityBar } from './ProbabilityBar';
+export { default as EducationalTooltip } from './EducationalTooltip';

@@ -302,11 +302,355 @@ const Scorecard = ({
     );
   };
 
+  // Define front and back nine holes
+  const frontNine = holes.slice(0, 9);
+  const backNine = holes.slice(9, 18);
+
+  // Helper to render a scorecard section (front or back nine)
+  const renderScorecardSection = (sectionHoles, sectionLabel, totalLabel) => {
+    const isFrontNine = sectionLabel === 'FRONT';
+    const sectionParTotal = Array.isArray(courseHoles)
+      ? (isFrontNine ? courseHoles.slice(0, 9) : courseHoles.slice(9, 18))
+          .reduce((sum, h) => sum + (h && typeof h.par === 'number' ? h.par : 0), 0)
+      : 0;
+
+    return (
+      <table style={{
+        width: '100%',
+        borderCollapse: 'collapse',
+        fontSize: '12px',
+        marginBottom: isFrontNine ? '16px' : '0'
+      }}>
+        <thead>
+          <tr style={{ backgroundColor: theme.colors.backgroundSecondary }}>
+            <th style={{ ...headerCellStyle, minWidth: '80px' }}>HOLE</th>
+            {sectionHoles.map(hole => (
+              <th
+                key={hole}
+                style={{
+                  ...headerCellStyle,
+                  backgroundColor: hole === currentHole ? 'rgba(255, 215, 0, 0.2)' : 'transparent',
+                  fontWeight: hole === currentHole ? 'bold' : 'normal',
+                  color: hole === currentHole ? '#FFD700' : 'inherit',
+                  minWidth: '32px'
+                }}
+              >
+                {hole}
+              </th>
+            ))}
+            <th style={{ ...headerCellStyle, backgroundColor: 'rgba(0, 0, 0, 0.05)', minWidth: '40px' }}>{totalLabel}</th>
+          </tr>
+          {Array.isArray(courseHoles) && courseHoles.length > 0 && (
+            <>
+              <tr style={{ backgroundColor: 'rgba(0, 0, 0, 0.02)' }}>
+                <td style={{ ...cellStyle, fontWeight: 'bold', fontSize: '10px' }}>PAR</td>
+                {sectionHoles.map(hole => {
+                  const holeInfo = getCourseHoleInfo(hole);
+                  const par = holeInfo && typeof holeInfo.par === 'number' ? holeInfo.par : '-';
+                  return (
+                    <td key={`par-${hole}`} style={{ ...cellStyle, fontSize: '10px', textAlign: 'center' }}>
+                      {par}
+                    </td>
+                  );
+                })}
+                <td style={{ ...totalCellStyle, fontSize: '10px', fontWeight: 'bold' }}>
+                  {sectionParTotal}
+                </td>
+              </tr>
+              <tr style={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }}>
+                <td style={{ ...cellStyle, fontWeight: 'bold', fontSize: '9px' }}>HDCP</td>
+                {sectionHoles.map(hole => {
+                  const holeInfo = getCourseHoleInfo(hole);
+                  const handicap = holeInfo && typeof holeInfo.handicap === 'number' ? holeInfo.handicap : '-';
+                  return (
+                    <td key={`hdcp-${hole}`} style={{ ...cellStyle, fontSize: '9px', textAlign: 'center' }}>
+                      {handicap}
+                    </td>
+                  );
+                })}
+                <td style={{ ...totalCellStyle, fontSize: '9px' }}>-</td>
+              </tr>
+            </>
+          )}
+        </thead>
+        <tbody>
+          {Array.isArray(players) && players.flatMap((player, idx) => {
+            if (!player || !player.id) return [];
+
+            const totals = calculateTotals(player.id);
+            const strokeTotals = calculateStrokeTotals(player.id);
+            const isHuman = player.is_human || player.id === 'human';
+            const playerName = typeof player.name === 'string' ? player.name : 'Unknown';
+            const sectionStrokeTotal = isFrontNine ? strokeTotals.front9 : strokeTotals.back9;
+            const sectionQuarterTotal = isFrontNine ? totals.front9 : totals.back9;
+
+            return [
+              // Strokes row (Main player row)
+              <tr key={`${player.id}-strokes-${sectionLabel}`} style={{
+                backgroundColor: idx % 2 === 0 ? 'rgba(0, 0, 0, 0.02)' : 'transparent',
+                borderLeft: isHuman ? '3px solid rgba(33, 150, 243, 0.5)' : 'none',
+                borderTop: idx > 0 ? `2px solid ${theme.colors.border}`: 'none'
+              }}>
+                <td style={{ ...cellStyle, fontSize: '10px', fontStyle: 'italic', color: theme.colors.textSecondary, paddingTop: '2px', textAlign: 'left' }}>
+                  <div style={{ fontWeight: 'bold', fontSize: '11px', marginBottom: '2px', cursor: onPlayerNameChange ? 'pointer' : 'default' }}
+                    onClick={() => onPlayerNameChange && handlePlayerNameClick(player.id, player.name)}
+                    title={onPlayerNameChange ? 'Click to edit name' : ''}
+                  >
+                    {isHuman ? '👤 ' : '🤖 '}
+                    {playerName}
+                    {player.handicap != null && <span style={{ fontSize: '10px', marginLeft: '4px', opacity: 0.7 }}>({player.handicap})</span>}
+                    {onPlayerNameChange && <span style={{ fontSize: '10px', marginLeft: '4px', opacity: 0.5 }}>✏️</span>}
+                  </div>
+                  <div>Score</div>
+                </td>
+                {sectionHoles.map(hole => {
+                  const { strokes } = getHoleData(hole, player.id);
+                  const isCurrentHole = hole === currentHole;
+                  const isCompleted = hole < currentHole || (Array.isArray(holeHistory) && holeHistory.find(h => h && h.hole === hole));
+                  const strokesReceived = getStrokesReceived(player.id, hole);
+                  const holeInfo = getCourseHoleInfo(hole);
+                  const holePar = holeInfo?.par;
+                  const indicator = getScoreIndicator(strokes, holePar);
+
+                  return (
+                    <td
+                      key={hole}
+                      style={{
+                        ...cellStyle,
+                        backgroundColor: isCurrentHole ? 'rgba(255, 215, 0, 0.1)' : 'transparent',
+                        fontWeight: strokes ? 'bold' : 'normal',
+                        cursor: isCurrentHole || isCompleted ? 'pointer' : 'default',
+                        position: 'relative',
+                        paddingBottom: '2px'
+                      }}
+                      title={isCurrentHole || isCompleted ? 'Click to edit' : ''}
+                      onClick={() => handleCellClick(hole, player.id)}
+                    >
+                      {isCompleted ? (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
+                          {indicator?.symbol ? (
+                            <span
+                              style={{
+                                color: indicator.color,
+                                border: `1.5px solid ${indicator.color}`,
+                                borderRadius: indicator.shape === 'circle' ? '50%' : indicator.shape === 'square' ? '2px' : '0%',
+                                padding: '1px 4px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                minWidth: '18px',
+                                height: '18px',
+                                fontSize: '11px',
+                                fontWeight: 'bold',
+                                lineHeight: '1'
+                              }}
+                              title={indicator.label}
+                            >
+                              {strokes}
+                            </span>
+                          ) : (
+                            <span style={{ color: '#000', fontSize: '11px', fontWeight: 'bold' }}>{strokes || '-'}</span>
+                          )}
+                          {/* Display stroke indicators - handle full strokes, half strokes, and combinations */}
+                          {strokesReceived > 0 && (
+                            <span style={{ marginLeft: '1px', display: 'inline-flex', alignItems: 'center' }}>
+                              {/* Full stroke indicator (●) */}
+                              {getFullStrokes(strokesReceived) >= 1 && (
+                                <span style={{ color: theme.colors.accent, fontSize: '8px' }} title={`Gets ${getFullStrokes(strokesReceived)} full stroke(s)`}>
+                                  {getFullStrokes(strokesReceived) > 1 ? `●${getFullStrokes(strokesReceived)}` : '●'}
+                                </span>
+                              )}
+                              {/* Half stroke indicator (◐) - for Creecher strokes */}
+                              {hasHalfStroke(strokesReceived) && (
+                                <span style={{ color: theme.colors.warning || '#FF9800', fontSize: '8px' }} title="Gets 0.5 stroke (Creecher)">◐</span>
+                              )}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        strokesReceived > 0 && (
+                          <div style={{ fontSize: '10px', color: theme.colors.textSecondary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {/* Full stroke indicator (●) */}
+                            {getFullStrokes(strokesReceived) >= 1 && (
+                              <span title={`Gets ${getFullStrokes(strokesReceived)} full stroke(s)`}>
+                                {getFullStrokes(strokesReceived) > 1 ? `●${getFullStrokes(strokesReceived)}` : '●'}
+                              </span>
+                            )}
+                            {/* Half stroke indicator (◐) - for Creecher strokes */}
+                            {hasHalfStroke(strokesReceived) && (
+                              <span style={{ color: theme.colors.warning || '#FF9800' }} title="Gets 0.5 stroke (Creecher)">◐</span>
+                            )}
+                          </div>
+                        )
+                      )}
+                    </td>
+                  );
+                })}
+                <td style={{ ...totalCellStyle, fontWeight: 'bold', fontSize: '11px', paddingBottom: '2px' }}>
+                  {sectionStrokeTotal > 0 ? sectionStrokeTotal : '-'}
+                </td>
+              </tr>,
+
+              // Quarters Row
+              <tr key={`${player.id}-quarters-${sectionLabel}`} style={{
+                backgroundColor: idx % 2 === 0 ? 'rgba(0, 0, 0, 0.02)' : 'transparent',
+                borderLeft: isHuman ? '3px solid rgba(33, 150, 243, 0.5)' : 'none'
+              }}>
+                <td style={{ ...cellStyle, fontSize: '10px', fontStyle: 'italic', color: theme.colors.textSecondary, paddingTop: '2px', textAlign: 'left' }}>
+                  Quarters
+                </td>
+                {sectionHoles.map(hole => {
+                  const { quarters } = getHoleData(hole, player.id);
+                  const isCurrentHole = hole === currentHole;
+                  const isCompleted = hole < currentHole || (Array.isArray(holeHistory) && holeHistory.find(h => h && h.hole === hole));
+
+                  return (
+                    <td
+                      key={hole}
+                      style={{
+                        ...cellStyle,
+                        backgroundColor: isCurrentHole ? 'rgba(255, 215, 0, 0.1)' : 'transparent',
+                        fontSize: '10px',
+                        fontWeight: '500',
+                        cursor: isCurrentHole || isCompleted ? 'pointer' : 'default',
+                        paddingTop: '2px'
+                      }}
+                      onClick={() => handleCellClick(hole, player.id)}
+                    >
+                      {quarters !== null && quarters !== 0 ? (
+                        <span style={{ color: quarters > 0 ? '#4CAF50' : '#f44336' }}>
+                          {quarters > 0 ? `+${quarters}` : quarters}
+                        </span>
+                      ) : (
+                        <span style={{ color: theme.colors.textSecondary }}>·</span>
+                      )}
+                    </td>
+                  );
+                })}
+                <td style={{
+                  ...totalCellStyle,
+                  fontWeight: 'bold',
+                  fontSize: '11px',
+                  paddingTop: '2px',
+                  color: sectionQuarterTotal > 0 ? '#4CAF50' : sectionQuarterTotal < 0 ? '#f44336' : 'inherit'
+                }}>
+                  {sectionQuarterTotal !== 0 ? (sectionQuarterTotal > 0 ? `+${sectionQuarterTotal}` : sectionQuarterTotal) : '-'}
+                </td>
+              </tr>
+            ];
+          })}
+        </tbody>
+      </table>
+    );
+  };
+
+  // Render totals summary row
+  const renderTotalsSummary = () => {
+    const totalParFront = Array.isArray(courseHoles)
+      ? courseHoles.slice(0, 9).reduce((sum, h) => sum + (h && typeof h.par === 'number' ? h.par : 0), 0)
+      : 0;
+    const totalParBack = Array.isArray(courseHoles)
+      ? courseHoles.slice(9, 18).reduce((sum, h) => sum + (h && typeof h.par === 'number' ? h.par : 0), 0)
+      : 0;
+
+    return (
+      <table style={{
+        width: '100%',
+        borderCollapse: 'collapse',
+        fontSize: '12px',
+        marginTop: '8px',
+        borderTop: `3px solid ${theme.colors.border}`
+      }}>
+        <thead>
+          <tr style={{ backgroundColor: theme.colors.backgroundSecondary }}>
+            <th style={{ ...headerCellStyle, minWidth: '80px', textAlign: 'left' }}>TOTALS</th>
+            <th style={{ ...headerCellStyle, minWidth: '60px' }}>OUT</th>
+            <th style={{ ...headerCellStyle, minWidth: '60px' }}>IN</th>
+            <th style={{ ...headerCellStyle, minWidth: '60px', backgroundColor: 'rgba(0, 0, 0, 0.05)' }}>TOTAL</th>
+          </tr>
+          {Array.isArray(courseHoles) && courseHoles.length > 0 && (
+            <tr style={{ backgroundColor: 'rgba(0, 0, 0, 0.02)' }}>
+              <td style={{ ...cellStyle, fontWeight: 'bold', fontSize: '10px', textAlign: 'left' }}>PAR</td>
+              <td style={{ ...cellStyle, fontSize: '10px', fontWeight: 'bold' }}>{totalParFront}</td>
+              <td style={{ ...cellStyle, fontSize: '10px', fontWeight: 'bold' }}>{totalParBack}</td>
+              <td style={{ ...totalCellStyle, fontSize: '10px', fontWeight: 'bold' }}>{totalParFront + totalParBack}</td>
+            </tr>
+          )}
+        </thead>
+        <tbody>
+          {Array.isArray(players) && players.flatMap((player, idx) => {
+            if (!player || !player.id) return [];
+
+            const totals = calculateTotals(player.id);
+            const strokeTotals = calculateStrokeTotals(player.id);
+            const isHuman = player.is_human || player.id === 'human';
+            const playerName = typeof player.name === 'string' ? player.name : 'Unknown';
+
+            return [
+              // Strokes totals row
+              <tr key={`${player.id}-strokes-total`} style={{
+                backgroundColor: idx % 2 === 0 ? 'rgba(0, 0, 0, 0.02)' : 'transparent',
+                borderLeft: isHuman ? '3px solid rgba(33, 150, 243, 0.5)' : 'none',
+                borderTop: idx > 0 ? `2px solid ${theme.colors.border}`: 'none'
+              }}>
+                <td style={{ ...cellStyle, fontSize: '11px', fontWeight: 'bold', textAlign: 'left' }}>
+                  {isHuman ? '👤 ' : '🤖 '}{playerName}
+                </td>
+                <td style={{ ...cellStyle, fontWeight: 'bold', fontSize: '12px' }}>
+                  {strokeTotals.front9 > 0 ? strokeTotals.front9 : '-'}
+                </td>
+                <td style={{ ...cellStyle, fontWeight: 'bold', fontSize: '12px' }}>
+                  {strokeTotals.back9 > 0 ? strokeTotals.back9 : '-'}
+                </td>
+                <td style={{ ...totalCellStyle, fontWeight: 'bold', fontSize: '13px' }}>
+                  {strokeTotals.total > 0 ? strokeTotals.total : '-'}
+                </td>
+              </tr>,
+              // Quarters totals row
+              <tr key={`${player.id}-quarters-total`} style={{
+                backgroundColor: idx % 2 === 0 ? 'rgba(0, 0, 0, 0.02)' : 'transparent',
+                borderLeft: isHuman ? '3px solid rgba(33, 150, 243, 0.5)' : 'none'
+              }}>
+                <td style={{ ...cellStyle, fontSize: '10px', fontStyle: 'italic', color: theme.colors.textSecondary, textAlign: 'left' }}>
+                  Quarters
+                </td>
+                <td style={{
+                  ...cellStyle,
+                  fontWeight: 'bold',
+                  fontSize: '11px',
+                  color: totals.front9 > 0 ? '#4CAF50' : totals.front9 < 0 ? '#f44336' : 'inherit'
+                }}>
+                  {totals.front9 !== 0 ? (totals.front9 > 0 ? `+${totals.front9}` : totals.front9) : '-'}
+                </td>
+                <td style={{
+                  ...cellStyle,
+                  fontWeight: 'bold',
+                  fontSize: '11px',
+                  color: totals.back9 > 0 ? '#4CAF50' : totals.back9 < 0 ? '#f44336' : 'inherit'
+                }}>
+                  {totals.back9 !== 0 ? (totals.back9 > 0 ? `+${totals.back9}` : totals.back9) : '-'}
+                </td>
+                <td style={{
+                  ...totalCellStyle,
+                  fontWeight: 'bold',
+                  fontSize: '13px',
+                  color: totals.total > 0 ? '#4CAF50' : totals.total < 0 ? '#f44336' : 'inherit'
+                }}>
+                  {totals.total !== 0 ? (totals.total > 0 ? `+${totals.total}` : totals.total) : '-'}
+                </td>
+              </tr>
+            ];
+          })}
+        </tbody>
+      </table>
+    );
+  };
+
   return (
     <Card style={{ height: '100%', overflow: 'auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
         <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', cursor: 'pointer' }} onClick={() => setIsCollapsed(!isCollapsed)}>
-          {isCollapsed ? '▶' : '▼'} 📊 SCORECARD
+          {isCollapsed ? '▶' : '▼'} SCORECARD
         </h3>
         <div style={{ display: 'flex', gap: '8px' }}>
           {/* Collapse/Expand button */}
@@ -324,7 +668,7 @@ const Scorecard = ({
               onClick={() => setViewMode(viewMode === 'scorecard' ? 'standings' : 'scorecard')}
               style={{ padding: '6px 12px', fontSize: '12px' }}
             >
-              {viewMode === 'scorecard' ? '📊 Standings' : '📋 Scorecard'}
+              {viewMode === 'scorecard' ? 'Standings' : 'Scorecard'}
             </Button>
           )}
         </div>
@@ -334,272 +678,14 @@ const Scorecard = ({
         <StandingsView />
       ) : (
         <div style={{ overflowX: 'auto' }}>
-          <table style={{
-            width: '100%',
-            borderCollapse: 'collapse',
-            fontSize: '12px',
-            minWidth: '500px'
-          }}>
-            <thead>
-              <tr style={{ backgroundColor: theme.colors.backgroundSecondary }}>
-                <th style={headerCellStyle}>HOLE</th>
-                {holes.map(hole => (
-                  <th
-                    key={hole}
-                    style={{
-                      ...headerCellStyle,
-                      backgroundColor: hole === currentHole ? 'rgba(255, 215, 0, 0.2)' : 'transparent',
-                      fontWeight: hole === currentHole ? 'bold' : 'normal',
-                      color: hole === currentHole ? '#FFD700' : 'inherit'
-                    }}
-                  >
-                    {hole}
-                  </th>
-                ))}
-                <th style={headerCellStyle}>OUT</th>
-                <th style={headerCellStyle}>IN</th>
-                <th style={headerCellStyle}>TOT</th>
-              </tr>
-              {Array.isArray(courseHoles) && courseHoles.length > 0 && (
-                <>
-                  <tr style={{ backgroundColor: 'rgba(0, 0, 0, 0.02)' }}>
-                    <td style={{ ...cellStyle, fontWeight: 'bold', fontSize: '10px' }}>PAR</td>
-                    {holes.map(hole => {
-                      const holeInfo = getCourseHoleInfo(hole);
-                      const par = holeInfo && typeof holeInfo.par === 'number' ? holeInfo.par : '-';
-                      return (
-                        <td key={`par-${hole}`} style={{ ...cellStyle, fontSize: '10px', textAlign: 'center' }}>
-                          {par}
-                        </td>
-                      );
-                    })}
-                    <td style={{ ...totalCellStyle, fontSize: '10px' }}>
-                      {courseHoles.slice(0, 9).reduce((sum, h) => sum + (h && typeof h.par === 'number' ? h.par : 0), 0)}
-                    </td>
-                    <td style={{ ...totalCellStyle, fontSize: '10px' }}>
-                      {courseHoles.slice(9, 18).reduce((sum, h) => sum + (h && typeof h.par === 'number' ? h.par : 0), 0)}
-                    </td>
-                    <td style={{ ...totalCellStyle, fontWeight: 'bold', fontSize: '10px' }}>
-                      {courseHoles.reduce((sum, h) => sum + (h && typeof h.par === 'number' ? h.par : 0), 0)}
-                    </td>
-                  </tr>
-                  <tr style={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }}>
-                    <td style={{ ...cellStyle, fontWeight: 'bold', fontSize: '9px' }}>HDCP</td>
-                    {holes.map(hole => {
-                      const holeInfo = getCourseHoleInfo(hole);
-                      const handicap = holeInfo && typeof holeInfo.handicap === 'number' ? holeInfo.handicap : '-';
-                      return (
-                        <td key={`hdcp-${hole}`} style={{ ...cellStyle, fontSize: '9px', textAlign: 'center' }}>
-                          {handicap}
-                        </td>
-                      );
-                    })}
-                    <td style={{ ...totalCellStyle, fontSize: '9px' }}>-</td>
-                    <td style={{ ...totalCellStyle, fontSize: '9px' }}>-</td>
-                    <td style={{ ...totalCellStyle, fontSize: '9px' }}>-</td>
-                  </tr>
-                </>
-              )}
-            </thead>
-            <tbody>
-              {Array.isArray(players) && players.flatMap((player, idx) => {
-                if (!player || !player.id) return [];
+          {/* Front Nine */}
+          {renderScorecardSection(frontNine, 'FRONT', 'OUT')}
 
-                const totals = calculateTotals(player.id);
-                const isHuman = player.is_human || player.id === 'human';
-                const playerName = typeof player.name === 'string' ? player.name : 'Unknown';
+          {/* Back Nine */}
+          {renderScorecardSection(backNine, 'BACK', 'IN')}
 
-                // A reusable function to render a data row
-                const renderRow = (label, dataFn, totalsFn) => (
-                  <tr key={`${player.id}-${label.toLowerCase().replace(/ /g, '-')}`} style={{
-                    backgroundColor: idx % 2 === 0 ? 'rgba(0, 0, 0, 0.02)' : 'transparent',
-                    borderLeft: isHuman ? '3px solid rgba(33, 150, 243, 0.5)' : 'none'
-                  }}>
-                    <td style={{ ...cellStyle, fontSize: '10px', fontStyle: 'italic', color: theme.colors.textSecondary, paddingTop: '2px' }}>
-                      {label}
-                    </td>
-                    {holes.map(hole => {
-                      const value = dataFn(hole);
-                      const isCurrentHole = hole === currentHole;
-                      const isCompleted = hole < currentHole || (Array.isArray(holeHistory) && holeHistory.find(h => h && h.hole === hole));
-
-                      return (
-                        <td
-                          key={hole}
-                          style={{
-                            ...cellStyle,
-                            backgroundColor: isCurrentHole ? 'rgba(255, 215, 0, 0.1)' : 'transparent',
-                            fontSize: '10px',
-                            fontWeight: '500',
-                            cursor: isCurrentHole || isCompleted ? 'pointer' : 'default',
-                            paddingTop: '2px'
-                          }}
-                          onClick={() => handleCellClick(hole, player.id)}
-                        >
-                          {value !== null && value !== 0 ? (
-                            <span style={{ color: value > 0 ? '#4CAF50' : '#f44336' }}>
-                              {value > 0 ? `+${value}` : value}
-                            </span>
-                          ) : (
-                            <span style={{ color: theme.colors.textSecondary }}>·</span>
-                          )}
-                        </td>
-                      );
-                    })}
-                    <td style={{
-                      ...totalCellStyle,
-                      fontWeight: 'bold',
-                      fontSize: '11px',
-                      paddingTop: '2px',
-                      color: totalsFn && totalsFn().front9 > 0 ? '#4CAF50' : totalsFn && totalsFn().front9 < 0 ? '#f44336' : 'inherit'
-                    }}>
-                      {totalsFn ? (totalsFn().front9 !== 0 ? (totalsFn().front9 > 0 ? `+${totalsFn().front9}` : totalsFn().front9) : '-') : ''}
-                    </td>
-                    <td style={{
-                      ...totalCellStyle,
-                      fontWeight: 'bold',
-                      fontSize: '11px',
-                      paddingTop: '2px',
-                      color: totalsFn && totalsFn().back9 > 0 ? '#4CAF50' : totalsFn && totalsFn().back9 < 0 ? '#f44336' : 'inherit'
-                    }}>
-                      {totalsFn ? (totalsFn().back9 !== 0 ? (totalsFn().back9 > 0 ? `+${totalsFn().back9}` : totalsFn().back9) : '-') : ''}
-                    </td>
-                    <td style={{
-                      ...totalCellStyle,
-                      fontWeight: 'bold',
-                      fontSize: '12px',
-                      paddingTop: '2px',
-                      color: totalsFn && totalsFn().total > 0 ? '#4CAF50' : totalsFn && totalsFn().total < 0 ? '#f44336' : 'inherit'
-                    }}>
-                      {totalsFn ? (totalsFn().total !== 0 ? (totalsFn().total > 0 ? `+${totalsFn().total}` : totalsFn().total) : '-') : ''}
-                    </td>
-                  </tr>
-                );
-
-                const strokeTotals = calculateStrokeTotals(player.id);
-
-                return [
-                  // Strokes row (Main player row)
-                  <tr key={`${player.id}-strokes`} style={{
-                    backgroundColor: idx % 2 === 0 ? 'rgba(0, 0, 0, 0.02)' : 'transparent',
-                    borderLeft: isHuman ? '3px solid rgba(33, 150, 243, 0.5)' : 'none',
-                    borderTop: idx > 0 ? `2px solid ${theme.colors.border}`: 'none'
-                  }}>
-                    <td style={{ ...cellStyle, fontSize: '10px', fontStyle: 'italic', color: theme.colors.textSecondary, paddingTop: '2px' }}>
-                      <div style={{ fontWeight: 'bold', fontSize: '11px', marginBottom: '2px', cursor: onPlayerNameChange ? 'pointer' : 'default' }}
-                        onClick={() => onPlayerNameChange && handlePlayerNameClick(player.id, player.name)}
-                        title={onPlayerNameChange ? 'Click to edit name' : ''}
-                      >
-                        {isHuman ? '👤 ' : '🤖 '}
-                        {playerName}
-                        {player.handicap != null && <span style={{ fontSize: '10px', marginLeft: '4px', opacity: 0.7 }}>({player.handicap})</span>}
-                        {onPlayerNameChange && <span style={{ fontSize: '10px', marginLeft: '4px', opacity: 0.5 }}>✏️</span>}
-                      </div>
-                      <div>Score</div>
-                    </td>
-                    {holes.map(hole => {
-                      const { strokes } = getHoleData(hole, player.id);
-                      const isCurrentHole = hole === currentHole;
-                      const isCompleted = hole < currentHole || (Array.isArray(holeHistory) && holeHistory.find(h => h && h.hole === hole));
-                      const strokesReceived = getStrokesReceived(player.id, hole);
-                      const holeInfo = getCourseHoleInfo(hole);
-                      const holePar = holeInfo?.par;
-                      const indicator = getScoreIndicator(strokes, holePar);
-
-                      return (
-                        <td
-                          key={hole}
-                          style={{
-                            ...cellStyle,
-                            backgroundColor: isCurrentHole ? 'rgba(255, 215, 0, 0.1)' : 'transparent',
-                            fontWeight: strokes ? 'bold' : 'normal',
-                            cursor: isCurrentHole || isCompleted ? 'pointer' : 'default',
-                            position: 'relative',
-                            paddingBottom: '2px'
-                          }}
-                          title={isCurrentHole || isCompleted ? 'Click to edit' : ''}
-                          onClick={() => handleCellClick(hole, player.id)}
-                        >
-                          {isCompleted ? (
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
-                              {indicator?.symbol ? (
-                                <span
-                                  style={{
-                                    color: indicator.color,
-                                    border: `1.5px solid ${indicator.color}`,
-                                    borderRadius: indicator.shape === 'circle' ? '50%' : indicator.shape === 'square' ? '2px' : '0%',
-                                    padding: '1px 4px',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    minWidth: '18px',
-                                    height: '18px',
-                                    fontSize: '11px',
-                                    fontWeight: 'bold',
-                                    lineHeight: '1'
-                                  }}
-                                  title={indicator.label}
-                                >
-                                  {strokes}
-                                </span>
-                              ) : (
-                                <span style={{ color: '#000', fontSize: '11px', fontWeight: 'bold' }}>{strokes || '-'}</span>
-                              )}
-                              {/* Display stroke indicators - handle full strokes, half strokes, and combinations */}
-                              {strokesReceived > 0 && (
-                                <span style={{ marginLeft: '1px', display: 'inline-flex', alignItems: 'center' }}>
-                                  {/* Full stroke indicator (●) */}
-                                  {getFullStrokes(strokesReceived) >= 1 && (
-                                    <span style={{ color: theme.colors.accent, fontSize: '8px' }} title={`Gets ${getFullStrokes(strokesReceived)} full stroke(s)`}>
-                                      {getFullStrokes(strokesReceived) > 1 ? `●${getFullStrokes(strokesReceived)}` : '●'}
-                                    </span>
-                                  )}
-                                  {/* Half stroke indicator (◐) - for Creecher strokes */}
-                                  {hasHalfStroke(strokesReceived) && (
-                                    <span style={{ color: theme.colors.warning || '#FF9800', fontSize: '8px' }} title="Gets 0.5 stroke (Creecher)">◐</span>
-                                  )}
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            strokesReceived > 0 && (
-                              <div style={{ fontSize: '10px', color: theme.colors.textSecondary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                {/* Full stroke indicator (●) */}
-                                {getFullStrokes(strokesReceived) >= 1 && (
-                                  <span title={`Gets ${getFullStrokes(strokesReceived)} full stroke(s)`}>
-                                    {getFullStrokes(strokesReceived) > 1 ? `●${getFullStrokes(strokesReceived)}` : '●'}
-                                  </span>
-                                )}
-                                {/* Half stroke indicator (◐) - for Creecher strokes */}
-                                {hasHalfStroke(strokesReceived) && (
-                                  <span style={{ color: theme.colors.warning || '#FF9800' }} title="Gets 0.5 stroke (Creecher)">◐</span>
-                                )}
-                              </div>
-                            )
-                          )}
-                        </td>
-                      );
-                    })}
-                    <td style={{ ...totalCellStyle, fontWeight: 'bold', fontSize: '11px', paddingBottom: '2px' }}>
-                      {strokeTotals.front9 > 0 ? strokeTotals.front9 : '-'}
-                    </td>
-                    <td style={{ ...totalCellStyle, fontWeight: 'bold', fontSize: '11px', paddingBottom: '2px' }}>
-                      {strokeTotals.back9 > 0 ? strokeTotals.back9 : '-'}
-                    </td>
-                    <td style={{ ...totalCellStyle, fontWeight: 'bold', fontSize: '12px', paddingBottom: '2px' }}>
-                      {strokeTotals.total > 0 ? strokeTotals.total : '-'}
-                    </td>
-                  </tr>,
-
-                  // Quarters Row
-                  renderRow("Quarters", (hole) => {
-                    const { quarters } = getHoleData(hole, player.id);
-                    return quarters;
-                  }, () => totals)
-                ];
-              })}
-            </tbody>
-          </table>
+          {/* Totals Summary */}
+          {renderTotalsSummary()}
         </div>
       ))}
 

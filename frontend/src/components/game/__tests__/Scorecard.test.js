@@ -98,40 +98,46 @@ describe('Scorecard', () => {
 
     test('renders all 18 hole columns', () => {
       render(<Scorecard {...defaultProps} />);
+      // Hole numbers appear in headers and may appear multiple times in new layout
       for (let i = 1; i <= 18; i++) {
-        expect(screen.getByText(i.toString())).toBeInTheDocument();
+        expect(screen.getAllByText(i.toString()).length).toBeGreaterThan(0);
       }
     });
 
     test('renders all player names', () => {
       render(<Scorecard {...defaultProps} />);
+      // Multiple instances per player in new layout (front 9, back 9, totals)
       mockPlayers.forEach(player => {
-        expect(screen.getByText(new RegExp(player.name))).toBeInTheDocument();
+        expect(screen.getAllByText(new RegExp(player.name)).length).toBeGreaterThan(0);
       });
     });
 
-    test('renders OUT, IN, and TOT columns', () => {
+    test('renders OUT, IN, and TOTAL columns', () => {
       render(<Scorecard {...defaultProps} />);
-      expect(screen.getByText('OUT')).toBeInTheDocument();
-      expect(screen.getByText('IN')).toBeInTheDocument();
-      expect(screen.getByText('TOT')).toBeInTheDocument();
+      // New layout has separate tables with OUT for front 9, IN for back 9, and TOTAL in summary
+      expect(screen.getAllByText('OUT').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('IN').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('TOTAL').length).toBeGreaterThan(0);
     });
 
     test('renders PAR row when courseHoles provided', () => {
       render(<Scorecard {...defaultProps} />);
-      expect(screen.getByText('PAR')).toBeInTheDocument();
+      // Multiple PAR rows in new layout (front 9, back 9, totals summary)
+      expect(screen.getAllByText('PAR').length).toBeGreaterThan(0);
     });
 
     test('renders HDCP row when courseHoles provided', () => {
       render(<Scorecard {...defaultProps} />);
-      expect(screen.getByText('HDCP')).toBeInTheDocument();
+      // Multiple HDCP rows in new layout (front 9, back 9)
+      expect(screen.getAllByText('HDCP').length).toBeGreaterThan(0);
     });
   });
 
   describe('Player Display', () => {
     test('shows human player indicator', () => {
       render(<Scorecard {...defaultProps} />);
-      expect(screen.getByText(/👤/)).toBeInTheDocument();
+      // Multiple instances in new layout (front 9, back 9, totals)
+      expect(screen.getAllByText(/👤/).length).toBeGreaterThan(0);
     });
 
     test('shows AI player indicators', () => {
@@ -142,8 +148,9 @@ describe('Scorecard', () => {
 
     test('shows player handicaps', () => {
       render(<Scorecard {...defaultProps} />);
-      expect(screen.getByText(/\(15\)/)).toBeInTheDocument();
-      expect(screen.getByText(/\(18\)/)).toBeInTheDocument();
+      // Multiple instances in new layout (front 9, back 9, totals)
+      expect(screen.getAllByText(/\(15\)/).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/\(18\)/).length).toBeGreaterThan(0);
     });
   });
 
@@ -188,37 +195,44 @@ describe('Scorecard', () => {
   describe('Standings View Toggle', () => {
     test('shows standings toggle when captainId provided', () => {
       render(<Scorecard {...defaultProps} captainId="p1" />);
-      expect(screen.getByText('📊 Standings')).toBeInTheDocument();
+      expect(screen.getByText('Standings')).toBeInTheDocument();
     });
 
     test('does not show standings toggle without captainId', () => {
       render(<Scorecard {...defaultProps} />);
-      expect(screen.queryByText('📊 Standings')).not.toBeInTheDocument();
+      expect(screen.queryByText('Standings')).not.toBeInTheDocument();
     });
 
     test('switches to standings view when clicked', () => {
       render(<Scorecard {...defaultProps} captainId="p1" />);
-      fireEvent.click(screen.getByText('📊 Standings'));
-      // Button should now show "📋 Scorecard"
-      expect(screen.getByText('📋 Scorecard')).toBeInTheDocument();
+      fireEvent.click(screen.getByText('Standings'));
+      // Button should now show "Scorecard"
+      expect(screen.getByText('Scorecard')).toBeInTheDocument();
     });
 
     test('highlights captain in standings view', () => {
       render(<Scorecard {...defaultProps} captainId="p1" />);
-      fireEvent.click(screen.getByText('📊 Standings'));
+      fireEvent.click(screen.getByText('Standings'));
       // Captain should have star indicator
       expect(screen.getByText(/⭐/)).toBeInTheDocument();
     });
   });
 
   describe('Edit Hole Modal', () => {
+    // Helper to find a clickable score cell (with title attribute for editing)
+    const findClickableScoreCell = () => {
+      const allCells = document.querySelectorAll('td[title="Click to edit"]');
+      return allCells[0];
+    };
+
     test('opens edit modal when clicking completed hole cell', () => {
       const onEditHole = jest.fn();
       render(<Scorecard {...defaultProps} onEditHole={onEditHole} />);
 
-      // Click on a score cell for hole 1 (completed)
-      const scoreCells = screen.getAllByText('4');
-      fireEvent.click(scoreCells[0]);
+      // Click on a score cell for hole 1 (completed) - find cell with "Click to edit" title
+      const scoreCell = findClickableScoreCell();
+      expect(scoreCell).toBeTruthy();
+      fireEvent.click(scoreCell);
 
       // Modal should appear with Edit Hole title
       expect(screen.getByText(/Edit Hole/)).toBeInTheDocument();
@@ -228,8 +242,8 @@ describe('Scorecard', () => {
       const onEditHole = jest.fn();
       render(<Scorecard {...defaultProps} onEditHole={onEditHole} />);
 
-      const scoreCells = screen.getAllByText('4');
-      fireEvent.click(scoreCells[0]);
+      const scoreCell = findClickableScoreCell();
+      fireEvent.click(scoreCell);
 
       expect(screen.getByText(/Strokes \(Gross Score\)/)).toBeInTheDocument();
     });
@@ -238,8 +252,8 @@ describe('Scorecard', () => {
       const onEditHole = jest.fn();
       render(<Scorecard {...defaultProps} onEditHole={onEditHole} />);
 
-      const scoreCells = screen.getAllByText('4');
-      fireEvent.click(scoreCells[0]);
+      const scoreCell = findClickableScoreCell();
+      fireEvent.click(scoreCell);
 
       expect(screen.getByText(/Quarters \(Manual Override\)/)).toBeInTheDocument();
     });
@@ -248,8 +262,8 @@ describe('Scorecard', () => {
       const onEditHole = jest.fn();
       render(<Scorecard {...defaultProps} onEditHole={onEditHole} />);
 
-      const scoreCells = screen.getAllByText('4');
-      fireEvent.click(scoreCells[0]);
+      const scoreCell = findClickableScoreCell();
+      fireEvent.click(scoreCell);
 
       fireEvent.click(screen.getByText('Cancel'));
 
@@ -261,8 +275,8 @@ describe('Scorecard', () => {
       const onEditHole = jest.fn();
       render(<Scorecard {...defaultProps} onEditHole={onEditHole} />);
 
-      const scoreCells = screen.getAllByText('4');
-      fireEvent.click(scoreCells[0]);
+      const scoreCell = findClickableScoreCell();
+      fireEvent.click(scoreCell);
 
       // Edit the strokes input
       const inputs = screen.getAllByTestId('input');
@@ -296,9 +310,9 @@ describe('Scorecard', () => {
       const onPlayerNameChange = jest.fn();
       render(<Scorecard {...defaultProps} onPlayerNameChange={onPlayerNameChange} />);
 
-      // Click on player name
-      const playerNameElement = screen.getByText(/Player 1/);
-      fireEvent.click(playerNameElement);
+      // Click on player name (multiple instances in new layout, get the first one)
+      const playerNameElements = screen.getAllByText(/Player 1/);
+      fireEvent.click(playerNameElements[0]);
 
       expect(screen.getByText('Edit Player Name')).toBeInTheDocument();
     });
@@ -343,20 +357,26 @@ describe('Scorecard', () => {
     test('renders without course holes gracefully', () => {
       render(<Scorecard {...defaultProps} courseHoles={[]} />);
       expect(screen.getByText(/SCORECARD/)).toBeInTheDocument();
-      // PAR row should not be present
-      expect(screen.queryByText('PAR')).not.toBeInTheDocument();
+      // PAR rows should not be present
+      expect(screen.queryAllByText('PAR').length).toBe(0);
     });
   });
 
   describe('Input Validation', () => {
+    // Helper to find a clickable score cell (with title attribute for editing)
+    const findClickableScoreCell = () => {
+      const allCells = document.querySelectorAll('td[title="Click to edit"]');
+      return allCells[0];
+    };
+
     test('validates strokes are within valid range', async () => {
       const onEditHole = jest.fn();
       const alertMock = jest.spyOn(window, 'alert').mockImplementation(() => {});
 
       render(<Scorecard {...defaultProps} onEditHole={onEditHole} />);
 
-      const scoreCells = screen.getAllByText('4');
-      fireEvent.click(scoreCells[0]);
+      const scoreCell = findClickableScoreCell();
+      fireEvent.click(scoreCell);
 
       const inputs = screen.getAllByTestId('input');
       fireEvent.change(inputs[0], { target: { value: '20' } }); // Invalid: > 15
@@ -375,8 +395,8 @@ describe('Scorecard', () => {
 
       render(<Scorecard {...defaultProps} onEditHole={onEditHole} />);
 
-      const scoreCells = screen.getAllByText('4');
-      fireEvent.click(scoreCells[0]);
+      const scoreCell = findClickableScoreCell();
+      fireEvent.click(scoreCell);
 
       const inputs = screen.getAllByTestId('input');
       fireEvent.change(inputs[0], { target: { value: '4' } });
