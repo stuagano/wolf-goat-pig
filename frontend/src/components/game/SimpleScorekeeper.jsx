@@ -1033,7 +1033,7 @@ const SimpleScorekeeper = ({
       })()}
 
       {/* Betting Controls - Always visible */}
-      {!editingHole && (() => {
+      {(() => {
         // Calculate multiplier from base wager
         const multiplier = nextHoleWager > 0 ? Math.round(currentWager / nextHoleWager) : 1;
         const hasMultiplier = multiplier > 1;
