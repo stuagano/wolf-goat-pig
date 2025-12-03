@@ -85,6 +85,13 @@ const SimpleScorekeeper = ({
   const [optionTurnedOff, setOptionTurnedOff] = useState(false);
   const [duncanInvoked, setDuncanInvoked] = useState(false);
 
+  // Aardvark mechanics (5-man game)
+  const [aardvarkRequestedTeam, setAardvarkRequestedTeam] = useState(null); // 'team1' or 'team2'
+  const [aardvarkTossed, setAardvarkTossed] = useState(false); // Was Aardvark rejected?
+  const [aardvarkSolo, setAardvarkSolo] = useState(false); // Aardvark going solo (Tunkarri)
+  // Invisible Aardvark (4-man game)
+  const [invisibleAardvarkTossed, setInvisibleAardvarkTossed] = useState(false);
+
   // Game history and standings
   const [holeHistory, setHoleHistory] = useState(initialHoleHistory);
   const [playerStandings, setPlayerStandings] = useState({});
@@ -241,6 +248,11 @@ const SimpleScorekeeper = ({
     setJoesSpecialWager(null); // Reset Joe's Special for next hole
     setOptionTurnedOff(false); // Reset Option for next hole
     setDuncanInvoked(false); // Reset Duncan for next hole
+    // Reset Aardvark state
+    setAardvarkRequestedTeam(null);
+    setAardvarkTossed(false);
+    setAardvarkSolo(false);
+    setInvisibleAardvarkTossed(false);
   };
 
   // Load hole data for editing
@@ -427,7 +439,13 @@ const SimpleScorekeeper = ({
           hole_par: holePar,
           float_invoked_by: floatInvokedBy,
           option_invoked_by: optionInvokedBy,
-          carry_over_applied: carryOverApplied
+          carry_over_applied: carryOverApplied,
+          // Aardvark fields (5-man game)
+          aardvark_requested_team: players.length === 5 ? aardvarkRequestedTeam : null,
+          aardvark_tossed: players.length === 5 ? aardvarkTossed : false,
+          aardvark_solo: players.length === 5 ? aardvarkSolo : false,
+          // Invisible Aardvark (4-man game)
+          invisible_aardvark_tossed: players.length === 4 ? invisibleAardvarkTossed : false
         })
       });
 
@@ -1986,6 +2004,143 @@ const SimpleScorekeeper = ({
                 );
               })}
             </div>
+
+            {/* 5-Man Aardvark UI */}
+            {players.length === 5 && team1.length >= 2 && (
+              <div style={{
+                marginTop: '16px',
+                padding: '12px',
+                background: 'linear-gradient(135deg, #E1F5FE, #B3E5FC)',
+                borderRadius: '8px',
+                border: '2px solid #03A9F4'
+              }}>
+                <div style={{ fontWeight: 'bold', marginBottom: '8px', color: '#01579B' }}>
+                  🦡 Aardvark (5th Player: {players[4]?.name})
+                </div>
+                <div style={{ fontSize: '13px', color: '#0277BD', marginBottom: '12px' }}>
+                  The Aardvark can request to join a team. If rejected ("tossed"), they join the other team and risk doubles.
+                </div>
+
+                {!aardvarkSolo ? (
+                  <>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                      <button
+                        onClick={() => { setAardvarkRequestedTeam('team1'); setAardvarkTossed(false); }}
+                        style={{
+                          padding: '10px 16px',
+                          fontSize: '14px',
+                          fontWeight: 'bold',
+                          border: aardvarkRequestedTeam === 'team1' && !aardvarkTossed ? '3px solid #00bcd4' : '2px solid #90CAF9',
+                          borderRadius: '8px',
+                          background: aardvarkRequestedTeam === 'team1' && !aardvarkTossed ? 'rgba(0, 188, 212, 0.2)' : 'white',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Request Team 1 ✓
+                      </button>
+                      <button
+                        onClick={() => { setAardvarkRequestedTeam('team2'); setAardvarkTossed(false); }}
+                        style={{
+                          padding: '10px 16px',
+                          fontSize: '14px',
+                          fontWeight: 'bold',
+                          border: aardvarkRequestedTeam === 'team2' && !aardvarkTossed ? '3px solid #ff9800' : '2px solid #90CAF9',
+                          borderRadius: '8px',
+                          background: aardvarkRequestedTeam === 'team2' && !aardvarkTossed ? 'rgba(255, 152, 0, 0.2)' : 'white',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Request Team 2 ✓
+                      </button>
+                    </div>
+
+                    {aardvarkRequestedTeam && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={aardvarkTossed}
+                            onChange={(e) => setAardvarkTossed(e.target.checked)}
+                            style={{ width: '18px', height: '18px' }}
+                          />
+                          <span style={{ fontWeight: 'bold', color: '#d32f2f' }}>
+                            ❌ Tossed! (Risk doubles, joins other team)
+                          </span>
+                        </label>
+                      </div>
+                    )}
+
+                    <button
+                      onClick={() => setAardvarkSolo(true)}
+                      style={{
+                        marginTop: '12px',
+                        padding: '8px 14px',
+                        fontSize: '13px',
+                        border: '2px solid #9C27B0',
+                        borderRadius: '6px',
+                        background: 'rgba(156, 39, 176, 0.1)',
+                        cursor: 'pointer',
+                        color: '#7B1FA2'
+                      }}
+                    >
+                      🎯 Tunkarri (Aardvark goes solo - 3 for 2)
+                    </button>
+                  </>
+                ) : (
+                  <div>
+                    <div style={{ fontWeight: 'bold', color: '#7B1FA2', marginBottom: '8px' }}>
+                      🎯 Tunkarri Active - Aardvark is going solo!
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#6A1B9A', marginBottom: '8px' }}>
+                      Aardvark plays alone vs both teams. Wins 3Q for every 2Q wagered if best net score.
+                    </div>
+                    <button
+                      onClick={() => setAardvarkSolo(false)}
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: '12px',
+                        border: '1px solid #9C27B0',
+                        borderRadius: '4px',
+                        background: 'white',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Cancel Tunkarri
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 4-Man Invisible Aardvark UI */}
+            {players.length === 4 && team1.length === 2 && (
+              <div style={{
+                marginTop: '16px',
+                padding: '12px',
+                background: 'linear-gradient(135deg, #FFF3E0, #FFE0B2)',
+                borderRadius: '8px',
+                border: '2px dashed #FF9800'
+              }}>
+                <div style={{ fontWeight: 'bold', marginBottom: '8px', color: '#E65100' }}>
+                  👻 Invisible Aardvark
+                </div>
+                <div style={{ fontSize: '13px', color: '#EF6C00', marginBottom: '12px' }}>
+                  The Invisible Aardvark automatically joins Team 2 (the "forcibly formed" team).
+                  Team 2 can "toss" it to double the wager (3 for 2 if they win).
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={invisibleAardvarkTossed}
+                    onChange={(e) => setInvisibleAardvarkTossed(e.target.checked)}
+                    style={{ width: '20px', height: '20px' }}
+                  />
+                  <span style={{ fontWeight: 'bold', color: invisibleAardvarkTossed ? '#d32f2f' : '#5D4037' }}>
+                    {invisibleAardvarkTossed ? '❌ Invisible Aardvark TOSSED! (Wager doubled, 3 for 2)' : 'Toss the Invisible Aardvark?'}
+                  </span>
+                </label>
+              </div>
+            )}
           </>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
