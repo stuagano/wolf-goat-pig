@@ -685,6 +685,17 @@ const SimpleScorekeeper = ({
     return allocation;
   }, [courseData, localPlayers, initialStrokeAllocation]);
 
+  // Memoize courseHoles transformation to prevent Scorecard re-renders
+  const scorecardCourseHoles = useMemo(() => {
+    if (!courseData?.holes) return [];
+    return courseData.holes.map(h => ({
+      hole: h.hole_number,
+      par: h.par,
+      handicap: h.handicap,
+      yards: h.yards
+    }));
+  }, [courseData?.holes]);
+
   // Handler for editing a hole from the scorecard
   const handleEditHoleFromScorecard = ({ hole, playerId, strokes, quarters }) => {
     // Load the hole for editing
@@ -783,12 +794,7 @@ const SimpleScorekeeper = ({
           holeHistory={holeHistory}
           currentHole={currentHole}
           onEditHole={handleEditHoleFromScorecard}
-          courseHoles={(courseData?.holes || []).map(h => ({
-            hole: h.hole_number,
-            par: h.par,
-            handicap: h.handicap,
-            yards: h.yards
-          }))}
+          courseHoles={scorecardCourseHoles}
           strokeAllocation={strokeAllocation}
         />
 

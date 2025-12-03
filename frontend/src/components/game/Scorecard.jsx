@@ -983,4 +983,4 @@ Scorecard.defaultProps = {
   currentHole: 1
 };
 
-export default Scorecard;
+export default React.memo(Scorecard);
