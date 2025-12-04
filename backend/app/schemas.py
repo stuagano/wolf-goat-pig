@@ -154,6 +154,7 @@ class PlayerProfileBase(BaseModel):
     name: str
     handicap: float = 18.0
     avatar_url: Optional[str] = None
+    email: Optional[str] = None
     preferences: Optional[Dict[str, Any]] = None
 
 class PlayerProfileCreate(PlayerProfileBase):
@@ -394,6 +395,7 @@ class PlayerPerformanceAnalytics(BaseModel):
 
 class LeaderboardEntry(BaseModel):
     rank: int
+    player_id: int
     player_name: str
     games_played: int
     win_percentage: float

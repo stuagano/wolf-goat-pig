@@ -801,8 +801,8 @@ async def update_player_name(  # type: ignore
                         player["name"] = new_name
                         break
 
-                game.state = state
-                game.updated_at = datetime.now(timezone.utc).isoformat()
+                game.state = state  # type: ignore
+                game.updated_at = datetime.now(timezone.utc).isoformat()  # type: ignore
 
                 # Also update GamePlayer record
                 game_player = db.query(models.GamePlayer).filter(
@@ -1537,7 +1537,8 @@ async def complete_hole(  # type: ignore
             game_state["players"] = []
 
         # Ensure all players from rotation_order are in game_state["players"]
-        existing_player_ids = {p.get("id") for p in game_state["players"]}
+        players_list = cast(List[Dict[str, Any]], game_state["players"])
+        existing_player_ids = {p.get("id") for p in players_list}
         for player_id in request.rotation_order:
             if player_id not in existing_player_ids:
                 game_state["players"].append({"id": player_id, "points": 0, "float_used": 0})
@@ -2094,6 +2095,8 @@ async def get_next_rotation(  # type: ignore
 
         game_state = game.state or {}
         player_count = len(game_state.get("players", []))
+
+        # Use game_state.get("current_hole", 1) for current_hole
         current_hole = game_state.get("current_hole", 1)
 
         # Determine Hoepfinger start based on player count
@@ -2609,9 +2612,9 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
                 )
 
             wgp_player = Player(
-                id=p.player_slot_id,
-                name=p.player_name,
-                handicap=player_handicap
+                id=cast(str, p.player_slot_id),
+                name=cast(str, p.player_name),
+                handicap=cast(float, player_handicap)
             )
             wgp_players.append(wgp_player)
 
@@ -2662,9 +2665,9 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
         initial_state = simulation.get_game_state()
 
         # Update database game state
-        game.game_status = "in_progress"
-        game.updated_at = datetime.now(timezone.utc).isoformat()
-        game.state = initial_state
+        game.game_status = "in_progress"  # type: ignore
+        game.updated_at = datetime.now(timezone.utc).isoformat()  # type: ignore
+        game.state = initial_state  # type: ignore
         game.state["game_status"] = "in_progress"
         game.state["started_at"] = game.updated_at
         game.state["game_id"] = game_id  # Track game_id in state
@@ -2965,9 +2968,9 @@ async def perform_game_action_by_id(  # type: ignore
                 player_handicap = p.handicap if p.handicap is not None else 18.0
 
                 wgp_player = Player(
-                    id=p.player_slot_id,
-                    name=p.player_name,
-                    handicap=player_handicap
+                    id=cast(str, p.player_slot_id),
+                    name=cast(str, p.player_name),
+                    handicap=cast(float, player_handicap)
                 )
                 wgp_players.append(wgp_player)
 
@@ -3203,7 +3206,7 @@ UNIFIED_ACTION_TYPES = {
 
 # Unified Action API - Main Game Logic Endpoint
 @app.post("/wgp/{game_id}/action", response_model=ActionResponse)
-async def unified_action(game_id: str, action: ActionRequest, db: Session = Depends(database.get_db))->Dict[str,Any]:
+async def unified_action(game_id: str, action: ActionRequest, db: Session = Depends(database.get_db)) -> ActionResponse:
     """Unified action endpoint for all Wolf Goat Pig game interactions"""
     try:
         # Get the specific game instance for this game_id
@@ -5651,7 +5654,7 @@ async def sync_wgp_sheet_data(request: Dict[str, str], db: Session = Depends(dat
                     sync_results["players_created"] += 1
                     player_id = new_player.id
                 else:
-                    player_id = existing_player.id
+                    player_id = cast(int, existing_player.id)
                     sync_results["players_updated"] += 1
 
                 # Update or create statistics record
@@ -5665,25 +5668,25 @@ async def sync_wgp_sheet_data(request: Dict[str, str], db: Session = Depends(dat
                     db.add(player_stats_record)
 
                 # Update statistics with sheet data
-                player_stats_record.games_played = stats.get("rounds", 0)
-                player_stats_record.total_earnings = stats.get("total_earnings", 0)
+                player_stats_record.games_played = stats.get("rounds", 0)  # type: ignore
+                player_stats_record.total_earnings = stats.get("total_earnings", 0)  # type: ignore
 
                 # Calculate win percentage based on average earnings per game
                 if stats.get("rounds", 0) > 0 and stats.get("average", 0) > 0:
                     # If average is positive, estimate wins based on that
                     # Assuming positive average means winning more often
                     estimated_win_rate = min(100, max(0, (stats.get("average", 0) + 50) / 100 * 50))
-                    player_stats_record.win_percentage = estimated_win_rate
-                    player_stats_record.games_won = int(stats.get("rounds", 0) * estimated_win_rate / 100)
+                    player_stats_record.win_percentage = estimated_win_rate  # type: ignore
+                    player_stats_record.games_won = int(stats.get("rounds", 0) * estimated_win_rate / 100)  # type: ignore
                 else:
-                    player_stats_record.win_percentage = 0
-                    player_stats_record.games_won = 0
+                    player_stats_record.win_percentage = 0  # type: ignore
+                    player_stats_record.games_won = 0  # type: ignore
 
                 # Store additional metrics
-                player_stats_record.avg_earnings_per_game = stats.get("average", 0)
+                player_stats_record.avg_earnings_per_game = stats.get("average", 0)  # type: ignore
 
                 # Update timestamp
-                player_stats_record.last_updated = datetime.now().isoformat()
+                player_stats_record.last_updated = datetime.now().isoformat()  # type: ignore
 
                 # Try to fetch GHIN data if player has GHIN ID
                 ghin_data = None
@@ -6158,7 +6161,7 @@ async def upload_gmail_credentials(file: UploadFile = File(...), x_admin_email: 
 
     try:
         # Validate file type
-        if not file.filename.endswith('.json'):
+        if not file.filename or not file.filename.endswith('.json'):
             raise HTTPException(status_code=400, detail="File must be a JSON file")
 
         # Read and validate JSON content
@@ -8029,13 +8032,13 @@ def update_signup(signup_id: int, signup_update: schemas.DailySignupUpdate):  # 
 
         # Update fields
         if signup_update.preferred_start_time is not None:
-            db_signup.preferred_start_time = signup_update.preferred_start_time
+            db_signup.preferred_start_time = signup_update.preferred_start_time  # type: ignore
         if signup_update.notes is not None:
-            db_signup.notes = signup_update.notes
+            db_signup.notes = signup_update.notes  # type: ignore
         if signup_update.status is not None:
-            db_signup.status = signup_update.status
+            db_signup.status = signup_update.status  # type: ignore
 
-        db_signup.updated_at = datetime.now().isoformat()
+        db_signup.updated_at = datetime.now().isoformat()  # type: ignore
 
         db.commit()
         db.refresh(db_signup)
@@ -8071,8 +8074,8 @@ def cancel_signup(signup_id: int):  # type: ignore
         if not db_signup:
             raise HTTPException(status_code=404, detail="Sign-up not found")
 
-        db_signup.status = "cancelled"
-        db_signup.updated_at = datetime.now().isoformat()
+        db_signup.status = "cancelled"  # type: ignore
+        db_signup.updated_at = datetime.now().isoformat()  # type: ignore
 
         db.commit()
 
@@ -8212,8 +8215,8 @@ def update_message(message_id: int, message_update: schemas.DailyMessageUpdate):
             raise HTTPException(status_code=404, detail="Message not found")
 
         if message_update.message is not None:
-            db_message.message = message_update.message
-            db_message.updated_at = datetime.now().isoformat()
+            db_message.message = message_update.message  # type: ignore
+            db_message.updated_at = datetime.now().isoformat()  # type: ignore
 
         db.commit()
         db.refresh(db_message)
@@ -8241,8 +8244,8 @@ def delete_message(message_id: int):  # type: ignore
         if not db_message:
             raise HTTPException(status_code=404, detail="Message not found")
 
-        db_message.is_active = 0
-        db_message.updated_at = datetime.now().isoformat()
+        db_message.is_active = 0  # type: ignore
+        db_message.updated_at = datetime.now().isoformat()  # type: ignore
 
         db.commit()
 
@@ -8300,7 +8303,7 @@ def _build_player_payload(
         }
 
         if include_handicap:
-            player_data["handicap"] = handicap_lookup.get(signup.player_profile_id, 18.0)
+            player_data["handicap"] = handicap_lookup.get(cast(Any, signup.player_profile_id), 18.0)
 
         players.append(player_data)
 
@@ -8797,7 +8800,7 @@ def get_match_suggestions(  # type: ignore
 
         all_players_data = []
         for player in players_with_availability:
-            player_data = {
+            player_data: Dict[str, Any] = {
                 "player_id": player.id,
                 "player_name": player.name,
                 "email": player.email,
@@ -8933,8 +8936,8 @@ async def create_and_notify_matches():
                         )
 
                     # Mark as sent
-                    match.notification_sent = True
-                    match.notification_sent_at = datetime.now().isoformat()
+                    match.notification_sent = True  # type: ignore
+                    match.notification_sent_at = datetime.now().isoformat()  # type: ignore
                     db.commit()
 
                     notifications_sent.append({
@@ -9016,9 +9019,9 @@ async def get_table_content(schema_name: str, table_name: str, x_admin_email: Op
             raise HTTPException(status_code=404, detail=f"Table '{table_name}' not found in schema '{schema_name}'")
 
         query = text(f"SELECT * FROM {schema_name}.{table_name} LIMIT 100;")
-        result = db.execute(query).fetchall()
-        columns = result[0].keys() if result else []
-        rows = [dict(row._mapping) for row in result]
+        table_content = db.execute(query).fetchall()
+        columns = table_content[0].keys() if table_content else []
+        rows = [dict(row._mapping) for row in table_content]
         return {"schema": schema_name, "table": table_name, "columns": list(columns), "rows": rows}
     except Exception as e:
         logger.error(f"Error getting content for table {schema_name}.{table_name}: {e}")

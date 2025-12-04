@@ -654,7 +654,7 @@ class StatisticsService:
                 else:
                     ties += 1
 
-                earnings_diff += player_result.total_earnings - opponent_result.total_earnings
+                earnings_diff += float(player_result.total_earnings) - float(opponent_result.total_earnings)
 
             total_games = len(common_games)
             return {
@@ -705,7 +705,7 @@ class StatisticsService:
             })
 
             for opp_result in opponent_results:
-                opp_id = opp_result.player_profile_id
+                opp_id = int(opp_result.player_profile_id)
                 game_id = opp_result.game_record_id
 
                 if game_id in player_games:

@@ -443,6 +443,7 @@ class PlayerService:
 
                 leaderboard.append(LeaderboardEntry(
                     rank=rank,
+                    player_id=profile.id,
                     player_name=profile.name,
                     games_played=stats.games_played,
                     win_percentage=round(win_percentage, 1),

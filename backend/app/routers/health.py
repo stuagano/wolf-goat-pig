@@ -11,7 +11,7 @@ Uses new utility patterns:
 import logging
 import os
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Dict, List, cast
 
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import text
@@ -306,7 +306,7 @@ def seed_course_holes() -> Dict[str, Any]:
                         continue
 
                     # Add holes
-                    holes_data = course_data.get('holes_data', [])
+                    holes_data = cast(List[Dict[str, Any]], course_data.get('holes_data', []))
                     for hole_detail in holes_data:
                         hole = models.Hole(
                             course_id=existing_course.id,

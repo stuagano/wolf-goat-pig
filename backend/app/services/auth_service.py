@@ -132,7 +132,10 @@ class AuthService:
                 update_needed = True
 
             if player.preferences and "auth0_id" not in player.preferences:
-                player.preferences["auth0_id"] = auth0_id
+                # Create new dict to trigger SQLAlchemy change detection
+                updated_prefs = dict(player.preferences)
+                updated_prefs["auth0_id"] = auth0_id
+                player.preferences = updated_prefs
                 update_needed = True
 
             if update_needed:
@@ -159,7 +162,10 @@ class AuthService:
             if not player.preferences:
                 setattr(player, 'preferences', {})
 
-            player.preferences["auth0_id"] = auth0_id
+            # Create new dict to trigger SQLAlchemy change detection
+            updated_prefs = dict(player.preferences) if player.preferences else {}
+            updated_prefs["auth0_id"] = auth0_id
+            player.preferences = updated_prefs
             setattr(player, 'updated_at', datetime.now().isoformat())
 
             db.commit()
