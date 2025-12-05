@@ -1,4 +1,5 @@
 // frontend/src/components/game/SimpleScorekeeper.jsx
+// Updated: Force redeploy - single scorecard layout
 import React, { useState, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { useTheme } from '../../theme/Provider';
