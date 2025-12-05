@@ -829,51 +829,14 @@ const SimpleScorekeeper = ({
 
       {/* Enhanced Hole Title Section - Combines hole info, hitting order, and strokes */}
       {(() => {
-        // Calculate stroke allocation data
-        const playerHandicaps = players.reduce((acc, player) => {
-          acc[player.id] = player.handicap || 0;
-          return acc;
-        }, {});
-        const lowestHandicap = Math.min(...Object.values(playerHandicaps));
-        const netHandicaps = {};
-        Object.entries(playerHandicaps).forEach(([playerId, handicap]) => {
-          netHandicaps[playerId] = Math.max(0, handicap - lowestHandicap);
-        });
-
-        // Calculate stroke allocation for current hole using Creecher Feature logic
-        const getStrokesForHole = (netHandicap, strokeIndex) => {
-          if (!netHandicap || !strokeIndex) return 0;
-          const fullStrokes = Math.floor(netHandicap);
-          const hasHalfStroke = (netHandicap - fullStrokes) >= 0.5;
-
-          // Creecher Feature: For handicaps >18, easiest holes get ONLY half strokes
-          if (netHandicap > 18 && strokeIndex >= 13 && strokeIndex <= 18) {
-            const creecherStrokes = Math.min(Math.floor(netHandicap - 18), 6);
-            const easiestHoles = [18, 17, 16, 15, 14, 13];
-            if (easiestHoles.slice(0, creecherStrokes).includes(strokeIndex)) {
-              return 0.5;
-            }
-          }
-
-          // Full strokes on hardest holes
-          if (strokeIndex <= fullStrokes) {
-            return 1.0;
-          }
-
-          // Half stroke on next hardest hole for fractional handicaps
-          if (hasHalfStroke && strokeIndex === fullStrokes + 1) {
-            return 0.5;
-          }
-
-          return 0;
-        };
-
         const strokeIndex = courseData?.holes?.find(h => h.hole_number === currentHole)?.handicap;
 
-        // Build player stroke map for the hitting order display
+        // Use the already-calculated strokeAllocation which has correct Creecher Feature logic
+        // This ensures consistency between the Scorecard and the Hitting Order display
         const playerStrokesMap = {};
         players.forEach(player => {
-          playerStrokesMap[player.id] = strokeIndex ? getStrokesForHole(netHandicaps[player.id], strokeIndex) : 0;
+          // Get strokes from the centralized strokeAllocation (includes Creecher half strokes)
+          playerStrokesMap[player.id] = strokeAllocation?.[player.id]?.[currentHole] || 0;
         });
 
         return (
