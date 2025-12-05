@@ -1834,7 +1834,7 @@ class WolfGoatPigGame(PersistenceMixin):
                 holes_info.append({
                     "hole": hole_num,
                     "par": hole_info.get("par", 4),
-                    "handicap": hole_info.get("stroke_index", hole_num),
+                    "handicap": hole_info.get("handicap") or hole_info.get("stroke_index", hole_num),
                     "yards": hole_info.get("yards", 400)
                 })
             except Exception as e:
@@ -1884,6 +1884,12 @@ class WolfGoatPigGame(PersistenceMixin):
         player_handicaps = {player.id: player.handicap for player in self.players}
         net_handicaps = HandicapValidator.calculate_net_handicaps(player_handicaps)
 
+        # Get hole handicaps (stroke indexes) for the course - returns list indexed 0-17 for holes 1-18
+        hole_handicaps = self.course_manager.get_hole_handicaps()
+        if not hole_handicaps:
+            # Fallback to default 1-18 if course data unavailable
+            hole_handicaps = list(range(1, 19))
+
         for player in self.players:
             player_strokes: Dict[int, float] = {}
             net_handicap = net_handicaps.get(player.id, 0.0)
@@ -1891,12 +1897,8 @@ class WolfGoatPigGame(PersistenceMixin):
             # Calculate strokes for all 18 holes
             for hole_num in range(1, 19):
                 try:
-                    # Get stroke index for this hole
-                    if hasattr(self.course_manager, 'get_hole_info'):
-                        hole_info = self.course_manager.get_hole_info(hole_num)
-                    else:
-                        raise AttributeError("course_manager does not have get_hole_info method")
-                    stroke_index = hole_info.get("stroke_index", hole_num)
+                    # Get stroke index for this hole (0-indexed in the list)
+                    stroke_index = hole_handicaps[hole_num - 1] if hole_num <= len(hole_handicaps) else hole_num
 
                     # Calculate strokes received using Creecher Feature with net handicap
                     strokes = HandicapValidator.calculate_strokes_received_with_creecher(
