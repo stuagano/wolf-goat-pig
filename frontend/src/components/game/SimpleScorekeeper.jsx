@@ -114,24 +114,45 @@ const SimpleScorekeeper = ({
   // No defaults - only use actual course data
   const holePar = courseData?.holes?.find(h => h.hole_number === currentHole)?.par;
 
+  // Track course data loading state
+  const [courseDataError, setCourseDataError] = useState(null);
+  const [courseDataLoading, setCourseDataLoading] = useState(false);
+
   // Fetch course data
   useEffect(() => {
     const fetchCourseData = async () => {
+      setCourseDataLoading(true);
+      setCourseDataError(null);
       try {
         // Fetch course details
         const courseResponse = await fetch(`${API_URL}/courses`);
-        if (courseResponse.ok) {
-          const coursesData = await courseResponse.json();
-          // /courses returns an object with course names as keys, not an array
-          const course = coursesData[courseName];
-          if (course) {
-            setCourseData(course);
-          } else {
-            console.warn(`Course "${courseName}" not found in courses data`);
-          }
+        if (!courseResponse.ok) {
+          throw new Error(`Failed to fetch courses: ${courseResponse.status} ${courseResponse.statusText}`);
         }
+
+        const coursesData = await courseResponse.json();
+        if (!coursesData || typeof coursesData !== 'object') {
+          throw new Error('Invalid courses response: expected object');
+        }
+
+        // /courses returns an object with course names as keys, not an array
+        const course = coursesData[courseName];
+        if (!course) {
+          throw new Error(`Course "${courseName}" not found in courses data`);
+        }
+
+        // Validate course data structure
+        if (!course.holes || !Array.isArray(course.holes)) {
+          throw new Error(`Course "${courseName}" has invalid holes data`);
+        }
+
+        setCourseData(course);
       } catch (err) {
         console.error('Error fetching course data:', err);
+        setCourseDataError(err.message);
+        // Don't set courseData to null - keep any existing data
+      } finally {
+        setCourseDataLoading(false);
       }
     };
 
@@ -185,52 +206,77 @@ const SimpleScorekeeper = ({
     setPlayerStandings(standings);
   }, [players, holeHistory]);
 
+  // Track rotation/wager loading errors
+  const [rotationError, setRotationError] = useState(null);
+
   // Fetch rotation and wager info when hole changes
   useEffect(() => {
     const fetchRotationAndWager = async () => {
+      setRotationError(null);
       try {
         // Fetch next rotation
         const rotationRes = await fetch(`${API_URL}/games/${gameId}/next-rotation`);
-        if (rotationRes.ok) {
-          const rotationData = await rotationRes.json();
+        if (!rotationRes.ok) {
+          throw new Error(`Failed to fetch rotation: ${rotationRes.status}`);
+        }
 
-          if (rotationData.is_hoepfinger) {
-            setIsHoepfinger(true);
-            setGoatId(rotationData.goat_id);
-            setPhase('hoepfinger');
-            // Don't set rotation yet - Goat will select position
-          } else {
-            setIsHoepfinger(false);
-            setRotationOrder(rotationData.rotation_order);
-            setCaptainIndex(rotationData.captain_index);
-            setPhase('normal');
-            setGoatId(null);
-            setJoesSpecialWager(null);
+        const rotationData = await rotationRes.json();
+        if (!rotationData || typeof rotationData !== 'object') {
+          throw new Error('Invalid rotation response');
+        }
+
+        if (rotationData.is_hoepfinger) {
+          setIsHoepfinger(true);
+          setGoatId(rotationData.goat_id);
+          setPhase('hoepfinger');
+          // Don't set rotation yet - Goat will select position
+        } else {
+          setIsHoepfinger(false);
+          // Validate rotation_order is an array
+          if (!Array.isArray(rotationData.rotation_order)) {
+            throw new Error('Invalid rotation_order: expected array');
           }
+          setRotationOrder(rotationData.rotation_order);
+          setCaptainIndex(typeof rotationData.captain_index === 'number' ? rotationData.captain_index : 0);
+          setPhase('normal');
+          setGoatId(null);
+          setJoesSpecialWager(null);
         }
 
         // Fetch next hole wager
         const wagerRes = await fetch(`${API_URL}/games/${gameId}/next-hole-wager`);
-        if (wagerRes.ok) {
-          const wagerData = await wagerRes.json();
-          setNextHoleWager(wagerData.base_wager);
-          setCurrentWager(wagerData.base_wager);
-          setCarryOver(wagerData.carry_over || false);
-          setVinniesVariation(wagerData.vinnies_variation || false);
-          setOptionActive(wagerData.option_active || false);
-          if (wagerData.option_active) {
-            setGoatId(wagerData.goat_id);
-          }
+        if (!wagerRes.ok) {
+          throw new Error(`Failed to fetch wager: ${wagerRes.status}`);
+        }
+
+        const wagerData = await wagerRes.json();
+        if (!wagerData || typeof wagerData !== 'object') {
+          throw new Error('Invalid wager response');
+        }
+
+        // Validate and set wager data with safe defaults
+        const baseWagerValue = typeof wagerData.base_wager === 'number' ? wagerData.base_wager : baseWager;
+        setNextHoleWager(baseWagerValue);
+        setCurrentWager(baseWagerValue);
+        setCarryOver(wagerData.carry_over || false);
+        setVinniesVariation(wagerData.vinnies_variation || false);
+        setOptionActive(wagerData.option_active || false);
+        if (wagerData.option_active) {
+          setGoatId(wagerData.goat_id);
         }
       } catch (err) {
         console.error('Error fetching rotation/wager:', err);
+        setRotationError(err.message);
+        // Set safe defaults on error
+        setCurrentWager(baseWager);
+        setNextHoleWager(baseWager);
       }
     };
 
     if (gameId) {
       fetchRotationAndWager();
     }
-  }, [gameId, currentHole, holeHistory]);
+  }, [gameId, currentHole, holeHistory, baseWager]);
 
   // Reset hole state for new hole
   const resetHole = () => {
@@ -451,10 +497,22 @@ const SimpleScorekeeper = ({
       });
 
       if (!response.ok) {
-        throw new Error('Failed to submit hole');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || errorData.message || 'Failed to submit hole');
       }
 
       const data = await response.json();
+
+      // Validate response structure
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid response from server: expected object');
+      }
+      if (!data.hole_result || typeof data.hole_result !== 'object') {
+        throw new Error('Invalid response: missing hole_result');
+      }
+      if (!data.hole_result.points_delta || typeof data.hole_result.points_delta !== 'object') {
+        throw new Error('Invalid response: missing points_delta in hole_result');
+      }
 
       // Log hole completion to betting history
       logBettingAction('Hole Completed', {
@@ -478,23 +536,37 @@ const SimpleScorekeeper = ({
         });
 
         updatedHistory.forEach(hole => {
-          Object.entries(hole.points_delta).forEach(([playerId, points]) => {
-            newStandings[playerId].quarters += points;
+          // Safely access points_delta with validation
+          const pointsDelta = hole.points_delta || {};
+          Object.entries(pointsDelta).forEach(([playerId, points]) => {
+            if (newStandings[playerId]) {
+              newStandings[playerId].quarters += typeof points === 'number' ? points : 0;
+            } else {
+              console.warn(`Unknown player in points_delta: ${playerId}`);
+            }
           });
         });
         setPlayerStandings(newStandings);
 
         // Return to the next hole after the last completed hole
-        setCurrentHole(Math.max(...updatedHistory.map(h => h.hole)) + 1);
+        const maxHole = updatedHistory.length > 0
+          ? Math.max(...updatedHistory.map(h => h.hole))
+          : 0;
+        setCurrentHole(maxHole + 1);
         resetHole();
       } else {
         // New hole - add to history
         setHoleHistory([...holeHistory, data.hole_result]);
 
-        // Update player standings incrementally
+        // Update player standings incrementally with validation
         const newStandings = { ...playerStandings };
-        Object.entries(data.hole_result.points_delta).forEach(([playerId, points]) => {
-          newStandings[playerId].quarters += points;
+        const pointsDelta = data.hole_result.points_delta || {};
+        Object.entries(pointsDelta).forEach(([playerId, points]) => {
+          if (newStandings[playerId]) {
+            newStandings[playerId].quarters += typeof points === 'number' ? points : 0;
+          } else {
+            console.warn(`Unknown player in points_delta: ${playerId}`);
+          }
         });
         setPlayerStandings(newStandings);
 
@@ -513,11 +585,16 @@ const SimpleScorekeeper = ({
     }
   };
 
+  // Track achievement check status
+  const [achievementCheckFailed, setAchievementCheckFailed] = useState(false);
+
   // Check achievements for all players and trigger notifications
   const checkAchievements = async () => {
-    try {
-      // Check achievements for each player
-      for (const player of players) {
+    let failedPlayers = [];
+    setAchievementCheckFailed(false);
+
+    for (const player of players) {
+      try {
         const response = await fetch(`${API_URL}/api/badges/admin/check-achievements/${player.id}`, {
           method: 'POST',
           headers: {
@@ -525,20 +602,37 @@ const SimpleScorekeeper = ({
           }
         });
 
-        if (response.ok) {
-          const data = await response.json();
-
-          // Trigger badge notification for each newly earned badge
-          if (data.badges_earned && data.badges_earned.length > 0) {
-            data.badges_earned.forEach(badge => {
-              triggerBadgeNotification(badge);
-            });
-          }
+        if (!response.ok) {
+          console.warn(`Achievement check failed for ${player.name}: ${response.status}`);
+          failedPlayers.push(player.name);
+          continue;
         }
+
+        const data = await response.json();
+        if (!data || typeof data !== 'object') {
+          console.warn(`Invalid achievement response for ${player.name}`);
+          failedPlayers.push(player.name);
+          continue;
+        }
+
+        // Trigger badge notification for each newly earned badge
+        if (Array.isArray(data.badges_earned) && data.badges_earned.length > 0) {
+          data.badges_earned.forEach(badge => {
+            if (badge && typeof badge === 'object') {
+              triggerBadgeNotification(badge);
+            }
+          });
+        }
+      } catch (err) {
+        console.warn(`Achievement check error for ${player.name}:`, err);
+        failedPlayers.push(player.name);
       }
-    } catch (err) {
-      // Silently fail - achievements are nice-to-have, not critical
-      console.warn('Failed to check achievements:', err);
+    }
+
+    // If any achievements failed to check, set the warning flag
+    if (failedPlayers.length > 0) {
+      setAchievementCheckFailed(true);
+      console.warn(`Achievement check failed for: ${failedPlayers.join(', ')}`);
     }
   };
 
@@ -739,6 +833,96 @@ const SimpleScorekeeper = ({
 
   return (
     <div data-testid="scorekeeper-container" style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
+      {/* Loading/Error/Warning Banners */}
+      {courseDataLoading && (
+        <div style={{
+          background: '#e3f2fd',
+          color: '#1976d2',
+          padding: '10px 14px',
+          borderRadius: '8px',
+          marginBottom: '12px',
+          fontSize: '14px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <span>⏳</span>
+          <span>Loading course data...</span>
+        </div>
+      )}
+
+      {courseDataError && (
+        <div style={{
+          background: '#f44336',
+          color: 'white',
+          padding: '12px 16px',
+          borderRadius: '8px',
+          marginBottom: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px'
+        }}>
+          <span style={{ fontSize: '18px' }}>⚠️</span>
+          <div>
+            <strong>Course Data Error:</strong> {courseDataError}
+            <div style={{ fontSize: '12px', opacity: 0.9, marginTop: '4px' }}>
+              Hole par and handicap data may be unavailable
+            </div>
+          </div>
+        </div>
+      )}
+
+      {rotationError && (
+        <div style={{
+          background: '#ff9800',
+          color: 'white',
+          padding: '12px 16px',
+          borderRadius: '8px',
+          marginBottom: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px'
+        }}>
+          <span style={{ fontSize: '18px' }}>⚠️</span>
+          <div>
+            <strong>Rotation/Wager Error:</strong> {rotationError}
+            <div style={{ fontSize: '12px', opacity: 0.9, marginTop: '4px' }}>
+              Using default wager. Rotation may be incorrect.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {achievementCheckFailed && (
+        <div style={{
+          background: '#9c27b0',
+          color: 'white',
+          padding: '10px 14px',
+          borderRadius: '8px',
+          marginBottom: '12px',
+          fontSize: '14px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <span>🏆</span>
+          <span>Achievement check failed - some badges may not have been recorded</span>
+          <button
+            onClick={() => setAchievementCheckFailed(false)}
+            style={{
+              marginLeft: 'auto',
+              background: 'transparent',
+              border: 'none',
+              color: 'white',
+              cursor: 'pointer',
+              fontSize: '16px'
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Edit Mode Banner */}
       {editingHole && (
         <div style={{

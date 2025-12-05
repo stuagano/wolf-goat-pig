@@ -57,12 +57,47 @@ const Scorecard = ({
     return holeInfo || null;
   };
 
+  // Track if stroke allocation data is missing or incomplete
+  const [strokeAllocationWarning, setStrokeAllocationWarning] = useState(null);
+
+  // Validate stroke allocation on mount and when it changes
+  useEffect(() => {
+    if (!strokeAllocation || typeof strokeAllocation !== 'object' || Object.keys(strokeAllocation).length === 0) {
+      setStrokeAllocationWarning('Stroke allocation data not available');
+      return;
+    }
+
+    // Check if all players have stroke data
+    const missingPlayers = players.filter(p => !strokeAllocation[p.id]);
+    if (missingPlayers.length > 0) {
+      setStrokeAllocationWarning(`Missing stroke data for: ${missingPlayers.map(p => p.name).join(', ')}`);
+      return;
+    }
+
+    setStrokeAllocationWarning(null);
+  }, [strokeAllocation, players]);
+
   // Get stroke allocation for a player on a hole
+  // Returns null if data is genuinely missing (vs 0 which means no strokes on that hole)
   const getStrokesReceived = (playerId, holeNumber) => {
-    if (!strokeAllocation || typeof strokeAllocation !== 'object') return 0;
-    if (!playerId || typeof holeNumber !== 'number') return 0;
+    if (!strokeAllocation || typeof strokeAllocation !== 'object') {
+      // Data not available - return null to indicate missing, not 0
+      return null;
+    }
+    if (!playerId || typeof holeNumber !== 'number') {
+      return null;
+    }
     const playerAllocation = strokeAllocation[playerId];
-    if (!playerAllocation || typeof playerAllocation !== 'object') return 0;
+    if (!playerAllocation || typeof playerAllocation !== 'object') {
+      // Player not in allocation - could be lowest handicap (0 strokes everywhere)
+      // or missing data. Check if ANY player has allocation.
+      const hasAnyAllocation = Object.keys(strokeAllocation).length > 0;
+      if (hasAnyAllocation) {
+        // Other players have data, this player genuinely has no strokes
+        return 0;
+      }
+      return null; // No data at all
+    }
     // Handle both string and number keys (JSON serialization converts int keys to strings)
     const strokes = playerAllocation[holeNumber] ?? playerAllocation[String(holeNumber)];
     return typeof strokes === 'number' ? strokes : 0;
@@ -673,6 +708,25 @@ const Scorecard = ({
           )}
         </div>
       </div>
+
+      {/* Stroke allocation warning */}
+      {strokeAllocationWarning && !isCollapsed && (
+        <div style={{
+          background: '#fff3e0',
+          border: '1px solid #ff9800',
+          borderRadius: '4px',
+          padding: '8px 12px',
+          marginBottom: '12px',
+          fontSize: '12px',
+          color: '#e65100',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <span>⚠️</span>
+          <span>{strokeAllocationWarning}</span>
+        </div>
+      )}
 
       {!isCollapsed && (viewMode === 'standings' ? (
         <StandingsView />
