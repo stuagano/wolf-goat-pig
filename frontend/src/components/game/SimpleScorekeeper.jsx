@@ -829,9 +829,9 @@ const SimpleScorekeeper = ({
           window.location.reload();
         }}
         onEditScores={() => {
-          // Enter edit mode - set to last completed hole
+          // Enter edit mode - set to hole 19 so ALL holes appear as "completed" and editable
           setIsEditingCompleteGame(true);
-          setCurrentHole(18); // Start at hole 18 for editing
+          setCurrentHole(19); // All holes 1-18 will show as completed (editable)
         }}
       />
     );
@@ -1036,6 +1036,7 @@ const SimpleScorekeeper = ({
           onEditHole={handleEditHoleFromScorecard}
           courseHoles={scorecardCourseHoles}
           strokeAllocation={strokeAllocation}
+          isEditingCompleteGame={isEditingCompleteGame}
         />
 
         {/* Quick Actions for Last Hole */}
