@@ -109,6 +109,7 @@ const SimpleScorekeeper = ({
   const [bettingHistory, setBettingHistory] = useState([]); // Track betting actions
   const [showBettingHistory, setShowBettingHistory] = useState(false); // Toggle betting history panel
   const [historyTab, setHistoryTab] = useState('current'); // 'current', 'last', 'game'
+  const [isEditingCompleteGame, setIsEditingCompleteGame] = useState(false); // Allow editing completed games
 
   // Derive current hole par from course data (pars are constants and don't change)
   // No defaults - only use actual course data
@@ -816,8 +817,8 @@ const SimpleScorekeeper = ({
   // Check if game is complete (all 18 holes played)
   const isGameComplete = currentHole > 18 && holeHistory.length === 18;
 
-  // Show completion view if game is complete
-  if (isGameComplete) {
+  // Show completion view if game is complete and not in edit mode
+  if (isGameComplete && !isEditingCompleteGame) {
     return (
       <GameCompletionView
         players={players}
@@ -826,6 +827,11 @@ const SimpleScorekeeper = ({
         onNewGame={() => {
           // Reset to start a new game
           window.location.reload();
+        }}
+        onEditScores={() => {
+          // Enter edit mode - set to last completed hole
+          setIsEditingCompleteGame(true);
+          setCurrentHole(18); // Start at hole 18 for editing
         }}
       />
     );
@@ -919,6 +925,55 @@ const SimpleScorekeeper = ({
             }}
           >
             ✕
+          </button>
+        </div>
+      )}
+
+      {/* Editing Completed Game Banner */}
+      {isEditingCompleteGame && (
+        <div style={{
+          background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
+          color: 'white',
+          padding: '16px 20px',
+          borderRadius: '12px',
+          marginBottom: '16px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          boxShadow: '0 4px 6px rgba(0,0,0,0.15)'
+        }}>
+          <div>
+            <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '4px' }}>
+              Editing Completed Game
+            </div>
+            <div style={{ fontSize: '14px', opacity: 0.9 }}>
+              Click on any hole in the scorecard below to edit it
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setIsEditingCompleteGame(false);
+              setCurrentHole(19); // Return to completed state
+            }}
+            style={{
+              padding: '10px 20px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              borderRadius: '8px',
+              border: '2px solid white',
+              background: 'transparent',
+              color: 'white',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+            onMouseOver={(e) => {
+              e.target.style.background = 'rgba(255,255,255,0.2)';
+            }}
+            onMouseOut={(e) => {
+              e.target.style.background = 'transparent';
+            }}
+          >
+            Done Editing
           </button>
         </div>
       )}
