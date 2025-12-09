@@ -20,7 +20,8 @@ const Scorecard = ({
   onPlayerNameChange, // Optional: enables player name editing in simulations
   captainId, // Optional: enables standings view and captain highlighting
   courseHoles = [],
-  strokeAllocation = {}
+  strokeAllocation = {},
+  isEditingCompleteGame = false // Optional: when true, highlights all completed holes as editable
 }) => {
   const theme = useTheme();
   const [editingHole, setEditingHole] = useState(null);
@@ -447,18 +448,26 @@ const Scorecard = ({
                   const holePar = holeInfo?.par;
                   const indicator = getScoreIndicator(strokes, holePar);
 
+                  // Determine if this cell is editable
+                  const isEditable = isCurrentHole || isCompleted;
+                  // Show edit highlight in edit mode for all completed holes
+                  const showEditHighlight = isEditingCompleteGame && isCompleted;
+
                   return (
                     <td
                       key={hole}
                       style={{
                         ...cellStyle,
-                        backgroundColor: isCurrentHole ? 'rgba(255, 215, 0, 0.1)' : 'transparent',
+                        backgroundColor: isCurrentHole ? 'rgba(255, 215, 0, 0.1)' :
+                                        showEditHighlight ? 'rgba(255, 152, 0, 0.08)' : 'transparent',
                         fontWeight: strokes ? 'bold' : 'normal',
-                        cursor: isCurrentHole || isCompleted ? 'pointer' : 'default',
+                        cursor: isEditable ? 'pointer' : 'default',
                         position: 'relative',
-                        paddingBottom: '2px'
+                        paddingBottom: '2px',
+                        border: showEditHighlight ? '1px dashed rgba(255, 152, 0, 0.4)' : 'none',
+                        transition: 'all 0.2s ease'
                       }}
-                      title={isCurrentHole || isCompleted ? 'Click to edit' : ''}
+                      title={isEditable ? 'Click to edit' : ''}
                       onClick={() => handleCellClick(hole, player.id)}
                     >
                       {isCompleted ? (
@@ -538,18 +547,26 @@ const Scorecard = ({
                   const { quarters } = getHoleData(hole, player.id);
                   const isCurrentHole = hole === currentHole;
                   const isCompleted = hole < currentHole || (Array.isArray(holeHistory) && holeHistory.find(h => h && h.hole === hole));
+                  // Determine if this cell is editable
+                  const isEditable = isCurrentHole || isCompleted;
+                  // Show edit highlight in edit mode for all completed holes
+                  const showEditHighlight = isEditingCompleteGame && isCompleted;
 
                   return (
                     <td
                       key={hole}
                       style={{
                         ...cellStyle,
-                        backgroundColor: isCurrentHole ? 'rgba(255, 215, 0, 0.1)' : 'transparent',
+                        backgroundColor: isCurrentHole ? 'rgba(255, 215, 0, 0.1)' :
+                                        showEditHighlight ? 'rgba(255, 152, 0, 0.08)' : 'transparent',
                         fontSize: '10px',
                         fontWeight: '500',
-                        cursor: isCurrentHole || isCompleted ? 'pointer' : 'default',
-                        paddingTop: '2px'
+                        cursor: isEditable ? 'pointer' : 'default',
+                        paddingTop: '2px',
+                        border: showEditHighlight ? '1px dashed rgba(255, 152, 0, 0.4)' : 'none',
+                        transition: 'all 0.2s ease'
                       }}
+                      title={isEditable ? 'Click to edit' : ''}
                       onClick={() => handleCellClick(hole, player.id)}
                     >
                       {quarters !== null && quarters !== 0 ? (
@@ -1025,7 +1042,10 @@ Scorecard.propTypes = {
   // e.g., { "player1": { 1: 1, 2: 0, 3: 0.5, ... } }
   strokeAllocation: PropTypes.objectOf(
     PropTypes.objectOf(PropTypes.number)
-  ).isRequired
+  ).isRequired,
+
+  // Optional: When true, highlights all completed holes as editable
+  isEditingCompleteGame: PropTypes.bool
 };
 
 // Default props to ensure we never work with undefined arrays
@@ -1034,7 +1054,8 @@ Scorecard.defaultProps = {
   holeHistory: [],
   courseHoles: [],
   strokeAllocation: {},
-  currentHole: 1
+  currentHole: 1,
+  isEditingCompleteGame: false
 };
 
 export default React.memo(Scorecard);
