@@ -7,7 +7,7 @@ import { useTheme } from '../../theme/Provider';
  * Game completion view shown after all 18 holes are played
  * Displays final standings and game summary
  */
-const GameCompletionView = ({ players, playerStandings, holeHistory, onNewGame }) => {
+const GameCompletionView = ({ players, playerStandings, holeHistory, onNewGame, onEditScores }) => {
   const theme = useTheme();
 
   // Sort players by quarters (highest first)
@@ -259,8 +259,36 @@ const GameCompletionView = ({ players, playerStandings, holeHistory, onNewGame }
       <div style={{
         display: 'flex',
         gap: '16px',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        flexWrap: 'wrap'
       }}>
+        {onEditScores && (
+          <button
+            onClick={onEditScores}
+            style={{
+              padding: '16px 32px',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              borderRadius: '8px',
+              border: 'none',
+              background: '#ff9800',
+              color: 'white',
+              cursor: 'pointer',
+              boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+              transition: 'all 0.2s'
+            }}
+            onMouseOver={(e) => {
+              e.target.style.transform = 'translateY(-2px)';
+              e.target.style.boxShadow = '0 6px 12px rgba(0,0,0,0.15)';
+            }}
+            onMouseOut={(e) => {
+              e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+            }}
+          >
+            Edit Scores
+          </button>
+        )}
         {onNewGame && (
           <button
             onClick={onNewGame}
@@ -329,6 +357,7 @@ GameCompletionView.propTypes = {
     gross_scores: PropTypes.objectOf(PropTypes.number),
   })).isRequired,
   onNewGame: PropTypes.func.isRequired,
+  onEditScores: PropTypes.func,
 };
 
 export default GameCompletionView;
