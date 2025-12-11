@@ -1,0 +1,120 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database (matches Render's PostgreSQL service)
+  postgres:
+    image: postgres:15-alpine
+    container_name: wgp-postgres
+    environment:
+      POSTGRES_USER: wolf_goat_pig_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wgp_password_change_me}
+      POSTGRES_DB: wolf_goat_pig
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wolf_goat_pig_user -d wolf_goat_pig"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wgp-network
+    restart: unless-stopped
+
+  # Backend API (matches Render deployment exactly)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: wgp-backend
+    environment:
+      # Database connection (matches Render)
+      DATABASE_URL: postgresql://wolf_goat_pig_user:${POSTGRES_PASSWORD:-wgp_password_change_me}@postgres:5432/wolf_goat_pig
+      PYTHON_VERSION: ${PYTHON_VERSION:-3.12.8}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      # Frontend/Backend URLs
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      BACKEND_URL: ${BACKEND_URL:-http://localhost:8000}
+      # Auth0 (use your actual values or set via .env)
+      AUTH0_DOMAIN: ${AUTH0_DOMAIN:-dev-jm88n088hpt7oe48.us.auth0.com}
+      AUTH0_API_AUDIENCE: ${AUTH0_API_AUDIENCE:-http://localhost:8000}
+      AUTH0_CLIENT_ID: ${AUTH0_CLIENT_ID:-qAZuRv5E9mPQ9uTGg7NWpkpfVj8bCeoB}
+      # GHIN Integration
+      ENABLE_GHIN_INTEGRATION: ${ENABLE_GHIN_INTEGRATION:-false}
+      GHIN_API_USER: ${GHIN_API_USER:-}
+      GHIN_API_PASS: ${GHIN_API_PASS:-}
+      GHIN_API_STATIC_TOKEN: ${GHIN_API_STATIC_TOKEN:-}
+      # Server settings (matches Render)
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-*}
+      TIMEOUT_KEEP_ALIVE: ${TIMEOUT_KEEP_ALIVE:-75}
+      PORT: 8000
+      HOST: 0.0.0.0
+      # Email notifications
+      ENABLE_EMAIL_NOTIFICATIONS: ${ENABLE_EMAIL_NOTIFICATIONS:-false}
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Use render-startup.py to match Render exactly
+    command: python render-startup.py
+    volumes:
+      # Mount data directory for persistence
+      # Note: Uses Render path structure for compatibility, but works in Docker too
+      - backend_data:/opt/render/project/src/data
+    networks:
+      - wgp-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    restart: unless-stopped
+
+  # Frontend (matches Vercel deployment)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:8000}
+        REACT_APP_AUTH0_DOMAIN: ${REACT_APP_AUTH0_DOMAIN:-dev-jm88n088hpt7oe48.us.auth0.com}
+        REACT_APP_AUTH0_CLIENT_ID: ${REACT_APP_AUTH0_CLIENT_ID:-qAZuRv5E9mPQ9uTGg7NWpkpfVj8bCeoB}
+        REACT_APP_AUTH0_AUDIENCE: ${REACT_APP_AUTH0_AUDIENCE:-http://localhost:8000}
+        REACT_APP_USE_MOCK_AUTH: ${REACT_APP_USE_MOCK_AUTH:-false}
+        REACT_APP_ENABLE_ANALYTICS: ${REACT_APP_ENABLE_ANALYTICS:-true}
+        REACT_APP_DEPLOY_PLATFORM: ${REACT_APP_DEPLOY_PLATFORM:-docker}
+    container_name: wgp-frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - wgp-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+networks:
+  wgp-network:
+    driver: bridge
+    name: wgp-network
+
+volumes:
+  postgres_data:
+    name: wgp-postgres-data
+    driver: local
+  backend_data:
+    name: wgp-backend-data
+    driver: local
+

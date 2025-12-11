@@ -1,0 +1,37 @@
+version: '3.8'
+
+# Development override - adds volume mounts for hot reload
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# IMPORTANT NOTES:
+# - Backend: Source code is mounted read-only, but Python will auto-reload on changes
+# - Frontend: Source is mounted but React requires a container REBUILD to see changes
+#   (not hot reload). To see frontend changes: docker-compose build frontend && docker-compose up
+
+services:
+  backend:
+    volumes:
+      # Mount source code for hot reload during development
+      # Note: Read-only mount works for Python as it reads source files directly
+      - ./backend/app:/app/app:ro
+      - ./backend/startup.py:/app/startup.py:ro
+      - ./backend/render-startup.py:/app/render-startup.py:ro
+      - ./backend/run_migrations.py:/app/run_migrations.py:ro
+    environment:
+      ENVIRONMENT: development
+      LOG_LEVEL: DEBUG
+    # Override command for development with auto-reload
+    # Note: This uses startup.py instead of render-startup.py for dev convenience
+    # For production-like testing, use docker-compose.yml without this override
+    command: python startup.py --environment=development --log-level=DEBUG
+
+  # Frontend note: No volume mounts for frontend in dev mode.
+  # React builds are compiled at image build time, so source mounts don't help.
+  # To see frontend changes, rebuild the image:
+  #   docker-compose -f docker-compose.yml -f docker-compose.dev.yml build frontend
+  #   docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d frontend
+  #
+  # For true hot-reload frontend development, run frontend locally:
+  #   cd frontend && npm start
+  # And use Docker only for backend + database.
+
