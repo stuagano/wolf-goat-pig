@@ -147,12 +147,14 @@ def seed_courses(db: Session) -> int:
             # Create Hole records for each hole
             holes_data = cast(List[Dict[str, Any]], course_data["holes_data"])
             for hole_data in holes_data:
+                # Handle both 'handicap' and 'stroke_index' field names
+                handicap_value = hole_data.get("handicap") or hole_data.get("stroke_index")
                 hole = Hole(
                     course_id=course.id,
                     hole_number=hole_data.get("hole_number"),
                     par=hole_data.get("par"),
                     yards=hole_data.get("yards"),
-                    handicap=hole_data.get("handicap"),
+                    handicap=handicap_value,
                     description=hole_data.get("description"),
                     tee_box=hole_data.get("tee_box", "regular")
                 )

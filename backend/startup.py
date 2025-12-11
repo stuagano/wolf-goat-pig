@@ -715,13 +715,13 @@ async def verify_application_health() -> Dict[str, Any]:
     return health_status
 
 
-def start_server(host: str = "0.0.0.0", port: int = 8000, reload: bool = False) -> None:
+async def start_server(host: str = "0.0.0.0", port: int = 8000, reload: bool = False) -> None:
     """Start the FastAPI server using uvicorn."""
     try:
         import uvicorn
-        
+
         logging.info(f"🚀 Starting Wolf-Goat-Pig server on {host}:{port}")
-        
+
         # Configure uvicorn
         config = uvicorn.Config(
             "app.main:app",
@@ -731,10 +731,10 @@ def start_server(host: str = "0.0.0.0", port: int = 8000, reload: bool = False) 
             log_level="info" if os.getenv("LOG_LEVEL", "INFO").upper() == "INFO" else "debug",
             access_log=True
         )
-        
+
         server = uvicorn.Server(config)
-        server.run()
-        
+        await server.serve()
+
     except ImportError:
         logging.error("❌ uvicorn not available - cannot start server")
         sys.exit(1)
@@ -1135,7 +1135,7 @@ async def main():
     reload = environment == "development" and not args.no_reload
     
     logging.info("🎯 All systems ready - starting server...")
-    start_server(host=args.host, port=args.port, reload=reload)
+    await start_server(host=args.host, port=args.port, reload=reload)
 
 
 def run_bootstrap_test() -> bool:

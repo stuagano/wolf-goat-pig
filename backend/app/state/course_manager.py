@@ -123,9 +123,13 @@ class CourseManager:
 
             holes_data = course_data.get('holes_data', [])
             for hole_data in holes_data:
+                # Map stroke_index to handicap if present (different naming conventions)
+                mapped_hole_data = hole_data.copy()
+                if 'stroke_index' in mapped_hole_data:
+                    mapped_hole_data['handicap'] = mapped_hole_data.pop('stroke_index')
                 new_hole = Hole(
                     course_id=new_course.id,
-                    **hole_data
+                    **mapped_hole_data
                 )
                 db.add(new_hole)
 
