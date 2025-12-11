@@ -497,6 +497,61 @@ const SimpleScorekeeper = ({
     });
   };
 
+  // Calculate net scores and auto-detect winner
+  const calculateNetScoresAndWinner = useMemo(() => {
+    // Need all scores entered and teams formed
+    const allScoresEntered = players.every(p => scores[p.id] !== undefined && scores[p.id] !== null);
+    const teamsFormed = teamMode === 'partners'
+      ? team1.length > 0 && team1.length < players.length
+      : captain !== null;
+
+    if (!allScoresEntered || !teamsFormed) {
+      return { netScores: {}, suggestedWinner: null, team1Net: null, team2Net: null };
+    }
+
+    // Calculate net scores (gross - strokes received)
+    const netScores = {};
+    players.forEach(player => {
+      const gross = scores[player.id] || 0;
+      const strokesReceived = strokeAllocation?.[player.id]?.[currentHole] || 0;
+      netScores[player.id] = gross - strokesReceived;
+    });
+
+    // Calculate team totals based on best ball (lowest net score on team)
+    let team1Net, team2Net;
+
+    if (teamMode === 'partners') {
+      const team2Ids = players.filter(p => !team1.includes(p.id)).map(p => p.id);
+      team1Net = Math.min(...team1.map(id => netScores[id]));
+      team2Net = Math.min(...team2Ids.map(id => netScores[id]));
+    } else {
+      // Solo mode: captain vs opponents
+      team1Net = netScores[captain]; // Captain's net score
+      team2Net = Math.min(...opponents.map(id => netScores[id])); // Best of opponents
+    }
+
+    // Determine suggested winner
+    let suggestedWinner = null;
+    if (team1Net < team2Net) {
+      suggestedWinner = teamMode === 'partners' ? 'team1' : 'captain';
+    } else if (team2Net < team1Net) {
+      suggestedWinner = teamMode === 'partners' ? 'team2' : 'opponents';
+    } else {
+      suggestedWinner = 'push'; // Tied = push
+    }
+
+    return { netScores, suggestedWinner, team1Net, team2Net };
+  }, [scores, players, team1, captain, opponents, teamMode, strokeAllocation, currentHole]);
+
+  // Auto-set winner when scores suggest a clear result
+  useEffect(() => {
+    const { suggestedWinner } = calculateNetScoresAndWinner;
+    if (suggestedWinner && !winner) {
+      // Auto-set the winner based on net scores
+      setWinner(suggestedWinner);
+    }
+  }, [calculateNetScoresAndWinner, winner]);
+
   // Validate hole data before submission
   const validateHole = () => {
     // Check teams are set
@@ -1417,7 +1472,16 @@ const SimpleScorekeeper = ({
               marginBottom: '16px'
             }}>
               {carryOver && <span style={{ padding: '3px 8px', background: '#fff3e0', borderRadius: '4px', color: '#FF5722', fontWeight: 'bold' }}>Carry-Over ×2</span>}
-              {optionActive && !optionTurnedOff && <span style={{ padding: '3px 8px', background: '#e3f2fd', borderRadius: '4px', color: '#2196F3', fontWeight: 'bold' }}>Option ×2</span>}
+              {optionActive && !optionTurnedOff && (
+                <span style={{ padding: '3px 8px', background: '#e3f2fd', borderRadius: '4px', color: '#2196F3', fontWeight: 'bold' }}>
+                  Option ×2 <span style={{ fontSize: '9px', opacity: 0.8 }}>(AUTO - {getPlayerName(goatId)} is Goat)</span>
+                </span>
+              )}
+              {optionActive && optionTurnedOff && (
+                <span style={{ padding: '3px 8px', background: '#e0e0e0', borderRadius: '4px', color: '#757575', fontWeight: 'bold', textDecoration: 'line-through' }}>
+                  Option OFF
+                </span>
+              )}
               {vinniesVariation && <span style={{ padding: '3px 8px', background: '#f3e5f5', borderRadius: '4px', color: '#9C27B0', fontWeight: 'bold' }}>Vinnie's ×2</span>}
               {joesSpecialWager && <span style={{ padding: '3px 8px', background: '#fff3e0', borderRadius: '4px', color: '#F57C00', fontWeight: 'bold' }}>Joe's Special</span>}
             </div>
@@ -1653,11 +1717,13 @@ const SimpleScorekeeper = ({
             )}
           </div>
 
-          {/* Turn Off Option Button - announces the action */}
+          {/* Turn Off Option Button - announces the action and halves the wager */}
           {optionActive && !optionTurnedOff && goatId && (
             <button
               onClick={() => {
                 setOptionTurnedOff(true);
+                // Halve the wager since Option was providing 2x multiplier
+                setCurrentWager(Math.max(baseWager, Math.floor(currentWager / 2)));
                 announceAction('option_off', goatId);
               }}
               className="touch-optimized"
@@ -1675,7 +1741,7 @@ const SimpleScorekeeper = ({
                 boxShadow: '0 2px 8px rgba(244, 67, 54, 0.3)'
               }}
             >
-              {getPlayerName(goatId)} Turns Off Option
+              {getPlayerName(goatId)} Turns Off Option (Halve Wager)
             </button>
           )}
         </div>
@@ -2677,6 +2743,31 @@ const SimpleScorekeeper = ({
         marginBottom: '20px'
       }}>
         <h3 style={{ margin: '0 0 12px' }}>Winner</h3>
+
+        {/* Auto-Detection Info */}
+        {calculateNetScoresAndWinner.suggestedWinner && (
+          <div style={{
+            marginBottom: '12px',
+            padding: '10px 12px',
+            background: calculateNetScoresAndWinner.suggestedWinner === 'push'
+              ? 'rgba(156, 39, 176, 0.1)'
+              : 'rgba(76, 175, 80, 0.1)',
+            borderRadius: '8px',
+            border: `1px solid ${calculateNetScoresAndWinner.suggestedWinner === 'push' ? '#9C27B0' : '#4CAF50'}`,
+            fontSize: '13px'
+          }}>
+            <div style={{ fontWeight: 'bold', marginBottom: '4px', color: calculateNetScoresAndWinner.suggestedWinner === 'push' ? '#7B1FA2' : '#2E7D32' }}>
+              {calculateNetScoresAndWinner.suggestedWinner === 'push'
+                ? '🤝 Auto-Detected: PUSH (Tie)'
+                : `✓ Auto-Detected: ${calculateNetScoresAndWinner.suggestedWinner === 'team1' || calculateNetScoresAndWinner.suggestedWinner === 'captain' ? 'Wolf Team' : 'Field'} Wins`}
+            </div>
+            <div style={{ color: theme.colors.textSecondary, fontSize: '12px' }}>
+              {teamMode === 'partners' ? 'Team 1' : 'Captain'}: Net {calculateNetScoresAndWinner.team1Net} |{' '}
+              {teamMode === 'partners' ? 'Team 2' : 'Opponents'}: Net {calculateNetScoresAndWinner.team2Net}
+              {calculateNetScoresAndWinner.suggestedWinner === 'push' && ' (Equal = Carry-Over)'}
+            </div>
+          </div>
+        )}
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           {teamMode === 'partners' ? (
             <>

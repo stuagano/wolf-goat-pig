@@ -1089,6 +1089,28 @@ async def complete_hole(  # type: ignore
                         detail="The Tunkarri can only be invoked by the Aardvark (player #5)."
                     )
 
+        # Float validation: Each captain can only use Float once per round
+        game_state = game.state or {}
+        if request.float_invoked_by:
+            # Check if this player has already used their float
+            for player in game_state.get("players", []):
+                if player.get("id") == request.float_invoked_by:
+                    float_used = player.get("float_used", 0)
+                    if float_used >= 1:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Player {request.float_invoked_by} has already used their Float this round. Each captain can only Float once per round."
+                        )
+                    break
+
+            # Also validate that Float invoker is the captain
+            captain_id = request.rotation_order[request.captain_index] if request.rotation_order else None
+            if request.float_invoked_by != captain_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Only the captain can invoke Float."
+                )
+
         # Validate: Tunkarri only in 5-man/6-man games
         if request.tunkarri_invoked and player_count < 5:
             raise HTTPException(
