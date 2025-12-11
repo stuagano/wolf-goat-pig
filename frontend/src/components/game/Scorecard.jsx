@@ -134,11 +134,11 @@ const Scorecard = ({
 
   // Get hole data for a player
   const getHoleData = (holeNumber, playerId) => {
-    if (!Array.isArray(holeHistory)) return { quarters: null, strokes: null, quartersBreakdown: {} };
-    if (typeof holeNumber !== 'number' || !playerId) return { quarters: null, strokes: null, quartersBreakdown: {} };
+    if (!Array.isArray(holeHistory)) return { quarters: null, strokes: null, quartersBreakdown: {}, bettingNarrative: null };
+    if (typeof holeNumber !== 'number' || !playerId) return { quarters: null, strokes: null, quartersBreakdown: {}, bettingNarrative: null };
 
     const holeData = holeHistory.find(h => h && typeof h.hole === 'number' && h.hole === holeNumber);
-    if (!holeData) return { quarters: null, strokes: null, quartersBreakdown: {} };
+    if (!holeData) return { quarters: null, strokes: null, quartersBreakdown: {}, bettingNarrative: null };
 
     const pointsDelta = (holeData.points_delta && typeof holeData.points_delta === 'object')
       ? holeData.points_delta
@@ -149,6 +149,7 @@ const Scorecard = ({
     const quartersBreakdown = (holeData.quarters_breakdown && typeof holeData.quarters_breakdown === 'object')
       ? holeData.quarters_breakdown[playerId] || {}
       : {};
+    const bettingNarrative = holeData.betting_narrative || null;
 
     const quarters = pointsDelta[playerId];
     const strokes = grossScores[playerId];
@@ -156,8 +157,17 @@ const Scorecard = ({
     return {
       quarters: typeof quarters === 'number' ? quarters : null,
       strokes: typeof strokes === 'number' ? strokes : null,
-      quartersBreakdown: quartersBreakdown
+      quartersBreakdown: quartersBreakdown,
+      bettingNarrative: bettingNarrative
     };
+  };
+
+  // Get hole-level data (not player-specific)
+  const getHoleInfo = (holeNumber) => {
+    if (!Array.isArray(holeHistory)) return null;
+    if (typeof holeNumber !== 'number') return null;
+    const holeData = holeHistory.find(h => h && typeof h.hole === 'number' && h.hole === holeNumber);
+    return holeData || null;
   };
 
   // Calculate front 9, back 9, and total quarters
@@ -405,6 +415,44 @@ const Scorecard = ({
                   );
                 })}
                 <td style={{ ...totalCellStyle, fontSize: '9px' }}>-</td>
+              </tr>
+              {/* Betting Actions Row - shows abbreviated betting narrative for each hole */}
+              <tr style={{ backgroundColor: 'rgba(255, 152, 0, 0.05)' }}>
+                <td style={{ ...cellStyle, fontWeight: 'bold', fontSize: '8px', color: '#F57C00' }}>BETS</td>
+                {sectionHoles.map(hole => {
+                  const holeData = getHoleInfo(hole);
+                  const narrative = holeData?.betting_narrative;
+                  const wager = holeData?.wager;
+                  // Show abbreviated info: wager and any special actions
+                  const displayText = narrative
+                    ? narrative.split(' → ').map(part => {
+                        // Abbreviate common terms
+                        if (part.includes('doubles')) return '2×';
+                        if (part.includes('floats')) return 'F';
+                        if (part.includes('Duncan')) return 'D';
+                        if (part.includes('Option')) return 'O';
+                        if (part === 'accepted') return '✓';
+                        if (part === 'declined') return '✗';
+                        return '';
+                      }).filter(Boolean).join('')
+                    : (wager && wager > 2 ? `${wager}Q` : '');
+                  return (
+                    <td
+                      key={`bets-${hole}`}
+                      style={{
+                        ...cellStyle,
+                        fontSize: '8px',
+                        textAlign: 'center',
+                        color: displayText ? '#F57C00' : theme.colors.textSecondary,
+                        fontWeight: displayText ? 'bold' : 'normal'
+                      }}
+                      title={narrative || (wager ? `Wager: ${wager}Q` : '')}
+                    >
+                      {displayText || '·'}
+                    </td>
+                  );
+                })}
+                <td style={{ ...totalCellStyle, fontSize: '8px' }}>-</td>
               </tr>
             </>
           )}
@@ -1015,7 +1063,11 @@ Scorecard.propTypes = {
     // Object mapping playerId -> quarters won/lost
     points_delta: PropTypes.objectOf(PropTypes.number),
     // Object mapping playerId -> gross score
-    gross_scores: PropTypes.objectOf(PropTypes.number)
+    gross_scores: PropTypes.objectOf(PropTypes.number),
+    // Optional betting narrative string showing betting actions (e.g., "Stuart doubles → accepted")
+    betting_narrative: PropTypes.string,
+    // Optional wager amount for the hole
+    wager: PropTypes.number
   })).isRequired,
 
   // Current hole number (1-18)

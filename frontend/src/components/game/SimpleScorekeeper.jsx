@@ -111,6 +111,12 @@ const SimpleScorekeeper = ({
   const [historyTab, setHistoryTab] = useState('current'); // 'current', 'last', 'game'
   const [isEditingCompleteGame, setIsEditingCompleteGame] = useState(false); // Allow editing completed games
 
+  // Interactive betting state (Offer/Accept flow)
+  const [pendingOffer, setPendingOffer] = useState(null);
+  // Shape: { offer_id, offer_type, offered_by, wager_before, wager_after, timestamp, status }
+  const [currentHoleBettingEvents, setCurrentHoleBettingEvents] = useState([]);
+  // Events for current hole - builds the betting narrative
+
   // Derive current hole par from course data (pars are constants and don't change)
   // No defaults - only use actual course data
   const holePar = courseData?.holes?.find(h => h.hole_number === currentHole)?.par;
@@ -301,6 +307,9 @@ const SimpleScorekeeper = ({
     setAardvarkTossed(false);
     setAardvarkSolo(false);
     setInvisibleAardvarkTossed(false);
+    // Reset interactive betting state
+    setPendingOffer(null);
+    setCurrentHoleBettingEvents([]);
   };
 
   // Load hole data for editing
@@ -375,6 +384,104 @@ const SimpleScorekeeper = ({
 
     setBettingHistory(prev => [...prev, newEvent]);
   };
+
+  // Helper to get player name by ID
+  const getPlayerName = (playerId) => {
+    return localPlayers.find(p => p.id === playerId)?.name || 'Unknown';
+  };
+
+  // Add a betting event to current hole's events
+  const addBettingEvent = (event) => {
+    const fullEvent = {
+      ...event,
+      hole: currentHole,
+      timestamp: event.timestamp || new Date().toISOString(),
+      actor: event.offered_by || event.response_by || event.actor
+    };
+    setCurrentHoleBettingEvents(prev => [...prev, fullEvent]);
+    // Also log to global betting history
+    logBettingAction(event.eventType, fullEvent);
+  };
+
+  // Create a betting offer (Double, Float, etc.)
+  const createOffer = (offerType, offeredBy) => {
+    if (pendingOffer) return; // Can't offer while another is pending
+
+    const offer = {
+      offer_id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      offer_type: offerType,
+      offered_by: offeredBy,
+      wager_before: currentWager,
+      wager_after: currentWager * 2,
+      timestamp: new Date().toISOString(),
+      status: 'pending'
+    };
+    setPendingOffer(offer);
+    addBettingEvent({
+      eventType: `${offerType.toUpperCase()}_OFFERED`,
+      offered_by: offeredBy,
+      wager_before: offer.wager_before,
+      wager_after: offer.wager_after
+    });
+  };
+
+  // Respond to a pending betting offer
+  const respondToOffer = (response, respondedBy) => {
+    if (!pendingOffer) return;
+
+    if (response === 'accept') {
+      setCurrentWager(pendingOffer.wager_after);
+      addBettingEvent({
+        eventType: `${pendingOffer.offer_type.toUpperCase()}_ACCEPTED`,
+        response_by: respondedBy,
+        wager_before: pendingOffer.wager_before,
+        wager_after: pendingOffer.wager_after
+      });
+    } else {
+      addBettingEvent({
+        eventType: `${pendingOffer.offer_type.toUpperCase()}_DECLINED`,
+        response_by: respondedBy,
+        wager_before: pendingOffer.wager_before
+      });
+    }
+    setPendingOffer(null);
+  };
+
+  // Announce an action (Duncan, Option Off) - no accept needed
+  const announceAction = (actionType, announcedBy) => {
+    addBettingEvent({
+      eventType: `${actionType.toUpperCase()}_ANNOUNCED`,
+      announced_by: announcedBy,
+      actor: announcedBy
+    });
+  };
+
+  // Build betting narrative from events
+  const buildBettingNarrative = (events) => {
+    if (!events || !events.length) return null;
+
+    return events.map(e => {
+      const actor = getPlayerName(e.offered_by || e.response_by || e.announced_by || e.actor);
+      switch(e.eventType) {
+        case 'DOUBLE_OFFERED': return `${actor} doubles`;
+        case 'DOUBLE_ACCEPTED': return 'accepted';
+        case 'DOUBLE_DECLINED': return 'declined';
+        case 'FLOAT_OFFERED': return `${actor} floats`;
+        case 'FLOAT_ACCEPTED': return 'accepted';
+        case 'FLOAT_DECLINED': return 'declined';
+        case 'DUNCAN_ANNOUNCED': return `${actor} calls Duncan`;
+        case 'OPTION_OFF_ANNOUNCED': return `${actor} turns off Option`;
+        case 'OPTION_ACTIVE': return 'Option active';
+        default: return null;
+      }
+    }).filter(Boolean).join(' → ');
+  };
+
+  // Get current betting narrative
+  const currentBettingNarrative = useMemo(() => {
+    return buildBettingNarrative(currentHoleBettingEvents);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentHoleBettingEvents]);
 
   // Handle score input
   const handleScoreChange = (playerId, value) => {
@@ -493,7 +600,10 @@ const SimpleScorekeeper = ({
           aardvark_tossed: players.length === 5 ? aardvarkTossed : false,
           aardvark_solo: players.length === 5 ? aardvarkSolo : false,
           // Invisible Aardvark (4-man game)
-          invisible_aardvark_tossed: players.length === 4 ? invisibleAardvarkTossed : false
+          invisible_aardvark_tossed: players.length === 4 ? invisibleAardvarkTossed : false,
+          // Interactive betting narrative
+          betting_narrative: currentBettingNarrative || null,
+          betting_events: currentHoleBettingEvents || []
         })
       });
 
@@ -1307,6 +1417,77 @@ const SimpleScorekeeper = ({
             </div>
           )}
 
+          {/* Betting Narrative - shows history of betting actions this hole */}
+          {currentBettingNarrative && (
+            <div style={{
+              fontSize: '12px',
+              color: theme.colors.textSecondary,
+              textAlign: 'center',
+              marginBottom: '12px',
+              padding: '8px 12px',
+              background: theme.colors.backgroundSecondary,
+              borderRadius: '6px',
+              fontStyle: 'italic'
+            }}>
+              {currentBettingNarrative}
+            </div>
+          )}
+
+          {/* Pending Offer Panel - shown when a betting offer is active */}
+          {pendingOffer && (
+            <div style={{
+              background: '#FFF3E0',
+              padding: '16px',
+              borderRadius: '8px',
+              marginBottom: '16px',
+              border: '2px solid #FF9800',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: '8px', color: '#E65100' }}>
+                {getPlayerName(pendingOffer.offered_by)} offers {pendingOffer.offer_type.toUpperCase()}!
+              </div>
+              <div style={{ marginBottom: '12px', fontSize: '14px', color: '#5D4037' }}>
+                Wager: {pendingOffer.wager_before}Q → {pendingOffer.wager_after}Q
+              </div>
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                <button
+                  onClick={() => respondToOffer('accept', captain || team1[0])}
+                  className="touch-optimized"
+                  style={{
+                    padding: '12px 24px',
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    background: 'linear-gradient(135deg, #4CAF50, #45a049)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(76, 175, 80, 0.3)'
+                  }}
+                >
+                  Accept
+                </button>
+                <button
+                  onClick={() => respondToOffer('decline', captain || team1[0])}
+                  className="touch-optimized"
+                  style={{
+                    padding: '12px 24px',
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    background: 'linear-gradient(135deg, #f44336, #d32f2f)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(244, 67, 54, 0.3)'
+                  }}
+                >
+                  Decline
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Betting Controls */}
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
             {/* Decrement Button */}
@@ -1355,30 +1536,66 @@ const SimpleScorekeeper = ({
               +
             </button>
 
-            {/* Double Button - Always visible and prominent */}
+            {/* Double Button - Offer flow */}
             <button
-              onClick={() => {
-                setCurrentWager(currentWager * 2);
-                logBettingAction('Double', { from: currentWager, to: currentWager * 2 });
-              }}
+              onClick={() => createOffer('double', captain || team1[0] || rotationOrder[captainIndex])}
+              disabled={pendingOffer !== null}
               className="touch-optimized"
               style={{
                 flex: 1,
-                minWidth: '100px',
+                minWidth: '80px',
                 height: '48px',
                 borderRadius: '8px',
-                background: 'linear-gradient(135deg, #4CAF50, #45a049)',
+                background: pendingOffer ? '#e0e0e0' : 'linear-gradient(135deg, #4CAF50, #45a049)',
                 border: 'none',
-                fontSize: '16px',
+                fontSize: '14px',
                 fontWeight: 'bold',
-                color: 'white',
-                cursor: 'pointer',
-                boxShadow: '0 2px 8px rgba(76, 175, 80, 0.3)',
+                color: pendingOffer ? '#9e9e9e' : 'white',
+                cursor: pendingOffer ? 'not-allowed' : 'pointer',
+                boxShadow: pendingOffer ? 'none' : '0 2px 8px rgba(76, 175, 80, 0.3)',
                 transition: 'all 0.2s'
               }}
             >
-              Double
+              {pendingOffer?.offer_type === 'double' ? 'Pending...' : 'Double'}
             </button>
+
+            {/* Float Button - Captain only, once per round */}
+            {(() => {
+              const currentCaptain = captain || team1[0] || rotationOrder[captainIndex];
+              const hasUsedFloat = playerStandings[currentCaptain]?.floatCount >= 1;
+              const isFloatPending = pendingOffer?.offer_type === 'float';
+              return (
+                <button
+                  onClick={() => {
+                    createOffer('float', currentCaptain);
+                    setFloatInvokedBy(currentCaptain);
+                  }}
+                  disabled={pendingOffer !== null || hasUsedFloat || floatInvokedBy}
+                  className="touch-optimized"
+                  style={{
+                    flex: 1,
+                    minWidth: '80px',
+                    height: '48px',
+                    borderRadius: '8px',
+                    background: (pendingOffer || hasUsedFloat || floatInvokedBy)
+                      ? '#e0e0e0'
+                      : 'linear-gradient(135deg, #FF9800, #F57C00)',
+                    border: 'none',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    color: (pendingOffer || hasUsedFloat || floatInvokedBy) ? '#9e9e9e' : 'white',
+                    cursor: (pendingOffer || hasUsedFloat || floatInvokedBy) ? 'not-allowed' : 'pointer',
+                    boxShadow: (pendingOffer || hasUsedFloat || floatInvokedBy)
+                      ? 'none'
+                      : '0 2px 8px rgba(255, 152, 0, 0.3)',
+                    transition: 'all 0.2s'
+                  }}
+                  title={hasUsedFloat ? 'Float already used this round' : floatInvokedBy ? 'Float already invoked this hole' : 'Captain doubles the wager'}
+                >
+                  {isFloatPending ? 'Pending...' : hasUsedFloat ? 'Float Used' : floatInvokedBy ? 'Floated' : 'Float'}
+                </button>
+              );
+            })()}
 
             {/* High Stakes Quick Actions (shown when wager >= 8Q) */}
             {currentWager >= 8 && (
@@ -1430,25 +1647,29 @@ const SimpleScorekeeper = ({
             )}
           </div>
 
-          {/* Turn Off Option Button */}
+          {/* Turn Off Option Button - announces the action */}
           {optionActive && !optionTurnedOff && goatId && (
             <button
-              onClick={() => setOptionTurnedOff(true)}
+              onClick={() => {
+                setOptionTurnedOff(true);
+                announceAction('option_off', goatId);
+              }}
               className="touch-optimized"
               style={{
                 width: '100%',
                 marginTop: '8px',
-                padding: '8px',
+                padding: '10px',
                 borderRadius: '6px',
-                background: '#ffebee',
-                border: '1px solid #f44336',
-                fontSize: '12px',
-                color: '#d32f2f',
+                background: 'linear-gradient(135deg, #f44336, #d32f2f)',
+                border: 'none',
+                fontSize: '13px',
+                color: 'white',
                 cursor: 'pointer',
-                fontWeight: 'bold'
+                fontWeight: 'bold',
+                boxShadow: '0 2px 8px rgba(244, 67, 54, 0.3)'
               }}
             >
-              Turn Off Option
+              {getPlayerName(goatId)} Turns Off Option
             </button>
           )}
         </div>
@@ -2133,32 +2354,59 @@ const SimpleScorekeeper = ({
           </button>
         </div>
 
-        {/* The Duncan checkbox - only shown in Solo mode */}
+        {/* The Duncan - Announcement button (only shown in Solo mode) */}
         {teamMode === 'solo' && (
           <div style={{
             marginTop: '12px',
             padding: '12px',
-            background: '#F3E5F5',
+            background: duncanInvoked ? '#E1BEE7' : '#F3E5F5',
             borderRadius: '8px',
-            border: '2px solid #9C27B0'
+            border: `2px solid ${duncanInvoked ? '#7B1FA2' : '#9C27B0'}`
           }}>
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              color: '#6A1B9A'
-            }}>
-              <input
-                type="checkbox"
-                checked={duncanInvoked}
-                onChange={(e) => setDuncanInvoked(e.target.checked)}
-                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-              />
-              <span>🏆 The Duncan (Captain goes solo before hitting - 3-for-2 payout)</span>
-            </label>
+            <button
+              onClick={() => {
+                const newValue = !duncanInvoked;
+                setDuncanInvoked(newValue);
+                if (newValue && captain) {
+                  announceAction('duncan', captain);
+                }
+              }}
+              className="touch-optimized"
+              style={{
+                width: '100%',
+                padding: '12px',
+                borderRadius: '8px',
+                background: duncanInvoked
+                  ? 'linear-gradient(135deg, #7B1FA2, #6A1B9A)'
+                  : 'linear-gradient(135deg, #9C27B0, #7B1FA2)',
+                border: 'none',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                color: 'white',
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(156, 39, 176, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+            >
+              {duncanInvoked ? (
+                <>✓ Duncan Called - 3-for-2 Payout</>
+              ) : (
+                <>🏆 Call The Duncan (Solo before hitting)</>
+              )}
+            </button>
+            {duncanInvoked && (
+              <div style={{
+                marginTop: '8px',
+                fontSize: '12px',
+                color: '#6A1B9A',
+                textAlign: 'center'
+              }}>
+                Captain goes solo before hitting. Click again to cancel.
+              </div>
+            )}
           </div>
         )}
       </div>

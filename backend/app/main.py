@@ -72,10 +72,9 @@ email_service_instance = None
 logger = logging.getLogger(__name__)
 
 
-# Initialize Post-Hole Analyzer
-post_hole_analyzer = PostHoleAnalyzer()
-# Initialize Course Manager (replaces game_state.course_manager)
-course_manager = CourseManager()
+# Lazy initialization - will be created during lifespan startup, not at import time
+post_hole_analyzer: Optional[PostHoleAnalyzer] = None
+course_manager: Optional[CourseManager] = None
 
 # Response model classes for Action API
 class ActionRequest(BaseModel):
@@ -186,6 +185,9 @@ class CompleteHoleRequest(BaseModel):
     aardvark_solo: Optional[bool] = Field(False, description="Whether Aardvark went solo (1v4)")
     # Manual override controls
     manual_points_override: Optional[ManualPointsOverride] = Field(None, description="Manual override for a player's quarters")
+    # Interactive betting tracking
+    betting_narrative: Optional[str] = Field(None, description="Human-readable narrative of betting actions (e.g., 'Stuart doubles → accepted')")
+    betting_events: Optional[List[Dict]] = Field(None, description="List of betting events for this hole")
 
 
 class RotationSelectionRequest(BaseModel):
@@ -198,11 +200,17 @@ class RotationSelectionRequest(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Lifespan context manager for startup and shutdown events."""
-    global email_scheduler
+    global email_scheduler, post_hole_analyzer, course_manager
 
     # Startup
     logger.info("🐺 Wolf Goat Pig API starting up...")
     logger.info(f"ENVIRONMENT: {os.getenv('ENVIRONMENT')}")
+
+    # Initialize Post-Hole Analyzer and Course Manager (deferred from import time)
+    if post_hole_analyzer is None:
+        post_hole_analyzer = PostHoleAnalyzer()
+    if course_manager is None:
+        course_manager = CourseManager()
 
     # Initialize database
     try:
@@ -1496,7 +1504,10 @@ async def complete_hole(  # type: ignore
             "aardvark_requested_team": request.aardvark_requested_team if player_count == 5 else None,
             "aardvark_tossed": request.aardvark_tossed if player_count == 5 else False,
             "aardvark_ping_ponged": request.aardvark_ping_ponged if player_count == 5 else False,
-            "aardvark_solo": request.aardvark_solo if player_count == 5 else False
+            "aardvark_solo": request.aardvark_solo if player_count == 5 else False,
+            # Interactive betting narrative
+            "betting_narrative": request.betting_narrative,
+            "betting_events": request.betting_events or []
         }
 
         # Add or update hole in history
@@ -1932,7 +1943,10 @@ async def update_hole(  # type: ignore
             "aardvark_requested_team": request.aardvark_requested_team if player_count == 5 else None,
             "aardvark_tossed": request.aardvark_tossed if player_count == 5 else False,
             "aardvark_ping_ponged": request.aardvark_ping_ponged if player_count == 5 else False,
-            "aardvark_solo": request.aardvark_solo if player_count == 5 else False
+            "aardvark_solo": request.aardvark_solo if player_count == 5 else False,
+            # Interactive betting narrative
+            "betting_narrative": request.betting_narrative,
+            "betting_events": request.betting_events or []
         }
 
         # Update the hole in history
