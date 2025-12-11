@@ -42,7 +42,7 @@ from .post_hole_analytics import PostHoleAnalyzer
 
 # Import routers
 from .routers import courses, health, players, sheet_integration
-from .routes.betting_events import router as betting_events_router
+# betting_events router removed - events now sent inline with hole completion
 
 # Email scheduler will be initialized on-demand to prevent startup blocking
 # from .services.email_scheduler import email_scheduler
@@ -334,8 +334,7 @@ app.add_middleware(
 # Include badge system routes
 app.include_router(badge_router)
 
-# Include betting events routes
-app.include_router(betting_events_router)
+# betting_events router removed - events now sent inline with hole completion
 
 # Include migrations management routes
 app.include_router(migrations_router)

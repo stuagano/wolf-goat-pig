@@ -13,7 +13,6 @@ export { default as useScoreInput } from './useScoreInput';
 export { default as useCourseData } from './useCourseData';
 
 // Game API hooks
-export { default as useBettingState } from './useBettingState';
 export { default as useGamePersistence } from './useGamePersistence';
 export { default as useSimulationApi } from './useSimulationApi';
 
