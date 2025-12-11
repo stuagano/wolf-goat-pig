@@ -607,6 +607,20 @@ const SimpleScorekeeper = ({
       return 'Please select a winner';
     }
 
+    // Validate Float usage - check if player already used their Float this round
+    if (floatInvokedBy) {
+      const floatPlayer = playerStandings[floatInvokedBy];
+      if (floatPlayer && floatPlayer.floatCount >= 1) {
+        return `${getPlayerName(floatInvokedBy)} has already used their Float this round.\n\n💡 Each captain can only Float once per round. You can still use Double to increase the wager, or tap the Float button again to cancel it.`;
+      }
+
+      // Also check that Float invoker is the captain
+      const currentCaptain = captain || rotationOrder[captainIndex];
+      if (floatInvokedBy !== currentCaptain) {
+        return `Only the captain can invoke Float.\n\n💡 The current captain is ${getPlayerName(currentCaptain)}. Only they can Float on this hole.`;
+      }
+    }
+
     return null;
   };
 
@@ -670,7 +684,34 @@ const SimpleScorekeeper = ({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || errorData.message || 'Failed to submit hole');
+        const rawError = errorData.detail || errorData.message || 'Failed to submit hole';
+
+        // Translate backend errors into helpful user guidance
+        let userFriendlyError = rawError;
+        let suggestion = null;
+
+        if (rawError.includes('already used their Float')) {
+          userFriendlyError = `${getPlayerName(floatInvokedBy)} has already used their Float this round.`;
+          suggestion = 'Each captain can only Float once per round. You can still use Double to increase the wager, or continue without the Float.';
+          // Clear the float to help user recover
+          setFloatInvokedBy(null);
+          setCurrentWager(Math.max(baseWager, currentWager / 2)); // Revert wager
+        } else if (rawError.includes('Only the captain can invoke Float')) {
+          userFriendlyError = 'Only the captain can invoke Float.';
+          suggestion = `The current captain is ${getPlayerName(captain || rotationOrder[captainIndex])}. Only they can Float on this hole.`;
+          setFloatInvokedBy(null);
+        } else if (rawError.includes("Joe's Special")) {
+          userFriendlyError = "Invalid Joe's Special wager.";
+          suggestion = "Joe's Special must be 2, 4, or 8 quarters. Please adjust the wager.";
+        } else if (rawError.includes('Big Dick') && rawError.includes('hole 18')) {
+          userFriendlyError = 'The Big Dick can only be invoked on hole 18.';
+          suggestion = 'This special action is reserved for the final hole of the round.';
+        } else if (rawError.includes('Aardvark')) {
+          userFriendlyError = 'Aardvark team selection issue.';
+          suggestion = rawError; // Keep the detailed explanation
+        }
+
+        throw new Error(suggestion ? `${userFriendlyError}\n\n💡 ${suggestion}` : userFriendlyError);
       }
 
       const data = await response.json();
@@ -2939,17 +2980,50 @@ const SimpleScorekeeper = ({
         </div>
       </div>
 
-      {/* Error Display */}
+      {/* Error Display with Helpful Guidance */}
       {error && (
         <div style={{
-          background: theme.colors.error,
-          color: 'white',
-          padding: '12px',
+          background: error.includes('💡') ? '#FFF3E0' : theme.colors.error,
+          color: error.includes('💡') ? '#E65100' : 'white',
+          padding: '16px',
           borderRadius: '8px',
           marginBottom: '20px',
-          textAlign: 'center'
+          border: error.includes('💡') ? '2px solid #FF9800' : 'none'
         }}>
-          {error}
+          {error.includes('💡') ? (
+            <>
+              <div style={{ fontWeight: 'bold', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '20px' }}>⚠️</span>
+                {error.split('\n\n')[0]}
+              </div>
+              <div style={{
+                background: 'rgba(255, 152, 0, 0.1)',
+                padding: '12px',
+                borderRadius: '6px',
+                fontSize: '14px',
+                lineHeight: '1.5'
+              }}>
+                {error.split('\n\n')[1]}
+              </div>
+              <button
+                onClick={() => setError(null)}
+                style={{
+                  marginTop: '12px',
+                  padding: '8px 16px',
+                  background: '#FF9800',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                Got it, let me fix this
+              </button>
+            </>
+          ) : (
+            <div style={{ textAlign: 'center' }}>{error}</div>
+          )}
         </div>
       )}
 
