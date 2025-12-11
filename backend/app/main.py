@@ -1089,8 +1089,15 @@ async def complete_hole(  # type: ignore
                         detail="The Tunkarri can only be invoked by the Aardvark (player #5)."
                     )
 
-        # Float validation: Each captain can only use Float once per round
+        # Hole 18 push with carry-over validation
         game_state = game.state or {}
+        if request.hole_number == 18 and request.winner == "push" and game_state.get("carry_over_wager"):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot push on hole 18 with a carry-over wager of {game_state.get('carry_over_wager')}Q. Since there's no hole 19, someone must win this hole."
+            )
+
+        # Float validation: Each captain can only use Float once per round
         if request.float_invoked_by:
             # Check if this player has already used their float
             for player in game_state.get("players", []):

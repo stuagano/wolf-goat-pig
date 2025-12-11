@@ -621,6 +621,17 @@ const SimpleScorekeeper = ({
       }
     }
 
+    // Validate: Can't push on hole 18 with carry-over (wager would be lost)
+    if (currentHole === 18 && winner === 'push' && carryOver) {
+      return `Cannot push on hole 18 with a carry-over wager!\n\n💡 There's ${currentWager}Q at stake from previous pushes. Since there's no hole 19, someone must win this hole. If scores are truly tied, the team with the lower total handicap wins, or flip a coin!`;
+    }
+
+    // Validate: Warn about high wagers (sanity check)
+    if (currentWager > 32) {
+      // Just a warning, not blocking - but good to surface
+      console.warn(`High wager alert: ${currentWager}Q on hole ${currentHole}`);
+    }
+
     return null;
   };
 
@@ -709,6 +720,15 @@ const SimpleScorekeeper = ({
         } else if (rawError.includes('Aardvark')) {
           userFriendlyError = 'Aardvark team selection issue.';
           suggestion = rawError; // Keep the detailed explanation
+        } else if (rawError.includes('Cannot push on hole 18')) {
+          userFriendlyError = 'Cannot push on hole 18 with a carry-over!';
+          suggestion = `There's ${currentWager}Q at stake that must be won. If scores are truly tied, use a tiebreaker: lowest total handicap wins, or flip a coin.`;
+        } else if (rawError.includes('Tunkarri')) {
+          userFriendlyError = 'The Tunkarri (Aardvark solo) issue.';
+          suggestion = rawError;
+        } else if (rawError.includes('Duncan')) {
+          userFriendlyError = 'The Duncan (Captain solo) issue.';
+          suggestion = 'The Duncan allows the captain to go solo before hitting for a 3-for-2 payout. Make sure the captain is going solo in this mode.';
         }
 
         throw new Error(suggestion ? `${userFriendlyError}\n\n💡 ${suggestion}` : userFriendlyError);
@@ -2846,6 +2866,7 @@ const SimpleScorekeeper = ({
               </button>
               <button
                 onClick={() => setWinner('push')}
+                disabled={currentHole === 18 && carryOver}
                 style={{
                   flex: 1,
                   minWidth: '120px',
@@ -2854,11 +2875,15 @@ const SimpleScorekeeper = ({
                   fontWeight: 'bold',
                   border: winner === 'push' ? `3px solid ${theme.colors.textSecondary}` : `2px solid ${theme.colors.border}`,
                   borderRadius: '8px',
-                  background: winner === 'push' ? 'rgba(128, 128, 128, 0.2)' : 'white',
-                  cursor: 'pointer'
+                  background: (currentHole === 18 && carryOver)
+                    ? '#ffebee'
+                    : winner === 'push' ? 'rgba(128, 128, 128, 0.2)' : 'white',
+                  cursor: (currentHole === 18 && carryOver) ? 'not-allowed' : 'pointer',
+                  opacity: (currentHole === 18 && carryOver) ? 0.6 : 1
                 }}
+                title={currentHole === 18 && carryOver ? `Can't push - ${currentWager}Q carry-over must be resolved!` : 'Tie - wager carries to next hole'}
               >
-                Push
+                {currentHole === 18 && carryOver ? '🚫 Push' : 'Push'}
               </button>
               <button
                 onClick={() => setWinner('team1_flush')}
@@ -2929,6 +2954,7 @@ const SimpleScorekeeper = ({
               </button>
               <button
                 onClick={() => setWinner('push')}
+                disabled={currentHole === 18 && carryOver}
                 style={{
                   flex: 1,
                   minWidth: '120px',
@@ -2937,11 +2963,15 @@ const SimpleScorekeeper = ({
                   fontWeight: 'bold',
                   border: winner === 'push' ? `3px solid ${theme.colors.textSecondary}` : `2px solid ${theme.colors.border}`,
                   borderRadius: '8px',
-                  background: winner === 'push' ? 'rgba(128, 128, 128, 0.2)' : 'white',
-                  cursor: 'pointer'
+                  background: (currentHole === 18 && carryOver)
+                    ? '#ffebee'
+                    : winner === 'push' ? 'rgba(128, 128, 128, 0.2)' : 'white',
+                  cursor: (currentHole === 18 && carryOver) ? 'not-allowed' : 'pointer',
+                  opacity: (currentHole === 18 && carryOver) ? 0.6 : 1
                 }}
+                title={currentHole === 18 && carryOver ? `Can't push - ${currentWager}Q carry-over must be resolved!` : 'Tie - wager carries to next hole'}
               >
-                Push
+                {currentHole === 18 && carryOver ? '🚫 Push' : 'Push'}
               </button>
               <button
                 onClick={() => setWinner('captain_flush')}
