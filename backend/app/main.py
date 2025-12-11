@@ -1638,6 +1638,38 @@ async def complete_hole(  # type: ignore
         logger.info(f"Completed hole {request.hole_number} for game {game_id}")
 
         await websocket_manager.broadcast(json.dumps({"game_state": game_state}), game_id)
+
+        # Send game end notifications when final hole (18) is completed
+        if request.hole_number == 18:
+            try:
+                notification_service = get_notification_service()
+                # Calculate final standings for notification message
+                final_standings = sorted(
+                    game_state.get("players", []),
+                    key=lambda p: p.get("points", 0),
+                    reverse=True
+                )
+                winner_name = final_standings[0].get("id", "Unknown") if final_standings else "Unknown"
+                winner_points = final_standings[0].get("points", 0) if final_standings else 0
+
+                notification_service.broadcast_to_game(
+                    game_id=game_id,
+                    notification_type="game_end",
+                    message=f"Game completed! Winner: {winner_name} with {winner_points:+.0f}Q",
+                    db=db,
+                    data={
+                        "game_id": game_id,
+                        "final_standings": [
+                            {"id": p.get("id"), "points": p.get("points", 0)}
+                            for p in final_standings
+                        ]
+                    }
+                )
+                logger.info(f"Sent game_end notifications for game {game_id}")
+            except Exception as notify_error:
+                # Don't fail the hole completion if notifications fail
+                logger.warning(f"Failed to send game_end notifications: {notify_error}")
+
         return {
             "success": True,
             "game_state": game_state,
@@ -2955,12 +2987,37 @@ async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_
             }
 
         # Game is in_progress but not in active_games (server restart?)
-        # Try to restore from database
-        logger.warning(f"Game {game_id} is in_progress but not in active_games. Attempting to restore...")
+        # Return the saved state - SimpleScorekeeper works directly with game.state
+        # The full simulation restoration happens lazily when /action is called
+        logger.info(f"Game {game_id} is in_progress - returning saved state (simulation will restore on next action)")
 
-        # For now, return the saved state
-        # TODO: Implement full state restoration
-        return game.state  # type: ignore
+        # Enrich with players from database
+        saved_state = game.state.copy() if game.state else {}  # type: ignore
+        saved_state["game_id"] = game_id
+        saved_state["game_status"] = "in_progress"
+
+        # Get players from database to ensure fresh data
+        db_players = db.query(models.GamePlayer).filter(
+            models.GamePlayer.game_id == game_id
+        ).order_by(models.GamePlayer.tee_order).all()
+
+        # Update players with database info including tee_order
+        if db_players:
+            player_map = {p.get("id"): p for p in saved_state.get("players", [])}
+            enriched_players = []
+            for db_player in db_players:
+                existing = player_map.get(db_player.player_slot_id, {})
+                enriched_players.append({
+                    "id": db_player.player_slot_id,
+                    "name": db_player.player_name,
+                    "handicap": db_player.handicap,
+                    "tee_order": db_player.tee_order,
+                    "points": existing.get("points", 0),
+                    "float_used": existing.get("float_used", 0)
+                })
+            saved_state["players"] = enriched_players
+
+        return saved_state
 
     except HTTPException:
         raise
@@ -3044,13 +3101,40 @@ async def perform_game_action_by_id(  # type: ignore
                 course_manager=course_manager
             )
 
-            # TODO: Restore full game state (hole states, scores, etc.) from game.state
-            # For now, this creates a fresh simulation - user will need to restart game
-            # This is a temporary fix to prevent 404 errors
+            # Restore full game state from database
+            saved_state = game.state or {}
+
+            # Restore current hole
+            simulation.current_hole = saved_state.get("current_hole", 1)
+
+            # Restore player points and float usage
+            saved_players = saved_state.get("players", [])
+            for saved_player in saved_players:
+                player_id = saved_player.get("id")
+                sim_player = next((p for p in simulation.players if p.id == player_id), None)
+                if sim_player:
+                    sim_player.points = saved_player.get("points", 0)
+                    sim_player.float_used = saved_player.get("float_used", 0)
+
+            # Restore carry-over state (for push scenarios)
+            simulation.carry_over_wager = saved_state.get("carry_over_wager")  # type: ignore
+            simulation.carry_over_from_hole = saved_state.get("carry_over_from_hole")  # type: ignore
+            simulation.consecutive_push_block = saved_state.get("consecutive_push_block", False)  # type: ignore
+            simulation.last_push_hole = saved_state.get("last_push_hole")  # type: ignore
+            simulation.base_wager = saved_state.get("base_wager")  # type: ignore
+
+            # Restore hole history for SimpleScorekeeper compatibility
+            simulation.scorekeeper_hole_history = saved_state.get("hole_history", [])  # type: ignore
+
+            logger.info(
+                f"Restored game {game_id} from database: "
+                f"hole={simulation.current_hole}, "
+                f"players={len(simulation.players)}, "
+                f"hole_history={len(simulation.scorekeeper_hole_history)}"  # type: ignore
+            )
 
             # MIGRATED: Add to active_games using service
             service._active_games[game_id] = simulation
-            logger.info(f"Restored game {game_id} from database")
 
         # MIGRATED: Get simulation from service
         simulation = service._active_games[game_id]
