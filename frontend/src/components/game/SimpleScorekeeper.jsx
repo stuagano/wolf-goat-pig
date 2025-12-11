@@ -322,6 +322,12 @@ const SimpleScorekeeper = ({
     setFloatInvokedBy(hole.float_invoked_by || null);
     setOptionInvokedBy(hole.option_invoked_by || null);
 
+    // Restore betting state from hole data
+    setCurrentHoleBettingEvents(hole.betting_events || []);
+    setPendingOffer(null); // Clear any pending offers when loading for edit
+    setDuncanInvoked(hole.duncan_invoked || false);
+    setOptionTurnedOff(hole.option_turned_off || false);
+
     // Set team mode and teams based on hole data
     if (hole.teams.type === 'partners') {
       setTeamMode('partners');

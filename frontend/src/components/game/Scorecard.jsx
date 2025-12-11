@@ -894,6 +894,39 @@ const Scorecard = ({
               Edit Hole {editingHole} - {(Array.isArray(players) && players.find(p => p && p.id === editingPlayer)?.name) || 'Unknown'}
             </h3>
 
+            {/* Betting Narrative Display (read-only) */}
+            {(() => {
+              const holeData = getHoleInfo(editingHole);
+              const narrative = holeData?.betting_narrative;
+              const wager = holeData?.wager;
+              if (narrative || (wager && wager > 2)) {
+                return (
+                  <div style={{
+                    marginBottom: '16px',
+                    padding: '12px',
+                    backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255, 152, 0, 0.3)'
+                  }}>
+                    <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#F57C00', marginBottom: '4px' }}>
+                      Betting Actions
+                    </div>
+                    {narrative && (
+                      <div style={{ fontSize: '13px', color: theme.colors.textPrimary }}>
+                        {narrative}
+                      </div>
+                    )}
+                    {wager && (
+                      <div style={{ fontSize: '12px', color: theme.colors.textSecondary, marginTop: '4px' }}>
+                        Final Wager: {wager}Q
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+              return null;
+            })()}
+
             <div style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
                 Strokes (Gross Score):
