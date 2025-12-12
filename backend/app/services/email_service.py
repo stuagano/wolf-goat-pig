@@ -169,7 +169,159 @@ class EmailService:
             html_body=html_body
         )
 
-    # ... (other template-based email methods like send_daily_signup_reminder, send_weekly_summary, etc.)
+    def send_pairing_notification(
+        self,
+        to_email: str,
+        player_name: str,
+        game_date: str,
+        teams: list,
+        player_team_number: int | None = None
+    ) -> bool:
+        """Sends the RNG pairing results to a player.
+
+        Args:
+            to_email: Player's email address
+            player_name: Player's display name
+            game_date: The game date (YYYY-MM-DD)
+            teams: List of team dicts with players
+            player_team_number: Which team this player is on (1-indexed), None if alternate
+        """
+        from datetime import datetime
+
+        # Format the date nicely
+        try:
+            date_obj = datetime.strptime(game_date, "%Y-%m-%d")
+            formatted_date = date_obj.strftime("%A, %B %d, %Y")
+        except ValueError:
+            formatted_date = game_date
+
+        # Build team HTML
+        teams_html = ""
+        for i, team in enumerate(teams, 1):
+            team_players = team.get("players", [])
+            player_names = [p.get("player_name", "Unknown") for p in team_players]
+            is_player_team = (i == player_team_number)
+
+            team_style = "background: #e8f5e9; border: 2px solid #28a745;" if is_player_team else "background: #f8f9fa;"
+            team_label = f" (Your Team!)" if is_player_team else ""
+
+            teams_html += f"""
+            <div style="margin: 10px 0; padding: 15px; border-radius: 8px; {team_style}">
+                <strong style="color: #333;">Group {i}{team_label}</strong>
+                <ul style="margin: 10px 0 0 0; padding-left: 20px;">
+                    {"".join(f'<li style="margin: 5px 0;">{name}</li>' for name in player_names)}
+                </ul>
+            </div>
+            """
+
+        # Personalized message
+        if player_team_number:
+            assignment_msg = f"<p style='font-size: 18px; color: #28a745;'><strong>You're in Group {player_team_number}!</strong></p>"
+        else:
+            assignment_msg = "<p style='color: #856404;'><strong>You're listed as an alternate.</strong> You'll play if someone can't make it.</p>"
+
+        content = f"""
+        <h2>🎲 Sunday Pairings Are In!</h2>
+        <p>Hi {player_name},</p>
+        <p>The RNG calculator has spoken! Here are your pairings for <strong>{formatted_date}</strong>:</p>
+
+        {assignment_msg}
+
+        <h3 style="margin-top: 25px;">All Groups:</h3>
+        {teams_html}
+
+        <p style="margin-top: 20px; padding: 15px; background: #e3f2fd; border-radius: 6px;">
+            See you on the course! 🏌️
+        </p>
+        """
+
+        template = Template(self._get_base_template())
+        html_body = template.render(subject="Sunday Pairings", content=content)
+
+        return self._send_email(
+            to_email=to_email,
+            subject=f"🎲 Your Sunday Golf Pairings - {formatted_date}",
+            html_body=html_body
+        )
+
+    def send_tee_time_request(
+        self,
+        to_email: str,
+        game_date: str,
+        teams: list,
+        player_count: int,
+        remaining_players: int = 0
+    ) -> bool:
+        """Sends a tee time reservation request to the golf course.
+
+        Args:
+            to_email: Golf course email address
+            game_date: The game date (YYYY-MM-DD)
+            teams: List of team dicts with players
+            player_count: Total number of players
+            remaining_players: Number of alternates not in a full group
+        """
+        from datetime import datetime
+
+        # Format the date nicely
+        try:
+            date_obj = datetime.strptime(game_date, "%Y-%m-%d")
+            formatted_date = date_obj.strftime("%A, %B %d, %Y")
+            day_of_week = date_obj.strftime("%A")
+        except ValueError:
+            formatted_date = game_date
+            day_of_week = "Sunday"
+
+        # Build team/group HTML
+        groups_html = ""
+        for i, team in enumerate(teams, 1):
+            team_players = team.get("players", [])
+            player_names = [p.get("player_name", "Unknown") for p in team_players]
+
+            groups_html += f"""
+            <div style="margin: 15px 0; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #28a745;">
+                <strong style="color: #333;">Group {i} ({len(player_names)} players)</strong>
+                <ul style="margin: 10px 0 0 0; padding-left: 20px;">
+                    {"".join(f'<li style="margin: 5px 0;">{name}</li>' for name in player_names)}
+                </ul>
+            </div>
+            """
+
+        # Summary info
+        alternates_note = ""
+        if remaining_players > 0:
+            alternates_note = f"<p style='color: #856404;'><em>Plus {remaining_players} alternate(s) if space allows.</em></p>"
+
+        content = f"""
+        <h2>Tee Time Request - {day_of_week} Wolf Goat Pig</h2>
+
+        <p>Hi Dominic,</p>
+
+        <p>We have <strong>{player_count} players</strong> signed up for Wolf Goat Pig on <strong>{formatted_date}</strong>.</p>
+
+        <p>Could you please reserve <strong>{len(teams)} tee time(s)</strong> for us? Here are the groups:</p>
+
+        {groups_html}
+
+        {alternates_note}
+
+        <p style="margin-top: 25px; padding: 15px; background: #e3f2fd; border-radius: 6px;">
+            <strong>Preferred time:</strong> Afternoon (we're flexible on exact times)<br>
+            <strong>Course:</strong> Wing Point Golf & Country Club
+        </p>
+
+        <p style="margin-top: 20px;">Thanks!</p>
+        <p><em>- Wolf Goat Pig Automated System</em></p>
+        """
+
+        template = Template(self._get_base_template())
+        html_body = template.render(subject="Tee Time Request", content=content)
+
+        return self._send_email(
+            to_email=to_email,
+            subject=f"Tee Time Request: {len(teams)} groups for {formatted_date}",
+            html_body=html_body
+        )
 
     def get_provider_status(self) -> Dict[str, Any]:
         """Returns the configuration status of the current provider."""

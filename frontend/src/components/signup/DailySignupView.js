@@ -17,6 +17,8 @@ const DailySignupView = ({ selectedDate, onBack }) => {
   const [teams, setTeams] = useState([]);
   const [teamFormationLoading, setTeamFormationLoading] = useState(false);
   const [showTeamFormation, setShowTeamFormation] = useState(false);
+  const [generatedPairings, setGeneratedPairings] = useState(null);
+  const [pairingsLoading, setPairingsLoading] = useState(false);
 
   // Format date for display
   const formatDateDisplay = (dateStr) => {
@@ -66,10 +68,35 @@ const DailySignupView = ({ selectedDate, onBack }) => {
     }
   };
 
+  // Load generated pairings for the date
+  const loadGeneratedPairings = async () => {
+    try {
+      setPairingsLoading(true);
+      const response = await fetch(`${API_URL}/pairings/${selectedDate}`);
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.exists) {
+          setGeneratedPairings(data);
+        } else {
+          setGeneratedPairings(null);
+        }
+      } else {
+        setGeneratedPairings(null);
+      }
+    } catch (err) {
+      console.error('Error loading pairings:', err);
+      setGeneratedPairings(null);
+    } finally {
+      setPairingsLoading(false);
+    }
+  };
+
   // Initialize component
   useEffect(() => {
     if (selectedDate) {
       loadDailyData();
+      loadGeneratedPairings();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]); // loadDailyData is stable, only re-run when date changes
@@ -677,8 +704,144 @@ const DailySignupView = ({ selectedDate, onBack }) => {
         </div>
       </div>
 
-      {/* Team Formation Section */}
-      {signupData.players.length >= 4 && (
+      {/* Official Generated Pairings Section */}
+      {generatedPairings && generatedPairings.pairings && (
+        <div style={{
+          background: '#fff',
+          borderRadius: '8px',
+          marginTop: '20px',
+          border: '3px solid #28a745',
+          overflow: 'hidden'
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
+            color: 'white',
+            padding: '15px',
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '5px' }}>
+              🎲 Official Pairings
+            </div>
+            <div style={{ fontSize: '14px', opacity: 0.9 }}>
+              Generated {new Date(generatedPairings.generated_at).toLocaleString()}
+              {generatedPairings.notification_sent && ' • Email notifications sent'}
+            </div>
+          </div>
+
+          <div style={{ padding: '20px' }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+              gap: '15px'
+            }}>
+              {generatedPairings.pairings.teams?.map((team, teamIndex) => (
+                <div key={team.team_id || teamIndex} style={{
+                  background: '#f8f9fa',
+                  borderRadius: '8px',
+                  padding: '15px',
+                  border: '2px solid #28a745',
+                  boxShadow: '0 2px 8px rgba(40, 167, 69, 0.15)'
+                }}>
+                  <div style={{
+                    background: '#28a745',
+                    color: 'white',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    textAlign: 'center',
+                    fontWeight: 'bold',
+                    fontSize: '16px',
+                    marginBottom: '12px'
+                  }}>
+                    Group {teamIndex + 1}
+                  </div>
+
+                  {team.players?.map((player, playerIndex) => (
+                    <div key={playerIndex} style={{
+                      padding: '8px 12px',
+                      background: '#fff',
+                      marginBottom: '6px',
+                      borderRadius: '4px',
+                      fontSize: '15px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      border: '1px solid #dee2e6'
+                    }}>
+                      <span style={{ fontWeight: '500' }}>{player.player_name}</span>
+                      {player.handicap && (
+                        <span style={{
+                          fontSize: '12px',
+                          color: '#6c757d',
+                          background: '#e9ecef',
+                          padding: '2px 8px',
+                          borderRadius: '10px'
+                        }}>
+                          {player.handicap} HCP
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+
+            {/* Remaining players (alternates) */}
+            {generatedPairings.pairings.remaining_players?.length > 0 && (
+              <div style={{
+                marginTop: '20px',
+                padding: '15px',
+                background: '#fff3cd',
+                borderRadius: '8px',
+                border: '1px solid #ffc107'
+              }}>
+                <div style={{ fontWeight: 'bold', color: '#856404', marginBottom: '10px' }}>
+                  Alternates ({generatedPairings.pairings.remaining_players.length})
+                </div>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  {generatedPairings.pairings.remaining_players.map((player, idx) => (
+                    <span key={idx} style={{
+                      background: '#ffc107',
+                      color: '#333',
+                      padding: '4px 12px',
+                      borderRadius: '15px',
+                      fontSize: '14px'
+                    }}>
+                      {player.player_name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div style={{
+              marginTop: '15px',
+              padding: '12px',
+              background: '#d4edda',
+              borderRadius: '6px',
+              textAlign: 'center',
+              fontSize: '14px',
+              color: '#155724'
+            }}>
+              <strong>These are the official pairings.</strong> Check your email for your group assignment!
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading state for pairings */}
+      {pairingsLoading && (
+        <div style={{
+          marginTop: '20px',
+          padding: '20px',
+          textAlign: 'center',
+          color: '#6c757d'
+        }}>
+          Loading pairings...
+        </div>
+      )}
+
+      {/* Team Formation Section (for ad-hoc team generation when no official pairings exist) */}
+      {signupData.players.length >= 4 && !generatedPairings && (
         <div style={{
           background: '#fff',
           borderRadius: '8px',

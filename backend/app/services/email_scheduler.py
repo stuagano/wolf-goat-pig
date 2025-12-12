@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from ..database import SessionLocal
 from ..models import EmailPreferences, PlayerProfile
 from .email_service import get_email_service
+from .pairing_scheduler_service import PairingSchedulerService
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,10 @@ class EmailScheduler:
 
         # Schedule weekly summaries on Sunday at 9 AM
         schedule.every().sunday.at("09:00").do(self._send_weekly_summaries)
+
+        # Schedule Saturday afternoon pairing generation for Sunday games
+        # Runs at 2:00 PM every Saturday to generate pairings and notify players
+        schedule.every().saturday.at("14:00").do(self._run_saturday_pairings)
 
         # DISABLED: These tasks make HTTP requests to the same server which causes deadlocks
         # Use external cron jobs or proper async background tasks instead
@@ -258,6 +263,32 @@ class EmailScheduler:
         except Exception as e:
             logger.error(f"Error sending game invitation: {str(e)}")
             return False
+
+    def _run_saturday_pairings(self):
+        """
+        Run the Saturday afternoon pairing job for Sunday games.
+
+        Generates random pairings for the next Sunday and sends email notifications
+        to all signed-up players with their group assignments.
+        """
+        logger.info("Running Saturday pairing job...")
+        db = self._get_db()
+
+        try:
+            result = PairingSchedulerService.run_saturday_job(db)
+
+            if result["success"]:
+                logger.info(
+                    f"Saturday pairing job completed: {result['team_count']} teams generated, "
+                    f"{result['emails_sent']} emails sent for {result['game_date']}"
+                )
+            else:
+                logger.warning(f"Saturday pairing job did not generate pairings: {result['message']}")
+
+        except Exception as e:
+            logger.error(f"Error in Saturday pairing job: {str(e)}")
+        finally:
+            db.close()
 
     def _run_matchmaking(self):
         """

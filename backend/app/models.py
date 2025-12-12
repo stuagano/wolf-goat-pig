@@ -485,3 +485,26 @@ class Notification(Base):
     data = Column(JSON, nullable=True)  # Optional additional data as JSON
     is_read = Column(Boolean, default=False, index=True)  # Read status
     created_at = Column(String, index=True)  # ISO timestamp when notification was created
+
+
+# Generated Pairings for Sunday Games (RNG Calculator)
+class GeneratedPairing(Base):
+    """Stores generated random pairings for a specific game date.
+
+    Created by the Saturday afternoon RNG calculator job (or manually triggered).
+    Displayed on the signup page and emailed to all signed-up players.
+    """
+    __tablename__ = "generated_pairings"
+    id = Column(Integer, primary_key=True, index=True)
+    game_date = Column(String, unique=True, index=True)  # YYYY-MM-DD format (Sunday's date)
+    generated_at = Column(String, index=True)  # ISO timestamp when pairings were generated
+    generated_by = Column(String, nullable=True)  # "scheduler" or admin user name if manual
+    random_seed = Column(Integer, nullable=True)  # Seed used for reproducibility
+    player_count = Column(Integer)  # Number of players included in pairings
+    team_count = Column(Integer)  # Number of complete teams formed
+    remaining_players = Column(Integer, default=0)  # Players not in a complete team
+    pairings_data = Column(JSON)  # Full pairing details: teams, players, etc.
+    notification_sent = Column(Boolean, default=False)  # Whether email blast was sent
+    notification_sent_at = Column(String, nullable=True)  # When notification was sent
+    created_at = Column(String)
+    updated_at = Column(String, nullable=True)

@@ -8683,6 +8683,200 @@ def get_players_for_date(date: str = Path(description="Date in YYYY-MM-DD format
 
 
 # =============================================================================
+# RNG PAIRING CALCULATOR ENDPOINTS
+# =============================================================================
+
+@app.get("/pairings/{date}")
+def get_generated_pairings(date: str = Path(description="Date in YYYY-MM-DD format")):  # type: ignore
+    """Get generated pairings for a specific date if they exist."""
+    try:
+        db = database.SessionLocal()
+        from .services.pairing_scheduler_service import PairingSchedulerService
+
+        pairing = PairingSchedulerService.get_existing_pairing(db, date)
+
+        if not pairing:
+            return {
+                "date": date,
+                "exists": False,
+                "pairings": None
+            }
+
+        return {
+            "date": date,
+            "exists": True,
+            "generated_at": pairing.generated_at,
+            "generated_by": pairing.generated_by,
+            "player_count": pairing.player_count,
+            "team_count": pairing.team_count,
+            "remaining_players": pairing.remaining_players,
+            "notification_sent": pairing.notification_sent,
+            "notification_sent_at": pairing.notification_sent_at,
+            "pairings": pairing.pairings_data
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting pairings for date {date}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get pairings: {str(e)}")
+    finally:
+        db.close()
+
+
+@app.post("/pairings/{date}/generate")
+def generate_and_save_pairings(  # type: ignore
+    date: str = Path(description="Date in YYYY-MM-DD format"),
+    force: bool = Query(False, description="Force regenerate even if pairings exist"),
+    send_notifications: bool = Query(True, description="Send email notifications to all players")
+):
+    """Generate and save random pairings for a specific date.
+
+    This is the endpoint to call manually or from a cron job.
+    """
+    try:
+        db = database.SessionLocal()
+        from .services.pairing_scheduler_service import PairingSchedulerService
+
+        # Generate pairings
+        pairing, message = PairingSchedulerService.generate_pairings(
+            db,
+            date,
+            generated_by="manual",
+            force_regenerate=force
+        )
+
+        if not pairing:
+            raise HTTPException(status_code=400, detail=message)
+
+        emails_sent = 0
+        emails_failed = 0
+
+        # Send notifications if requested
+        if send_notifications:
+            emails_sent, emails_failed = PairingSchedulerService.send_pairing_notifications(
+                db, pairing
+            )
+
+        return {
+            "success": True,
+            "date": date,
+            "message": message,
+            "generated_at": pairing.generated_at,
+            "player_count": pairing.player_count,
+            "team_count": pairing.team_count,
+            "remaining_players": pairing.remaining_players,
+            "pairings": pairing.pairings_data,
+            "notifications": {
+                "sent": emails_sent,
+                "failed": emails_failed,
+                "enabled": send_notifications
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating pairings for date {date}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate pairings: {str(e)}")
+    finally:
+        db.close()
+
+
+@app.post("/pairings/{date}/notify")
+def resend_pairing_notifications(date: str = Path(description="Date in YYYY-MM-DD format")):  # type: ignore
+    """Resend pairing notifications for an existing pairing.
+
+    Use this if some emails failed or you need to notify again.
+    """
+    try:
+        db = database.SessionLocal()
+        from .services.pairing_scheduler_service import PairingSchedulerService
+
+        pairing = PairingSchedulerService.get_existing_pairing(db, date)
+
+        if not pairing:
+            raise HTTPException(status_code=404, detail=f"No pairings found for {date}")
+
+        emails_sent, emails_failed = PairingSchedulerService.send_pairing_notifications(
+            db, pairing
+        )
+
+        return {
+            "success": True,
+            "date": date,
+            "emails_sent": emails_sent,
+            "emails_failed": emails_failed
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error sending pairing notifications for {date}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to send notifications: {str(e)}")
+    finally:
+        db.close()
+
+
+@app.post("/pairings/run-saturday-job")
+def run_saturday_pairing_job():  # type: ignore
+    """Manually trigger the Saturday pairing job.
+
+    This generates pairings for the next Sunday and sends notifications.
+    Designed to be called by a cron job on Saturday afternoons.
+    """
+    try:
+        db = database.SessionLocal()
+        from .services.pairing_scheduler_service import PairingSchedulerService
+
+        result = PairingSchedulerService.run_saturday_job(db)
+
+        if not result["success"]:
+            raise HTTPException(status_code=400, detail=result["message"])
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error running Saturday pairing job: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to run Saturday job: {str(e)}")
+    finally:
+        db.close()
+
+
+@app.delete("/pairings/{date}")
+def delete_generated_pairings(date: str = Path(description="Date in YYYY-MM-DD format")):  # type: ignore
+    """Delete generated pairings for a specific date.
+
+    Use this to clear pairings if you need to regenerate.
+    """
+    try:
+        db = database.SessionLocal()
+        from .services.pairing_scheduler_service import PairingSchedulerService
+
+        pairing = PairingSchedulerService.get_existing_pairing(db, date)
+
+        if not pairing:
+            raise HTTPException(status_code=404, detail=f"No pairings found for {date}")
+
+        db.delete(pairing)
+        db.commit()
+
+        return {
+            "success": True,
+            "date": date,
+            "message": f"Pairings for {date} deleted"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting pairings for date {date}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete pairings: {str(e)}")
+    finally:
+        db.close()
+
+
+# =============================================================================
 # EMAIL ENDPOINTS
 # =============================================================================
 
