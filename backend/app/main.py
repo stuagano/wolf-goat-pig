@@ -9353,6 +9353,206 @@ async def test_deployment(x_admin_email: Optional[str] = Header(None)):  # type:
     require_admin(x_admin_email)
     return {"message": "Deployment is working", "timestamp": datetime.now().isoformat()}
 
+
+# =============================================================================
+# DATABASE CLEANUP ENDPOINTS
+# =============================================================================
+
+@app.get("/admin/cleanup/orphaned-games")
+async def get_orphaned_games(
+    x_admin_email: Optional[str] = Header(None),
+    hours_old: int = Query(24, description="Only show games older than this many hours"),
+    db: Session = Depends(database.get_db)
+):  # type: ignore
+    """Get a list of orphaned games (setup status, 0 players, older than specified hours)."""
+    require_admin(x_admin_email)
+    try:
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours_old)
+
+        # Query for orphaned games
+        orphaned = db.query(models.GameStateModel).filter(
+            models.GameStateModel.game_status == "setup",
+            models.GameStateModel.created_at < cutoff_time.isoformat()
+        ).all()
+
+        # Filter to those with 0 players (check game_players table)
+        orphaned_games = []
+        for game in orphaned:
+            player_count = db.query(models.GamePlayer).filter(
+                models.GamePlayer.game_id == game.game_id
+            ).count()
+            if player_count == 0:
+                orphaned_games.append({
+                    "game_id": game.game_id,
+                    "join_code": game.join_code,
+                    "created_at": game.created_at,
+                    "updated_at": game.updated_at,
+                    "player_count": player_count
+                })
+
+        return {
+            "orphaned_count": len(orphaned_games),
+            "hours_old_threshold": hours_old,
+            "cutoff_time": cutoff_time.isoformat(),
+            "orphaned_games": orphaned_games[:100]  # Limit response size
+        }
+    except Exception as e:
+        logger.error(f"Error getting orphaned games: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get orphaned games: {str(e)}")
+
+
+@app.delete("/admin/cleanup/orphaned-games")
+async def delete_orphaned_games(
+    x_admin_email: Optional[str] = Header(None),
+    hours_old: int = Query(24, description="Only delete games older than this many hours"),
+    dry_run: bool = Query(True, description="If true, only show what would be deleted"),
+    db: Session = Depends(database.get_db)
+):  # type: ignore
+    """Delete orphaned games (setup status, 0 players, older than specified hours).
+
+    Use dry_run=true (default) to preview what will be deleted.
+    Set dry_run=false to actually delete the games.
+    """
+    require_admin(x_admin_email)
+    try:
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours_old)
+
+        # Find orphaned games
+        orphaned = db.query(models.GameStateModel).filter(
+            models.GameStateModel.game_status == "setup",
+            models.GameStateModel.created_at < cutoff_time.isoformat()
+        ).all()
+
+        # Filter to those with 0 players
+        games_to_delete = []
+        for game in orphaned:
+            player_count = db.query(models.GamePlayer).filter(
+                models.GamePlayer.game_id == game.game_id
+            ).count()
+            if player_count == 0:
+                games_to_delete.append(game)
+
+        if dry_run:
+            return {
+                "dry_run": True,
+                "would_delete_count": len(games_to_delete),
+                "hours_old_threshold": hours_old,
+                "message": f"Would delete {len(games_to_delete)} orphaned games. Set dry_run=false to proceed.",
+                "sample_games": [
+                    {"game_id": g.game_id, "created_at": g.created_at}
+                    for g in games_to_delete[:10]
+                ]
+            }
+
+        # Actually delete
+        deleted_count = 0
+        for game in games_to_delete:
+            db.delete(game)
+            deleted_count += 1
+
+        db.commit()
+
+        logger.info(f"Deleted {deleted_count} orphaned games older than {hours_old} hours")
+
+        return {
+            "dry_run": False,
+            "deleted_count": deleted_count,
+            "hours_old_threshold": hours_old,
+            "message": f"Successfully deleted {deleted_count} orphaned games"
+        }
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error deleting orphaned games: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete orphaned games: {str(e)}")
+
+
+@app.get("/admin/cleanup/database-stats")
+async def get_database_stats(
+    x_admin_email: Optional[str] = Header(None),
+    db: Session = Depends(database.get_db)
+):  # type: ignore
+    """Get database statistics for health monitoring."""
+    require_admin(x_admin_email)
+    try:
+        stats = {}
+
+        # Game stats
+        total_games = db.query(models.GameStateModel).count()
+        setup_games = db.query(models.GameStateModel).filter(
+            models.GameStateModel.game_status == "setup"
+        ).count()
+        in_progress_games = db.query(models.GameStateModel).filter(
+            models.GameStateModel.game_status == "in_progress"
+        ).count()
+        completed_games = db.query(models.GameStateModel).filter(
+            models.GameStateModel.game_status == "completed"
+        ).count()
+
+        stats["games"] = {
+            "total": total_games,
+            "setup": setup_games,
+            "in_progress": in_progress_games,
+            "completed": completed_games
+        }
+
+        # Player stats
+        total_players = db.query(models.PlayerProfile).count()
+        players_with_email = db.query(models.PlayerProfile).filter(
+            models.PlayerProfile.email.isnot(None),
+            models.PlayerProfile.email != ""
+        ).count()
+        ai_players = db.query(models.PlayerProfile).filter(
+            models.PlayerProfile.is_ai == True
+        ).count()
+
+        stats["players"] = {
+            "total": total_players,
+            "with_email": players_with_email,
+            "without_email": total_players - players_with_email,
+            "ai_players": ai_players
+        }
+
+        # Signup stats
+        total_signups = db.query(models.DailySignup).count()
+        active_signups = db.query(models.DailySignup).filter(
+            models.DailySignup.status == "signed_up"
+        ).count()
+
+        stats["signups"] = {
+            "total": total_signups,
+            "active": active_signups
+        }
+
+        # Generated pairings
+        total_pairings = db.query(models.GeneratedPairing).count()
+        stats["pairings"] = {
+            "total": total_pairings
+        }
+
+        # Game records (completed games)
+        total_records = db.query(models.GameRecord).count()
+        stats["game_records"] = {
+            "total": total_records
+        }
+
+        # Notifications
+        total_notifications = db.query(models.Notification).count()
+        unread_notifications = db.query(models.Notification).filter(
+            models.Notification.is_read == False
+        ).count()
+        stats["notifications"] = {
+            "total": total_notifications,
+            "unread": unread_notifications
+        }
+
+        return {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "stats": stats
+        }
+    except Exception as e:
+        logger.error(f"Error getting database stats: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get database stats: {str(e)}")
+
 if ENABLE_TEST_ENDPOINTS:
 
     @app.get("/debug/paths")
