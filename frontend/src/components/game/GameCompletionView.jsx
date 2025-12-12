@@ -1,5 +1,5 @@
 // frontend/src/components/game/GameCompletionView.jsx
-import React from 'react';
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useTheme } from '../../theme/Provider';
 
@@ -7,8 +7,9 @@ import { useTheme } from '../../theme/Provider';
  * Game completion view shown after all 18 holes are played
  * Displays final standings and game summary
  */
-const GameCompletionView = ({ players, playerStandings, holeHistory, onNewGame, onEditScores }) => {
+const GameCompletionView = ({ players, playerStandings, holeHistory, onNewGame, onEditScores, onMarkComplete, isCompleted }) => {
   const theme = useTheme();
+  const [isMarking, setIsMarking] = useState(false);
 
   // Sort players by quarters (highest first)
   const sortedStandings = Object.values(playerStandings)
@@ -316,6 +317,56 @@ const GameCompletionView = ({ players, playerStandings, holeHistory, onNewGame, 
             Start New Game
           </button>
         )}
+        {onMarkComplete && !isCompleted && (
+          <button
+            onClick={async () => {
+              setIsMarking(true);
+              try {
+                await onMarkComplete();
+              } finally {
+                setIsMarking(false);
+              }
+            }}
+            disabled={isMarking}
+            style={{
+              padding: '16px 32px',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              borderRadius: '8px',
+              border: 'none',
+              background: isMarking ? '#9e9e9e' : '#4CAF50',
+              color: 'white',
+              cursor: isMarking ? 'not-allowed' : 'pointer',
+              boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+              transition: 'all 0.2s'
+            }}
+            onMouseOver={(e) => {
+              if (!isMarking) {
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 6px 12px rgba(0,0,0,0.15)';
+              }
+            }}
+            onMouseOut={(e) => {
+              e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+            }}
+          >
+            {isMarking ? 'Saving...' : 'Save & Complete Game'}
+          </button>
+        )}
+        {isCompleted && (
+          <div style={{
+            padding: '16px 32px',
+            fontSize: '18px',
+            fontWeight: 'bold',
+            borderRadius: '8px',
+            background: '#e8f5e9',
+            color: '#2e7d32',
+            border: '2px solid #4CAF50'
+          }}>
+            Game Saved
+          </div>
+        )}
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
           style={{
@@ -358,6 +409,8 @@ GameCompletionView.propTypes = {
   })).isRequired,
   onNewGame: PropTypes.func.isRequired,
   onEditScores: PropTypes.func,
+  onMarkComplete: PropTypes.func,
+  isCompleted: PropTypes.bool,
 };
 
 export default GameCompletionView;

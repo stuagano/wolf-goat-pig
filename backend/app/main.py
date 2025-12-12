@@ -2923,6 +2923,69 @@ async def delete_game(  # type: ignore
         raise HTTPException(status_code=500, detail=f"Error deleting game: {str(e)}")
 
 
+@app.post("/games/{game_id}/complete")
+async def mark_game_complete(
+    game_id: str,
+    db: Session = Depends(database.get_db)
+):
+    """
+    Mark a game as completed.
+
+    This endpoint is used to manually mark a game as complete when all 18 holes
+    have been played but the status wasn't automatically updated.
+
+    Args:
+        game_id: The game ID to mark as complete
+
+    Returns:
+        Updated game information
+    """
+    try:
+        game = db.query(models.GameStateModel).filter(
+            models.GameStateModel.game_id == game_id
+        ).first()
+
+        if not game:
+            raise HTTPException(status_code=404, detail="Game not found")
+
+        if game.game_status == "completed":
+            return {
+                "success": True,
+                "message": "Game is already marked as completed",
+                "game_id": game_id,
+                "game_status": "completed"
+            }
+
+        if game.game_status == "setup":
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot complete a game that hasn't started yet"
+            )
+
+        # Update game status to completed
+        game.game_status = "completed"
+        if game.state:
+            game.state["game_status"] = "completed"
+
+        db.commit()
+
+        logger.info(f"Game {game_id} marked as completed")
+
+        return {
+            "success": True,
+            "message": "Game marked as completed",
+            "game_id": game_id,
+            "game_status": "completed"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error completing game {game_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error completing game: {str(e)}")
+
+
 @app.get("/games/{game_id}/state")
 async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_db))->Dict[str,Any]:
     """Get current game state for a specific multiplayer game"""

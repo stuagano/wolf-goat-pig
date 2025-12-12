@@ -110,6 +110,7 @@ const SimpleScorekeeper = ({
   const [showBettingHistory, setShowBettingHistory] = useState(false); // Toggle betting history panel
   const [historyTab, setHistoryTab] = useState('current'); // 'current', 'last', 'game'
   const [isEditingCompleteGame, setIsEditingCompleteGame] = useState(false); // Allow editing completed games
+  const [isGameMarkedComplete, setIsGameMarkedComplete] = useState(false); // Track if game has been saved as complete
 
   // Interactive betting state (Offer/Accept flow)
   const [pendingOffer, setPendingOffer] = useState(null);
@@ -1049,6 +1050,35 @@ const SimpleScorekeeper = ({
   // Check if game is complete (all 18 holes played)
   const isGameComplete = currentHole > 18 && holeHistory.length === 18;
 
+  // Handler to mark game as complete in the database
+  const handleMarkComplete = async () => {
+    if (!gameId) {
+      console.error('No game ID available');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/games/${gameId}/complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to mark game as complete');
+      }
+
+      const result = await response.json();
+      console.log('Game marked as complete:', result);
+      setIsGameMarkedComplete(true);
+    } catch (error) {
+      console.error('Error marking game complete:', error);
+      alert(`Failed to save game: ${error.message}`);
+    }
+  };
+
   // Show completion view if game is complete and not in edit mode
   if (isGameComplete && !isEditingCompleteGame) {
     return (
@@ -1065,6 +1095,8 @@ const SimpleScorekeeper = ({
           setIsEditingCompleteGame(true);
           setCurrentHole(19); // All holes 1-18 will show as completed (editable)
         }}
+        onMarkComplete={handleMarkComplete}
+        isCompleted={isGameMarkedComplete}
       />
     );
   }
