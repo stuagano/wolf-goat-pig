@@ -497,6 +497,94 @@ const SimpleScorekeeper = ({
     });
   };
 
+  // Use stroke allocation from backend if provided (preferred - calculated with Creecher Feature rules)
+  // Falls back to local calculation only if backend data is not available
+  const strokeAllocation = useMemo(() => {
+    // If we have stroke allocation from the backend, use it (it's more accurate)
+    if (initialStrokeAllocation && Object.keys(initialStrokeAllocation).length > 0) {
+      return initialStrokeAllocation;
+    }
+
+    // Fallback: calculate locally if backend didn't provide stroke allocation
+    if (!courseData?.holes) return {};
+
+    const allocation = {};
+
+    // Calculate net handicaps relative to lowest handicap player
+    const playerHandicaps = localPlayers.reduce((acc, player) => {
+      acc[player.id] = player.handicap || 0;
+      return acc;
+    }, {});
+
+    const lowestHandicap = Math.min(...Object.values(playerHandicaps));
+
+    const netHandicaps = {};
+    Object.entries(playerHandicaps).forEach(([playerId, handicap]) => {
+      netHandicaps[playerId] = Math.max(0, handicap - lowestHandicap);
+    });
+
+    const getStrokesForHole = (netHandicap, strokeIndex) => {
+      if (!netHandicap || netHandicap <= 0) return 0;
+
+      const fullHandicap = Math.floor(netHandicap);
+      const hasFractional = (netHandicap % 1) >= 0.5;
+
+      // Creecher Feature implementation
+      if (netHandicap <= 6) {
+        // All allocated holes get 0.5
+        return strokeIndex <= fullHandicap ? 0.5 : 0;
+      } else if (netHandicap <= 18) {
+        // Easiest 6 of allocated holes get 0.5, rest get 1.0
+        if (strokeIndex <= fullHandicap) {
+          const easiestSix = Array.from({ length: fullHandicap }, (_, idx) => fullHandicap - idx);
+          return easiestSix.slice(0, 6).includes(strokeIndex) ? 0.5 : 1.0;
+        }
+        // Fractional: add 0.5 to next hole
+        if (hasFractional && strokeIndex === fullHandicap + 1) {
+          return 0.5;
+        }
+        return 0;
+      } else {
+        // Handicap > 18
+        // Base 18: holes 13-18 get 0.5, holes 1-12 get 1.0
+        const extraStrokes = fullHandicap - 18;
+        const extraHalfStrokes = extraStrokes * 2;
+
+        if (strokeIndex >= 13 && strokeIndex <= 18) {
+          // Easiest 6 holes get base 0.5
+          const halfsNeeded = extraHalfStrokes;
+          const holesGettingExtra = Math.min(halfsNeeded, 12);
+          if (strokeIndex <= holesGettingExtra) {
+            return 1.0; // 0.5 base + 0.5 extra
+          }
+          return 0.5;
+        } else {
+          // Hardest 12 holes get base 1.0
+          const halfsNeeded = extraHalfStrokes;
+          const holesGettingExtra = Math.min(halfsNeeded, 12);
+          if (strokeIndex <= holesGettingExtra) {
+            return 1.5; // 1.0 base + 0.5 extra
+          }
+          return 1.0;
+        }
+      }
+    };
+
+    localPlayers.forEach(player => {
+      allocation[player.id] = {};
+      const netHandicap = netHandicaps[player.id];
+
+      for (let holeNum = 1; holeNum <= 18; holeNum++) {
+        const holeData = courseData.holes.find(h => h.hole_number === holeNum);
+        if (holeData?.handicap) {
+          allocation[player.id][holeNum] = getStrokesForHole(netHandicap, holeData.handicap);
+        }
+      }
+    });
+
+    return allocation;
+  }, [courseData, localPlayers, initialStrokeAllocation]);
+
   // Calculate net scores and auto-detect winner
   const calculateNetScoresAndWinner = useMemo(() => {
     // Need all scores entered and teams formed
@@ -541,7 +629,6 @@ const SimpleScorekeeper = ({
     }
 
     return { netScores, suggestedWinner, team1Net, team2Net };
-    // eslint-disable-next-line no-use-before-define
   }, [scores, players, team1, captain, opponents, teamMode, strokeAllocation, currentHole]);
 
   // Auto-set winner when scores suggest a clear result
@@ -925,94 +1012,6 @@ const SimpleScorekeeper = ({
     setEditingPlayerName(null);
     setEditPlayerNameValue('');
   };
-
-  // Use stroke allocation from backend if provided (preferred - calculated with Creecher Feature rules)
-  // Falls back to local calculation only if backend data is not available
-  const strokeAllocation = useMemo(() => {
-    // If we have stroke allocation from the backend, use it (it's more accurate)
-    if (initialStrokeAllocation && Object.keys(initialStrokeAllocation).length > 0) {
-      return initialStrokeAllocation;
-    }
-
-    // Fallback: calculate locally if backend didn't provide stroke allocation
-    if (!courseData?.holes) return {};
-
-    const allocation = {};
-
-    // Calculate net handicaps relative to lowest handicap player
-    const playerHandicaps = localPlayers.reduce((acc, player) => {
-      acc[player.id] = player.handicap || 0;
-      return acc;
-    }, {});
-
-    const lowestHandicap = Math.min(...Object.values(playerHandicaps));
-
-    const netHandicaps = {};
-    Object.entries(playerHandicaps).forEach(([playerId, handicap]) => {
-      netHandicaps[playerId] = Math.max(0, handicap - lowestHandicap);
-    });
-
-    const getStrokesForHole = (netHandicap, strokeIndex) => {
-      if (!netHandicap || netHandicap <= 0) return 0;
-
-      const fullHandicap = Math.floor(netHandicap);
-      const hasFractional = (netHandicap % 1) >= 0.5;
-
-      // Creecher Feature implementation
-      if (netHandicap <= 6) {
-        // All allocated holes get 0.5
-        return strokeIndex <= fullHandicap ? 0.5 : 0;
-      } else if (netHandicap <= 18) {
-        // Easiest 6 of allocated holes get 0.5, rest get 1.0
-        if (strokeIndex <= fullHandicap) {
-          const easiestSix = Array.from({ length: fullHandicap }, (_, idx) => fullHandicap - idx);
-          return easiestSix.slice(0, 6).includes(strokeIndex) ? 0.5 : 1.0;
-        }
-        // Fractional: add 0.5 to next hole
-        if (hasFractional && strokeIndex === fullHandicap + 1) {
-          return 0.5;
-        }
-        return 0;
-      } else {
-        // Handicap > 18
-        // Base 18: holes 13-18 get 0.5, holes 1-12 get 1.0
-        const extraStrokes = fullHandicap - 18;
-        const extraHalfStrokes = extraStrokes * 2;
-
-        if (strokeIndex >= 13 && strokeIndex <= 18) {
-          // Easiest 6 holes get base 0.5
-          const halfsNeeded = extraHalfStrokes;
-          const holesGettingExtra = Math.min(halfsNeeded, 12);
-          if (strokeIndex <= holesGettingExtra) {
-            return 1.0; // 0.5 base + 0.5 extra
-          }
-          return 0.5;
-        } else {
-          // Hardest 12 holes get base 1.0
-          const halfsNeeded = extraHalfStrokes;
-          const holesGettingExtra = Math.min(halfsNeeded, 12);
-          if (strokeIndex <= holesGettingExtra) {
-            return 1.5; // 1.0 base + 0.5 extra
-          }
-          return 1.0;
-        }
-      }
-    };
-
-    localPlayers.forEach(player => {
-      allocation[player.id] = {};
-      const netHandicap = netHandicaps[player.id];
-
-      for (let holeNum = 1; holeNum <= 18; holeNum++) {
-        const holeData = courseData.holes.find(h => h.hole_number === holeNum);
-        if (holeData?.handicap) {
-          allocation[player.id][holeNum] = getStrokesForHole(netHandicap, holeData.handicap);
-        }
-      }
-    });
-
-    return allocation;
-  }, [courseData, localPlayers, initialStrokeAllocation]);
 
   // Memoize courseHoles transformation to prevent Scorecard re-renders
   const scorecardCourseHoles = useMemo(() => {
