@@ -541,6 +541,7 @@ const SimpleScorekeeper = ({
     }
 
     return { netScores, suggestedWinner, team1Net, team2Net };
+    // eslint-disable-next-line no-use-before-define
   }, [scores, players, team1, captain, opponents, teamMode, strokeAllocation, currentHole]);
 
   // Auto-set winner when scores suggest a clear result

@@ -22,14 +22,9 @@ const FoursomesManager = () => {
     setSelectedDate(nextSunday.toISOString().split('T')[0]);
   }, []);
 
-  // Check for existing pairings when date changes
-  useEffect(() => {
-    if (selectedDate) {
-      checkExistingPairings();
-    }
-  }, [selectedDate]);
-
-  const checkExistingPairings = async () => {
+  // Check for existing pairings
+  const checkExistingPairings = useCallback(async () => {
+    if (!selectedDate) return;
     try {
       const response = await fetch(`${API_URL}/pairings/${selectedDate}`);
       if (response.ok) {
@@ -39,7 +34,12 @@ const FoursomesManager = () => {
     } catch (err) {
       console.error('Error checking pairings:', err);
     }
-  };
+  }, [selectedDate]);
+
+  // Check for existing pairings when date changes
+  useEffect(() => {
+    checkExistingPairings();
+  }, [checkExistingPairings]);
 
   const generateFoursomes = async (force = false) => {
     setLoading(true);
