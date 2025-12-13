@@ -2986,6 +2986,118 @@ async def mark_game_complete(
         raise HTTPException(status_code=500, detail=f"Error completing game: {str(e)}")
 
 
+# Quarters-Only Scoring Models
+class QuartersOnlyRequest(BaseModel):
+    """Simplified scoring request - just quarters per hole per player"""
+    hole_quarters: Dict[str, Dict[str, float]]  # { "1": { "player1": 2, "player2": -2 }, ... }
+    optional_details: Optional[Dict[str, Dict[str, Any]]] = None  # { "1": { "notes": "..." }, ... }
+    current_hole: int = 18
+
+
+@app.post("/games/{game_id}/quarters-only")
+async def save_quarters_only(
+    game_id: str,
+    request: QuartersOnlyRequest,
+    db: Session = Depends(database.get_db)
+):
+    """
+    Simplified scoring endpoint - just quarters per hole per player.
+    Only validation: each hole must sum to zero (zero-sum game).
+
+    This replaces the complex hole completion flow with a simple:
+    1. Enter quarters (+/-) for each player per hole
+    2. Validate sum is zero
+    3. Save
+    """
+    try:
+        # Get game from database
+        game = db.query(models.GameStateModel).filter(
+            models.GameStateModel.game_id == game_id
+        ).first()
+
+        if not game:
+            raise HTTPException(status_code=404, detail="Game not found")
+
+        # Validate: Each hole must sum to zero
+        validation_errors = []
+        for hole_str, player_quarters in request.hole_quarters.items():
+            hole_sum = sum(player_quarters.values())
+            if abs(hole_sum) > 0.001:  # Allow small floating point errors
+                validation_errors.append(f"Hole {hole_str}: sum is {hole_sum}, must be 0")
+
+        if validation_errors:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Zero-sum validation failed: {'; '.join(validation_errors)}"
+            )
+
+        # Calculate standings
+        standings = {}
+        for hole_str, player_quarters in request.hole_quarters.items():
+            for player_id, quarters in player_quarters.items():
+                if player_id not in standings:
+                    standings[player_id] = 0
+                standings[player_id] += quarters
+
+        # Update game state with simplified data
+        game_state = game.state or {}
+        game_state["quarters_only_mode"] = True
+        game_state["hole_quarters"] = request.hole_quarters
+        game_state["optional_details"] = request.optional_details or {}
+        game_state["current_hole"] = request.current_hole
+        game_state["standings"] = standings
+
+        # Update player points in game state
+        for player in game_state.get("players", []):
+            player_id = player.get("id")
+            if player_id in standings:
+                player["total_points"] = standings[player_id]
+
+        # Convert hole_quarters to hole_history format for compatibility
+        hole_history = []
+        for hole_num in range(1, 19):
+            hole_str = str(hole_num)
+            if hole_str in request.hole_quarters:
+                hole_entry = {
+                    "hole": hole_num,
+                    "points_delta": request.hole_quarters[hole_str],
+                    "quarters_only": True,
+                    "notes": (request.optional_details or {}).get(hole_str, {}).get("notes", "")
+                }
+                hole_history.append(hole_entry)
+        game_state["hole_history"] = hole_history
+
+        # Mark game status based on holes completed
+        holes_with_data = len([h for h in request.hole_quarters.values() if h])
+        if holes_with_data >= 18:
+            game_state["game_status"] = "completed"
+            game.game_status = "completed"
+        elif holes_with_data > 0:
+            game_state["game_status"] = "in_progress"
+            game.game_status = "in_progress"
+
+        game.state = game_state
+        db.commit()
+
+        logger.info(f"Saved quarters-only data for game {game_id}: {holes_with_data} holes")
+
+        return {
+            "success": True,
+            "game_id": game_id,
+            "holes_saved": holes_with_data,
+            "standings": standings,
+            "game_status": game.game_status
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error saving quarters-only data for game {game_id}: {e}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error saving data: {str(e)}")
+
+
 @app.get("/games/{game_id}/state")
 async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_db))->Dict[str,Any]:
     """Get current game state for a specific multiplayer game"""
