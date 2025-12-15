@@ -11,6 +11,7 @@
 export { default as useScoreValidation, SCORE_CONSTRAINTS } from './useScoreValidation';
 export { default as useScoreInput } from './useScoreInput';
 export { default as useCourseData } from './useCourseData';
+export { default as useZeroSumValidation } from './useZeroSumValidation';
 
 // Game API hooks
 export { default as useGamePersistence } from './useGamePersistence';

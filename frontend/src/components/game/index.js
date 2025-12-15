@@ -11,6 +11,7 @@
 export { default as CourseManager } from './CourseManager';
 export { default as CourseImport } from './CourseImport';
 export { default as SimpleScorekeeper } from './SimpleScorekeeper';
+export { default as QuartersOnlyScorekeeper } from './QuartersOnlyScorekeeper';
 export { default as GameCompletionView } from './GameCompletionView';
 export { default as Scorecard } from './Scorecard';
 
