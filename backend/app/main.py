@@ -1007,13 +1007,19 @@ async def update_player_handicap(  # type: ignore
         raise HTTPException(status_code=500, detail=f"Failed to update handicap: {str(e)}")
 
 
-@app.post("/games/{game_id}/holes/complete")
+@app.post("/games/{game_id}/holes/complete", deprecated=True)
 async def complete_hole(  # type: ignore
     game_id: str,
     request: CompleteHoleRequest,
     db: Session = Depends(database.get_db)
 ):
     """
+    DEPRECATED: Use POST /games/{game_id}/quarters-only instead.
+
+    This endpoint has complex validation for special rules (Joe's Special, Big Dick,
+    Aardvark, Float, carry-over). For simplified scoring, use the quarters-only endpoint
+    which only validates that each hole sums to zero.
+
     Complete a hole with all data at once - simplified scorekeeper mode.
     No state machine validation, just direct data storage.
     """
@@ -2150,14 +2156,17 @@ async def delete_hole(  # type: ignore
         raise HTTPException(status_code=500, detail=f"Error deleting hole: {str(e)}")
 
 
-@app.get("/games/{game_id}/next-rotation")
+@app.get("/games/{game_id}/next-rotation", deprecated=True)
 async def get_next_rotation(  # type: ignore
     game_id: str,
     db: Session = Depends(database.get_db)
 ):
     """
+    DEPRECATED: Not needed for quarters-only scoring.
+
     Calculate the next rotation order based on current hole.
     Handles normal rotation and Hoepfinger special selection.
+    Only needed if tracking complex game mechanics (rotation, Hoepfinger, etc).
     """
     try:
         game = db.query(models.GameStateModel).filter(
@@ -2230,15 +2239,18 @@ async def get_next_rotation(  # type: ignore
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/games/{game_id}/next-hole-wager")
+@app.get("/games/{game_id}/next-hole-wager", deprecated=True)
 async def get_next_hole_wager(  # type: ignore
     game_id: str,
     current_hole: Optional[int] = None,
     db: Session = Depends(database.get_db)
 ):
     """
+    DEPRECATED: Not needed for quarters-only scoring.
+
     Calculate the base wager for the next hole.
     Accounts for carry-over, Vinnie's Variation, and Hoepfinger rules.
+    Only needed if tracking complex game mechanics (wager escalation, carry-over, etc).
     """
     try:
         game = db.query(models.GameStateModel).filter(
@@ -2327,15 +2339,18 @@ async def get_next_hole_wager(  # type: ignore
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/games/{game_id}/select-rotation")
+@app.post("/games/{game_id}/select-rotation", deprecated=True)
 async def select_rotation(  # type: ignore
     game_id: str,
     request: RotationSelectionRequest,
     db: Session = Depends(database.get_db)
 ):
     """
+    DEPRECATED: Not needed for quarters-only scoring.
+
     Phase 5: Dynamic rotation selection for 5-man games on holes 16-18.
     The Goat (lowest points player) selects their position in the rotation.
+    Only needed for complex 5-man game Hoepfinger mechanics.
     """
     # Get game state (follow same pattern as get_game_state_by_id)
     service = get_game_lifecycle_service()
@@ -9757,16 +9772,23 @@ else:
         "Frontend static assets not found. Expected %s", static_assets_dir
     )
 
-# ========== SIMPLIFIED SCORING ENDPOINTS ==========
+# ========== SIMPLIFIED SCORING ENDPOINTS (DEPRECATED) ==========
+# NOTE: These in-memory endpoints are deprecated in favor of /games/{game_id}/quarters-only
+# which persists to the database. These are kept for backward compatibility only.
 
 from .simplified_scoring import SimplifiedScoring
 
-# Global simplified scoring instances (keyed by game_id)
+# Global simplified scoring instances (keyed by game_id) - DEPRECATED: use database-backed endpoints
 simplified_games: Dict[str, SimplifiedScoring] = {}
 
-@app.post("/wgp/simplified/start-game")
+@app.post("/wgp/simplified/start-game", deprecated=True)
 async def start_simplified_game(payload: Dict[str, Any]):  # type: ignore
-    """Start a new game with simplified scoring system"""
+    """
+    DEPRECATED: Use POST /games/create then POST /games/{game_id}/quarters-only instead.
+
+    This endpoint stores data in memory only and doesn't persist to database.
+    Start a new game with simplified scoring system.
+    """
     try:
         game_id = payload.get("game_id", str(uuid.uuid4()))
         players = payload.get("players", [])
@@ -9788,9 +9810,13 @@ async def start_simplified_game(payload: Dict[str, Any]):  # type: ignore
         logger.error(f"Error starting simplified game: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to start game: {str(e)}")
 
-@app.post("/wgp/simplified/score-hole")
+@app.post("/wgp/simplified/score-hole", deprecated=True)
 async def score_hole_simplified(payload: Dict[str, Any]):  # type: ignore
-    """Score a hole using the simplified scoring system"""
+    """
+    DEPRECATED: Use POST /games/{game_id}/quarters-only instead.
+
+    Score a hole using the simplified scoring system (in-memory, not persisted).
+    """
     try:
         game_id = payload.get("game_id")
         if not game_id or game_id not in simplified_games:
@@ -9823,9 +9849,13 @@ async def score_hole_simplified(payload: Dict[str, Any]):  # type: ignore
         logger.error(f"Error scoring hole: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to score hole: {str(e)}")
 
-@app.get("/wgp/simplified/{game_id}/status")
+@app.get("/wgp/simplified/{game_id}/status", deprecated=True)
 async def get_simplified_game_status(game_id: str):  # type: ignore
-    """Get current status of a simplified scoring game"""
+    """
+    DEPRECATED: Use GET /games/{game_id}/state instead.
+
+    Get current status of a simplified scoring game (in-memory only).
+    """
     try:
         if game_id not in simplified_games:
             raise HTTPException(status_code=404, detail="Game not found")
@@ -9844,9 +9874,13 @@ async def get_simplified_game_status(game_id: str):  # type: ignore
         logger.error(f"Error getting game status: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get status: {str(e)}")
 
-@app.get("/wgp/simplified/{game_id}/hole-history")
+@app.get("/wgp/simplified/{game_id}/hole-history", deprecated=True)
 async def get_simplified_hole_history(game_id: str):  # type: ignore
-    """Get hole-by-hole history for a simplified scoring game"""
+    """
+    DEPRECATED: Use GET /games/{game_id}/state instead.
+
+    Get hole-by-hole history for a simplified scoring game (in-memory only).
+    """
     try:
         if game_id not in simplified_games:
             raise HTTPException(status_code=404, detail="Game not found")

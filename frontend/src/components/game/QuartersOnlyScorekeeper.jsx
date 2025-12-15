@@ -45,6 +45,52 @@ const QuartersOnlyScorekeeper = ({
   const [error, setError] = useState(null);
   const [editingCell, setEditingCell] = useState(null); // { hole, playerId }
   const [inputValue, setInputValue] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  // Load existing game data on mount
+  useEffect(() => {
+    const loadGameData = async () => {
+      if (!gameId) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_URL}/games/${gameId}/state`);
+        if (response.ok) {
+          const data = await response.json();
+
+          // Load quarters-only data if available
+          if (data.hole_quarters) {
+            setHoleQuarters(data.hole_quarters);
+          } else if (data.hole_history) {
+            // Convert from hole_history format
+            const quarters = {};
+            data.hole_history.forEach(hole => {
+              if (hole.points_delta) {
+                quarters[hole.hole] = hole.points_delta;
+              }
+            });
+            setHoleQuarters(quarters);
+          }
+
+          if (data.optional_details) {
+            setOptionalDetails(data.optional_details);
+          }
+
+          if (data.current_hole) {
+            setCurrentHole(data.current_hole);
+          }
+        }
+      } catch (err) {
+        console.error('Error loading game data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadGameData();
+  }, [gameId]);
 
   // Calculate standings from all hole data
   const standings = useMemo(() => {
@@ -343,6 +389,16 @@ const QuartersOnlyScorekeeper = ({
       borderRadius: '4px',
     },
   };
+
+  if (loading) {
+    return (
+      <div style={styles.container}>
+        <div style={{ textAlign: 'center', padding: '40px', color: theme.colors?.text || '#fff' }}>
+          Loading game data...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.container}>
