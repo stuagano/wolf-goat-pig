@@ -1,0 +1,308 @@
+{
+  "game_metadata": {
+    "players": [
+      {"id": "player_a", "name": "Alice", "handicap": 10},
+      {"id": "player_b", "name": "Bob", "handicap": 15},
+      {"id": "player_c", "name": "Carol", "handicap": 12},
+      {"id": "player_d", "name": "Dave", "handicap": 8}
+    ],
+    "scoring_mode": "quarters_only"
+  },
+  "holes": [
+    {
+      "hole_number": 1,
+      "par": 4,
+      "rotation_order": ["player_a", "player_b", "player_c", "player_d"],
+      "teams": {
+        "type": "partners",
+        "team1": ["player_a", "player_b"],
+        "team2": ["player_c", "player_d"]
+      },
+      "scores": {"player_a": 4, "player_b": 5, "player_c": 5, "player_d": 4},
+      "wager": 1,
+      "winner": "team1",
+      "halved": false,
+      "quarters": {"player_a": 1, "player_b": 1, "player_c": -1, "player_d": -1},
+      "running_totals": {"player_a": 1, "player_b": 1, "player_c": -1, "player_d": -1}
+    },
+    {
+      "hole_number": 2,
+      "par": 5,
+      "rotation_order": ["player_b", "player_c", "player_d", "player_a"],
+      "teams": {
+        "type": "partners",
+        "team1": ["player_b", "player_c"],
+        "team2": ["player_d", "player_a"]
+      },
+      "scores": {"player_a": 5, "player_b": 6, "player_c": 5, "player_d": 5},
+      "wager": 1,
+      "winner": "team2",
+      "halved": false,
+      "quarters": {"player_a": 1, "player_b": -1, "player_c": -1, "player_d": 1},
+      "running_totals": {"player_a": 2, "player_b": 0, "player_c": -2, "player_d": 0}
+    },
+    {
+      "hole_number": 3,
+      "par": 3,
+      "rotation_order": ["player_c", "player_d", "player_a", "player_b"],
+      "teams": {
+        "type": "solo",
+        "captain": "player_c",
+        "opponents": ["player_d", "player_a", "player_b"]
+      },
+      "scores": {"player_a": 3, "player_b": 4, "player_c": 2, "player_d": 3},
+      "wager": 1,
+      "winner": "captain",
+      "halved": false,
+      "quarters": {"player_a": -1, "player_b": -1, "player_c": 3, "player_d": -1},
+      "running_totals": {"player_a": 1, "player_b": -1, "player_c": 1, "player_d": -1}
+    },
+    {
+      "hole_number": 4,
+      "par": 4,
+      "rotation_order": ["player_d", "player_a", "player_b", "player_c"],
+      "teams": {
+        "type": "partners",
+        "team1": ["player_d", "player_a"],
+        "team2": ["player_b", "player_c"]
+      },
+      "scores": {"player_a": 4, "player_b": 5, "player_c": 4, "player_d": 4},
+      "wager": 1,
+      "winner": "team1",
+      "halved": false,
+      "quarters": {"player_a": 1, "player_b": -1, "player_c": -1, "player_d": 1},
+      "running_totals": {"player_a": 2, "player_b": -2, "player_c": 0, "player_d": 0}
+    },
+    {
+      "hole_number": 5,
+      "par": 4,
+      "rotation_order": ["player_a", "player_b", "player_c", "player_d"],
+      "teams": {
+        "type": "partners",
+        "team1": ["player_a", "player_b"],
+        "team2": ["player_c", "player_d"]
+      },
+      "scores": {"player_a": 5, "player_b": 4, "player_c": 4, "player_d": 5},
+      "wager": 2,
+      "winner": "team2",
+      "halved": false,
+      "quarters": {"player_a": -2, "player_b": -2, "player_c": 2, "player_d": 2},
+      "running_totals": {"player_a": 0, "player_b": -4, "player_c": 2, "player_d": 2}
+    },
+    {
+      "hole_number": 6,
+      "par": 5,
+      "rotation_order": ["player_b", "player_c", "player_d", "player_a"],
+      "teams": {
+        "type": "solo",
+        "captain": "player_b",
+        "opponents": ["player_c", "player_d", "player_a"]
+      },
+      "scores": {"player_a": 5, "player_b": 6, "player_c": 5, "player_d": 5},
+      "wager": 1,
+      "winner": "opponents",
+      "halved": false,
+      "quarters": {"player_a": 1, "player_b": -3, "player_c": 1, "player_d": 1},
+      "running_totals": {"player_a": 1, "player_b": -7, "player_c": 3, "player_d": 3}
+    },
+    {
+      "hole_number": 7,
+      "par": 4,
+      "rotation_order": ["player_c", "player_d", "player_a", "player_b"],
+      "teams": {
+        "type": "partners",
+        "team1": ["player_c", "player_d"],
+        "team2": ["player_a", "player_b"]
+      },
+      "scores": {"player_a": 4, "player_b": 5, "player_c": 4, "player_d": 5},
+      "wager": 1,
+      "winner": "team2",
+      "halved": false,
+      "quarters": {"player_a": 1, "player_b": 1, "player_c": -1, "player_d": -1},
+      "running_totals": {"player_a": 2, "player_b": -6, "player_c": 2, "player_d": 2}
+    },
+    {
+      "hole_number": 8,
+      "par": 3,
+      "rotation_order": ["player_d", "player_a", "player_b", "player_c"],
+      "teams": {
+        "type": "partners",
+        "team1": ["player_d", "player_a"],
+        "team2": ["player_b", "player_c"]
+      },
+      "scores": {"player_a": 3, "player_b": 4, "player_c": 3, "player_d": 3},
+      "wager": 1,
+      "winner": "team1",
+      "halved": false,
+      "quarters": {"player_a": 1, "player_b": -1, "player_c": -1, "player_d": 1},
+      "running_totals": {"player_a": 3, "player_b": -7, "player_c": 1, "player_d": 3}
+    },
+    {
+      "hole_number": 9,
+      "par": 4,
+      "rotation_order": ["player_a", "player_b", "player_c", "player_d"],
+      "teams": {
+        "type": "solo",
+        "captain": "player_a",
+        "opponents": ["player_b", "player_c", "player_d"]
+      },
+      "scores": {"player_a": 3, "player_b": 4, "player_c": 4, "player_d": 4},
+      "wager": 2,
+      "winner": "captain",
+      "halved": false,
+      "quarters": {"player_a": 6, "player_b": -2, "player_c": -2, "player_d": -2},
+      "running_totals": {"player_a": 9, "player_b": -9, "player_c": -1, "player_d": 1}
+    },
+    {
+      "hole_number": 10,
+      "par": 4,
+      "rotation_order": ["player_b", "player_c", "player_d", "player_a"],
+      "teams": {
+        "type": "partners",
+        "team1": ["player_b", "player_c"],
+        "team2": ["player_d", "player_a"]
+      },
+      "scores": {"player_a": 4, "player_b": 4, "player_c": 5, "player_d": 4},
+      "wager": 1,
+      "winner": "team2",
+      "halved": false,
+      "quarters": {"player_a": 1, "player_b": -1, "player_c": -1, "player_d": 1},
+      "running_totals": {"player_a": 10, "player_b": -10, "player_c": -2, "player_d": 2}
+    },
+    {
+      "hole_number": 11,
+      "par": 5,
+      "rotation_order": ["player_c", "player_d", "player_a", "player_b"],
+      "teams": {
+        "type": "partners",
+        "team1": ["player_c", "player_d"],
+        "team2": ["player_a", "player_b"]
+      },
+      "scores": {"player_a": 5, "player_b": 6, "player_c": 5, "player_d": 5},
+      "wager": 1,
+      "winner": "team1",
+      "halved": false,
+      "quarters": {"player_a": -1, "player_b": -1, "player_c": 1, "player_d": 1},
+      "running_totals": {"player_a": 9, "player_b": -11, "player_c": -1, "player_d": 3}
+    },
+    {
+      "hole_number": 12,
+      "par": 4,
+      "rotation_order": ["player_d", "player_a", "player_b", "player_c"],
+      "teams": {
+        "type": "solo",
+        "captain": "player_d",
+        "opponents": ["player_a", "player_b", "player_c"]
+      },
+      "scores": {"player_a": 4, "player_b": 5, "player_c": 4, "player_d": 5},
+      "wager": 1,
+      "winner": "opponents",
+      "halved": false,
+      "quarters": {"player_a": 1, "player_b": 1, "player_c": 1, "player_d": -3},
+      "running_totals": {"player_a": 10, "player_b": -10, "player_c": 0, "player_d": 0}
+    },
+    {
+      "hole_number": 13,
+      "par": 3,
+      "rotation_order": ["player_a", "player_b", "player_c", "player_d"],
+      "teams": {
+        "type": "partners",
+        "team1": ["player_a", "player_b"],
+        "team2": ["player_c", "player_d"]
+      },
+      "scores": {"player_a": 3, "player_b": 3, "player_c": 4, "player_d": 3},
+      "wager": 1,
+      "winner": "team1",
+      "halved": false,
+      "quarters": {"player_a": 1, "player_b": 1, "player_c": -1, "player_d": -1},
+      "running_totals": {"player_a": 11, "player_b": -9, "player_c": -1, "player_d": -1}
+    },
+    {
+      "hole_number": 14,
+      "par": 4,
+      "rotation_order": ["player_b", "player_c", "player_d", "player_a"],
+      "teams": {
+        "type": "partners",
+        "team1": ["player_b", "player_c"],
+        "team2": ["player_d", "player_a"]
+      },
+      "scores": {"player_a": 5, "player_b": 4, "player_c": 4, "player_d": 5},
+      "wager": 1,
+      "winner": "team1",
+      "halved": false,
+      "quarters": {"player_a": -1, "player_b": 1, "player_c": 1, "player_d": -1},
+      "running_totals": {"player_a": 10, "player_b": -8, "player_c": 0, "player_d": -2}
+    },
+    {
+      "hole_number": 15,
+      "par": 5,
+      "rotation_order": ["player_c", "player_d", "player_a", "player_b"],
+      "teams": {
+        "type": "solo",
+        "captain": "player_c",
+        "opponents": ["player_d", "player_a", "player_b"]
+      },
+      "scores": {"player_a": 5, "player_b": 5, "player_c": 4, "player_d": 5},
+      "wager": 2,
+      "winner": "captain",
+      "halved": false,
+      "quarters": {"player_a": -2, "player_b": -2, "player_c": 6, "player_d": -2},
+      "running_totals": {"player_a": 8, "player_b": -10, "player_c": 6, "player_d": -4}
+    },
+    {
+      "hole_number": 16,
+      "par": 4,
+      "rotation_order": ["player_d", "player_a", "player_b", "player_c"],
+      "teams": {
+        "type": "partners",
+        "team1": ["player_d", "player_a"],
+        "team2": ["player_b", "player_c"]
+      },
+      "scores": {"player_a": 4, "player_b": 5, "player_c": 4, "player_d": 4},
+      "wager": 1,
+      "winner": "team1",
+      "halved": false,
+      "quarters": {"player_a": 1, "player_b": -1, "player_c": -1, "player_d": 1},
+      "running_totals": {"player_a": 9, "player_b": -11, "player_c": 5, "player_d": -3}
+    },
+    {
+      "hole_number": 17,
+      "par": 3,
+      "rotation_order": ["player_a", "player_b", "player_c", "player_d"],
+      "teams": {
+        "type": "partners",
+        "team1": ["player_a", "player_b"],
+        "team2": ["player_c", "player_d"]
+      },
+      "scores": {"player_a": 4, "player_b": 3, "player_c": 3, "player_d": 4},
+      "wager": 1,
+      "winner": "team2",
+      "halved": false,
+      "quarters": {"player_a": -2, "player_b": -2, "player_c": 2, "player_d": 2},
+      "running_totals": {"player_a": 7, "player_b": -13, "player_c": 7, "player_d": -1}
+    },
+    {
+      "hole_number": 18,
+      "par": 4,
+      "rotation_order": ["player_b", "player_c", "player_d", "player_a"],
+      "teams": {
+        "type": "solo",
+        "captain": "player_b",
+        "opponents": ["player_c", "player_d", "player_a"]
+      },
+      "scores": {"player_a": 4, "player_b": 3, "player_c": 4, "player_d": 4},
+      "wager": 2,
+      "winner": "captain",
+      "halved": false,
+      "duncan_invoked": false,
+      "quarters": {"player_a": -4, "player_b": 12, "player_c": -4, "player_d": -4},
+      "running_totals": {"player_a": 3, "player_b": -1, "player_c": 3, "player_d": -5}
+    }
+  ],
+  "expected_final_totals": {
+    "player_a": 3,
+    "player_b": -1,
+    "player_c": 3,
+    "player_d": -5
+  }
+}
