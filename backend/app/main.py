@@ -300,6 +300,10 @@ allowed_origins = [
     "https://wolf-goat-pig-frontend.onrender.com",  # Alternative frontend URL
 ]
 
+# Regex pattern to allow all Vercel preview deployments
+# Matches: wolf-goat-pig.vercel.app, wolf-goat-pig-*.vercel.app, etc.
+allow_origin_regex = r"https://wolf-goat-pig(-[a-z0-9-]+)?\.vercel\.app"
+
 # Add localhost for development and local testing
 # Note: localhost is safe for local Podman/Docker testing even with ENVIRONMENT=production
 if os.getenv("ENVIRONMENT") != "production" or os.getenv("FRONTEND_URL", "").startswith("http://localhost"):
@@ -313,6 +317,7 @@ if os.getenv("ENVIRONMENT") != "production" or os.getenv("FRONTEND_URL", "").sta
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
+    allow_origin_regex=allow_origin_regex,  # Allow all Vercel preview deployments
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"],
     allow_headers=[
