@@ -205,7 +205,11 @@ jobs:
         REACT_APP_API_URL: ${{ secrets.PRODUCTION_API_URL || 'https://api.wolfgoatpig.com' }}
         GENERATE_SOURCEMAP: false
     
-    - name: Deploy to production
+    - name: Deploy to Vercel production
       run: |
-        echo "Deploy to production hosting service"
-      if: false
+        cd frontend
+        npx vercel --prod --token=${{ secrets.VERCEL_TOKEN }}
+      env:
+        VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      if: secrets.VERCEL_TOKEN != ''
