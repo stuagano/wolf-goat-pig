@@ -79,7 +79,8 @@ const SimpleScorekeeper = ({
   const [nextHoleWager, setNextHoleWager] = useState(baseWager);
   const [carryOver, setCarryOver] = useState(false);
   const [vinniesVariation, setVinniesVariation] = useState(false);
-  const [carryOverApplied, setCarryOverApplied] = useState(false);
+  // eslint-disable-next-line no-unused-vars
+  const [carryOverApplied, setCarryOverApplied] = useState(false); // Kept for potential future use
 
   // Phase 2: Betting mechanics
   const [optionActive, setOptionActive] = useState(false);
@@ -498,6 +499,68 @@ const SimpleScorekeeper = ({
     });
   };
 
+  /**
+   * Calculate quarters for a hole based on winner, teams, and wager.
+   * This is the quarters-only scoring logic - simple and transparent.
+   *
+   * Rules:
+   * - Partners mode: winning team each gets +wager, losing team each gets -wager
+   * - Solo mode: captain wins/loses (wager * num_opponents), opponents each win/lose wager
+   * - Push: everyone gets 0
+   * - Holes 17-18: automatically doubled (unless in Hoepfinger phase)
+   */
+  const calculateQuartersForHole = (holeNum, winnerValue, teamsValue, wagerValue, phaseValue) => {
+    const quarters = {};
+    const allPlayerIds = players.map(p => p.id);
+
+    // Initialize all players to 0
+    allPlayerIds.forEach(id => { quarters[id] = 0; });
+
+    // Handle push - everyone gets 0
+    if (winnerValue === 'push') {
+      return quarters;
+    }
+
+    let effectiveWager = wagerValue;
+
+    // Apply 2x multiplier for holes 17-18 (unless in Hoepfinger phase)
+    if ((holeNum === 17 || holeNum === 18) && phaseValue !== 'hoepfinger') {
+      effectiveWager *= 2;
+    }
+
+    if (teamsValue.type === 'partners') {
+      const team1Players = teamsValue.team1 || [];
+      const team2Players = teamsValue.team2 || [];
+
+      if (winnerValue === 'team1' || winnerValue === 'team1_flush') {
+        // Team 1 wins: each team1 player gets +wager, each team2 player gets -wager
+        team1Players.forEach(id => { quarters[id] = effectiveWager; });
+        team2Players.forEach(id => { quarters[id] = -effectiveWager; });
+      } else if (winnerValue === 'team2' || winnerValue === 'team2_flush') {
+        // Team 2 wins: each team2 player gets +wager, each team1 player gets -wager
+        team2Players.forEach(id => { quarters[id] = effectiveWager; });
+        team1Players.forEach(id => { quarters[id] = -effectiveWager; });
+      }
+    } else {
+      // Solo mode
+      const captainId = teamsValue.captain;
+      const opponentIds = teamsValue.opponents || [];
+      const numOpponents = opponentIds.length;
+
+      if (winnerValue === 'captain' || winnerValue === 'captain_flush') {
+        // Captain wins: gets wager * numOpponents, each opponent loses wager
+        quarters[captainId] = effectiveWager * numOpponents;
+        opponentIds.forEach(id => { quarters[id] = -effectiveWager; });
+      } else if (winnerValue === 'opponents' || winnerValue === 'opponents_flush') {
+        // Opponents win: captain loses wager * numOpponents, each opponent gets wager
+        quarters[captainId] = -effectiveWager * numOpponents;
+        opponentIds.forEach(id => { quarters[id] = effectiveWager; });
+      }
+    }
+
+    return quarters;
+  };
+
   // Use stroke allocation from backend if provided (preferred - calculated with Creecher Feature rules)
   // Falls back to local calculation only if backend data is not available
   const strokeAllocation = useMemo(() => {
@@ -749,150 +812,134 @@ const SimpleScorekeeper = ({
           opponents: opponents
         };
 
-      const response = await fetch(`${API_URL}/games/${gameId}/holes/complete`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          hole_number: currentHole,
-          rotation_order: rotationOrder,
-          captain_index: captainIndex,
-          phase: phase,
-          joes_special_wager: joesSpecialWager,
-          option_turned_off: optionTurnedOff,
-          duncan_invoked: duncanInvoked,
-          teams: teams,
-          final_wager: currentWager,
-          winner: winner,
-          scores: scores,
-          hole_par: holePar,
-          float_invoked_by: floatInvokedBy,
-          option_invoked_by: optionInvokedBy,
-          carry_over_applied: carryOverApplied,
-          // Aardvark fields (5-man game)
-          aardvark_requested_team: players.length === 5 ? aardvarkRequestedTeam : null,
-          aardvark_tossed: players.length === 5 ? aardvarkTossed : false,
-          aardvark_solo: players.length === 5 ? aardvarkSolo : false,
-          // Invisible Aardvark (4-man game)
-          invisible_aardvark_tossed: players.length === 4 ? invisibleAardvarkTossed : false,
-          // Interactive betting narrative
-          betting_narrative: currentBettingNarrative || null,
-          betting_events: currentHoleBettingEvents || []
-        })
-      });
+      // QUARTERS-ONLY MODE: Calculate quarters locally and sync to backend
+      // This is simpler and more transparent than the complex holes/complete endpoint
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const rawError = errorData.detail || errorData.message || 'Failed to submit hole';
+      // Calculate quarters for this hole
+      const pointsDelta = calculateQuartersForHole(currentHole, winner, teams, currentWager, phase);
 
-        // Translate backend errors into helpful user guidance
-        let userFriendlyError = rawError;
-        let suggestion = null;
-
-        if (rawError.includes('already used their Float')) {
-          userFriendlyError = `${getPlayerName(floatInvokedBy)} has already used their Float this round.`;
-          suggestion = 'Each captain can only Float once per round. You can still use Double to increase the wager, or continue without the Float.';
-          // Clear the float to help user recover
-          setFloatInvokedBy(null);
-          setCurrentWager(Math.max(baseWager, currentWager / 2)); // Revert wager
-        } else if (rawError.includes('Only the captain can invoke Float')) {
-          userFriendlyError = 'Only the captain can invoke Float.';
-          suggestion = `The current captain is ${getPlayerName(captain || rotationOrder[captainIndex])}. Only they can Float on this hole.`;
-          setFloatInvokedBy(null);
-        } else if (rawError.includes("Joe's Special")) {
-          userFriendlyError = "Invalid Joe's Special wager.";
-          suggestion = "Joe's Special must be 2, 4, or 8 quarters. Please adjust the wager.";
-        } else if (rawError.includes('Big Dick') && rawError.includes('hole 18')) {
-          userFriendlyError = 'The Big Dick can only be invoked on hole 18.';
-          suggestion = 'This special action is reserved for the final hole of the round.';
-        } else if (rawError.includes('Aardvark')) {
-          userFriendlyError = 'Aardvark team selection issue.';
-          suggestion = rawError; // Keep the detailed explanation
-        } else if (rawError.includes('Cannot push on hole 18')) {
-          userFriendlyError = 'Cannot push on hole 18 with a carry-over!';
-          suggestion = `There's ${currentWager}Q at stake that must be won. If scores are truly tied, use a tiebreaker: lowest total handicap wins, or flip a coin.`;
-        } else if (rawError.includes('Tunkarri')) {
-          userFriendlyError = 'The Tunkarri (Aardvark solo) issue.';
-          suggestion = rawError;
-        } else if (rawError.includes('Duncan')) {
-          userFriendlyError = 'The Duncan (Captain solo) issue.';
-          suggestion = 'The Duncan allows the captain to go solo before hitting for a 3-for-2 payout. Make sure the captain is going solo in this mode.';
-        }
-
-        throw new Error(suggestion ? `${userFriendlyError}\n\n💡 ${suggestion}` : userFriendlyError);
+      // Validate zero-sum (quarters must sum to zero)
+      const sum = Object.values(pointsDelta).reduce((a, b) => a + b, 0);
+      if (Math.abs(sum) > 0.001) {
+        throw new Error(`Invalid quarters: sum is ${sum}, must be 0. This is a bug - please report it.`);
       }
 
-      const data = await response.json();
-
-      // Validate response structure
-      if (!data || typeof data !== 'object') {
-        throw new Error('Invalid response from server: expected object');
-      }
-      if (!data.hole_result || typeof data.hole_result !== 'object') {
-        throw new Error('Invalid response: missing hole_result');
-      }
-      if (!data.hole_result.points_delta || typeof data.hole_result.points_delta !== 'object') {
-        throw new Error('Invalid response: missing points_delta in hole_result');
-      }
+      // Build hole result object (local, no server needed for calculation)
+      const holeResult = {
+        hole: currentHole,
+        points_delta: pointsDelta,
+        gross_scores: scores,
+        teams: teams,
+        winner: winner,
+        wager: currentWager,
+        phase: phase,
+        rotation_order: rotationOrder,
+        captain_index: captainIndex,
+        quarters_only: true
+      };
 
       // Log hole completion to betting history
       logBettingAction('Hole Completed', {
-        actor: winner === 'tied' ? 'Push' : (winner === 'team1' || winner === 'captain') ? 'Wolf Team Won' : 'Field Won',
+        actor: winner === 'push' ? 'Push' : (winner === 'team1' || winner === 'captain') ? 'Wolf Team Won' : 'Field Won',
         wager: currentWager,
         winner: winner,
         scores: scores
       });
 
+      // Update local state first (optimistic update)
+      let updatedHistory;
       if (editingHole) {
         // Editing existing hole - update it in the history
-        const updatedHistory = holeHistory.map(h =>
-          h.hole === editingHole ? data.hole_result : h
+        updatedHistory = holeHistory.map(h =>
+          h.hole === editingHole ? holeResult : h
         );
-        setHoleHistory(updatedHistory);
+      } else {
+        // New hole - add to history
+        updatedHistory = [...holeHistory, holeResult];
+      }
+      setHoleHistory(updatedHistory);
 
-        // Recalculate all player standings from scratch
-        const newStandings = {};
-        players.forEach(player => {
-          newStandings[player.id] = { quarters: 0, name: player.name };
+      // Recalculate all player standings from the updated history
+      const newStandings = {};
+      players.forEach(player => {
+        newStandings[player.id] = {
+          quarters: 0,
+          name: player.name,
+          soloCount: 0,
+          floatCount: 0,
+          optionCount: 0
+        };
+      });
+
+      updatedHistory.forEach(hole => {
+        const delta = hole.points_delta || {};
+        Object.entries(delta).forEach(([playerId, points]) => {
+          if (newStandings[playerId]) {
+            newStandings[playerId].quarters += typeof points === 'number' ? points : 0;
+          }
         });
+        // Track solo usage
+        if (hole.teams?.type === 'solo' && hole.teams?.captain) {
+          if (newStandings[hole.teams.captain]) {
+            newStandings[hole.teams.captain].soloCount += 1;
+          }
+        }
+      });
+      setPlayerStandings(newStandings);
 
-        updatedHistory.forEach(hole => {
-          // Safely access points_delta with validation
-          const pointsDelta = hole.points_delta || {};
-          Object.entries(pointsDelta).forEach(([playerId, points]) => {
-            if (newStandings[playerId]) {
-              newStandings[playerId].quarters += typeof points === 'number' ? points : 0;
-            } else {
-              console.warn(`Unknown player in points_delta: ${playerId}`);
-            }
-          });
-        });
-        setPlayerStandings(newStandings);
+      // Build hole_quarters for the quarters-only endpoint
+      const holeQuarters = {};
+      updatedHistory.forEach(hole => {
+        if (hole.points_delta) {
+          holeQuarters[String(hole.hole)] = hole.points_delta;
+        }
+      });
 
-        // Return to the next hole after the last completed hole
+      // Build optional details for metadata
+      const optionalDetails = {};
+      updatedHistory.forEach(hole => {
+        optionalDetails[String(hole.hole)] = {
+          teams: hole.teams,
+          winner: hole.winner,
+          wager: hole.wager,
+          gross_scores: hole.gross_scores,
+          phase: hole.phase
+        };
+      });
+
+      // Sync to backend using quarters-only endpoint
+      const response = await fetch(`${API_URL}/games/${gameId}/quarters-only`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          hole_quarters: holeQuarters,
+          optional_details: optionalDetails,
+          current_hole: editingHole ? currentHole : currentHole + 1
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const rawError = errorData.detail || errorData.message || 'Failed to save quarters';
+
+        // Handle zero-sum validation error from backend
+        if (rawError.includes('Zero-sum validation failed')) {
+          throw new Error(`Quarters don't balance!\n\n${rawError}\n\n💡 Each hole must sum to zero. Check the wager and winner settings.`);
+        }
+
+        throw new Error(rawError);
+      }
+
+      // Move to next hole or return from editing
+      if (editingHole) {
         const maxHole = updatedHistory.length > 0
           ? Math.max(...updatedHistory.map(h => h.hole))
           : 0;
         setCurrentHole(maxHole + 1);
         resetHole();
       } else {
-        // New hole - add to history
-        setHoleHistory([...holeHistory, data.hole_result]);
-
-        // Update player standings incrementally with validation
-        const newStandings = { ...playerStandings };
-        const pointsDelta = data.hole_result.points_delta || {};
-        Object.entries(pointsDelta).forEach(([playerId, points]) => {
-          if (newStandings[playerId]) {
-            newStandings[playerId].quarters += typeof points === 'number' ? points : 0;
-          } else {
-            console.warn(`Unknown player in points_delta: ${playerId}`);
-          }
-        });
-        setPlayerStandings(newStandings);
-
-        // Move to next hole
         setCurrentHole(currentHole + 1);
         resetHole();
       }
