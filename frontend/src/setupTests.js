@@ -4,6 +4,11 @@ import '@testing-library/jest-dom';
 
 // Note: react-router-dom mocking is handled in individual test files
 
+// Polyfill TextEncoder/TextDecoder for Auth0 SDK (required in JSDOM environment)
+import { TextEncoder, TextDecoder } from 'util';
+global.TextEncoder = TextEncoder;
+global.TextDecoder = TextDecoder;
+
 // Mock crypto.getRandomValues for uuid in tests
 if (typeof globalThis.crypto === 'undefined') {
   globalThis.crypto = {

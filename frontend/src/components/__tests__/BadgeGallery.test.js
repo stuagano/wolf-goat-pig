@@ -1,10 +1,17 @@
 // frontend/src/components/__tests__/BadgeGallery.test.js
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import BadgeGallery from '../BadgeGallery';
 
 // Mock fetch
 global.fetch = jest.fn();
+
+// Helper function to wait for loading to complete
+const waitForLoadingToComplete = async () => {
+  await waitFor(() => {
+    expect(screen.queryByText('Loading badges...')).not.toBeInTheDocument();
+  });
+};
 
 describe('BadgeGallery', () => {
   const mockEarnedBadges = [
@@ -109,9 +116,11 @@ describe('BadgeGallery', () => {
   });
 
   describe('Loading State', () => {
-    test('shows loading spinner initially', () => {
+    test('shows loading spinner initially', async () => {
       render(<BadgeGallery playerId={1} />);
       expect(screen.getByText('Loading badges...')).toBeInTheDocument();
+      // Wait for loading to complete to avoid act() warnings
+      await waitForLoadingToComplete();
     });
   });
 
@@ -136,8 +145,9 @@ describe('BadgeGallery', () => {
       render(<BadgeGallery playerId={1} />);
       await waitFor(() => {
         expect(screen.getByText('All Badges')).toBeInTheDocument();
-        expect(screen.getByText(/Earned/)).toBeInTheDocument();
-        expect(screen.getByText(/Locked/)).toBeInTheDocument();
+        // Look for buttons with partial text match (includes count like "Earned (2)")
+        expect(screen.getByRole('button', { name: /Earned/ })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Locked/ })).toBeInTheDocument();
         expect(screen.getByText('Achievements')).toBeInTheDocument();
         expect(screen.getByText('Progression')).toBeInTheDocument();
         expect(screen.getByText('Series')).toBeInTheDocument();
@@ -197,7 +207,7 @@ describe('BadgeGallery', () => {
         expect(screen.getByText('All Badges')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByText(/Earned/));
+      fireEvent.click(screen.getByRole('button', { name: /Earned/ }));
 
       // Should only show earned badges
       expect(screen.getByText('First Win')).toBeInTheDocument();
@@ -212,7 +222,7 @@ describe('BadgeGallery', () => {
         expect(screen.getByText('All Badges')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByText(/Locked/));
+      fireEvent.click(screen.getByRole('button', { name: /Locked/ }));
 
       // Should only show locked badges
       expect(screen.getByText('Legendary Champion')).toBeInTheDocument();
@@ -346,12 +356,12 @@ describe('BadgeGallery', () => {
 
       fetch.mockRejectedValue(new Error('Network error'));
 
-      render(<BadgeGallery playerId={1} />);
+      await act(async () => {
+        render(<BadgeGallery playerId={1} />);
+      });
 
       // Wait for loading to complete
-      await waitFor(() => {
-        expect(screen.queryByText('Loading badges...')).not.toBeInTheDocument();
-      });
+      await waitForLoadingToComplete();
 
       consoleSpy.mockRestore();
     });
