@@ -5,11 +5,13 @@ on:
     branches: [ main, develop ]
     paths:
       - 'frontend/**'
+      - 'vercel.json'
       - '.github/workflows/frontend-ci.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'frontend/**'
+      - 'vercel.json'
       - '.github/workflows/frontend-ci.yml'
 
 jobs:
@@ -205,11 +207,22 @@ jobs:
         REACT_APP_API_URL: ${{ secrets.PRODUCTION_API_URL || 'https://api.wolfgoatpig.com' }}
         GENERATE_SOURCEMAP: false
     
+    - name: Check Vercel secrets
+      id: vercel-check
+      run: |
+        if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then
+          echo "configured=false" >> $GITHUB_OUTPUT
+          echo "⚠️ VERCEL_TOKEN not configured - skipping deployment"
+        else
+          echo "configured=true" >> $GITHUB_OUTPUT
+          echo "✅ Vercel secrets configured"
+        fi
+
     - name: Deploy to Vercel production
+      if: steps.vercel-check.outputs.configured == 'true'
       run: |
         cd frontend
         npx vercel --prod --token=${{ secrets.VERCEL_TOKEN }}
       env:
         VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
         VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-      if: secrets.VERCEL_TOKEN != ''
