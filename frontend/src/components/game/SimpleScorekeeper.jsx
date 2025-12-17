@@ -51,6 +51,7 @@ const SimpleScorekeeper = ({
   const [opponents, setOpponents] = useState([]);
   const [currentWager, setCurrentWager] = useState(baseWager);
   const [scores, setScores] = useState({});
+  const [quarters, setQuarters] = useState({}); // Manual quarters entry
   const [winner, setWinner] = useState(null);
   const [floatInvokedBy, setFloatInvokedBy] = useState(null); // Player ID who invoked float
   const [optionInvokedBy, setOptionInvokedBy] = useState(null); // Player ID who triggered option
@@ -110,6 +111,7 @@ const SimpleScorekeeper = ({
   const [bettingHistory, setBettingHistory] = useState([]); // Track betting actions
   const [showBettingHistory, setShowBettingHistory] = useState(false); // Toggle betting history panel
   const [historyTab, setHistoryTab] = useState('current'); // 'current', 'last', 'game'
+  const [showAdvancedBetting, setShowAdvancedBetting] = useState(false); // Accordion for betting rules
   const [isEditingCompleteGame, setIsEditingCompleteGame] = useState(false); // Allow editing completed games
   const [isGameMarkedComplete, setIsGameMarkedComplete] = useState(false); // Track if game has been saved as complete
 
@@ -295,6 +297,7 @@ const SimpleScorekeeper = ({
     setOpponents([]);
     setCurrentWager(baseWager);
     setScores({});
+    setQuarters({});
     setWinner(null);
     setFloatInvokedBy(null);
     setOptionInvokedBy(null);
@@ -319,6 +322,7 @@ const SimpleScorekeeper = ({
     setEditingHole(hole.hole);
     setCurrentHole(hole.hole); // Setting currentHole automatically updates derived holePar
     setScores(hole.gross_scores || {});
+    setQuarters(hole.points_delta || {}); // Load quarters from points_delta
     setCurrentWager(hole.wager || baseWager);
     setWinner(hole.winner);
     setFloatInvokedBy(hole.float_invoked_by || null);
@@ -499,67 +503,7 @@ const SimpleScorekeeper = ({
     });
   };
 
-  /**
-   * Calculate quarters for a hole based on winner, teams, and wager.
-   * This is the quarters-only scoring logic - simple and transparent.
-   *
-   * Rules:
-   * - Partners mode: winning team each gets +wager, losing team each gets -wager
-   * - Solo mode: captain wins/loses (wager * num_opponents), opponents each win/lose wager
-   * - Push: everyone gets 0
-   * - Holes 17-18: automatically doubled (unless in Hoepfinger phase)
-   */
-  const calculateQuartersForHole = (holeNum, winnerValue, teamsValue, wagerValue, phaseValue) => {
-    const quarters = {};
-    const allPlayerIds = players.map(p => p.id);
-
-    // Initialize all players to 0
-    allPlayerIds.forEach(id => { quarters[id] = 0; });
-
-    // Handle push - everyone gets 0
-    if (winnerValue === 'push') {
-      return quarters;
-    }
-
-    let effectiveWager = wagerValue;
-
-    // Apply 2x multiplier for holes 17-18 (unless in Hoepfinger phase)
-    if ((holeNum === 17 || holeNum === 18) && phaseValue !== 'hoepfinger') {
-      effectiveWager *= 2;
-    }
-
-    if (teamsValue.type === 'partners') {
-      const team1Players = teamsValue.team1 || [];
-      const team2Players = teamsValue.team2 || [];
-
-      if (winnerValue === 'team1' || winnerValue === 'team1_flush') {
-        // Team 1 wins: each team1 player gets +wager, each team2 player gets -wager
-        team1Players.forEach(id => { quarters[id] = effectiveWager; });
-        team2Players.forEach(id => { quarters[id] = -effectiveWager; });
-      } else if (winnerValue === 'team2' || winnerValue === 'team2_flush') {
-        // Team 2 wins: each team2 player gets +wager, each team1 player gets -wager
-        team2Players.forEach(id => { quarters[id] = effectiveWager; });
-        team1Players.forEach(id => { quarters[id] = -effectiveWager; });
-      }
-    } else {
-      // Solo mode
-      const captainId = teamsValue.captain;
-      const opponentIds = teamsValue.opponents || [];
-      const numOpponents = opponentIds.length;
-
-      if (winnerValue === 'captain' || winnerValue === 'captain_flush') {
-        // Captain wins: gets wager * numOpponents, each opponent loses wager
-        quarters[captainId] = effectiveWager * numOpponents;
-        opponentIds.forEach(id => { quarters[id] = -effectiveWager; });
-      } else if (winnerValue === 'opponents' || winnerValue === 'opponents_flush') {
-        // Opponents win: captain loses wager * numOpponents, each opponent gets wager
-        quarters[captainId] = -effectiveWager * numOpponents;
-        opponentIds.forEach(id => { quarters[id] = effectiveWager; });
-      }
-    }
-
-    return quarters;
-  };
+  // Note: calculateQuartersForHole removed - quarters are now entered manually
 
   // Use stroke allocation from backend if provided (preferred - calculated with Creecher Feature rules)
   // Falls back to local calculation only if backend data is not available
@@ -706,82 +650,30 @@ const SimpleScorekeeper = ({
 
   // Validate hole data before submission
   const validateHole = () => {
-    // Check teams are set
-    if (teamMode === 'partners') {
-      if (team1.length === 0) {
-        return 'Please select at least one player for Team 1';
-      }
-      if (team1.length === players.length) {
-        return 'Cannot select all players for Team 1. Select half for Team 1, the rest will automatically be Team 2.';
-      }
+    // Simplified validation: only quarters matter now
+    const allPlayers = players.map(p => p.id);
 
-      // Calculate implicit team2 (players not in team1)
-      const implicitTeam2 = players.filter(p => !team1.includes(p.id)).map(p => p.id);
-
-      // For 4 players: need exactly 2v2
-      // For 5 players: need 2v3 (either 2 or 3 on team1)
-      const is5PlayerGame = players.length === 5;
-      const validTeamSize = is5PlayerGame
-        ? (team1.length === 2 || team1.length === 3)
-        : team1.length === implicitTeam2.length;
-
-      if (!validTeamSize) {
-        if (is5PlayerGame) {
-          return `Select 2 or 3 players for Team 1 (5-player game). Currently selected: ${team1.length}`;
-        } else {
-          return `Select exactly ${Math.floor(players.length / 2)} players for Team 1. Currently selected: ${team1.length}`;
-        }
-      }
-    } else {
-      if (!captain) {
-        return 'Please select a captain';
-      }
+    // Validate quarters: must be entered for all players and sum to zero
+    const quartersEntered = Object.keys(quarters).length > 0;
+    if (!quartersEntered) {
+      return 'Please enter quarters for all players';
     }
 
-    // Calculate all players (with implicit team2 for partners mode)
-    let allPlayers;
-    if (teamMode === 'partners') {
-      const implicitTeam2 = players.filter(p => !team1.includes(p.id)).map(p => p.id);
-      allPlayers = [...team1, ...implicitTeam2];
-    } else {
-      allPlayers = [captain, ...opponents];
-    }
-
-    // Check all players have scores
+    // Check all players have quarters
     for (const playerId of allPlayers) {
-      if (!scores[playerId] || scores[playerId] === 0) {
-        return 'Please enter scores for all players';
+      if (quarters[playerId] === undefined || quarters[playerId] === '') {
+        return 'Please enter quarters for all players';
       }
     }
 
-    // Check winner is selected
-    if (!winner) {
-      return 'Please select a winner';
-    }
+    // Validate zero-sum
+    const quartersSum = allPlayers.reduce((sum, playerId) => {
+      const q = parseInt(quarters[playerId], 10) || 0;
+      return sum + q;
+    }, 0);
 
-    // Validate Float usage - check if player already used their Float this round
-    if (floatInvokedBy) {
-      const floatPlayer = playerStandings[floatInvokedBy];
-      if (floatPlayer && floatPlayer.floatCount >= 1) {
-        return `${getPlayerName(floatInvokedBy)} has already used their Float this round.\n\n💡 Each captain can only Float once per round. You can still use Double to increase the wager, or tap the Float button again to cancel it.`;
-      }
-
-      // Also check that Float invoker is the captain
-      const currentCaptain = captain || rotationOrder[captainIndex];
-      if (floatInvokedBy !== currentCaptain) {
-        return `Only the captain can invoke Float.\n\n💡 The current captain is ${getPlayerName(currentCaptain)}. Only they can Float on this hole.`;
-      }
-    }
-
-    // Validate: Can't push on hole 18 with carry-over (wager would be lost)
-    if (currentHole === 18 && winner === 'push' && carryOver) {
-      return `Cannot push on hole 18 with a carry-over wager!\n\n💡 There's ${currentWager}Q at stake from previous pushes. Since there's no hole 19, someone must win this hole. If scores are truly tied, the team with the lower total handicap wins, or flip a coin!`;
-    }
-
-    // Validate: Warn about high wagers (sanity check)
-    if (currentWager > 32) {
-      // Just a warning, not blocking - but good to surface
-      console.warn(`High wager alert: ${currentWager}Q on hole ${currentHole}`);
+    if (quartersSum !== 0) {
+      return `Quarters must sum to zero. Current sum: ${quartersSum > 0 ? '+' : ''}${quartersSum}`;
     }
 
     return null;
@@ -812,17 +704,14 @@ const SimpleScorekeeper = ({
           opponents: opponents
         };
 
-      // QUARTERS-ONLY MODE: Calculate quarters locally and sync to backend
-      // This is simpler and more transparent than the complex holes/complete endpoint
+      // QUARTERS-ONLY MODE: Use manually-entered quarters
+      // Build pointsDelta from user-entered quarters
+      const pointsDelta = {};
+      players.forEach(player => {
+        pointsDelta[player.id] = parseInt(quarters[player.id], 10) || 0;
+      });
 
-      // Calculate quarters for this hole
-      const pointsDelta = calculateQuartersForHole(currentHole, winner, teams, currentWager, phase);
-
-      // Validate zero-sum (quarters must sum to zero)
-      const sum = Object.values(pointsDelta).reduce((a, b) => a + b, 0);
-      if (Math.abs(sum) > 0.001) {
-        throw new Error(`Invalid quarters: sum is ${sum}, must be 0. This is a bug - please report it.`);
-      }
+      // Zero-sum already validated in validateHole()
 
       // Build hole result object (local, no server needed for calculation)
       const holeResult = {
@@ -830,7 +719,7 @@ const SimpleScorekeeper = ({
         points_delta: pointsDelta,
         gross_scores: scores,
         teams: teams,
-        winner: winner,
+        winner: null, // Winner not used - quarters entered manually
         wager: currentWager,
         phase: phase,
         rotation_order: rotationOrder,
@@ -840,9 +729,9 @@ const SimpleScorekeeper = ({
 
       // Log hole completion to betting history
       logBettingAction('Hole Completed', {
-        actor: winner === 'push' ? 'Push' : (winner === 'team1' || winner === 'captain') ? 'Wolf Team Won' : 'Field Won',
+        actor: 'Quarters entered manually',
         wager: currentWager,
-        winner: winner,
+        winner: null,
         scores: scores
       });
 
@@ -1746,6 +1635,9 @@ const SimpleScorekeeper = ({
               +
             </button>
 
+            {/* Advanced Betting Rules - Hidden by default */}
+            {showAdvancedBetting && (
+              <>
             {/* Double Button - Offer flow */}
             <button
               onClick={() => createOffer('double', captain || team1[0] || rotationOrder[captainIndex])}
@@ -1855,6 +1747,8 @@ const SimpleScorekeeper = ({
                 </button>
               </>
             )}
+              </>
+            )}
           </div>
 
           {/* Turn Off Option Button - announces the action and halves the wager */}
@@ -1888,6 +1782,39 @@ const SimpleScorekeeper = ({
         );
       })()}
 
+      {/* Advanced Betting Rules Accordion */}
+      <div style={{
+        background: theme.colors.paper,
+        borderRadius: '8px',
+        marginBottom: '12px',
+        border: `1px solid ${theme.colors.border}`,
+        overflow: 'hidden'
+      }}>
+        <button
+          onClick={() => setShowAdvancedBetting(!showAdvancedBetting)}
+          style={{
+            width: '100%',
+            padding: '12px 16px',
+            background: showAdvancedBetting ? theme.colors.backgroundSecondary : 'transparent',
+            border: 'none',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            color: theme.colors.textPrimary,
+            cursor: 'pointer',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}
+        >
+          <span>Advanced Betting Rules</span>
+          <span style={{ fontSize: '12px', color: theme.colors.textSecondary }}>
+            {showAdvancedBetting ? '▲' : '▼'} Double, Float, Option, etc.
+          </span>
+        </button>
+      </div>
+
+      {showAdvancedBetting && (
+        <>
       {/* Betting History Panel */}
       <div style={{
         background: theme.colors.paper,
@@ -2286,6 +2213,8 @@ const SimpleScorekeeper = ({
           </div>
         </div>
       </div>
+        </>
+      )}
 
       {/* Usage Statistics - Collapsible */}
       {holeHistory.length > 0 && (
@@ -2838,14 +2767,63 @@ const SimpleScorekeeper = ({
         )}
       </div>
 
-      {/* Scores */}
+      {/* Quarters Entry (Primary) */}
+      <div style={{
+        background: theme.colors.paper,
+        padding: '16px',
+        borderRadius: '8px',
+        marginBottom: '20px',
+        border: '2px solid #4CAF50'
+      }}>
+        <h3 style={{ margin: '0 0 4px' }}>Quarters</h3>
+        <div style={{ fontSize: '12px', color: theme.colors.textSecondary, marginBottom: '12px' }}>
+          Must sum to zero: {(() => {
+            const sum = players.reduce((acc, p) => acc + (parseInt(quarters[p.id], 10) || 0), 0);
+            const color = sum === 0 ? '#4CAF50' : '#f44336';
+            return <span style={{ fontWeight: 'bold', color }}>{sum > 0 ? '+' : ''}{sum}</span>;
+          })()}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+          {players.map(player => (
+            <div key={player.id} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label style={{ flex: 1, fontWeight: 'bold' }}>
+                {player.name}
+                :
+              </label>
+              <Input
+                data-testid={`quarters-input-${player.id}`}
+                type="number"
+                step="1"
+                value={quarters[player.id] ?? ''}
+                onChange={(e) => setQuarters(prev => ({ ...prev, [player.id]: e.target.value }))}
+                variant="inline"
+                inputStyle={{
+                  width: '70px',
+                  padding: '8px',
+                  fontSize: '16px',
+                  border: `2px solid ${theme.colors.border}`,
+                  borderRadius: '4px',
+                  textAlign: 'center'
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Scores (Optional) */}
       <div style={{
         background: theme.colors.paper,
         padding: '16px',
         borderRadius: '8px',
         marginBottom: '20px'
       }}>
-        <h3 style={{ margin: '0 0 12px' }}>Enter Scores</h3>
+        <h3 style={{ margin: '0 0 4px' }}>
+          Golf Scores <span style={{ fontWeight: 'normal', fontSize: '14px', color: theme.colors.textSecondary }}>(optional)</span>
+        </h3>
+        <div style={{ fontSize: '12px', color: theme.colors.textSecondary, marginBottom: '12px' }}>
+          Enter strokes for tracking only
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
           {players.map(player => (
             <div key={player.id} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -2872,220 +2850,6 @@ const SimpleScorekeeper = ({
               />
             </div>
           ))}
-        </div>
-      </div>
-
-      {/* Winner Selection */}
-      <div style={{
-        background: theme.colors.paper,
-        padding: '16px',
-        borderRadius: '8px',
-        marginBottom: '20px'
-      }}>
-        <h3 style={{ margin: '0 0 12px' }}>Winner</h3>
-
-        {/* Auto-Detection Info */}
-        {calculateNetScoresAndWinner.suggestedWinner && (
-          <div style={{
-            marginBottom: '12px',
-            padding: '10px 12px',
-            background: calculateNetScoresAndWinner.suggestedWinner === 'push'
-              ? 'rgba(156, 39, 176, 0.1)'
-              : 'rgba(76, 175, 80, 0.1)',
-            borderRadius: '8px',
-            border: `1px solid ${calculateNetScoresAndWinner.suggestedWinner === 'push' ? '#9C27B0' : '#4CAF50'}`,
-            fontSize: '13px'
-          }}>
-            <div style={{ fontWeight: 'bold', marginBottom: '4px', color: calculateNetScoresAndWinner.suggestedWinner === 'push' ? '#7B1FA2' : '#2E7D32' }}>
-              {calculateNetScoresAndWinner.suggestedWinner === 'push'
-                ? '🤝 Auto-Detected: PUSH (Tie)'
-                : `✓ Auto-Detected: ${calculateNetScoresAndWinner.suggestedWinner === 'team1' || calculateNetScoresAndWinner.suggestedWinner === 'captain' ? 'Wolf Team' : 'Field'} Wins`}
-            </div>
-            <div style={{ color: theme.colors.textSecondary, fontSize: '12px' }}>
-              {teamMode === 'partners' ? 'Team 1' : 'Captain'}: Net {calculateNetScoresAndWinner.team1Net} |{' '}
-              {teamMode === 'partners' ? 'Team 2' : 'Opponents'}: Net {calculateNetScoresAndWinner.team2Net}
-              {calculateNetScoresAndWinner.suggestedWinner === 'push' && ' (Equal = Carry-Over)'}
-            </div>
-          </div>
-        )}
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-          {teamMode === 'partners' ? (
-            <>
-              <button
-                onClick={() => setWinner('team1')}
-                style={{
-                  flex: 1,
-                  minWidth: '120px',
-                  padding: '12px',
-                  fontSize: '16px',
-                  fontWeight: 'bold',
-                  border: winner === 'team1' ? `3px solid #00bcd4` : `2px solid ${theme.colors.border}`,
-                  borderRadius: '8px',
-                  background: winner === 'team1' ? 'rgba(0, 188, 212, 0.2)' : 'white',
-                  cursor: 'pointer'
-                }}
-              >
-                Team 1
-              </button>
-              <button
-                onClick={() => setWinner('team2')}
-                style={{
-                  flex: 1,
-                  minWidth: '120px',
-                  padding: '12px',
-                  fontSize: '16px',
-                  fontWeight: 'bold',
-                  border: winner === 'team2' ? `3px solid #ff9800` : `2px solid ${theme.colors.border}`,
-                  borderRadius: '8px',
-                  background: winner === 'team2' ? 'rgba(255, 152, 0, 0.2)' : 'white',
-                  cursor: 'pointer'
-                }}
-              >
-                Team 2
-              </button>
-              <button
-                onClick={() => setWinner('push')}
-                disabled={currentHole === 18 && carryOver}
-                style={{
-                  flex: 1,
-                  minWidth: '120px',
-                  padding: '12px',
-                  fontSize: '16px',
-                  fontWeight: 'bold',
-                  border: winner === 'push' ? `3px solid ${theme.colors.textSecondary}` : `2px solid ${theme.colors.border}`,
-                  borderRadius: '8px',
-                  background: (currentHole === 18 && carryOver)
-                    ? '#ffebee'
-                    : winner === 'push' ? 'rgba(128, 128, 128, 0.2)' : 'white',
-                  cursor: (currentHole === 18 && carryOver) ? 'not-allowed' : 'pointer',
-                  opacity: (currentHole === 18 && carryOver) ? 0.6 : 1
-                }}
-                title={currentHole === 18 && carryOver ? `Can't push - ${currentWager}Q carry-over must be resolved!` : 'Tie - wager carries to next hole'}
-              >
-                {currentHole === 18 && carryOver ? '🚫 Push' : 'Push'}
-              </button>
-              <button
-                onClick={() => setWinner('team1_flush')}
-                style={{
-                  flex: 1,
-                  minWidth: '120px',
-                  padding: '12px',
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  border: winner === 'team1_flush' ? `3px solid #e91e63` : `2px solid ${theme.colors.border}`,
-                  borderRadius: '8px',
-                  background: winner === 'team1_flush' ? 'rgba(233, 30, 99, 0.2)' : 'white',
-                  cursor: 'pointer'
-                }}
-              >
-                Team 1 Flush
-              </button>
-              <button
-                onClick={() => setWinner('team2_flush')}
-                style={{
-                  flex: 1,
-                  minWidth: '120px',
-                  padding: '12px',
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  border: winner === 'team2_flush' ? `3px solid #e91e63` : `2px solid ${theme.colors.border}`,
-                  borderRadius: '8px',
-                  background: winner === 'team2_flush' ? 'rgba(233, 30, 99, 0.2)' : 'white',
-                  cursor: 'pointer'
-                }}
-              >
-                Team 2 Flush
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={() => setWinner('captain')}
-                style={{
-                  flex: 1,
-                  minWidth: '120px',
-                  padding: '12px',
-                  fontSize: '16px',
-                  fontWeight: 'bold',
-                  border: winner === 'captain' ? `3px solid #ffc107` : `2px solid ${theme.colors.border}`,
-                  borderRadius: '8px',
-                  background: winner === 'captain' ? 'rgba(255, 193, 7, 0.2)' : 'white',
-                  cursor: 'pointer'
-                }}
-              >
-                Captain
-              </button>
-              <button
-                onClick={() => setWinner('opponents')}
-                style={{
-                  flex: 1,
-                  minWidth: '120px',
-                  padding: '12px',
-                  fontSize: '16px',
-                  fontWeight: 'bold',
-                  border: winner === 'opponents' ? `3px solid #9c27b0` : `2px solid ${theme.colors.border}`,
-                  borderRadius: '8px',
-                  background: winner === 'opponents' ? 'rgba(156, 39, 176, 0.2)' : 'white',
-                  cursor: 'pointer'
-                }}
-              >
-                Opponents
-              </button>
-              <button
-                onClick={() => setWinner('push')}
-                disabled={currentHole === 18 && carryOver}
-                style={{
-                  flex: 1,
-                  minWidth: '120px',
-                  padding: '12px',
-                  fontSize: '16px',
-                  fontWeight: 'bold',
-                  border: winner === 'push' ? `3px solid ${theme.colors.textSecondary}` : `2px solid ${theme.colors.border}`,
-                  borderRadius: '8px',
-                  background: (currentHole === 18 && carryOver)
-                    ? '#ffebee'
-                    : winner === 'push' ? 'rgba(128, 128, 128, 0.2)' : 'white',
-                  cursor: (currentHole === 18 && carryOver) ? 'not-allowed' : 'pointer',
-                  opacity: (currentHole === 18 && carryOver) ? 0.6 : 1
-                }}
-                title={currentHole === 18 && carryOver ? `Can't push - ${currentWager}Q carry-over must be resolved!` : 'Tie - wager carries to next hole'}
-              >
-                {currentHole === 18 && carryOver ? '🚫 Push' : 'Push'}
-              </button>
-              <button
-                onClick={() => setWinner('captain_flush')}
-                style={{
-                  flex: 1,
-                  minWidth: '120px',
-                  padding: '12px',
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  border: winner === 'captain_flush' ? `3px solid #e91e63` : `2px solid ${theme.colors.border}`,
-                  borderRadius: '8px',
-                  background: winner === 'captain_flush' ? 'rgba(233, 30, 99, 0.2)' : 'white',
-                  cursor: 'pointer'
-                }}
-              >
-                Captain Flush
-              </button>
-              <button
-                onClick={() => setWinner('opponents_flush')}
-                style={{
-                  flex: 1,
-                  minWidth: '120px',
-                  padding: '12px',
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  border: winner === 'opponents_flush' ? `3px solid #e91e63` : `2px solid ${theme.colors.border}`,
-                  borderRadius: '8px',
-                  background: winner === 'opponents_flush' ? 'rgba(233, 30, 99, 0.2)' : 'white',
-                  cursor: 'pointer'
-                }}
-              >
-                Opponents Flush
-              </button>
-            </>
-          )}
         </div>
       </div>
 
