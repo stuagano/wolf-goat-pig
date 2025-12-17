@@ -666,14 +666,15 @@ const SimpleScorekeeper = ({
       }
     }
 
-    // Validate zero-sum
+    // Validate zero-sum (allow decimals for split scoring)
     const quartersSum = allPlayers.reduce((sum, playerId) => {
-      const q = parseInt(quarters[playerId], 10) || 0;
+      const q = parseFloat(quarters[playerId]) || 0;
       return sum + q;
     }, 0);
 
-    if (quartersSum !== 0) {
-      return `Quarters must sum to zero. Current sum: ${quartersSum > 0 ? '+' : ''}${quartersSum}`;
+    // Use small epsilon for floating point comparison
+    if (Math.abs(quartersSum) > 0.001) {
+      return `Quarters must sum to zero. Current sum: ${quartersSum > 0 ? '+' : ''}${quartersSum.toFixed(2)}`;
     }
 
     return null;
@@ -705,10 +706,10 @@ const SimpleScorekeeper = ({
         };
 
       // QUARTERS-ONLY MODE: Use manually-entered quarters
-      // Build pointsDelta from user-entered quarters
+      // Build pointsDelta from user-entered quarters (supports decimals for split scoring)
       const pointsDelta = {};
       players.forEach(player => {
-        pointsDelta[player.id] = parseInt(quarters[player.id], 10) || 0;
+        pointsDelta[player.id] = parseFloat(quarters[player.id]) || 0;
       });
 
       // Zero-sum already validated in validateHole()
@@ -2778,9 +2779,10 @@ const SimpleScorekeeper = ({
         <h3 style={{ margin: '0 0 4px' }}>Quarters</h3>
         <div style={{ fontSize: '12px', color: theme.colors.textSecondary, marginBottom: '12px' }}>
           Must sum to zero: {(() => {
-            const sum = players.reduce((acc, p) => acc + (parseInt(quarters[p.id], 10) || 0), 0);
-            const color = sum === 0 ? '#4CAF50' : '#f44336';
-            return <span style={{ fontWeight: 'bold', color }}>{sum > 0 ? '+' : ''}{sum}</span>;
+            const sum = players.reduce((acc, p) => acc + (parseFloat(quarters[p.id]) || 0), 0);
+            const color = Math.abs(sum) < 0.001 ? '#4CAF50' : '#f44336';
+            const displaySum = Math.abs(sum) < 0.001 ? '0' : (sum > 0 ? '+' : '') + sum.toFixed(2);
+            return <span style={{ fontWeight: 'bold', color }}>{displaySum}</span>;
           })()}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
@@ -2793,14 +2795,13 @@ const SimpleScorekeeper = ({
               <Input
                 data-testid={`quarters-input-${player.id}`}
                 type="number"
-                inputMode="numeric"
-                pattern="-?[0-9]*"
-                step="1"
+                inputMode="decimal"
+                step="any"
                 value={quarters[player.id] ?? ''}
                 onChange={(e) => setQuarters(prev => ({ ...prev, [player.id]: e.target.value }))}
                 variant="inline"
                 inputStyle={{
-                  width: '70px',
+                  width: '80px',
                   padding: '8px',
                   fontSize: '16px',
                   border: `2px solid ${theme.colors.border}`,
