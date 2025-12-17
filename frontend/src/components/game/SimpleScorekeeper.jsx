@@ -2955,7 +2955,7 @@ const SimpleScorekeeper = ({
         {/* Quick preset buttons */}
         <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: `1px solid ${theme.colors.border}` }}>
           <div style={{ fontSize: '11px', color: theme.colors.textSecondary, marginBottom: '8px' }}>Quick presets:</div>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
             <button
               onClick={() => {
                 const allZero = {};
@@ -2979,6 +2979,78 @@ const SimpleScorekeeper = ({
               }}
             >Clear All</button>
           </div>
+          {/* Betting scenario presets */}
+          {players.length === 4 && (
+            <div style={{ marginTop: '8px' }}>
+              <div style={{ fontSize: '11px', color: theme.colors.textSecondary, marginBottom: '6px' }}>4-player scenarios:</div>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {/* 2v2 Win scenarios */}
+                {[1, 2, 4, 8].map(wager => (
+                  <button
+                    key={`2v2-${wager}`}
+                    onClick={() => {
+                      // First 2 players win, last 2 lose
+                      const preset = {};
+                      players.forEach((p, i) => {
+                        preset[p.id] = i < 2 ? wager.toString() : (-wager).toString();
+                      });
+                      setQuarters(preset);
+                    }}
+                    style={{
+                      padding: '4px 8px', borderRadius: '4px', fontSize: '11px',
+                      border: '1px solid #4CAF50', background: 'rgba(76,175,80,0.1)',
+                      color: '#4CAF50', cursor: 'pointer'
+                    }}
+                  >2v2 ±{wager}</button>
+                ))}
+              </div>
+            </div>
+          )}
+          {players.length >= 3 && (
+            <div style={{ marginTop: '8px' }}>
+              <div style={{ fontSize: '11px', color: theme.colors.textSecondary, marginBottom: '6px' }}>Solo (1 vs rest):</div>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {[1, 2, 4].map(wager => (
+                  <button
+                    key={`solo-win-${wager}`}
+                    onClick={() => {
+                      // First player wins solo vs all others
+                      const preset = {};
+                      const numOpponents = players.length - 1;
+                      players.forEach((p, i) => {
+                        preset[p.id] = i === 0 ? (wager * numOpponents).toString() : (-wager).toString();
+                      });
+                      setQuarters(preset);
+                    }}
+                    style={{
+                      padding: '4px 8px', borderRadius: '4px', fontSize: '11px',
+                      border: '1px solid #4CAF50', background: 'rgba(76,175,80,0.1)',
+                      color: '#4CAF50', cursor: 'pointer'
+                    }}
+                  >{players[0]?.name?.split(' ')[0] || 'P1'} +{wager * (players.length - 1)}</button>
+                ))}
+                {[1, 2, 4].map(wager => (
+                  <button
+                    key={`solo-lose-${wager}`}
+                    onClick={() => {
+                      // First player loses solo vs all others
+                      const preset = {};
+                      const numOpponents = players.length - 1;
+                      players.forEach((p, i) => {
+                        preset[p.id] = i === 0 ? (-wager * numOpponents).toString() : wager.toString();
+                      });
+                      setQuarters(preset);
+                    }}
+                    style={{
+                      padding: '4px 8px', borderRadius: '4px', fontSize: '11px',
+                      border: '1px solid #f44336', background: 'rgba(244,67,54,0.1)',
+                      color: '#f44336', cursor: 'pointer'
+                    }}
+                  >{players[0]?.name?.split(' ')[0] || 'P1'} -{wager * (players.length - 1)}</button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

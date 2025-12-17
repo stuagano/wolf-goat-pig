@@ -458,6 +458,74 @@ const GameCompletionView = ({ players, playerStandings, holeHistory, onNewGame, 
             Game Saved
           </div>
         )}
+        {/* Share/Export Button */}
+        <button
+          onClick={() => {
+            // Build summary text
+            const winner = sortedStandings[0];
+            const date = new Date().toLocaleDateString();
+            let summary = `🏌️ Wolf Golf Game - ${date}\n\n`;
+            summary += `🏆 Winner: ${winner.name} (${winner.quarters > 0 ? '+' : ''}${winner.quarters}Q)\n\n`;
+            summary += `📊 Final Standings:\n`;
+            sortedStandings.forEach((p, i) => {
+              const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
+              summary += `${medal} ${p.name}: ${p.quarters > 0 ? '+' : ''}${p.quarters}Q\n`;
+            });
+
+            // Calculate settlements
+            const winners = sortedStandings.filter(p => p.quarters > 0);
+            const losers = sortedStandings.filter(p => p.quarters < 0);
+            if (losers.length > 0 && winners.length > 0) {
+              summary += `\n💰 Settlement:\n`;
+              let losersCopy = losers.map(l => ({ ...l, remaining: Math.abs(l.quarters) }));
+              let winnersCopy = winners.map(w => ({ ...w, remaining: w.quarters }));
+              for (const loser of losersCopy) {
+                for (const w of winnersCopy) {
+                  if (loser.remaining <= 0 || w.remaining <= 0) continue;
+                  const amount = Math.min(loser.remaining, w.remaining);
+                  if (amount > 0) {
+                    summary += `${loser.name} → ${w.name}: ${amount}Q\n`;
+                    loser.remaining -= amount;
+                    w.remaining -= amount;
+                  }
+                }
+              }
+            }
+
+            // Try to share, fall back to clipboard
+            if (navigator.share) {
+              navigator.share({
+                title: 'Wolf Golf Game Results',
+                text: summary
+              }).catch(() => {
+                navigator.clipboard.writeText(summary);
+                alert('Results copied to clipboard!');
+              });
+            } else {
+              navigator.clipboard.writeText(summary);
+              alert('Results copied to clipboard!');
+            }
+          }}
+          style={{
+            padding: '16px 32px',
+            fontSize: '18px',
+            fontWeight: 'bold',
+            borderRadius: '8px',
+            border: `2px solid ${theme.colors.primary}`,
+            background: 'white',
+            color: theme.colors.primary,
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}
+          onMouseOver={(e) => {
+            e.target.style.background = theme.colors.backgroundSecondary;
+          }}
+          onMouseOut={(e) => {
+            e.target.style.background = 'white';
+          }}
+        >
+          📤 Share Results
+        </button>
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
           style={{
