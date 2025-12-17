@@ -2793,6 +2793,8 @@ const SimpleScorekeeper = ({
               <Input
                 data-testid={`quarters-input-${player.id}`}
                 type="number"
+                inputMode="numeric"
+                pattern="-?[0-9]*"
                 step="1"
                 value={quarters[player.id] ?? ''}
                 onChange={(e) => setQuarters(prev => ({ ...prev, [player.id]: e.target.value }))}
@@ -2834,6 +2836,8 @@ const SimpleScorekeeper = ({
               <Input
                 data-testid={`score-input-${player.id}`}
                 type="number"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 min="0"
                 max="15"
                 value={scores[player.id] || ''}
