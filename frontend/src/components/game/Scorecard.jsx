@@ -32,6 +32,17 @@ const Scorecard = ({
   const [editingPlayerName, setEditingPlayerName] = useState(null);
   const [editPlayerNameValue, setEditPlayerNameValue] = useState('');
   const [isCollapsed, setIsCollapsed] = useState(false);
+  // Auto-select front/back based on current hole
+  const [activeNine, setActiveNine] = useState(() => currentHole > 9 ? 'back' : 'front');
+
+  // Auto-switch to back 9 when current hole moves there
+  useEffect(() => {
+    if (currentHole > 9) {
+      setActiveNine('back');
+    } else {
+      setActiveNine('front');
+    }
+  }, [currentHole]);
 
   // Debug logging with safe array/object access
   useEffect(() => {
@@ -747,29 +758,86 @@ const Scorecard = ({
   };
 
   return (
-    <Card style={{ height: '100%', overflow: 'auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-        <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', cursor: 'pointer' }} onClick={() => setIsCollapsed(!isCollapsed)}>
-          {isCollapsed ? '▶' : '▼'} SCORECARD
-        </h3>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {/* Collapse/Expand button */}
-          <Button
-            variant="secondary"
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            style={{ padding: '6px 12px', fontSize: '12px' }}
-          >
-            {isCollapsed ? 'Expand' : 'Minimize'}
-          </Button>
+    <Card style={{ height: '100%', overflow: 'auto', padding: '8px' }}>
+      {/* Compact Header */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '8px',
+        padding: '4px 0'
+      }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            cursor: 'pointer',
+            padding: '4px'
+          }}
+          onClick={() => setIsCollapsed(!isCollapsed)}
+        >
+          <span style={{ fontSize: '12px' }}>{isCollapsed ? '▶' : '▼'}</span>
+          <span style={{ fontSize: '13px', fontWeight: 'bold' }}>SCORECARD</span>
+        </div>
+
+        {/* Front/Back Nine Toggle - only show when expanded */}
+        {!isCollapsed && viewMode === 'scorecard' && (
+          <div style={{
+            display: 'flex',
+            background: theme.colors.backgroundSecondary,
+            borderRadius: '6px',
+            padding: '2px'
+          }}>
+            <button
+              onClick={() => setActiveNine('front')}
+              style={{
+                padding: '4px 12px',
+                fontSize: '11px',
+                fontWeight: activeNine === 'front' ? 'bold' : 'normal',
+                border: 'none',
+                borderRadius: '4px',
+                background: activeNine === 'front' ? theme.colors.primary : 'transparent',
+                color: activeNine === 'front' ? 'white' : theme.colors.textPrimary,
+                cursor: 'pointer'
+              }}
+            >
+              Front 9
+            </button>
+            <button
+              onClick={() => setActiveNine('back')}
+              style={{
+                padding: '4px 12px',
+                fontSize: '11px',
+                fontWeight: activeNine === 'back' ? 'bold' : 'normal',
+                border: 'none',
+                borderRadius: '4px',
+                background: activeNine === 'back' ? theme.colors.primary : 'transparent',
+                color: activeNine === 'back' ? 'white' : theme.colors.textPrimary,
+                cursor: 'pointer'
+              }}
+            >
+              Back 9
+            </button>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: '4px' }}>
           {/* View toggle button - only show in simulation mode (when captainId is provided) */}
           {captainId && (
-            <Button
-              variant="secondary"
+            <button
               onClick={() => setViewMode(viewMode === 'scorecard' ? 'standings' : 'scorecard')}
-              style={{ padding: '6px 12px', fontSize: '12px' }}
+              style={{
+                padding: '4px 8px',
+                fontSize: '11px',
+                border: `1px solid ${theme.colors.border}`,
+                borderRadius: '4px',
+                background: 'white',
+                cursor: 'pointer'
+              }}
             >
-              {viewMode === 'scorecard' ? 'Standings' : 'Scorecard'}
-            </Button>
+              {viewMode === 'scorecard' ? 'Standings' : 'Scores'}
+            </button>
           )}
         </div>
       </div>
@@ -797,13 +865,14 @@ const Scorecard = ({
         <StandingsView />
       ) : (
         <div style={{ overflowX: 'auto' }}>
-          {/* Front Nine */}
-          {renderScorecardSection(frontNine, 'FRONT', 'OUT')}
+          {/* Show only active nine (mobile-friendly) */}
+          {activeNine === 'front' ? (
+            renderScorecardSection(frontNine, 'FRONT', 'OUT')
+          ) : (
+            renderScorecardSection(backNine, 'BACK', 'IN')
+          )}
 
-          {/* Back Nine */}
-          {renderScorecardSection(backNine, 'BACK', 'IN')}
-
-          {/* Totals Summary */}
+          {/* Totals Summary - always show */}
           {renderTotalsSummary()}
         </div>
       ))}
