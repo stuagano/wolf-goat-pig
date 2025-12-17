@@ -52,6 +52,7 @@ const SimpleScorekeeper = ({
   const [currentWager, setCurrentWager] = useState(baseWager);
   const [scores, setScores] = useState({});
   const [quarters, setQuarters] = useState({}); // Manual quarters entry
+  const [holeNotes, setHoleNotes] = useState(''); // Notes for current hole
   const [winner, setWinner] = useState(null);
   const [floatInvokedBy, setFloatInvokedBy] = useState(null); // Player ID who invoked float
   const [optionInvokedBy, setOptionInvokedBy] = useState(null); // Player ID who triggered option
@@ -298,6 +299,7 @@ const SimpleScorekeeper = ({
     setCurrentWager(baseWager);
     setScores({});
     setQuarters({});
+    setHoleNotes('');
     setWinner(null);
     setFloatInvokedBy(null);
     setOptionInvokedBy(null);
@@ -323,6 +325,7 @@ const SimpleScorekeeper = ({
     setCurrentHole(hole.hole); // Setting currentHole automatically updates derived holePar
     setScores(hole.gross_scores || {});
     setQuarters(hole.points_delta || {}); // Load quarters from points_delta
+    setHoleNotes(hole.notes || '');
     setCurrentWager(hole.wager || baseWager);
     setWinner(hole.winner);
     setFloatInvokedBy(hole.float_invoked_by || null);
@@ -725,7 +728,8 @@ const SimpleScorekeeper = ({
         phase: phase,
         rotation_order: rotationOrder,
         captain_index: captainIndex,
-        quarters_only: true
+        quarters_only: true,
+        notes: holeNotes || null
       };
 
       // Log hole completion to betting history
@@ -1247,7 +1251,9 @@ const SimpleScorekeeper = ({
             paddingTop: '12px',
             borderTop: `1px solid ${theme.colors.border}`,
             fontSize: '12px',
-            color: theme.colors.textSecondary
+            color: theme.colors.textSecondary,
+            display: 'flex',
+            gap: '8px'
           }}>
             <button
               onClick={() => loadHoleForEdit(holeHistory[holeHistory.length - 1])}
@@ -1264,8 +1270,93 @@ const SimpleScorekeeper = ({
             >
               ✏️ Edit Last Hole
             </button>
+            <button
+              onClick={() => {
+                if (window.confirm(`Undo hole ${holeHistory[holeHistory.length - 1].hole}? This will remove all data for that hole.`)) {
+                  const lastHole = holeHistory[holeHistory.length - 1];
+                  // Remove last hole from history
+                  setHoleHistory(prev => prev.slice(0, -1));
+                  // Go back to that hole number
+                  setCurrentHole(lastHole.hole);
+                  // Recalculate standings
+                  const newStandings = { ...playerStandings };
+                  players.forEach(p => {
+                    const delta = lastHole.points_delta?.[p.id] || 0;
+                    if (newStandings[p.id]) {
+                      newStandings[p.id] = {
+                        ...newStandings[p.id],
+                        quarters: (newStandings[p.id].quarters || 0) - delta
+                      };
+                    }
+                  });
+                  setPlayerStandings(newStandings);
+                  resetHole();
+                }
+              }}
+              className="touch-optimized"
+              style={{
+                padding: '6px 12px',
+                fontSize: '12px',
+                border: '1px solid #f44336',
+                borderRadius: '6px',
+                background: 'white',
+                color: '#f44336',
+                cursor: 'pointer'
+              }}
+            >
+              ↩️ Undo Last Hole
+            </button>
           </div>
         )}
+      </div>
+
+      {/* Running Totals Bar - Prominent display of each player's quarters */}
+      <div style={{
+        display: 'flex',
+        gap: '8px',
+        marginBottom: '16px',
+        padding: '12px',
+        background: theme.colors.paper,
+        borderRadius: '12px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        overflowX: 'auto'
+      }}>
+        {players.map(player => {
+          const total = playerStandings[player.id]?.quarters || 0;
+          return (
+            <div
+              key={player.id}
+              style={{
+                flex: '1 1 0',
+                minWidth: '70px',
+                padding: '8px 12px',
+                background: total > 0 ? 'rgba(76, 175, 80, 0.1)' : total < 0 ? 'rgba(244, 67, 54, 0.1)' : theme.colors.backgroundSecondary,
+                borderRadius: '8px',
+                textAlign: 'center',
+                border: `2px solid ${total > 0 ? '#4CAF50' : total < 0 ? '#f44336' : theme.colors.border}`
+              }}
+            >
+              <div style={{
+                fontSize: '11px',
+                fontWeight: 'bold',
+                color: theme.colors.textSecondary,
+                marginBottom: '2px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}>
+                {player.name}
+              </div>
+              <div style={{
+                fontSize: '20px',
+                fontWeight: 'bold',
+                color: total > 0 ? '#4CAF50' : total < 0 ? '#f44336' : theme.colors.textPrimary
+              }}>
+                {total > 0 ? '+' : ''}{total}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Enhanced Hole Title Section - Combines hole info, hitting order, and strokes */}
@@ -2785,32 +2876,109 @@ const SimpleScorekeeper = ({
             return <span style={{ fontWeight: 'bold', color }}>{displaySum}</span>;
           })()}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
-          {players.map(player => (
-            <div key={player.id} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <label style={{ flex: 1, fontWeight: 'bold' }}>
-                {player.name}
-                :
-              </label>
-              <Input
-                data-testid={`quarters-input-${player.id}`}
-                type="number"
-                inputMode="decimal"
-                step="any"
-                value={quarters[player.id] ?? ''}
-                onChange={(e) => setQuarters(prev => ({ ...prev, [player.id]: e.target.value }))}
-                variant="inline"
-                inputStyle={{
-                  width: '80px',
-                  padding: '8px',
-                  fontSize: '16px',
-                  border: `2px solid ${theme.colors.border}`,
-                  borderRadius: '4px',
-                  textAlign: 'center'
-                }}
-              />
-            </div>
-          ))}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {players.map(player => {
+            const currentVal = parseFloat(quarters[player.id]) || 0;
+            const adjustQuarters = (delta) => {
+              setQuarters(prev => ({ ...prev, [player.id]: (currentVal + delta).toString() }));
+            };
+            return (
+              <div key={player.id} style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px',
+                background: theme.colors.backgroundSecondary,
+                borderRadius: '8px'
+              }}>
+                <div style={{ flex: 1, fontWeight: 'bold', fontSize: '14px' }}>
+                  {player.name}
+                </div>
+                {/* Quick decrement buttons */}
+                <button
+                  onClick={() => adjustQuarters(-10)}
+                  style={{
+                    width: '32px', height: '32px', borderRadius: '6px',
+                    border: '1px solid #f44336', background: 'rgba(244,67,54,0.1)',
+                    color: '#f44336', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer'
+                  }}
+                >-10</button>
+                <button
+                  onClick={() => adjustQuarters(-1)}
+                  style={{
+                    width: '32px', height: '32px', borderRadius: '6px',
+                    border: '1px solid #f44336', background: 'rgba(244,67,54,0.1)',
+                    color: '#f44336', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer'
+                  }}
+                >-1</button>
+                {/* Input */}
+                <Input
+                  data-testid={`quarters-input-${player.id}`}
+                  type="number"
+                  inputMode="decimal"
+                  step="any"
+                  value={quarters[player.id] ?? ''}
+                  onChange={(e) => setQuarters(prev => ({ ...prev, [player.id]: e.target.value }))}
+                  variant="inline"
+                  inputStyle={{
+                    width: '70px',
+                    padding: '6px',
+                    fontSize: '18px',
+                    fontWeight: 'bold',
+                    border: `2px solid ${theme.colors.border}`,
+                    borderRadius: '6px',
+                    textAlign: 'center',
+                    color: currentVal > 0 ? '#4CAF50' : currentVal < 0 ? '#f44336' : 'inherit'
+                  }}
+                />
+                {/* Quick increment buttons */}
+                <button
+                  onClick={() => adjustQuarters(1)}
+                  style={{
+                    width: '32px', height: '32px', borderRadius: '6px',
+                    border: '1px solid #4CAF50', background: 'rgba(76,175,80,0.1)',
+                    color: '#4CAF50', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer'
+                  }}
+                >+1</button>
+                <button
+                  onClick={() => adjustQuarters(10)}
+                  style={{
+                    width: '32px', height: '32px', borderRadius: '6px',
+                    border: '1px solid #4CAF50', background: 'rgba(76,175,80,0.1)',
+                    color: '#4CAF50', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer'
+                  }}
+                >+10</button>
+              </div>
+            );
+          })}
+        </div>
+        {/* Quick preset buttons */}
+        <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: `1px solid ${theme.colors.border}` }}>
+          <div style={{ fontSize: '11px', color: theme.colors.textSecondary, marginBottom: '8px' }}>Quick presets:</div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => {
+                const allZero = {};
+                players.forEach(p => { allZero[p.id] = '0'; });
+                setQuarters(allZero);
+              }}
+              style={{
+                padding: '6px 12px', borderRadius: '6px', fontSize: '12px',
+                border: `1px solid ${theme.colors.border}`, background: 'white', cursor: 'pointer'
+              }}
+            >All Zero</button>
+            <button
+              onClick={() => {
+                const cleared = {};
+                players.forEach(p => { cleared[p.id] = ''; });
+                setQuarters(cleared);
+              }}
+              style={{
+                padding: '6px 12px', borderRadius: '6px', fontSize: '12px',
+                border: `1px solid ${theme.colors.border}`, background: 'white', cursor: 'pointer'
+              }}
+            >Clear All</button>
+          </div>
         </div>
       </div>
 
@@ -2856,6 +3024,33 @@ const SimpleScorekeeper = ({
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Hole Notes (Optional) */}
+      <div style={{
+        background: theme.colors.paper,
+        padding: '16px',
+        borderRadius: '8px',
+        marginBottom: '20px'
+      }}>
+        <h3 style={{ margin: '0 0 8px' }}>
+          Notes <span style={{ fontWeight: 'normal', fontSize: '14px', color: theme.colors.textSecondary }}>(optional)</span>
+        </h3>
+        <textarea
+          value={holeNotes}
+          onChange={(e) => setHoleNotes(e.target.value)}
+          placeholder="Add notes about this hole (disputes, unusual situations, etc.)"
+          style={{
+            width: '100%',
+            minHeight: '60px',
+            padding: '10px',
+            fontSize: '14px',
+            border: `2px solid ${theme.colors.border}`,
+            borderRadius: '6px',
+            resize: 'vertical',
+            fontFamily: 'inherit'
+          }}
+        />
       </div>
 
       {/* Error Display with Helpful Guidance */}

@@ -91,7 +91,35 @@ def run_initialization_steps():
         logger.error("❌ Database connection failed, but continuing with startup...")
         # Continue anyway - app might still work with retry logic in endpoints
 
-    # Step 1: Initialize database and run seeding
+    # Step 1: Run database migrations
+    logger.info("🔄 Running database migrations...")
+    try:
+        result = subprocess.run(
+            [sys.executable, "run_migrations.py"],
+            capture_output=True,
+            text=True,
+            timeout=60  # 1 minute timeout
+        )
+
+        if result.returncode == 0:
+            logger.info("✅ Database migrations completed successfully")
+            if result.stdout:
+                logger.info(f"Migration output: {result.stdout}")
+        else:
+            logger.warning(f"⚠️ Database migrations completed with warnings")
+            logger.warning(f"Output: {result.stdout}")
+            if result.stderr:
+                logger.warning(f"Errors: {result.stderr}")
+            # Don't exit - continue with startup
+
+    except subprocess.TimeoutExpired:
+        logger.error("❌ Database migrations timed out after 60 seconds")
+        logger.warning("🔄 Continuing with server startup anyway...")
+    except Exception as e:
+        logger.error(f"❌ Database migrations failed: {e}")
+        logger.warning("🔄 Continuing with server startup anyway...")
+
+    # Step 2: Initialize database and run seeding
     logger.info("🗄️ Running database initialization and seeding...")
     try:
         result = subprocess.run(
@@ -117,7 +145,7 @@ def run_initialization_steps():
         logger.error(f"❌ Database seeding failed: {e}")
         logger.warning("🔄 Continuing with server startup anyway...")
 
-    # Step 2: Run hole migration
+    # Step 3: Run hole migration
     logger.info("🔄 Running hole data migration...")
     try:
         result = subprocess.run(

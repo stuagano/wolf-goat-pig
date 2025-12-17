@@ -175,6 +175,97 @@ const GameCompletionView = ({ players, playerStandings, holeHistory, onNewGame, 
         })}
       </div>
 
+      {/* Settlement Summary - Who Owes Whom */}
+      <div style={{
+        background: theme.colors.paper,
+        borderRadius: '16px',
+        padding: '24px',
+        marginBottom: '24px',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+        border: '2px solid #4CAF50'
+      }}>
+        <h3 style={{
+          margin: '0 0 16px',
+          fontSize: '20px',
+          color: '#4CAF50',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          💰 Settlement
+        </h3>
+        <div style={{ fontSize: '13px', color: theme.colors.textSecondary, marginBottom: '16px' }}>
+          Based on final quarters - positive players collect, negative players pay
+        </div>
+        {(() => {
+          // Calculate settlements: simplify debts so minimum transactions needed
+          const standings = [...sortedStandings];
+          const winners = standings.filter(p => p.quarters > 0);
+          const losers = standings.filter(p => p.quarters < 0);
+
+          if (losers.length === 0 || winners.length === 0) {
+            return (
+              <div style={{ textAlign: 'center', padding: '20px', color: theme.colors.textSecondary }}>
+                No settlements needed - all players broke even!
+              </div>
+            );
+          }
+
+          // Simple settlement: each loser pays proportionally to each winner
+          const settlements = [];
+          let losersCopy = losers.map(l => ({ ...l, remaining: Math.abs(l.quarters) }));
+          let winnersCopy = winners.map(w => ({ ...w, remaining: w.quarters }));
+
+          for (const loser of losersCopy) {
+            for (const winner of winnersCopy) {
+              if (loser.remaining <= 0 || winner.remaining <= 0) continue;
+              const amount = Math.min(loser.remaining, winner.remaining);
+              if (amount > 0) {
+                settlements.push({
+                  from: loser.name,
+                  to: winner.name,
+                  amount: amount
+                });
+                loser.remaining -= amount;
+                winner.remaining -= amount;
+              }
+            }
+          }
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {settlements.map((s, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 16px',
+                    background: '#f5f5f5',
+                    borderRadius: '8px',
+                    fontSize: '16px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ fontWeight: 'bold', color: '#f44336' }}>{s.from}</span>
+                    <span style={{ color: theme.colors.textSecondary }}>→</span>
+                    <span style={{ fontWeight: 'bold', color: '#4CAF50' }}>{s.to}</span>
+                  </div>
+                  <div style={{
+                    fontWeight: 'bold',
+                    fontSize: '20px',
+                    color: theme.colors.textPrimary
+                  }}>
+                    {s.amount}Q
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+      </div>
+
       {/* Game Statistics */}
       <div style={{
         background: theme.colors.paper,

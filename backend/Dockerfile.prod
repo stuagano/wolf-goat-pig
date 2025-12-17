@@ -1,5 +1,7 @@
 # Production Dockerfile for Backend
-FROM python:3.11-slim
+# NOTE: This file is kept for reference. docker-compose.yml uses Dockerfile with production target.
+# If using this file directly, update Python version to match Dockerfile (3.12)
+FROM python:3.12-slim
 
 # Set working directory
 WORKDIR /app
@@ -23,11 +25,13 @@ COPY . .
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
-# Health check endpoint
-HEALTHCHECK CMD curl --fail http://localhost:8000/health || exit 1
+# Health check endpoint (use /ready for lightweight check, /health for comprehensive)
+HEALTHCHECK CMD curl --fail http://localhost:8000/ready || exit 1
 
 # Expose port
 EXPOSE 8000
 
-# Production startup command
-CMD ["gunicorn", "app.main:app", "--workers", "2", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--access-logfile", "-", "--error-logfile", "-"]
+# Production startup command - matches Render's render-startup.py
+# Render uses: python render-startup.py (which starts uvicorn)
+# This Dockerfile.prod is kept for reference but docker-compose.yml uses render-startup.py
+CMD ["python", "render-startup.py"]

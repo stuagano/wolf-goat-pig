@@ -4,7 +4,8 @@
 # =============================================================================
 # Build Stage
 # =============================================================================
-FROM python:3.11-slim as builder
+# Use Python 3.12.8 to match Render deployment (render.yaml specifies PYTHON_VERSION: 3.12.8)
+FROM python:3.12-slim as builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -30,7 +31,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # =============================================================================
 # Production Stage
 # =============================================================================
-FROM python:3.11-slim as production
+# Use Python 3.12 to match Render deployment
+FROM python:3.12-slim as production
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
@@ -53,14 +55,14 @@ ENV PATH="/venv/bin:$PATH"
 COPY --chown=wgp:wgp . .
 
 # Ensure startup scripts are executable
-RUN chmod +x docker-startup.sh startup.py
+RUN chmod +x startup.py render-startup.py
 
-# Create data directory for SQLite (if used)
-RUN mkdir -p data logs && chown -R wgp:wgp data logs
+# Create data directory (matches Render disk mount path)
+RUN mkdir -p /opt/render/project/src/data logs && chown -R wgp:wgp /opt/render/project/src/data logs
 
-# Health check
+# Health check (matches Render health check path: /ready)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:${PORT:-8000}/health', timeout=5)" || exit 1
+    CMD curl -f http://localhost:${PORT:-8000}/ready || exit 1
 
 # Switch to non-root user
 USER wgp
@@ -75,8 +77,8 @@ ENV PYTHONPATH=/app \
 # Expose port
 EXPOSE 8000
 
-# Use custom startup script
-CMD ["./docker-startup.sh"]
+# Use render-startup.py to match Render deployment exactly
+CMD ["python", "render-startup.py"]
 
 # =============================================================================
 # Development Stage (optional)

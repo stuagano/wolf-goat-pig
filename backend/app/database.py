@@ -105,6 +105,7 @@ def init_db():
     """Initialize database tables"""
     try:
         # Import all models to ensure they're registered with SQLAlchemy
+        from . import models  # noqa: F401
 
         # Create all tables
         Base.metadata.create_all(bind=engine)
