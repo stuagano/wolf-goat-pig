@@ -13,6 +13,13 @@ import { useTutorialProgress } from '../../../hooks/useTutorialProgress';
 import { useOddsCalculation } from '../../../hooks/useOddsCalculation';
 import { usePlayerProfile } from '../../../hooks/usePlayerProfile';
 
+// Import mock factories
+import {
+  createMockPlayers,
+  createMockOddsResponse,
+  createMockUser
+} from '../../../test-utils/mockFactories';
+
 jest.mock('../../../hooks/useTutorialProgress', () => {
   const mockHook = jest.fn();
   return {

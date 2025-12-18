@@ -6,6 +6,7 @@ import { useTheme } from '../../theme/Provider';
 import { Input } from '../ui';
 import GameCompletionView from './GameCompletionView';
 import Scorecard from './Scorecard';
+import CommissionerChat from '../CommissionerChat';
 import { triggerBadgeNotification } from '../BadgeNotification';
 import '../../styles/mobile-touch.css';
 
@@ -53,6 +54,7 @@ const SimpleScorekeeper = ({
   const [scores, setScores] = useState({});
   const [quarters, setQuarters] = useState({}); // Manual quarters entry
   const [holeNotes, setHoleNotes] = useState(''); // Notes for current hole
+  const [playerDisplayOrder, setPlayerDisplayOrder] = useState(() => players.map(p => p.id)); // Order for quarters entry
   const [winner, setWinner] = useState(null);
   const [floatInvokedBy, setFloatInvokedBy] = useState(null); // Player ID who invoked float
   const [optionInvokedBy, setOptionInvokedBy] = useState(null); // Player ID who triggered option
@@ -1730,27 +1732,26 @@ const SimpleScorekeeper = ({
             {/* Advanced Betting Rules - Hidden by default */}
             {showAdvancedBetting && (
               <>
-            {/* Double Button - Offer flow */}
+            {/* Double Button - Directly doubles the wager */}
             <button
-              onClick={() => createOffer('double', captain || team1[0] || rotationOrder[captainIndex])}
-              disabled={pendingOffer !== null}
+              onClick={() => setCurrentWager(currentWager * 2)}
               className="touch-optimized"
               style={{
                 flex: 1,
                 minWidth: '80px',
                 height: '48px',
                 borderRadius: '8px',
-                background: pendingOffer ? '#e0e0e0' : 'linear-gradient(135deg, #4CAF50, #45a049)',
+                background: 'linear-gradient(135deg, #4CAF50, #45a049)',
                 border: 'none',
                 fontSize: '14px',
                 fontWeight: 'bold',
-                color: pendingOffer ? '#9e9e9e' : 'white',
-                cursor: pendingOffer ? 'not-allowed' : 'pointer',
-                boxShadow: pendingOffer ? 'none' : '0 2px 8px rgba(76, 175, 80, 0.3)',
+                color: 'white',
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(76, 175, 80, 0.3)',
                 transition: 'all 0.2s'
               }}
             >
-              {pendingOffer?.offer_type === 'double' ? 'Pending...' : 'Double'}
+              Double
             </button>
 
             {/* Float Button - Captain only, once per round */}
@@ -2877,20 +2878,53 @@ const SimpleScorekeeper = ({
           })()}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {players.map(player => {
+          {playerDisplayOrder.map((playerId, index) => {
+            const player = players.find(p => p.id === playerId);
+            if (!player) return null;
             const currentVal = parseFloat(quarters[player.id]) || 0;
             const adjustQuarters = (delta) => {
               setQuarters(prev => ({ ...prev, [player.id]: (currentVal + delta).toString() }));
+            };
+            const movePlayer = (direction) => {
+              const newOrder = [...playerDisplayOrder];
+              const newIndex = index + direction;
+              if (newIndex >= 0 && newIndex < newOrder.length) {
+                [newOrder[index], newOrder[newIndex]] = [newOrder[newIndex], newOrder[index]];
+                setPlayerDisplayOrder(newOrder);
+              }
             };
             return (
               <div key={player.id} style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
+                gap: '6px',
                 padding: '8px',
                 background: theme.colors.backgroundSecondary,
                 borderRadius: '8px'
               }}>
+                {/* Reorder buttons */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <button
+                    onClick={() => movePlayer(-1)}
+                    disabled={index === 0}
+                    style={{
+                      width: '20px', height: '16px', padding: 0, border: 'none',
+                      background: index === 0 ? '#eee' : '#ddd', borderRadius: '3px',
+                      cursor: index === 0 ? 'default' : 'pointer', fontSize: '10px',
+                      color: index === 0 ? '#aaa' : '#666'
+                    }}
+                  >▲</button>
+                  <button
+                    onClick={() => movePlayer(1)}
+                    disabled={index === playerDisplayOrder.length - 1}
+                    style={{
+                      width: '20px', height: '16px', padding: 0, border: 'none',
+                      background: index === playerDisplayOrder.length - 1 ? '#eee' : '#ddd', borderRadius: '3px',
+                      cursor: index === playerDisplayOrder.length - 1 ? 'default' : 'pointer', fontSize: '10px',
+                      color: index === playerDisplayOrder.length - 1 ? '#aaa' : '#666'
+                    }}
+                  >▼</button>
+                </div>
                 <div style={{ flex: 1, fontWeight: 'bold', fontSize: '14px' }}>
                   {player.name}
                 </div>
@@ -3098,6 +3132,24 @@ const SimpleScorekeeper = ({
         </div>
       </div>
 
+      {/* Ask Commissioner Section */}
+      <div style={{ marginBottom: '20px' }}>
+        <CommissionerChat
+          inline={true}
+          gameState={{
+            players,
+            current_hole: currentHole,
+            standings: playerStandings
+          }}
+          onSaveToNotes={(text) => {
+            // Append commissioner ruling to notes with timestamp
+            const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const ruling = `[${timestamp}] Commissioner: ${text}`;
+            setHoleNotes(prev => prev ? `${prev}\n\n${ruling}` : ruling);
+          }}
+        />
+      </div>
+
       {/* Hole Notes (Optional) */}
       <div style={{
         background: theme.colors.paper,
@@ -3120,7 +3172,9 @@ const SimpleScorekeeper = ({
             border: `2px solid ${theme.colors.border}`,
             borderRadius: '6px',
             resize: 'vertical',
-            fontFamily: 'inherit'
+            fontFamily: 'inherit',
+            backgroundColor: theme.colors.inputBackground || theme.colors.paper,
+            color: theme.colors.textPrimary
           }}
         />
       </div>

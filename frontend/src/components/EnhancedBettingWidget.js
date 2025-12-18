@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../theme/Provider';
+import {
+  getRiskColor,
+  getRiskIcon,
+  getActionIcon,
+  getActionDescription,
+  calculateExpectedValue
+} from '../utils';
 
 const EnhancedBettingWidget = ({ gameState, bettingOpportunity, onBettingAction }) => {
   const theme = useTheme();
@@ -64,70 +71,7 @@ const EnhancedBettingWidget = ({ gameState, bettingOpportunity, onBettingAction 
     }, 200);
   };
 
-  const getRiskColor = (risk) => {
-    switch (risk?.toLowerCase()) {
-      case 'low': return '#4CAF50';
-      case 'medium': return '#FF9800';
-      case 'high': return '#F44336';
-      default: return theme.colors.textSecondary;
-    }
-  };
-
-  const getRiskIcon = (risk) => {
-    switch (risk?.toLowerCase()) {
-      case 'low': return '🟢';
-      case 'medium': return '🟡';
-      case 'high': return '🔴';
-      default: return '⚪';
-    }
-  };
-
-  const getActionIcon = (action) => {
-    const actionIcons = {
-      'offer_double': '💰',
-      'accept_double': '✅',
-      'decline_double': '❌',
-      'go_solo': '👤',
-      'accept_partnership': '🤝',
-      'decline_partnership': '🚫',
-      'pass': '⏭️'
-    };
-    return actionIcons[action] || '🎯';
-  };
-
-  const getActionDescription = (action) => {
-    const descriptions = {
-      'offer_double': 'Double the stakes - higher risk, higher reward',
-      'accept_double': 'Accept the double - stakes are now doubled',
-      'decline_double': 'Decline double - concede the hole',
-      'go_solo': 'Play alone against everyone - double stakes',
-      'accept_partnership': 'Form a partnership with captain',
-      'decline_partnership': 'Decline partnership - captain goes solo',
-      'pass': 'Skip this betting opportunity'
-    };
-    return descriptions[action] || 'Make your betting decision';
-  };
-
-  const calculateExpectedValue = (action, analysis) => {
-    if (!analysis) return null;
-    
-    const baseWager = gameState?.base_wager || 1;
-    const currentWager = gameState?.holeState?.betting?.current_wager || baseWager;
-    
-    // Simplified EV calculation based on win probability
-    const winProb = analysis.win_probability || 0.5;
-    const loseProb = 1 - winProb;
-    
-    switch (action) {
-      case 'offer_double':
-      case 'accept_double':
-        return (winProb * currentWager * 2) - (loseProb * currentWager * 2);
-      case 'go_solo':
-        return (winProb * currentWager * 3) - (loseProb * currentWager * 2);
-      default:
-        return (winProb * currentWager) - (loseProb * currentWager);
-    }
-  };
+  // Imported helper functions now used from ../utils/bettingHelpers
 
   return (
     <div style={{
@@ -332,7 +276,7 @@ const EnhancedBettingWidget = ({ gameState, bettingOpportunity, onBettingAction 
               marginTop: 8,
               fontStyle: 'italic'
             }}>
-              Expected Value: {calculateExpectedValue(opportunity.recommended_action, opportunity.probability_analysis)?.toFixed(1) || 'N/A'} quarters
+              Expected Value: {calculateExpectedValue(opportunity.recommended_action, opportunity.probability_analysis, gameState)?.toFixed(1) || 'N/A'} quarters
             </div>
           )}
           
@@ -367,7 +311,7 @@ const EnhancedBettingWidget = ({ gameState, bettingOpportunity, onBettingAction 
           const isRecommended = action === opportunity.recommended_action;
           const isSelected = selectedAction === action;
           const isAnimating = animatingAction === action;
-          const expectedValue = calculateExpectedValue(action, opportunity.probability_analysis);
+          const expectedValue = calculateExpectedValue(action, opportunity.probability_analysis, gameState);
           
           return (
             <button

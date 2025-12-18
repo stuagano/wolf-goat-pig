@@ -1,4 +1,5 @@
 import { useEffect, useCallback } from 'react';
+import { storage } from '../utils';
 
 /**
  * Hook for persisting game state to localStorage
@@ -10,66 +11,51 @@ export const useGamePersistence = (gameState, isActive) => {
 
   // Save game state to localStorage
   const saveToLocal = useCallback((state) => {
-    try {
-      if (!state) return;
+    if (!state) return;
 
-      const dataToSave = {
-        ...state,
-        savedAt: new Date().toISOString(),
-        version: '1.0'
-      };
+    const dataToSave = {
+      ...state,
+      savedAt: new Date().toISOString(),
+      version: '1.0'
+    };
 
-      // Save current state
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+    // Keep a backup of the previous state before overwriting
+    const existing = storage.get(STORAGE_KEY);
+    if (existing) {
+      storage.set(BACKUP_KEY, existing);
+    }
 
-      // Keep a backup of the previous state
-      const existing = localStorage.getItem(STORAGE_KEY);
-      if (existing) {
-        localStorage.setItem(BACKUP_KEY, existing);
-      }
-
+    // Save current state
+    const success = storage.set(STORAGE_KEY, dataToSave);
+    if (success) {
       console.log('[Persistence] Game state saved to localStorage');
-    } catch (error) {
-      console.error('[Persistence] Failed to save game state:', error);
-      // Storage might be full or disabled - fail silently
     }
   }, [STORAGE_KEY, BACKUP_KEY]);
 
   // Load game state from localStorage
   const loadFromLocal = useCallback(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (!stored) return null;
-
-      const parsed = JSON.parse(stored);
+    // Try to load main state
+    const stored = storage.get(STORAGE_KEY);
+    if (stored) {
       console.log('[Persistence] Game state loaded from localStorage');
-      return parsed;
-    } catch (error) {
-      console.error('[Persistence] Failed to load game state:', error);
-
-      // Try backup
-      try {
-        const backup = localStorage.getItem(BACKUP_KEY);
-        if (backup) {
-          console.log('[Persistence] Loaded from backup');
-          return JSON.parse(backup);
-        }
-      } catch (backupError) {
-        console.error('[Persistence] Backup also failed:', backupError);
-      }
-
-      return null;
+      return stored;
     }
+
+    // Try backup if main state failed
+    const backup = storage.get(BACKUP_KEY);
+    if (backup) {
+      console.log('[Persistence] Loaded from backup');
+      return backup;
+    }
+
+    return null;
   }, [STORAGE_KEY, BACKUP_KEY]);
 
   // Clear saved game state
   const clearLocal = useCallback(() => {
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem(BACKUP_KEY);
+    const removed = storage.remove(STORAGE_KEY) && storage.remove(BACKUP_KEY);
+    if (removed) {
       console.log('[Persistence] Game state cleared from localStorage');
-    } catch (error) {
-      console.error('[Persistence] Failed to clear game state:', error);
     }
   }, [STORAGE_KEY, BACKUP_KEY]);
 

@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTutorial } from '../context/TutorialContext';
+import { createNamespacedStorage } from '../utils/storage';
+
+// Create namespaced storage for tutorial progress
+const tutorialStorage = createNamespacedStorage('wgp-tutorial');
 
 /**
  * Advanced tutorial progress tracking hook
@@ -28,50 +32,34 @@ export const useTutorialProgress = () => {
   // Save progress to localStorage
   const saveProgress = useCallback(() => {
     if (!persistenceEnabled) return;
-    
-    try {
-      const progressData = {
-        completedModules: Array.from(tutorial.completedModules),
-        completedSteps: tutorial.completedSteps,
-        timeSpent: tutorial.timeSpent,
-        learningPreferences: tutorial.learningPreferences,
-        comprehensionScores: tutorial.comprehensionScores,
-        difficultTopics: Array.from(tutorial.difficultTopics),
-        achievements: Array.from(tutorial.achievements),
-        quizAnswers: tutorial.quizAnswers,
-        lastModule: tutorial.currentModule,
-        lastStep: tutorial.currentStep,
-        lastSaved: new Date().toISOString()
-      };
-      
-      localStorage.setItem('wgp-tutorial-progress', JSON.stringify(progressData));
-    } catch (error) {
-      console.warn('Failed to save tutorial progress:', error);
-    }
+
+    const progressData = {
+      completedModules: Array.from(tutorial.completedModules),
+      completedSteps: tutorial.completedSteps,
+      timeSpent: tutorial.timeSpent,
+      learningPreferences: tutorial.learningPreferences,
+      comprehensionScores: tutorial.comprehensionScores,
+      difficultTopics: Array.from(tutorial.difficultTopics),
+      achievements: Array.from(tutorial.achievements),
+      quizAnswers: tutorial.quizAnswers,
+      lastModule: tutorial.currentModule,
+      lastStep: tutorial.currentStep,
+      lastSaved: new Date().toISOString()
+    };
+
+    tutorialStorage.set('progress', progressData);
   }, [tutorial, persistenceEnabled]);
 
   // Load progress from localStorage
   const loadProgress = useCallback(() => {
     if (!persistenceEnabled) return null;
-    
-    try {
-      const savedData = localStorage.getItem('wgp-tutorial-progress');
-      if (savedData) {
-        return JSON.parse(savedData);
-      }
-    } catch (error) {
-      console.warn('Failed to load tutorial progress:', error);
-    }
-    return null;
+
+    return tutorialStorage.get('progress', null);
   }, [persistenceEnabled]);
 
   // Clear saved progress
   const clearSavedProgress = useCallback(() => {
-    try {
-      localStorage.removeItem('wgp-tutorial-progress');
-    } catch (error) {
-      console.warn('Failed to clear tutorial progress:', error);
-    }
+    tutorialStorage.remove('progress');
   }, []);
 
   // Auto-save progress on changes

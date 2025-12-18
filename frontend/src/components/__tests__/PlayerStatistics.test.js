@@ -10,8 +10,13 @@ jest.mock('../ui', () => ({
   )
 }));
 
-// Mock fetch
-global.fetch = jest.fn();
+// Mock the API utilities
+jest.mock('../../utils', () => ({
+  ...jest.requireActual('../../utils'),
+  apiGet: jest.fn(),
+}));
+
+import { apiGet } from '../../utils';
 
 describe('PlayerStatistics', () => {
   const mockStatistics = {
@@ -88,18 +93,12 @@ describe('PlayerStatistics', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    fetch.mockImplementation((url) => {
+    apiGet.mockImplementation((url) => {
       if (url.includes('/statistics')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockStatistics)
-        });
+        return Promise.resolve(mockStatistics);
       }
       if (url.includes('/analytics')) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockAnalytics)
-        });
+        return Promise.resolve(mockAnalytics);
       }
       return Promise.reject(new Error('Unknown URL'));
     });
@@ -114,7 +113,7 @@ describe('PlayerStatistics', () => {
 
   describe('Error State', () => {
     test('shows error message when API fails', async () => {
-      fetch.mockRejectedValue(new Error('Network error'));
+      apiGet.mockRejectedValue(new Error('Network error'));
 
       render(<PlayerStatistics playerId={1} />);
 
@@ -124,7 +123,7 @@ describe('PlayerStatistics', () => {
     });
 
     test('shows retry button on error', async () => {
-      fetch.mockRejectedValue(new Error('Network error'));
+      apiGet.mockRejectedValue(new Error('Network error'));
 
       render(<PlayerStatistics playerId={1} />);
 
@@ -134,7 +133,7 @@ describe('PlayerStatistics', () => {
     });
 
     test('retries loading when retry button clicked', async () => {
-      fetch.mockRejectedValueOnce(new Error('Network error'));
+      apiGet.mockRejectedValueOnce(new Error('Network error'));
 
       render(<PlayerStatistics playerId={1} />);
 
@@ -142,12 +141,12 @@ describe('PlayerStatistics', () => {
         expect(screen.getByText('Retry')).toBeInTheDocument();
       });
 
-      fetch.mockImplementation((url) => {
+      apiGet.mockImplementation((url) => {
         if (url.includes('/statistics')) {
-          return Promise.resolve({ ok: true, json: () => Promise.resolve(mockStatistics) });
+          return Promise.resolve(mockStatistics);
         }
         if (url.includes('/analytics')) {
-          return Promise.resolve({ ok: true, json: () => Promise.resolve(mockAnalytics) });
+          return Promise.resolve(mockAnalytics);
         }
         return Promise.reject(new Error('Unknown'));
       });
@@ -162,12 +161,12 @@ describe('PlayerStatistics', () => {
 
   describe('No Data State', () => {
     test('shows no statistics message when data is null', async () => {
-      fetch.mockImplementation((url) => {
+      apiGet.mockImplementation((url) => {
         if (url.includes('/statistics')) {
-          return Promise.resolve({ ok: true, json: () => Promise.resolve(null) });
+          return Promise.resolve(null);
         }
         if (url.includes('/analytics')) {
-          return Promise.resolve({ ok: true, json: () => Promise.resolve(null) });
+          return Promise.resolve(null);
         }
         return Promise.reject(new Error('Unknown'));
       });
@@ -454,15 +453,12 @@ describe('PlayerStatistics', () => {
     });
 
     test('formats negative earnings correctly', async () => {
-      fetch.mockImplementation((url) => {
+      apiGet.mockImplementation((url) => {
         if (url.includes('/statistics')) {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve({ ...mockStatistics, total_earnings: -100.25 })
-          });
+          return Promise.resolve({ ...mockStatistics, total_earnings: -100.25 });
         }
         if (url.includes('/analytics')) {
-          return Promise.resolve({ ok: true, json: () => Promise.resolve(mockAnalytics) });
+          return Promise.resolve(mockAnalytics);
         }
         return Promise.reject(new Error('Unknown'));
       });
@@ -494,33 +490,30 @@ describe('PlayerStatistics', () => {
         expect(screen.getByText('Player Statistics')).toBeInTheDocument();
       });
 
-      expect(fetch).toHaveBeenCalledTimes(2);
+      expect(apiGet).toHaveBeenCalledTimes(2);
 
       rerender(<PlayerStatistics playerId={2} />);
 
       await waitFor(() => {
-        expect(fetch).toHaveBeenCalledTimes(4);
+        expect(apiGet).toHaveBeenCalledTimes(4);
       });
     });
   });
 
   describe('Empty/Zero Values', () => {
     test('handles zero games gracefully', async () => {
-      fetch.mockImplementation((url) => {
+      apiGet.mockImplementation((url) => {
         if (url.includes('/statistics')) {
           return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve({
-              ...mockStatistics,
-              games_played: 0,
-              games_won: 0,
-              holes_played: 0,
-              holes_won: 0
-            })
+            ...mockStatistics,
+            games_played: 0,
+            games_won: 0,
+            holes_played: 0,
+            holes_won: 0
           });
         }
         if (url.includes('/analytics')) {
-          return Promise.resolve({ ok: true, json: () => Promise.resolve(mockAnalytics) });
+          return Promise.resolve(mockAnalytics);
         }
         return Promise.reject(new Error('Unknown'));
       });

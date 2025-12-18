@@ -1,6 +1,8 @@
 // frontend/src/hooks/__tests__/useGamePersistence.test.js
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useGamePersistence } from '../useGamePersistence';
+import { mockLocalStorage } from '../../test-utils/testHelpers';
+import { createMockGameState } from '../../test-utils/mockFactories';
 
 describe('useGamePersistence', () => {
   const STORAGE_KEY = 'wolf-goat-pig-game-state';
@@ -9,25 +11,8 @@ describe('useGamePersistence', () => {
   let localStorageMock;
 
   beforeEach(() => {
-    // Create a fresh localStorage mock for each test
-    const store = {};
-    localStorageMock = {
-      getItem: jest.fn((key) => store[key] || null),
-      setItem: jest.fn((key, value) => {
-        store[key] = value;
-      }),
-      removeItem: jest.fn((key) => {
-        delete store[key];
-      }),
-      clear: jest.fn(() => {
-        Object.keys(store).forEach((key) => delete store[key]);
-      }),
-    };
-
-    Object.defineProperty(window, 'localStorage', {
-      value: localStorageMock,
-      writable: true,
-    });
+    // Use mock factory from testHelpers
+    localStorageMock = mockLocalStorage();
 
     // Suppress console.log/error during tests
     jest.spyOn(console, 'log').mockImplementation(() => {});
@@ -43,11 +28,10 @@ describe('useGamePersistence', () => {
     test('should save game state to localStorage', () => {
       const { result } = renderHook(() => useGamePersistence(null, false));
 
-      const gameState = {
+      const gameState = createMockGameState('mid_game', {
         game_id: 'test-123',
-        players: [{ id: 'p1', name: 'Player 1' }],
         current_hole: 5,
-      };
+      });
 
       act(() => {
         result.current.saveToLocal(gameState);
@@ -257,7 +241,7 @@ describe('useGamePersistence', () => {
     });
 
     test('should auto-save when isActive is true and gameState changes', async () => {
-      const gameState = { game_id: 'auto-123', current_hole: 1 };
+      const gameState = createMockGameState('initial', { game_id: 'auto-123', current_hole: 1 });
       const { rerender } = renderHook(
         ({ state, active }) => useGamePersistence(state, active),
         { initialProps: { state: gameState, active: true } }
@@ -271,7 +255,7 @@ describe('useGamePersistence', () => {
       expect(localStorageMock.setItem).toHaveBeenCalled();
 
       // Update game state
-      const updatedState = { game_id: 'auto-123', current_hole: 2 };
+      const updatedState = createMockGameState('initial', { game_id: 'auto-123', current_hole: 2 });
       rerender({ state: updatedState, active: true });
 
       act(() => {
@@ -283,7 +267,7 @@ describe('useGamePersistence', () => {
     });
 
     test('should not auto-save when isActive is false', async () => {
-      const gameState = { game_id: 'inactive-123', current_hole: 1 };
+      const gameState = createMockGameState('initial', { game_id: 'inactive-123', current_hole: 1 });
       renderHook(
         ({ state, active }) => useGamePersistence(state, active),
         { initialProps: { state: gameState, active: false } }
@@ -298,7 +282,7 @@ describe('useGamePersistence', () => {
     });
 
     test('should debounce saves by 1 second', async () => {
-      const gameState = { game_id: 'debounce-123', current_hole: 1 };
+      const gameState = createMockGameState('initial', { game_id: 'debounce-123', current_hole: 1 });
       const { rerender } = renderHook(
         ({ state, active }) => useGamePersistence(state, active),
         { initialProps: { state: gameState, active: true } }

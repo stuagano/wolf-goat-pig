@@ -1,8 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './CommissionerChat.css';
 
-const CommissionerChat = ({ gameState }) => {
-  const [isOpen, setIsOpen] = useState(false);
+/**
+ * CommissionerChat - On-field rules expert chat component
+ * @param {object} gameState - Current game state for context-aware responses
+ * @param {boolean} inline - If true, renders inline instead of floating bubble
+ * @param {function} onSaveToNotes - Callback when user wants to save response to notes
+ * @param {boolean} startOpen - If true, chat starts in open state (for inline mode)
+ */
+const CommissionerChat = ({ gameState, inline = false, onSaveToNotes, startOpen = false }) => {
+  const [isOpen, setIsOpen] = useState(startOpen || inline);
   const [messages, setMessages] = useState([
     {
       type: 'commissioner',
@@ -15,7 +22,9 @@ const CommissionerChat = ({ gameState }) => {
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesEndRef.current && typeof messagesEndRef.current.scrollIntoView === 'function') {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   useEffect(() => {
@@ -162,6 +171,92 @@ const CommissionerChat = ({ gameState }) => {
     }
   };
 
+  // Inline mode - renders directly in page flow
+  if (inline) {
+    return (
+      <div className="commissioner-chat-inline">
+        <div className="chat-window inline-chat">
+          <div className="chat-header">
+            <div className="chat-header-content">
+              <span className="chat-icon">🏆</span>
+              <div>
+                <h3>Ask the Commissioner</h3>
+                <p className="chat-subtitle">Rules clarification for this hole</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="chat-messages" style={{ maxHeight: '200px' }}>
+            {messages.slice(-4).map((msg, idx) => (
+              <div
+                key={idx}
+                className={`message ${msg.type === 'user' ? 'user-message' : 'commissioner-message'}`}
+              >
+                {msg.type === 'commissioner' && (
+                  <div className="message-avatar">🏆</div>
+                )}
+                <div className="message-content">
+                  <div className="message-text">{msg.text}</div>
+                  <div className="message-footer">
+                    <div className="message-time">
+                      {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                    {msg.type === 'commissioner' && onSaveToNotes && idx > 0 && (
+                      <button
+                        className="save-to-notes-btn"
+                        onClick={() => onSaveToNotes(msg.text)}
+                        title="Add this ruling to hole notes"
+                      >
+                        📝 Save to Notes
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {msg.type === 'user' && (
+                  <div className="message-avatar user-avatar">👤</div>
+                )}
+              </div>
+            ))}
+
+            {isTyping && (
+              <div className="message commissioner-message">
+                <div className="message-avatar">🏆</div>
+                <div className="message-content">
+                  <div className="typing-indicator">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+
+          <div className="chat-input-container">
+            <input
+              type="text"
+              className="chat-input"
+              placeholder="Ask about rules, betting, disputes..."
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyPress={handleKeyPress}
+            />
+            <button
+              className="send-button"
+              onClick={handleSendMessage}
+              disabled={!inputValue.trim()}
+            >
+              ➤
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Floating mode - renders as floating bubble
   return (
     <div className="commissioner-chat">
       {/* Chat Bubble Button */}
@@ -205,8 +300,19 @@ const CommissionerChat = ({ gameState }) => {
                 )}
                 <div className="message-content">
                   <div className="message-text">{msg.text}</div>
-                  <div className="message-time">
-                    {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  <div className="message-footer">
+                    <div className="message-time">
+                      {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                    {msg.type === 'commissioner' && onSaveToNotes && idx > 0 && (
+                      <button
+                        className="save-to-notes-btn"
+                        onClick={() => onSaveToNotes(msg.text)}
+                        title="Add this ruling to hole notes"
+                      >
+                        📝 Save to Notes
+                      </button>
+                    )}
                   </div>
                 </div>
                 {msg.type === 'user' && (

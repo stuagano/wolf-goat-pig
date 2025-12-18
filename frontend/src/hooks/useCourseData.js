@@ -8,11 +8,11 @@
  * - Caches course data to avoid redundant API calls
  * - Provides loading and error states
  * - Exposes helper functions for accessing hole data
+ * - Uses useFetchAsync for standardized fetch handling
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-
-const API_URL = process.env.REACT_APP_API_URL || '';
+import useFetchAsync from './useFetchAsync';
 
 // Module-level cache for course data (persists across component instances)
 const courseCache = new Map();
@@ -25,55 +25,42 @@ const courseCache = new Map();
  */
 export const useCourseData = (courseName) => {
   const [courseData, setCourseData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { loading, error, get, clearError } = useFetchAsync({ throwOnError: false });
 
   // Fetch course data with caching
   useEffect(() => {
     const fetchCourseData = async () => {
       if (!courseName) {
-        setLoading(false);
         return;
       }
 
       // Check cache first
       if (courseCache.has(courseName)) {
         setCourseData(courseCache.get(courseName));
-        setLoading(false);
         return;
       }
 
-      setLoading(true);
-      setError(null);
-
       try {
-        const response = await fetch(`${API_URL}/courses`);
+        const coursesData = await get('/courses', 'Fetch courses');
 
-        if (!response.ok) {
-          throw new Error(`Failed to fetch courses: ${response.status}`);
-        }
+        if (coursesData) {
+          const course = coursesData[courseName];
 
-        const coursesData = await response.json();
-        const course = coursesData[courseName];
-
-        if (course) {
-          // Cache the course data
-          courseCache.set(courseName, course);
-          setCourseData(course);
-        } else {
-          console.warn(`Course "${courseName}" not found in courses data`);
-          setError(`Course "${courseName}" not found`);
+          if (course) {
+            // Cache the course data
+            courseCache.set(courseName, course);
+            setCourseData(course);
+          } else {
+            console.warn(`Course "${courseName}" not found in courses data`);
+          }
         }
       } catch (err) {
         console.error('Error fetching course data:', err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
       }
     };
 
     fetchCourseData();
-  }, [courseName]);
+  }, [courseName, get]);
 
   /**
    * Get hole data for a specific hole number
@@ -195,13 +182,11 @@ export const useCourseData = (courseName) => {
   const refetch = useCallback(async () => {
     if (courseName) {
       courseCache.delete(courseName);
-      setLoading(true);
-      setError(null);
+      clearError();
 
       try {
-        const response = await fetch(`${API_URL}/courses`);
-        if (response.ok) {
-          const coursesData = await response.json();
+        const coursesData = await get('/courses', 'Refetch courses');
+        if (coursesData) {
           const course = coursesData[courseName];
           if (course) {
             courseCache.set(courseName, course);
@@ -209,12 +194,10 @@ export const useCourseData = (courseName) => {
           }
         }
       } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
+        console.error('Error refetching course data:', err);
       }
     }
-  }, [courseName]);
+  }, [courseName, get, clearError]);
 
   return {
     // State

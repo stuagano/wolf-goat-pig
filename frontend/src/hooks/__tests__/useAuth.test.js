@@ -2,17 +2,14 @@
 import { renderHook } from '@testing-library/react';
 import { useAuth } from '../useAuth';
 import { useAuth0 } from '@auth0/auth0-react';
+import { createMockAuthContext, createMockUser } from '../../test-utils/mockFactories';
 
 // Mock the auth0 hook
 jest.mock('@auth0/auth0-react');
 
 describe('useAuth', () => {
   const mockAuth0Return = {
-    isAuthenticated: false,
-    isLoading: false,
-    user: null,
-    loginWithRedirect: jest.fn(),
-    logout: jest.fn(),
+    ...createMockAuthContext(),
     getAccessTokenSilently: jest.fn(),
   };
 
@@ -72,12 +69,10 @@ describe('useAuth', () => {
     });
 
     test('should return user name when available', () => {
+      const mockUser = createMockUser({ name: 'John Doe', email: 'john@example.com' });
       useAuth0.mockReturnValue({
         ...mockAuth0Return,
-        user: {
-          name: 'John Doe',
-          email: 'john@example.com',
-        },
+        user: mockUser,
       });
 
       const { result } = renderHook(() => useAuth());
@@ -86,11 +81,10 @@ describe('useAuth', () => {
     });
 
     test('should return email when name is not available', () => {
+      const mockUser = createMockUser({ name: undefined, email: 'john@example.com' });
       useAuth0.mockReturnValue({
         ...mockAuth0Return,
-        user: {
-          email: 'john@example.com',
-        },
+        user: mockUser,
       });
 
       const { result } = renderHook(() => useAuth());
@@ -123,11 +117,10 @@ describe('useAuth', () => {
     });
 
     test('should return email when available', () => {
+      const mockUser = createMockUser({ email: 'john@example.com' });
       useAuth0.mockReturnValue({
         ...mockAuth0Return,
-        user: {
-          email: 'john@example.com',
-        },
+        user: mockUser,
       });
 
       const { result } = renderHook(() => useAuth());
@@ -150,6 +143,7 @@ describe('useAuth', () => {
 
     test('should return picture URL when available', () => {
       const pictureUrl = 'https://example.com/avatar.jpg';
+      const mockUser = createMockUser({ avatar_url: pictureUrl });
       useAuth0.mockReturnValue({
         ...mockAuth0Return,
         user: {
@@ -225,13 +219,17 @@ describe('useAuth', () => {
 
   describe('full user profile scenario', () => {
     test('should handle complete user profile', () => {
+      const mockUser = createMockUser({
+        name: 'John Doe',
+        email: 'john@example.com',
+        id: 'auth0|123456',
+      });
       useAuth0.mockReturnValue({
         ...mockAuth0Return,
         isAuthenticated: true,
         isLoading: false,
         user: {
-          name: 'John Doe',
-          email: 'john@example.com',
+          ...mockUser,
           picture: 'https://example.com/john.jpg',
           sub: 'auth0|123456',
         },

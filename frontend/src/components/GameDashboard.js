@@ -1,51 +1,24 @@
 import React from 'react';
 import { useTheme } from '../theme/Provider';
 import { Card } from './ui';
-
-const COLORS = {
-  primary: '#1976d2',
-  accent: '#00bcd4',
-  warning: '#ff9800',
-  error: '#d32f2f',
-  success: '#388e3c',
-  bg: '#f9fafe',
-  card: '#fff',
-  border: '#e0e0e0',
-  text: '#222',
-  muted: '#888',
-  hoepfinger: '#9c27b0',
-  vinnie: '#795548'
-};
+import {
+  UI_COLORS,
+  getShotQualityColor,
+  getShotQualityIcon,
+  getRiskColor,
+  getRiskIcon,
+  getPhaseColor,
+  getPhaseIcon
+} from '../constants/colors';
 
 // Shot Result Panel
 const ShotResultPanel = ({ shotResult }) => {
-  const getShotQualityColor = (quality) => {
-    switch (quality) {
-      case 'excellent': return COLORS.success;
-      case 'good': return '#4caf50';
-      case 'average': return COLORS.warning;
-      case 'poor': return '#ff5722';
-      case 'terrible': return COLORS.error;
-      default: return COLORS.muted;
-    }
-  };
-
-  const getShotQualityIcon = (quality) => {
-    switch (quality) {
-      case 'excellent': return '🏆';
-      case 'good': return '👍';
-      case 'average': return '👌';
-      case 'poor': return '👎';
-      case 'terrible': return '💥';
-      default: return '⚪';
-    }
-  };
 
   if (!shotResult) return null;
 
   return (
     <div style={{ marginBottom: 16 }}>
-      <h3 style={{ margin: '0 0 12px 0', fontSize: 16, color: COLORS.text }}>
+      <h3 style={{ margin: '0 0 12px 0', fontSize: 16, color: UI_COLORS.text }}>
         🎯 Shot Analysis
       </h3>
       <div style={{
@@ -69,27 +42,27 @@ const ShotResultPanel = ({ shotResult }) => {
         </div>
         <div style={{
           padding: 12,
-          background: COLORS.card,
-          border: `1px solid ${COLORS.border}`,
+          background: UI_COLORS.card,
+          border: `1px solid ${UI_COLORS.border}`,
           borderRadius: 8,
           textAlign: 'center'
         }}>
-          <div style={{ fontSize: 18, fontWeight: 600, color: COLORS.primary }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: UI_COLORS.primary }}>
             {shotResult.distance || 0}y
           </div>
-          <div style={{ fontSize: 12, color: COLORS.muted }}>Distance</div>
+          <div style={{ fontSize: 12, color: UI_COLORS.muted }}>Distance</div>
         </div>
         <div style={{
           padding: 12,
-          background: COLORS.card,
-          border: `1px solid ${COLORS.border}`,
+          background: UI_COLORS.card,
+          border: `1px solid ${UI_COLORS.border}`,
           borderRadius: 8,
           textAlign: 'center'
         }}>
-          <div style={{ fontSize: 18, fontWeight: 600, color: COLORS.accent }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: UI_COLORS.accent }}>
             {shotResult.accuracy || 0}%
           </div>
-          <div style={{ fontSize: 12, color: COLORS.muted }}>Accuracy</div>
+          <div style={{ fontSize: 12, color: UI_COLORS.muted }}>Accuracy</div>
         </div>
       </div>
     </div>
@@ -98,37 +71,19 @@ const ShotResultPanel = ({ shotResult }) => {
 
 // Betting Opportunities Panel
 const BettingPanel = ({ opportunities = [] }) => {
-  const getRiskColor = (risk) => {
-    switch (risk) {
-      case 'low': return COLORS.success;
-      case 'medium': return COLORS.warning;
-      case 'high': return COLORS.error;
-      default: return COLORS.muted;
-    }
-  };
-
-  const getRiskIcon = (risk) => {
-    switch (risk) {
-      case 'low': return '🟢';
-      case 'medium': return '🟡';
-      case 'high': return '🔴';
-      default: return '⚪';
-    }
-  };
-
   return (
     <div style={{ marginBottom: 16 }}>
-      <h3 style={{ margin: '0 0 12px 0', fontSize: 16, color: COLORS.text }}>
+      <h3 style={{ margin: '0 0 12px 0', fontSize: 16, color: UI_COLORS.text }}>
         💰 Betting Opportunities
       </h3>
       {opportunities.length === 0 ? (
         <div style={{
           padding: 16,
-          background: COLORS.card,
-          border: `1px solid ${COLORS.border}`,
+          background: UI_COLORS.card,
+          border: `1px solid ${UI_COLORS.border}`,
           borderRadius: 8,
           textAlign: 'center',
-          color: COLORS.muted
+          color: UI_COLORS.muted
         }}>
           No current betting opportunities
         </div>
@@ -137,8 +92,8 @@ const BettingPanel = ({ opportunities = [] }) => {
           {opportunities.map((opp, index) => (
             <div key={index} style={{
               padding: 12,
-              background: COLORS.card,
-              border: `1px solid ${COLORS.border}`,
+              background: UI_COLORS.card,
+              border: `1px solid ${UI_COLORS.border}`,
               borderRadius: 8,
               display: 'flex',
               justifyContent: 'space-between',
@@ -148,7 +103,7 @@ const BettingPanel = ({ opportunities = [] }) => {
                 <div style={{ fontWeight: 600, marginBottom: 4 }}>
                   {opp.type || 'Side Bet'}
                 </div>
-                <div style={{ fontSize: 12, color: COLORS.muted }}>
+                <div style={{ fontSize: 12, color: UI_COLORS.muted }}>
                   {opp.description || 'Betting opportunity available'}
                 </div>
               </div>
@@ -176,27 +131,9 @@ const BettingPanel = ({ opportunities = [] }) => {
 const GameStatePanel = ({ gameState, holeState }) => {
   if (!gameState || !holeState) return null;
 
-  const getPhaseColor = (phase) => {
-    switch (phase) {
-      case 'regular': return COLORS.primary;
-      case 'vinnie_variation': return COLORS.vinnie;
-      case 'hoepfinger': return COLORS.hoepfinger;
-      default: return COLORS.muted;
-    }
-  };
-
-  const getPhaseIcon = (phase) => {
-    switch (phase) {
-      case 'regular': return '⛳';
-      case 'vinnie_variation': return '🐺';
-      case 'hoepfinger': return '🎯';
-      default: return '🏌️';
-    }
-  };
-
   return (
     <div style={{ marginBottom: 16 }}>
-      <h3 style={{ margin: '0 0 12px 0', fontSize: 16, color: COLORS.text }}>
+      <h3 style={{ margin: '0 0 12px 0', fontSize: 16, color: UI_COLORS.text }}>
         🎮 Game State
       </h3>
       <div style={{
@@ -220,27 +157,27 @@ const GameStatePanel = ({ gameState, holeState }) => {
         </div>
         <div style={{
           padding: 12,
-          background: COLORS.card,
-          border: `1px solid ${COLORS.border}`,
+          background: UI_COLORS.card,
+          border: `1px solid ${UI_COLORS.border}`,
           borderRadius: 8,
           textAlign: 'center'
         }}>
-          <div style={{ fontSize: 18, fontWeight: 600, color: COLORS.primary }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: UI_COLORS.primary }}>
             {holeState.hole_number || 1}
           </div>
-          <div style={{ fontSize: 12, color: COLORS.muted }}>Hole</div>
+          <div style={{ fontSize: 12, color: UI_COLORS.muted }}>Hole</div>
         </div>
         <div style={{
           padding: 12,
-          background: COLORS.card,
-          border: `1px solid ${COLORS.border}`,
+          background: UI_COLORS.card,
+          border: `1px solid ${UI_COLORS.border}`,
           borderRadius: 8,
           textAlign: 'center'
         }}>
-          <div style={{ fontSize: 18, fontWeight: 600, color: COLORS.accent }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: UI_COLORS.accent }}>
             ${gameState.total_pot || 0}
           </div>
-          <div style={{ fontSize: 12, color: COLORS.muted }}>Total Pot</div>
+          <div style={{ fontSize: 12, color: UI_COLORS.muted }}>Total Pot</div>
         </div>
       </div>
     </div>
@@ -253,24 +190,24 @@ const StrategyPanel = ({ analysis }) => {
 
   return (
     <div style={{ marginBottom: 16 }}>
-      <h3 style={{ margin: '0 0 12px 0', fontSize: 16, color: COLORS.text }}>
+      <h3 style={{ margin: '0 0 12px 0', fontSize: 16, color: UI_COLORS.text }}>
         🧠 Strategic Analysis
       </h3>
       <div style={{
         padding: 16,
-        background: COLORS.card,
-        border: `1px solid ${COLORS.border}`,
+        background: UI_COLORS.card,
+        border: `1px solid ${UI_COLORS.border}`,
         borderRadius: 8
       }}>
         <div style={{ marginBottom: 12 }}>
           <div style={{ fontWeight: 600, marginBottom: 4 }}>Recommended Play:</div>
-          <div style={{ color: COLORS.primary }}>
+          <div style={{ color: UI_COLORS.primary }}>
             {analysis.recommendation || 'Play conservatively'}
           </div>
         </div>
         <div style={{ marginBottom: 12 }}>
           <div style={{ fontWeight: 600, marginBottom: 4 }}>Key Factors:</div>
-          <div style={{ fontSize: 14, color: COLORS.muted }}>
+          <div style={{ fontSize: 14, color: UI_COLORS.muted }}>
             {analysis.factors?.join(', ') || 'Position, risk tolerance, pot odds'}
           </div>
         </div>
@@ -284,15 +221,15 @@ const StrategyPanel = ({ analysis }) => {
             <div style={{
               flex: 1,
               height: 8,
-              background: COLORS.border,
+              background: UI_COLORS.border,
               borderRadius: 4,
               overflow: 'hidden'
             }}>
               <div style={{
                 width: `${analysis.confidence}%`,
                 height: '100%',
-                background: analysis.confidence > 70 ? COLORS.success : 
-                          analysis.confidence > 40 ? COLORS.warning : COLORS.error
+                background: analysis.confidence > 70 ? UI_COLORS.success :
+                          analysis.confidence > 40 ? UI_COLORS.warning : UI_COLORS.error
               }} />
             </div>
             <span style={{ fontSize: 14 }}>{analysis.confidence}%</span>

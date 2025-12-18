@@ -9,6 +9,7 @@ const Navigation = () => {
   const theme = useTheme();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
   
   // Use mock auth if environment variable is set
   const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === 'true';
@@ -132,6 +133,20 @@ const Navigation = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Online/offline status detection
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   const handleNavigate = (path) => {
     navigate(path);
     setIsMobileMenuOpen(false);
@@ -140,7 +155,27 @@ const Navigation = () => {
   return (
     <nav style={navStyle}>
       <div style={navContainerStyle}>
-        <h1 style={{ margin: 0, fontSize: isMobile ? '20px' : '24px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '250px' }}>🐺🐐🐷 Wolf Goat Pig</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h1 style={{ margin: 0, fontSize: isMobile ? '20px' : '24px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '250px' }}>🐺🐐🐷 Wolf Goat Pig</h1>
+          {isOffline && (
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 8px',
+                borderRadius: '12px',
+                background: '#f59e0b',
+                color: '#000',
+                fontSize: '11px',
+                fontWeight: '600'
+              }}
+              title="You are offline. Changes will sync when connection is restored."
+            >
+              📴 Offline
+            </span>
+          )}
+        </div>
         
         {/* Desktop Navigation */}
         <div style={{ display: isMobile ? 'none' : 'flex', alignItems: 'center' }}>
@@ -162,14 +197,29 @@ const Navigation = () => {
             );
           })}
           
-          {/* Auth Section */}
+          {/* Theme Toggle & Auth Section */}
           <div style={{ marginLeft: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {/* Dark Mode Toggle */}
+            <button
+              style={{
+                ...navButtonStyle,
+                fontSize: 16,
+                padding: '6px 12px',
+                minWidth: '40px'
+              }}
+              onClick={theme.toggleTheme}
+              aria-label={theme.isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={theme.isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {theme.isDark ? '☀️' : '🌙'}
+            </button>
+
             {isAuthenticated ? (
               <>
                 <span style={{ color: '#fff' }}>{user?.name || 'User'}</span>
                 {!useMockAuth && (
-                  <button 
-                    style={{...navButtonStyle, fontSize: 14}} 
+                  <button
+                    style={{...navButtonStyle, fontSize: 14}}
                     onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
                   >
                     Logout
@@ -178,8 +228,8 @@ const Navigation = () => {
               </>
             ) : (
               !useMockAuth && (
-                <button 
-                  style={{...navButtonStyle, fontSize: 14}} 
+                <button
+                  style={{...navButtonStyle, fontSize: 14}}
                   onClick={() => loginWithRedirect()}
                 >
                   Login
@@ -231,10 +281,24 @@ const Navigation = () => {
             ))}
           </div>
 
+          {/* Theme Toggle */}
+          <div style={{
+            borderTop: '1px solid rgba(255,255,255,0.2)',
+            paddingTop: '20px',
+            marginBottom: '20px'
+          }}>
+            <button
+              style={mobileNavItemStyle}
+              onClick={theme.toggleTheme}
+            >
+              {theme.isDark ? '☀️ Switch to Light Mode' : '🌙 Switch to Dark Mode'}
+            </button>
+          </div>
+
           {/* Mobile Auth Section */}
-          <div style={{ 
-            borderTop: '1px solid rgba(255,255,255,0.2)', 
-            paddingTop: '20px' 
+          <div style={{
+            borderTop: '1px solid rgba(255,255,255,0.2)',
+            paddingTop: '20px'
           }}>
             {isAuthenticated ? (
               <>
@@ -242,7 +306,7 @@ const Navigation = () => {
                   Logged in as: {user?.name || 'User'}
                 </div>
                 {!useMockAuth && (
-                  <button 
+                  <button
                     style={mobileNavItemStyle}
                     onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
                   >
@@ -252,7 +316,7 @@ const Navigation = () => {
               </>
             ) : (
               !useMockAuth && (
-                <button 
+                <button
                   style={mobileNavItemStyle}
                   onClick={() => loginWithRedirect()}
                 >

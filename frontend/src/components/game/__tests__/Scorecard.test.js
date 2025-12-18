@@ -2,22 +2,17 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import Scorecard from '../Scorecard';
+import {
+  createMockTheme,
+  createMockPlayers,
+  createMockCourseHoles,
+  createMockHoleHistory,
+  createMockStrokeAllocation
+} from '../../../test-utils/mockFactories';
 
 // Mock the useTheme hook
 jest.mock('../../../theme/Provider', () => ({
-  useTheme: () => ({
-    colors: {
-      primary: '#2196F3',
-      secondary: '#757575',
-      success: '#4CAF50',
-      error: '#f44336',
-      warning: '#ff9800',
-      accent: '#FFD700',
-      textSecondary: '#666',
-      backgroundSecondary: '#f5f5f5',
-      border: '#e0e0e0'
-    }
-  })
+  useTheme: () => require('../../../test-utils/mockFactories').createMockTheme()
 }));
 
 // Mock the UI components
@@ -48,39 +43,24 @@ jest.mock('../../ui', () => ({
 }));
 
 describe('Scorecard', () => {
-  const mockPlayers = [
-    { id: 'p1', name: 'Player 1', handicap: 15, is_human: true },
-    { id: 'p2', name: 'Player 2', handicap: 18, is_human: false },
-    { id: 'p3', name: 'Player 3', handicap: 12, is_human: false },
-    { id: 'p4', name: 'Player 4', handicap: 20, is_human: false }
-  ];
-
-  const mockCourseHoles = Array.from({ length: 18 }, (_, i) => ({
-    hole: i + 1,
-    par: i < 9 ? [4, 5, 3, 4, 4, 5, 4, 3, 4][i % 9] : [4, 3, 5, 4, 4, 3, 5, 4, 4][i % 9],
-    handicap: i + 1,
-    yards: 350 + (i * 10)
+  const mockPlayers = createMockPlayers(4, {
+    id: 'p1',
+    name: 'Player 1',
+    handicap: 15,
+    is_human: true
+  }).map((player, i) => ({
+    ...player,
+    id: `p${i + 1}`,
+    name: `Player ${i + 1}`,
+    handicap: [15, 18, 12, 20][i],
+    is_human: i === 0
   }));
 
-  const mockHoleHistory = [
-    {
-      hole: 1,
-      points_delta: { p1: 2, p2: -2, p3: 2, p4: -2 },
-      gross_scores: { p1: 4, p2: 5, p3: 4, p4: 6 }
-    },
-    {
-      hole: 2,
-      points_delta: { p1: -1, p2: 1, p3: -1, p4: 1 },
-      gross_scores: { p1: 5, p2: 4, p3: 5, p4: 4 }
-    }
-  ];
+  const mockCourseHoles = createMockCourseHoles(18);
 
-  const mockStrokeAllocation = {
-    p1: { 1: 1, 2: 0, 3: 1 },
-    p2: { 1: 1, 2: 1, 3: 1 },
-    p3: { 1: 0, 2: 1, 3: 0 },
-    p4: { 1: 1, 2: 1, 3: 1 }
-  };
+  const mockHoleHistory = createMockHoleHistory(2, ['p1', 'p2', 'p3', 'p4']);
+
+  const mockStrokeAllocation = createMockStrokeAllocation(['p1', 'p2', 'p3', 'p4'], 3);
 
   const defaultProps = {
     players: mockPlayers,
@@ -96,12 +76,33 @@ describe('Scorecard', () => {
       expect(screen.getByText(/SCORECARD/)).toBeInTheDocument();
     });
 
-    test('renders all 18 hole columns', () => {
-      render(<Scorecard {...defaultProps} />);
-      // Hole numbers appear in headers and may appear multiple times in new layout
-      for (let i = 1; i <= 18; i++) {
+    test('renders front 9 holes by default when currentHole <= 9', () => {
+      render(<Scorecard {...defaultProps} currentHole={3} />);
+      // Front 9 holes (1-9) should be visible
+      for (let i = 1; i <= 9; i++) {
         expect(screen.getAllByText(i.toString()).length).toBeGreaterThan(0);
       }
+    });
+
+    test('renders back 9 holes when currentHole > 9', () => {
+      render(<Scorecard {...defaultProps} currentHole={12} />);
+      // Back 9 holes (10-18) should be visible
+      for (let i = 10; i <= 18; i++) {
+        expect(screen.getAllByText(i.toString()).length).toBeGreaterThan(0);
+      }
+    });
+
+    test('can toggle between front and back 9', () => {
+      render(<Scorecard {...defaultProps} currentHole={3} />);
+      // Should start on Front 9
+      expect(screen.getByText('Front 9')).toBeInTheDocument();
+      expect(screen.getByText('Back 9')).toBeInTheDocument();
+
+      // Click Back 9 to switch
+      fireEvent.click(screen.getByText('Back 9'));
+
+      // Now holes 10-18 should be visible
+      expect(screen.getAllByText('10').length).toBeGreaterThan(0);
     });
 
     test('renders all player names', () => {
@@ -170,20 +171,24 @@ describe('Scorecard', () => {
   });
 
   describe('Collapse/Expand', () => {
-    test('starts expanded by default', () => {
+    test('starts expanded by default with down arrow', () => {
       render(<Scorecard {...defaultProps} />);
-      expect(screen.getByText('Minimize')).toBeInTheDocument();
+      // Down arrow (▼) indicates expanded state
+      expect(screen.getByText('▼')).toBeInTheDocument();
     });
 
-    test('collapses when Minimize button clicked', () => {
+    test('collapses when SCORECARD header clicked', () => {
       render(<Scorecard {...defaultProps} />);
-      fireEvent.click(screen.getByText('Minimize'));
-      expect(screen.getByText('Expand')).toBeInTheDocument();
+      // Click on the SCORECARD text to collapse
+      fireEvent.click(screen.getByText('SCORECARD'));
+      // Right arrow (▶) indicates collapsed state
+      expect(screen.getByText('▶')).toBeInTheDocument();
     });
 
     test('shows collapsed view with player summaries', () => {
       render(<Scorecard {...defaultProps} />);
-      fireEvent.click(screen.getByText('Minimize'));
+      // Click to collapse
+      fireEvent.click(screen.getByText('SCORECARD'));
 
       // Should show OUT, IN, TOT labels in collapsed view
       expect(screen.getAllByText('OUT:').length).toBeGreaterThan(0);
@@ -206,8 +211,8 @@ describe('Scorecard', () => {
     test('switches to standings view when clicked', () => {
       render(<Scorecard {...defaultProps} captainId="p1" />);
       fireEvent.click(screen.getByText('Standings'));
-      // Button should now show "Scorecard"
-      expect(screen.getByText('Scorecard')).toBeInTheDocument();
+      // Button should now show "Scores" (to switch back)
+      expect(screen.getByText('Scores')).toBeInTheDocument();
     });
 
     test('highlights captain in standings view', () => {

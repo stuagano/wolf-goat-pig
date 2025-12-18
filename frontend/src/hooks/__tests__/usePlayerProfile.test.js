@@ -1,6 +1,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import usePlayerProfile from '../usePlayerProfile';
 
+// Create simple mock profiles without using factory (to match API response format)
 const mockProfiles = [
   { id: '1', name: 'Alice', handicap: 10 },
   { id: '2', name: 'Bob', handicap: 15 }
@@ -8,75 +9,103 @@ const mockProfiles = [
 
 const mockStatistics = { rounds: 5 };
 
-global.fetch = jest.fn();
+// Define mock functions that will be used by the mock implementation
+const mockGet = jest.fn();
+const mockPost = jest.fn();
+const mockPut = jest.fn();
+const mockDel = jest.fn();
+const mockClearError = jest.fn();
 
-const createMockStorage = () => ({
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn()
-});
+// Mock useFetchAsync - the default export must be jest.fn() to allow mockReturnValue
+jest.mock('../useFetchAsync', () => ({
+  __esModule: true,
+  default: jest.fn()
+}));
 
-const localStorageMock = createMockStorage();
-Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock,
-  writable: true
-});
+// Mock the storage utility
+jest.mock('../../utils/storage', () => ({
+  storage: {
+    get: jest.fn(() => null),
+    set: jest.fn(),
+    remove: jest.fn(),
+    has: jest.fn(() => false),
+    getKeys: jest.fn(() => []),
+    clear: jest.fn()
+  }
+}));
 
-global.URL = {
-  createObjectURL: jest.fn(() => 'mock-url'),
-  revokeObjectURL: jest.fn()
-};
+// Get reference to the mocked module so we can control it in tests
+import useFetchAsync from '../useFetchAsync';
+import { storage } from '../../utils/storage';
 
 describe('usePlayerProfile', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    fetch.mockImplementation(() =>
-      Promise.resolve({
-        ok: true,
-        json: async () => mockProfiles
-      })
-    );
+
+    // Configure mock implementations for each test
+    mockGet.mockResolvedValue(mockProfiles);
+    mockPost.mockResolvedValue({ id: '3', name: 'Carol', handicap: 20 });
+    mockPut.mockResolvedValue({});
+    mockDel.mockResolvedValue({});
+
+    // Override the useFetchAsync mock to use our test-specific mocks
+    useFetchAsync.mockReturnValue({
+      loading: false,
+      error: null,
+      get: mockGet,
+      post: mockPost,
+      put: mockPut,
+      del: mockDel,
+      clearError: mockClearError
+    });
+
+    storage.get.mockReturnValue(null);
   });
 
   const renderProfileHook = () => renderHook(() => usePlayerProfile());
 
+  test('hook initializes with empty profiles', () => {
+    const { result } = renderProfileHook();
+
+    expect(result.current).toBeDefined();
+    expect(result.current.profiles).toBeDefined();
+    expect(Array.isArray(result.current.profiles)).toBe(true);
+    expect(typeof result.current.selectProfile).toBe('function');
+    expect(typeof result.current.createProfile).toBe('function');
+  });
+
   test('loads profiles on mount', async () => {
     const { result } = renderProfileHook();
 
-    await waitFor(() => expect(result.current.profiles.length).toBe(2));
-    expect(fetch).toHaveBeenCalledWith('http://test-api.com/api/players');
+    // Wait for the effect to run and profiles to load
+    await waitFor(() => {
+      expect(result.current.profiles.length).toBe(2);
+    });
+
+    expect(mockGet).toHaveBeenCalledWith('/api/players', expect.any(String));
   });
 
   test('selectProfile updates selected profile and saves to localStorage', async () => {
     const { result } = renderProfileHook();
 
-    await waitFor(() => expect(result.current.profiles.length).toBe(2));
+    await waitFor(() => {
+      expect(result.current.profiles.length).toBe(2);
+    });
 
-    act(() => {
-      result.current.selectProfile(mockProfiles[0]);
+    await act(async () => {
+      await result.current.selectProfile(mockProfiles[0]);
     });
 
     expect(result.current.selectedProfile).toEqual(mockProfiles[0]);
-    expect(localStorageMock.setItem).toHaveBeenCalled();
+    expect(storage.set).toHaveBeenCalled();
   });
 
   test('createProfile posts to API and returns new profile', async () => {
-    fetch
-      .mockImplementationOnce(() =>
-        Promise.resolve({
-          ok: true,
-          json: async () => mockProfiles
-        })
-      )
-      .mockImplementationOnce(() =>
-        Promise.resolve({
-          ok: true,
-          json: async () => ({ id: '3', name: 'Carol', handicap: 20 })
-        })
-      );
-
     const { result } = renderProfileHook();
-    await waitFor(() => expect(result.current.profiles.length).toBe(2));
+
+    await waitFor(() => {
+      expect(result.current.profiles.length).toBe(2);
+    });
 
     let created;
     await act(async () => {
@@ -84,26 +113,23 @@ describe('usePlayerProfile', () => {
     });
 
     expect(created).toEqual({ id: '3', name: 'Carol', handicap: 20 });
-    expect(fetch).toHaveBeenCalledWith('http://test-api.com/api/players', expect.any(Object));
+    expect(mockPost).toHaveBeenCalledWith(
+      '/api/players',
+      { name: 'Carol', handicap: 20 },
+      expect.any(String)
+    );
   });
 
   test('loadProfileStatistics caches results', async () => {
-    fetch
-      .mockImplementationOnce(() =>
-        Promise.resolve({
-          ok: true,
-          json: async () => mockProfiles
-        })
-      )
-      .mockImplementationOnce(() =>
-        Promise.resolve({
-          ok: true,
-          json: async () => mockStatistics
-        })
-      );
+    mockGet
+      .mockResolvedValueOnce(mockProfiles) // First call: profiles
+      .mockResolvedValueOnce(mockStatistics); // Second call: statistics
 
     const { result } = renderProfileHook();
-    await waitFor(() => expect(result.current.profiles.length).toBe(2));
+
+    await waitFor(() => {
+      expect(result.current.profiles.length).toBe(2);
+    });
 
     let stats;
     await act(async () => {
@@ -111,6 +137,6 @@ describe('usePlayerProfile', () => {
     });
 
     expect(stats).toEqual(mockStatistics);
-    expect(fetch).toHaveBeenCalledWith('http://test-api.com/api/players/1/statistics');
+    expect(mockGet).toHaveBeenCalledWith('/api/players/1/statistics', expect.any(String));
   });
 });

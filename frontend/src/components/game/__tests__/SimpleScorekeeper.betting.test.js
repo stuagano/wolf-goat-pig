@@ -2,6 +2,11 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import SimpleScorekeeper from '../SimpleScorekeeper';
+import {
+  createMockTheme,
+  createMockPlayers,
+  createMockCourseHoles
+} from '../../../test-utils/mockFactories';
 
 // Mock fetch globally
 global.fetch = jest.fn(() =>
@@ -14,7 +19,7 @@ global.fetch = jest.fn(() =>
 // Mock ThemeProvider
 jest.mock('../../../theme/Provider', () => ({
   ThemeProvider: ({ children }) => <div>{children}</div>,
-  useTheme: () => ({
+  useTheme: () => require('../../../test-utils/mockFactories').createMockTheme({
     colors: {
       primary: '#059669',
       textPrimary: '#1f2937',
@@ -72,16 +77,15 @@ jest.mock('../../BadgeNotification', () => ({
 }));
 
 describe('SimpleScorekeeper - Betting Interface', () => {
-  const mockPlayers = [
-    { id: 'p1', name: 'Alice', handicap: 10 },
-    { id: 'p2', name: 'Bob', handicap: 15 },
-    { id: 'p3', name: 'Charlie', handicap: 8 },
-    { id: 'p4', name: 'Diana', handicap: 12 }
-  ];
+  const mockPlayers = createMockPlayers(4).map((player, i) => ({
+    id: `p${i + 1}`,
+    name: ['Alice', 'Bob', 'Charlie', 'Diana'][i],
+    handicap: [10, 15, 8, 12][i]
+  }));
 
   const mockCourse = {
     name: 'Test Course',
-    holes: Array.from({ length: 18 }, (_, i) => ({
+    holes: createMockCourseHoles(18).map((hole, i) => ({
       hole_number: i + 1,
       par: 4,
       handicap: i + 1,
@@ -174,18 +178,24 @@ describe('SimpleScorekeeper - Betting Interface', () => {
     test('should double wager when Double button is clicked', () => {
       render(<SimpleScorekeeper {...defaultProps} />);
 
-      const doubleButton = screen.getByRole('button', { name: /Double/i });
+      // Expand advanced betting section first
+      const advancedToggle = screen.getByRole('button', { name: /Double, Float, Option/i });
+      fireEvent.click(advancedToggle);
+
+      const doubleButton = screen.getByRole('button', { name: /^Double$/i });
       fireEvent.click(doubleButton);
 
       expect(findWagerText(2)).toBe(true);
     });
 
-    // TODO: This test needs to be updated to handle the offer/accept flow
-    // The Double button now creates a pending offer that needs acceptance
-    test.skip('should double multiple times', () => {
+    test('should double multiple times', () => {
       render(<SimpleScorekeeper {...defaultProps} />);
 
-      const doubleButton = screen.getByRole('button', { name: /Double/i });
+      // Expand advanced betting section first
+      const advancedToggle = screen.getByRole('button', { name: /Double, Float, Option/i });
+      fireEvent.click(advancedToggle);
+
+      const doubleButton = screen.getByRole('button', { name: /^Double$/i });
 
       // First double: 1 -> 2
       fireEvent.click(doubleButton);

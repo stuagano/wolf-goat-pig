@@ -18,6 +18,9 @@ import { useTutorial } from '../../../context/TutorialContext';
 import { useTutorialProgress } from '../../../hooks/useTutorialProgress';
 import { useTheme } from '../../../theme/Provider';
 
+// Import mock factories
+import { createMockTheme, createMockTutorialContext } from '../../../test-utils/mockFactories';
+
 // Mock the ProgressTracker component since we need to implement it
 const ProgressTracker = ({ className, ...props }) => {
   const tutorial = useTutorial();
@@ -140,13 +143,11 @@ describe.skip('ProgressTracker', () => {
       navigateToModule: jest.fn()
     };
 
-    mockTheme = {
+    mockTheme = createMockTheme({
       colors: {
-        primary: '#007bff',
-        success: '#28a745',
         accent: '#17a2b8'
       }
-    };
+    });
 
     mockUseTutorial.mockReturnValue(mockTutorial);
     mockUseTutorialProgress.mockReturnValue(mockProgress);

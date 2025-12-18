@@ -6,7 +6,17 @@ import '@testing-library/jest-dom';
 import { ThemeProvider } from '../../theme/Provider';
 import PlayerProfileManager from '../PlayerProfileManager';
 
-global.fetch = jest.fn();
+// Mock the API utilities
+jest.mock('../../utils', () => ({
+  ...jest.requireActual('../../utils'),
+  apiGet: jest.fn(),
+  apiPost: jest.fn(),
+  apiPut: jest.fn(),
+  apiDelete: jest.fn(),
+}));
+
+import { apiGet, apiPost, apiPut, apiDelete } from '../../utils';
+
 global.confirm = jest.fn();
 
 const mockProfiles = [
@@ -36,12 +46,6 @@ const TestWrapper = ({ children }) => (
   </ThemeProvider>
 );
 
-const defaultProfilesResponse = () =>
-  Promise.resolve({
-    ok: true,
-    json: async () => mockProfiles
-  });
-
 describe('PlayerProfileManager', () => {
   let mockOnProfileSelect;
 
@@ -55,8 +59,8 @@ describe('PlayerProfileManager', () => {
 
   beforeEach(() => {
     mockOnProfileSelect = jest.fn();
-    fetch.mockReset();
-    fetch.mockImplementation(defaultProfilesResponse);
+    jest.clearAllMocks();
+    apiGet.mockResolvedValue(mockProfiles);
     global.confirm.mockReset();
   });
 
@@ -81,7 +85,7 @@ describe('PlayerProfileManager', () => {
   });
 
   test('shows error banner when loading fails', async () => {
-    fetch.mockImplementationOnce(() => Promise.reject(new Error('Network error')));
+    apiGet.mockRejectedValueOnce(new Error('Network error'));
 
     renderManager();
 
@@ -91,12 +95,7 @@ describe('PlayerProfileManager', () => {
   });
 
   test('handles null or malformed profiles gracefully', async () => {
-    fetch.mockImplementationOnce(() =>
-      Promise.resolve({
-        ok: true,
-        json: async () => [null, { id: null, name: 'Mystery Player', handicap: null }]
-      })
-    );
+    apiGet.mockResolvedValueOnce([null, { id: null, name: 'Mystery Player', handicap: null }]);
 
     renderManager();
 

@@ -18,15 +18,22 @@ import '@testing-library/jest-dom';
 // Test utilities and providers
 import { ThemeProvider } from '../../theme/Provider';
 import { TutorialContext } from '../../context/TutorialContext';
+import {
+  createMockTheme,
+  createMockGameState,
+  createMockPlayers,
+  createMockOddsResponse,
+  createMockBettingScenario
+} from '../../test-utils/mockFactories';
 
 // Component under test
-const GameDashboard = ({ 
-  gameState, 
-  onActionTaken, 
-  onBettingAction, 
+const GameDashboard = ({
+  gameState,
+  onActionTaken,
+  onBettingAction,
   onViewChange,
   currentView = 'overview',
-  realTimeUpdates = true 
+  realTimeUpdates = true
 }) => {
   const [selectedPlayer, setSelectedPlayer] = React.useState(null);
   const [showBettingPanel, setShowBettingPanel] = React.useState(false);
@@ -302,7 +309,7 @@ const GameDashboard = ({
 };
 
 // Mock providers and contexts
-const mockGameState = {
+const mockGameState = createMockGameState('mid_game', {
   currentHole: 8,
   players: [
     {
@@ -358,7 +365,7 @@ const mockGameState = {
       },
       {
         description: 'Alice & Bob partnership vs Carol',
-        odds: '3:2', 
+        odds: '3:2',
         potential: 18.00
       }
     ],
@@ -375,7 +382,7 @@ const mockGameState = {
     partnershipSuccesses: 6,
     totalPartnerships: 8
   }
-};
+});
 
 const TestWrapper = ({ children }) => (
   <ThemeProvider>

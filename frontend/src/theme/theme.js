@@ -1,32 +1,46 @@
 /**
  * Simplified Unified Theme System for Wolf Goat Pig
+ * Supports light and dark mode
  */
 
-// Base color palette
-export const colors = {
+// Base color palette (shared colors)
+const baseColors = {
   // Primary brand colors (golf course greens)
   primary: '#047857', // deep forest green
-  primaryLight: '#059669', // emerald green  
+  primaryLight: '#059669', // emerald green
   primaryDark: '#065F46', // pine green
-  
+
   // Secondary/accent colors (water blues)
   accent: '#0369A1', // deep water blue
   accentLight: '#0EA5E9', // sky blue
   accentDark: '#0C4A6E', // dark blue
-  
+
   // Semantic colors
   success: '#388e3c',
   successLight: '#66bb6a',
   successDark: '#1b5e20',
-  
+
   warning: '#ff9800',
   warningLight: '#ffa726',
   warningDark: '#f57c00',
-  
+
   error: '#d32f2f',
   errorLight: '#ef5350',
   errorDark: '#b71c1c',
-  
+
+  // Special WGP colors (golf course inspired)
+  hoepfinger: '#9c27b0',
+  vinnie: '#795548', // earth brown
+  gold: '#B45309', // warm sand/bronze
+  purple: '#9b59b6',
+  sandTrap: '#D2B48C', // sand color
+  fairway: '#22C55E', // bright fairway green
+};
+
+// Light mode colors
+export const lightColors = {
+  ...baseColors,
+
   // Neutral colors
   gray50: '#fafafa',
   gray100: '#f5f5f5',
@@ -38,28 +52,64 @@ export const colors = {
   gray700: '#616161',
   gray800: '#424242',
   gray900: '#212121',
-  
-  // Special WGP colors (golf course inspired)
-  hoepfinger: '#9c27b0',
-  vinnie: '#795548', // earth brown
-  gold: '#B45309', // warm sand/bronze
-  purple: '#9b59b6',
-  sandTrap: '#D2B48C', // sand color
-  fairway: '#22C55E', // bright fairway green
-  
+
   // Background and surface colors
   background: '#f9fafe',
   paper: '#ffffff',
-  
+
   // Text colors
   textPrimary: '#212121',
   textSecondary: '#757575',
   textDisabled: '#bdbdbd',
-  
+
   // Border colors
   border: '#e0e0e0',
   borderMedium: '#bdbdbd',
+
+  // Input colors
+  inputBackground: '#ffffff',
 };
+
+// Dark mode colors
+export const darkColors = {
+  ...baseColors,
+
+  // Adjust primary for better visibility on dark
+  primary: '#10B981', // brighter emerald for dark mode
+  primaryLight: '#34D399',
+  primaryDark: '#059669',
+
+  // Neutral colors (inverted)
+  gray50: '#1a1a1a',
+  gray100: '#242424',
+  gray200: '#2d2d2d',
+  gray300: '#383838',
+  gray400: '#4a4a4a',
+  gray500: '#6b6b6b',
+  gray600: '#8c8c8c',
+  gray700: '#a3a3a3',
+  gray800: '#c4c4c4',
+  gray900: '#e5e5e5',
+
+  // Background and surface colors
+  background: '#121212',
+  paper: '#1e1e1e',
+
+  // Text colors
+  textPrimary: '#e5e5e5',
+  textSecondary: '#a3a3a3',
+  textDisabled: '#6b6b6b',
+
+  // Border colors
+  border: '#383838',
+  borderMedium: '#4a4a4a',
+
+  // Input colors
+  inputBackground: '#2d2d2d',
+};
+
+// Default to light colors for backwards compatibility
+export const colors = lightColors;
 
 // Typography system
 export const typography = {
@@ -154,64 +204,6 @@ export const inputStyle = {
   color: colors.textPrimary,
 };
 
-// Style variant creators
-export const createCardVariant = (variant) => {
-  const variants = {
-    default: cardStyle,
-    elevated: {
-      ...cardStyle,
-      boxShadow: shadows.md
-    },
-    success: {
-      ...cardStyle,
-      borderLeft: `4px solid ${colors.success}`,
-      backgroundColor: '#e8f5e8'
-    },
-    warning: {
-      ...cardStyle,
-      borderLeft: `4px solid ${colors.warning}`,
-      backgroundColor: '#fff3e0'
-    },
-    error: {
-      ...cardStyle,
-      borderLeft: `4px solid ${colors.error}`,
-      backgroundColor: '#ffebee'
-    }
-  };
-  return variants[variant] || variants.default;
-};
-
-export const createButtonVariant = (variant) => {
-  const variants = {
-    primary: buttonStyle,
-    secondary: {
-      ...buttonStyle,
-      backgroundColor: colors.gray200,
-      color: colors.textPrimary,
-      border: `1px solid ${colors.border}`
-    },
-    success: {
-      ...buttonStyle,
-      backgroundColor: colors.success
-    },
-    warning: {
-      ...buttonStyle,
-      backgroundColor: colors.warning
-    },
-    error: {
-      ...buttonStyle,
-      backgroundColor: colors.error
-    },
-    ghost: {
-      ...buttonStyle,
-      backgroundColor: 'transparent',
-      color: colors.primary,
-      border: `1px solid ${colors.primary}`
-    }
-  };
-  return variants[variant] || variants.primary;
-};
-
 // Layout utilities
 export const layout = {
   container: {
@@ -219,13 +211,13 @@ export const layout = {
     margin: '0 auto',
     padding: `0 ${spacing[5]}`
   },
-  
+
   flexCenter: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center'
   },
-  
+
   flexBetween: {
     display: 'flex',
     alignItems: 'center',
@@ -233,19 +225,123 @@ export const layout = {
   }
 };
 
-// Export the complete theme object
-export const theme = {
-  colors,
-  typography,
-  spacing,
-  borderRadius,
-  shadows,
-  cardStyle,
-  buttonStyle,
-  inputStyle,
-  createCardVariant,
-  createButtonVariant,
-  layout
+// Function to create theme object for a given color palette
+export const createTheme = (themeColors, mode = 'light') => {
+  const themedCardStyle = {
+    background: themeColors.paper,
+    borderRadius: borderRadius.md,
+    boxShadow: mode === 'dark' ? 'none' : shadows.base,
+    padding: spacing[4],
+    marginBottom: spacing[4],
+    border: `1px solid ${themeColors.border}`,
+  };
+
+  const themedButtonStyle = {
+    background: themeColors.primary,
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: borderRadius.base,
+    padding: `${spacing[3]} ${spacing[6]}`,
+    fontWeight: typography.semibold,
+    fontSize: typography.base,
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    fontFamily: typography.fontFamily,
+  };
+
+  const themedInputStyle = {
+    border: `1px solid ${themeColors.border}`,
+    borderRadius: borderRadius.base,
+    padding: `${spacing[3]} ${spacing[4]}`,
+    fontSize: typography.base,
+    fontFamily: typography.fontFamily,
+    width: '100%',
+    backgroundColor: themeColors.inputBackground || themeColors.paper,
+    color: themeColors.textPrimary,
+  };
+
+  const createCardVariant = (variant) => {
+    const successBg = mode === 'dark' ? '#1a3a1a' : '#e8f5e8';
+    const warningBg = mode === 'dark' ? '#3a2a1a' : '#fff3e0';
+    const errorBg = mode === 'dark' ? '#3a1a1a' : '#ffebee';
+
+    const variants = {
+      default: themedCardStyle,
+      elevated: {
+        ...themedCardStyle,
+        boxShadow: mode === 'dark' ? '0 4px 12px rgba(0, 0, 0, 0.3)' : shadows.md
+      },
+      success: {
+        ...themedCardStyle,
+        borderLeft: `4px solid ${themeColors.success}`,
+        backgroundColor: successBg
+      },
+      warning: {
+        ...themedCardStyle,
+        borderLeft: `4px solid ${themeColors.warning}`,
+        backgroundColor: warningBg
+      },
+      error: {
+        ...themedCardStyle,
+        borderLeft: `4px solid ${themeColors.error}`,
+        backgroundColor: errorBg
+      }
+    };
+    return variants[variant] || variants.default;
+  };
+
+  const createButtonVariant = (variant) => {
+    const variants = {
+      primary: themedButtonStyle,
+      secondary: {
+        ...themedButtonStyle,
+        backgroundColor: themeColors.gray200,
+        color: themeColors.textPrimary,
+        border: `1px solid ${themeColors.border}`
+      },
+      success: {
+        ...themedButtonStyle,
+        backgroundColor: themeColors.success
+      },
+      warning: {
+        ...themedButtonStyle,
+        backgroundColor: themeColors.warning
+      },
+      error: {
+        ...themedButtonStyle,
+        backgroundColor: themeColors.error
+      },
+      ghost: {
+        ...themedButtonStyle,
+        backgroundColor: 'transparent',
+        color: themeColors.primary,
+        border: `1px solid ${themeColors.primary}`
+      }
+    };
+    return variants[variant] || variants.primary;
+  };
+
+  return {
+    mode,
+    colors: themeColors,
+    typography,
+    spacing,
+    borderRadius,
+    shadows,
+    cardStyle: themedCardStyle,
+    buttonStyle: themedButtonStyle,
+    inputStyle: themedInputStyle,
+    createCardVariant,
+    createButtonVariant,
+    layout
+  };
 };
+
+// Pre-built light and dark themes
+export const lightTheme = createTheme(lightColors, 'light');
+export const darkTheme = createTheme(darkColors, 'dark');
+
+// Export the complete theme object (default light for backwards compatibility)
+export const theme = lightTheme;
 
 export default theme;

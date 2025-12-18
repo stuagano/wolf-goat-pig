@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from './ui';
-
-const API_URL = process.env.REACT_APP_API_URL || '';
+import { apiGet, apiPost, apiPut, apiDelete } from '../utils';
+import { UI_COLORS } from '../constants/colors';
 
 /**
  * PlayerProfileManager - Component for managing player profiles
@@ -40,11 +40,7 @@ const PlayerProfileManager = ({ onProfileSelect, selectedProfile, showSelector =
     const loadProfiles = async () => {
         try {
             setLoading(true);
-            const response = await fetch(`${API_URL}/api/players`);
-            if (!response.ok) {
-                throw new Error('Failed to load profiles');
-            }
-            const data = await response.json();
+            const data = await apiGet('/api/players');
             setProfiles(data);
             setError(null);
         } catch (err) {
@@ -59,22 +55,11 @@ const PlayerProfileManager = ({ onProfileSelect, selectedProfile, showSelector =
         e.preventDefault();
         try {
             setLoading(true);
-            const response = await fetch(`${API_URL}/api/players`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'Failed to create profile');
-            }
-
-            const newProfile = await response.json();
+            const newProfile = await apiPost('/api/players', formData);
             setProfiles([...profiles, newProfile]);
             resetForm();
             setError(null);
-            
+
             // Auto-select the newly created profile
             if (onProfileSelect) {
                 onProfileSelect(newProfile);
@@ -91,18 +76,7 @@ const PlayerProfileManager = ({ onProfileSelect, selectedProfile, showSelector =
         e.preventDefault();
         try {
             setLoading(true);
-            const response = await fetch(`${API_URL}/api/players/${editingProfile.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'Failed to update profile');
-            }
-
-            const updatedProfile = await response.json();
+            const updatedProfile = await apiPut(`/api/players/${editingProfile.id}`, formData);
             setProfiles(profiles.map(p => p.id === updatedProfile.id ? updatedProfile : p));
             resetForm();
             setError(null);
@@ -121,17 +95,10 @@ const PlayerProfileManager = ({ onProfileSelect, selectedProfile, showSelector =
 
         try {
             setLoading(true);
-            const response = await fetch(`${API_URL}/api/players/${profileId}`, {
-                method: 'DELETE'
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to delete profile');
-            }
-
+            await apiDelete(`/api/players/${profileId}`);
             setProfiles(profiles.filter(p => p.id !== profileId));
             setError(null);
-            
+
             // Clear selection if deleted profile was selected
             if (selectedProfile && selectedProfile.id === profileId && onProfileSelect) {
                 onProfileSelect(null);
@@ -182,11 +149,12 @@ const PlayerProfileManager = ({ onProfileSelect, selectedProfile, showSelector =
     };
 
     const getHandicapCategory = (handicap) => {
-        if (handicap <= 5) return { category: 'Scratch', color: 'text-green-600' };
-        if (handicap <= 12) return { category: 'Low', color: 'text-blue-600' };
-        if (handicap <= 18) return { category: 'Mid', color: 'text-yellow-600' };
-        if (handicap <= 25) return { category: 'High', color: 'text-orange-600' };
-        return { category: 'Beginner', color: 'text-red-600' };
+        // Using Tailwind classes mapped to UI_COLORS for consistency
+        if (handicap <= 5) return { category: 'Scratch', color: 'text-green-600' }; // success
+        if (handicap <= 12) return { category: 'Low', color: 'text-blue-600' };     // primary
+        if (handicap <= 18) return { category: 'Mid', color: 'text-yellow-600' };   // warning
+        if (handicap <= 25) return { category: 'High', color: 'text-orange-600' };  // warning
+        return { category: 'Beginner', color: 'text-red-600' };                     // error
     };
 
     if (loading && profiles.length === 0) {

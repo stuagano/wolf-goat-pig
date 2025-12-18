@@ -12,13 +12,19 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { act } from 'react-dom/test-utils';
 
-// Test utilities and providers
-import { ThemeProvider } from '../../theme/Provider';
+// Test utilities
+import { renderWithContext } from '../../test-utils/testHelpers';
+import {
+  createMockGameState,
+  createMockOddsResponse,
+  createMockEventHandlers,
+  createMockFetchResponse
+} from '../../test-utils/mockFactories';
 
 // Component under test
 import BettingOddsPanel from '../BettingOddsPanel';
@@ -83,125 +89,38 @@ jest.mock('../ui', () => ({
   }
 }));
 
-const mockGameState = {
-  active: true,
-  current_hole: 8,
-  current_hole_par: 4,
-  hole_difficulty: 3.5,
-  human_player: 'player1',
-  current_leader: 'player2',
-  players: [
-    {
-      id: 'player1',
-      name: 'Alice',
-      handicap: 12,
-      current_score: 32,
-      shots_taken: 1,
-      distance_to_pin: 150,
-      lie_type: 'fairway',
-      is_captain: true,
-      team_id: 'team_a'
-    },
-    {
-      id: 'player2',
-      name: 'Bob',
-      handicap: 18,
-      current_score: 38,
-      shots_taken: 2,
-      distance_to_pin: 180,
-      lie_type: 'rough',
-      is_captain: false,
-      team_id: 'team_b'
-    }
-  ],
-  teams: { type: 'partnerships' },
-  current_wager: 2,
-  is_doubled: false,
-  line_of_scrimmage_passed: true
-};
-
-const mockOddsResponse = {
-  timestamp: '2024-01-15T10:30:00Z',
-  calculation_time_ms: 145.2,
-  confidence_level: 0.87,
-  monte_carlo_used: true,
-  player_probabilities: {
-    player1: {
-      name: 'Alice',
-      win_probability: 0.65,
-      expected_score: 4.2,
-      risk_factors: ['weather', 'lie']
-    },
-    player2: {
-      name: 'Bob',
-      win_probability: 0.35,
-      expected_score: 4.8,
-      risk_factors: ['distance', 'lie']
-    }
-  },
-  team_probabilities: {
-    team_a: 0.58,
-    team_b: 0.42
-  },
-  optimal_strategy: 'conservative_play',
-  betting_scenarios: [
-    {
-      scenario_type: 'double_down',
-      win_probability: 0.62,
-      expected_value: 1.25,
-      risk_level: 'medium',
-      reasoning: 'Alice has favorable position with good lie and manageable distance',
-      confidence_interval: [0.55, 0.69],
-      payout_matrix: {
-        win: 4.00,
-        loss: -2.00,
-        push: 0.00
-      },
-      recommendation: 'offer'
-    },
-    {
-      scenario_type: 'side_bet',
-      win_probability: 0.45,
-      expected_value: -0.15,
-      risk_level: 'high',
-      reasoning: 'Bob faces challenging rough lie with increased distance',
-      confidence_interval: [0.38, 0.52],
-      payout_matrix: {
-        win: 2.50,
-        loss: -1.50
-      },
-      recommendation: 'decline'
-    }
-  ],
-  risk_assessment: {
-    volatility: 0.23,
-    weather_factor: 1.0,
-    course_difficulty: 3.5,
-    player_fatigue: 0.15
-  },
-  educational_insights: [
-    'Alice\'s fairway lie provides significant advantage over rough',
-    'Current hole difficulty (3.5/5) suggests moderate challenge',
-    'Team partnerships favor balanced risk-taking approach'
-  ],
-  simulation_details: {
-    num_simulations_run: 5000,
-    convergence_achieved: true,
-    monte_carlo_variance: 0.012
-  }
-};
-
-const TestWrapper = ({ children }) => (
-  <ThemeProvider>
-    {children}
-  </ThemeProvider>
-);
-
 describe.skip('BettingOddsPanel', () => {
-  let mockOnBettingAction;
-  
+  let gameState;
+  let oddsResponse;
+  let handlers;
+
   beforeEach(() => {
-    mockOnBettingAction = jest.fn();
+    // Use mock factories for consistent test data
+    gameState = createMockGameState('mid_game', {
+      current_hole: 8,
+      human_player: 'player_1',
+      current_leader: 'player_2'
+    });
+
+    oddsResponse = createMockOddsResponse({
+      player_probabilities: {
+        player_1: {
+          name: 'Alice',
+          win_probability: 0.65,
+          expected_score: 4.2,
+          risk_factors: ['weather', 'lie']
+        },
+        player_2: {
+          name: 'Bob',
+          win_probability: 0.35,
+          expected_score: 4.8,
+          risk_factors: ['distance', 'lie']
+        }
+      }
+    });
+
+    handlers = createMockEventHandlers();
+
     fetch.mockClear();
     jest.useFakeTimers();
   });
@@ -218,13 +137,11 @@ describe.skip('BettingOddsPanel', () => {
       // Mock pending fetch
       fetch.mockImplementation(() => new Promise(() => {}));
 
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
-          />
-        </TestWrapper>
+      renderWithContext(
+        <BettingOddsPanel
+          gameState={gameState}
+          onBettingAction={handlers.onBettingAction}
+        />
       );
 
       expect(screen.getByText('Calculating odds...')).toBeInTheDocument();
@@ -235,13 +152,11 @@ describe.skip('BettingOddsPanel', () => {
     test('renders error state when fetch fails', async () => {
       fetch.mockRejectedValueOnce(new Error('Network error'));
 
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
-          />
-        </TestWrapper>
+      renderWithContext(
+        <BettingOddsPanel
+          gameState={gameState}
+          onBettingAction={handlers.onBettingAction}
+        />
       );
 
       await waitFor(() => {
@@ -253,22 +168,17 @@ describe.skip('BettingOddsPanel', () => {
 
     test('retries on error when retry button clicked', async () => {
       const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
-      
+
       // First call fails
       fetch.mockRejectedValueOnce(new Error('Network error'));
-      // Second call succeeds
-      fetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockOddsResponse
-      });
+      // Second call succeeds - use mock factory
+      fetch.mockResolvedValueOnce(createMockFetchResponse(oddsResponse));
 
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
-          />
-        </TestWrapper>
+      renderWithContext(
+        <BettingOddsPanel
+          gameState={gameState}
+          onBettingAction={handlers.onBettingAction}
+        />
       );
 
       // Wait for error state
@@ -287,30 +197,26 @@ describe.skip('BettingOddsPanel', () => {
     });
 
     test('renders nothing when gameState is inactive', () => {
-      const inactiveGameState = { ...mockGameState, active: false };
-      
-      const { container } = render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={inactiveGameState} 
-            onBettingAction={mockOnBettingAction}
-          />
-        </TestWrapper>
+      const inactiveGameState = createMockGameState('mid_game', { status: 'inactive' });
+
+      const { container } = renderWithContext(
+        <BettingOddsPanel
+          gameState={inactiveGameState}
+          onBettingAction={handlers.onBettingAction}
+        />
       );
 
       expect(container.firstChild).toBeNull();
     });
 
     test('renders nothing when no players', () => {
-      const noPlayersGameState = { ...mockGameState, players: [] };
-      
-      const { container } = render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={noPlayersGameState} 
-            onBettingAction={mockOnBettingAction}
-          />
-        </TestWrapper>
+      const noPlayersGameState = createMockGameState('mid_game', { players: [] });
+
+      const { container } = renderWithContext(
+        <BettingOddsPanel
+          gameState={noPlayersGameState}
+          onBettingAction={handlers.onBettingAction}
+        />
       );
 
       expect(container.firstChild).toBeNull();
@@ -319,20 +225,15 @@ describe.skip('BettingOddsPanel', () => {
 
   describe('Successful Data Loading and Display', () => {
     beforeEach(() => {
-      fetch.mockResolvedValue({
-        ok: true,
-        json: async () => mockOddsResponse
-      });
+      fetch.mockResolvedValue(createMockFetchResponse(oddsResponse));
     });
 
     test('displays odds panel with header information', async () => {
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
-          />
-        </TestWrapper>
+      renderWithContext(
+        <BettingOddsPanel
+          gameState={gameState}
+          onBettingAction={handlers.onBettingAction}
+        />
       );
 
       await waitFor(() => {

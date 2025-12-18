@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import AllPlayersAvailability from '../AllPlayersAvailability';
+import { createMockFetchResponse } from '../../../test-utils/mockFactories';
 
 // Mock fetch
 global.fetch = jest.fn();
@@ -58,10 +59,7 @@ describe('AllPlayersAvailability', () => {
   });
 
   test('renders weekly overview by default', async () => {
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockPlayersData
-    });
+    fetch.mockResolvedValueOnce(createMockFetchResponse(mockPlayersData));
 
     render(<AllPlayersAvailability />);
 
@@ -73,10 +71,7 @@ describe('AllPlayersAvailability', () => {
   });
 
   test('switches to day detail view when clicking day tab', async () => {
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockPlayersData
-    });
+    fetch.mockResolvedValueOnce(createMockFetchResponse(mockPlayersData));
 
     render(<AllPlayersAvailability />);
 
@@ -90,10 +85,7 @@ describe('AllPlayersAvailability', () => {
   });
 
   test('shows "All Days" view when clicking All Days tab', async () => {
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockPlayersData
-    });
+    fetch.mockResolvedValueOnce(createMockFetchResponse(mockPlayersData));
 
     render(<AllPlayersAvailability />);
 
@@ -110,10 +102,7 @@ describe('AllPlayersAvailability', () => {
   });
 
   test('displays player time ranges correctly', async () => {
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockPlayersData
-    });
+    fetch.mockResolvedValueOnce(createMockFetchResponse(mockPlayersData));
 
     render(<AllPlayersAvailability />);
 
@@ -126,10 +115,7 @@ describe('AllPlayersAvailability', () => {
   });
 
   test('displays player notes when available', async () => {
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockPlayersData
-    });
+    fetch.mockResolvedValueOnce(createMockFetchResponse(mockPlayersData));
 
     render(<AllPlayersAvailability />);
 
@@ -140,10 +126,7 @@ describe('AllPlayersAvailability', () => {
   });
 
   test('handles empty availability data', async () => {
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => []
-    });
+    fetch.mockResolvedValueOnce(createMockFetchResponse([]));
 
     render(<AllPlayersAvailability />);
 
@@ -166,10 +149,7 @@ describe('AllPlayersAvailability', () => {
   });
 
   test('shows correct statistics', async () => {
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockPlayersData
-    });
+    fetch.mockResolvedValueOnce(createMockFetchResponse(mockPlayersData));
 
     render(<AllPlayersAvailability />);
 

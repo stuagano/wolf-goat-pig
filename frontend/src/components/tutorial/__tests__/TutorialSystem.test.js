@@ -22,6 +22,9 @@ import { useTutorial } from '../../../context/TutorialContext';
 import { useTutorialProgress } from '../../../hooks/useTutorialProgress';
 import { useTheme } from '../../../theme/Provider';
 
+// Import mock factories
+import { createMockTheme, createMockTutorialContext } from '../../../test-utils/mockFactories';
+
 import TutorialSystem from '../TutorialSystem';
 
 jest.mock('../../../context/TutorialContext', () => ({
@@ -173,18 +176,15 @@ describe('TutorialSystem', () => {
       })
     };
 
-    // Mock theme
-    mockTheme = {
+    // Mock theme using factory
+    mockTheme = createMockTheme({
       colors: {
         background: '#ffffff',
-        primary: '#007bff',
         paper: '#f8f9fa',
         border: '#dee2e6',
         textPrimary: '#212529',
         textSecondary: '#6c757d',
-        success: '#28a745',
         accent: '#17a2b8',
-        error: '#dc3545',
         gray50: '#f8f9fa',
         gray100: '#e9ecef',
         gray300: '#adb5bd',
@@ -234,7 +234,7 @@ describe('TutorialSystem', () => {
         border: '1px solid #dee2e6',
         borderRadius: '4px'
       }
-    };
+    });
 
     // Mock callback functions
     mockOnComplete = jest.fn();

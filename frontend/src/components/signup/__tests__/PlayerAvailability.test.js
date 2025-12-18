@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import PlayerAvailability from '../PlayerAvailability';
 import { useAuth0 as mockUseAuth0 } from '@auth0/auth0-react';
+import { createMockFetchResponse, createMockUser } from '../../../test-utils/mockFactories';
 
 // Mock Auth0
 jest.mock('@auth0/auth0-react', () => ({
@@ -31,17 +32,14 @@ const mockAvailabilityData = [
   }
 ];
 
-const defaultAvailabilityResponse = () => Promise.resolve({
-  ok: true,
-  json: async () => []
-});
+const defaultAvailabilityResponse = () => createMockFetchResponse([]);
 
 describe('PlayerAvailability', () => {
   beforeEach(() => {
     fetch.mockReset();
     fetch.mockImplementation(defaultAvailabilityResponse);
     mockUseAuth0.mockReturnValue({
-      user: { id: 'user123', name: 'Test User' },
+      user: createMockUser({ id: 'user123', name: 'Test User' }),
       getAccessTokenSilently: jest.fn().mockResolvedValue('mock-token'),
       isAuthenticated: true
     });
@@ -56,10 +54,7 @@ describe('PlayerAvailability', () => {
   });
 
   test('renders availability form after loading', async () => {
-    fetch.mockImplementationOnce(() => Promise.resolve({
-      ok: true,
-      json: async () => mockAvailabilityData
-    }));
+    fetch.mockImplementationOnce(() => createMockFetchResponse(mockAvailabilityData));
 
     render(<PlayerAvailability />);
 
@@ -72,10 +67,7 @@ describe('PlayerAvailability', () => {
   });
 
   test('shows correct initial state from API data', async () => {
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockAvailabilityData
-    });
+    fetch.mockResolvedValueOnce(createMockFetchResponse(mockAvailabilityData));
 
     render(<PlayerAvailability />);
 
@@ -93,10 +85,7 @@ describe('PlayerAvailability', () => {
   });
 
   test('toggles availability when checkbox is clicked', async () => {
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockAvailabilityData
-    });
+    fetch.mockResolvedValueOnce(createMockFetchResponse(mockAvailabilityData));
 
     render(<PlayerAvailability />);
 
@@ -111,10 +100,7 @@ describe('PlayerAvailability', () => {
   });
 
   test('shows time selectors when available is checked', async () => {
-    fetch.mockImplementationOnce(() => Promise.resolve({
-      ok: true,
-      json: async () => mockAvailabilityData
-    }));
+    fetch.mockImplementationOnce(() => createMockFetchResponse(mockAvailabilityData));
 
     render(<PlayerAvailability />);
 
@@ -129,14 +115,8 @@ describe('PlayerAvailability', () => {
 
   test('saves availability when save button is clicked', async () => {
     fetch
-      .mockImplementationOnce(() => Promise.resolve({
-        ok: true,
-        json: async () => mockAvailabilityData
-      }))
-      .mockImplementationOnce(() => Promise.resolve({
-        ok: true,
-        json: async () => ({ ...mockAvailabilityData[0], notes: 'Updated note' })
-      }));
+      .mockImplementationOnce(() => createMockFetchResponse(mockAvailabilityData))
+      .mockImplementationOnce(() => createMockFetchResponse({ ...mockAvailabilityData[0], notes: 'Updated note' }));
 
     render(<PlayerAvailability />);
 
@@ -169,10 +149,7 @@ describe('PlayerAvailability', () => {
 
   test('handles save errors', async () => {
     fetch
-      .mockImplementationOnce(() => Promise.resolve({
-        ok: true,
-        json: async () => mockAvailabilityData
-      }))
+      .mockImplementationOnce(() => createMockFetchResponse(mockAvailabilityData))
       .mockRejectedValueOnce(new Error('Save failed'));
 
     render(<PlayerAvailability />);
@@ -190,10 +167,7 @@ describe('PlayerAvailability', () => {
   });
 
   test('quick actions work correctly', async () => {
-    fetch.mockImplementationOnce(() => Promise.resolve({
-      ok: true,
-      json: async () => []
-    }));
+    fetch.mockImplementationOnce(() => createMockFetchResponse([]));
 
     render(<PlayerAvailability />);
 

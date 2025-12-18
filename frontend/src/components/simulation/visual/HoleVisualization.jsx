@@ -1,15 +1,7 @@
 // frontend/src/components/simulation/visual/HoleVisualization.jsx
 import React from 'react';
 import PropTypes from 'prop-types';
-
-const COLORS = {
-  teeBox: '#006400',
-  fairway: '#90EE90',
-  green: '#00FF00',
-  rough: '#D2B48C',
-  humanPlayer: '#2196F3',
-  computerPlayers: ['#F44336', '#FFC107', '#FF9800']
-};
+import { GOLF_COLORS } from '../../../constants/colors';
 
 const HoleVisualization = ({ hole, players = [] }) => {
   const SVG_WIDTH = 300;
@@ -56,7 +48,7 @@ const HoleVisualization = ({ hole, players = [] }) => {
         <rect
           width={SVG_WIDTH}
           height={SVG_HEIGHT}
-          fill={COLORS.rough}
+          fill={GOLF_COLORS.roughTan}
         />
 
         {/* Fairway - Light green ellipse */}
@@ -65,7 +57,7 @@ const HoleVisualization = ({ hole, players = [] }) => {
           cy={SVG_HEIGHT / 2}
           rx={80}
           ry={200}
-          fill={COLORS.fairway}
+          fill={GOLF_COLORS.fairway}
         />
 
         {/* Green - Bright green circle at top */}
@@ -73,7 +65,7 @@ const HoleVisualization = ({ hole, players = [] }) => {
           cx={SVG_WIDTH / 2}
           cy={50}
           r={40}
-          fill={COLORS.green}
+          fill={GOLF_COLORS.greenBright}
         />
 
         {/* Flagstick */}
@@ -82,14 +74,14 @@ const HoleVisualization = ({ hole, players = [] }) => {
           y1={50}
           x2={SVG_WIDTH / 2}
           y2={30}
-          stroke="red"
+          stroke={GOLF_COLORS.pin}
           strokeWidth={2}
         />
         <circle
           cx={SVG_WIDTH / 2}
           cy={30}
           r={5}
-          fill="red"
+          fill={GOLF_COLORS.pin}
         />
 
         {/* Tee Box - Dark green rectangle at bottom */}
@@ -98,7 +90,7 @@ const HoleVisualization = ({ hole, players = [] }) => {
           y={460}
           width={60}
           height={30}
-          fill={COLORS.teeBox}
+          fill={GOLF_COLORS.teeBox}
         />
 
         {/* Player dots */}
@@ -106,9 +98,10 @@ const HoleVisualization = ({ hole, players = [] }) => {
           const y = calculatePlayerPosition(player, index);
           const x = SVG_WIDTH / 2 + ((index % 2 === 0 ? 1 : -1) * (15 + index * 5)); // Offset for visibility
           const isHuman = player.is_human || player.id === 'human';
+          const computerColors = [GOLF_COLORS.computerPlayer1, GOLF_COLORS.computerPlayer2, GOLF_COLORS.computerPlayer3];
           const color = isHuman
-            ? COLORS.humanPlayer
-            : COLORS.computerPlayers[index % COLORS.computerPlayers.length];
+            ? GOLF_COLORS.humanPlayer
+            : computerColors[index % computerColors.length];
 
           return (
             <g key={player.id}>

@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-
-const API_URL = process.env.REACT_APP_API_URL || '';
+import useFetchAsync from './useFetchAsync';
 
 /**
  * Custom hook for real-time odds calculation and management.
@@ -17,10 +16,21 @@ const useOddsCalculation = ({
   onOddsUpdate,
   onError
 } = {}) => {
-  
+
+  // Use centralized fetch hook for consistent error handling and retry logic
+  const {
+    loading: fetchLoading,
+    error: fetchError,
+    post,
+    clearError: clearFetchError
+  } = useFetchAsync({
+    throwOnError: false,
+    retryCount: maxRetries,
+    retryDelay: 100 // Will use exponential backoff in useFetchAsync
+  });
+
   // State management
   const [oddsData, setOddsData] = useState(null);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
   const [calculationHistory, setCalculationHistory] = useState([]);
@@ -99,24 +109,23 @@ const useOddsCalculation = ({
     }
 
     const startTime = Date.now();
-    setLoading(true);
     setError(null);
+    clearFetchError();
 
     try {
       // Check cache first
       const cacheKey = generateCacheKey(gameStateData);
       const cachedResult = checkCache(cacheKey);
-      
+
       if (cachedResult) {
         setOddsData(cachedResult);
-        setLoading(false);
         return cachedResult;
       }
 
       // Determine calculation parameters
       const playerCount = gameStateData.players.length;
-      const useMonteCarloSimulation = 
-        options.forceMonteCarloMode || 
+      const useMonteCarloSimulation =
+        options.forceMonteCarloMode ||
         playerCount >= useMonteCarloThreshold ||
         gameStateData.teams?.type === 'solo' ||
         gameStateData.players.some(p => (p.distance_to_pin || 0) > 200);
@@ -154,50 +163,29 @@ const useOddsCalculation = ({
         }
       };
 
-      // Make API request with retry logic
-      let response;
-      let retryCount = 0;
-      
-      while (retryCount <= maxRetries) {
-        try {
-          const apiResponse = await fetch(`${API_URL}/api/wgp/calculate-odds`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(requestPayload)
-          });
+      // Use centralized fetch hook (handles retries, loading, and error states)
+      const response = await post(
+        '/api/wgp/calculate-odds',
+        requestPayload,
+        'Calculate odds'
+      );
 
-          if (!apiResponse.ok) {
-            throw new Error(`HTTP error! status: ${apiResponse.status}`);
-          }
-
-          response = await apiResponse.json();
-          break;
-        } catch (err) {
-          retryCount++;
-          if (retryCount > maxRetries) {
-            throw err;
-          }
-          
-          const backoffDelay = Math.pow(2, retryCount) * 100;
-          await new Promise(resolve => setTimeout(resolve, backoffDelay));
-        }
+      if (!response) {
+        throw new Error('Failed to calculate odds');
       }
 
       const calculationTime = Date.now() - startTime;
-      
+
       // Update performance metrics
       performanceRef.current.totalCalculations++;
       performanceRef.current.successfulCalculations++;
       performanceRef.current.totalCalculationTime += calculationTime;
-      
+
       // Process and enhance response
       const enhancedOddsData = {
         ...response,
         client_calculation_time: calculationTime,
         cache_used: false,
-        retry_count: retryCount,
         monte_carlo_used: useMonteCarloSimulation
       };
 
@@ -207,7 +195,7 @@ const useOddsCalculation = ({
       // Update state
       setOddsData(enhancedOddsData);
       setLastUpdate(new Date());
-      
+
       // Add to calculation history
       setCalculationHistory(prev => {
         const newHistory = [...prev, {
@@ -221,8 +209,6 @@ const useOddsCalculation = ({
         return newHistory;
       });
 
-      // Update performance metrics will be done by separate effect
-
       // Trigger callback
       if (onOddsUpdate) {
         onOddsUpdate(enhancedOddsData);
@@ -232,26 +218,26 @@ const useOddsCalculation = ({
 
     } catch (err) {
       console.error('Odds calculation error:', err);
-      
+
       performanceRef.current.totalCalculations++;
-      setError(err.message);
-      
+      const errorMessage = err.message || 'Failed to calculate odds';
+      setError(errorMessage);
+
       if (onError) {
         onError(err);
       }
-      
+
       return null;
-    } finally {
-      setLoading(false);
     }
   }, [
-    gameState, 
-    generateCacheKey, 
-    checkCache, 
-    storeInCache, 
+    gameState,
+    generateCacheKey,
+    checkCache,
+    storeInCache,
     useMonteCarloThreshold,
     performanceTarget,
-    maxRetries,
+    post,
+    clearFetchError,
     onOddsUpdate,
     onError
   ]);
@@ -263,24 +249,17 @@ const useOddsCalculation = ({
     }
 
     try {
-      const response = await fetch(`${API_URL}/api/wgp/quick-odds`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(playersData)
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      return await response.json();
+      // Use centralized fetch hook
+      return await post(
+        '/api/wgp/quick-odds',
+        playersData,
+        'Calculate quick odds'
+      );
     } catch (err) {
       console.error('Quick odds calculation error:', err);
       return null;
     }
-  }, []);
+  }, [post]);
 
   // Update performance metrics
   const updatePerformanceMetrics = useCallback(() => {
@@ -350,31 +329,41 @@ const useOddsCalculation = ({
     };
   }, []);
 
+  // Sync error states from useFetchAsync
+  useEffect(() => {
+    if (fetchError) {
+      setError(fetchError);
+    }
+  }, [fetchError]);
+
   // Public API
   return {
     // Data
     oddsData,
-    loading,
-    error,
+    loading: fetchLoading, // Use loading state from useFetchAsync
+    error: error || fetchError, // Combine local and fetch errors
     lastUpdate,
     calculationHistory,
     performanceMetrics,
-    
+
     // Actions
     calculateOdds,
     calculateQuickOdds,
     refreshOdds: () => calculateOdds(gameState, { forceRefresh: true }),
-    clearError: () => setError(null),
+    clearError: () => {
+      setError(null);
+      clearFetchError();
+    },
     clearCache: () => cacheRef.current.clear(),
-    
+
     // Utils
     isCalculationStale: lastUpdate ? Date.now() - lastUpdate.getTime() > updateInterval * 2 : true,
     canCalculate: gameState?.active && gameState?.players?.length >= 2,
-    
+
     // Performance insights
     isPerformanceOptimal: performanceMetrics.averageCalculationTime < performanceTarget,
     cacheEfficiency: performanceMetrics.cacheHitRate,
-    
+
     // Configuration
     setAutoUpdate: (enabled) => {
       if (updateIntervalRef.current) {

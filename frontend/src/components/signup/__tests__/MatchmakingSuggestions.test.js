@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import MatchmakingSuggestions from '../MatchmakingSuggestions';
+import { createMockFetchResponse } from '../../../test-utils/mockFactories';
 
 // Mock fetch
 global.fetch = jest.fn();
@@ -37,10 +38,7 @@ describe.skip('MatchmakingSuggestions', () => {
   });
 
   test('renders match suggestions after loading', async () => {
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ matches: mockMatches, total_matches_found: 1, filtered_matches: 1 })
-    });
+    fetch.mockResolvedValueOnce(createMockFetchResponse({ matches: mockMatches, total_matches_found: 1, filtered_matches: 1 }));
 
     render(<MatchmakingSuggestions />);
 
@@ -54,10 +52,7 @@ describe.skip('MatchmakingSuggestions', () => {
   });
 
   test('handles empty results', async () => {
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ matches: [], total_matches_found: 0, filtered_matches: 0 })
-    });
+    fetch.mockResolvedValueOnce(createMockFetchResponse({ matches: [], total_matches_found: 0, filtered_matches: 0 }));
 
     render(<MatchmakingSuggestions />);
 
@@ -77,10 +72,7 @@ describe.skip('MatchmakingSuggestions', () => {
   });
 
   test('updates minimum overlap hours', async () => {
-    fetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({ matches: [], total_matches_found: 0, filtered_matches: 0 })
-    });
+    fetch.mockResolvedValue(createMockFetchResponse({ matches: [], total_matches_found: 0, filtered_matches: 0 }));
 
     render(<MatchmakingSuggestions />);
 
@@ -99,10 +91,7 @@ describe.skip('MatchmakingSuggestions', () => {
   });
 
   test('toggles day selection', async () => {
-    fetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({ matches: [], total_matches_found: 0, filtered_matches: 0 })
-    });
+    fetch.mockResolvedValue(createMockFetchResponse({ matches: [], total_matches_found: 0, filtered_matches: 0 }));
 
     render(<MatchmakingSuggestions />);
 
@@ -120,16 +109,10 @@ describe.skip('MatchmakingSuggestions', () => {
 
   test('sends notifications', async () => {
     // Mock initial load
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ matches: mockMatches, total_matches_found: 1, filtered_matches: 1 })
-    });
+    fetch.mockResolvedValueOnce(createMockFetchResponse({ matches: mockMatches, total_matches_found: 1, filtered_matches: 1 }));
 
     // Mock notification API
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ notifications_sent: 1, notifications_failed: 0, matches_created: 1 })
-    });
+    fetch.mockResolvedValueOnce(createMockFetchResponse({ notifications_sent: 1, notifications_failed: 0, matches_created: 1 }));
 
     render(<MatchmakingSuggestions />);
 

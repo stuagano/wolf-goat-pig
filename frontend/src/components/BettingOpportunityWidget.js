@@ -10,6 +10,7 @@
 
 import React from 'react';
 import PropTypes from 'prop-types';
+import { getRiskColor, getRiskIcon, formatProbability } from '../utils/bettingHelpers';
 
 const BettingOpportunityWidget = ({
   opportunities = [],
@@ -59,10 +60,23 @@ const BettingOpportunityWidget = ({
 
             {opportunity.risk && (
               <div className="risk-info">
-                <span className="risk">Risk: {opportunity.risk}</span>
+                <span
+                  className="risk"
+                  style={{ color: getRiskColor(opportunity.risk) }}
+                >
+                  {getRiskIcon(opportunity.risk)} Risk: {opportunity.risk}
+                </span>
                 {opportunity.reward && (
                   <span className="reward">Reward: {opportunity.reward}</span>
                 )}
+              </div>
+            )}
+
+            {opportunity.probability !== undefined && (
+              <div className="probability-info">
+                <span className="probability">
+                  Win Probability: {formatProbability(opportunity.probability)}
+                </span>
               </div>
             )}
 
@@ -96,6 +110,7 @@ BettingOpportunityWidget.propTypes = {
     deadline: PropTypes.string,
     risk: PropTypes.string,
     reward: PropTypes.string,
+    probability: PropTypes.number,
     disabled: PropTypes.bool,
     buttonText: PropTypes.string
   })),

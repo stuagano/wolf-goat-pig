@@ -5,6 +5,11 @@
  * Useful for development, testing, or when database migrations are in progress.
  */
 
+import { createNamespacedStorage } from '../utils/storage';
+
+// Create namespaced storage for offline games
+const gameStorage = createNamespacedStorage('wgp-offline-game');
+
 const generateGameId = () => {
   return `offline-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 };
@@ -191,12 +196,90 @@ export const syncOfflineGame = async (gameState, apiUrl) => {
   }
 };
 
+/**
+ * Save offline game to localStorage
+ * @param {Object} gameState - The game state to save
+ * @returns {boolean} True if save was successful
+ */
+export const saveOfflineGame = (gameState) => {
+  if (!gameState?.game_id) {
+    console.warn('[Offline] Cannot save game without game_id');
+    return false;
+  }
+
+  const success = gameStorage.set(gameState.game_id, gameState);
+  if (success) {
+    console.log('[Offline] Saved game:', gameState.game_id);
+  }
+  return success;
+};
+
+/**
+ * Load offline game from localStorage
+ * @param {string} gameId - The game ID to load
+ * @returns {Object|null} The game state or null if not found
+ */
+export const loadOfflineGame = (gameId) => {
+  const gameState = gameStorage.get(gameId);
+  if (gameState) {
+    console.log('[Offline] Loaded game:', gameId);
+  } else {
+    console.log('[Offline] Game not found:', gameId);
+  }
+  return gameState;
+};
+
+/**
+ * Delete offline game from localStorage
+ * @param {string} gameId - The game ID to delete
+ * @returns {boolean} True if delete was successful
+ */
+export const deleteOfflineGame = (gameId) => {
+  const success = gameStorage.remove(gameId);
+  if (success) {
+    console.log('[Offline] Deleted game:', gameId);
+  }
+  return success;
+};
+
+/**
+ * List all saved offline games
+ * @returns {Array<Object>} Array of game states
+ */
+export const listOfflineGames = () => {
+  const gameIds = gameStorage.getKeys();
+  const games = gameIds
+    .map(id => gameStorage.get(id))
+    .filter(game => game !== null)
+    .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+
+  console.log(`[Offline] Found ${games.length} saved games`);
+  return games;
+};
+
+/**
+ * Clear all offline games from localStorage
+ * @returns {boolean} True if clear was successful
+ */
+export const clearAllOfflineGames = () => {
+  const success = gameStorage.clear();
+  if (success) {
+    console.log('[Offline] Cleared all offline games');
+  }
+  return success;
+};
+
 const offlineGameManager = {
   createOfflineGame,
   updateOfflineGame,
   completeOfflineHole,
   isOfflineGame,
   syncOfflineGame,
+  saveOfflineGame,
+  loadOfflineGame,
+  deleteOfflineGame,
+  listOfflineGames,
+  clearAllOfflineGames,
   generateGameId,
   generateJoinCode
 };

@@ -3,51 +3,26 @@ import PropTypes from 'prop-types';
 import { Card } from './ui';
 import ProbabilityVisualization from './ProbabilityVisualization';
 import EducationalTooltip, { BettingConcepts, generateStrategicInsight, ContextualHelp } from './EducationalTooltip';
+import { UI_COLORS, BETTING_COLORS, getRiskColor, getRiskIcon } from '../constants/colors';
+import { formatProbability, formatValue } from '../utils/bettingHelpers';
 
 const API_URL = process.env.REACT_APP_API_URL || '';
 
+// Use centralized color constants
 const COLORS = {
-  primary: '#1976d2',
-  accent: '#00bcd4',
-  warning: '#ff9800',
-  error: '#d32f2f',
-  success: '#388e3c',
-  bg: '#f9fafe',
-  card: '#fff',
-  border: '#e0e0e0',
-  text: '#222',
-  muted: '#888',
-  favorable: '#4caf50',
-  unfavorable: '#f44336',
-  neutral: '#757575'
-};
-
-const getRiskColor = (risk) => {
-  switch (risk) {
-    case 'low': return COLORS.success;
-    case 'medium': return COLORS.warning;
-    case 'high': return COLORS.error;
-    default: return COLORS.muted;
-  }
-};
-
-const getRiskIcon = (risk) => {
-  switch (risk) {
-    case 'low': return '🟢';
-    case 'medium': return '🟡';
-    case 'high': return '🔴';
-    default: return '⚪';
-  }
-};
-
-const formatProbability = (prob) => {
-  if (prob === null || prob === undefined) return 'N/A';
-  return `${(prob * 100).toFixed(1)}%`;
-};
-
-const formatValue = (value) => {
-  if (value === null || value === undefined) return 'N/A';
-  return value >= 0 ? `+${value.toFixed(2)}` : value.toFixed(2);
+  primary: UI_COLORS.primary,
+  accent: UI_COLORS.accent,
+  warning: UI_COLORS.warning,
+  error: UI_COLORS.error,
+  success: UI_COLORS.success,
+  bg: UI_COLORS.bg,
+  card: UI_COLORS.card,
+  border: UI_COLORS.border,
+  text: UI_COLORS.text,
+  muted: UI_COLORS.muted,
+  favorable: BETTING_COLORS.favorable,
+  unfavorable: BETTING_COLORS.unfavorable,
+  neutral: BETTING_COLORS.neutral
 };
 
 const BettingOddsPanel = ({ 

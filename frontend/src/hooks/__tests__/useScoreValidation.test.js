@@ -1,6 +1,7 @@
 // frontend/src/hooks/__tests__/useScoreValidation.test.js
 import { renderHook } from '@testing-library/react';
 import { useScoreValidation, SCORE_CONSTRAINTS } from '../useScoreValidation';
+import { createMockPlayers } from '../../test-utils/mockFactories';
 
 describe('useScoreValidation', () => {
   describe('SCORE_CONSTRAINTS', () => {
@@ -201,12 +202,10 @@ describe('useScoreValidation', () => {
   });
 
   describe('validateTeams', () => {
-    const mockPlayers = [
-      { id: 'p1', name: 'Player 1' },
-      { id: 'p2', name: 'Player 2' },
-      { id: 'p3', name: 'Player 3' },
-      { id: 'p4', name: 'Player 4' },
-    ];
+    const mockPlayers = createMockPlayers(4).map((player, idx) => ({
+      id: `p${idx + 1}`,
+      name: `Player ${idx + 1}`
+    }));
 
     describe('partners mode', () => {
       test('should return valid for proper team split', () => {
@@ -484,12 +483,10 @@ describe('useScoreValidation', () => {
   });
 
   describe('validateHole', () => {
-    const mockPlayers = [
-      { id: 'p1', name: 'Player 1' },
-      { id: 'p2', name: 'Player 2' },
-      { id: 'p3', name: 'Player 3' },
-      { id: 'p4', name: 'Player 4' },
-    ];
+    const mockPlayers = createMockPlayers(4).map((player, idx) => ({
+      id: `p${idx + 1}`,
+      name: `Player ${idx + 1}`
+    }));
 
     test('should return valid for complete partners hole data', () => {
       const { result } = renderHook(() => useScoreValidation());

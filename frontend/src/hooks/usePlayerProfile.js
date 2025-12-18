@@ -1,24 +1,25 @@
 import { useState, useEffect, useCallback } from 'react';
-
-const API_URL = process.env.REACT_APP_API_URL || '';
+import { storage } from '../utils/storage';
+import useFetchAsync from './useFetchAsync';
 
 /**
  * usePlayerProfile - Custom hook for player profile management
- * 
+ *
  * Features:
  * - Profile selection and persistence
- * - Local storage integration
+ * - Local storage integration via storage utility
  * - Profile statistics caching
  * - Real-time profile updates
- * - Error handling and loading states
+ * - Unified error handling and loading states via useFetchAsync
  */
 const usePlayerProfile = () => {
     const [selectedProfile, setSelectedProfile] = useState(null);
     const [profiles, setProfiles] = useState([]);
     const [profileStatistics, setProfileStatistics] = useState({});
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
     const [syncStatus, setSyncStatus] = useState('idle'); // 'idle', 'syncing', 'success', 'error'
+
+    // Use centralized fetch hook
+    const { loading, error, get, post, put, del, clearError: clearFetchError } = useFetchAsync({ throwOnError: false });
 
     // Storage keys
     const STORAGE_KEYS = {
@@ -29,148 +30,103 @@ const usePlayerProfile = () => {
     };
 
     const loadFromLocalStorage = useCallback(() => {
-        try {
-            // Load selected profile
-            const savedProfile = localStorage.getItem(STORAGE_KEYS.SELECTED_PROFILE);
-            if (savedProfile) {
-                setSelectedProfile(JSON.parse(savedProfile));
-            }
+        // Load selected profile (storage.get handles errors automatically)
+        const savedProfile = storage.get(STORAGE_KEYS.SELECTED_PROFILE);
+        if (savedProfile) {
+            setSelectedProfile(savedProfile);
+        }
 
-            // Load profiles cache
-            const cachedProfiles = localStorage.getItem(STORAGE_KEYS.PROFILES_CACHE);
-            if (cachedProfiles) {
-                setProfiles(JSON.parse(cachedProfiles));
-            }
+        // Load profiles cache
+        const cachedProfiles = storage.get(STORAGE_KEYS.PROFILES_CACHE);
+        if (cachedProfiles) {
+            setProfiles(cachedProfiles);
+        }
 
-            // Load statistics cache
-            const cachedStats = localStorage.getItem(STORAGE_KEYS.STATISTICS_CACHE);
-            if (cachedStats) {
-                setProfileStatistics(JSON.parse(cachedStats));
-            }
-        } catch (err) {
-            console.error('Error loading from localStorage:', err);
-            // Clear corrupted data
-            Object.values(STORAGE_KEYS).forEach(key => {
-                localStorage.removeItem(key);
-            });
+        // Load statistics cache
+        const cachedStats = storage.get(STORAGE_KEYS.STATISTICS_CACHE);
+        if (cachedStats) {
+            setProfileStatistics(cachedStats);
         }
         // STORAGE_KEYS is a constant object defined in closure
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const saveToLocalStorage = useCallback((key, data) => {
-        try {
-            localStorage.setItem(key, JSON.stringify(data));
-        } catch (err) {
-            console.error('Error saving to localStorage:', err);
-        }
-    }, []);
-
     const loadProfileStatistics = useCallback(async (profileId) => {
-        try {
-            // Return cached statistics if available and recent
-            const cached = profileStatistics[profileId];
-            if (cached && (Date.now() - cached.loadedAt) < 300000) { // 5 minutes
-                return cached.data;
-            }
+        // Return cached statistics if available and recent
+        const cached = profileStatistics[profileId];
+        if (cached && (Date.now() - cached.loadedAt) < 300000) { // 5 minutes
+            return cached.data;
+        }
 
-            const response = await fetch(`${API_URL}/api/players/${profileId}/statistics`);
-            if (!response.ok) {
-                // Statistics might not exist for new profiles
-                return null;
-            }
+        const stats = await get(`/api/players/${profileId}/statistics`, 'Load profile statistics');
 
-            const stats = await response.json();
-
-            // Cache the statistics
-            const updatedStats = {
-                ...profileStatistics,
-                [profileId]: {
-                    data: stats,
-                    loadedAt: Date.now()
-                }
-            };
-            setProfileStatistics(updatedStats);
-            saveToLocalStorage(STORAGE_KEYS.STATISTICS_CACHE, updatedStats);
-
-            return stats;
-
-        } catch (err) {
-            console.error('Error loading profile statistics:', err);
+        // Statistics might not exist for new profiles
+        if (!stats) {
             return null;
         }
-    }, [profileStatistics, saveToLocalStorage, STORAGE_KEYS.STATISTICS_CACHE]);
+
+        // Cache the statistics
+        const updatedStats = {
+            ...profileStatistics,
+            [profileId]: {
+                data: stats,
+                loadedAt: Date.now()
+            }
+        };
+        setProfileStatistics(updatedStats);
+        storage.set(STORAGE_KEYS.STATISTICS_CACHE, updatedStats);
+
+        return stats;
+    }, [profileStatistics, get, STORAGE_KEYS.STATISTICS_CACHE]);
 
     const updateLastPlayed = useCallback(async (profileId) => {
-        try {
-            await fetch(`${API_URL}/api/players/${profileId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    last_played: new Date().toISOString()
-                })
-            });
-        } catch (err) {
-            console.error('Error updating last played:', err);
-            // Don't throw - this is not critical
-        }
-    }, []);
+        // Update last played (non-critical operation)
+        await put(
+            `/api/players/${profileId}`,
+            { last_played: new Date().toISOString() },
+            'Update last played'
+        );
+    }, [put]);
 
     const syncWithServer = useCallback(async () => {
-        try {
-            setSyncStatus('syncing');
+        setSyncStatus('syncing');
 
-            // Fetch latest profiles from server
-            const response = await fetch(`${API_URL}/api/players`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch profiles from server');
-            }
-            
-            const serverProfiles = await response.json();
+        const serverProfiles = await get('/api/players', 'Fetch profiles from server');
+
+        if (serverProfiles) {
             setProfiles(serverProfiles);
-            saveToLocalStorage(STORAGE_KEYS.PROFILES_CACHE, serverProfiles);
+            storage.set(STORAGE_KEYS.PROFILES_CACHE, serverProfiles);
 
             // Update selected profile if it exists on server
             if (selectedProfile) {
                 const updatedProfile = serverProfiles.find(p => p.id === selectedProfile.id);
                 if (updatedProfile) {
                     setSelectedProfile(updatedProfile);
-                    saveToLocalStorage(STORAGE_KEYS.SELECTED_PROFILE, updatedProfile);
+                    storage.set(STORAGE_KEYS.SELECTED_PROFILE, updatedProfile);
                 }
             }
 
             // Mark last sync time
-            localStorage.setItem(STORAGE_KEYS.LAST_SYNC, Date.now().toString());
+            storage.set(STORAGE_KEYS.LAST_SYNC, Date.now());
             setSyncStatus('success');
-            
+
             // Clear sync status after 2 seconds
             setTimeout(() => setSyncStatus('idle'), 2000);
-            
-        } catch (err) {
-            console.error('Error syncing with server:', err);
+        } else {
             setSyncStatus('error');
-            
+
             // Clear error status after 5 seconds
             setTimeout(() => setSyncStatus('idle'), 5000);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedProfile, saveToLocalStorage]);
+    }, [selectedProfile, get]);
 
     const loadInitialData = useCallback(async () => {
-        try {
-            setLoading(true);
+        // Load from localStorage first for immediate UI
+        loadFromLocalStorage();
 
-            // Load from localStorage first for immediate UI
-            loadFromLocalStorage();
-
-            // Then sync with server
-            await syncWithServer();
-        } catch (err) {
-            console.error('Error loading initial data:', err);
-            setError('Failed to load player profiles');
-        } finally {
-            setLoading(false);
-        }
+        // Then sync with server (loading state managed by useFetchAsync)
+        await syncWithServer();
     }, [loadFromLocalStorage, syncWithServer]);
 
     // Load initial data on mount
@@ -179,174 +135,100 @@ const usePlayerProfile = () => {
     }, [loadInitialData]);
 
     const selectProfile = useCallback(async (profile) => {
-        try {
-            setSelectedProfile(profile);
-            saveToLocalStorage(STORAGE_KEYS.SELECTED_PROFILE, profile);
-            
-            // Load statistics for the selected profile
-            await loadProfileStatistics(profile.id);
-            
-            // Update last played on server
-            await updateLastPlayed(profile.id);
-            
-        } catch (err) {
-            console.error('Error selecting profile:', err);
-            setError('Failed to select profile');
-        }
+        setSelectedProfile(profile);
+        storage.set(STORAGE_KEYS.SELECTED_PROFILE, profile);
+
+        // Load statistics for the selected profile
+        await loadProfileStatistics(profile.id);
+
+        // Update last played on server
+        await updateLastPlayed(profile.id);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [loadProfileStatistics, updateLastPlayed]);
 
     const createProfile = useCallback(async (profileData) => {
-        try {
-            setLoading(true);
-            setError(null);
-            
-            const response = await fetch(`${API_URL}/api/players`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(profileData)
-            });
+        const newProfile = await post('/api/players', profileData, 'Create profile');
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'Failed to create profile');
-            }
-
-            const newProfile = await response.json();
-            
+        if (newProfile) {
             // Update local state
             const updatedProfiles = [...profiles, newProfile];
             setProfiles(updatedProfiles);
-            saveToLocalStorage(STORAGE_KEYS.PROFILES_CACHE, updatedProfiles);
-            
+            storage.set(STORAGE_KEYS.PROFILES_CACHE, updatedProfiles);
+
             // Auto-select the new profile
             await selectProfile(newProfile);
-            
-            return newProfile;
 
-        } catch (err) {
-            console.error('Error creating profile:', err);
-            setError(err.message);
-            throw err;
-        } finally {
-            setLoading(false);
+            return newProfile;
         }
+
+        return null;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [profiles, selectProfile]);
+    }, [profiles, selectProfile, post]);
 
     const updateProfile = useCallback(async (profileId, updateData) => {
-        try {
-            setLoading(true);
-            setError(null);
-            
-            const response = await fetch(`${API_URL}/api/players/${profileId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updateData)
-            });
+        const updatedProfile = await put(`/api/players/${profileId}`, updateData, 'Update profile');
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'Failed to update profile');
-            }
-
-            const updatedProfile = await response.json();
-            
+        if (updatedProfile) {
             // Update local state
-            const updatedProfiles = profiles.map(p => 
+            const updatedProfiles = profiles.map(p =>
                 p.id === profileId ? updatedProfile : p
             );
             setProfiles(updatedProfiles);
-            saveToLocalStorage(STORAGE_KEYS.PROFILES_CACHE, updatedProfiles);
-            
+            storage.set(STORAGE_KEYS.PROFILES_CACHE, updatedProfiles);
+
             // Update selected profile if it's the one being updated
             if (selectedProfile && selectedProfile.id === profileId) {
                 setSelectedProfile(updatedProfile);
-                saveToLocalStorage(STORAGE_KEYS.SELECTED_PROFILE, updatedProfile);
+                storage.set(STORAGE_KEYS.SELECTED_PROFILE, updatedProfile);
             }
-            
-            return updatedProfile;
 
-        } catch (err) {
-            console.error('Error updating profile:', err);
-            setError(err.message);
-            throw err;
-        } finally {
-            setLoading(false);
+            return updatedProfile;
         }
+
+        return null;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [profiles, selectedProfile, saveToLocalStorage]);
+    }, [profiles, selectedProfile, put]);
 
     const deleteProfile = useCallback(async (profileId) => {
-        try {
-            setLoading(true);
-            setError(null);
-            
-            const response = await fetch(`${API_URL}/api/players/${profileId}`, {
-                method: 'DELETE'
-            });
+        const result = await del(`/api/players/${profileId}`, 'Delete profile');
 
-            if (!response.ok) {
-                throw new Error('Failed to delete profile');
-            }
-
+        if (result !== null) {
             // Update local state
             const updatedProfiles = profiles.filter(p => p.id !== profileId);
             setProfiles(updatedProfiles);
-            saveToLocalStorage(STORAGE_KEYS.PROFILES_CACHE, updatedProfiles);
-            
+            storage.set(STORAGE_KEYS.PROFILES_CACHE, updatedProfiles);
+
             // Clear selected profile if it was deleted
             if (selectedProfile && selectedProfile.id === profileId) {
                 setSelectedProfile(null);
-                localStorage.removeItem(STORAGE_KEYS.SELECTED_PROFILE);
+                storage.remove(STORAGE_KEYS.SELECTED_PROFILE);
             }
-            
+
             // Remove from statistics cache
             const updatedStats = { ...profileStatistics };
             delete updatedStats[profileId];
             setProfileStatistics(updatedStats);
-            saveToLocalStorage(STORAGE_KEYS.STATISTICS_CACHE, updatedStats);
-
-        } catch (err) {
-            console.error('Error deleting profile:', err);
-            setError(err.message);
-            throw err;
-        } finally {
-            setLoading(false);
+            storage.set(STORAGE_KEYS.STATISTICS_CACHE, updatedStats);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [profiles, selectedProfile, profileStatistics, saveToLocalStorage]);
+    }, [profiles, selectedProfile, profileStatistics, del]);
 
     const recordGameResult = useCallback(async (gameResult) => {
-        try {
-            const response = await fetch(`${API_URL}/api/game-results`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(gameResult)
-            });
+        const result = await post('/api/game-results', gameResult, 'Record game result');
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'Failed to record game result');
-            }
-
-            const result = await response.json();
-            
+        if (result) {
             // Invalidate cached statistics for the player
             const updatedStats = { ...profileStatistics };
             delete updatedStats[gameResult.player_profile_id];
             setProfileStatistics(updatedStats);
-            saveToLocalStorage(STORAGE_KEYS.STATISTICS_CACHE, updatedStats);
+            storage.set(STORAGE_KEYS.STATISTICS_CACHE, updatedStats);
 
             return result;
-
-        } catch (err) {
-            console.error('Error recording game result:', err);
-            setError(err.message);
-            throw err;
         }
+
+        return null;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [profileStatistics, saveToLocalStorage]);
+    }, [profileStatistics, post]);
 
     const getProfileById = useCallback((profileId) => {
         return profiles.find(p => p.id === profileId);
@@ -357,8 +239,8 @@ const usePlayerProfile = () => {
     }, [profiles]);
 
     const clearError = useCallback(() => {
-        setError(null);
-    }, []);
+        clearFetchError();
+    }, [clearFetchError]);
 
     const refreshProfiles = useCallback(async () => {
         await syncWithServer();
@@ -366,34 +248,28 @@ const usePlayerProfile = () => {
 
     // Export/Import functionality
     const exportProfileData = useCallback(async (profileId) => {
-        try {
-            const profile = getProfileById(profileId);
-            const statistics = await loadProfileStatistics(profileId);
-            
-            const exportData = {
-                profile,
-                statistics,
-                exportedAt: new Date().toISOString(),
-                version: '1.0'
-            };
-            
-            // Create and download file
-            const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-                type: 'application/json'
-            });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `wgp-profile-${profile.name}-${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
+        const profile = getProfileById(profileId);
+        const statistics = await loadProfileStatistics(profileId);
 
-        } catch (err) {
-            console.error('Error exporting profile data:', err);
-            setError('Failed to export profile data');
-        }
+        const exportData = {
+            profile,
+            statistics,
+            exportedAt: new Date().toISOString(),
+            version: '1.0'
+        };
+
+        // Create and download file
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+            type: 'application/json'
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `wgp-profile-${profile.name}-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [getProfileById, loadProfileStatistics]);
 

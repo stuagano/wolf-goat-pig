@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from './ui';
-
-const API_URL = process.env.REACT_APP_API_URL || '';
+import { apiGet } from '../utils';
+import { formatPercentage, formatCurrency, getPerformanceColor } from '../utils';
 
 /**
  * PlayerStatistics - Dashboard component for displaying player statistics
@@ -35,22 +35,10 @@ const PlayerStatistics = ({ playerId, playerName }) => {
             setLoading(true);
             setError(null);
 
-            // Load statistics, analytics, and achievements in parallel
-            const [statsResponse, analyticsResponse] = await Promise.all([
-                fetch(`${API_URL}/api/players/${playerId}/statistics`),
-                fetch(`${API_URL}/api/players/${playerId}/analytics`)
-            ]);
-
-            if (!statsResponse.ok) {
-                throw new Error('Failed to load player statistics');
-            }
-            if (!analyticsResponse.ok) {
-                throw new Error('Failed to load player analytics');
-            }
-
+            // Load statistics, analytics, and achievements in parallel using shared API utility
             const [statsData, analyticsData] = await Promise.all([
-                statsResponse.json(),
-                analyticsResponse.json()
+                apiGet(`/api/players/${playerId}/statistics`),
+                apiGet(`/api/players/${playerId}/analytics`)
             ]);
 
             setStatistics(statsData);
@@ -65,20 +53,6 @@ const PlayerStatistics = ({ playerId, playerName }) => {
         } finally {
             setLoading(false);
         }
-    };
-
-    const formatCurrency = (amount) => {
-        return amount >= 0 ? `+$${amount.toFixed(2)}` : `-$${Math.abs(amount).toFixed(2)}`;
-    };
-
-    const formatPercentage = (value) => {
-        return `${(value * 100).toFixed(1)}%`;
-    };
-
-    const getPerformanceColor = (value, thresholds = { good: 0.6, average: 0.4 }) => {
-        if (value >= thresholds.good) return 'text-green-600';
-        if (value >= thresholds.average) return 'text-yellow-600';
-        return 'text-red-600';
     };
 
     const StatCard = ({ title, value, subtitle, icon, color = 'text-blue-600' }) => (

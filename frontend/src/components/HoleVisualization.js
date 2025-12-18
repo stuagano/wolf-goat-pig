@@ -1,21 +1,9 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import { UI_COLORS, GOLF_COLORS, getLieColor } from '../constants/colors';
 
 const HoleVisualization = ({ holeState, players, gameState }) => {
   if (!holeState || !players) return null;
-
-  const COLORS = {
-    primary: '#2c3e50',
-    secondary: '#34495e',
-    accent: '#3498db',
-    success: '#27ae60',
-    warning: '#f39c12',
-    danger: '#e74c3c',
-    light: '#ecf0f1',
-    dark: '#2c3e50',
-    gold: '#f1c40f',
-    purple: '#9b59b6'
-  };
 
   // Get current hole info from game state
   const currentHole = gameState?.current_hole || 1;
@@ -58,42 +46,32 @@ const HoleVisualization = ({ holeState, players, gameState }) => {
 
   // Get hole-specific background based on hole characteristics
   const getHoleBackground = (hole, par) => {
+    const greenColor = GOLF_COLORS.green;
+    const fairwayColor = GOLF_COLORS.fairway;
+
     // Special holes from Wing Point
     if (hole === 17) {
       // Hole 17 - Par 5 at 455 yards
-      return 'linear-gradient(to right, #006400 0%, #90EE90 15%, #90EE90 85%, #006400 100%)';
+      return `linear-gradient(to right, ${greenColor} 0%, ${fairwayColor} 15%, ${fairwayColor} 85%, ${greenColor} 100%)`;
     } else if (hole === 18) {
       // Hole 18 - Par 4 finishing hole at 372 yards
-      return 'linear-gradient(to right, #006400 0%, #90EE90 20%, #90EE90 80%, #006400 100%)';
+      return `linear-gradient(to right, ${greenColor} 0%, ${fairwayColor} 20%, ${fairwayColor} 80%, ${greenColor} 100%)`;
     } else if ([2, 4, 10, 12].includes(hole)) {
       // Par 3s
-      return 'linear-gradient(to right, #006400 0%, #90EE90 30%, #006400 100%)';
+      return `linear-gradient(to right, ${greenColor} 0%, ${fairwayColor} 30%, ${greenColor} 100%)`;
     } else if (par === 5) {
       // Par 5s
-      return 'linear-gradient(to right, #006400 0%, #90EE90 15%, #90EE90 85%, #006400 100%)';
+      return `linear-gradient(to right, ${greenColor} 0%, ${fairwayColor} 15%, ${fairwayColor} 85%, ${greenColor} 100%)`;
     } else {
       // Default par 4
-      return 'linear-gradient(to right, #006400 0%, #90EE90 20%, #90EE90 80%, #006400 100%)';
+      return `linear-gradient(to right, ${greenColor} 0%, ${fairwayColor} 20%, ${fairwayColor} 80%, ${greenColor} 100%)`;
     }
   };
 
   // Get player colors
   const getPlayerColor = (playerId, index) => {
-    const colors = [COLORS.accent, COLORS.success, COLORS.warning, COLORS.purple, COLORS.danger, COLORS.gold];
+    const colors = [UI_COLORS.accent, UI_COLORS.success, UI_COLORS.warning, UI_COLORS.purple, UI_COLORS.error, UI_COLORS.gold];
     return colors[index % colors.length];
-  };
-
-  // Get lie type color
-  const getLieColor = (lieType) => {
-    switch (lieType) {
-      case 'tee': return '#8B4513';
-      case 'fairway': return '#90EE90';
-      case 'rough': return '#228B22';
-      case 'bunker': return '#F4A460';
-      case 'green': return '#006400';
-      case 'in_hole': return '#000000';
-      default: return '#808080';
-    }
   };
 
   // Render hazards for specific holes
@@ -110,8 +88,8 @@ const HoleVisualization = ({ holeState, players, gameState }) => {
           top: '40%',
           width: '80px',
           height: '40%',
-          backgroundColor: 'rgba(70, 130, 180, 0.6)',
-          border: '2px solid #4682B4',
+          backgroundColor: GOLF_COLORS.waterLight,
+          border: `2px solid ${GOLF_COLORS.water}`,
           borderRadius: '20px',
           zIndex: 0
         }}>
@@ -129,9 +107,9 @@ const HoleVisualization = ({ holeState, players, gameState }) => {
           top: '30%',
           width: '30px',
           height: '25px',
-          backgroundColor: '#F4A460',
+          backgroundColor: GOLF_COLORS.bunker,
           borderRadius: '50%',
-          border: '1px solid #D2691E',
+          border: `1px solid ${GOLF_COLORS.sandTrap}`,
           zIndex: 0
         }} />
       );
@@ -175,24 +153,24 @@ const HoleVisualization = ({ holeState, players, gameState }) => {
       padding: '20px',
       borderRadius: '12px',
       marginBottom: '20px',
-      border: `2px solid ${COLORS.accent}`,
+      border: `2px solid ${UI_COLORS.accent}`,
       boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
     }}>
       <div style={{ marginBottom: '20px' }}>
-        <h3 style={{ color: COLORS.primary, marginTop: 0, marginBottom: '12px', textAlign: 'center' }}>
+        <h3 style={{ color: UI_COLORS.primary, marginTop: 0, marginBottom: '12px', textAlign: 'center' }}>
           🏌️ Wing Point Golf & Country Club - Hole {currentHole}
         </h3>
-        <div style={{ textAlign: 'center', color: COLORS.secondary, fontSize: '14px', marginBottom: '8px' }}>
+        <div style={{ textAlign: 'center', color: UI_COLORS.textSecondary, fontSize: '14px', marginBottom: '8px' }}>
           Par {PAR} • {YARDAGE} yards • Handicap {HANDICAP}
         </div>
         {DESCRIPTION && (
-          <div style={{ 
-            textAlign: 'center', 
-            color: COLORS.secondary, 
-            fontSize: '12px', 
+          <div style={{
+            textAlign: 'center',
+            color: UI_COLORS.textSecondary,
+            fontSize: '12px',
             fontStyle: 'italic',
             padding: '8px 20px',
-            backgroundColor: COLORS.light,
+            backgroundColor: UI_COLORS.bg,
             borderRadius: '4px',
             margin: '0 auto',
             maxWidth: '500px'
@@ -210,7 +188,7 @@ const HoleVisualization = ({ holeState, players, gameState }) => {
         margin: '0 auto',
         background: getHoleBackground(currentHole, PAR),
         borderRadius: '8px',
-        border: '2px solid #228B22',
+        border: `2px solid ${GOLF_COLORS.rough}`,
         overflow: 'visible',
         boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
       }}>
@@ -223,7 +201,7 @@ const HoleVisualization = ({ holeState, players, gameState }) => {
           transform: 'translateY(-50%)',
           width: '30px',
           height: '60px',
-          backgroundColor: '#8B4513',
+          backgroundColor: GOLF_COLORS.teeBox,
           borderRadius: '4px',
           display: 'flex',
           alignItems: 'center',
@@ -243,7 +221,7 @@ const HoleVisualization = ({ holeState, players, gameState }) => {
           transform: 'translateY(-50%)',
           width: '20px',
           height: '20px',
-          backgroundColor: '#000',
+          backgroundColor: GOLF_COLORS.hole,
           borderRadius: '50%',
           border: '3px solid white',
           display: 'flex',
@@ -264,7 +242,7 @@ const HoleVisualization = ({ holeState, players, gameState }) => {
           height: '80px',
           backgroundColor: 'rgba(0, 100, 0, 0.3)',
           borderRadius: '50%',
-          border: '2px dashed #006400',
+          border: `2px dashed ${GOLF_COLORS.green}`,
           pointerEvents: 'none'
         }} />
 
@@ -276,7 +254,7 @@ const HoleVisualization = ({ holeState, players, gameState }) => {
             top: '0',
             width: '2px',
             height: '100%',
-            backgroundColor: COLORS.danger,
+            backgroundColor: GOLF_COLORS.lineOfScrimmage,
             opacity: 0.8,
             zIndex: 1
           }}>
@@ -284,7 +262,7 @@ const HoleVisualization = ({ holeState, players, gameState }) => {
               position: 'absolute',
               top: '-25px',
               left: '-30px',
-              backgroundColor: COLORS.danger,
+              backgroundColor: GOLF_COLORS.lineOfScrimmage,
               color: 'white',
               padding: '2px 6px',
               borderRadius: '4px',
@@ -321,7 +299,7 @@ const HoleVisualization = ({ holeState, players, gameState }) => {
                 border: `3px solid ${playerColor}`,
                 borderRadius: '50%',
                 zIndex: 3,
-                boxShadow: isLineOfScrimmage ? `0 0 10px ${COLORS.danger}` : '0 2px 4px rgba(0,0,0,0.3)'
+                boxShadow: isLineOfScrimmage ? `0 0 10px ${GOLF_COLORS.lineOfScrimmage}` : '0 2px 4px rgba(0,0,0,0.3)'
               }} />
 
               {/* Lie Type Indicator */}
@@ -351,7 +329,7 @@ const HoleVisualization = ({ holeState, players, gameState }) => {
                 zIndex: 4,
                 textAlign: 'center',
                 minWidth: '50px',
-                border: isLineOfScrimmage ? `2px solid ${COLORS.danger}` : 'none'
+                border: isLineOfScrimmage ? `2px solid ${GOLF_COLORS.lineOfScrimmage}` : 'none'
               }}>
                 {player.name}
                 <div style={{ fontSize: '8px', opacity: 0.9 }}>
@@ -371,7 +349,7 @@ const HoleVisualization = ({ holeState, players, gameState }) => {
               left: `${distanceToPixels(distance)}px`,
               top: '-15px',
               fontSize: '8px',
-              color: COLORS.secondary,
+              color: UI_COLORS.textSecondary,
               fontWeight: 'bold'
             }}>
               {distance}yd
@@ -386,35 +364,35 @@ const HoleVisualization = ({ holeState, players, gameState }) => {
       {/* Legend */}
       <div style={{ marginTop: '20px', display: 'flex', flexWrap: 'wrap', gap: '15px', justifyContent: 'center', fontSize: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <div style={{ width: '12px', height: '4px', backgroundColor: '#8B4513', borderRadius: '2px' }} />
+          <div style={{ width: '12px', height: '4px', backgroundColor: GOLF_COLORS.teeBox, borderRadius: '2px' }} />
           <span>Tee</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <div style={{ width: '12px', height: '4px', backgroundColor: '#90EE90', borderRadius: '2px' }} />
+          <div style={{ width: '12px', height: '4px', backgroundColor: GOLF_COLORS.fairway, borderRadius: '2px' }} />
           <span>Fairway</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <div style={{ width: '12px', height: '4px', backgroundColor: '#228B22', borderRadius: '2px' }} />
+          <div style={{ width: '12px', height: '4px', backgroundColor: GOLF_COLORS.rough, borderRadius: '2px' }} />
           <span>Rough</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <div style={{ width: '12px', height: '4px', backgroundColor: '#F4A460', borderRadius: '2px' }} />
+          <div style={{ width: '12px', height: '4px', backgroundColor: GOLF_COLORS.bunker, borderRadius: '2px' }} />
           <span>Bunker</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <div style={{ width: '12px', height: '4px', backgroundColor: '#006400', borderRadius: '2px' }} />
+          <div style={{ width: '12px', height: '4px', backgroundColor: GOLF_COLORS.green, borderRadius: '2px' }} />
           <span>Green</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <div style={{ width: '12px', height: '2px', backgroundColor: COLORS.danger }} />
+          <div style={{ width: '12px', height: '2px', backgroundColor: GOLF_COLORS.lineOfScrimmage }} />
           <span>Line of Scrimmage</span>
         </div>
       </div>
 
       {/* Strategic Information */}
-      <div style={{ marginTop: '15px', padding: '12px', backgroundColor: COLORS.light, borderRadius: '6px' }}>
-        <div style={{ fontWeight: 'bold', color: COLORS.primary, marginBottom: '8px' }}>Strategic Information:</div>
-        <div style={{ fontSize: '12px', color: COLORS.secondary }}>
+      <div style={{ marginTop: '15px', padding: '12px', backgroundColor: UI_COLORS.bg, borderRadius: '6px' }}>
+        <div style={{ fontWeight: 'bold', color: UI_COLORS.primary, marginBottom: '8px' }}>Strategic Information:</div>
+        <div style={{ fontSize: '12px', color: UI_COLORS.textSecondary }}>
           • <strong>Line of Scrimmage:</strong> {lineOfScrimmage ? 
             `${players.find(p => p.id === lineOfScrimmage)?.name || lineOfScrimmage} (${positions[lineOfScrimmage]?.distance_to_pin || 0}yd from pin)` : 
             'Not established'}

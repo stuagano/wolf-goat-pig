@@ -7,8 +7,8 @@
 
 import React from 'react';
 import { render } from '@testing-library/react';
-import { ThemeProvider } from '../../theme/Provider';
-import { TutorialContext } from '../../context/TutorialContext';
+import { ThemeProvider } from '../theme/Provider';
+import { TutorialContext } from '../context/TutorialContext';
 
 // Common test wrapper that provides all necessary contexts
 export const TestWrapper = ({
