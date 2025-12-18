@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 const COLORS = {
     primary: "#1976d2",
@@ -130,6 +130,121 @@ const PlayerCircle = ({ players, rotation, onSpinComplete, isSpinning }) => {
     );
 };
 
+// Mobile-friendly move button component
+const MoveButton = ({ direction, onClick, disabled }) => {
+    const isUp = direction === 'up';
+    return (
+        <button
+            onClick={onClick}
+            disabled={disabled}
+            aria-label={`Move ${direction}`}
+            style={{
+                width: 44,
+                height: 44,
+                borderRadius: 8,
+                border: 'none',
+                background: disabled ? '#e0e0e0' : COLORS.primary,
+                color: disabled ? '#999' : 'white',
+                fontSize: 20,
+                fontWeight: 'bold',
+                cursor: disabled ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.15s ease',
+                touchAction: 'manipulation', // Prevents double-tap zoom on mobile
+            }}
+        >
+            {isUp ? '▲' : '▼'}
+        </button>
+    );
+};
+
+// Reorderable player row component
+const PlayerRow = ({ player, index, totalCount, onMoveUp, onMoveDown, onDragStart, onDragOver, onDrop }) => {
+    const canMoveUp = index > 0;
+    const canMoveDown = index < totalCount - 1;
+
+    return (
+        <div
+            draggable
+            onDragStart={(e) => onDragStart(e, index)}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => onDrop(e, index)}
+            style={{
+                padding: '12px 16px',
+                background: '#f8f9fa',
+                border: '1px solid #dee2e6',
+                borderRadius: 12,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                cursor: 'grab',
+                transition: 'all 0.2s ease',
+                touchAction: 'pan-y', // Allow vertical scrolling but enable touch interactions
+            }}
+        >
+            {/* Position number */}
+            <div style={{
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                background: COLORS.primary,
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 18,
+                fontWeight: 'bold',
+                flexShrink: 0,
+            }}>
+                {index + 1}
+            </div>
+
+            {/* Player name */}
+            <span style={{
+                fontSize: 18,
+                flex: 1,
+                fontWeight: 500,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+            }}>
+                {player.name}
+            </span>
+
+            {/* Move buttons - touch-friendly */}
+            <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 4,
+                flexShrink: 0,
+            }}>
+                <MoveButton
+                    direction="up"
+                    onClick={() => onMoveUp(index)}
+                    disabled={!canMoveUp}
+                />
+                <MoveButton
+                    direction="down"
+                    onClick={() => onMoveDown(index)}
+                    disabled={!canMoveDown}
+                />
+            </div>
+
+            {/* Drag handle indicator (for desktop) */}
+            <span style={{
+                color: '#bbb',
+                fontSize: 20,
+                cursor: 'grab',
+                display: 'none', // Hidden on mobile, could show on desktop with media query
+            }}>
+                ☰
+            </span>
+        </div>
+    );
+};
+
 const TeeTossModal = ({ players, onClose, onOrderComplete }) => {
     const [mode, setMode] = useState('animate'); // 'animate' or 'manual'
     const [orderedPlayers, setOrderedPlayers] = useState([]);
@@ -154,9 +269,9 @@ const TeeTossModal = ({ players, onClose, onOrderComplete }) => {
         setRotation(totalRotation);
 
         // Determine winner based on angle
-        // The tee points UP at 0 degrees. 
+        // The tee points UP at 0 degrees.
         // Players are arranged starting at -90 (top) which corresponds to 0 degrees for the tee if we align them.
-        // Let's simplify: The tee graphic points UP. 
+        // Let's simplify: The tee graphic points UP.
         // At 0 deg rotation, it points to 12 o'clock.
         // Player 0 is at 12 o'clock (-90 deg in circle math, but let's map rotation to player index).
 
@@ -166,11 +281,11 @@ const TeeTossModal = ({ players, onClose, onOrderComplete }) => {
         // Each player occupies a segment
         const segmentSize = 360 / remainingPlayers.length;
 
-        // Calculate index. 
+        // Calculate index.
         // Note: SVG rotation is clockwise. 0 is up.
         // Player 0 is at 0 deg (up). Player 1 is at segmentSize deg (right-ish).
         // We need to find which segment the pointer lands in.
-        // We need to account for the "pointer" of the tee. 
+        // We need to account for the "pointer" of the tee.
         // Assuming the tee points UP at 0 rotation.
 
         // Let's wait for animation to finish to update state
@@ -194,7 +309,7 @@ const TeeTossModal = ({ players, onClose, onOrderComplete }) => {
             setMessage(`${winner.name} is #${orderedPlayers.length + 1}!`);
 
             // Reset rotation visually (optional, but keeps numbers smaller)
-            // setRotation(finalAngle); 
+            // setRotation(finalAngle);
 
         }, 3000); // Match CSS transition time
     };
@@ -209,6 +324,27 @@ const TeeTossModal = ({ players, onClose, onOrderComplete }) => {
         }
     }, [remainingPlayers, isSpinning, orderedPlayers]);
 
+    // Move player up in the order
+    const moveUp = useCallback((index) => {
+        if (index <= 0) return;
+        setManualOrder(prev => {
+            const newOrder = [...prev];
+            [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+            return newOrder;
+        });
+    }, []);
+
+    // Move player down in the order
+    const moveDown = useCallback((index) => {
+        if (index >= manualOrder.length - 1) return;
+        setManualOrder(prev => {
+            const newOrder = [...prev];
+            [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+            return newOrder;
+        });
+    }, [manualOrder.length]);
+
+    // HTML5 drag handlers (still work on desktop)
     const handleManualDragStart = (e, index) => {
         e.dataTransfer.setData("index", index);
     };
@@ -236,7 +372,24 @@ const TeeTossModal = ({ players, onClose, onOrderComplete }) => {
             <div style={modalContentStyle}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                     <h2 style={{ margin: 0, color: COLORS.primary }}>Toss Tees for Order</h2>
-                    <button onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: 24, cursor: 'pointer' }}>×</button>
+                    <button
+                        onClick={onClose}
+                        style={{
+                            background: 'transparent',
+                            border: 'none',
+                            fontSize: 28,
+                            cursor: 'pointer',
+                            width: 44,
+                            height: 44,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: 8,
+                        }}
+                        aria-label="Close"
+                    >
+                        ×
+                    </button>
                 </div>
 
                 {/* Mode Toggle */}
@@ -247,14 +400,15 @@ const TeeTossModal = ({ players, onClose, onOrderComplete }) => {
                             flex: 1,
                             border: 'none',
                             background: mode === 'animate' ? 'white' : 'transparent',
-                            padding: 8,
+                            padding: 12,
                             borderRadius: 6,
                             fontWeight: 600,
+                            fontSize: 15,
                             boxShadow: mode === 'animate' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none',
                             cursor: 'pointer'
                         }}
                     >
-                        Interactive Toss
+                        🎯 Spin Tee
                     </button>
                     <button
                         onClick={() => setMode('manual')}
@@ -262,14 +416,15 @@ const TeeTossModal = ({ players, onClose, onOrderComplete }) => {
                             flex: 1,
                             border: 'none',
                             background: mode === 'manual' ? 'white' : 'transparent',
-                            padding: 8,
+                            padding: 12,
                             borderRadius: 6,
                             fontWeight: 600,
+                            fontSize: 15,
                             boxShadow: mode === 'manual' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none',
                             cursor: 'pointer'
                         }}
                     >
-                        Manual List
+                        ✋ Set Order
                     </button>
                 </div>
 
@@ -345,40 +500,37 @@ const TeeTossModal = ({ players, onClose, onOrderComplete }) => {
                     </div>
                 ) : (
                     <div>
-                        <p style={{ color: '#666', marginBottom: 16 }}>Drag and drop to reorder players.</p>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <p style={{ color: '#666', marginBottom: 16, fontSize: 15 }}>
+                            Use the arrows to move players up or down in the order.
+                        </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                             {manualOrder.map((player, index) => (
-                                <div
+                                <PlayerRow
                                     key={player.id}
-                                    draggable
-                                    onDragStart={(e) => handleManualDragStart(e, index)}
+                                    player={player}
+                                    index={index}
+                                    totalCount={manualOrder.length}
+                                    onMoveUp={moveUp}
+                                    onMoveDown={moveDown}
+                                    onDragStart={handleManualDragStart}
                                     onDragOver={(e) => e.preventDefault()}
-                                    onDrop={(e) => handleManualDrop(e, index)}
-                                    style={{
-                                        padding: 16,
-                                        background: '#f8f9fa',
-                                        border: '1px solid #dee2e6',
-                                        borderRadius: 8,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        cursor: 'grab',
-                                        transition: 'background 0.2s'
-                                    }}
-                                >
-                                    <span style={{
-                                        fontSize: 20,
-                                        fontWeight: 'bold',
-                                        color: COLORS.primary,
-                                        width: 40
-                                    }}>{index + 1}.</span>
-                                    <span style={{ fontSize: 18, flex: 1 }}>{player.name}</span>
-                                    <span style={{ color: '#999' }}>☰</span>
-                                </div>
+                                    onDrop={handleManualDrop}
+                                />
                             ))}
                         </div>
-                        <div style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end' }}>
-                            <button onClick={handleConfirm} style={{ ...buttonStyle, background: COLORS.success }}>
-                                Confirm Order
+                        <div style={{ marginTop: 24, display: 'flex', justifyContent: 'center' }}>
+                            <button
+                                onClick={handleConfirm}
+                                style={{
+                                    ...buttonStyle,
+                                    background: COLORS.success,
+                                    width: '100%',
+                                    maxWidth: 300,
+                                    padding: '14px 24px',
+                                    fontSize: 18,
+                                }}
+                            >
+                                ✓ Confirm Order
                             </button>
                         </div>
                     </div>

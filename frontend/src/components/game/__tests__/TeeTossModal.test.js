@@ -44,11 +44,35 @@ describe('TeeTossModal', () => {
             />
         );
 
-        fireEvent.click(screen.getByText('Manual List'));
+        fireEvent.click(screen.getByText('✋ Set Order'));
 
-        expect(screen.getByText('Drag and drop to reorder players.')).toBeInTheDocument();
-        expect(screen.getByText('Confirm Order')).toBeInTheDocument();
+        expect(screen.getByText('Use the arrows to move players up or down in the order.')).toBeInTheDocument();
+        expect(screen.getByText('✓ Confirm Order')).toBeInTheDocument();
         expect(screen.queryByText('Spin Tee')).not.toBeInTheDocument();
+    });
+
+    test('move buttons reorder players in manual mode', () => {
+        render(
+            <TeeTossModal
+                players={mockPlayers}
+                onClose={mockOnClose}
+                onOrderComplete={mockOnOrderComplete}
+            />
+        );
+
+        // Switch to manual mode
+        fireEvent.click(screen.getByText('✋ Set Order'));
+
+        // Get all move down buttons (first player can only move down)
+        const moveDownButtons = screen.getAllByLabelText('Move down');
+        expect(moveDownButtons.length).toBe(mockPlayers.length);
+
+        // Click move down on first player
+        fireEvent.click(moveDownButtons[0]);
+
+        // Verify order changed - Player 2 should now be first
+        const playerRows = screen.getAllByText(/Player \d/);
+        expect(playerRows[0]).toHaveTextContent('Player 2');
     });
 
     test('calls onClose when close button is clicked', () => {
