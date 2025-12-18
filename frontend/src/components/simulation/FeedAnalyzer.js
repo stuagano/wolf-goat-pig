@@ -195,8 +195,9 @@ const FeedAnalyzer = () => {
 
     if (data.ballPositions) {
       const positions = Object.values(data.ballPositions);
-      stats.averageShots = positions.reduce((sum, pos) => sum + pos.shot_count, 0) / positions.length;
-      stats.completionRate = positions.filter(pos => pos.holed).length / positions.length * 100;
+      const positionCount = positions.length || 1; // Prevent division by zero
+      stats.averageShots = positions.reduce((sum, pos) => sum + (pos.shot_count || 0), 0) / positionCount;
+      stats.completionRate = positions.filter(pos => pos.holed).length / positionCount * 100;
       
       // Lie type distribution
       positions.forEach(pos => {

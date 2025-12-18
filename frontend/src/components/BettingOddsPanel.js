@@ -248,7 +248,7 @@ const BettingOddsPanel = ({
             padding: '4px 12px',
             fontSize: 12
           }}>
-            {oddsData.calculation_time_ms.toFixed(0)}ms
+            {(oddsData.calculation_time_ms ?? 0).toFixed(0)}ms
           </div>
           
           {/* Refresh button */}
