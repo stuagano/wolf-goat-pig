@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
+import '../../styles/mobile-touch.css';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -245,43 +246,69 @@ const SignupCalendar = ({ onSignupChange, onDateSelect }) => {
 
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-      {/* Header with navigation */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        marginBottom: '20px' 
+      {/* Header with navigation - mobile-optimized */}
+      <div className="week-navigation" style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '20px',
+        gap: '12px'
       }}>
-        <button 
+        <button
           onClick={() => navigateWeek(-1)}
+          className="week-nav-button"
           style={{
-            padding: '8px 16px',
-            background: '#007bff',
+            minWidth: '48px',
+            minHeight: '48px',
+            padding: '12px 16px',
+            background: '#047857',
             color: 'white',
             border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
+            borderRadius: '10px',
+            cursor: 'pointer',
+            fontSize: '16px',
+            fontWeight: '600',
+            touchAction: 'manipulation',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
           }}
         >
-          ← Previous Week
+          ←
         </button>
-        
-        <h3 style={{ margin: 0, color: '#333' }}>
+
+        <h3 className="week-nav-title" style={{
+          margin: 0,
+          color: '#1f2937',
+          fontSize: '16px',
+          fontWeight: '600',
+          textAlign: 'center',
+          flex: 1
+        }}>
           Week of {formatDateDisplay(currentWeekStart)}
         </h3>
-        
-        <button 
+
+        <button
           onClick={() => navigateWeek(1)}
+          className="week-nav-button"
           style={{
-            padding: '8px 16px',
-            background: '#007bff',
+            minWidth: '48px',
+            minHeight: '48px',
+            padding: '12px 16px',
+            background: '#047857',
             color: 'white',
             border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
+            borderRadius: '10px',
+            cursor: 'pointer',
+            fontSize: '16px',
+            fontWeight: '600',
+            touchAction: 'manipulation',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
           }}
         >
-          Next Week →
+          →
         </button>
       </div>
 
@@ -298,89 +325,102 @@ const SignupCalendar = ({ onSignupChange, onDateSelect }) => {
         </div>
       )}
 
-      {/* Calendar Grid */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(7, 1fr)',
-        gap: '10px',
-        marginBottom: '20px'
-      }}>
-        {/* Day headers */}
+      {/* Calendar Grid - responsive: 7 cols on desktop, 2 on tablet, 1 on mobile */}
+      <div
+        className="responsive-grid-7"
+        style={{
+          marginBottom: '20px'
+        }}
+      >
+        {/* Day headers - hidden on mobile since each card shows the full date */}
         {dayNames.map(day => (
-          <div key={day} style={{
+          <div key={day} className="day-header" style={{
             textAlign: 'center',
-            fontWeight: 'bold',
-            padding: '10px',
-            backgroundColor: '#f8f9fa',
-            border: '1px solid #dee2e6',
-            borderRadius: '4px'
+            fontWeight: '600',
+            padding: '12px',
+            backgroundColor: '#f3f4f6',
+            border: '1px solid #e5e7eb',
+            borderRadius: '8px',
+            fontSize: '14px',
+            color: '#374151'
           }}>
             {day}
           </div>
         ))}
 
-        {/* Day cards with message boards */}
+        {/* Day cards with message boards - mobile-optimized */}
         {weekData.daily_summaries.map((dailySummary, index) => {
           const userSignup = isUserSignedUp(dailySummary);
           const canSignUp = isAuthenticated && !userSignup;
           const currentMessageText = messageInputs[dailySummary.date] || '';
-          
+
           return (
-            <div key={index} style={{
-              border: '1px solid #dee2e6',
-              borderRadius: '8px',
-              padding: '10px',
-              backgroundColor: userSignup ? '#d4edda' : '#ffffff',
-              minHeight: '300px',
-              display: 'flex',
-              flexDirection: 'column'
-            }}>
-              {/* Date - Clickable */}
-              <div 
+            <div
+              key={index}
+              className={`mobile-day-card ${userSignup ? 'signed-up' : ''}`}
+              style={{
+                border: userSignup ? '2px solid #047857' : '2px solid #e5e7eb',
+                borderRadius: '12px',
+                padding: '16px',
+                backgroundColor: userSignup ? '#ecfdf5' : '#ffffff',
+                minHeight: '280px',
+                display: 'flex',
+                flexDirection: 'column'
+              }}
+            >
+              {/* Date - Clickable with larger touch target */}
+              <div
                 onClick={() => onDateSelect && onDateSelect(dailySummary.date)}
-                style={{ 
-                  fontSize: '14px', 
-                  fontWeight: 'bold', 
-                  marginBottom: '8px',
-                  color: onDateSelect ? '#007bff' : '#495057',
+                style={{
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  marginBottom: '12px',
+                  color: onDateSelect ? '#047857' : '#1f2937',
                   textAlign: 'center',
-                  borderBottom: '1px solid #dee2e6',
-                  paddingBottom: '8px',
+                  borderBottom: '1px solid #e5e7eb',
+                  paddingBottom: '12px',
                   cursor: onDateSelect ? 'pointer' : 'default',
-                  textDecoration: onDateSelect ? 'underline' : 'none'
+                  minHeight: '44px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  touchAction: 'manipulation'
                 }}
-                title={onDateSelect ? 'Click to view detailed signup for this day' : ''}
+                title={onDateSelect ? 'Tap to view detailed signup for this day' : ''}
               >
                 {formatDateDisplay(dailySummary.date)}
               </div>
 
               {/* Signups Section */}
-              <div style={{ marginBottom: '12px' }}>
-                <div style={{ 
-                  fontSize: '12px', 
-                  color: '#6c757d', 
-                  marginBottom: '4px',
-                  fontWeight: 'bold'
+              <div style={{ marginBottom: '16px' }}>
+                <div className="mobile-section-label" style={{
+                  fontSize: '13px',
+                  color: '#6b7280',
+                  marginBottom: '8px',
+                  fontWeight: '600',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
                 }}>
                   ⛳ Golf ({dailySummary.total_count})
                 </div>
-                <div style={{ fontSize: '10px', maxHeight: '60px', overflowY: 'auto' }}>
-                  {dailySummary.signups.slice(0, 2).map(signup => (
-                    <div key={signup.id} style={{ 
-                      color: '#495057',
-                      marginBottom: '1px'
+                <div style={{ fontSize: '14px', maxHeight: '80px', overflowY: 'auto' }}>
+                  {dailySummary.signups.slice(0, 3).map(signup => (
+                    <div key={signup.id} style={{
+                      color: '#374151',
+                      marginBottom: '4px',
+                      padding: '4px 0'
                     }}>
                       • {signup.player_name.split(' ')[0]}
                       {signup.preferred_start_time && (
-                        <span style={{ color: '#6c757d' }}>
+                        <span style={{ color: '#6b7280' }}>
                           {' '}({signup.preferred_start_time})
                         </span>
                       )}
                     </div>
                   ))}
-                  {dailySummary.signups.length > 2 && (
-                    <div style={{ color: '#6c757d', fontSize: '9px' }}>
-                      +{dailySummary.signups.length - 2} more
+                  {dailySummary.signups.length > 3 && (
+                    <div style={{ color: '#6b7280', fontSize: '13px', fontStyle: 'italic' }}>
+                      +{dailySummary.signups.length - 3} more
                     </div>
                   )}
                 </div>
@@ -388,51 +428,58 @@ const SignupCalendar = ({ onSignupChange, onDateSelect }) => {
 
               {/* Messages Section */}
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <div style={{ 
-                  fontSize: '12px', 
-                  color: '#6c757d', 
-                  marginBottom: '4px',
-                  fontWeight: 'bold'
+                <div className="mobile-section-label" style={{
+                  fontSize: '13px',
+                  color: '#6b7280',
+                  marginBottom: '8px',
+                  fontWeight: '600',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
                 }}>
                   💬 Messages ({dailySummary.message_count})
                 </div>
-                
+
                 {/* Messages list */}
-                <div style={{ 
-                  flex: 1, 
-                  overflowY: 'auto', 
+                <div style={{
+                  flex: 1,
+                  overflowY: 'auto',
                   maxHeight: '120px',
-                  marginBottom: '8px',
-                  fontSize: '10px'
+                  marginBottom: '12px',
+                  fontSize: '14px'
                 }}>
                   {dailySummary.messages && dailySummary.messages.length > 0 ? (
                     dailySummary.messages.map(message => (
                       <div key={message.id} style={{
-                        backgroundColor: '#f8f9fa',
-                        padding: '6px',
-                        marginBottom: '4px',
-                        borderRadius: '4px',
-                        border: '1px solid #e9ecef'
+                        backgroundColor: '#f9fafb',
+                        padding: '10px',
+                        marginBottom: '6px',
+                        borderRadius: '8px',
+                        border: '1px solid #e5e7eb'
                       }}>
-                        <div style={{ 
-                          fontWeight: 'bold',
-                          color: '#495057',
-                          marginBottom: '2px',
+                        <div style={{
+                          fontWeight: '600',
+                          color: '#374151',
+                          marginBottom: '4px',
                           display: 'flex',
                           justifyContent: 'space-between',
-                          alignItems: 'center'
+                          alignItems: 'center',
+                          fontSize: '14px'
                         }}>
                           <span>{message.player_name.split(' ')[0]}</span>
                           {user && message.player_name === (user.name || user.email) && (
                             <button
                               onClick={() => handleDeleteMessage(message.id)}
                               style={{
-                                background: 'none',
+                                background: '#fee2e2',
                                 border: 'none',
-                                color: '#dc3545',
+                                color: '#dc2626',
                                 cursor: 'pointer',
-                                fontSize: '10px',
-                                padding: '0'
+                                fontSize: '16px',
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                minWidth: '32px',
+                                minHeight: '32px',
+                                touchAction: 'manipulation'
                               }}
                               title="Delete message"
                             >
@@ -440,26 +487,27 @@ const SignupCalendar = ({ onSignupChange, onDateSelect }) => {
                             </button>
                           )}
                         </div>
-                        <div style={{ color: '#6c757d' }}>
+                        <div style={{ color: '#6b7280', fontSize: '14px', lineHeight: '1.4' }}>
                           {message.message}
                         </div>
                       </div>
                     ))
                   ) : (
-                    <div style={{ 
-                      color: '#6c757d', 
+                    <div style={{
+                      color: '#9ca3af',
                       fontStyle: 'italic',
                       textAlign: 'center',
-                      padding: '10px'
+                      padding: '16px',
+                      fontSize: '14px'
                     }}>
                       No messages yet
                     </div>
                   )}
                 </div>
 
-                {/* Message input */}
+                {/* Message input - mobile optimized */}
                 {isAuthenticated ? (
-                  <div style={{ marginBottom: '8px' }}>
+                  <div style={{ marginBottom: '12px' }}>
                     <textarea
                       value={currentMessageText}
                       onChange={(e) => setMessageInputs(prev => ({
@@ -467,14 +515,16 @@ const SignupCalendar = ({ onSignupChange, onDateSelect }) => {
                         [dailySummary.date]: e.target.value
                       }))}
                       placeholder="Post a message..."
+                      className="mobile-form-control"
                       style={{
                         width: '100%',
-                        minHeight: '40px',
-                        padding: '4px',
-                        fontSize: '10px',
-                        border: '1px solid #dee2e6',
-                        borderRadius: '4px',
-                        resize: 'none'
+                        minHeight: '48px',
+                        padding: '12px',
+                        fontSize: '16px',
+                        border: '2px solid #e5e7eb',
+                        borderRadius: '8px',
+                        resize: 'none',
+                        boxSizing: 'border-box'
                       }}
                       onKeyPress={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
@@ -499,16 +549,20 @@ const SignupCalendar = ({ onSignupChange, onDateSelect }) => {
                           }));
                         }
                       }}
+                      className="mobile-button mobile-button-primary mobile-button-full"
                       style={{
-                        marginTop: '2px',
+                        marginTop: '8px',
                         width: '100%',
-                        padding: '4px',
-                        background: '#007bff',
+                        minHeight: '44px',
+                        padding: '12px',
+                        background: currentMessageText.trim() ? '#047857' : '#9ca3af',
                         color: 'white',
                         border: 'none',
-                        borderRadius: '4px',
-                        fontSize: '10px',
-                        cursor: 'pointer'
+                        borderRadius: '8px',
+                        fontSize: '15px',
+                        fontWeight: '600',
+                        cursor: currentMessageText.trim() ? 'pointer' : 'not-allowed',
+                        touchAction: 'manipulation'
                       }}
                       disabled={!currentMessageText.trim()}
                     >
@@ -518,20 +572,24 @@ const SignupCalendar = ({ onSignupChange, onDateSelect }) => {
                 ) : null}
               </div>
 
-              {/* Signup Action button */}
+              {/* Signup Action button - mobile optimized */}
               <div>
                 {userSignup ? (
                   <button
                     onClick={() => handleCancelSignup(userSignup.id)}
+                    className="mobile-button mobile-button-danger mobile-button-full"
                     style={{
                       width: '100%',
-                      padding: '6px',
-                      background: '#dc3545',
+                      minHeight: '48px',
+                      padding: '14px',
+                      background: '#dc2626',
                       color: 'white',
                       border: 'none',
-                      borderRadius: '4px',
-                      fontSize: '11px',
-                      cursor: 'pointer'
+                      borderRadius: '10px',
+                      fontSize: '15px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      touchAction: 'manipulation'
                     }}
                   >
                     Cancel Golf Signup
@@ -539,25 +597,30 @@ const SignupCalendar = ({ onSignupChange, onDateSelect }) => {
                 ) : canSignUp ? (
                   <button
                     onClick={() => handleSignup(dailySummary.date)}
+                    className="mobile-button mobile-button-primary mobile-button-full"
                     style={{
                       width: '100%',
-                      padding: '6px',
-                      background: '#28a745',
+                      minHeight: '48px',
+                      padding: '14px',
+                      background: '#047857',
                       color: 'white',
                       border: 'none',
-                      borderRadius: '4px',
-                      fontSize: '11px',
-                      cursor: 'pointer'
+                      borderRadius: '10px',
+                      fontSize: '15px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      touchAction: 'manipulation'
                     }}
                   >
-                    Sign Up for Golf
+                    ⛳ Sign Up for Golf
                   </button>
                 ) : !isAuthenticated ? (
                   <div style={{
                     textAlign: 'center',
-                    fontSize: '10px',
-                    color: '#6c757d',
-                    fontStyle: 'italic'
+                    fontSize: '14px',
+                    color: '#6b7280',
+                    fontStyle: 'italic',
+                    padding: '12px'
                   }}>
                     Login to sign up or post messages
                   </div>

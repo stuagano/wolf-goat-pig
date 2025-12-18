@@ -240,3 +240,430 @@
 .content-with-thumb-zone {
   padding-bottom: 140px; /* Height of typical thumb zone + spacing */
 }
+
+/* =================================================================
+   MOBILE-FIRST RESPONSIVE UTILITIES
+   ================================================================= */
+
+/* Responsive grid system for calendars/cards */
+.responsive-grid-7 {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 1024px) {
+  .responsive-grid-7 {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .responsive-grid-7 {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .responsive-grid-7 {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+/* Mobile-friendly form controls */
+.mobile-form-control {
+  min-height: 48px;
+  font-size: 16px !important; /* Prevents iOS zoom on focus */
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 2px solid #dee2e6;
+  width: 100%;
+  box-sizing: border-box;
+  touch-action: manipulation;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.mobile-form-control:focus {
+  border-color: #047857;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(4, 120, 87, 0.15);
+}
+
+/* Mobile-friendly select dropdown */
+.mobile-select {
+  min-height: 48px;
+  font-size: 16px !important;
+  padding: 12px 40px 12px 16px;
+  border-radius: 8px;
+  border: 2px solid #dee2e6;
+  width: 100%;
+  background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23495057' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right 16px center;
+  background-size: 12px;
+  -webkit-appearance: none;
+  appearance: none;
+  touch-action: manipulation;
+}
+
+/* Mobile-friendly checkbox container */
+.mobile-checkbox-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 8px 12px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Custom large checkbox */
+.mobile-checkbox {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border: 2px solid #047857;
+  border-radius: 6px;
+  cursor: pointer;
+  position: relative;
+  background: white;
+  -webkit-appearance: none;
+  appearance: none;
+  touch-action: manipulation;
+}
+
+.mobile-checkbox:checked {
+  background: #047857;
+}
+
+.mobile-checkbox:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.mobile-checkbox:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(4, 120, 87, 0.15);
+}
+
+/* Mobile-friendly button */
+.mobile-button {
+  min-height: 48px;
+  padding: 12px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.15s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-button:active {
+  transform: scale(0.97);
+}
+
+.mobile-button-primary {
+  background: #047857;
+  color: white;
+}
+
+.mobile-button-secondary {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.mobile-button-danger {
+  background: #dc2626;
+  color: white;
+}
+
+.mobile-button-full {
+  width: 100%;
+}
+
+/* Mobile typography utilities */
+.mobile-text-base {
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.mobile-text-lg {
+  font-size: 18px;
+  line-height: 1.4;
+}
+
+.mobile-text-xl {
+  font-size: 20px;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+.mobile-text-label {
+  font-size: 15px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 6px;
+  display: block;
+}
+
+/* Mobile card component */
+.mobile-card {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.mobile-card-header {
+  font-size: 17px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Mobile navigation header with back button */
+.mobile-nav-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.mobile-back-button {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  border: none;
+  border-radius: 10px;
+  font-size: 20px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-back-button:active {
+  background: #e5e7eb;
+}
+
+.mobile-nav-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+  flex: 1;
+}
+
+/* Swipe gesture hint */
+.swipe-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #6b7280;
+  font-size: 13px;
+  padding: 8px;
+}
+
+.swipe-hint::before,
+.swipe-hint::after {
+  content: '';
+  width: 20px;
+  height: 2px;
+  background: #d1d5db;
+  border-radius: 1px;
+}
+
+/* Week navigation on mobile - horizontal scroll */
+@media (max-width: 768px) {
+  .week-navigation {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 0;
+  }
+
+  .week-nav-button {
+    min-width: 48px;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #047857;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 18px;
+    font-weight: bold;
+    touch-action: manipulation;
+  }
+
+  .week-nav-title {
+    font-size: 16px;
+    font-weight: 600;
+    text-align: center;
+    flex: 1;
+  }
+}
+
+/* Day card on mobile - optimized for touch */
+.mobile-day-card {
+  background: white;
+  border-radius: 12px;
+  border: 2px solid #e5e7eb;
+  overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+
+.mobile-day-card.signed-up {
+  border-color: #047857;
+  background: linear-gradient(to bottom, #ecfdf5, white);
+}
+
+.mobile-day-card-header {
+  padding: 12px 16px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  font-weight: 600;
+  font-size: 15px;
+  text-align: center;
+}
+
+.mobile-day-card-content {
+  padding: 16px;
+}
+
+.mobile-day-card-section {
+  margin-bottom: 12px;
+}
+
+.mobile-day-card-section:last-child {
+  margin-bottom: 0;
+}
+
+.mobile-section-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Quick action buttons row */
+.mobile-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.mobile-quick-action {
+  flex: 1;
+  min-width: 100px;
+  min-height: 44px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  touch-action: manipulation;
+}
+
+/* Bottom sheet style panel */
+.mobile-bottom-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+  padding: 20px;
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  z-index: 1000;
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+}
+
+.mobile-bottom-sheet.open {
+  transform: translateY(0);
+}
+
+.mobile-bottom-sheet-handle {
+  width: 40px;
+  height: 4px;
+  background: #d1d5db;
+  border-radius: 2px;
+  margin: 0 auto 16px;
+}
+
+/* Action sheet buttons */
+.mobile-action-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mobile-action-sheet-button {
+  width: 100%;
+  min-height: 52px;
+  padding: 14px 20px;
+  font-size: 17px;
+  font-weight: 500;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  text-align: center;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.mobile-action-sheet-button:active {
+  background: #f3f4f6;
+}
+
+.mobile-action-sheet-button.primary {
+  background: #047857;
+  color: white;
+  border-color: #047857;
+}
+
+.mobile-action-sheet-button.destructive {
+  color: #dc2626;
+}

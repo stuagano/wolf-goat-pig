@@ -175,8 +175,8 @@ describe('PlayerAvailability', () => {
       expect(screen.getByText('Quick Actions')).toBeInTheDocument();
     });
 
-    // Test "Available Weekdays" button
-    const weekdaysButton = screen.getByText('Available Weekdays');
+    // Test "Weekdays" button (quick action)
+    const weekdaysButton = screen.getByText('Weekdays');
     fireEvent.click(weekdaysButton);
 
     // Check that Monday-Friday checkboxes are now checked

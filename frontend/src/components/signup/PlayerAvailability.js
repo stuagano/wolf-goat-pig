@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
+import '../../styles/mobile-touch.css';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -177,11 +178,11 @@ const PlayerAvailability = () => {
 
   if (loading) {
     return (
-      <div style={{ 
-        textAlign: 'center', 
-        padding: '40px',
+      <div style={{
+        textAlign: 'center',
+        padding: '48px 20px',
         fontSize: '16px',
-        color: '#6c757d'
+        color: '#6b7280'
       }}>
         Loading your availability settings...
       </div>
@@ -189,22 +190,23 @@ const PlayerAvailability = () => {
   }
 
   return (
-    <div style={{ maxWidth: '800px' }}>
+    <div style={{ maxWidth: '800px', padding: '0 16px' }}>
       {error && (
-        <div style={{ 
-          backgroundColor: '#f8d7da', 
-          color: '#721c24', 
-          padding: '12px', 
-          borderRadius: '6px', 
+        <div style={{
+          backgroundColor: '#fef2f2',
+          color: '#991b1b',
+          padding: '16px',
+          borderRadius: '12px',
           marginBottom: '20px',
-          border: '1px solid #f5c6cb'
+          border: '1px solid #fecaca',
+          fontSize: '15px'
         }}>
           {error}
         </div>
       )}
 
-      <div style={{ marginBottom: '20px' }}>
-        <p style={{ color: '#6c757d', fontSize: '14px', margin: 0 }}>
+      <div style={{ marginBottom: '24px' }}>
+        <p style={{ color: '#6b7280', fontSize: '16px', margin: 0, lineHeight: '1.5' }}>
           Set your typical availability for each day to help others know when you're usually free to play.
         </p>
       </div>
@@ -215,57 +217,79 @@ const PlayerAvailability = () => {
         gap: '16px'
       }}>
         {availability.map((day, index) => (
-          <div key={index} style={{
-            border: '1px solid #dee2e6',
-            borderRadius: '8px',
-            padding: '20px',
-            backgroundColor: day.is_available ? '#f8fff8' : '#ffffff'
-          }}>
+          <div
+            key={index}
+            className="mobile-card"
+            style={{
+              border: day.is_available ? '2px solid #047857' : '2px solid #e5e7eb',
+              borderRadius: '12px',
+              padding: '20px',
+              backgroundColor: day.is_available ? '#ecfdf5' : '#ffffff',
+              transition: 'all 0.15s ease'
+            }}
+          >
             <div style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              marginBottom: '15px'
+              marginBottom: '16px',
+              flexWrap: 'wrap',
+              gap: '12px'
             }}>
-              <h4 style={{ 
-                margin: 0, 
-                color: '#495057',
-                fontSize: '16px',
+              <h4 style={{
+                margin: 0,
+                color: '#1f2937',
+                fontSize: '18px',
                 fontWeight: '600'
               }}>
                 {dayNames[index]}
               </h4>
-              
-              <label style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '8px',
-                cursor: 'pointer',
-                fontSize: '14px'
-              }}>
+
+              <label
+                className="mobile-checkbox-container"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  color: '#374151',
+                  padding: '8px 12px',
+                  background: day.is_available ? '#d1fae5' : '#f3f4f6',
+                  borderRadius: '8px',
+                  minHeight: '48px',
+                  touchAction: 'manipulation'
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={day.is_available}
                   onChange={(e) => updateDayAvailability(index, 'is_available', e.target.checked)}
-                  style={{ transform: 'scale(1.1)' }}
+                  className="mobile-checkbox"
+                  style={{
+                    width: '28px',
+                    height: '28px',
+                    minWidth: '28px',
+                    accentColor: '#047857'
+                  }}
                 />
-                Available to play
+                <span style={{ fontWeight: '500' }}>Available to play</span>
               </label>
             </div>
 
             {day.is_available && (
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: '12px',
-                marginBottom: '15px'
+                gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                gap: '16px',
+                marginBottom: '16px'
               }}>
                 <div>
-                  <label style={{ 
-                    display: 'block', 
-                    fontSize: '13px', 
-                    color: '#495057',
-                    marginBottom: '4px',
+                  <label className="mobile-text-label" style={{
+                    display: 'block',
+                    fontSize: '15px',
+                    color: '#374151',
+                    marginBottom: '8px',
                     fontWeight: '500'
                   }}>
                     Available from:
@@ -273,12 +297,21 @@ const PlayerAvailability = () => {
                   <select
                     value={day.available_from_time}
                     onChange={(e) => updateDayAvailability(index, 'available_from_time', e.target.value)}
+                    className="mobile-select"
                     style={{
                       width: '100%',
-                      padding: '8px',
-                      border: '1px solid #ced4da',
-                      borderRadius: '4px',
-                      fontSize: '14px'
+                      minHeight: '48px',
+                      padding: '12px 40px 12px 16px',
+                      border: '2px solid #e5e7eb',
+                      borderRadius: '8px',
+                      fontSize: '16px',
+                      backgroundColor: 'white',
+                      appearance: 'none',
+                      WebkitAppearance: 'none',
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23495057' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'right 16px center',
+                      backgroundSize: '12px'
                     }}
                   >
                     {timeOptions.map(time => (
@@ -290,11 +323,11 @@ const PlayerAvailability = () => {
                 </div>
 
                 <div>
-                  <label style={{ 
-                    display: 'block', 
-                    fontSize: '13px', 
-                    color: '#495057',
-                    marginBottom: '4px',
+                  <label className="mobile-text-label" style={{
+                    display: 'block',
+                    fontSize: '15px',
+                    color: '#374151',
+                    marginBottom: '8px',
                     fontWeight: '500'
                   }}>
                     Available until:
@@ -302,12 +335,21 @@ const PlayerAvailability = () => {
                   <select
                     value={day.available_to_time}
                     onChange={(e) => updateDayAvailability(index, 'available_to_time', e.target.value)}
+                    className="mobile-select"
                     style={{
                       width: '100%',
-                      padding: '8px',
-                      border: '1px solid #ced4da',
-                      borderRadius: '4px',
-                      fontSize: '14px'
+                      minHeight: '48px',
+                      padding: '12px 40px 12px 16px',
+                      border: '2px solid #e5e7eb',
+                      borderRadius: '8px',
+                      fontSize: '16px',
+                      backgroundColor: 'white',
+                      appearance: 'none',
+                      WebkitAppearance: 'none',
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23495057' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'right 16px center',
+                      backgroundSize: '12px'
                     }}
                   >
                     {timeOptions.map(time => (
@@ -321,50 +363,56 @@ const PlayerAvailability = () => {
             )}
 
             {day.is_available && (
-              <div style={{ marginBottom: '15px' }}>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '13px', 
-                  color: '#495057',
-                  marginBottom: '4px',
+              <div style={{ marginBottom: '16px' }}>
+                <label className="mobile-text-label" style={{
+                  display: 'block',
+                  fontSize: '15px',
+                  color: '#374151',
+                  marginBottom: '8px',
                   fontWeight: '500'
                 }}>
                   Notes (optional):
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g., 'Only after work', 'Prefer mornings', etc."
+                  placeholder="e.g., 'Only after work', 'Prefer mornings'"
                   value={day.notes}
                   onChange={(e) => updateDayAvailability(index, 'notes', e.target.value)}
+                  className="mobile-form-control"
                   style={{
                     width: '100%',
-                    padding: '8px',
-                    border: '1px solid #ced4da',
-                    borderRadius: '4px',
-                    fontSize: '14px'
+                    minHeight: '48px',
+                    padding: '12px 16px',
+                    border: '2px solid #e5e7eb',
+                    borderRadius: '8px',
+                    fontSize: '16px',
+                    boxSizing: 'border-box'
                   }}
                 />
               </div>
             )}
 
-            <div style={{ 
-              display: 'flex', 
+            <div style={{
+              display: 'flex',
               justifyContent: 'flex-end',
-              gap: '8px' 
+              gap: '12px'
             }}>
               <button
                 onClick={() => saveDayAvailability(index)}
                 disabled={saving}
+                className="mobile-button mobile-button-primary"
                 style={{
-                  background: '#28a745',
+                  background: saving ? '#9ca3af' : '#047857',
                   color: 'white',
                   border: 'none',
-                  padding: '8px 16px',
-                  borderRadius: '4px',
-                  fontSize: '13px',
+                  minHeight: '48px',
+                  padding: '12px 24px',
+                  borderRadius: '10px',
+                  fontSize: '16px',
                   cursor: saving ? 'not-allowed' : 'pointer',
-                  opacity: saving ? 0.7 : 1,
-                  fontWeight: '500'
+                  fontWeight: '600',
+                  touchAction: 'manipulation',
+                  transition: 'all 0.15s ease'
                 }}
               >
                 {saving ? 'Saving...' : 'Save'}
@@ -376,14 +424,14 @@ const PlayerAvailability = () => {
 
       {/* Quick Actions */}
       <div style={{
-        marginTop: '20px',
-        padding: '16px',
-        background: '#f8f9fa',
-        borderRadius: '6px',
-        border: '1px solid #dee2e6'
+        marginTop: '24px',
+        padding: '20px',
+        background: '#f9fafb',
+        borderRadius: '12px',
+        border: '1px solid #e5e7eb'
       }}>
-        <h5 style={{ color: '#495057', marginBottom: '10px' }}>Quick Actions</h5>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <h5 style={{ color: '#1f2937', marginBottom: '16px', fontSize: '16px', fontWeight: '600' }}>Quick Actions</h5>
+        <div className="mobile-quick-actions" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           <button
             onClick={() => {
               const weekdayAvailability = availability.map((day, index) => ({
@@ -392,19 +440,25 @@ const PlayerAvailability = () => {
               }));
               setAvailability(weekdayAvailability);
             }}
+            className="mobile-quick-action"
             style={{
-              background: '#007bff',
+              flex: '1 1 auto',
+              minWidth: '120px',
+              background: '#0369a1',
               color: 'white',
               border: 'none',
-              padding: '6px 12px',
-              borderRadius: '4px',
-              fontSize: '12px',
-              cursor: 'pointer'
+              minHeight: '48px',
+              padding: '12px 16px',
+              borderRadius: '10px',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              touchAction: 'manipulation'
             }}
           >
-            Available Weekdays
+            Weekdays
           </button>
-          
+
           <button
             onClick={() => {
               const weekendAvailability = availability.map((day, index) => ({
@@ -413,19 +467,25 @@ const PlayerAvailability = () => {
               }));
               setAvailability(weekendAvailability);
             }}
+            className="mobile-quick-action"
             style={{
-              background: '#007bff',
+              flex: '1 1 auto',
+              minWidth: '120px',
+              background: '#0369a1',
               color: 'white',
               border: 'none',
-              padding: '6px 12px',
-              borderRadius: '4px',
-              fontSize: '12px',
-              cursor: 'pointer'
+              minHeight: '48px',
+              padding: '12px 16px',
+              borderRadius: '10px',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              touchAction: 'manipulation'
             }}
           >
-            Available Weekends
+            Weekends
           </button>
-          
+
           <button
             onClick={() => {
               const allAvailable = availability.map(day => ({
@@ -434,31 +494,43 @@ const PlayerAvailability = () => {
               }));
               setAvailability(allAvailable);
             }}
+            className="mobile-quick-action"
             style={{
-              background: '#28a745',
+              flex: '1 1 auto',
+              minWidth: '120px',
+              background: '#047857',
               color: 'white',
               border: 'none',
-              padding: '6px 12px',
-              borderRadius: '4px',
-              fontSize: '12px',
-              cursor: 'pointer'
+              minHeight: '48px',
+              padding: '12px 16px',
+              borderRadius: '10px',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              touchAction: 'manipulation'
             }}
           >
-            Available All Days
+            All Days
           </button>
-          
+
           <button
             onClick={() => {
               setAvailability(initializeAvailability());
             }}
+            className="mobile-quick-action"
             style={{
-              background: '#6c757d',
+              flex: '1 1 auto',
+              minWidth: '120px',
+              background: '#6b7280',
               color: 'white',
               border: 'none',
-              padding: '6px 12px',
-              borderRadius: '4px',
-              fontSize: '12px',
-              cursor: 'pointer'
+              minHeight: '48px',
+              padding: '12px 16px',
+              borderRadius: '10px',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              touchAction: 'manipulation'
             }}
           >
             Clear All
