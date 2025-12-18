@@ -26,4 +26,4 @@ if (process.env.NODE_ENV === 'production') {
   });
 } else {
   console.log('[DEV] Service worker disabled in development mode');
-} 
+} // Deploy 20251218-112908
