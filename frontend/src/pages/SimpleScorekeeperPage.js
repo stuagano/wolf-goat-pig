@@ -1,7 +1,7 @@
 // frontend/src/pages/SimpleScorekeeperPage.js
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { QuartersOnlyScorekeeper } from '../components/game';
+import { SimpleScorekeeper } from '../components/game';
 import { Card } from '../components/ui';
 import { useTheme } from '../theme/Provider';
 
@@ -135,17 +135,11 @@ const SimpleScorekeeperPage = () => {
   const players = gameData.players || [];
   const currentHoleNumber = gameData.current_hole || 1;
 
-  // Convert hole_history to hole_quarters format for QuartersOnlyScorekeeper
-  const holeQuarters = {};
-  if (gameData.hole_quarters) {
-    Object.assign(holeQuarters, gameData.hole_quarters);
-  } else if (gameData.hole_history) {
-    gameData.hole_history.forEach(hole => {
-      if (hole.points_delta) {
-        holeQuarters[hole.hole] = hole.points_delta;
-      }
-    });
-  }
+  // Get hole history and stroke allocation for SimpleScorekeeper
+  const holeHistory = gameData.hole_history || [];
+  const strokeAllocation = gameData.stroke_allocation || null;
+  const courseName = gameData.course_name || 'Wing Point Golf & Country Club';
+  const baseWager = gameData.base_wager || 1;
 
   return (
     <div>
@@ -208,11 +202,14 @@ const SimpleScorekeeperPage = () => {
         </button>
       </div>
 
-      <QuartersOnlyScorekeeper
+      <SimpleScorekeeper
         gameId={gameId}
         players={players}
-        initialHoleData={holeQuarters}
+        baseWager={baseWager}
+        initialHoleHistory={holeHistory}
         initialCurrentHole={currentHoleNumber}
+        courseName={courseName}
+        initialStrokeAllocation={strokeAllocation}
       />
     </div>
   );
