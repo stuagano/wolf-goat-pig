@@ -19,7 +19,12 @@ function CreateGamePage() {
   useEffect(() => {
     // Fetch available courses
     fetch(`${API_URL}/courses`)
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`Failed to load courses: ${res.status}`);
+        }
+        return res.json();
+      })
       .then(data => {
         const courseNames = Object.keys(data);
         setCourses(courseNames);

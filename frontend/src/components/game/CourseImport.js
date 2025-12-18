@@ -75,8 +75,11 @@ const CourseImport = ({ onClose, onCourseImported }) => {
   const fetchImportSources = async () => {
     try {
       const response = await fetch(`${API_URL}/courses/import/sources`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch import sources: ${response.status}`);
+      }
       const data = await response.json();
-      setImportSources(data.sources);
+      setImportSources(data.sources || []);
     } catch (error) {
       console.error("Error fetching import sources:", error);
       setError("Failed to load import sources");

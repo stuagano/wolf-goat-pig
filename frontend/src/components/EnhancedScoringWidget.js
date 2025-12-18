@@ -373,9 +373,10 @@ const EnhancedScoringWidget = ({ gameState, holeState, onScoreUpdate, onAction }
                   {teamScores.team1.score || '—'}
                 </div>
                 <div style={{ fontSize: 12, color: theme.colors.textSecondary }}>
-                  {teamScores.team1.players.map(pid => 
-                    gameState.players.find(p => p.id === pid)?.name
-                  ).join(' & ')}
+                  {teamScores.team1.players
+                    .map(pid => gameState.players.find(p => p.id === pid)?.name)
+                    .filter(Boolean)
+                    .join(' & ') || 'Unknown'}
                 </div>
               </div>
               
@@ -399,9 +400,10 @@ const EnhancedScoringWidget = ({ gameState, holeState, onScoreUpdate, onAction }
                   {teamScores.team2.score || '—'}
                 </div>
                 <div style={{ fontSize: 12, color: theme.colors.textSecondary }}>
-                  {teamScores.team2.players.map(pid => 
-                    gameState.players.find(p => p.id === pid)?.name
-                  ).join(' & ')}
+                  {teamScores.team2.players
+                    .map(pid => gameState.players.find(p => p.id === pid)?.name)
+                    .filter(Boolean)
+                    .join(' & ') || 'Unknown'}
                 </div>
               </div>
             </div>
@@ -424,7 +426,7 @@ const EnhancedScoringWidget = ({ gameState, holeState, onScoreUpdate, onAction }
                   {teamScores.solo.score || '—'}
                 </div>
                 <div style={{ fontSize: 12, color: theme.colors.textSecondary }}>
-                  {gameState.players.find(p => p.id === teamScores.solo.player)?.name}
+                  {gameState.players.find(p => p.id === teamScores.solo.player)?.name || 'Unknown'}
                 </div>
               </div>
               
@@ -448,9 +450,10 @@ const EnhancedScoringWidget = ({ gameState, holeState, onScoreUpdate, onAction }
                   {teamScores.opponents.score || '—'}
                 </div>
                 <div style={{ fontSize: 12, color: theme.colors.textSecondary }}>
-                  {teamScores.opponents.players.map(pid => 
-                    gameState.players.find(p => p.id === pid)?.name
-                  ).join(' & ')}
+                  {teamScores.opponents.players
+                    .map(pid => gameState.players.find(p => p.id === pid)?.name)
+                    .filter(Boolean)
+                    .join(' & ') || 'Unknown'}
                 </div>
               </div>
             </div>

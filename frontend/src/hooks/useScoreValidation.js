@@ -127,7 +127,9 @@ export const useScoreValidation = () => {
     const missingPlayers = [];
 
     for (const playerId of playerIds || []) {
-      if (!scores[playerId] || scores[playerId] === 0) {
+      // Check for truly missing scores (null, undefined, empty string)
+      // Note: 0 is not a valid golf score, but we validate that separately
+      if (scores[playerId] === null || scores[playerId] === undefined || scores[playerId] === '') {
         missingPlayers.push(playerId);
       } else {
         const validation = validateStrokes(scores[playerId]);
