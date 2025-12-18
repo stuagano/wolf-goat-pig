@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
+import '../../styles/mobile-touch.css';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -258,68 +259,66 @@ const DailySignupView = ({ selectedDate, onBack }) => {
   }
 
   return (
-    <div style={{ 
-      maxWidth: '1200px', 
+    <div style={{
+      maxWidth: '1200px',
       margin: '0 auto',
       background: 'white',
-      borderRadius: '8px',
-      padding: '20px',
+      borderRadius: '12px',
+      padding: '16px',
       boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
     }}>
-      {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
+      {/* Header - Mobile Optimized */}
+      <div className="mobile-nav-header" style={{
+        display: 'flex',
         alignItems: 'center',
-        marginBottom: '30px',
-        borderBottom: '2px solid #dee2e6',
-        paddingBottom: '15px'
+        gap: '12px',
+        marginBottom: '16px',
+        paddingBottom: '12px',
+        borderBottom: '1px solid #e5e7eb',
+        flexWrap: 'wrap'
       }}>
-        <div>
-          <h2 style={{ 
-            margin: 0, 
-            color: '#333',
-            fontSize: '24px',
-            fontWeight: 'bold'
+        <button
+          onClick={onBack}
+          className="mobile-back-button"
+          style={{
+            minWidth: '48px',
+            minHeight: '48px',
+            padding: '12px',
+            background: '#f3f4f6',
+            color: '#374151',
+            border: 'none',
+            borderRadius: '10px',
+            cursor: 'pointer',
+            fontSize: '18px',
+            fontWeight: '600',
+            touchAction: 'manipulation',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          ←
+        </button>
+
+        <div style={{ flex: 1, minWidth: '200px' }}>
+          <h2 style={{
+            margin: 0,
+            color: '#1f2937',
+            fontSize: '18px',
+            fontWeight: '700'
           }}>
-            🏌️ Golf Sign-up & Daily Messages
+            🏌️ Daily Signup
           </h2>
-          <p style={{ 
-            margin: '5px 0 0 0',
-            color: '#6c757d',
-            fontSize: '14px'
-          }}>
-            Manage your daily golf sign-ups, post messages, and set preferences
-          </p>
           {user && (
             <div style={{
-              marginTop: '8px',
-              padding: '4px 8px',
-              background: '#e3f2fd',
-              color: '#1976d2',
-              borderRadius: '4px',
-              fontSize: '12px',
-              display: 'inline-block'
+              marginTop: '4px',
+              fontSize: '13px',
+              color: '#6b7280'
             }}>
-              Welcome, {user.name || user.email}
+              {user.name || user.email}
             </div>
           )}
         </div>
-        
-        <button
-          onClick={onBack}
-          style={{
-            padding: '8px 16px',
-            background: '#6c757d',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '14px'
-          }}
-        >
-          ← Back to Week View
-        </button>
       </div>
 
       {error && (
@@ -335,181 +334,129 @@ const DailySignupView = ({ selectedDate, onBack }) => {
         </div>
       )}
 
-      {/* Date Selection Bar */}
+      {/* Main Date Display - Prominent */}
       <div style={{
-        background: '#f8f9fa',
-        padding: '15px',
-        borderRadius: '8px',
-        marginBottom: '20px',
-        textAlign: 'center'
+        background: 'linear-gradient(135deg, #047857 0%, #059669 100%)',
+        padding: '16px',
+        borderRadius: '12px',
+        marginBottom: '16px',
+        textAlign: 'center',
+        color: 'white'
       }}>
-        <h3 style={{ 
-          margin: '0 0 10px 0',
-          color: '#495057',
-          fontSize: '18px'
-        }}>
-          Click a day
-        </h3>
         <div style={{
-          display: 'flex',
-          gap: '10px',
-          justifyContent: 'center',
-          flexWrap: 'wrap'
+          fontSize: '20px',
+          fontWeight: '700'
         }}>
-          {/* Generate week dates around selected date */}
-          {Array.from({length: 8}, (_, i) => {
+          {formatDateDisplay(selectedDate)}
+        </div>
+      </div>
+
+      {/* Date Selection Bar - Horizontally Scrollable */}
+      <div style={{
+        background: '#f9fafb',
+        padding: '12px',
+        borderRadius: '12px',
+        marginBottom: '16px'
+      }}>
+        <div style={{
+          fontSize: '13px',
+          color: '#6b7280',
+          marginBottom: '8px',
+          fontWeight: '600',
+          textAlign: 'center'
+        }}>
+          Tap to change day
+        </div>
+        <div
+          className="mobile-date-picker"
+          style={{
+            display: 'flex',
+            gap: '8px',
+            overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            padding: '4px',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none'
+          }}
+        >
+          {Array.from({length: 7}, (_, i) => {
             const date = new Date(selectedDate);
             date.setDate(date.getDate() - 3 + i);
             const dateStr = date.toISOString().split('T')[0];
             const isSelected = dateStr === selectedDate;
-            
+            const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+            const dayNum = date.getDate();
+
             return (
               <button
                 key={dateStr}
                 onClick={() => {
-                  // Update selected date - parent component should handle this
                   if (onBack) {
-                    // For now, just show the date change visually
                     window.location.hash = `#daily/${dateStr}`;
                     window.location.reload();
                   }
                 }}
+                className={`mobile-date-button ${isSelected ? 'active' : ''}`}
                 style={{
-                  padding: '8px 12px',
-                  background: isSelected ? '#dc3545' : '#fff',
-                  color: isSelected ? 'white' : '#333',
-                  border: '1px solid #dee2e6',
-                  borderRadius: '4px',
+                  flexShrink: 0,
+                  minWidth: '60px',
+                  padding: '10px 12px',
+                  background: isSelected ? '#047857' : 'white',
+                  color: isSelected ? 'white' : '#374151',
+                  border: isSelected ? '2px solid #047857' : '2px solid #e5e7eb',
+                  borderRadius: '10px',
                   cursor: 'pointer',
-                  fontSize: '12px',
-                  minWidth: '120px'
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  textAlign: 'center',
+                  touchAction: 'manipulation',
+                  transition: 'all 0.15s ease'
                 }}
               >
-                {date.toLocaleDateString('en-US', { 
-                  weekday: 'short', 
-                  month: 'short', 
-                  day: 'numeric' 
-                })}
+                <div style={{ fontSize: '12px', opacity: 0.8 }}>{dayName}</div>
+                <div style={{ fontSize: '18px', fontWeight: '700' }}>{dayNum}</div>
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* Current Standings */}
-      <div style={{
-        background: '#fff3cd',
-        padding: '15px',
-        borderRadius: '8px',
-        marginBottom: '20px',
-        textAlign: 'center'
-      }}>
-        <div style={{ 
-          color: '#856404', 
-          fontWeight: 'bold',
-          marginBottom: '10px',
-          fontSize: '16px'
-        }}>
-          Current Standings
-        </div>
-        <button style={{
-          background: '#ffc107',
-          color: '#000',
-          border: 'none',
-          padding: '10px 20px',
-          borderRadius: '6px',
-          fontWeight: 'bold',
-          cursor: 'pointer',
-          fontSize: '14px'
-        }}>
-          New Player? Click here to sign up.
-        </button>
-      </div>
-
-      {/* Main Date Display */}
-      <div style={{
-        background: '#fff9c4',
-        padding: '15px',
-        borderRadius: '8px',
-        marginBottom: '20px',
-        textAlign: 'center'
-      }}>
-        <div style={{
-          background: '#fff59d',
-          display: 'inline-block',
-          padding: '10px 25px',
-          borderRadius: '6px',
-          fontSize: '18px',
-          fontWeight: 'bold',
-          color: '#333'
-        }}>
-          {formatDateDisplay(selectedDate)}
-        </div>
-      </div>
-
-      {/* Main Content Grid - Three Equal Columns */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr 1fr',
-        gap: '20px',
-        border: '2px solid #dee2e6',
-        borderRadius: '8px',
-        overflow: 'hidden'
-      }}>
-        {/* Tee Times Column */}
-        <div style={{
+      {/* Main Content Grid - Responsive */}
+      <div
+        className="responsive-grid-3"
+        style={{
+          display: 'grid',
+          gap: '16px'
+        }}
+      >
+        {/* Players Who Signed Up - Most Important on Mobile */}
+        <div className="mobile-card" style={{
           background: '#fff',
-          borderRight: '1px solid #dee2e6'
+          borderRadius: '12px',
+          overflow: 'hidden',
+          border: '2px solid #047857'
         }}>
           <div style={{
-            background: '#dc3545',
+            background: '#047857',
             color: 'white',
-            padding: '12px',
-            textAlign: 'center',
-            fontWeight: 'bold',
-            fontSize: '16px'
+            padding: '14px 16px',
+            fontWeight: '700',
+            fontSize: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
           }}>
-            Tee Times
+            ⛳ Players Signed Up
+            <span style={{
+              background: 'rgba(255,255,255,0.2)',
+              padding: '2px 10px',
+              borderRadius: '12px',
+              fontSize: '14px'
+            }}>
+              {signupData.players.length}
+            </span>
           </div>
-          <div style={{
-            padding: '15px'
-          }}>
-            <div style={{ marginBottom: '10px', fontSize: '14px', color: '#495057' }}>
-              Add Tee Times
-            </div>
-            <textarea
-              placeholder="Enter tee times, one per line (e.g. 8:00 AM)"
-              value={teeTimesText}
-              onChange={(e) => setTeeTimesText(e.target.value)}
-              style={{
-                width: '100%',
-                height: '200px',
-                padding: '8px',
-                border: '1px solid #dee2e6',
-                borderRadius: '4px',
-                resize: 'none',
-                fontSize: '14px'
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Players Who Signed Up Column */}
-        <div style={{ 
-          background: '#fff',
-          borderRight: '1px solid #dee2e6'
-        }}>
-          <div style={{
-            background: '#495057',
-            color: 'white',
-            padding: '12px',
-            textAlign: 'center',
-            fontWeight: 'bold',
-            fontSize: '16px'
-          }}>
-            Players Signed Up ({signupData.players.length})
-          </div>
-          <div style={{ padding: '15px' }}>
+          <div style={{ padding: '16px' }}>
             {signupData.players && signupData.players.length > 0 ? (
               <div>
                 {signupData.players.map((player, index) => (
@@ -518,76 +465,84 @@ const DailySignupView = ({ selectedDate, onBack }) => {
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     marginBottom: '8px',
-                    padding: '8px',
-                    background: '#f8f9fa',
-                    borderRadius: '4px',
-                    border: '1px solid #dee2e6'
+                    padding: '12px',
+                    background: '#f9fafb',
+                    borderRadius: '10px',
+                    border: '1px solid #e5e7eb'
                   }}>
-                    <div style={{ fontSize: '14px', fontWeight: '500' }}>
+                    <div style={{ fontSize: '15px', fontWeight: '600', color: '#1f2937' }}>
                       {index + 1}. {player.player_name}
                     </div>
                     {player.preferred_start_time && (
-                      <div style={{ 
-                        fontSize: '12px', 
-                        color: '#6c757d',
-                        background: '#e9ecef',
-                        padding: '2px 6px',
-                        borderRadius: '3px'
+                      <div style={{
+                        fontSize: '13px',
+                        color: '#6b7280',
+                        background: '#e5e7eb',
+                        padding: '4px 10px',
+                        borderRadius: '6px'
                       }}>
                         {player.preferred_start_time}
                       </div>
                     )}
                   </div>
                 ))}
-                
-                {/* Add yourself button */}
-                {isAuthenticated && !signupData.players.some(p => 
+
+                {isAuthenticated && !signupData.players.some(p =>
                   p.player_name === (user?.name || user?.email)
                 ) && (
                   <button
                     onClick={handleSignup}
+                    className="mobile-button mobile-button-primary mobile-button-full"
                     style={{
                       width: '100%',
-                      padding: '8px 12px',
-                      background: '#28a745',
+                      minHeight: '52px',
+                      padding: '14px',
+                      background: '#047857',
                       color: 'white',
                       border: 'none',
-                      borderRadius: '4px',
-                      fontSize: '14px',
+                      borderRadius: '10px',
+                      fontSize: '16px',
+                      fontWeight: '600',
                       cursor: 'pointer',
-                      marginTop: '10px'
+                      marginTop: '12px',
+                      touchAction: 'manipulation'
                     }}
                   >
-                    + Add Yourself
+                    + Sign Me Up
                   </button>
                 )}
               </div>
             ) : (
               <div style={{
                 textAlign: 'center',
-                color: '#6c757d',
-                fontSize: '14px',
-                fontStyle: 'italic',
                 padding: '20px'
               }}>
-                No one signed up yet
+                <div style={{
+                  color: '#6b7280',
+                  fontSize: '15px',
+                  marginBottom: '16px'
+                }}>
+                  No one signed up yet
+                </div>
                 {isAuthenticated && (
                   <button
                     onClick={handleSignup}
+                    className="mobile-button mobile-button-primary mobile-button-full"
                     style={{
-                      display: 'block',
                       width: '100%',
-                      padding: '8px 12px',
-                      background: '#28a745',
+                      minHeight: '52px',
+                      padding: '14px',
+                      background: '#047857',
                       color: 'white',
                       border: 'none',
-                      borderRadius: '4px',
-                      fontSize: '14px',
+                      borderRadius: '10px',
+                      fontSize: '16px',
+                      fontWeight: '600',
                       cursor: 'pointer',
-                      marginTop: '15px'
+                      touchAction: 'manipulation'
                     }}
                   >
-                    Be the first to sign up!
+                    ⛳ Be the first to sign up!
                   </button>
                 )}
               </div>
@@ -595,49 +550,62 @@ const DailySignupView = ({ selectedDate, onBack }) => {
           </div>
         </div>
 
-        {/* Message Board Column */}
-        <div>
+        {/* Message Board */}
+        <div className="mobile-card" style={{
+          background: '#fff',
+          borderRadius: '12px',
+          overflow: 'hidden',
+          border: '2px solid #e5e7eb'
+        }}>
           <div style={{
-            background: '#28a745',
+            background: '#3b82f6',
             color: 'white',
-            padding: '12px',
-            textAlign: 'center',
-            fontWeight: 'bold',
-            fontSize: '16px'
+            padding: '14px 16px',
+            fontWeight: '700',
+            fontSize: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
           }}>
-            Message Board ({signupData.messages.length})
+            💬 Messages
+            <span style={{
+              background: 'rgba(255,255,255,0.2)',
+              padding: '2px 10px',
+              borderRadius: '12px',
+              fontSize: '14px'
+            }}>
+              {signupData.messages.length}
+            </span>
           </div>
-          <div style={{ 
-            padding: '15px',
-            height: '280px',
+          <div style={{
+            padding: '16px',
             display: 'flex',
             flexDirection: 'column'
           }}>
-            {/* Messages Display */}
             <div style={{
               flex: 1,
               overflowY: 'auto',
-              marginBottom: '15px',
-              maxHeight: '180px'
+              maxHeight: '200px',
+              marginBottom: '12px'
             }}>
               {signupData.messages && signupData.messages.length > 0 ? (
                 signupData.messages.map((message, index) => (
                   <div key={message.id || index} style={{
                     marginBottom: '10px',
-                    padding: '8px',
-                    background: '#f8f9fa',
-                    borderRadius: '4px',
-                    border: '1px solid #dee2e6'
+                    padding: '12px',
+                    background: '#f9fafb',
+                    borderRadius: '10px',
+                    border: '1px solid #e5e7eb'
                   }}>
                     <div style={{
-                      fontWeight: 'bold',
-                      fontSize: '12px',
-                      color: '#495057',
+                      fontWeight: '600',
+                      fontSize: '14px',
+                      color: '#374151',
                       marginBottom: '4px'
                     }}>
                       {message.player_name}
                     </div>
-                    <div style={{ fontSize: '14px', color: '#333' }}>
+                    <div style={{ fontSize: '15px', color: '#4b5563', lineHeight: '1.4' }}>
                       {message.message}
                     </div>
                   </div>
@@ -645,46 +613,50 @@ const DailySignupView = ({ selectedDate, onBack }) => {
               ) : (
                 <div style={{
                   textAlign: 'center',
-                  color: '#6c757d',
+                  color: '#9ca3af',
                   fontSize: '14px',
-                  fontStyle: 'italic',
-                  padding: '20px'
+                  padding: '24px'
                 }}>
                   No messages yet
                 </div>
               )}
             </div>
 
-            {/* Message Input */}
             {isAuthenticated ? (
               <div>
                 <textarea
                   placeholder="Post a message..."
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
+                  className="mobile-form-control"
                   style={{
                     width: '100%',
-                    height: '60px',
-                    padding: '8px',
-                    border: '1px solid #dee2e6',
-                    borderRadius: '4px',
+                    minHeight: '60px',
+                    padding: '12px',
+                    fontSize: '16px',
+                    border: '2px solid #e5e7eb',
+                    borderRadius: '10px',
                     resize: 'none',
-                    fontSize: '14px',
-                    marginBottom: '8px'
+                    marginBottom: '10px',
+                    boxSizing: 'border-box'
                   }}
                 />
                 <button
                   onClick={handlePostMessage}
                   disabled={!newMessage.trim()}
+                  className="mobile-button mobile-button-full"
                   style={{
                     width: '100%',
-                    padding: '6px 12px',
-                    background: newMessage.trim() ? '#007bff' : '#6c757d',
+                    minHeight: '48px',
+                    padding: '12px',
+                    background: newMessage.trim() ? '#3b82f6' : '#9ca3af',
                     color: 'white',
                     border: 'none',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    cursor: newMessage.trim() ? 'pointer' : 'not-allowed'
+                    borderRadius: '10px',
+                    fontSize: '15px',
+                    fontWeight: '600',
+                    cursor: newMessage.trim() ? 'pointer' : 'not-allowed',
+                    touchAction: 'manipulation'
                   }}
                 >
                   Post Message
@@ -693,13 +665,56 @@ const DailySignupView = ({ selectedDate, onBack }) => {
             ) : (
               <div style={{
                 textAlign: 'center',
-                fontSize: '12px',
-                color: '#6c757d',
-                fontStyle: 'italic'
+                fontSize: '14px',
+                color: '#6b7280',
+                padding: '12px'
               }}>
                 Login to post messages
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Tee Times Column */}
+        <div className="mobile-card" style={{
+          background: '#fff',
+          borderRadius: '12px',
+          overflow: 'hidden',
+          border: '2px solid #e5e7eb'
+        }}>
+          <div style={{
+            background: '#6b7280',
+            color: 'white',
+            padding: '14px 16px',
+            fontWeight: '700',
+            fontSize: '16px'
+          }}>
+            ⏰ Tee Times
+          </div>
+          <div style={{ padding: '16px' }}>
+            <div style={{
+              marginBottom: '10px',
+              fontSize: '14px',
+              color: '#6b7280'
+            }}>
+              Add tee times (one per line)
+            </div>
+            <textarea
+              placeholder="e.g., 8:00 AM"
+              value={teeTimesText}
+              onChange={(e) => setTeeTimesText(e.target.value)}
+              className="mobile-form-control"
+              style={{
+                width: '100%',
+                minHeight: '120px',
+                padding: '12px',
+                fontSize: '16px',
+                border: '2px solid #e5e7eb',
+                borderRadius: '10px',
+                resize: 'none',
+                boxSizing: 'border-box'
+              }}
+            />
           </div>
         </div>
       </div>

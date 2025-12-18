@@ -143,35 +143,48 @@ const SignupPage = () => {
         )}
       </div>
 
-      {/* Tab Navigation */}
+      {/* Tab Navigation - Mobile Optimized */}
       <div style={{
         borderBottom: '2px solid #dee2e6',
-        marginBottom: '30px'
+        marginBottom: '20px',
+        overflowX: 'auto',
+        WebkitOverflowScrolling: 'touch',
+        msOverflowStyle: 'none',
+        scrollbarWidth: 'none'
       }}>
         <div style={{
           display: 'flex',
-          gap: '0'
+          gap: '4px',
+          minWidth: 'max-content',
+          padding: '0 4px'
         }}>
           {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               style={{
-                background: activeTab === tab.id ? '#007bff' : 'transparent',
+                background: activeTab === tab.id ? '#047857' : 'transparent',
                 color: activeTab === tab.id ? 'white' : '#495057',
-                border: 'none',
-                padding: '12px 20px',
+                border: activeTab === tab.id ? 'none' : '1px solid #dee2e6',
+                padding: '12px 16px',
                 cursor: 'pointer',
                 fontSize: '14px',
                 fontWeight: '600',
-                borderTopLeftRadius: '6px',
-                borderTopRightRadius: '6px',
-                marginBottom: '-2px',
-                borderBottom: activeTab === tab.id ? '2px solid #007bff' : '2px solid transparent',
-                transition: 'all 0.2s'
+                borderRadius: '8px',
+                marginBottom: '4px',
+                transition: 'all 0.15s',
+                whiteSpace: 'nowrap',
+                minHeight: '48px',
+                touchAction: 'manipulation',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
               }}
             >
-              {tab.label}
+              <span style={{ fontSize: '16px' }}>{tab.icon}</span>
+              <span className="tab-label-text" style={{
+                display: 'inline'
+              }}>{tab.label.replace(tab.icon + ' ', '')}</span>
             </button>
           ))}
         </div>

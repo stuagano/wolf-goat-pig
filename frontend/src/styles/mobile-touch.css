@@ -669,6 +669,104 @@
 }
 
 /* ===========================================
+   MOBILE TAB NAVIGATION
+   Horizontal scrollable tabs for mobile
+   =========================================== */
+
+.mobile-tab-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.mobile-tab-container::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide tab text on small mobile, show only icons */
+@media (max-width: 480px) {
+  .tab-label-text {
+    display: none !important;
+  }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+  .tab-label-text {
+    font-size: 12px !important;
+  }
+}
+
+/* ===========================================
+   RESPONSIVE 3-COLUMN GRID
+   For DailySignupView and similar layouts
+   =========================================== */
+
+.responsive-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 1024px) {
+  .responsive-grid-3 {
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .responsive-grid-3 {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+/* ===========================================
+   HORIZONTAL DATE PICKER
+   Scrollable date selection for mobile
+   =========================================== */
+
+.mobile-date-picker {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px 4px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.mobile-date-picker::-webkit-scrollbar {
+  display: none;
+}
+
+.mobile-date-button {
+  flex-shrink: 0;
+  min-width: 70px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 2px solid #dee2e6;
+  background: white;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: all 0.15s ease;
+}
+
+.mobile-date-button.active {
+  background: #047857;
+  color: white;
+  border-color: #047857;
+}
+
+.mobile-date-button:active {
+  transform: scale(0.95);
+}
+
+/* ===========================================
    BOTTOM THUMB ZONE
    Fixed bottom area for primary actions
    within easy thumb reach for one-handed use
