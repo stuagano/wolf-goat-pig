@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
+import '../../styles/mobile-touch.css';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -185,30 +186,32 @@ const EmailPreferences = () => {
   }
 
   return (
-    <div style={{ maxWidth: '600px' }}>
+    <div style={{ maxWidth: '600px', padding: '0 12px' }}>
       {error && (
-        <div style={{ 
-          backgroundColor: '#f8d7da', 
-          color: '#721c24', 
-          padding: '12px', 
-          borderRadius: '6px', 
-          marginBottom: '20px',
-          border: '1px solid #f5c6cb'
+        <div style={{
+          backgroundColor: '#fef2f2',
+          color: '#991b1b',
+          padding: '14px',
+          borderRadius: '10px',
+          marginBottom: '16px',
+          border: '1px solid #fecaca',
+          fontSize: '14px'
         }}>
           {error}
         </div>
       )}
 
       {success && (
-        <div style={{ 
-          backgroundColor: '#d4edda', 
-          color: '#155724', 
-          padding: '12px', 
-          borderRadius: '6px', 
-          marginBottom: '20px',
-          border: '1px solid #c3e6cb'
+        <div style={{
+          backgroundColor: '#ecfdf5',
+          color: '#065f46',
+          padding: '14px',
+          borderRadius: '10px',
+          marginBottom: '16px',
+          border: '1px solid #a7f3d0',
+          fontSize: '14px'
         }}>
-          ✅ Email preferences saved successfully!
+          ✅ Preferences saved!
         </div>
       )}
 
@@ -238,42 +241,46 @@ const EmailPreferences = () => {
         </div>
 
         {emailStatus?.configured && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '15px' }}>
             <div>
-              <label style={{ fontSize: '12px', color: '#6c757d', fontWeight: '600' }}>Test Email Address:</label>
+              <label style={{ fontSize: '13px', color: '#6b7280', fontWeight: '600', display: 'block', marginBottom: '6px' }}>Test Email Address:</label>
               <input
                 type="email"
                 value={testEmail}
                 onChange={(e) => setTestEmail(e.target.value)}
                 placeholder="Enter email to test"
+                className="mobile-form-control"
                 style={{
                   width: '100%',
-                  padding: '8px',
-                  border: '1px solid #ced4da',
-                  borderRadius: '4px',
-                  fontSize: '14px',
-                  marginTop: '4px'
+                  minHeight: '48px',
+                  padding: '12px',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '10px',
+                  fontSize: '16px',
+                  boxSizing: 'border-box'
                 }}
               />
             </div>
-            <div style={{ display: 'flex', alignItems: 'end' }}>
-              <button
-                onClick={sendTestEmail}
-                disabled={testLoading || !testEmail}
-                style={{
-                  background: testLoading ? '#6c757d' : '#007bff',
-                  color: 'white',
-                  border: 'none',
-                  padding: '8px 16px',
-                  borderRadius: '4px',
-                  fontSize: '14px',
-                  cursor: testLoading || !testEmail ? 'not-allowed' : 'pointer',
-                  opacity: testLoading || !testEmail ? 0.7 : 1
-                }}
-              >
-                {testLoading ? '⏳ Testing...' : '🧪 Test Email'}
-              </button>
-            </div>
+            <button
+              onClick={sendTestEmail}
+              disabled={testLoading || !testEmail}
+              className="mobile-button"
+              style={{
+                width: '100%',
+                minHeight: '48px',
+                background: testLoading || !testEmail ? '#9ca3af' : '#3b82f6',
+                color: 'white',
+                border: 'none',
+                padding: '12px 16px',
+                borderRadius: '10px',
+                fontSize: '15px',
+                fontWeight: '600',
+                cursor: testLoading || !testEmail ? 'not-allowed' : 'pointer',
+                touchAction: 'manipulation'
+              }}
+            >
+              {testLoading ? '⏳ Testing...' : '🧪 Send Test Email'}
+            </button>
           </div>
         )}
 
@@ -311,184 +318,218 @@ const EmailPreferences = () => {
           Choose which types of emails you'd like to receive about golf activities.
         </div>
 
-        <div style={{ display: 'grid', gap: '16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {/* Daily Signups */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            padding: '12px',
-            background: '#f8f9fa',
-            borderRadius: '6px'
-          }}>
-            <div>
-              <div style={{ fontWeight: '600', color: '#495057', marginBottom: '4px' }}>
+          <label
+            className="mobile-checkbox-container"
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '14px',
+              background: '#f9fafb',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              minHeight: '60px',
+              touchAction: 'manipulation'
+            }}
+          >
+            <div style={{ flex: 1, paddingRight: '12px' }}>
+              <div style={{ fontWeight: '600', color: '#1f2937', marginBottom: '4px', fontSize: '15px' }}>
                 Daily Sign-up Summaries
               </div>
-              <div style={{ fontSize: '13px', color: '#6c757d' }}>
-                Get daily emails showing who has signed up to play
+              <div style={{ fontSize: '13px', color: '#6b7280' }}>
+                Who has signed up to play
               </div>
             </div>
-            <label style={{ cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={preferences.daily_signups_enabled}
-                onChange={(e) => updatePreference('daily_signups_enabled', e.target.checked)}
-                style={{ transform: 'scale(1.2)' }}
-              />
-            </label>
-          </div>
+            <input
+              type="checkbox"
+              checked={preferences.daily_signups_enabled}
+              onChange={(e) => updatePreference('daily_signups_enabled', e.target.checked)}
+              className="mobile-checkbox"
+              style={{ width: '28px', height: '28px', minWidth: '28px', accentColor: '#047857' }}
+            />
+          </label>
 
           {/* Signup Confirmations */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            padding: '12px',
-            background: '#f8f9fa',
-            borderRadius: '6px'
-          }}>
-            <div>
-              <div style={{ fontWeight: '600', color: '#495057', marginBottom: '4px' }}>
+          <label
+            className="mobile-checkbox-container"
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '14px',
+              background: '#f9fafb',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              minHeight: '60px',
+              touchAction: 'manipulation'
+            }}
+          >
+            <div style={{ flex: 1, paddingRight: '12px' }}>
+              <div style={{ fontWeight: '600', color: '#1f2937', marginBottom: '4px', fontSize: '15px' }}>
                 Sign-up Confirmations
               </div>
-              <div style={{ fontSize: '13px', color: '#6c757d' }}>
-                Get notified when someone signs up for the same day as you
+              <div style={{ fontSize: '13px', color: '#6b7280' }}>
+                When someone joins your day
               </div>
             </div>
-            <label style={{ cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={preferences.signup_confirmations_enabled}
-                onChange={(e) => updatePreference('signup_confirmations_enabled', e.target.checked)}
-                style={{ transform: 'scale(1.2)' }}
-              />
-            </label>
-          </div>
+            <input
+              type="checkbox"
+              checked={preferences.signup_confirmations_enabled}
+              onChange={(e) => updatePreference('signup_confirmations_enabled', e.target.checked)}
+              className="mobile-checkbox"
+              style={{ width: '28px', height: '28px', minWidth: '28px', accentColor: '#047857' }}
+            />
+          </label>
 
           {/* Signup Reminders */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            padding: '12px',
-            background: '#f8f9fa',
-            borderRadius: '6px'
-          }}>
-            <div>
-              <div style={{ fontWeight: '600', color: '#495057', marginBottom: '4px' }}>
+          <label
+            className="mobile-checkbox-container"
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '14px',
+              background: '#f9fafb',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              minHeight: '60px',
+              touchAction: 'manipulation'
+            }}
+          >
+            <div style={{ flex: 1, paddingRight: '12px' }}>
+              <div style={{ fontWeight: '600', color: '#1f2937', marginBottom: '4px', fontSize: '15px' }}>
                 Sign-up Reminders
               </div>
-              <div style={{ fontSize: '13px', color: '#6c757d' }}>
-                Get reminders to sign up for upcoming days
+              <div style={{ fontSize: '13px', color: '#6b7280' }}>
+                Reminders for upcoming days
               </div>
             </div>
-            <label style={{ cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={preferences.signup_reminders_enabled}
-                onChange={(e) => updatePreference('signup_reminders_enabled', e.target.checked)}
-                style={{ transform: 'scale(1.2)' }}
-              />
-            </label>
-          </div>
+            <input
+              type="checkbox"
+              checked={preferences.signup_reminders_enabled}
+              onChange={(e) => updatePreference('signup_reminders_enabled', e.target.checked)}
+              className="mobile-checkbox"
+              style={{ width: '28px', height: '28px', minWidth: '28px', accentColor: '#047857' }}
+            />
+          </label>
 
           {/* Game Invitations */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            padding: '12px',
-            background: '#f8f9fa',
-            borderRadius: '6px'
-          }}>
-            <div>
-              <div style={{ fontWeight: '600', color: '#495057', marginBottom: '4px' }}>
-                Direct Game Invitations
+          <label
+            className="mobile-checkbox-container"
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '14px',
+              background: '#f9fafb',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              minHeight: '60px',
+              touchAction: 'manipulation'
+            }}
+          >
+            <div style={{ flex: 1, paddingRight: '12px' }}>
+              <div style={{ fontWeight: '600', color: '#1f2937', marginBottom: '4px', fontSize: '15px' }}>
+                Game Invitations
               </div>
-              <div style={{ fontSize: '13px', color: '#6c757d' }}>
-                Get emails when someone specifically invites you to play
+              <div style={{ fontSize: '13px', color: '#6b7280' }}>
+                Direct invites to play
               </div>
             </div>
-            <label style={{ cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={preferences.game_invitations_enabled}
-                onChange={(e) => updatePreference('game_invitations_enabled', e.target.checked)}
-                style={{ transform: 'scale(1.2)' }}
-              />
-            </label>
-          </div>
+            <input
+              type="checkbox"
+              checked={preferences.game_invitations_enabled}
+              onChange={(e) => updatePreference('game_invitations_enabled', e.target.checked)}
+              className="mobile-checkbox"
+              style={{ width: '28px', height: '28px', minWidth: '28px', accentColor: '#047857' }}
+            />
+          </label>
 
           {/* Weekly Summary */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            padding: '12px',
-            background: '#f8f9fa',
-            borderRadius: '6px'
-          }}>
-            <div>
-              <div style={{ fontWeight: '600', color: '#495057', marginBottom: '4px' }}>
-                Weekly Activity Summary
+          <label
+            className="mobile-checkbox-container"
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '14px',
+              background: '#f9fafb',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              minHeight: '60px',
+              touchAction: 'manipulation'
+            }}
+          >
+            <div style={{ flex: 1, paddingRight: '12px' }}>
+              <div style={{ fontWeight: '600', color: '#1f2937', marginBottom: '4px', fontSize: '15px' }}>
+                Weekly Summary
               </div>
-              <div style={{ fontSize: '13px', color: '#6c757d' }}>
-                Get a weekly recap of golf activity and your participation
+              <div style={{ fontSize: '13px', color: '#6b7280' }}>
+                Recap of golf activity
               </div>
             </div>
-            <label style={{ cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={preferences.weekly_summary_enabled}
-                onChange={(e) => updatePreference('weekly_summary_enabled', e.target.checked)}
-                style={{ transform: 'scale(1.2)' }}
-              />
-            </label>
-          </div>
+            <input
+              type="checkbox"
+              checked={preferences.weekly_summary_enabled}
+              onChange={(e) => updatePreference('weekly_summary_enabled', e.target.checked)}
+              className="mobile-checkbox"
+              style={{ width: '28px', height: '28px', minWidth: '28px', accentColor: '#047857' }}
+            />
+          </label>
         </div>
       </div>
 
       {/* Email Frequency & Timing */}
       <div style={{
-        border: '1px solid #dee2e6',
-        borderRadius: '8px',
-        padding: '20px',
-        marginBottom: '20px'
+        border: '2px solid #e5e7eb',
+        borderRadius: '12px',
+        padding: '16px',
+        marginBottom: '16px'
       }}>
-        <h3 style={{ 
-          color: '#495057', 
-          marginBottom: '15px',
-          fontSize: '18px'
+        <h3 style={{
+          color: '#1f2937',
+          marginBottom: '16px',
+          fontSize: '17px',
+          fontWeight: '700'
         }}>
-          ⏰ Email Timing & Frequency
+          ⏰ Timing & Frequency
         </h3>
-        
+
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '20px'
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '16px'
         }}>
           {/* Email Frequency */}
           <div>
-            <label style={{ 
-              display: 'block', 
-              fontSize: '14px', 
-              color: '#495057',
+            <label style={{
+              display: 'block',
+              fontSize: '14px',
+              color: '#374151',
               marginBottom: '8px',
               fontWeight: '600'
             }}>
-              Overall Email Frequency:
+              Email Frequency:
             </label>
             <select
               value={preferences.email_frequency}
               onChange={(e) => updatePreference('email_frequency', e.target.value)}
+              className="mobile-select"
               style={{
                 width: '100%',
-                padding: '10px',
-                border: '1px solid #ced4da',
-                borderRadius: '4px',
-                fontSize: '14px'
+                minHeight: '48px',
+                padding: '12px 40px 12px 12px',
+                border: '2px solid #e5e7eb',
+                borderRadius: '10px',
+                fontSize: '16px',
+                background: 'white',
+                appearance: 'none',
+                WebkitAppearance: 'none',
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23374151' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right 14px center'
               }}
             >
               {frequencyOptions.map(option => (
@@ -497,31 +538,39 @@ const EmailPreferences = () => {
                 </option>
               ))}
             </select>
-            <div style={{ fontSize: '12px', color: '#6c757d', marginTop: '4px' }}>
-              This overrides individual settings above when set to "Never"
+            <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '6px' }}>
+              Set to "Never" to pause all emails
             </div>
           </div>
 
           {/* Notification Time */}
           <div>
-            <label style={{ 
-              display: 'block', 
-              fontSize: '14px', 
-              color: '#495057',
+            <label style={{
+              display: 'block',
+              fontSize: '14px',
+              color: '#374151',
               marginBottom: '8px',
               fontWeight: '600'
             }}>
-              Preferred Notification Time:
+              Notification Time:
             </label>
             <select
               value={preferences.preferred_notification_time}
               onChange={(e) => updatePreference('preferred_notification_time', e.target.value)}
+              className="mobile-select"
               style={{
                 width: '100%',
-                padding: '10px',
-                border: '1px solid #ced4da',
-                borderRadius: '4px',
-                fontSize: '14px'
+                minHeight: '48px',
+                padding: '12px 40px 12px 12px',
+                border: '2px solid #e5e7eb',
+                borderRadius: '10px',
+                fontSize: '16px',
+                background: 'white',
+                appearance: 'none',
+                WebkitAppearance: 'none',
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23374151' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right 14px center'
               }}
             >
               {timeOptions.map(time => (
@@ -530,8 +579,8 @@ const EmailPreferences = () => {
                 </option>
               ))}
             </select>
-            <div style={{ fontSize: '12px', color: '#6c757d', marginTop: '4px' }}>
-              When you'd like to receive daily notifications
+            <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '6px' }}>
+              When to receive daily notifications
             </div>
           </div>
         </div>
@@ -539,21 +588,22 @@ const EmailPreferences = () => {
 
       {/* Quick Presets */}
       <div style={{
-        border: '1px solid #dee2e6',
-        borderRadius: '8px',
-        padding: '20px',
-        marginBottom: '20px',
-        background: '#f8f9fa'
+        border: '2px solid #e5e7eb',
+        borderRadius: '12px',
+        padding: '16px',
+        marginBottom: '16px',
+        background: '#f9fafb'
       }}>
-        <h4 style={{ 
-          color: '#495057', 
-          marginBottom: '10px',
-          fontSize: '16px'
+        <h4 style={{
+          color: '#1f2937',
+          marginBottom: '12px',
+          fontSize: '15px',
+          fontWeight: '700'
         }}>
           🚀 Quick Presets
         </h4>
-        
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <button
             onClick={() => setPreferences(prev => ({
               ...prev,
@@ -564,19 +614,24 @@ const EmailPreferences = () => {
               weekly_summary_enabled: true,
               email_frequency: 'daily'
             }))}
+            className="mobile-button"
             style={{
-              background: '#28a745',
+              width: '100%',
+              minHeight: '48px',
+              background: '#047857',
               color: 'white',
               border: 'none',
-              padding: '8px 16px',
-              borderRadius: '4px',
-              fontSize: '13px',
-              cursor: 'pointer'
+              padding: '12px 16px',
+              borderRadius: '10px',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              touchAction: 'manipulation'
             }}
           >
             📧 All Emails
           </button>
-          
+
           <button
             onClick={() => setPreferences(prev => ({
               ...prev,
@@ -587,19 +642,24 @@ const EmailPreferences = () => {
               weekly_summary_enabled: true,
               email_frequency: 'weekly'
             }))}
+            className="mobile-button"
             style={{
-              background: '#007bff',
+              width: '100%',
+              minHeight: '48px',
+              background: '#3b82f6',
               color: 'white',
               border: 'none',
-              padding: '8px 16px',
-              borderRadius: '4px',
-              fontSize: '13px',
-              cursor: 'pointer'
+              padding: '12px 16px',
+              borderRadius: '10px',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              touchAction: 'manipulation'
             }}
           >
             📋 Essential Only
           </button>
-          
+
           <button
             onClick={() => setPreferences(prev => ({
               ...prev,
@@ -610,14 +670,19 @@ const EmailPreferences = () => {
               weekly_summary_enabled: false,
               email_frequency: 'never'
             }))}
+            className="mobile-button"
             style={{
-              background: '#6c757d',
+              width: '100%',
+              minHeight: '48px',
+              background: '#6b7280',
               color: 'white',
               border: 'none',
-              padding: '8px 16px',
-              borderRadius: '4px',
-              fontSize: '13px',
-              cursor: 'pointer'
+              padding: '12px 16px',
+              borderRadius: '10px',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              touchAction: 'manipulation'
             }}
           >
             🔕 Invites Only
@@ -626,23 +691,26 @@ const EmailPreferences = () => {
       </div>
 
       {/* Save Button */}
-      <div style={{ textAlign: 'center' }}>
+      <div style={{ marginBottom: '20px' }}>
         <button
           onClick={savePreferences}
           disabled={saving}
+          className="mobile-button mobile-button-primary"
           style={{
-            background: '#007bff',
+            width: '100%',
+            minHeight: '56px',
+            background: saving ? '#9ca3af' : '#047857',
             color: 'white',
             border: 'none',
-            padding: '12px 24px',
-            borderRadius: '6px',
-            fontSize: '16px',
+            padding: '16px 24px',
+            borderRadius: '12px',
+            fontSize: '17px',
             cursor: saving ? 'not-allowed' : 'pointer',
-            opacity: saving ? 0.7 : 1,
-            fontWeight: '600'
+            fontWeight: '700',
+            touchAction: 'manipulation'
           }}
         >
-          {saving ? 'Saving...' : '💾 Save Email Preferences'}
+          {saving ? '⏳ Saving...' : '💾 Save Preferences'}
         </button>
       </div>
 

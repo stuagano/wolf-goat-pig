@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import '../../styles/mobile-touch.css';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -85,66 +86,86 @@ const AllPlayersAvailability = () => {
   }
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-      <div style={{ marginBottom: '30px' }}>
-        <h2 style={{ color: '#333', marginBottom: '10px' }}>👥 Players' Availability Calendar</h2>
-        <p style={{ color: '#6c757d', fontSize: '14px' }}>
-          View individual player schedules and find who's available when you are
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 12px' }}>
+      <div style={{ marginBottom: '20px' }}>
+        <h2 style={{ color: '#1f2937', marginBottom: '8px', fontSize: '20px' }}>👥 Players' Availability</h2>
+        <p style={{ color: '#6b7280', fontSize: '14px', margin: 0 }}>
+          Find who's available when you are
         </p>
       </div>
 
-      {/* Day Tabs */}
-      <div style={{
-        display: 'flex',
-        gap: '8px',
-        marginBottom: '30px',
-        overflowX: 'auto',
-        paddingBottom: '10px'
-      }}>
+      {/* Day Tabs - Mobile Scrollable */}
+      <div
+        className="mobile-date-picker"
+        style={{
+          display: 'flex',
+          gap: '8px',
+          marginBottom: '20px',
+          overflowX: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          padding: '8px 4px',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none'
+        }}
+      >
         <button
           onClick={() => setSelectedDay(null)}
+          className="mobile-date-button"
           style={{
-            padding: '10px 16px',
-            background: selectedDay === null ? '#007bff' : '#f8f9fa',
-            color: selectedDay === null ? 'white' : '#495057',
-            border: '1px solid #dee2e6',
-            borderRadius: '4px',
+            flexShrink: 0,
+            minHeight: '48px',
+            padding: '12px 16px',
+            background: selectedDay === null ? '#047857' : 'white',
+            color: selectedDay === null ? 'white' : '#374151',
+            border: selectedDay === null ? '2px solid #047857' : '2px solid #e5e7eb',
+            borderRadius: '10px',
             cursor: 'pointer',
             fontSize: '14px',
-            fontWeight: '500',
-            whiteSpace: 'nowrap'
+            fontWeight: '600',
+            whiteSpace: 'nowrap',
+            touchAction: 'manipulation'
           }}
         >
           All Days
         </button>
         {dayNames.map((day, index) => {
           const availableCount = getPlayersForDay(index).length;
+          const shortDay = day.substring(0, 3);
           return (
             <button
               key={index}
               onClick={() => setSelectedDay(index)}
+              className="mobile-date-button"
               style={{
-                padding: '10px 16px',
-                background: selectedDay === index ? '#007bff' : '#f8f9fa',
-                color: selectedDay === index ? 'white' : '#495057',
-                border: '1px solid #dee2e6',
-                borderRadius: '4px',
+                flexShrink: 0,
+                minHeight: '48px',
+                minWidth: '70px',
+                padding: '8px 12px',
+                background: selectedDay === index ? '#047857' : 'white',
+                color: selectedDay === index ? 'white' : '#374151',
+                border: selectedDay === index ? '2px solid #047857' : '2px solid #e5e7eb',
+                borderRadius: '10px',
                 cursor: 'pointer',
                 fontSize: '14px',
-                fontWeight: '500',
+                fontWeight: '600',
                 whiteSpace: 'nowrap',
-                position: 'relative'
+                touchAction: 'manipulation',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '2px'
               }}
             >
-              {day}
+              <span>{shortDay}</span>
               {availableCount > 0 && (
                 <span style={{
-                  marginLeft: '8px',
-                  padding: '2px 6px',
-                  background: selectedDay === index ? 'rgba(255,255,255,0.3)' : '#28a745',
-                  color: selectedDay === index ? 'white' : 'white',
+                  padding: '2px 8px',
+                  background: selectedDay === index ? 'rgba(255,255,255,0.25)' : '#047857',
+                  color: 'white',
                   borderRadius: '10px',
-                  fontSize: '12px'
+                  fontSize: '12px',
+                  fontWeight: '700'
                 }}>
                   {availableCount}
                 </span>
@@ -157,24 +178,26 @@ const AllPlayersAvailability = () => {
       {/* Availability Grid */}
       {selectedDay === null ? (
         // Show weekly overview
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: '20px'
-        }}>
+        <div
+          className="responsive-grid-3"
+          style={{
+            display: 'grid',
+            gap: '16px'
+          }}
+        >
           {dayNames.map((day, dayIndex) => {
             const availablePlayers = getPlayersForDay(dayIndex);
             return (
-              <div key={dayIndex} style={{
-                border: '1px solid #dee2e6',
-                borderRadius: '8px',
+              <div key={dayIndex} className="mobile-card" style={{
+                border: '2px solid #e5e7eb',
+                borderRadius: '12px',
                 padding: '16px',
                 background: '#ffffff'
               }}>
                 <h4 style={{
-                  color: '#495057',
+                  color: '#1f2937',
                   fontSize: '16px',
-                  fontWeight: '600',
+                  fontWeight: '700',
                   marginBottom: '12px',
                   display: 'flex',
                   justifyContent: 'space-between',
@@ -183,38 +206,38 @@ const AllPlayersAvailability = () => {
                   {day}
                   {availablePlayers.length > 0 && (
                     <span style={{
-                      padding: '2px 8px',
-                      background: '#28a745',
+                      padding: '4px 10px',
+                      background: '#047857',
                       color: 'white',
                       borderRadius: '12px',
-                      fontSize: '12px',
-                      fontWeight: 'normal'
+                      fontSize: '13px',
+                      fontWeight: '600'
                     }}>
-                      {availablePlayers.length} available
+                      {availablePlayers.length}
                     </span>
                   )}
                 </h4>
-                
+
                 {availablePlayers.length > 0 ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {availablePlayers.map(player => {
                       const dayAvail = player.availability.find(a => a.day_of_week === dayIndex);
                       return (
                         <div key={player.player_id} style={{
-                          padding: '8px',
-                          background: '#f0f8ff',
-                          borderRadius: '4px',
+                          padding: '12px',
+                          background: '#ecfdf5',
+                          borderRadius: '10px',
                           fontSize: '14px',
-                          borderLeft: '3px solid #4CAF50'
+                          borderLeft: '4px solid #047857'
                         }}>
-                          <div style={{ fontWeight: '500', color: '#1a5490' }}>
-                            👤 {player.player_name}
+                          <div style={{ fontWeight: '600', color: '#065f46', fontSize: '15px' }}>
+                            {player.player_name}
                           </div>
-                          <div style={{ fontSize: '12px', color: '#5a6c7d', marginTop: '2px' }}>
+                          <div style={{ fontSize: '13px', color: '#6b7280', marginTop: '4px' }}>
                             ⏰ {formatTimeRange(dayAvail.available_from_time, dayAvail.available_to_time)}
                           </div>
                           {dayAvail.notes && (
-                            <div style={{ fontSize: '12px', color: '#7a8a9a', marginTop: '2px', fontStyle: 'italic' }}>
+                            <div style={{ fontSize: '13px', color: '#9ca3af', marginTop: '4px', fontStyle: 'italic' }}>
                               💬 {dayAvail.notes}
                             </div>
                           )}
@@ -223,7 +246,7 @@ const AllPlayersAvailability = () => {
                     })}
                   </div>
                 ) : (
-                  <p style={{ color: '#adb5bd', fontSize: '14px', margin: 0 }}>
+                  <p style={{ color: '#9ca3af', fontSize: '14px', margin: 0, textAlign: 'center', padding: '12px' }}>
                     No players available
                   </p>
                 )}

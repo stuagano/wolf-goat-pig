@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import '../../styles/mobile-touch.css';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -110,46 +111,46 @@ const MatchmakingSuggestions = () => {
   }
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-      <div style={{ marginBottom: '30px' }}>
-        <h2 style={{ color: '#333', marginBottom: '10px' }}>
-          🤖 Smart Golf Matchmaking
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 12px' }}>
+      <div style={{ marginBottom: '20px' }}>
+        <h2 style={{ color: '#1f2937', marginBottom: '8px', fontSize: '20px' }}>
+          🤖 Smart Matchmaking
         </h2>
-        <p style={{ color: '#6c757d', fontSize: '14px' }}>
-          Automatic 4-player group suggestions based on schedule compatibility
+        <p style={{ color: '#6b7280', fontSize: '14px', margin: 0 }}>
+          Auto-generated 4-player groups based on schedules
         </p>
         <div style={{
-          marginTop: '15px',
+          marginTop: '12px',
           padding: '12px',
-          background: '#fff3cd',
-          border: '1px solid #ffc107',
-          borderRadius: '6px',
+          background: '#fef3c7',
+          border: '1px solid #f59e0b',
+          borderRadius: '10px',
           fontSize: '13px',
-          color: '#856404'
+          color: '#92400e'
         }}>
-          🔔 <strong>How it works:</strong> The system automatically finds groups of 4 players with overlapping availability and sends email invitations daily at 10 AM.
+          🔔 Groups are emailed daily at 10 AM
         </div>
       </div>
 
       {/* Filters */}
       <div style={{
-        background: '#f8f9fa',
-        padding: '20px',
-        borderRadius: '8px',
-        marginBottom: '30px',
-        border: '1px solid #dee2e6'
+        background: '#f9fafb',
+        padding: '16px',
+        borderRadius: '12px',
+        marginBottom: '20px',
+        border: '1px solid #e5e7eb'
       }}>
-        <div style={{ marginBottom: '20px' }}>
+        <div style={{ marginBottom: '16px' }}>
           <label style={{
             display: 'block',
             fontSize: '14px',
             fontWeight: '600',
-            color: '#495057',
-            marginBottom: '8px'
+            color: '#374151',
+            marginBottom: '10px'
           }}>
             Minimum Overlap Hours:
           </label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <input
               type="range"
               min="1"
@@ -157,16 +158,16 @@ const MatchmakingSuggestions = () => {
               step="0.5"
               value={minOverlapHours}
               onChange={(e) => setMinOverlapHours(parseFloat(e.target.value))}
-              style={{ flex: 1 }}
+              style={{ flex: 1, height: '8px' }}
             />
             <span style={{
-              padding: '6px 12px',
-              background: '#007bff',
+              padding: '8px 14px',
+              background: '#047857',
               color: 'white',
-              borderRadius: '4px',
-              fontSize: '14px',
-              fontWeight: '600',
-              minWidth: '60px',
+              borderRadius: '8px',
+              fontSize: '15px',
+              fontWeight: '700',
+              minWidth: '50px',
               textAlign: 'center'
             }}>
               {minOverlapHours}h
@@ -179,101 +180,133 @@ const MatchmakingSuggestions = () => {
             display: 'block',
             fontSize: '14px',
             fontWeight: '600',
-            color: '#495057',
-            marginBottom: '8px'
+            color: '#374151',
+            marginBottom: '10px'
           }}>
             Preferred Days:
           </label>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {dayNames.map((day, index) => (
-              <button
-                key={index}
-                onClick={() => toggleDay(index)}
-                style={{
-                  padding: '6px 12px',
-                  background: selectedDays.includes(index) ? '#007bff' : 'white',
-                  color: selectedDays.includes(index) ? 'white' : '#495057',
-                  border: '1px solid #ced4da',
-                  borderRadius: '4px',
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
-              >
-                {day}
-              </button>
-            ))}
+          <div
+            className="mobile-date-picker"
+            style={{
+              display: 'flex',
+              gap: '8px',
+              overflowX: 'auto',
+              WebkitOverflowScrolling: 'touch',
+              padding: '4px',
+              scrollbarWidth: 'none'
+            }}
+          >
+            {dayNames.map((day, index) => {
+              const shortDay = day.substring(0, 3);
+              return (
+                <button
+                  key={index}
+                  onClick={() => toggleDay(index)}
+                  className="mobile-date-button"
+                  style={{
+                    flexShrink: 0,
+                    minHeight: '44px',
+                    padding: '10px 14px',
+                    background: selectedDays.includes(index) ? '#047857' : 'white',
+                    color: selectedDays.includes(index) ? 'white' : '#374151',
+                    border: selectedDays.includes(index) ? '2px solid #047857' : '2px solid #e5e7eb',
+                    borderRadius: '10px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    touchAction: 'manipulation'
+                  }}
+                >
+                  {shortDay}
+                </button>
+              );
+            })}
             {selectedDays.length > 0 && (
               <button
                 onClick={() => setSelectedDays([])}
                 style={{
-                  padding: '6px 12px',
-                  background: '#dc3545',
+                  flexShrink: 0,
+                  minHeight: '44px',
+                  padding: '10px 14px',
+                  background: '#dc2626',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '4px',
-                  fontSize: '13px',
-                  cursor: 'pointer'
+                  borderRadius: '10px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  touchAction: 'manipulation'
                 }}
               >
-                Clear All
+                Clear
               </button>
             )}
           </div>
         </div>
       </div>
 
-      {/* Action Buttons */}
+      {/* Action Buttons - Mobile Stacked */}
       <div style={{
         display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        flexDirection: 'column',
+        gap: '12px',
         marginBottom: '20px'
       }}>
-        <div style={{ fontSize: '14px', color: '#6c757d' }}>
-          Found <strong>{matches.length}</strong> potential matches
+        <div style={{ fontSize: '15px', color: '#374151', fontWeight: '600' }}>
+          Found <span style={{ color: '#047857' }}>{matches.length}</span> potential matches
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <button
             onClick={loadMatches}
+            className="mobile-button mobile-button-secondary"
             style={{
-              padding: '8px 16px',
-              background: '#6c757d',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              fontSize: '14px',
-              cursor: 'pointer'
+              flex: 1,
+              minHeight: '48px',
+              padding: '12px 16px',
+              background: '#f3f4f6',
+              color: '#374151',
+              border: '1px solid #d1d5db',
+              borderRadius: '10px',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              touchAction: 'manipulation'
             }}
           >
-            Refresh
+            🔄 Refresh
           </button>
           <button
             onClick={sendAllNotifications}
             disabled={sendingNotifications || matches.length === 0}
+            className="mobile-button mobile-button-primary"
             style={{
-              padding: '8px 16px',
-              background: '#28a745',
+              flex: 2,
+              minHeight: '48px',
+              padding: '12px 16px',
+              background: sendingNotifications || matches.length === 0 ? '#9ca3af' : '#047857',
               color: 'white',
               border: 'none',
-              borderRadius: '4px',
-              fontSize: '14px',
+              borderRadius: '10px',
+              fontSize: '15px',
+              fontWeight: '600',
               cursor: sendingNotifications || matches.length === 0 ? 'not-allowed' : 'pointer',
-              opacity: sendingNotifications || matches.length === 0 ? 0.6 : 1
+              touchAction: 'manipulation'
             }}
           >
-            {sendingNotifications ? 'Sending...' : 'Send All Notifications'}
+            {sendingNotifications ? '⏳ Sending...' : '📧 Send Notifications'}
           </button>
         </div>
       </div>
 
       {/* Match Cards */}
       {matches.length > 0 ? (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
-          gap: '20px'
-        }}>
+        <div
+          className="responsive-grid-3"
+          style={{
+            display: 'grid',
+            gap: '16px'
+          }}
+        >
           {matches.map((match, index) => {
             const quality = formatQuality(match.match_quality);
             return (
