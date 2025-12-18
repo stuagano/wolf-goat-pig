@@ -63,13 +63,14 @@ const SimpleScorekeeper = ({
   // Sort players by tee_order if available, otherwise use original order
   const [rotationOrder, setRotationOrder] = useState(() => {
     const sortedPlayers = [...players].sort((a, b) => {
-      // If both have tee_order, sort by it
-      if (a.tee_order != null && b.tee_order != null) {
-        return a.tee_order - b.tee_order;
+      // If both have tee_order, sort by it (ensure numeric comparison)
+      if (a.tee_order !== null && a.tee_order !== undefined &&
+          b.tee_order !== null && b.tee_order !== undefined) {
+        return Number(a.tee_order) - Number(b.tee_order);
       }
       // If only one has tee_order, prioritize it
-      if (a.tee_order != null) return -1;
-      if (b.tee_order != null) return 1;
+      if (a.tee_order !== null && a.tee_order !== undefined) return -1;
+      if (b.tee_order !== null && b.tee_order !== undefined) return 1;
       // Otherwise maintain original order
       return 0;
     });

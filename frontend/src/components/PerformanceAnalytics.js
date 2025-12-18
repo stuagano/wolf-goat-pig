@@ -66,7 +66,10 @@ const PerformanceAnalytics = ({ playerId, playerName, timeRange = 30 }) => {
 
     // Simple chart rendering function (could be replaced with a charting library)
     const renderSimpleChart = (data, title, color = '#3B82F6') => {
-        if (!data || data.length === 0) {
+        // Filter out invalid data points
+        const validData = (data || []).filter(d => d && typeof d.value === 'number' && !isNaN(d.value));
+
+        if (validData.length === 0) {
             return (
                 <div className="h-48 flex items-center justify-center text-gray-500">
                     No data available for {title}
@@ -74,8 +77,9 @@ const PerformanceAnalytics = ({ playerId, playerName, timeRange = 30 }) => {
             );
         }
 
-        const maxValue = Math.max(...data.map(d => d.value));
-        const minValue = Math.min(...data.map(d => d.value));
+        const values = validData.map(d => d.value);
+        const maxValue = Math.max(...values);
+        const minValue = Math.min(...values);
         const range = maxValue - minValue || 1;
 
         return (
@@ -100,16 +104,16 @@ const PerformanceAnalytics = ({ playerId, playerName, timeRange = 30 }) => {
                         fill="none"
                         stroke={color}
                         strokeWidth="2"
-                        points={data.map((d, i) => {
-                            const x = (i / Math.max(1, data.length - 1)) * 400;
+                        points={validData.map((d, i) => {
+                            const x = (i / Math.max(1, validData.length - 1)) * 400;
                             const y = 100 - ((d.value - minValue) / range) * 80;
                             return `${x},${y}`;
                         }).join(' ')}
                     />
-                    
+
                     {/* Data points */}
-                    {data.map((d, i) => {
-                        const x = (i / Math.max(1, data.length - 1)) * 400;
+                    {validData.map((d, i) => {
+                        const x = (i / Math.max(1, validData.length - 1)) * 400;
                         const y = 100 - ((d.value - minValue) / range) * 80;
                         return (
                             <circle
@@ -119,7 +123,7 @@ const PerformanceAnalytics = ({ playerId, playerName, timeRange = 30 }) => {
                                 r="3"
                                 fill={color}
                                 className="hover:r-4 transition-all cursor-pointer"
-                                title={`${d.value.toFixed(2)} on ${new Date(d.timestamp).toLocaleDateString()}`}
+                                title={`${d.value.toFixed(2)} on ${d.timestamp ? new Date(d.timestamp).toLocaleDateString() : 'N/A'}`}
                             />
                         );
                     })}
