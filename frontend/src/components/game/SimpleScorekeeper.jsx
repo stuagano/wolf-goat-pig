@@ -1045,7 +1045,7 @@ const SimpleScorekeeper = ({
   }
 
   return (
-    <div data-testid="scorekeeper-container" style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
+    <div data-testid="scorekeeper-container" className="thumb-zone-container" style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
       {/* Loading/Error/Warning Banners */}
       {courseDataLoading && (
         <div style={{
@@ -3226,30 +3226,88 @@ const SimpleScorekeeper = ({
         </div>
       )}
 
-      {/* Submit Button */}
-      <button
-        data-testid="complete-hole-button"
-        onClick={handleSubmitHole}
-        disabled={submitting}
-        style={{
-          width: '100%',
-          padding: '16px',
-          fontSize: '20px',
-          fontWeight: 'bold',
-          border: 'none',
-          borderRadius: '8px',
-          background: submitting ? theme.colors.textSecondary : (editingHole ? '#FF9800' : theme.colors.success),
-          color: 'white',
-          cursor: submitting ? 'not-allowed' : 'pointer',
-          marginBottom: '20px'
-        }}
-      >
-        {submitting
-          ? 'Submitting...'
-          : editingHole
-            ? `Update Hole ${editingHole}`
-            : `Complete Hole ${currentHole}`}
-      </button>
+      {/* Old submit button removed - now in thumb zone below */}
+
+      {/* Sticky Bottom Thumb Zone - Primary Actions */}
+      <div className="thumb-zone">
+        <div className="thumb-zone-inner">
+          {/* Previous Hole Navigation */}
+          <button
+            className="thumb-zone-nav"
+            onClick={() => {
+              if (currentHole > 1) {
+                // Set editing mode for previous hole
+                const prevHoleData = holeHistory.find(h => h.hole === currentHole - 1);
+                if (prevHoleData) {
+                  setEditingHole(currentHole - 1);
+                  // Restore that hole's data for editing
+                  setScores(prevHoleData.scores || {});
+                  setQuarters(prevHoleData.quarters || {});
+                  setHoleNotes(prevHoleData.notes || '');
+                  setWinner(prevHoleData.winner || null);
+                } else {
+                  // Just navigate back
+                  setCurrentHole(currentHole - 1);
+                }
+              }
+            }}
+            disabled={currentHole <= 1}
+            aria-label={`Go to hole ${currentHole - 1}`}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <span style={{ fontSize: '18px' }}>◀</span>
+              <span className="hole-num">{currentHole > 1 ? currentHole - 1 : ''}</span>
+            </div>
+          </button>
+
+          {/* Primary Action - Complete/Update Hole */}
+          <button
+            data-testid="complete-hole-button"
+            className={`thumb-zone-primary ${editingHole ? 'editing' : ''}`}
+            onClick={handleSubmitHole}
+            disabled={submitting}
+          >
+            {submitting
+              ? 'Submitting...'
+              : editingHole
+                ? `Update Hole ${editingHole}`
+                : `✓ Complete Hole ${currentHole}`}
+          </button>
+
+          {/* Next Hole Navigation */}
+          <button
+            className="thumb-zone-nav"
+            onClick={() => {
+              if (currentHole < 18) {
+                // Check if next hole has data
+                const nextHoleData = holeHistory.find(h => h.hole === currentHole + 1);
+                if (nextHoleData) {
+                  setEditingHole(currentHole + 1);
+                  setScores(nextHoleData.scores || {});
+                  setQuarters(nextHoleData.quarters || {});
+                  setHoleNotes(nextHoleData.notes || '');
+                  setWinner(nextHoleData.winner || null);
+                } else {
+                  setCurrentHole(currentHole + 1);
+                  // Reset state for new hole
+                  setScores({});
+                  setQuarters({});
+                  setHoleNotes('');
+                  setWinner(null);
+                  setEditingHole(null);
+                }
+              }
+            }}
+            disabled={currentHole >= 18 && !holeHistory.find(h => h.hole === currentHole + 1)}
+            aria-label={`Go to hole ${currentHole + 1}`}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <span style={{ fontSize: '18px' }}>▶</span>
+              <span className="hole-num">{currentHole < 18 ? currentHole + 1 : ''}</span>
+            </div>
+          </button>
+        </div>
+      </div>
 
       {/* Old scorecard removed - now showing golf-style scorecard at top */}
 
