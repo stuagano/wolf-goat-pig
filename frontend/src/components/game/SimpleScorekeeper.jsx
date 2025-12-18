@@ -118,6 +118,12 @@ const SimpleScorekeeper = ({
   const [isEditingCompleteGame, setIsEditingCompleteGame] = useState(false); // Allow editing completed games
   const [isGameMarkedComplete, setIsGameMarkedComplete] = useState(false); // Track if game has been saved as complete
 
+  // Collapsible sections state (collapsed by default for cleaner UI)
+  const [showTeamSelection, setShowTeamSelection] = useState(true); // Start open, auto-collapse when teams set
+  const [showGolfScores, setShowGolfScores] = useState(false);
+  const [showCommissioner, setShowCommissioner] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
+
   // Interactive betting state (Offer/Accept flow)
   const [pendingOffer, setPendingOffer] = useState(null);
   // Shape: { offer_id, offer_type, offered_by, wager_before, wager_after, timestamp, status }
@@ -131,6 +137,18 @@ const SimpleScorekeeper = ({
   // Track course data loading state
   const [courseDataError, setCourseDataError] = useState(null);
   const [courseDataLoading, setCourseDataLoading] = useState(false);
+
+  // Auto-collapse team selection when teams are set
+  useEffect(() => {
+    const teamsAreSet = teamMode === 'partners'
+      ? team1.length > 0
+      : captain !== null;
+    if (teamsAreSet && showTeamSelection) {
+      // Small delay so user sees their selection before collapse
+      const timer = setTimeout(() => setShowTeamSelection(false), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [team1, captain, teamMode, showTeamSelection]);
 
   // Fetch course data
   useEffect(() => {
@@ -1310,55 +1328,6 @@ const SimpleScorekeeper = ({
             </button>
           </div>
         )}
-      </div>
-
-      {/* Running Totals Bar - Prominent display of each player's quarters */}
-      <div style={{
-        display: 'flex',
-        gap: '8px',
-        marginBottom: '16px',
-        padding: '12px',
-        background: theme.colors.paper,
-        borderRadius: '12px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        overflowX: 'auto'
-      }}>
-        {players.map(player => {
-          const total = playerStandings[player.id]?.quarters || 0;
-          return (
-            <div
-              key={player.id}
-              style={{
-                flex: '1 1 0',
-                minWidth: '70px',
-                padding: '8px 12px',
-                background: total > 0 ? 'rgba(76, 175, 80, 0.1)' : total < 0 ? 'rgba(244, 67, 54, 0.1)' : theme.colors.backgroundSecondary,
-                borderRadius: '8px',
-                textAlign: 'center',
-                border: `2px solid ${total > 0 ? '#4CAF50' : total < 0 ? '#f44336' : theme.colors.border}`
-              }}
-            >
-              <div style={{
-                fontSize: '11px',
-                fontWeight: 'bold',
-                color: theme.colors.textSecondary,
-                marginBottom: '2px',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis'
-              }}>
-                {player.name}
-              </div>
-              <div style={{
-                fontSize: '20px',
-                fontWeight: 'bold',
-                color: total > 0 ? '#4CAF50' : total < 0 ? '#f44336' : theme.colors.textPrimary
-              }}>
-                {total > 0 ? '+' : ''}{total}
-              </div>
-            </div>
-          );
-        })}
       </div>
 
       {/* Enhanced Hole Title Section - Combines hole info, hitting order, and strokes */}
@@ -2645,17 +2614,44 @@ const SimpleScorekeeper = ({
         )}
       </div>
 
-      {/* Team Selection */}
+      {/* Team Selection - Collapsible */}
       <div style={{
         background: theme.colors.paper,
         padding: '16px',
         borderRadius: '8px',
         marginBottom: '20px'
       }}>
-        <h3 style={{ margin: '0 0 8px' }}>
-          {teamMode === 'partners' ? 'Select Team 1' : 'Select Captain'}
+        <h3
+          onClick={() => setShowTeamSelection(!showTeamSelection)}
+          style={{
+            margin: '0 0 8px',
+            cursor: 'pointer',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}
+        >
+          <span>
+            {teamMode === 'partners' ? 'Teams' : 'Captain Selection'}
+            {/* Show summary when collapsed */}
+            {!showTeamSelection && (
+              <span style={{ fontWeight: 'normal', fontSize: '14px', color: theme.colors.textSecondary, marginLeft: '8px' }}>
+                {teamMode === 'partners'
+                  ? (team1.length > 0
+                      ? `(Team 1: ${team1.map(id => players.find(p => p.id === id)?.name?.split(' ')[0]).join(', ')} vs Team 2)`
+                      : '(tap to select)')
+                  : (captain
+                      ? `(⭐ ${players.find(p => p.id === captain)?.name?.split(' ')[0]} vs all)`
+                      : '(tap to select)')
+                }
+              </span>
+            )}
+          </span>
+          <span style={{ fontSize: '14px', color: theme.colors.textSecondary }}>
+            {showTeamSelection ? '▼' : '▶'}
+          </span>
         </h3>
-        {teamMode === 'partners' && (
+        {showTeamSelection && teamMode === 'partners' && (
           <p style={{
             margin: '0 0 12px',
             fontSize: '14px',
@@ -2668,7 +2664,7 @@ const SimpleScorekeeper = ({
           </p>
         )}
 
-        {teamMode === 'partners' ? (
+        {showTeamSelection && (teamMode === 'partners' ? (
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
               {players.map(player => {
@@ -2857,7 +2853,7 @@ const SimpleScorekeeper = ({
               );
             })}
           </div>
-        )}
+        ))}
       </div>
 
       {/* Quarters Entry (Primary) */}
@@ -3088,88 +3084,153 @@ const SimpleScorekeeper = ({
         </div>
       </div>
 
-      {/* Scores (Optional) */}
+      {/* Scores (Optional) - Collapsible */}
       <div style={{
         background: theme.colors.paper,
         padding: '16px',
         borderRadius: '8px',
         marginBottom: '20px'
       }}>
-        <h3 style={{ margin: '0 0 4px' }}>
-          Golf Scores <span style={{ fontWeight: 'normal', fontSize: '14px', color: theme.colors.textSecondary }}>(optional)</span>
-        </h3>
-        <div style={{ fontSize: '12px', color: theme.colors.textSecondary, marginBottom: '12px' }}>
-          Enter strokes for tracking only
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
-          {players.map(player => (
-            <div key={player.id} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <label style={{ flex: 1, fontWeight: 'bold' }}>
-                {player.name}
-                :
-              </label>
-              <Input
-                data-testid={`score-input-${player.id}`}
-                type="number"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                min="0"
-                max="15"
-                value={scores[player.id] || ''}
-                onChange={(e) => handleScoreChange(player.id, e.target.value)}
-                variant="inline"
-                inputStyle={{
-                  width: '60px',
-                  padding: '8px',
-                  fontSize: '16px',
-                  border: `2px solid ${theme.colors.border}`,
-                  borderRadius: '4px',
-                  textAlign: 'center'
-                }}
-              />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Ask Commissioner Section */}
-      <div style={{ marginBottom: '20px' }}>
-        <CommissionerChat
-          inline={true}
-          gameState={{
-            players,
-            current_hole: currentHole,
-            standings: playerStandings
-          }}
-          onSaveToNotes={(text) => {
-            // Append commissioner ruling to notes with timestamp
-            const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const ruling = `[${timestamp}] Commissioner: ${text}`;
-            setHoleNotes(prev => prev ? `${prev}\n\n${ruling}` : ruling);
-          }}
-        />
-      </div>
-
-      {/* Hole Notes (Optional) */}
-      <div style={{
-        background: theme.colors.paper,
-        padding: '16px',
-        borderRadius: '8px',
-        marginBottom: '20px'
-      }}>
-        <h3 style={{ margin: '0 0 8px' }}>
-          Notes <span style={{ fontWeight: 'normal', fontSize: '14px', color: theme.colors.textSecondary }}>(optional)</span>
-        </h3>
-        <textarea
-          value={holeNotes}
-          onChange={(e) => setHoleNotes(e.target.value)}
-          placeholder="Add notes about this hole (disputes, unusual situations, etc.)"
+        <h3
+          onClick={() => setShowGolfScores(!showGolfScores)}
           style={{
-            width: '100%',
-            minHeight: '60px',
-            padding: '10px',
-            fontSize: '14px',
-            border: `2px solid ${theme.colors.border}`,
+            margin: 0,
+            cursor: 'pointer',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}
+        >
+          <span>
+            Golf Scores <span style={{ fontWeight: 'normal', fontSize: '14px', color: theme.colors.textSecondary }}>(optional)</span>
+          </span>
+          <span style={{ fontSize: '14px', color: theme.colors.textSecondary }}>
+            {showGolfScores ? '▼' : '▶'}
+          </span>
+        </h3>
+        {showGolfScores && (
+          <>
+            <div style={{ fontSize: '12px', color: theme.colors.textSecondary, marginBottom: '12px', marginTop: '8px' }}>
+              Enter strokes for tracking only
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+              {players.map(player => (
+                <div key={player.id} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <label style={{ flex: 1, fontWeight: 'bold' }}>
+                    {player.name}
+                    :
+                  </label>
+                  <Input
+                    data-testid={`score-input-${player.id}`}
+                    type="number"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    min="0"
+                    max="15"
+                    value={scores[player.id] || ''}
+                    onChange={(e) => handleScoreChange(player.id, e.target.value)}
+                    variant="inline"
+                    inputStyle={{
+                      width: '60px',
+                      padding: '8px',
+                      fontSize: '16px',
+                      border: `2px solid ${theme.colors.border}`,
+                      borderRadius: '4px',
+                      textAlign: 'center'
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Ask Commissioner Section - Collapsible */}
+      <div style={{
+        background: theme.colors.paper,
+        padding: '16px',
+        borderRadius: '8px',
+        marginBottom: '20px'
+      }}>
+        <h3
+          onClick={() => setShowCommissioner(!showCommissioner)}
+          style={{
+            margin: 0,
+            cursor: 'pointer',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}
+        >
+          <span>
+            Ask Commissioner <span style={{ fontWeight: 'normal', fontSize: '14px', color: theme.colors.textSecondary }}>(optional)</span>
+          </span>
+          <span style={{ fontSize: '14px', color: theme.colors.textSecondary }}>
+            {showCommissioner ? '▼' : '▶'}
+          </span>
+        </h3>
+        {showCommissioner && (
+          <div style={{ marginTop: '12px' }}>
+            <CommissionerChat
+              inline={true}
+              gameState={{
+                players,
+                current_hole: currentHole,
+                standings: playerStandings
+              }}
+              onSaveToNotes={(text) => {
+                // Append commissioner ruling to notes with timestamp
+                const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const ruling = `[${timestamp}] Commissioner: ${text}`;
+                setHoleNotes(prev => prev ? `${prev}\n\n${ruling}` : ruling);
+              }}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Hole Notes (Optional) - Collapsible */}
+      <div style={{
+        background: theme.colors.paper,
+        padding: '16px',
+        borderRadius: '8px',
+        marginBottom: '20px'
+      }}>
+        <h3
+          onClick={() => setShowNotes(!showNotes)}
+          style={{
+            margin: 0,
+            cursor: 'pointer',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}
+        >
+          <span>
+            Notes <span style={{ fontWeight: 'normal', fontSize: '14px', color: theme.colors.textSecondary }}>(optional)</span>
+            {!showNotes && holeNotes && (
+              <span style={{ marginLeft: '8px', fontSize: '12px', color: theme.colors.primary }}>
+                (has notes)
+              </span>
+            )}
+          </span>
+          <span style={{ fontSize: '14px', color: theme.colors.textSecondary }}>
+            {showNotes ? '▼' : '▶'}
+          </span>
+        </h3>
+        {showNotes && (
+          <textarea
+            value={holeNotes}
+            onChange={(e) => setHoleNotes(e.target.value)}
+            placeholder="Add notes about this hole (disputes, unusual situations, etc.)"
+            style={{
+              width: '100%',
+              minHeight: '60px',
+              padding: '10px',
+              fontSize: '14px',
+              marginTop: '12px',
+              border: `2px solid ${theme.colors.border}`,
             borderRadius: '6px',
             resize: 'vertical',
             fontFamily: 'inherit',
@@ -3177,6 +3238,7 @@ const SimpleScorekeeper = ({
             color: theme.colors.textPrimary
           }}
         />
+        )}
       </div>
 
       {/* Error Display with Helpful Guidance */}

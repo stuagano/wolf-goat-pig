@@ -1,6 +1,6 @@
 // frontend/src/pages/SimpleScorekeeperPage.js
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { SimpleScorekeeper } from '../components/game';
 import { Card } from '../components/ui';
 import { useTheme } from '../theme/Provider';
@@ -12,7 +12,6 @@ const API_URL = process.env.REACT_APP_API_URL || "";
  */
 const SimpleScorekeeperPage = () => {
   const { gameId } = useParams();
-  const navigate = useNavigate();
   const theme = useTheme();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -143,65 +142,6 @@ const SimpleScorekeeperPage = () => {
 
   return (
     <div>
-      {/* Game Navigation Bar */}
-      <div style={{
-        background: theme.colors.paper,
-        borderBottom: `2px solid ${theme.colors.border}`,
-        padding: '12px 20px',
-        display: 'flex',
-        gap: '10px',
-        flexWrap: 'wrap',
-        justifyContent: 'center',
-        alignItems: 'center'
-      }}>
-        <button
-          onClick={() => navigate('/games/active')}
-          style={{
-            ...theme.buttonStyle,
-            padding: '8px 16px',
-            fontSize: '14px',
-            background: '#10B981'
-          }}
-        >
-          🎯 Active Games
-        </button>
-        <button
-          onClick={() => navigate('/games/completed')}
-          style={{
-            ...theme.buttonStyle,
-            padding: '8px 16px',
-            fontSize: '14px',
-            background: '#8B5CF6'
-          }}
-        >
-          🏆 History
-        </button>
-        <button
-          onClick={() => navigate('/game')}
-          style={{
-            ...theme.buttonStyle,
-            padding: '8px 16px',
-            fontSize: '14px',
-            background: '#047857'
-          }}
-        >
-          ➕ New Game
-        </button>
-        <button
-          onClick={() => navigate('/')}
-          style={{
-            ...theme.buttonStyle,
-            padding: '8px 16px',
-            fontSize: '14px',
-            background: 'transparent',
-            color: theme.colors.textPrimary,
-            border: `1px solid ${theme.colors.border}`
-          }}
-        >
-          🏠 Home
-        </button>
-      </div>
-
       <SimpleScorekeeper
         gameId={gameId}
         players={players}
