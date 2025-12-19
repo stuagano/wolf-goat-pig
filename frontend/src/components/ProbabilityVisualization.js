@@ -187,21 +187,24 @@ const TrendChart = ({ data, width, height }) => {
   const chartWidth = svgWidth - margin.left - margin.right;
   const chartHeight = svgHeight - margin.top - margin.bottom;
 
-  // Calculate scales
-  const xScale = (index) => (index / (data.length - 1)) * chartWidth;
+  // Calculate scales - prevent division by zero
+  const xDivisor = Math.max(data.length - 1, 1);
+  const xScale = (index) => (index / xDivisor) * chartWidth;
   const yScale = (value) => chartHeight - (value * chartHeight);
 
   // Generate confidence line
   const confidenceLine = data.map((point, index) => ({
     x: margin.left + xScale(index),
-    y: margin.top + yScale(point.confidence)
+    y: margin.top + yScale(point.confidence || 0)
   }));
 
-  // Generate calculation time line (normalized)
-  const maxCalcTime = Math.max(...data.map(d => d.calculation_time));
+  // Generate calculation time line (normalized) - prevent division by zero
+  const calcTimes = data.map(d => d.calculation_time || 0);
+  const maxCalcTime = calcTimes.length > 0 ? Math.max(...calcTimes) : 1;
+  const safeMaxCalcTime = maxCalcTime || 1; // Prevent division by zero
   const calcTimeLine = data.map((point, index) => ({
     x: margin.left + xScale(index),
-    y: margin.top + yScale(point.calculation_time / maxCalcTime)
+    y: margin.top + yScale((point.calculation_time || 0) / safeMaxCalcTime)
   }));
 
   const createPath = (points) => {
@@ -306,8 +309,9 @@ const TrendChart = ({ data, width, height }) => {
 
 // Score distribution chart
 const ScoreDistributionChart = ({ distribution, playerName, width, height }) => {
-  const scores = Object.keys(distribution).map(Number).sort((a, b) => a - b);
-  const maxProb = Math.max(...Object.values(distribution));
+  const scores = Object.keys(distribution || {}).map(Number).sort((a, b) => a - b);
+  const probValues = Object.values(distribution || {});
+  const maxProb = probValues.length > 0 ? Math.max(...probValues) : 1;
   
   const svgWidth = width;
   const svgHeight = height;

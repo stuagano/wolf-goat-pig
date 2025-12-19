@@ -398,14 +398,14 @@ const EnhancedBettingWidget = ({ gameState, bettingOpportunity, onBettingAction 
                 {getActionDescription(action)}
               </div>
               
-              {expectedValue !== null && (
-                <div style={{ 
-                  fontSize: 10, 
+              {expectedValue != null && (
+                <div style={{
+                  fontSize: 10,
                   opacity: 0.7,
                   marginTop: 4,
                   fontStyle: 'italic'
                 }}>
-                  EV: {expectedValue > 0 ? '+' : ''}{expectedValue.toFixed(1)}q
+                  EV: {expectedValue > 0 ? '+' : ''}{Number(expectedValue).toFixed(1)}q
                 </div>
               )}
               
