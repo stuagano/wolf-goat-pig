@@ -1608,8 +1608,6 @@ const SimpleScorekeeper = ({
           </div>
         </div>
       </div>
-        </>
-      )}
 
       {/* Usage Statistics - Collapsible */}
       {holeHistory.length > 0 && (
