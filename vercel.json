@@ -5,7 +5,7 @@
   "buildCommand": "cd frontend && npm ci && npm run build",
   "outputDirectory": "frontend/build",
   "installCommand": "cd frontend && npm ci",
-  "framework": "create-react-app",
+  "framework": null,
   "build": {
     "env": {
       "REACT_APP_API_URL": "https://wolf-goat-pig.onrender.com",
@@ -14,7 +14,8 @@
       "REACT_APP_AUTH0_AUDIENCE": "https://wolf-goat-pig.onrender.com",
       "REACT_APP_USE_MOCK_AUTH": "false",
       "REACT_APP_ENABLE_ANALYTICS": "true",
-      "REACT_APP_DEPLOY_PLATFORM": "vercel"
+      "REACT_APP_DEPLOY_PLATFORM": "vercel",
+      "CI": "false"
     }
   },
   "routes": [
