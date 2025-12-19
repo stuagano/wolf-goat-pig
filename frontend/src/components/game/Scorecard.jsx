@@ -881,7 +881,7 @@ const Scorecard = ({
         <div style={{
           display: 'flex',
           flexWrap: 'nowrap',
-          gap: '16px',
+          gap: '12px',
           overflowX: 'auto',
           padding: '8px 4px'
         }}>
@@ -889,8 +889,9 @@ const Scorecard = ({
             if (!player || !player.id) return null;
 
             const totals = calculateTotals(player.id);
-            const isHuman = player.is_human || player.id === 'human';
             const playerName = typeof player.name === 'string' ? player.name : 'Unknown';
+            // Get first name only for mobile display
+            const shortName = playerName.split(' ')[0];
 
             return (
               <div
@@ -898,41 +899,23 @@ const Scorecard = ({
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
-                  padding: '4px 8px',
-                  backgroundColor: isHuman ? 'rgba(33, 150, 243, 0.1)' : 'transparent',
-                  borderRadius: '6px',
+                  gap: '6px',
+                  padding: '6px 10px',
+                  backgroundColor: totals.total > 0 ? 'rgba(76, 175, 80, 0.1)' : totals.total < 0 ? 'rgba(244, 67, 54, 0.1)' : 'rgba(0,0,0,0.05)',
+                  borderRadius: '8px',
                   whiteSpace: 'nowrap',
                   flexShrink: 0
                 }}
               >
-                <span style={{ fontWeight: 'bold', fontSize: '13px' }}>
-                  {isHuman ? '👤' : '🤖'} {playerName}
-                  {player.handicap != null && <span style={{ fontSize: '11px', opacity: 0.7, marginLeft: '2px' }}>({player.handicap})</span>}
+                <span style={{ fontWeight: '600', fontSize: '13px' }}>
+                  {shortName}
                 </span>
-                <span style={{ color: theme.colors.textSecondary, fontSize: '11px' }}>OUT:</span>
                 <span style={{
                   fontWeight: 'bold',
-                  fontSize: '13px',
-                  color: totals.front9 > 0 ? '#4CAF50' : totals.front9 < 0 ? '#f44336' : 'inherit'
+                  fontSize: '16px',
+                  color: totals.total > 0 ? '#4CAF50' : totals.total < 0 ? '#f44336' : '#666'
                 }}>
-                  {totals.front9 !== 0 ? (totals.front9 > 0 ? `+${totals.front9}` : totals.front9) : '-'}
-                </span>
-                <span style={{ color: theme.colors.textSecondary, fontSize: '11px' }}>IN:</span>
-                <span style={{
-                  fontWeight: 'bold',
-                  fontSize: '13px',
-                  color: totals.back9 > 0 ? '#4CAF50' : totals.back9 < 0 ? '#f44336' : 'inherit'
-                }}>
-                  {totals.back9 !== 0 ? (totals.back9 > 0 ? `+${totals.back9}` : totals.back9) : '-'}
-                </span>
-                <span style={{ color: theme.colors.textSecondary, fontSize: '11px' }}>TOT:</span>
-                <span style={{
-                  fontWeight: 'bold',
-                  fontSize: '14px',
-                  color: totals.total > 0 ? '#4CAF50' : totals.total < 0 ? '#f44336' : 'inherit'
-                }}>
-                  {totals.total !== 0 ? (totals.total > 0 ? `+${totals.total}` : totals.total) : '-'}
+                  {totals.total !== 0 ? (totals.total > 0 ? `+${totals.total}` : totals.total) : '0'}
                 </span>
               </div>
             );
