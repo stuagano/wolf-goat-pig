@@ -31,7 +31,7 @@ const Scorecard = ({
   const [viewMode, setViewMode] = useState('scorecard'); // 'scorecard' or 'standings'
   const [editingPlayerName, setEditingPlayerName] = useState(null);
   const [editPlayerNameValue, setEditPlayerNameValue] = useState('');
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true); // Start minimized to not take over the page
   // Auto-select front/back based on current hole
   const [activeNine, setActiveNine] = useState(() => currentHole > 9 ? 'back' : 'front');
 
