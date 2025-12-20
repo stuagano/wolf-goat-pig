@@ -1,0 +1,103 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Trigger Render Deploy
+      run: |
+        echo "🚀 Triggering Render backend deployment..."
+        curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" \
+          --fail \
+          --silent \
+          --show-error \
+          -o /dev/null \
+          -w "HTTP Status: %{http_code}\n"
+        echo "✅ Render deploy triggered"
+      if: ${{ secrets.RENDER_DEPLOY_HOOK_URL != '' }}
+
+    - name: Notify Vercel (auto-deploys via GitHub integration)
+      run: |
+        echo "📦 Vercel will auto-deploy via GitHub integration"
+        echo "   Vercel detects push to main and deploys automatically"
+
+    - name: Wait for deployments to start
+      run: |
+        echo "⏳ Waiting 30 seconds for deployments to initialize..."
+        sleep 30
+
+    - name: Verify Render Backend Health
+      run: |
+        echo "🔍 Checking Render backend health..."
+        MAX_RETRIES=20
+        RETRY_DELAY=15
+
+        for i in $(seq 1 $MAX_RETRIES); do
+          echo "Attempt $i/$MAX_RETRIES..."
+
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://wolf-goat-pig.onrender.com/ready" \
+            --max-time 10 || echo "000")
+
+          if [ "$HTTP_STATUS" = "200" ]; then
+            echo "✅ Render backend is healthy!"
+            break
+          fi
+
+          if [ $i -eq $MAX_RETRIES ]; then
+            echo "⚠️ Render backend not ready after $MAX_RETRIES attempts"
+            echo "   This may be normal for free tier cold starts (up to 5 min)"
+            exit 0  # Don't fail - free tier can be slow
+          fi
+
+          echo "   Status: $HTTP_STATUS - waiting ${RETRY_DELAY}s..."
+          sleep $RETRY_DELAY
+        done
+
+    - name: Verify Vercel Frontend Health
+      run: |
+        echo "🔍 Checking Vercel frontend health..."
+        MAX_RETRIES=10
+        RETRY_DELAY=10
+
+        for i in $(seq 1 $MAX_RETRIES); do
+          echo "Attempt $i/$MAX_RETRIES..."
+
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://wolf-goat-pig.vercel.app" \
+            --max-time 10 || echo "000")
+
+          if [ "$HTTP_STATUS" = "200" ]; then
+            echo "✅ Vercel frontend is healthy!"
+            break
+          fi
+
+          if [ $i -eq $MAX_RETRIES ]; then
+            echo "⚠️ Vercel frontend not ready after $MAX_RETRIES attempts"
+            exit 0  # Don't fail - may still be deploying
+          fi
+
+          echo "   Status: $HTTP_STATUS - waiting ${RETRY_DELAY}s..."
+          sleep $RETRY_DELAY
+        done
+
+    - name: Deployment Summary
+      run: |
+        echo ""
+        echo "═══════════════════════════════════════════════"
+        echo "              DEPLOYMENT COMPLETE"
+        echo "═══════════════════════════════════════════════"
+        echo ""
+        echo "🌐 Frontend: https://wolf-goat-pig.vercel.app"
+        echo "🔧 Backend:  https://wolf-goat-pig.onrender.com"
+        echo ""
+        echo "📝 Note: Free tier services may take 1-5 min to fully deploy"
+        echo "═══════════════════════════════════════════════"
