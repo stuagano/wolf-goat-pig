@@ -29,10 +29,22 @@ jobs:
           -w "HTTP Status: %{http_code}\n"
         echo "✅ Render deploy triggered"
 
-    - name: Notify Vercel (auto-deploys via GitHub integration)
+    - name: Trigger Vercel Deploy
+      env:
+        VERCEL_HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
       run: |
-        echo "📦 Vercel will auto-deploy via GitHub integration"
-        echo "   Vercel detects push to main and deploys automatically"
+        if [ -z "$VERCEL_HOOK" ]; then
+          echo "⚠️ VERCEL_DEPLOY_HOOK_URL secret not set - skipping"
+          exit 0
+        fi
+        echo "📦 Triggering Vercel frontend deployment..."
+        curl -X POST "$VERCEL_HOOK" \
+          --fail \
+          --silent \
+          --show-error \
+          -o /dev/null \
+          -w "HTTP Status: %{http_code}\n"
+        echo "✅ Vercel deploy triggered"
 
     - name: Wait for deployments to start
       run: |
