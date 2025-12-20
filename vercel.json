@@ -2,10 +2,11 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
   "name": "wolf-goat-pig",
-  "buildCommand": "cd frontend && npm ci && npm run build",
-  "outputDirectory": "frontend/build",
-  "installCommand": "cd frontend && npm ci",
-  "framework": null,
+  "rootDirectory": "frontend",
+  "buildCommand": "npm run build",
+  "outputDirectory": "build",
+  "installCommand": "npm ci",
+  "framework": "create-react-app",
   "build": {
     "env": {
       "REACT_APP_API_URL": "https://wolf-goat-pig.onrender.com",
