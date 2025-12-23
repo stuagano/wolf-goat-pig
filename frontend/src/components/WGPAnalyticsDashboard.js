@@ -123,19 +123,24 @@ const WGPAnalyticsDashboard = () => {
         throw new Error(`Failed to fetch leaderboard data: ${leaderboardResponse.statusText}`);
       }
       
-      const leaderboardData = await leaderboardResponse.json();
-      
+      const leaderboardResponse_data = await leaderboardResponse.json();
+
+      // Handle both array response and object response (e.g., { data: [...] })
+      const leaderboardDataArray = Array.isArray(leaderboardResponse_data)
+        ? leaderboardResponse_data
+        : (leaderboardResponse_data?.data || leaderboardResponse_data?.leaderboard || []);
+
       // If no data available, show empty state
-      if (!leaderboardData || leaderboardData.length === 0) {
+      if (!leaderboardDataArray || leaderboardDataArray.length === 0) {
         setLeaderboardData([]);
         setTopBestScores([]);
         setTopWorstScores([]);
         setMostRoundsPlayed([]);
         return;
       }
-      
+
       // Process leaderboard data from database (filter out Grand Total if it exists)
-      const leaderboard = leaderboardData
+      const leaderboard = leaderboardDataArray
         .filter(player => {
           const name = (player.player_name || player.name || '').toLowerCase();
           return name !== 'grand total' && name !== 'total' && name !== '';
