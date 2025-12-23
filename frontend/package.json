@@ -8,6 +8,7 @@
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
     "ghin": "^0.7.0",
+    "html2canvas": "^1.4.1",
     "pg": "^8.16.3",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
@@ -64,7 +65,10 @@
     ],
     "overrides": [
       {
-        "files": ["**/__tests__/**/*.{js,jsx}", "**/*.test.{js,jsx}"],
+        "files": [
+          "**/__tests__/**/*.{js,jsx}",
+          "**/*.test.{js,jsx}"
+        ],
         "rules": {
           "testing-library/no-wait-for-multiple-assertions": "off",
           "testing-library/no-node-access": "off",

@@ -496,7 +496,7 @@ const Scorecard = ({
                     {player.handicap != null && <span style={{ fontSize: '10px', marginLeft: '4px', opacity: 0.7 }}>({player.handicap})</span>}
                     {onPlayerNameChange && <span style={{ fontSize: '10px', marginLeft: '4px', opacity: 0.5 }}>✏️</span>}
                   </div>
-                  <div>Score</div>
+                  <div>Stroke</div>
                 </td>
                 {sectionHoles.map(hole => {
                   const { strokes } = getHoleData(hole, player.id);

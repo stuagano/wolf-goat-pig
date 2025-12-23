@@ -140,16 +140,8 @@ const SimpleScorekeeper = ({
   const [courseDataLoading, setCourseDataLoading] = useState(false);
 
   // Auto-collapse team selection when teams are set
-  useEffect(() => {
-    const teamsAreSet = teamMode === 'partners'
-      ? team1.length > 0
-      : captain !== null;
-    if (teamsAreSet && showTeamSelection) {
-      // Small delay so user sees their selection before collapse
-      const timer = setTimeout(() => setShowTeamSelection(false), 500);
-      return () => clearTimeout(timer);
-    }
-  }, [team1, captain, teamMode, showTeamSelection]);
+  // Team selection stays visible so players can see teams during the hole
+  // (Auto-collapse removed per user request)
 
   // Fetch course data
   useEffect(() => {
@@ -1059,6 +1051,8 @@ const SimpleScorekeeper = ({
         }}
         onMarkComplete={handleMarkComplete}
         isCompleted={isGameMarkedComplete}
+        courseHoles={courseData?.holes || []}
+        strokeAllocation={strokeAllocation}
       />
     );
   }
@@ -1506,9 +1500,18 @@ const SimpleScorekeeper = ({
         background: theme.colors.paper,
         padding: '16px',
         borderRadius: '8px',
-        marginBottom: '20px'
+        marginBottom: '20px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+        border: `1px solid ${theme.colors.border}`,
+        transition: 'box-shadow 0.2s ease'
       }}>
-        <h3 style={{ margin: '0 0 12px' }}>Special Actions (Optional)</h3>
+        <h3 style={{
+          margin: '0 0 12px',
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px',
+          fontSize: '12px',
+          fontWeight: 'bold'
+        }}>Special Actions (Optional)</h3>
 
         {/* Float Selection */}
         <div style={{ marginBottom: '16px' }}>
@@ -1532,8 +1535,10 @@ const SimpleScorekeeper = ({
                     background: floatInvokedBy === player.id ? theme.colors.primary : hasUsedFloat ? '#f5f5f5' : 'white',
                     color: floatInvokedBy === player.id ? 'white' : hasUsedFloat ? '#999' : theme.colors.text,
                     cursor: hasUsedFloat ? 'not-allowed' : 'pointer',
-                    opacity: hasUsedFloat ? 0.6 : 1,
-                    position: 'relative'
+                    opacity: hasUsedFloat ? 0.5 : 1,
+                    position: 'relative',
+                    transition: 'all 0.15s ease',
+                    boxShadow: floatInvokedBy === player.id ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
                   }}
                   title={hasUsedFloat ? `${player.name} has already used their float` : ''}
                 >
@@ -1554,11 +1559,12 @@ const SimpleScorekeeper = ({
               style={{
                 padding: '8px 16px',
                 fontSize: '14px',
-                border: `2px solid ${theme.colors.border}`,
+                border: `1px solid ${theme.colors.border}`,
                 borderRadius: '6px',
                 background: 'white',
                 color: theme.colors.textSecondary,
-                cursor: 'pointer'
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
               }}
             >
               None
@@ -1584,7 +1590,9 @@ const SimpleScorekeeper = ({
                   borderRadius: '6px',
                   background: optionInvokedBy === player.id ? theme.colors.warning : 'white',
                   color: optionInvokedBy === player.id ? 'white' : theme.colors.text,
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  boxShadow: optionInvokedBy === player.id ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
                 }}
               >
                 {player.name}
@@ -1840,28 +1848,38 @@ const SimpleScorekeeper = ({
       {/* Team Mode Selection - Enhanced Style */}
       <div style={{
         background: theme.colors.paper,
-        padding: '20px',
-        borderRadius: '16px',
+        padding: '16px',
+        borderRadius: '8px',
         marginBottom: '20px',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+        border: `1px solid ${theme.colors.border}`,
+        transition: 'box-shadow 0.2s ease',
+        borderLeft: `4px solid ${theme.colors.primary}`
       }}>
-        <h3 style={{ margin: '0 0 16px', fontSize: '20px', fontWeight: 'bold', color: theme.colors.textPrimary }}>Team Mode</h3>
+        <h3 style={{
+          margin: '0 0 16px',
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px',
+          fontSize: '12px',
+          fontWeight: 'bold',
+          color: theme.colors.textPrimary
+        }}>Team Mode</h3>
         <div style={{ display: 'flex', gap: '12px' }}>
           <button
             onClick={() => setTeamMode('partners')}
             className="touch-optimized"
             style={{
               flex: 1,
-              padding: '16px',
-              fontSize: '18px',
+              padding: '12px 20px',
+              fontSize: '16px',
               fontWeight: 'bold',
-              border: teamMode === 'partners' ? `3px solid ${theme.colors.primary}` : `2px solid ${theme.colors.border}`,
-              borderRadius: '12px',
+              border: teamMode === 'partners' ? `2px solid ${theme.colors.primary}` : `1px solid ${theme.colors.border}`,
+              borderRadius: '8px',
               background: teamMode === 'partners' ? theme.colors.primary : 'white',
               color: teamMode === 'partners' ? 'white' : theme.colors.textPrimary,
               cursor: 'pointer',
-              transition: 'all 0.2s',
-              boxShadow: teamMode === 'partners' ? '0 4px 6px rgba(0,0,0,0.2)' : 'none'
+              transition: 'all 0.15s ease',
+              boxShadow: teamMode === 'partners' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
             }}
           >
             Partners
@@ -1872,16 +1890,16 @@ const SimpleScorekeeper = ({
             className="touch-optimized"
             style={{
               flex: 1,
-              padding: '16px',
-              fontSize: '18px',
+              padding: '12px 20px',
+              fontSize: '16px',
               fontWeight: 'bold',
-              border: teamMode === 'solo' ? `3px solid ${theme.colors.primary}` : `2px solid ${theme.colors.border}`,
-              borderRadius: '12px',
+              border: teamMode === 'solo' ? `2px solid ${theme.colors.primary}` : `1px solid ${theme.colors.border}`,
+              borderRadius: '8px',
               background: teamMode === 'solo' ? theme.colors.primary : 'white',
               color: teamMode === 'solo' ? 'white' : theme.colors.textPrimary,
               cursor: 'pointer',
-              transition: 'all 0.2s',
-              boxShadow: teamMode === 'solo' ? '0 4px 6px rgba(0,0,0,0.2)' : 'none'
+              transition: 'all 0.15s ease',
+              boxShadow: teamMode === 'solo' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
             }}
           >
             Solo
@@ -2011,14 +2029,13 @@ const SimpleScorekeeper = ({
                       fontSize: '16px',
                       border: inTeam1 ? `3px solid #00bcd4` : `2px solid ${theme.colors.border}`,
                       borderRadius: '8px',
-                      background: inTeam1 ? 'rgba(0, 188, 212, 0.1)' : inTeam2 ? 'rgba(255, 152, 0, 0.05)' : 'white',
+                      background: inTeam1 ? 'rgba(0, 188, 212, 0.15)' : 'white',
                       cursor: 'pointer',
-                      opacity: inTeam2 ? 0.8 : 1
+                      fontWeight: inTeam1 ? 600 : 400
                     }}
                   >
                     <PlayerName name={player.name} isAuthenticated={player.is_authenticated} />
                     {inTeam1 && ' (Team 1)'}
-                    {inTeam2 && ' (Team 2 ↺)'}
                   </button>
                 );
               })}
@@ -2193,9 +2210,18 @@ const SimpleScorekeeper = ({
         padding: '16px',
         borderRadius: '8px',
         marginBottom: '20px',
-        border: '2px solid #4CAF50'
+        border: `1px solid ${theme.colors.border}`,
+        borderLeft: `4px solid ${theme.colors.primary}`,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+        transition: 'box-shadow 0.2s ease'
       }}>
-        <h3 style={{ margin: '0 0 4px' }}>Quarters</h3>
+        <h3 style={{
+          margin: '0 0 4px',
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px',
+          fontSize: '12px',
+          fontWeight: 'bold'
+        }}>Quarters</h3>
         <div style={{ fontSize: '12px', color: theme.colors.textSecondary, marginBottom: '12px' }}>
           Must sum to zero: {(() => {
             const sum = players.reduce((acc, p) => acc + (parseFloat(quarters[p.id]) || 0), 0);
@@ -2226,8 +2252,9 @@ const SimpleScorekeeper = ({
                 alignItems: 'center',
                 gap: '6px',
                 padding: '8px',
-                background: theme.colors.backgroundSecondary,
-                borderRadius: '8px'
+                background: `rgba(${teamMode === 'partners' ? '76,175,80' : '33,150,243'}, 0.05)`,
+                borderRadius: '8px',
+                border: `1px solid ${theme.colors.border}`
               }}>
                 {/* Reorder buttons */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
@@ -2261,7 +2288,8 @@ const SimpleScorekeeper = ({
                   style={{
                     width: '32px', height: '32px', borderRadius: '6px',
                     border: '1px solid #f44336', background: 'rgba(244,67,54,0.1)',
-                    color: '#f44336', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer'
+                    color: '#f44336', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer',
+                    transition: 'all 0.15s ease'
                   }}
                 >-1</button>
                 {/* Input */}
@@ -2290,7 +2318,8 @@ const SimpleScorekeeper = ({
                   style={{
                     width: '32px', height: '32px', borderRadius: '6px',
                     border: '1px solid #4CAF50', background: 'rgba(76,175,80,0.1)',
-                    color: '#4CAF50', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer'
+                    color: '#4CAF50', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer',
+                    transition: 'all 0.15s ease'
                   }}
                 >+1</button>
               </div>

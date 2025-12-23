@@ -1,31 +1,68 @@
 // frontend/src/components/game/GameCompletionView.jsx
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import PropTypes from 'prop-types';
+import html2canvas from 'html2canvas';
 import { useTheme } from '../../theme/Provider';
+import Scorecard from './Scorecard';
 
 /**
  * Game completion view shown after all 18 holes are played
  * Displays final standings and game summary
  */
-const GameCompletionView = ({ players, playerStandings, holeHistory, onNewGame, onEditScores, onMarkComplete, isCompleted }) => {
+const GameCompletionView = ({ players, playerStandings, holeHistory, onNewGame, onEditScores, onMarkComplete, isCompleted, courseHoles, strokeAllocation }) => {
   const theme = useTheme();
   const [isMarking, setIsMarking] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const scorecardRef = useRef(null);
 
   // Sort players by quarters (highest first)
   const sortedStandings = Object.values(playerStandings)
     .sort((a, b) => b.quarters - a.quarters);
 
-  // Determine winner(s)
-  const highestQuarters = sortedStandings[0]?.quarters || 0;
-  const winners = sortedStandings.filter(p => p.quarters === highestQuarters);
+  // Generate PNG and share scorecard
+  const handleShareScorecard = async () => {
+    if (!scorecardRef.current) return;
 
-  // Calculate total strokes for each player
-  const totalStrokes = {};
-  players.forEach(player => {
-    totalStrokes[player.id] = holeHistory.reduce((sum, hole) => {
-      return sum + (hole.gross_scores?.[player.id] || 0);
-    }, 0);
-  });
+    setIsSharing(true);
+    try {
+      // Capture the scorecard as canvas
+      const canvas = await html2canvas(scorecardRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2, // Higher resolution
+        useCORS: true,
+        logging: false,
+      });
+
+      // Convert to blob
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      const file = new File([blob], 'wolf-scorecard.png', { type: 'image/png' });
+
+      // Try Web Share API with file (works on iOS Safari, etc.)
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'Wolf Golf Scorecard',
+          text: `Wolf Golf Game - ${new Date().toLocaleDateString()}`
+        });
+      } else {
+        // Fallback: download the image
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `wolf-scorecard-${new Date().toISOString().split('T')[0]}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        alert('Scorecard image downloaded! You can share it from your downloads.');
+      }
+    } catch (error) {
+      console.error('Error sharing scorecard:', error);
+      alert('Failed to generate scorecard image. Please try again.');
+    } finally {
+      setIsSharing(false);
+    }
+  };
 
   return (
     <div style={{
@@ -33,43 +70,9 @@ const GameCompletionView = ({ players, playerStandings, holeHistory, onNewGame, 
       maxWidth: '800px',
       margin: '0 auto'
     }}>
-      {/* Winner Announcement */}
+      {/* Full Scorecard at Top */}
       <div
-        data-testid="game-status"
-        style={{
-          textAlign: 'center',
-          marginBottom: '32px',
-          padding: '32px',
-          borderRadius: '16px',
-          background: 'linear-gradient(135deg, #ffd700 0%, #ffed4e 100%)',
-          border: '4px solid #4CAF50',
-          boxShadow: '0 8px 16px rgba(0,0,0,0.2)'
-        }}
-      >
-        <div style={{ fontSize: '64px', marginBottom: '16px' }}>
-          🏆
-        </div>
-        <h1 style={{
-          fontSize: '36px',
-          marginBottom: '12px',
-          color: '#333',
-          fontWeight: 'bold'
-        }}>
-          Game Complete!
-        </h1>
-        {winners.length === 1 ? (
-          <p style={{ fontSize: '24px', marginBottom: '0', color: '#333' }}>
-            <strong>{winners[0].name}</strong> wins with {highestQuarters > 0 ? '+' : ''}{highestQuarters} quarters!
-          </p>
-        ) : (
-          <p style={{ fontSize: '24px', marginBottom: '0', color: '#333' }}>
-            Tie between {winners.map(w => w.name).join(' and ')} with {highestQuarters > 0 ? '+' : ''}{highestQuarters} quarters!
-          </p>
-        )}
-      </div>
-
-      {/* Final Standings */}
-      <div
+        ref={scorecardRef}
         data-testid="final-standings"
         style={{
           background: theme.colors.paper,
@@ -79,100 +82,14 @@ const GameCompletionView = ({ players, playerStandings, holeHistory, onNewGame, 
           boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
         }}
       >
-        <div style={{
-          padding: '20px',
-          background: theme.colors.primary,
-          color: 'white',
-          fontSize: '24px',
-          fontWeight: 'bold'
-        }}>
-          Final Standings
-        </div>
-
-        {/* Table Header */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '60px 1fr 120px 120px',
-          padding: '16px 20px',
-          background: theme.colors.backgroundSecondary,
-          borderBottom: `2px solid ${theme.colors.border}`,
-          fontWeight: 'bold',
-          fontSize: '14px',
-          color: theme.colors.textSecondary
-        }}>
-          <div>RANK</div>
-          <div>PLAYER</div>
-          <div style={{ textAlign: 'right' }}>STROKES</div>
-          <div style={{ textAlign: 'right' }}>QUARTERS</div>
-        </div>
-
-        {/* Player Rows */}
-        {sortedStandings.map((standing, index) => {
-          const player = players.find(p => p.name === standing.name);
-          const playerId = player?.id;
-          const isWinner = standing.quarters === highestQuarters;
-          const strokes = totalStrokes[playerId] || 0;
-
-          return (
-            <div
-              key={standing.name}
-              data-testid="player-standing-row"
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '60px 1fr 120px 120px',
-                padding: '20px',
-                background: isWinner ? 'rgba(76, 175, 80, 0.1)' : (index % 2 === 0 ? 'white' : '#f9f9f9'),
-                borderBottom: index < sortedStandings.length - 1 ? `1px solid ${theme.colors.border}` : 'none'
-              }}
-            >
-              <div style={{
-                fontSize: '24px',
-                fontWeight: 'bold',
-                color: theme.colors.textSecondary
-              }}>
-                {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`}
-              </div>
-              <div>
-                <div
-                  data-testid="player-name"
-                  style={{
-                    fontSize: '20px',
-                    fontWeight: isWinner ? 'bold' : '600',
-                    color: theme.colors.textPrimary,
-                    marginBottom: '4px'
-                  }}
-                >
-                  {standing.name}
-                </div>
-                <div style={{
-                  fontSize: '12px',
-                  color: theme.colors.textSecondary
-                }}>
-                  Solo: {standing.soloCount || 0} | Float: {standing.floatCount || 0} | Option: {standing.optionCount || 0}
-                </div>
-              </div>
-              <div style={{
-                textAlign: 'right',
-                fontSize: '18px',
-                fontWeight: '600',
-                color: theme.colors.textSecondary
-              }}>
-                {strokes}
-              </div>
-              <div
-                data-testid="player-total-points"
-                style={{
-                  textAlign: 'right',
-                  fontSize: '24px',
-                  fontWeight: 'bold',
-                  color: standing.quarters > 0 ? '#4CAF50' : standing.quarters < 0 ? '#f44336' : theme.colors.textSecondary
-                }}
-              >
-                {standing.quarters > 0 ? '+' : ''}{standing.quarters}Q
-              </div>
-            </div>
-          );
-        })}
+        <Scorecard
+          players={players}
+          holeHistory={holeHistory}
+          currentHole={19}
+          courseHoles={courseHoles || []}
+          strokeAllocation={strokeAllocation || {}}
+          isEditingCompleteGame={false}
+        />
       </div>
 
       {/* Settlement Summary - Who Owes Whom */}
@@ -458,95 +375,30 @@ const GameCompletionView = ({ players, playerStandings, holeHistory, onNewGame, 
             Game Saved
           </div>
         )}
-        {/* Share/Export Button */}
+        {/* Share Scorecard as Image */}
         <button
-          onClick={() => {
-            // Build summary text
-            const winner = sortedStandings[0];
-            const date = new Date().toLocaleDateString();
-            let summary = `🏌️ Wolf Golf Game - ${date}\n\n`;
-            summary += `🏆 Winner: ${winner.name} (${winner.quarters > 0 ? '+' : ''}${winner.quarters}Q)\n\n`;
-            summary += `📊 Final Standings:\n`;
-            sortedStandings.forEach((p, i) => {
-              const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
-              summary += `${medal} ${p.name}: ${p.quarters > 0 ? '+' : ''}${p.quarters}Q\n`;
-            });
-
-            // Calculate settlements
-            const winners = sortedStandings.filter(p => p.quarters > 0);
-            const losers = sortedStandings.filter(p => p.quarters < 0);
-            if (losers.length > 0 && winners.length > 0) {
-              summary += `\n💰 Settlement:\n`;
-              let losersCopy = losers.map(l => ({ ...l, remaining: Math.abs(l.quarters) }));
-              let winnersCopy = winners.map(w => ({ ...w, remaining: w.quarters }));
-              for (const loser of losersCopy) {
-                for (const w of winnersCopy) {
-                  if (loser.remaining <= 0 || w.remaining <= 0) continue;
-                  const amount = Math.min(loser.remaining, w.remaining);
-                  if (amount > 0) {
-                    summary += `${loser.name} → ${w.name}: ${amount}Q\n`;
-                    loser.remaining -= amount;
-                    w.remaining -= amount;
-                  }
-                }
-              }
-            }
-
-            // Try to share, fall back to clipboard
-            if (navigator.share) {
-              navigator.share({
-                title: 'Wolf Golf Game Results',
-                text: summary
-              }).catch(() => {
-                navigator.clipboard.writeText(summary);
-                alert('Results copied to clipboard!');
-              });
-            } else {
-              navigator.clipboard.writeText(summary);
-              alert('Results copied to clipboard!');
-            }
-          }}
+          onClick={handleShareScorecard}
+          disabled={isSharing}
           style={{
             padding: '16px 32px',
             fontSize: '18px',
             fontWeight: 'bold',
             borderRadius: '8px',
             border: `2px solid ${theme.colors.primary}`,
-            background: 'white',
+            background: isSharing ? theme.colors.backgroundSecondary : 'white',
             color: theme.colors.primary,
-            cursor: 'pointer',
-            transition: 'all 0.2s'
+            cursor: isSharing ? 'wait' : 'pointer',
+            transition: 'all 0.2s',
+            opacity: isSharing ? 0.7 : 1
           }}
           onMouseOver={(e) => {
-            e.target.style.background = theme.colors.backgroundSecondary;
+            if (!isSharing) e.target.style.background = theme.colors.backgroundSecondary;
           }}
           onMouseOut={(e) => {
-            e.target.style.background = 'white';
+            if (!isSharing) e.target.style.background = 'white';
           }}
         >
-          📤 Share Results
-        </button>
-        <button
-          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          style={{
-            padding: '16px 32px',
-            fontSize: '18px',
-            fontWeight: 'bold',
-            borderRadius: '8px',
-            border: `2px solid ${theme.colors.border}`,
-            background: 'white',
-            color: theme.colors.textPrimary,
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }}
-          onMouseOver={(e) => {
-            e.target.style.background = theme.colors.backgroundSecondary;
-          }}
-          onMouseOut={(e) => {
-            e.target.style.background = 'white';
-          }}
-        >
-          View Scorecard
+          {isSharing ? '📸 Generating...' : '📤 Share Scorecard'}
         </button>
       </div>
     </div>
@@ -570,6 +422,8 @@ GameCompletionView.propTypes = {
   onEditScores: PropTypes.func,
   onMarkComplete: PropTypes.func,
   isCompleted: PropTypes.bool,
+  courseHoles: PropTypes.array,
+  strokeAllocation: PropTypes.object,
 };
 
 export default GameCompletionView;
