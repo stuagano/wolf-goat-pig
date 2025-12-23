@@ -1,7 +1,7 @@
 // frontend/src/pages/SimpleScorekeeperPage.js
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { SimpleScorekeeper } from '../components/game';
+import { SimpleScorekeeper, LiveScorekeeperContainer } from '../components/game';
 import { Card } from '../components/ui';
 import { useTheme } from '../theme/Provider';
 
@@ -16,6 +16,17 @@ const SimpleScorekeeperPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [gameData, setGameData] = useState(null);
+
+  // Feature toggle state - persists to localStorage
+  const [useNewScorekeeper, setUseNewScorekeeper] = useState(() => {
+    return localStorage.getItem('useNewScorekeeper') === 'true';
+  });
+
+  const handleToggleScorekeeper = () => {
+    const newValue = !useNewScorekeeper;
+    setUseNewScorekeeper(newValue);
+    localStorage.setItem('useNewScorekeeper', String(newValue));
+  };
 
   useEffect(() => {
     const loadGame = async () => {
@@ -140,17 +151,105 @@ const SimpleScorekeeperPage = () => {
   const courseName = gameData.course_name || 'Wing Point Golf & Country Club';
   const baseWager = gameData.base_wager || 1;
 
+  // Toggle button styles
+  const toggleButtonStyles = {
+    container: {
+      position: 'fixed',
+      top: '12px',
+      right: '12px',
+      zIndex: 1000,
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      backgroundColor: theme.colors.paper,
+      padding: '8px 12px',
+      borderRadius: '20px',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+      border: `1px solid ${theme.colors.border}`,
+    },
+    label: {
+      fontSize: '11px',
+      fontWeight: 600,
+      color: theme.colors.textSecondary,
+      textTransform: 'uppercase',
+      letterSpacing: '0.5px',
+    },
+    toggle: {
+      position: 'relative',
+      width: '44px',
+      height: '24px',
+      backgroundColor: useNewScorekeeper ? theme.colors.primary : theme.colors.gray300,
+      borderRadius: '12px',
+      cursor: 'pointer',
+      transition: 'background-color 0.2s ease',
+      border: 'none',
+      padding: 0,
+    },
+    toggleKnob: {
+      position: 'absolute',
+      top: '2px',
+      left: useNewScorekeeper ? '22px' : '2px',
+      width: '20px',
+      height: '20px',
+      backgroundColor: '#ffffff',
+      borderRadius: '50%',
+      transition: 'left 0.2s ease',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+    },
+    versionLabel: {
+      fontSize: '11px',
+      fontWeight: 500,
+      color: useNewScorekeeper ? theme.colors.primary : theme.colors.textSecondary,
+      minWidth: '24px',
+    },
+  };
+
   return (
     <div>
-      <SimpleScorekeeper
-        gameId={gameId}
-        players={players}
-        baseWager={baseWager}
-        initialHoleHistory={holeHistory}
-        initialCurrentHole={currentHoleNumber}
-        courseName={courseName}
-        initialStrokeAllocation={strokeAllocation}
-      />
+      {/* Version Toggle Button */}
+      <div style={toggleButtonStyles.container}>
+        <span style={toggleButtonStyles.label}>
+          {useNewScorekeeper ? 'v2' : 'v1'}
+        </span>
+        <button
+          style={toggleButtonStyles.toggle}
+          onClick={handleToggleScorekeeper}
+          title={useNewScorekeeper ? 'Switch to Classic Scorekeeper' : 'Switch to New Modular Scorekeeper'}
+          aria-label="Toggle scorekeeper version"
+        >
+          <span style={toggleButtonStyles.toggleKnob} />
+        </button>
+        <span style={toggleButtonStyles.versionLabel}>
+          {useNewScorekeeper ? 'New' : 'Classic'}
+        </span>
+      </div>
+
+      {/* Render appropriate scorekeeper based on toggle */}
+      {useNewScorekeeper ? (
+        <LiveScorekeeperContainer
+          gameId={gameId}
+          enableCreecherFeature={true}
+          enableAardvark={players.length >= 4}
+          enableCommissionerChat={false}
+          enableBadgeNotifications={true}
+          onGameComplete={(finalStandings) => {
+            console.log('Game complete! Final standings:', finalStandings);
+          }}
+          onError={(err) => {
+            console.error('Scorekeeper error:', err);
+          }}
+        />
+      ) : (
+        <SimpleScorekeeper
+          gameId={gameId}
+          players={players}
+          baseWager={baseWager}
+          initialHoleHistory={holeHistory}
+          initialCurrentHole={currentHoleNumber}
+          courseName={courseName}
+          initialStrokeAllocation={strokeAllocation}
+        />
+      )}
     </div>
   );
 };

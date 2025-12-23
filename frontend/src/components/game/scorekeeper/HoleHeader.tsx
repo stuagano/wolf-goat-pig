@@ -1,10 +1,11 @@
 // =============================================================================
 // HoleHeader Component - Live Scorekeeper
-// Displays current hole number, par, and navigation
+// Displays current hole number, par, rotation order, and navigation
 // =============================================================================
 
 import React from 'react';
 import { useTheme } from '../../../theme/Provider';
+import { RotationPlayer } from './types';
 
 interface HoleHeaderProps {
   holeNumber: number;
@@ -13,6 +14,11 @@ interface HoleHeaderProps {
   wager: number;
   totalHoles?: number;
   onNavigateHole?: (holeNumber: number) => void;
+  // New rotation props
+  rotationOrder?: RotationPlayer[];
+  captainIndex?: number;
+  isHoepfingerPhase?: boolean;
+  goatPlayerIndex?: number | null;
 }
 
 const HoleHeader: React.FC<HoleHeaderProps> = ({
@@ -22,9 +28,14 @@ const HoleHeader: React.FC<HoleHeaderProps> = ({
   wager,
   totalHoles = 18,
   onNavigateHole,
+  rotationOrder = [],
+  captainIndex = 0,
+  isHoepfingerPhase = false,
+  goatPlayerIndex = null,
 }) => {
   const theme = useTheme();
   const progressPercent = ((holeNumber - 1) / totalHoles) * 100;
+  const hasRotation = rotationOrder.length > 0;
 
   const styles = {
     container: {
@@ -121,6 +132,73 @@ const HoleHeader: React.FC<HoleHeaderProps> = ({
       transition: 'width 0.3s ease',
       width: `${progressPercent}%`,
     },
+    // Rotation display styles
+    rotationSection: {
+      marginTop: theme.spacing[3],
+      padding: `${theme.spacing[2]} 0`,
+      borderTop: '1px solid rgba(255, 255, 255, 0.2)',
+    },
+    rotationLabel: {
+      fontSize: theme.typography.xs,
+      opacity: 0.8,
+      textTransform: 'uppercase' as const,
+      letterSpacing: '0.5px',
+      marginBottom: theme.spacing[2],
+      display: 'flex',
+      alignItems: 'center',
+      gap: theme.spacing[2],
+    },
+    hoepfingerBadge: {
+      fontSize: theme.typography.xs,
+      backgroundColor: theme.colors.gold,
+      padding: `2px ${theme.spacing[2]}`,
+      borderRadius: '10px',
+      fontWeight: theme.typography.semibold,
+    },
+    rotationList: {
+      display: 'flex',
+      gap: theme.spacing[2],
+      flexWrap: 'wrap' as const,
+    },
+    rotationPlayer: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '6px',
+      padding: `${theme.spacing[1]} ${theme.spacing[2]}`,
+      backgroundColor: 'rgba(255, 255, 255, 0.15)',
+      borderRadius: theme.borderRadius.base,
+      fontSize: theme.typography.sm,
+    },
+    rotationPlayerCaptain: {
+      backgroundColor: theme.colors.gold,
+      color: '#000000',
+      fontWeight: theme.typography.semibold,
+    },
+    rotationPlayerGoat: {
+      backgroundColor: 'rgba(220, 38, 38, 0.8)',
+      fontWeight: theme.typography.semibold,
+    },
+    rotationIndex: {
+      fontSize: theme.typography.xs,
+      opacity: 0.7,
+      width: '16px',
+      textAlign: 'center' as const,
+    },
+    strokeIndicator: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: '18px',
+      height: '18px',
+      backgroundColor: 'rgba(0, 0, 0, 0.3)',
+      borderRadius: '50%',
+      fontSize: '10px',
+      fontWeight: theme.typography.bold,
+      marginLeft: '4px',
+    },
+    halfStroke: {
+      backgroundColor: 'rgba(234, 179, 8, 0.6)',
+    },
   };
 
   return (
@@ -146,6 +224,51 @@ const HoleHeader: React.FC<HoleHeaderProps> = ({
       <div style={styles.progress}>
         <div style={styles.progressBar} />
       </div>
+
+      {/* Rotation Display */}
+      {hasRotation && (
+        <div style={styles.rotationSection}>
+          <div style={styles.rotationLabel}>
+            <span>Hitting Order</span>
+            {isHoepfingerPhase && (
+              <span style={styles.hoepfingerBadge}>Hoepfinger</span>
+            )}
+          </div>
+          <div style={styles.rotationList}>
+            {rotationOrder.map((player, index) => {
+              const isCaptain = index === captainIndex;
+              const isGoat = goatPlayerIndex !== null && index === goatPlayerIndex;
+              return (
+                <div
+                  key={player.playerId}
+                  style={{
+                    ...styles.rotationPlayer,
+                    ...(isCaptain ? styles.rotationPlayerCaptain : {}),
+                    ...(isGoat ? styles.rotationPlayerGoat : {}),
+                  }}
+                >
+                  <span style={styles.rotationIndex}>{index + 1}</span>
+                  <span>{player.name}</span>
+                  {isCaptain && <span>🐺</span>}
+                  {isGoat && <span>🐐</span>}
+                  {player.strokesOnHole > 0 && (
+                    <span
+                      style={{
+                        ...styles.strokeIndicator,
+                        ...(player.strokesOnHole % 1 !== 0 ? styles.halfStroke : {}),
+                      }}
+                    >
+                      {player.strokesOnHole % 1 === 0
+                        ? player.strokesOnHole
+                        : player.strokesOnHole.toFixed(1)}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div style={styles.navRow}>
         <button

@@ -20,6 +20,9 @@ export { default as EditHoleModal } from './EditHoleModal';
 
 // New modular scorekeeper components (TypeScript)
 export {
+  // Main container (feature-complete)
+  LiveScorekeeperContainer,
+  // Core UI components
   LiveScorekeeper,
   HoleHeader,
   TeamSelector,
@@ -28,4 +31,8 @@ export {
   StandingsSidebar,
   NotesPanel,
   SubmitButton,
+  // New UI components
+  QuartersPresets,
+  HoleNavigation,
+  AardvarkPanel,
 } from './scorekeeper';
