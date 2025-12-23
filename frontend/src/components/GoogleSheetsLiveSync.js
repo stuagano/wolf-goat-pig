@@ -130,7 +130,7 @@ const GoogleSheetsLiveSync = () => {
             </div>
             
             <button
-              onClick={performLiveSync}
+              onClick={() => performLiveSync()}
               disabled={!sheetUrl || syncStatus === 'connecting' || syncStatus === 'syncing'}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
             >
