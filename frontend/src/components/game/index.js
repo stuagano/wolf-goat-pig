@@ -17,22 +17,3 @@ export { default as Scorecard } from './Scorecard';
 // Extracted/reusable components for score entry
 export { default as ScoreInputField } from './ScoreInputField';
 export { default as EditHoleModal } from './EditHoleModal';
-
-// New modular scorekeeper components (TypeScript)
-export {
-  // Main container (feature-complete)
-  LiveScorekeeperContainer,
-  // Core UI components
-  LiveScorekeeper,
-  HoleHeader,
-  TeamSelector,
-  PlayerCard,
-  BettingActionsPanel,
-  StandingsSidebar,
-  NotesPanel,
-  SubmitButton,
-  // New UI components
-  QuartersPresets,
-  HoleNavigation,
-  AardvarkPanel,
-} from './scorekeeper';
