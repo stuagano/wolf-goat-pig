@@ -31,7 +31,7 @@
     "lint": "eslint src/**/*.{js,jsx}",
     "typecheck": "tsc --noEmit",
     "vercel-build": "react-scripts build",
-    "prepare": "husky || true",
+    "prepare": "node -e \"try{require('husky')}catch(e){process.exit(0)};require('child_process').execSync('husky',{stdio:'inherit'})\"",
     "test:e2e": "playwright test --config tests/e2e/playwright.config.js",
     "test:e2e:ui": "playwright test --config tests/e2e/playwright.config.js --ui",
     "test:e2e:debug": "playwright test --config tests/e2e/playwright.config.js --debug",
