@@ -2,9 +2,9 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
   "name": "wolf-goat-pig",
-  "buildCommand": "npm run build",
-  "outputDirectory": "build",
-  "installCommand": "npm ci",
+  "buildCommand": "cd frontend && npm run build",
+  "outputDirectory": "frontend/build",
+  "installCommand": "cd frontend && npm ci",
   "framework": null,
   "build": {
     "env": {
