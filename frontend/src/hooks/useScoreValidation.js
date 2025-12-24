@@ -10,7 +10,7 @@ import { useCallback, useMemo } from 'react';
 
 // Score constraints
 export const SCORE_CONSTRAINTS = {
-  MIN_STROKES: 0,
+  MIN_STROKES: 1,
   MAX_STROKES: 15,
   MIN_QUARTERS: -10,
   MAX_QUARTERS: 10,

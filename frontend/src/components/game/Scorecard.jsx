@@ -21,7 +21,8 @@ const Scorecard = ({
   captainId, // Optional: enables standings view and captain highlighting
   courseHoles = [],
   strokeAllocation = {},
-  isEditingCompleteGame = false // Optional: when true, highlights all completed holes as editable
+  isEditingCompleteGame = false, // Optional: when true, highlights all completed holes as editable
+  defaultExpanded = false // Optional: start expanded instead of collapsed
 }) => {
   const theme = useTheme();
   const [editingHole, setEditingHole] = useState(null);
@@ -31,7 +32,7 @@ const Scorecard = ({
   const [viewMode, setViewMode] = useState('scorecard'); // 'scorecard' or 'standings'
   const [editingPlayerName, setEditingPlayerName] = useState(null);
   const [editPlayerNameValue, setEditPlayerNameValue] = useState('');
-  const [isCollapsed, setIsCollapsed] = useState(true); // Start minimized to not take over the page
+  const [isCollapsed, setIsCollapsed] = useState(!defaultExpanded); // Start minimized unless defaultExpanded
   // Auto-select front/back based on current hole
   const [activeNine, setActiveNine] = useState(() => currentHole > 9 ? 'back' : 'front');
 
@@ -1182,7 +1183,10 @@ Scorecard.propTypes = {
   ).isRequired,
 
   // Optional: When true, highlights all completed holes as editable
-  isEditingCompleteGame: PropTypes.bool
+  isEditingCompleteGame: PropTypes.bool,
+
+  // Optional: When true, starts expanded instead of collapsed
+  defaultExpanded: PropTypes.bool
 };
 
 // Default props to ensure we never work with undefined arrays
@@ -1192,7 +1196,8 @@ Scorecard.defaultProps = {
   courseHoles: [],
   strokeAllocation: {},
   currentHole: 1,
-  isEditingCompleteGame: false
+  isEditingCompleteGame: false,
+  defaultExpanded: false
 };
 
 export default React.memo(Scorecard);

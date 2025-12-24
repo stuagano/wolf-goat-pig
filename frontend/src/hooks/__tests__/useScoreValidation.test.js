@@ -6,7 +6,7 @@ import { createMockPlayers } from '../../test-utils/mockFactories';
 describe('useScoreValidation', () => {
   describe('SCORE_CONSTRAINTS', () => {
     test('should have expected constraint values', () => {
-      expect(SCORE_CONSTRAINTS.MIN_STROKES).toBe(0);
+      expect(SCORE_CONSTRAINTS.MIN_STROKES).toBe(1);
       expect(SCORE_CONSTRAINTS.MAX_STROKES).toBe(15);
       expect(SCORE_CONSTRAINTS.MIN_QUARTERS).toBe(-10);
       expect(SCORE_CONSTRAINTS.MAX_QUARTERS).toBe(10);
@@ -26,13 +26,13 @@ describe('useScoreValidation', () => {
       });
     });
 
-    test('should return valid for minimum score (0)', () => {
+    test('should return valid for minimum score (1)', () => {
       const { result } = renderHook(() => useScoreValidation());
 
-      expect(result.current.validateStrokes(0)).toEqual({
+      expect(result.current.validateStrokes(1)).toEqual({
         valid: true,
         error: null,
-        value: 0,
+        value: 1,
       });
     });
 
@@ -99,9 +99,9 @@ describe('useScoreValidation', () => {
     test('should return error for score below minimum', () => {
       const { result } = renderHook(() => useScoreValidation());
 
-      expect(result.current.validateStrokes(-1)).toEqual({
+      expect(result.current.validateStrokes(0)).toEqual({
         valid: false,
-        error: 'Score must be at least 0',
+        error: 'Score must be at least 1',
         value: null,
       });
     });
@@ -347,8 +347,9 @@ describe('useScoreValidation', () => {
         ['p1', 'p2']
       );
 
+      // Score of 0 is invalid (below minimum of 1), not "missing"
       expect(validation.valid).toBe(false);
-      expect(validation.missingPlayers).toContain('p2');
+      expect(validation.error).toBe('Score must be at least 1');
     });
 
     test('should return error for invalid score', () => {
@@ -620,7 +621,7 @@ describe('useScoreValidation', () => {
     test('should return true for boundary values', () => {
       const { result } = renderHook(() => useScoreValidation());
 
-      expect(result.current.isValidScoreEntry(0)).toBe(true);
+      expect(result.current.isValidScoreEntry(1)).toBe(true);
       expect(result.current.isValidScoreEntry(15)).toBe(true);
     });
 
