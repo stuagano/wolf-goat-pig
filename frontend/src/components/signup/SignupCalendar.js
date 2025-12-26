@@ -10,79 +10,76 @@ const SignupCalendar = ({ onSignupChange, onDateSelect }) => {
   const [currentWeekStart, setCurrentWeekStart] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  // const [selectedDate, setSelectedDate] = useState(null); // Removed - not currently used
-  const [messageInputs, setMessageInputs] = useState({}); // Store message text for each date
+  const [selectedDay, setSelectedDay] = useState(null);
+  const [messageInput, setMessageInput] = useState('');
 
-  // Get current Monday as default week start
-  const getCurrentMonday = () => {
+  // Get current Sunday as default week start (to match day headers)
+  const getCurrentSunday = () => {
     const today = new Date();
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - today.getDay() + 1);
-    return monday.toISOString().split('T')[0];
+    const sunday = new Date(today);
+    sunday.setDate(today.getDate() - today.getDay());
+    return sunday.toISOString().split('T')[0];
   };
 
   // Format date for display
-  const formatDateDisplay = (dateStr) => {
-    const date = new Date(dateStr);
-    const options = { 
-      weekday: 'short', 
-      month: 'short', 
-      day: 'numeric' 
-    };
-    return date.toLocaleDateString('en-US', options);
+  const formatDateShort = (dateStr) => {
+    const date = new Date(dateStr + 'T12:00:00');
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  // Day names for header
-  const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const formatDateFull = (dateStr) => {
+    const date = new Date(dateStr + 'T12:00:00');
+    return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  };
 
-  // Load weekly signup data with messages
+  const getDayName = (dateStr) => {
+    const date = new Date(dateStr + 'T12:00:00');
+    return date.toLocaleDateString('en-US', { weekday: 'short' });
+  };
+
+  // Check if date is today
+  const isToday = (dateStr) => {
+    const today = new Date().toISOString().split('T')[0];
+    return dateStr === today;
+  };
+
+  // Load weekly signup data
   const loadWeeklyData = async (weekStart) => {
     try {
       setLoading(true);
       const response = await fetch(`${API_URL}/signups/weekly-with-messages?week_start=${weekStart}`);
-      
+
       if (!response.ok) {
         throw new Error(`Failed to load data: ${response.status}`);
       }
-      
+
       const data = await response.json();
       setWeekData(data);
       setError(null);
     } catch (err) {
       console.error('Error loading weekly data:', err);
       setError(err.message);
-      // Set empty data structure on error
-      setWeekData({ daily_summaries: Array(7).fill(null).map((_, i) => ({
-        date: '',
-        signups: [],
-        total_count: 0,
-        messages: [],
-        message_count: 0
-      }))});
+      setWeekData({ daily_summaries: [] });
     } finally {
       setLoading(false);
     }
   };
 
-  // Initialize with current week
   useEffect(() => {
-    const monday = getCurrentMonday();
-    setCurrentWeekStart(monday);
-    loadWeeklyData(monday);
+    const sunday = getCurrentSunday();
+    setCurrentWeekStart(sunday);
+    loadWeeklyData(sunday);
   }, []);
 
-  // Navigate to previous/next week
   const navigateWeek = (direction) => {
     const currentDate = new Date(currentWeekStart);
-    const newDate = new Date(currentDate);
-    newDate.setDate(currentDate.getDate() + (direction * 7));
-    const newWeekStart = newDate.toISOString().split('T')[0];
-    
+    currentDate.setDate(currentDate.getDate() + (direction * 7));
+    const newWeekStart = currentDate.toISOString().split('T')[0];
     setCurrentWeekStart(newWeekStart);
+    setSelectedDay(null);
     loadWeeklyData(newWeekStart);
   };
 
-  // Handle signing up for a day
   const handleSignup = async (date) => {
     if (!isAuthenticated || !user) {
       setError('Please log in to sign up');
@@ -90,24 +87,16 @@ const SignupCalendar = ({ onSignupChange, onDateSelect }) => {
     }
 
     try {
-      // For now, we'll use the user's email as the player name
-      // In a real app, you'd have a player profile lookup
-      const playerName = user.name || user.email;
-      
-      const signupData = {
-        date: date,
-        player_profile_id: 1, // This would come from authenticated user
-        player_name: playerName,
-        preferred_start_time: null,
-        notes: null
-      };
-
       const response = await fetch(`${API_URL}/signups`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(signupData)
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date,
+          player_profile_id: 1,
+          player_name: user.name || user.email,
+          preferred_start_time: null,
+          notes: null
+        })
       });
 
       if (!response.ok) {
@@ -115,553 +104,434 @@ const SignupCalendar = ({ onSignupChange, onDateSelect }) => {
         throw new Error(errorData.detail || 'Failed to sign up');
       }
 
-      // Reload the week data to show the new signup
       loadWeeklyData(currentWeekStart);
-      
-      if (onSignupChange) {
-        onSignupChange();
-      }
+      onSignupChange?.();
     } catch (err) {
-      console.error('Signup error:', err);
       setError(err.message);
     }
   };
 
-  // Handle cancelling a signup
   const handleCancelSignup = async (signupId) => {
     try {
-      const response = await fetch(`${API_URL}/signups/${signupId}`, {
-        method: 'DELETE'
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to cancel signup');
-      }
-
-      // Reload the week data
+      const response = await fetch(`${API_URL}/signups/${signupId}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Failed to cancel signup');
       loadWeeklyData(currentWeekStart);
-      
-      if (onSignupChange) {
-        onSignupChange();
-      }
+      onSignupChange?.();
     } catch (err) {
-      console.error('Cancel error:', err);
       setError(err.message);
     }
   };
 
-  // Check if current user is signed up for a date
-  const isUserSignedUp = (dailySummary) => {
-    if (!user) return null;
-    
-    const userEmail = user.email;
-    return dailySummary.signups.find(signup => 
-      signup.player_name === (user.name || userEmail) && 
-      signup.status === 'signed_up'
-    );
-  };
-
-  // Handle posting a new message
-  const handlePostMessage = async (date, message) => {
-    if (!isAuthenticated || !user) {
-      setError('Please log in to post messages');
-      return;
-    }
-
-    if (!message.trim()) {
-      setError('Message cannot be empty');
-      return;
-    }
+  const handlePostMessage = async (date) => {
+    if (!messageInput.trim()) return;
 
     try {
-      const playerName = user.name || user.email;
-      
-      const messageData = {
-        date: date,
-        message: message.trim(),
-        player_profile_id: 1, // This would come from authenticated user
-        player_name: playerName
-      };
-
       const response = await fetch(`${API_URL}/messages`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(messageData)
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date,
+          message: messageInput.trim(),
+          player_profile_id: 1,
+          player_name: user.name || user.email
+        })
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to post message');
-      }
-
-      // Reload the week data to show the new message
+      if (!response.ok) throw new Error('Failed to post message');
+      setMessageInput('');
       loadWeeklyData(currentWeekStart);
-      
     } catch (err) {
-      console.error('Message post error:', err);
       setError(err.message);
     }
   };
 
-  // Handle deleting a message (only own messages)
   const handleDeleteMessage = async (messageId) => {
-    if (!isAuthenticated || !user) {
-      setError('Please log in to delete messages');
-      return;
-    }
-
     try {
-      const response = await fetch(`${API_URL}/messages/${messageId}`, {
-        method: 'DELETE'
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete message');
-      }
-
-      // Reload the week data
+      await fetch(`${API_URL}/messages/${messageId}`, { method: 'DELETE' });
       loadWeeklyData(currentWeekStart);
-      
     } catch (err) {
-      console.error('Delete message error:', err);
       setError(err.message);
     }
+  };
+
+  const getUserSignup = (dailySummary) => {
+    if (!user) return null;
+    return dailySummary.signups?.find(s =>
+      s.player_name === (user.name || user.email) && s.status === 'signed_up'
+    );
   };
 
   if (loading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '300px',
-        fontSize: '18px' 
-      }}>
-        Loading calendar...
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '60px', color: '#6b7280' }}>
+        Loading...
       </div>
     );
   }
 
+  const selectedDayData = selectedDay !== null ? weekData.daily_summaries[selectedDay] : null;
+
   return (
-    <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-      {/* Header with navigation - mobile-optimized */}
-      <div className="week-navigation" style={{
+    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '16px' }}>
+      {/* Week Navigation */}
+      <div style={{
         display: 'flex',
-        justifyContent: 'space-between',
         alignItems: 'center',
+        justifyContent: 'space-between',
         marginBottom: '20px',
-        gap: '12px'
+        padding: '8px 0'
       }}>
         <button
           onClick={() => navigateWeek(-1)}
-          className="week-nav-button"
           style={{
-            minWidth: '48px',
-            minHeight: '48px',
-            padding: '12px 16px',
+            width: '44px',
+            height: '44px',
             background: '#047857',
             color: 'white',
             border: 'none',
-            borderRadius: '10px',
-            cursor: 'pointer',
-            fontSize: '16px',
-            fontWeight: '600',
-            touchAction: 'manipulation',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
+            borderRadius: '8px',
+            fontSize: '18px',
+            cursor: 'pointer'
           }}
         >
-          ←
+          ‹
         </button>
-
-        <h3 className="week-nav-title" style={{
-          margin: 0,
-          color: '#1f2937',
-          fontSize: '16px',
-          fontWeight: '600',
-          textAlign: 'center',
-          flex: 1
-        }}>
-          Week of {formatDateDisplay(currentWeekStart)}
-        </h3>
-
+        <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600', color: '#1f2937' }}>
+          Week of {formatDateShort(currentWeekStart)}
+        </h2>
         <button
           onClick={() => navigateWeek(1)}
-          className="week-nav-button"
           style={{
-            minWidth: '48px',
-            minHeight: '48px',
-            padding: '12px 16px',
+            width: '44px',
+            height: '44px',
             background: '#047857',
             color: 'white',
             border: 'none',
-            borderRadius: '10px',
-            cursor: 'pointer',
-            fontSize: '16px',
-            fontWeight: '600',
-            touchAction: 'manipulation',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
+            borderRadius: '8px',
+            fontSize: '18px',
+            cursor: 'pointer'
           }}
         >
-          →
+          ›
         </button>
       </div>
 
       {error && (
-        <div style={{ 
-          backgroundColor: '#f8d7da', 
-          color: '#721c24', 
-          padding: '12px', 
-          borderRadius: '4px', 
-          marginBottom: '20px',
-          border: '1px solid #f5c6cb'
+        <div style={{
+          background: '#fef2f2',
+          color: '#dc2626',
+          padding: '12px',
+          borderRadius: '8px',
+          marginBottom: '16px',
+          fontSize: '14px'
         }}>
           {error}
+          <button
+            onClick={() => setError(null)}
+            style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer' }}
+          >
+            ×
+          </button>
         </div>
       )}
 
-      {/* Calendar Grid - responsive: 7 cols on desktop, 2 on tablet, 1 on mobile */}
-      <div
-        className="responsive-grid-7"
-        style={{
-          marginBottom: '20px'
-        }}
-      >
-        {/* Day headers - hidden on mobile since each card shows the full date */}
-        {dayNames.map(day => (
-          <div key={day} className="day-header" style={{
-            textAlign: 'center',
-            fontWeight: '600',
-            padding: '12px',
-            backgroundColor: '#f3f4f6',
-            border: '1px solid #e5e7eb',
-            borderRadius: '8px',
-            fontSize: '14px',
-            color: '#374151'
-          }}>
-            {day}
-          </div>
-        ))}
-
-        {/* Day cards with message boards - mobile-optimized */}
-        {weekData.daily_summaries.map((dailySummary, index) => {
-          const userSignup = isUserSignedUp(dailySummary);
-          const canSignUp = isAuthenticated && !userSignup;
-          const currentMessageText = messageInputs[dailySummary.date] || '';
+      {/* Week Grid - Clean 7-column layout */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(7, 1fr)',
+        gap: '8px',
+        marginBottom: '24px'
+      }}>
+        {weekData.daily_summaries.map((day, index) => {
+          const userSignup = getUserSignup(day);
+          const today = isToday(day.date);
+          const isSelected = selectedDay === index;
 
           return (
-            <div
-              key={index}
-              className={`mobile-day-card ${userSignup ? 'signed-up' : ''}`}
+            <button
+              key={day.date || index}
+              onClick={() => setSelectedDay(isSelected ? null : index)}
               style={{
-                border: userSignup ? '2px solid #047857' : '2px solid #e5e7eb',
-                borderRadius: '12px',
-                padding: '16px',
-                backgroundColor: userSignup ? '#ecfdf5' : '#ffffff',
-                minHeight: '280px',
-                display: 'flex',
-                flexDirection: 'column'
+                padding: '12px 4px',
+                border: isSelected ? '2px solid #047857' : today ? '2px solid #3b82f6' : '1px solid #e5e7eb',
+                borderRadius: '10px',
+                background: userSignup ? '#ecfdf5' : isSelected ? '#f0fdf4' : '#fff',
+                cursor: 'pointer',
+                textAlign: 'center',
+                transition: 'all 0.15s ease'
               }}
             >
-              {/* Date - Clickable with larger touch target */}
-              <div
-                onClick={() => onDateSelect && onDateSelect(dailySummary.date)}
-                style={{
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  marginBottom: '12px',
-                  color: onDateSelect ? '#047857' : '#1f2937',
-                  textAlign: 'center',
-                  borderBottom: '1px solid #e5e7eb',
-                  paddingBottom: '12px',
-                  cursor: onDateSelect ? 'pointer' : 'default',
-                  minHeight: '44px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  touchAction: 'manipulation'
-                }}
-                title={onDateSelect ? 'Tap to view detailed signup for this day' : ''}
-              >
-                {formatDateDisplay(dailySummary.date)}
+              <div style={{ fontSize: '11px', color: '#6b7280', fontWeight: '500', marginBottom: '4px' }}>
+                {getDayName(day.date)}
               </div>
-
-              {/* Signups Section */}
-              <div style={{ marginBottom: '16px' }}>
-                <div className="mobile-section-label" style={{
-                  fontSize: '13px',
-                  color: '#6b7280',
-                  marginBottom: '8px',
-                  fontWeight: '600',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px'
-                }}>
-                  ⛳ Golf ({dailySummary.total_count})
-                </div>
-                <div style={{ fontSize: '14px', maxHeight: '80px', overflowY: 'auto' }}>
-                  {dailySummary.signups.slice(0, 3).map(signup => (
-                    <div key={signup.id} style={{
-                      color: '#374151',
-                      marginBottom: '4px',
-                      padding: '4px 0'
-                    }}>
-                      • {signup.player_name.split(' ')[0]}
-                      {signup.preferred_start_time && (
-                        <span style={{ color: '#6b7280' }}>
-                          {' '}({signup.preferred_start_time})
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                  {dailySummary.signups.length > 3 && (
-                    <div style={{ color: '#6b7280', fontSize: '13px', fontStyle: 'italic' }}>
-                      +{dailySummary.signups.length - 3} more
-                    </div>
-                  )}
-                </div>
+              <div style={{
+                fontSize: '18px',
+                fontWeight: '600',
+                color: today ? '#3b82f6' : '#1f2937',
+                marginBottom: '6px'
+              }}>
+                {new Date(day.date + 'T12:00:00').getDate()}
               </div>
-
-              {/* Messages Section */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <div className="mobile-section-label" style={{
-                  fontSize: '13px',
-                  color: '#6b7280',
-                  marginBottom: '8px',
-                  fontWeight: '600',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px'
-                }}>
-                  💬 Messages ({dailySummary.message_count})
-                </div>
-
-                {/* Messages list */}
+              {day.total_count > 0 && (
                 <div style={{
-                  flex: 1,
-                  overflowY: 'auto',
-                  maxHeight: '120px',
-                  marginBottom: '12px',
-                  fontSize: '14px'
+                  background: '#047857',
+                  color: 'white',
+                  fontSize: '11px',
+                  fontWeight: '600',
+                  padding: '2px 6px',
+                  borderRadius: '10px',
+                  display: 'inline-block'
                 }}>
-                  {dailySummary.messages && dailySummary.messages.length > 0 ? (
-                    dailySummary.messages.map(message => (
-                      <div key={message.id} style={{
-                        backgroundColor: '#f9fafb',
-                        padding: '10px',
-                        marginBottom: '6px',
-                        borderRadius: '8px',
-                        border: '1px solid #e5e7eb'
-                      }}>
-                        <div style={{
-                          fontWeight: '600',
-                          color: '#374151',
-                          marginBottom: '4px',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          fontSize: '14px'
-                        }}>
-                          <span>{message.player_name.split(' ')[0]}</span>
-                          {user && message.player_name === (user.name || user.email) && (
-                            <button
-                              onClick={() => handleDeleteMessage(message.id)}
-                              style={{
-                                background: '#fee2e2',
-                                border: 'none',
-                                color: '#dc2626',
-                                cursor: 'pointer',
-                                fontSize: '16px',
-                                padding: '4px 8px',
-                                borderRadius: '4px',
-                                minWidth: '32px',
-                                minHeight: '32px',
-                                touchAction: 'manipulation'
-                              }}
-                              title="Delete message"
-                            >
-                              ×
-                            </button>
-                          )}
-                        </div>
-                        <div style={{ color: '#6b7280', fontSize: '14px', lineHeight: '1.4' }}>
-                          {message.message}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div style={{
-                      color: '#9ca3af',
-                      fontStyle: 'italic',
-                      textAlign: 'center',
-                      padding: '16px',
-                      fontSize: '14px'
-                    }}>
-                      No messages yet
-                    </div>
-                  )}
+                  {day.total_count} ⛳
                 </div>
-
-                {/* Message input - mobile optimized */}
-                {isAuthenticated ? (
-                  <div style={{ marginBottom: '12px' }}>
-                    <textarea
-                      value={currentMessageText}
-                      onChange={(e) => setMessageInputs(prev => ({
-                        ...prev,
-                        [dailySummary.date]: e.target.value
-                      }))}
-                      placeholder="Post a message..."
-                      className="mobile-form-control"
-                      style={{
-                        width: '100%',
-                        minHeight: '48px',
-                        padding: '12px',
-                        fontSize: '16px',
-                        border: '2px solid #e5e7eb',
-                        borderRadius: '8px',
-                        resize: 'none',
-                        boxSizing: 'border-box'
-                      }}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          if (currentMessageText.trim()) {
-                            handlePostMessage(dailySummary.date, currentMessageText);
-                            setMessageInputs(prev => ({
-                              ...prev,
-                              [dailySummary.date]: ''
-                            }));
-                          }
-                        }
-                      }}
-                    />
-                    <button
-                      onClick={() => {
-                        if (currentMessageText.trim()) {
-                          handlePostMessage(dailySummary.date, currentMessageText);
-                          setMessageInputs(prev => ({
-                            ...prev,
-                            [dailySummary.date]: ''
-                          }));
-                        }
-                      }}
-                      className="mobile-button mobile-button-primary mobile-button-full"
-                      style={{
-                        marginTop: '8px',
-                        width: '100%',
-                        minHeight: '44px',
-                        padding: '12px',
-                        background: currentMessageText.trim() ? '#047857' : '#9ca3af',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '8px',
-                        fontSize: '15px',
-                        fontWeight: '600',
-                        cursor: currentMessageText.trim() ? 'pointer' : 'not-allowed',
-                        touchAction: 'manipulation'
-                      }}
-                      disabled={!currentMessageText.trim()}
-                    >
-                      Post Message
-                    </button>
-                  </div>
-                ) : null}
-              </div>
-
-              {/* Signup Action button - mobile optimized */}
-              <div>
-                {userSignup ? (
-                  <button
-                    onClick={() => handleCancelSignup(userSignup.id)}
-                    className="mobile-button mobile-button-danger mobile-button-full"
-                    style={{
-                      width: '100%',
-                      minHeight: '48px',
-                      padding: '14px',
-                      background: '#dc2626',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '10px',
-                      fontSize: '15px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      touchAction: 'manipulation'
-                    }}
-                  >
-                    Cancel Golf Signup
-                  </button>
-                ) : canSignUp ? (
-                  <button
-                    onClick={() => handleSignup(dailySummary.date)}
-                    className="mobile-button mobile-button-primary mobile-button-full"
-                    style={{
-                      width: '100%',
-                      minHeight: '48px',
-                      padding: '14px',
-                      background: '#047857',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '10px',
-                      fontSize: '15px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      touchAction: 'manipulation'
-                    }}
-                  >
-                    ⛳ Sign Up for Golf
-                  </button>
-                ) : !isAuthenticated ? (
-                  <div style={{
-                    textAlign: 'center',
-                    fontSize: '14px',
-                    color: '#6b7280',
-                    fontStyle: 'italic',
-                    padding: '12px'
-                  }}>
-                    Login to sign up or post messages
-                  </div>
-                ) : null}
-              </div>
-            </div>
+              )}
+              {userSignup && (
+                <div style={{ fontSize: '10px', color: '#047857', marginTop: '4px' }}>
+                  ✓ You
+                </div>
+              )}
+            </button>
           );
         })}
       </div>
 
-      {/* Legend */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        gap: '20px', 
-        fontSize: '12px',
-        color: '#6c757d'
-      }}>
-        <div>
-          <span style={{ 
-            display: 'inline-block', 
-            width: '12px', 
-            height: '12px', 
-            backgroundColor: '#d4edda', 
-            marginRight: '5px',
-            border: '1px solid #c3e6cb'
-          }}></span>
-          You're signed up
+      {/* Selected Day Detail Panel */}
+      {selectedDayData && (
+        <div style={{
+          background: '#fff',
+          border: '1px solid #e5e7eb',
+          borderRadius: '12px',
+          overflow: 'hidden'
+        }}>
+          {/* Header */}
+          <div style={{
+            background: '#f9fafb',
+            padding: '16px',
+            borderBottom: '1px solid #e5e7eb',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>
+              {formatDateFull(selectedDayData.date)}
+            </h3>
+            <button
+              onClick={() => setSelectedDay(null)}
+              style={{
+                background: 'none',
+                border: 'none',
+                fontSize: '20px',
+                cursor: 'pointer',
+                color: '#6b7280',
+                padding: '4px 8px'
+              }}
+            >
+              ×
+            </button>
+          </div>
+
+          {/* Golfers Section */}
+          <div style={{ padding: '16px', borderBottom: '1px solid #e5e7eb' }}>
+            <div style={{
+              fontSize: '13px',
+              fontWeight: '600',
+              color: '#6b7280',
+              marginBottom: '12px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>
+              ⛳ Golfers ({selectedDayData.total_count})
+            </div>
+
+            {selectedDayData.signups?.length > 0 ? (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+                {selectedDayData.signups.map(signup => (
+                  <span
+                    key={signup.id}
+                    style={{
+                      background: signup.player_name === (user?.name || user?.email) ? '#dcfce7' : '#f3f4f6',
+                      padding: '6px 12px',
+                      borderRadius: '16px',
+                      fontSize: '14px',
+                      fontWeight: '500'
+                    }}
+                  >
+                    {signup.player_name.split(' ')[0]}
+                    {signup.preferred_start_time && (
+                      <span style={{ color: '#6b7280', marginLeft: '4px' }}>
+                        @ {signup.preferred_start_time}
+                      </span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p style={{ color: '#9ca3af', fontStyle: 'italic', margin: '0 0 12px' }}>
+                No one signed up yet
+              </p>
+            )}
+
+            {/* Signup/Cancel Button */}
+            {isAuthenticated && (
+              getUserSignup(selectedDayData) ? (
+                <button
+                  onClick={() => handleCancelSignup(getUserSignup(selectedDayData).id)}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    background: '#fee2e2',
+                    color: '#dc2626',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '15px',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel My Signup
+                </button>
+              ) : (
+                <button
+                  onClick={() => handleSignup(selectedDayData.date)}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    background: '#047857',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '15px',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  ⛳ Sign Up to Play
+                </button>
+              )
+            )}
+          </div>
+
+          {/* Messages Section */}
+          <div style={{ padding: '16px' }}>
+            <div style={{
+              fontSize: '13px',
+              fontWeight: '600',
+              color: '#6b7280',
+              marginBottom: '12px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>
+              💬 Messages ({selectedDayData.message_count || 0})
+            </div>
+
+            {selectedDayData.messages?.length > 0 ? (
+              <div style={{ marginBottom: '16px' }}>
+                {selectedDayData.messages.map(msg => (
+                  <div
+                    key={msg.id}
+                    style={{
+                      background: '#f9fafb',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      marginBottom: '8px'
+                    }}
+                  >
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '4px'
+                    }}>
+                      <span style={{ fontWeight: '600', fontSize: '14px' }}>
+                        {msg.player_name.split(' ')[0]}
+                      </span>
+                      {user && msg.player_name === (user.name || user.email) && (
+                        <button
+                          onClick={() => handleDeleteMessage(msg.id)}
+                          style={{
+                            background: '#fee2e2',
+                            border: 'none',
+                            color: '#dc2626',
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '12px'
+                          }}
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                    <p style={{ margin: 0, color: '#4b5563', fontSize: '14px', lineHeight: '1.4' }}>
+                      {msg.message}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ color: '#9ca3af', fontStyle: 'italic', margin: '0 0 16px' }}>
+                No messages yet
+              </p>
+            )}
+
+            {/* Post Message */}
+            {isAuthenticated && (
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  value={messageInput}
+                  onChange={(e) => setMessageInput(e.target.value)}
+                  placeholder="Add a message..."
+                  onKeyPress={(e) => e.key === 'Enter' && handlePostMessage(selectedDayData.date)}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    fontSize: '15px'
+                  }}
+                />
+                <button
+                  onClick={() => handlePostMessage(selectedDayData.date)}
+                  disabled={!messageInput.trim()}
+                  style={{
+                    padding: '12px 20px',
+                    background: messageInput.trim() ? '#047857' : '#d1d5db',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '15px',
+                    fontWeight: '600',
+                    cursor: messageInput.trim() ? 'pointer' : 'not-allowed'
+                  }}
+                >
+                  Send
+                </button>
+              </div>
+            )}
+
+            {!isAuthenticated && (
+              <p style={{ color: '#6b7280', textAlign: 'center', fontSize: '14px', margin: 0 }}>
+                Log in to sign up or post messages
+              </p>
+            )}
+          </div>
         </div>
-        <div>
-          <span style={{ 
-            display: 'inline-block', 
-            width: '12px', 
-            height: '12px', 
-            backgroundColor: '#ffffff', 
-            marginRight: '5px',
-            border: '1px solid #dee2e6'
-          }}></span>
-          Available to sign up
+      )}
+
+      {/* No day selected prompt */}
+      {!selectedDayData && (
+        <div style={{
+          textAlign: 'center',
+          padding: '40px 20px',
+          color: '#9ca3af',
+          background: '#f9fafb',
+          borderRadius: '12px'
+        }}>
+          <div style={{ fontSize: '32px', marginBottom: '8px' }}>⛳</div>
+          <p style={{ margin: 0 }}>Tap a day to view details and sign up</p>
         </div>
-      </div>
+      )}
     </div>
   );
 };
