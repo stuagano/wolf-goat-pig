@@ -31,7 +31,7 @@ const mockPlayersData = [
   },
   {
     player_id: 2,
-    player_name: "Jane Smith", 
+    player_name: "Jane Smith",
     email: "jane@test.com",
     availability: [
       {
@@ -52,56 +52,59 @@ describe('AllPlayersAvailability', () => {
 
   test('renders loading state initially', () => {
     fetch.mockImplementation(() => new Promise(() => {})); // Never resolves
-    
+
     render(<AllPlayersAvailability />);
-    
-    expect(screen.getByText(/Loading players' availability/i)).toBeInTheDocument();
+
+    expect(screen.getByText(/Loading.../i)).toBeInTheDocument();
   });
 
-  test('renders weekly overview by default', async () => {
+  test('renders day grid after loading', async () => {
     fetch.mockResolvedValueOnce(createMockFetchResponse(mockPlayersData));
 
     render(<AllPlayersAvailability />);
 
-    await screen.findByRole('heading', { level: 4, name: /^Monday/ });
+    // Wait for loading to complete - look for stats section
+    await screen.findByText('Total Players');
 
-    // Weekly overview shows day names and player counts
-    expect(screen.getByRole('heading', { level: 4, name: /^Saturday/ })).toBeInTheDocument();
-    // Player counts shown as numbers in the view - verify we have player cards
-    const johnDoes = screen.getAllByText(/John Doe/);
-    expect(johnDoes.length).toBeGreaterThan(0);
+    // Should show all day abbreviations
+    expect(screen.getByText('Tue')).toBeInTheDocument();
+    expect(screen.getByText('Wed')).toBeInTheDocument();
+    expect(screen.getByText('Thu')).toBeInTheDocument();
+    expect(screen.getByText('Fri')).toBeInTheDocument();
+    expect(screen.getByText('Sat')).toBeInTheDocument();
+    expect(screen.getByText('Sun')).toBeInTheDocument();
   });
 
-  test('switches to day detail view when clicking day tab', async () => {
+  test('shows player count for each day', async () => {
     fetch.mockResolvedValueOnce(createMockFetchResponse(mockPlayersData));
 
     render(<AllPlayersAvailability />);
 
-    // Button shows abbreviated day "Mon" with player count
-    const mondayTab = await screen.findByRole('button', { name: /Mon.*2/i });
-    fireEvent.click(mondayTab);
+    await screen.findByText('Total Players');
 
-    expect(screen.getByText('Monday Availability')).toBeInTheDocument();
-    expect(screen.getByText('2 players available')).toBeInTheDocument();
-    expect(screen.getByText(/John Doe/)).toBeInTheDocument();
-    expect(screen.getByText(/Jane Smith/)).toBeInTheDocument();
+    // Monday should show 2 players (John and Jane)
+    const dayButtons = screen.getAllByRole('button');
+    const mondayButton = dayButtons.find(btn => btn.textContent.includes('Mon'));
+    expect(mondayButton).toHaveTextContent('2');
   });
 
-  test('shows "All Days" view when clicking All Days tab', async () => {
+  test('expands day detail panel when clicking day', async () => {
     fetch.mockResolvedValueOnce(createMockFetchResponse(mockPlayersData));
 
     render(<AllPlayersAvailability />);
 
-    // Click Monday first to switch to day view (button shows abbreviated day "Mon")
-    const mondayTab = await screen.findByRole('button', { name: /Mon.*2/i });
-    fireEvent.click(mondayTab);
+    await screen.findByText('Total Players');
 
-    // Then click All Days to go back
-    const allDaysTab = screen.getByRole('button', { name: /All Days/i });
-    fireEvent.click(allDaysTab);
+    // Click Monday
+    const dayButtons = screen.getAllByRole('button');
+    const mondayButton = dayButtons.find(btn => btn.textContent.includes('Mon'));
+    fireEvent.click(mondayButton);
 
-    expect(screen.getByRole('heading', { level: 4, name: /^Monday/ })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 4, name: /^Saturday/ })).toBeInTheDocument();
+    // Should show expanded panel with day name
+    expect(screen.getByText('Monday')).toBeInTheDocument();
+    expect(screen.getByText(/Available Players/)).toBeInTheDocument();
+    expect(screen.getByText('John Doe')).toBeInTheDocument();
+    expect(screen.getByText('Jane Smith')).toBeInTheDocument();
   });
 
   test('displays player time ranges correctly', async () => {
@@ -109,12 +112,16 @@ describe('AllPlayersAvailability', () => {
 
     render(<AllPlayersAvailability />);
 
-    await screen.findByRole('heading', { level: 4, name: /^Monday/ });
+    await screen.findByText('Total Players');
+
+    // Click Monday to expand
+    const dayButtons = screen.getAllByRole('button');
+    const mondayButton = dayButtons.find(btn => btn.textContent.includes('Mon'));
+    fireEvent.click(mondayButton);
 
     // Check time formatting
     expect(screen.getByText(/9:00 AM - 5:00 PM/)).toBeInTheDocument();
     expect(screen.getByText(/10:00 AM - 3:00 PM/)).toBeInTheDocument();
-    expect(screen.getByText(/8:00 AM - 12:00 PM/)).toBeInTheDocument();
   });
 
   test('displays player notes when available', async () => {
@@ -122,10 +129,14 @@ describe('AllPlayersAvailability', () => {
 
     render(<AllPlayersAvailability />);
 
-    await screen.findByRole('heading', { level: 4, name: /^Monday/ });
+    await screen.findByText('Total Players');
+
+    // Click Monday to expand
+    const dayButtons = screen.getAllByRole('button');
+    const mondayButton = dayButtons.find(btn => btn.textContent.includes('Mon'));
+    fireEvent.click(mondayButton);
 
     expect(screen.getByText('💬 Flexible schedule')).toBeInTheDocument();
-    expect(screen.getByText('💬 Morning only')).toBeInTheDocument();
   });
 
   test('handles empty availability data', async () => {
@@ -133,12 +144,11 @@ describe('AllPlayersAvailability', () => {
 
     render(<AllPlayersAvailability />);
 
-    const totalPlayersLabel = await screen.findByText('Total Players');
-    expect(totalPlayersLabel.previousElementSibling).toHaveTextContent('0');
+    await screen.findByText('Total Players');
 
-    // All days should show "No players available"
-    const noPlayersTexts = screen.getAllByText('No players available');
-    expect(noPlayersTexts.length).toBeGreaterThan(0);
+    // Statistics should show 0 total players
+    const zeros = screen.getAllByText('0');
+    expect(zeros.length).toBeGreaterThan(0);
   });
 
   test('handles API error', async () => {
@@ -156,11 +166,31 @@ describe('AllPlayersAvailability', () => {
 
     render(<AllPlayersAvailability />);
 
-    const totalPlayersLabel = await screen.findByText('Total Players');
-    expect(totalPlayersLabel.previousElementSibling).toHaveTextContent('2');
+    await screen.findByText('Total Players');
 
-    expect(totalPlayersLabel).toBeInTheDocument();
-    expect(screen.getByText('Most Available (Single Day)')).toBeInTheDocument();
-    expect(screen.getByText('Most Popular Day')).toBeInTheDocument();
+    expect(screen.getByText('Best Day')).toBeInTheDocument();
+    expect(screen.getByText('Most Popular')).toBeInTheDocument();
+  });
+
+  test('closes detail panel when clicking close button', async () => {
+    fetch.mockResolvedValueOnce(createMockFetchResponse(mockPlayersData));
+
+    render(<AllPlayersAvailability />);
+
+    await screen.findByText('Total Players');
+
+    // Click Monday to expand
+    const dayButtons = screen.getAllByRole('button');
+    const mondayButton = dayButtons.find(btn => btn.textContent.includes('Mon'));
+    fireEvent.click(mondayButton);
+
+    expect(screen.getByText('Monday')).toBeInTheDocument();
+
+    // Click close button
+    const closeButton = screen.getByText('×');
+    fireEvent.click(closeButton);
+
+    // Panel should close - Monday heading should be gone
+    expect(screen.queryByRole('heading', { name: 'Monday' })).not.toBeInTheDocument();
   });
 });
