@@ -113,13 +113,41 @@ export const SheetSyncProvider = ({ children }) => {
       await response.json();
 
       const sheetResponse = await fetchSheetData(csvUrl);
-      
+
+      // Helper to find column value by trying multiple possible header names (case-insensitive)
+      const getColumnValue = (row, possibleNames) => {
+        for (const name of possibleNames) {
+          // Try exact match first
+          if (row[name] !== undefined) return row[name];
+          // Try case-insensitive match
+          const key = Object.keys(row).find(k => k.toLowerCase() === name.toLowerCase());
+          if (key && row[key] !== undefined) return row[key];
+        }
+        return null;
+      };
+
       // Transform the Google Sheets data to match leaderboard format
       const transformedData = (sheetResponse.data || []).map((row, index) => {
-        // Aggregate scores by player
-        const playerName = row.Member || row['Player'] || '';
-        const score = parseInt(row.Score) || 0;
-        
+        // Get player name (try multiple column name variations)
+        const playerName = getColumnValue(row, ['Member', 'Player', 'Name', 'Golfer']) || '';
+
+        // Get score (try multiple column name variations)
+        const scoreStr = getColumnValue(row, ['Score', 'Quarters', 'Sum Score', 'Total Score', 'Total', 'Points']);
+        const score = scoreStr ? parseInt(scoreStr) || 0 : 0;
+
+        // Get date
+        const dateValue = getColumnValue(row, ['Date', 'Game Date', 'Played']) || 'N/A';
+
+        // Skip header rows or summary rows
+        if (!playerName ||
+            playerName.toLowerCase() === 'member' ||
+            playerName.toLowerCase() === 'player' ||
+            playerName.toLowerCase() === 'total' ||
+            playerName.toLowerCase().includes('most rounds') ||
+            playerName.toLowerCase().includes('top 5')) {
+          return null;
+        }
+
         return {
           id: `player-${index}`,
           player_name: playerName,
@@ -129,10 +157,10 @@ export const SheetSyncProvider = ({ children }) => {
           games_played: 1, // Each row represents a game
           total_games: 1,
           win_percentage: score > 0 ? 100 : 0,
-          last_played: row.Date || 'N/A'
+          last_played: dateValue
         };
-      }).filter(player => player.player_name); // Filter out empty rows
-      
+      }).filter(player => player && player.player_name); // Filter out empty/null rows
+
       // Aggregate by player name
       const aggregatedData = {};
       transformedData.forEach(player => {
@@ -153,7 +181,7 @@ export const SheetSyncProvider = ({ children }) => {
           aggregatedData[player.player_name].last_played = player.last_played;
         }
       });
-      
+
       // Calculate win percentage
       const finalData = Object.values(aggregatedData).map((player, index) => ({
         ...player,
@@ -161,7 +189,14 @@ export const SheetSyncProvider = ({ children }) => {
         total_games: player.games_played,
         win_percentage: player.games_played > 0 ? (player.wins / player.games_played) * 100 : 0
       }));
-      
+
+      console.log('Leaderboard data transformed:', {
+        headers: sheetResponse.headers,
+        rowCount: sheetResponse.row_count,
+        playersFound: finalData.length,
+        sampleData: finalData.slice(0, 3)
+      });
+
       setSyncData(finalData);
 
       setLastSync(new Date());
