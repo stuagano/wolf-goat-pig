@@ -35,18 +35,17 @@ jobs:
     - name: Install dependencies
       run: |
         cd frontend
-        npm install
+        npm ci
     
     - name: Run linting
       run: |
         cd frontend
-        npm run lint || true
+        npm run lint
     
     - name: Run type checking
       run: |
         cd frontend
-        npm run typecheck || true
-      continue-on-error: true
+        npm run typecheck
     
     - name: Run tests with coverage
       run: |
@@ -94,7 +93,7 @@ jobs:
     - name: Install dependencies
       run: |
         cd frontend
-        npm install
+        npm ci
     
     - name: Run bundle size analysis
       run: |
@@ -125,7 +124,7 @@ jobs:
     - name: Install dependencies
       run: |
         cd frontend
-        npm install
+        npm ci
     
     - name: Build application
       run: |
@@ -156,7 +155,7 @@ jobs:
     - name: Install dependencies
       run: |
         cd frontend
-        npm install
+        npm ci
     
     - name: Build application
       run: |

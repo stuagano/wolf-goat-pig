@@ -14,7 +14,7 @@
     "test:bdd": "./scripts/testing/run_behave.sh",
     "typecheck": "npm run typecheck:backend && npm run typecheck:frontend",
     "typecheck:backend": "cd backend && mypy app",
-    "typecheck:frontend": "cd frontend && tsc --noEmit",
+    "typecheck:frontend": "cd frontend && npm run typecheck",
     "build:frontend": "cd frontend && npm run build",
     "deploy:check": ".husky/deployment-checklist",
     "deploy:test": "./scripts/test-prod-all.sh",

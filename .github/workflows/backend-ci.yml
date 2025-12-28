@@ -65,7 +65,6 @@ jobs:
         black --check app/ tests/
         isort --check-only app/ tests/
         flake8 app/ tests/ --max-line-length=120 --extend-ignore=E203,W503
-      continue-on-error: true
     
     - name: Run type checking
       run: |
