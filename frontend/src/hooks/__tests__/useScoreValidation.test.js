@@ -8,8 +8,9 @@ describe('useScoreValidation', () => {
     test('should have expected constraint values', () => {
       expect(SCORE_CONSTRAINTS.MIN_STROKES).toBe(1);
       expect(SCORE_CONSTRAINTS.MAX_STROKES).toBe(15);
-      expect(SCORE_CONSTRAINTS.MIN_QUARTERS).toBe(-10);
-      expect(SCORE_CONSTRAINTS.MAX_QUARTERS).toBe(10);
+      // Quarters have no practical limit - can accumulate with doubles, floats, carry-overs
+      expect(SCORE_CONSTRAINTS.MIN_QUARTERS).toBe(-999);
+      expect(SCORE_CONSTRAINTS.MAX_QUARTERS).toBe(999);
       expect(SCORE_CONSTRAINTS.MIN_PLAYERS_PER_TEAM).toBe(1);
       expect(SCORE_CONSTRAINTS.MAX_PLAYERS).toBe(4);
     });
@@ -170,23 +171,25 @@ describe('useScoreValidation', () => {
       });
     });
 
-    test('should return error for quarters below minimum', () => {
+    test('should return valid for large negative quarters (no practical limit)', () => {
       const { result } = renderHook(() => useScoreValidation());
 
-      expect(result.current.validateQuarters(-11)).toEqual({
-        valid: false,
-        error: 'Quarters must be at least -10',
-        value: null,
+      // Quarters can accumulate with doubles, floats, carry-overs - no practical limit
+      expect(result.current.validateQuarters(-50)).toEqual({
+        valid: true,
+        error: null,
+        value: -50,
       });
     });
 
-    test('should return error for quarters above maximum', () => {
+    test('should return valid for large positive quarters (no practical limit)', () => {
       const { result } = renderHook(() => useScoreValidation());
 
-      expect(result.current.validateQuarters(11)).toEqual({
-        valid: false,
-        error: 'Quarters cannot exceed 10',
-        value: null,
+      // Quarters can accumulate with doubles, floats, carry-overs - no practical limit
+      expect(result.current.validateQuarters(50)).toEqual({
+        valid: true,
+        error: null,
+        value: 50,
       });
     });
 

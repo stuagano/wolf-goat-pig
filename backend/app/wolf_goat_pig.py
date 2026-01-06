@@ -800,8 +800,9 @@ class WolfGoatPigGame(PersistenceMixin):
                     hole_par = hole_info.get("par")
                     hole_yardage = hole_info.get("yards")
                     stroke_index = hole_info.get("stroke_index", stroke_index)
-                except:
-                    pass  # Fall back to defaults
+                except (KeyError, AttributeError, TypeError) as e:
+                    # Fall back to defaults if course info unavailable
+                    pass
 
         # Initialize hole state
         hole_state = HoleState(
@@ -1616,7 +1617,7 @@ class WolfGoatPigGame(PersistenceMixin):
                         "hole_handicap": current_hole_info.get("stroke_index", 10),
                         "hole_description": current_hole_info.get("description", "")
                     }
-                except:
+                except (KeyError, AttributeError, TypeError):
                     # Use hole state values if available
                     if hole_state:
                         hole_info = {

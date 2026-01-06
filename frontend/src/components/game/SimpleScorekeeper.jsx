@@ -1,5 +1,5 @@
 // frontend/src/components/game/SimpleScorekeeper.jsx
-// Updated: Force redeploy - single scorecard layout
+// Updated: Offline-first sync for unreliable golf course connectivity
 import React, { useState, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { useTheme } from '../../theme/Provider';
@@ -8,6 +8,9 @@ import GameCompletionView from './GameCompletionView';
 import Scorecard from './Scorecard';
 import CommissionerChat from '../CommissionerChat';
 import { triggerBadgeNotification } from '../BadgeNotification';
+import { SyncStatusBanner } from '../SyncStatusIndicator';
+import { useHoleSync } from '../../hooks/useSyncStatus';
+import syncManager from '../../services/syncManager';
 import '../../styles/mobile-touch.css';
 
 const API_URL = process.env.REACT_APP_API_URL || '';
@@ -43,7 +46,15 @@ const SimpleScorekeeper = ({
   const theme = useTheme();
 
   // Current hole state (all client-side until submit)
-  const [currentHole, setCurrentHole] = useState(initialCurrentHole);
+  // Try to restore from local storage first (survives page refresh)
+  const [currentHole, setCurrentHole] = useState(() => {
+    const localState = syncManager.loadLocalGameState(gameId);
+    if (localState?.currentHole && localState.currentHole > initialCurrentHole) {
+      console.log('[Scorekeeper] Restored current hole from local storage:', localState.currentHole);
+      return localState.currentHole;
+    }
+    return initialCurrentHole;
+  });
   const [teamMode, setTeamMode] = useState('partners'); // 'partners' or 'solo'
   const [team1, setTeam1] = useState([]);
   // eslint-disable-next-line no-unused-vars
@@ -54,7 +65,6 @@ const SimpleScorekeeper = ({
   const [scores, setScores] = useState({});
   const [quarters, setQuarters] = useState({}); // Manual quarters entry
   const [holeNotes, setHoleNotes] = useState(''); // Notes for current hole
-  const [playerDisplayOrder, setPlayerDisplayOrder] = useState(() => players.map(p => p.id)); // Order for quarters entry
   const [winner, setWinner] = useState(null);
   const [floatInvokedBy, setFloatInvokedBy] = useState(null); // Player ID who invoked float
   const [optionInvokedBy, setOptionInvokedBy] = useState(null); // Player ID who triggered option
@@ -100,12 +110,23 @@ const SimpleScorekeeper = ({
   const [invisibleAardvarkTossed, setInvisibleAardvarkTossed] = useState(false);
 
   // Game history and standings
-  const [holeHistory, setHoleHistory] = useState(initialHoleHistory);
+  // Try to restore from local storage first (survives page refresh)
+  const [holeHistory, setHoleHistory] = useState(() => {
+    const localState = syncManager.loadLocalGameState(gameId);
+    if (localState?.holeHistory && localState.holeHistory.length > initialHoleHistory.length) {
+      console.log('[Scorekeeper] Restored hole history from local storage:', localState.holeHistory.length, 'holes');
+      return localState.holeHistory;
+    }
+    return initialHoleHistory;
+  });
   const [playerStandings, setPlayerStandings] = useState({});
 
   // UI state
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  
+  // Offline-first sync hook
+  const { syncHole, pendingCount, isOnline, lastError: syncError } = useHoleSync(gameId);
   const [editingHole, setEditingHole] = useState(null); // Track which hole is being edited
   const [editingPlayerName, setEditingPlayerName] = useState(null); // Track which player name is being edited
   const [editPlayerNameValue, setEditPlayerNameValue] = useState(''); // Player name input value
@@ -124,6 +145,7 @@ const SimpleScorekeeper = ({
   const [showGolfScores, setShowGolfScores] = useState(false);
   const [showCommissioner, setShowCommissioner] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
+  const [showSpecialActions, setShowSpecialActions] = useState(false); // Float/Option hidden by default
 
   // Interactive betting state (Offer/Accept flow)
   const [pendingOffer, setPendingOffer] = useState(null);
@@ -185,6 +207,17 @@ const SimpleScorekeeper = ({
       fetchCourseData();
     }
   }, [courseName]);
+
+  // Save game state locally whenever holeHistory changes (survives page refresh)
+  useEffect(() => {
+    if (gameId && holeHistory.length > 0) {
+      syncManager.saveLocalGameState(gameId, {
+        holeHistory,
+        currentHole,
+        playerStandings,
+      });
+    }
+  }, [gameId, holeHistory, currentHole, playerStandings]);
 
   // Initialize player standings from hole history
   useEffect(() => {
@@ -814,23 +847,18 @@ const SimpleScorekeeper = ({
         };
       });
 
-      // Sync to backend using quarters-only endpoint
-      const response = await fetch(`${API_URL}/games/${gameId}/quarters-only`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          hole_quarters: holeQuarters,
-          optional_details: optionalDetails,
-          current_hole: editingHole ? currentHole : currentHole + 1
-        })
-      });
+      // Sync to backend using offline-first approach
+      // This will queue the sync if offline or on slow connection
+      const syncResult = await syncHole(
+        holeQuarters,
+        optionalDetails,
+        editingHole ? currentHole : currentHole + 1
+      );
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const rawError = errorData.detail || errorData.message || 'Failed to save quarters';
-
+      // Handle permanent errors (like validation failures)
+      if (!syncResult.success && syncResult.permanent) {
+        const rawError = syncResult.error || 'Failed to save quarters';
+        
         // Handle zero-sum validation error from backend
         if (rawError.includes('Zero-sum validation failed')) {
           throw new Error(`Quarters don't balance!\n\n${rawError}\n\n💡 Each hole must sum to zero. Check the wager and winner settings.`);
@@ -838,6 +866,9 @@ const SimpleScorekeeper = ({
 
         throw new Error(rawError);
       }
+      
+      // If queued for later sync, that's still a success - data is saved locally
+      // The UI will show pending sync indicator
 
       // Move to next hole or return from editing
       if (editingHole) {
@@ -980,8 +1011,8 @@ const SimpleScorekeeper = ({
   }, [courseData?.holes]);
 
   // Handler for editing a hole from the scorecard
+  // This is called when user clicks a cell and saves in the Scorecard modal
   const handleEditHoleFromScorecard = ({ hole, playerId, strokes, quarters }) => {
-    // Load the hole for editing
     const holeData = holeHistory.find(h => h.hole === hole);
     if (holeData) {
       // Update the scores for this specific player
@@ -996,9 +1027,22 @@ const SimpleScorekeeper = ({
         updatedPointsDelta[playerId] = quarters;
       }
 
-      // Load this hole into edit mode
+      // Load this hole into edit mode with updated values
       loadHoleForEdit({ ...holeData, gross_scores: updatedScores, points_delta: updatedPointsDelta });
     }
+  };
+
+  // Direct hole jump - load any hole for editing
+  const jumpToHole = (holeNumber) => {
+    const holeData = holeHistory.find(h => h.hole === holeNumber);
+    if (holeData) {
+      loadHoleForEdit(holeData);
+    } else {
+      setCurrentHole(holeNumber);
+      resetHole();
+    }
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Check if game is complete (all 18 holes played)
@@ -1059,6 +1103,9 @@ const SimpleScorekeeper = ({
 
   return (
     <div data-testid="scorekeeper-container" className="thumb-zone-container" style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
+      {/* Sync Status Banner - Shows when offline or pending uploads */}
+      <SyncStatusBanner />
+      
       {/* Loading/Error/Warning Banners */}
       {courseDataLoading && (
         <div style={{
@@ -1259,41 +1306,54 @@ const SimpleScorekeeper = ({
           isEditingCompleteGame={isEditingCompleteGame}
         />
 
-        {/* Quick Actions for Last Hole */}
+        {/* Quick Hole Navigation - Shows completed holes as clickable chips */}
         {holeHistory.length > 0 && (
           <div style={{
-            marginTop: '12px',
-            paddingTop: '12px',
-            borderTop: `1px solid ${theme.colors.border}`,
-            fontSize: '12px',
-            color: theme.colors.textSecondary,
-            display: 'flex',
-            gap: '8px'
+            marginTop: '8px',
+            padding: '8px',
+            background: theme.colors.backgroundSecondary,
+            borderRadius: '8px'
           }}>
-            <button
-              onClick={() => loadHoleForEdit(holeHistory[holeHistory.length - 1])}
-              className="touch-optimized"
-              style={{
-                padding: '6px 12px',
-                fontSize: '12px',
-                border: `1px solid ${theme.colors.primary}`,
-                borderRadius: '6px',
-                background: 'white',
-                color: theme.colors.primary,
-                cursor: 'pointer'
-              }}
-            >
-              ✏️ Edit Last Hole
-            </button>
+            <div style={{ fontSize: '11px', color: theme.colors.textSecondary, marginBottom: '6px' }}>
+              Tap any hole to edit:
+            </div>
+            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+              {Array.from({ length: Math.max(currentHole - 1, holeHistory.length) }, (_, i) => i + 1).map(hole => {
+                const holeData = holeHistory.find(h => h.hole === hole);
+                const isEditing = editingHole === hole;
+                return (
+                  <button
+                    key={hole}
+                    onClick={() => holeData ? loadHoleForEdit(holeData) : jumpToHole(hole)}
+                    className="touch-optimized"
+                    style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '6px',
+                      border: isEditing ? `2px solid ${theme.colors.warning}` : holeData ? `1px solid ${theme.colors.primary}` : `1px solid ${theme.colors.border}`,
+                      background: isEditing ? theme.colors.warning : holeData ? 'white' : '#f5f5f5',
+                      color: isEditing ? 'white' : holeData ? theme.colors.primary : theme.colors.textSecondary,
+                      fontSize: '13px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    {hole}
+                  </button>
+                );
+              })}
+            </div>
+            
+            {/* Undo last hole button */}
             <button
               onClick={() => {
                 if (window.confirm(`Undo hole ${holeHistory[holeHistory.length - 1].hole}? This will remove all data for that hole.`)) {
                   const lastHole = holeHistory[holeHistory.length - 1];
-                  // Remove last hole from history
                   setHoleHistory(prev => prev.slice(0, -1));
-                  // Go back to that hole number
                   setCurrentHole(lastHole.hole);
-                  // Recalculate standings
                   const newStandings = { ...playerStandings };
                   players.forEach(p => {
                     const delta = lastHole.points_delta?.[p.id] || 0;
@@ -1310,6 +1370,7 @@ const SimpleScorekeeper = ({
               }}
               className="touch-optimized"
               style={{
+                marginTop: '8px',
                 padding: '6px 12px',
                 fontSize: '12px',
                 border: '1px solid #f44336',
@@ -1354,13 +1415,56 @@ const SimpleScorekeeper = ({
               justifyContent: 'space-between',
               borderBottom: '1px solid rgba(255,255,255,0.2)'
             }}>
-              {/* Left: Hole Number */}
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                <div data-testid="current-hole" style={{ fontSize: '42px', fontWeight: 'bold', lineHeight: 1 }}>
-                  {currentHole}
-                </div>
-                <div style={{ fontSize: '14px', opacity: 0.9, textTransform: 'uppercase' }}>
-                  Hole
+              {/* Left: Hole Number with Selector */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <select
+                  data-testid="hole-selector"
+                  value={currentHole}
+                  onChange={(e) => {
+                    const selectedHole = parseInt(e.target.value, 10);
+                    const holeData = holeHistory.find(h => h.hole === selectedHole);
+                    if (holeData) {
+                      // Load existing hole for editing
+                      loadHoleForEdit(holeData);
+                    } else {
+                      // Jump to new hole
+                      setCurrentHole(selectedHole);
+                      resetHole();
+                    }
+                  }}
+                  style={{
+                    fontSize: '36px',
+                    fontWeight: 'bold',
+                    background: 'rgba(255,255,255,0.15)',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    borderRadius: '8px',
+                    color: 'white',
+                    padding: '4px 8px',
+                    cursor: 'pointer',
+                    appearance: 'none',
+                    WebkitAppearance: 'none',
+                    width: '70px',
+                    textAlign: 'center'
+                  }}
+                >
+                  {Array.from({ length: 18 }, (_, i) => i + 1).map(hole => {
+                    const hasData = holeHistory.some(h => h.hole === hole);
+                    return (
+                      <option key={hole} value={hole} style={{ color: 'black' }}>
+                        {hole}{hasData ? ' ✓' : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                  <div style={{ fontSize: '12px', opacity: 0.9, textTransform: 'uppercase' }}>
+                    Hole
+                  </div>
+                  {editingHole && (
+                    <div style={{ fontSize: '10px', background: 'rgba(255,152,0,0.8)', padding: '2px 6px', borderRadius: '4px', marginTop: '2px' }}>
+                      Editing
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1495,126 +1599,101 @@ const SimpleScorekeeper = ({
       })()}
 
 
-      {/* Float & Option Tracking */}
+      {/* Float & Option Tracking - Collapsed by default */}
       <div style={{
         background: theme.colors.paper,
-        padding: '16px',
         borderRadius: '8px',
-        marginBottom: '20px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+        marginBottom: '12px',
         border: `1px solid ${theme.colors.border}`,
-        transition: 'box-shadow 0.2s ease'
+        overflow: 'hidden'
       }}>
-        <h3 style={{
-          margin: '0 0 12px',
-          textTransform: 'uppercase',
-          letterSpacing: '0.5px',
-          fontSize: '12px',
-          fontWeight: 'bold'
-        }}>Special Actions (Optional)</h3>
-
-        {/* Float Selection */}
-        <div style={{ marginBottom: '16px' }}>
-          <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '8px' }}>
-            Float Invoked By: <span style={{ fontSize: '12px', fontWeight: 'normal', color: theme.colors.textSecondary }}>(one-time use per player)</span>
-          </div>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {players.map(player => {
-              const hasUsedFloat = playerStandings[player.id]?.floatCount >= 1;
-              return (
-                <button
-                  key={player.id}
-                  onClick={() => setFloatInvokedBy(floatInvokedBy === player.id ? null : player.id)}
-                  className="touch-optimized"
-                  disabled={hasUsedFloat}
-                  style={{
-                    padding: '8px 16px',
-                    fontSize: '14px',
-                    border: `2px solid ${floatInvokedBy === player.id ? theme.colors.primary : hasUsedFloat ? '#ccc' : theme.colors.border}`,
-                    borderRadius: '6px',
-                    background: floatInvokedBy === player.id ? theme.colors.primary : hasUsedFloat ? '#f5f5f5' : 'white',
-                    color: floatInvokedBy === player.id ? 'white' : hasUsedFloat ? '#999' : theme.colors.text,
-                    cursor: hasUsedFloat ? 'not-allowed' : 'pointer',
-                    opacity: hasUsedFloat ? 0.5 : 1,
-                    position: 'relative',
-                    transition: 'all 0.15s ease',
-                    boxShadow: floatInvokedBy === player.id ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
-                  }}
-                  title={hasUsedFloat ? `${player.name} has already used their float` : ''}
-                >
-                  <PlayerName name={player.name} isAuthenticated={player.is_authenticated} />
-                  {hasUsedFloat && (
-                    <span style={{
-                      fontSize: '10px',
-                      marginLeft: '4px',
-                      color: '#666'
-                    }}>✓</span>
-                  )}
-                </button>
-              );
-            })}
-            <button
-              onClick={() => setFloatInvokedBy(null)}
-              className="touch-optimized"
-              style={{
-                padding: '8px 16px',
-                fontSize: '14px',
-                border: `1px solid ${theme.colors.border}`,
-                borderRadius: '6px',
-                background: 'white',
-                color: theme.colors.textSecondary,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              None
-            </button>
-          </div>
+        <div
+          onClick={() => setShowSpecialActions(!showSpecialActions)}
+          style={{
+            padding: '10px 12px',
+            fontSize: '13px',
+            fontWeight: 'bold',
+            color: theme.colors.textSecondary,
+            cursor: 'pointer',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            background: theme.colors.backgroundSecondary
+          }}
+        >
+          <span>
+            Special Actions
+            {(floatInvokedBy || optionInvokedBy) && (
+              <span style={{ marginLeft: '8px', color: theme.colors.primary, fontSize: '12px' }}>
+                (active)
+              </span>
+            )}
+          </span>
+          <span style={{ fontSize: '14px' }}>{showSpecialActions ? '▼' : '▶'}</span>
         </div>
 
-        {/* Option Selection */}
-        <div>
-          <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '8px' }}>
-            Option Triggered For:
+        {showSpecialActions && (
+          <div style={{ padding: '12px' }}>
+            {/* Float Selection */}
+            <div style={{ marginBottom: '12px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>
+                Float: <span style={{ fontWeight: 'normal', color: theme.colors.textSecondary }}>(one-time per player)</span>
+              </div>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {players.map(player => {
+                  const hasUsedFloat = playerStandings[player.id]?.floatCount >= 1;
+                  return (
+                    <button
+                      key={player.id}
+                      onClick={() => setFloatInvokedBy(floatInvokedBy === player.id ? null : player.id)}
+                      className="touch-optimized"
+                      disabled={hasUsedFloat}
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: '13px',
+                        border: `2px solid ${floatInvokedBy === player.id ? theme.colors.primary : hasUsedFloat ? '#ccc' : theme.colors.border}`,
+                        borderRadius: '6px',
+                        background: floatInvokedBy === player.id ? theme.colors.primary : hasUsedFloat ? '#f5f5f5' : 'white',
+                        color: floatInvokedBy === player.id ? 'white' : hasUsedFloat ? '#999' : theme.colors.text,
+                        cursor: hasUsedFloat ? 'not-allowed' : 'pointer',
+                        opacity: hasUsedFloat ? 0.6 : 1
+                      }}
+                    >
+                      {player.name.split(' ')[0]}{hasUsedFloat && ' ✓'}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Option Selection */}
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '6px' }}>
+                Option Triggered:
+              </div>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {players.map(player => (
+                  <button
+                    key={player.id}
+                    onClick={() => setOptionInvokedBy(optionInvokedBy === player.id ? null : player.id)}
+                    className="touch-optimized"
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '13px',
+                      border: `2px solid ${optionInvokedBy === player.id ? theme.colors.warning : theme.colors.border}`,
+                      borderRadius: '6px',
+                      background: optionInvokedBy === player.id ? theme.colors.warning : 'white',
+                      color: optionInvokedBy === player.id ? 'white' : theme.colors.text,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {player.name.split(' ')[0]}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {players.map(player => (
-              <button
-                key={player.id}
-                onClick={() => setOptionInvokedBy(optionInvokedBy === player.id ? null : player.id)}
-                className="touch-optimized"
-                style={{
-                  padding: '8px 16px',
-                  fontSize: '14px',
-                  border: `2px solid ${optionInvokedBy === player.id ? theme.colors.warning : theme.colors.border}`,
-                  borderRadius: '6px',
-                  background: optionInvokedBy === player.id ? theme.colors.warning : 'white',
-                  color: optionInvokedBy === player.id ? 'white' : theme.colors.text,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                  boxShadow: optionInvokedBy === player.id ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
-                }}
-              >
-                {player.name}
-              </button>
-            ))}
-            <button
-              onClick={() => setOptionInvokedBy(null)}
-              className="touch-optimized"
-              style={{
-                padding: '8px 16px',
-                fontSize: '14px',
-                border: `2px solid ${theme.colors.border}`,
-                borderRadius: '6px',
-                background: 'white',
-                color: theme.colors.textSecondary,
-                cursor: 'pointer'
-              }}
-            >
-              None
-            </button>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Usage Statistics - Collapsible */}
@@ -2041,138 +2120,86 @@ const SimpleScorekeeper = ({
               })}
             </div>
 
-            {/* 5-Man Aardvark UI */}
+            {/* 5-Man Aardvark - Compact */}
             {players.length === 5 && team1.length >= 2 && (
               <div style={{
-                marginTop: '16px',
-                padding: '12px',
-                background: 'linear-gradient(135deg, #E1F5FE, #B3E5FC)',
+                marginTop: '12px',
+                padding: '10px',
+                background: '#E3F2FD',
                 borderRadius: '8px',
-                border: '2px solid #03A9F4'
+                border: '1px solid #90CAF9'
               }}>
-                <div style={{ fontWeight: 'bold', marginBottom: '8px', color: '#01579B' }}>
-                  🦡 Aardvark (5th Player: {players[4]?.name})
+                <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#1565C0', marginBottom: '8px' }}>
+                  Aardvark: {players[4]?.name?.split(' ')[0]}
                 </div>
-                <div style={{ fontSize: '13px', color: '#0277BD', marginBottom: '12px' }}>
-                  The Aardvark can request to join a team. If rejected ("tossed"), they join the other team and risk doubles.
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => { setAardvarkRequestedTeam('team1'); setAardvarkTossed(false); setAardvarkSolo(false); }}
+                    style={{
+                      padding: '6px 10px', fontSize: '12px',
+                      border: aardvarkRequestedTeam === 'team1' && !aardvarkTossed && !aardvarkSolo ? '2px solid #00bcd4' : '1px solid #90CAF9',
+                      borderRadius: '6px',
+                      background: aardvarkRequestedTeam === 'team1' && !aardvarkTossed && !aardvarkSolo ? '#B2EBF2' : 'white',
+                      cursor: 'pointer'
+                    }}
+                  >→ T1</button>
+                  <button
+                    onClick={() => { setAardvarkRequestedTeam('team2'); setAardvarkTossed(false); setAardvarkSolo(false); }}
+                    style={{
+                      padding: '6px 10px', fontSize: '12px',
+                      border: aardvarkRequestedTeam === 'team2' && !aardvarkTossed && !aardvarkSolo ? '2px solid #ff9800' : '1px solid #90CAF9',
+                      borderRadius: '6px',
+                      background: aardvarkRequestedTeam === 'team2' && !aardvarkTossed && !aardvarkSolo ? '#FFE0B2' : 'white',
+                      cursor: 'pointer'
+                    }}
+                  >→ T2</button>
+                  <button
+                    onClick={() => { setAardvarkTossed(!aardvarkTossed); }}
+                    disabled={!aardvarkRequestedTeam || aardvarkSolo}
+                    style={{
+                      padding: '6px 10px', fontSize: '12px',
+                      border: aardvarkTossed ? '2px solid #d32f2f' : '1px solid #90CAF9',
+                      borderRadius: '6px',
+                      background: aardvarkTossed ? '#FFCDD2' : 'white',
+                      cursor: !aardvarkRequestedTeam || aardvarkSolo ? 'not-allowed' : 'pointer',
+                      opacity: !aardvarkRequestedTeam || aardvarkSolo ? 0.5 : 1
+                    }}
+                  >Tossed</button>
+                  <button
+                    onClick={() => { setAardvarkSolo(!aardvarkSolo); setAardvarkTossed(false); }}
+                    style={{
+                      padding: '6px 10px', fontSize: '12px',
+                      border: aardvarkSolo ? '2px solid #7B1FA2' : '1px solid #90CAF9',
+                      borderRadius: '6px',
+                      background: aardvarkSolo ? '#E1BEE7' : 'white',
+                      cursor: 'pointer'
+                    }}
+                  >Solo</button>
                 </div>
-
-                {!aardvarkSolo ? (
-                  <>
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
-                      <button
-                        onClick={() => { setAardvarkRequestedTeam('team1'); setAardvarkTossed(false); }}
-                        style={{
-                          padding: '10px 16px',
-                          fontSize: '14px',
-                          fontWeight: 'bold',
-                          border: aardvarkRequestedTeam === 'team1' && !aardvarkTossed ? '3px solid #00bcd4' : '2px solid #90CAF9',
-                          borderRadius: '8px',
-                          background: aardvarkRequestedTeam === 'team1' && !aardvarkTossed ? 'rgba(0, 188, 212, 0.2)' : 'white',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Request Team 1 ✓
-                      </button>
-                      <button
-                        onClick={() => { setAardvarkRequestedTeam('team2'); setAardvarkTossed(false); }}
-                        style={{
-                          padding: '10px 16px',
-                          fontSize: '14px',
-                          fontWeight: 'bold',
-                          border: aardvarkRequestedTeam === 'team2' && !aardvarkTossed ? '3px solid #ff9800' : '2px solid #90CAF9',
-                          borderRadius: '8px',
-                          background: aardvarkRequestedTeam === 'team2' && !aardvarkTossed ? 'rgba(255, 152, 0, 0.2)' : 'white',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Request Team 2 ✓
-                      </button>
-                    </div>
-
-                    {aardvarkRequestedTeam && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                          <input
-                            type="checkbox"
-                            checked={aardvarkTossed}
-                            onChange={(e) => setAardvarkTossed(e.target.checked)}
-                            style={{ width: '18px', height: '18px' }}
-                          />
-                          <span style={{ fontWeight: 'bold', color: '#d32f2f' }}>
-                            ❌ Tossed! (Risk doubles, joins other team)
-                          </span>
-                        </label>
-                      </div>
-                    )}
-
-                    <button
-                      onClick={() => setAardvarkSolo(true)}
-                      style={{
-                        marginTop: '12px',
-                        padding: '8px 14px',
-                        fontSize: '13px',
-                        border: '2px solid #9C27B0',
-                        borderRadius: '6px',
-                        background: 'rgba(156, 39, 176, 0.1)',
-                        cursor: 'pointer',
-                        color: '#7B1FA2'
-                      }}
-                    >
-                      🎯 Tunkarri (Aardvark goes solo - 3 for 2)
-                    </button>
-                  </>
-                ) : (
-                  <div>
-                    <div style={{ fontWeight: 'bold', color: '#7B1FA2', marginBottom: '8px' }}>
-                      🎯 Tunkarri Active - Aardvark is going solo!
-                    </div>
-                    <div style={{ fontSize: '13px', color: '#6A1B9A', marginBottom: '8px' }}>
-                      Aardvark plays alone vs both teams. Wins 3Q for every 2Q wagered if best net score.
-                    </div>
-                    <button
-                      onClick={() => setAardvarkSolo(false)}
-                      style={{
-                        padding: '6px 12px',
-                        fontSize: '12px',
-                        border: '1px solid #9C27B0',
-                        borderRadius: '4px',
-                        background: 'white',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Cancel Tunkarri
-                    </button>
-                  </div>
-                )}
               </div>
             )}
 
-            {/* 4-Man Invisible Aardvark UI */}
+            {/* 4-Man Invisible Aardvark - Compact */}
             {players.length === 4 && team1.length === 2 && (
               <div style={{
-                marginTop: '16px',
-                padding: '12px',
-                background: 'linear-gradient(135deg, #FFF3E0, #FFE0B2)',
-                borderRadius: '8px',
-                border: '2px dashed #FF9800'
+                marginTop: '12px',
+                padding: '8px 10px',
+                background: '#FFF8E1',
+                borderRadius: '6px',
+                border: '1px dashed #FFB74D',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
               }}>
-                <div style={{ fontWeight: 'bold', marginBottom: '8px', color: '#E65100' }}>
-                  👻 Invisible Aardvark
-                </div>
-                <div style={{ fontSize: '13px', color: '#EF6C00', marginBottom: '12px' }}>
-                  The Invisible Aardvark automatically joins Team 2 (the "forcibly formed" team).
-                  Team 2 can "toss" it to double the wager (3 for 2 if they win).
-                </div>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px' }}>
                   <input
                     type="checkbox"
                     checked={invisibleAardvarkTossed}
                     onChange={(e) => setInvisibleAardvarkTossed(e.target.checked)}
-                    style={{ width: '20px', height: '20px' }}
+                    style={{ width: '16px', height: '16px' }}
                   />
-                  <span style={{ fontWeight: 'bold', color: invisibleAardvarkTossed ? '#d32f2f' : '#5D4037' }}>
-                    {invisibleAardvarkTossed ? '❌ Invisible Aardvark TOSSED! (Wager doubled, 3 for 2)' : 'Toss the Invisible Aardvark?'}
+                  <span style={{ color: invisibleAardvarkTossed ? '#d32f2f' : '#795548', fontWeight: invisibleAardvarkTossed ? 'bold' : 'normal' }}>
+                    Invisible Aardvark tossed{invisibleAardvarkTossed && ' (3:2)'}
                   </span>
                 </label>
               </div>
@@ -2204,7 +2231,7 @@ const SimpleScorekeeper = ({
         ))}
       </div>
 
-      {/* Quarters Entry (Primary) */}
+      {/* Quarters Entry (Primary) - Simplified */}
       <div style={{
         background: theme.colors.paper,
         padding: '16px',
@@ -2212,219 +2239,133 @@ const SimpleScorekeeper = ({
         marginBottom: '20px',
         border: `1px solid ${theme.colors.border}`,
         borderLeft: `4px solid ${theme.colors.primary}`,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-        transition: 'box-shadow 0.2s ease'
+        boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
       }}>
-        <h3 style={{
-          margin: '0 0 4px',
-          textTransform: 'uppercase',
-          letterSpacing: '0.5px',
-          fontSize: '12px',
-          fontWeight: 'bold'
-        }}>Quarters</h3>
-        <div style={{ fontSize: '12px', color: theme.colors.textSecondary, marginBottom: '12px' }}>
-          Must sum to zero: {(() => {
-            const sum = players.reduce((acc, p) => acc + (parseFloat(quarters[p.id]) || 0), 0);
-            const color = Math.abs(sum) < 0.001 ? '#4CAF50' : '#f44336';
-            const displaySum = Math.abs(sum) < 0.001 ? '0' : (sum > 0 ? '+' : '') + sum.toFixed(2);
-            return <span style={{ fontWeight: 'bold', color }}>{displaySum}</span>;
-          })()}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          marginBottom: '12px'
+        }}>
+          <h3 style={{
+            margin: 0,
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+            fontSize: '12px',
+            fontWeight: 'bold'
+          }}>Quarters</h3>
+          <div style={{ fontSize: '14px', fontWeight: 'bold' }}>
+            Sum: {(() => {
+              const sum = players.reduce((acc, p) => acc + (parseFloat(quarters[p.id]) || 0), 0);
+              const color = Math.abs(sum) < 0.001 ? '#4CAF50' : '#f44336';
+              const displaySum = Math.abs(sum) < 0.001 ? '0' : (sum > 0 ? '+' : '') + sum.toFixed(1);
+              return <span style={{ color }}>{displaySum}</span>;
+            })()}
+          </div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {playerDisplayOrder.map((playerId, index) => {
-            const player = players.find(p => p.id === playerId);
-            if (!player) return null;
+        
+        {/* Player quarters - direct text entry for any value including negatives */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {players.map((player) => {
             const currentVal = parseFloat(quarters[player.id]) || 0;
             const adjustQuarters = (delta) => {
               setQuarters(prev => ({ ...prev, [player.id]: (currentVal + delta).toString() }));
             };
-            const movePlayer = (direction) => {
-              const newOrder = [...playerDisplayOrder];
-              const newIndex = index + direction;
-              if (newIndex >= 0 && newIndex < newOrder.length) {
-                [newOrder[index], newOrder[newIndex]] = [newOrder[newIndex], newOrder[index]];
-                setPlayerDisplayOrder(newOrder);
-              }
-            };
             return (
               <div key={player.id} style={{
                 display: 'flex',
-                alignItems: 'center',
+                flexDirection: 'column',
                 gap: '6px',
-                padding: '8px',
-                background: `rgba(${teamMode === 'partners' ? '76,175,80' : '33,150,243'}, 0.05)`,
+                padding: '10px 12px',
+                background: currentVal !== 0 
+                  ? currentVal > 0 ? 'rgba(76,175,80,0.08)' : 'rgba(244,67,54,0.08)'
+                  : theme.colors.background,
                 borderRadius: '8px',
-                border: `1px solid ${theme.colors.border}`
+                border: `1px solid ${currentVal > 0 ? '#4CAF50' : currentVal < 0 ? '#f44336' : theme.colors.border}`
               }}>
-                {/* Reorder buttons */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <button
-                    onClick={() => movePlayer(-1)}
-                    disabled={index === 0}
-                    style={{
-                      width: '20px', height: '16px', padding: 0, border: 'none',
-                      background: index === 0 ? '#eee' : '#ddd', borderRadius: '3px',
-                      cursor: index === 0 ? 'default' : 'pointer', fontSize: '10px',
-                      color: index === 0 ? '#aaa' : '#666'
+                {/* Player name and main input */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ flex: 1, fontWeight: 'bold', fontSize: '15px' }}>
+                    {player.name.split(' ')[0]}
+                  </div>
+                  {/* Text input - allows typing negative numbers directly like "-96" */}
+                  <input
+                    data-testid={`quarters-input-${player.id}`}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="-?[0-9]*\.?[0-9]*"
+                    value={quarters[player.id] ?? ''}
+                    onChange={(e) => {
+                      // Allow empty, minus sign, numbers, and decimals
+                      const val = e.target.value;
+                      if (val === '' || val === '-' || /^-?\d*\.?\d*$/.test(val)) {
+                        setQuarters(prev => ({ ...prev, [player.id]: val }));
+                      }
                     }}
-                  >▲</button>
-                  <button
-                    onClick={() => movePlayer(1)}
-                    disabled={index === playerDisplayOrder.length - 1}
+                    placeholder="0"
                     style={{
-                      width: '20px', height: '16px', padding: 0, border: 'none',
-                      background: index === playerDisplayOrder.length - 1 ? '#eee' : '#ddd', borderRadius: '3px',
-                      cursor: index === playerDisplayOrder.length - 1 ? 'default' : 'pointer', fontSize: '10px',
-                      color: index === playerDisplayOrder.length - 1 ? '#aaa' : '#666'
+                      width: '90px',
+                      padding: '10px',
+                      fontSize: '20px',
+                      fontWeight: 'bold',
+                      border: `2px solid ${currentVal > 0 ? '#4CAF50' : currentVal < 0 ? '#f44336' : theme.colors.border}`,
+                      borderRadius: '8px',
+                      textAlign: 'center',
+                      color: currentVal > 0 ? '#4CAF50' : currentVal < 0 ? '#f44336' : 'inherit',
+                      background: 'white'
                     }}
-                  >▼</button>
+                  />
                 </div>
-                <div style={{ flex: 1, fontWeight: 'bold', fontSize: '14px' }}>
-                  {player.name}
+                {/* Quick adjust buttons */}
+                <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+                  {[-10, -5, -1, +1, +5, +10].map((delta) => (
+                    <button
+                      key={delta}
+                      onClick={() => adjustQuarters(delta)}
+                      className="touch-optimized"
+                      style={{
+                        minWidth: '40px',
+                        height: '32px',
+                        borderRadius: '6px',
+                        border: `1px solid ${delta < 0 ? '#f44336' : '#4CAF50'}`,
+                        background: 'white',
+                        color: delta < 0 ? '#f44336' : '#4CAF50',
+                        fontWeight: 'bold',
+                        fontSize: '13px',
+                        cursor: 'pointer'
+                      }}
+                    >{delta > 0 ? `+${delta}` : delta}</button>
+                  ))}
                 </div>
-                {/* Quick decrement button */}
-                <button
-                  onClick={() => adjustQuarters(-1)}
-                  style={{
-                    width: '32px', height: '32px', borderRadius: '6px',
-                    border: '1px solid #f44336', background: 'rgba(244,67,54,0.1)',
-                    color: '#f44336', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer',
-                    transition: 'all 0.15s ease'
-                  }}
-                >-1</button>
-                {/* Input */}
-                <Input
-                  data-testid={`quarters-input-${player.id}`}
-                  type="number"
-                  inputMode="decimal"
-                  step="any"
-                  value={quarters[player.id] ?? ''}
-                  onChange={(e) => setQuarters(prev => ({ ...prev, [player.id]: e.target.value }))}
-                  variant="inline"
-                  inputStyle={{
-                    width: '70px',
-                    padding: '6px',
-                    fontSize: '18px',
-                    fontWeight: 'bold',
-                    border: `2px solid ${theme.colors.border}`,
-                    borderRadius: '6px',
-                    textAlign: 'center',
-                    color: currentVal > 0 ? '#4CAF50' : currentVal < 0 ? '#f44336' : 'inherit'
-                  }}
-                />
-                {/* Quick increment button */}
-                <button
-                  onClick={() => adjustQuarters(1)}
-                  style={{
-                    width: '32px', height: '32px', borderRadius: '6px',
-                    border: '1px solid #4CAF50', background: 'rgba(76,175,80,0.1)',
-                    color: '#4CAF50', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer',
-                    transition: 'all 0.15s ease'
-                  }}
-                >+1</button>
               </div>
             );
           })}
         </div>
-        {/* Quick preset buttons */}
-        <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: `1px solid ${theme.colors.border}` }}>
-          <div style={{ fontSize: '11px', color: theme.colors.textSecondary, marginBottom: '8px' }}>Quick presets:</div>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
-            <button
-              onClick={() => {
-                const allZero = {};
-                players.forEach(p => { allZero[p.id] = '0'; });
-                setQuarters(allZero);
-              }}
-              style={{
-                padding: '6px 12px', borderRadius: '6px', fontSize: '12px',
-                border: `1px solid ${theme.colors.border}`, background: 'white', cursor: 'pointer'
-              }}
-            >All Zero</button>
-            <button
-              onClick={() => {
-                const cleared = {};
-                players.forEach(p => { cleared[p.id] = ''; });
-                setQuarters(cleared);
-              }}
-              style={{
-                padding: '6px 12px', borderRadius: '6px', fontSize: '12px',
-                border: `1px solid ${theme.colors.border}`, background: 'white', cursor: 'pointer'
-              }}
-            >Clear All</button>
-          </div>
-          {/* Betting scenario presets */}
-          {players.length === 4 && (
-            <div style={{ marginTop: '8px' }}>
-              <div style={{ fontSize: '11px', color: theme.colors.textSecondary, marginBottom: '6px' }}>4-player scenarios:</div>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                {/* 2v2 Win scenarios */}
-                {[1, 2, 4, 8].map(wager => (
-                  <button
-                    key={`2v2-${wager}`}
-                    onClick={() => {
-                      // First 2 players win, last 2 lose
-                      const preset = {};
-                      players.forEach((p, i) => {
-                        preset[p.id] = i < 2 ? wager.toString() : (-wager).toString();
-                      });
-                      setQuarters(preset);
-                    }}
-                    style={{
-                      padding: '4px 8px', borderRadius: '4px', fontSize: '11px',
-                      border: '1px solid #4CAF50', background: 'rgba(76,175,80,0.1)',
-                      color: '#4CAF50', cursor: 'pointer'
-                    }}
-                  >2v2 ±{wager}</button>
-                ))}
-              </div>
-            </div>
-          )}
-          {players.length >= 3 && (
-            <div style={{ marginTop: '8px' }}>
-              <div style={{ fontSize: '11px', color: theme.colors.textSecondary, marginBottom: '6px' }}>Solo (1 vs rest):</div>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                {[1, 2, 4].map(wager => (
-                  <button
-                    key={`solo-win-${wager}`}
-                    onClick={() => {
-                      // First player wins solo vs all others
-                      const preset = {};
-                      const numOpponents = players.length - 1;
-                      players.forEach((p, i) => {
-                        preset[p.id] = i === 0 ? (wager * numOpponents).toString() : (-wager).toString();
-                      });
-                      setQuarters(preset);
-                    }}
-                    style={{
-                      padding: '4px 8px', borderRadius: '4px', fontSize: '11px',
-                      border: '1px solid #4CAF50', background: 'rgba(76,175,80,0.1)',
-                      color: '#4CAF50', cursor: 'pointer'
-                    }}
-                  >{players[0]?.name?.split(' ')[0] || 'P1'} +{wager * (players.length - 1)}</button>
-                ))}
-                {[1, 2, 4].map(wager => (
-                  <button
-                    key={`solo-lose-${wager}`}
-                    onClick={() => {
-                      // First player loses solo vs all others
-                      const preset = {};
-                      const numOpponents = players.length - 1;
-                      players.forEach((p, i) => {
-                        preset[p.id] = i === 0 ? (-wager * numOpponents).toString() : wager.toString();
-                      });
-                      setQuarters(preset);
-                    }}
-                    style={{
-                      padding: '4px 8px', borderRadius: '4px', fontSize: '11px',
-                      border: '1px solid #f44336', background: 'rgba(244,67,54,0.1)',
-                      color: '#f44336', cursor: 'pointer'
-                    }}
-                  >{players[0]?.name?.split(' ')[0] || 'P1'} -{wager * (players.length - 1)}</button>
-                ))}
-              </div>
-            </div>
-          )}
+        
+        {/* Simplified quick actions */}
+        <div style={{ marginTop: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => {
+              const allZero = {};
+              players.forEach(p => { allZero[p.id] = '0'; });
+              setQuarters(allZero);
+            }}
+            style={{
+              padding: '8px 14px', borderRadius: '6px', fontSize: '13px',
+              border: `1px solid ${theme.colors.border}`, background: 'white', cursor: 'pointer'
+            }}
+          >Push (all 0)</button>
+          <button
+            onClick={() => {
+              const cleared = {};
+              players.forEach(p => { cleared[p.id] = ''; });
+              setQuarters(cleared);
+            }}
+            style={{
+              padding: '8px 14px', borderRadius: '6px', fontSize: '13px',
+              border: `1px solid ${theme.colors.border}`, background: 'white', cursor: 'pointer'
+            }}
+          >Clear</button>
         </div>
       </div>
 

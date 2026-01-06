@@ -433,8 +433,8 @@ class GHINService:
                 # Ensure transaction is rolled back before returning
                 try:
                     self.db.rollback()
-                except:
-                    pass
+                except Exception as rollback_error:
+                    logger.debug(f"Rollback failed: {rollback_error}")
                 return []
 
     # GHIN API Integration - Now supports real API calls

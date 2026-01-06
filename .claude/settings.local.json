@@ -12,7 +12,22 @@
       "Bash(grep:*)",
       "Bash(cat:*)",
       "Bash(npm run build:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(podman exec:*)",
+      "Bash(podman cp:*)",
+      "Bash(mkdir:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill -9)",
+      "Bash(npm start)",
+      "Bash(npm install:*)",
+      "Bash(npx eslint:*)",
+      "Bash(npm run test:ci:*)",
+      "Bash(wc:*)",
+      "Bash(npm ci:*)",
+      "Bash(git restore:*)",
+      "Bash(xargs cat:*)"
     ],
     "deny": []
   }

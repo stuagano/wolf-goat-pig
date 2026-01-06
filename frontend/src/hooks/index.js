@@ -28,3 +28,6 @@ export { default as usePlayerProfile } from './usePlayerProfile';
 // Utility hooks
 export { default as useFetchAsync } from './useFetchAsync';
 export { default as useTutorialProgress } from './useTutorialProgress';
+
+// Sync hooks (offline-first data management)
+export { default as useSyncStatus, useHoleSync } from './useSyncStatus';

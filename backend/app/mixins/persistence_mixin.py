@@ -84,8 +84,8 @@ class PersistenceMixin:
             if hasattr(self, '_db_session'):
                 try:
                     self._db_session.rollback()
-                except:
-                    pass
+                except Exception as rollback_error:
+                    print(f"⚠️ Rollback failed: {rollback_error}")
 
     def _load_from_db(self):
         """
@@ -211,8 +211,8 @@ class PersistenceMixin:
             if hasattr(self, '_db_session'):
                 try:
                     self._db_session.rollback()
-                except:
-                    pass
+                except Exception as rollback_error:
+                    print(f"⚠️ Rollback failed: {rollback_error}")
             return f"Failed to complete game: {str(e)}"
 
     def close_db_session(self):
@@ -220,5 +220,5 @@ class PersistenceMixin:
         if hasattr(self, '_db_session') and self._db_session:
             try:
                 self._db_session.close()
-            except:
-                pass
+            except Exception as close_error:
+                print(f"⚠️ Failed to close DB session: {close_error}")

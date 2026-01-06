@@ -12,8 +12,8 @@ import { useCallback, useMemo } from 'react';
 export const SCORE_CONSTRAINTS = {
   MIN_STROKES: 1,
   MAX_STROKES: 15,
-  MIN_QUARTERS: -10,
-  MAX_QUARTERS: 10,
+  MIN_QUARTERS: -999, // No practical limit - quarters can accumulate with doubles, floats, carry-overs
+  MAX_QUARTERS: 999,  // No practical limit - quarters can accumulate with doubles, floats, carry-overs
   MIN_PLAYERS_PER_TEAM: 1,
   MAX_PLAYERS: 4
 };

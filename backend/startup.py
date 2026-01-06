@@ -7,7 +7,7 @@ including environment validation, database initialization, data seeding, and hea
 
 Usage:
     python startup.py [options]
-    
+
 Options:
     --check-health          Only check application health
     --seed-only            Only run data seeding
@@ -28,44 +28,42 @@ import time
 from typing import Optional, Dict, Any, List
 
 # Add the app directory to the Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'app'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "app"))
+
 
 def setup_logging(level: str = "INFO") -> None:
     """Configure logging for the startup script."""
     numeric_level = getattr(logging, level.upper(), logging.INFO)
-    
+
     # Create formatter
-    formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
-    
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+
     # Setup root logger
     root_logger = logging.getLogger()
     root_logger.setLevel(numeric_level)
-    
+
     # Remove existing handlers
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
-    
+
     # Add console handler
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(formatter)
     root_logger.addHandler(console_handler)
-    
+
     # Set specific logger levels
-    logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
-    logging.getLogger('sqlalchemy.pool').setLevel(logging.WARNING)
+    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+    logging.getLogger("sqlalchemy.pool").setLevel(logging.WARNING)
 
 
 class BootstrapManager:
     """
     Main bootstrap management class for the Wolf-Goat-Pig application.
-    
+
     Handles the complete startup sequence including dependency checking,
     database initialization, data seeding, and health verification.
     """
-    
+
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         """
         Initialize the BootstrapManager with configuration.
@@ -80,21 +78,21 @@ class BootstrapManager:
             "dependencies": None,
             "database": None,
             "seeding": None,
-            "health": None
+            "health": None,
         }
-    
+
     def check_dependencies(self) -> Dict[str, Any]:
         """
         Check that all required Python packages are available.
-        
+
         Returns:
             Dictionary with dependency check results
         """
         self.logger.info("📦 Checking dependencies...")
         dep_status = check_dependencies()
-        
+
         self.startup_results["dependencies"] = dep_status
-        
+
         if not dep_status["valid"]:
             self.logger.error("❌ Missing required dependencies:")
             for package in dep_status["missing"]:
@@ -104,72 +102,72 @@ class BootstrapManager:
             self.logger.info("✅ All required dependencies available")
             for package, version in dep_status["versions"].items():
                 self.logger.debug(f"  {package}: {version}")
-        
+
         # Log optional missing packages as warnings
         if dep_status.get("optional_missing"):
             self.logger.warning("⚠️ Optional packages missing (may affect full functionality):")
             for package in dep_status["optional_missing"]:
                 self.logger.warning(f"  - {package}")
-        
+
         return dep_status
-    
+
     async def initialize_database(self) -> Dict[str, Any]:
         """
         Set up database connections and initialize tables.
-        
+
         Returns:
             Dictionary with database initialization results
         """
         self.logger.info("🗄️ Initializing database...")
         db_status = await initialize_database()
-        
+
         self.startup_results["database"] = db_status
-        
+
         if not db_status["initialized"]:
             self.logger.error(f"❌ Database initialization failed: {db_status.get('error', 'Unknown error')}")
         elif not db_status["connected"]:
             self.logger.error(f"❌ Database connection failed: {db_status.get('error', 'Unknown error')}")
         else:
             self.logger.info("✅ Database initialized and connected successfully")
-        
+
         return db_status
-    
+
     async def seed_data(self, force_reseed: bool = False) -> Dict[str, Any]:
         """
         Call seeding functions from app.seed_data safely.
-        
+
         Args:
             force_reseed: If True, force re-seeding even if data exists
-            
+
         Returns:
             Dictionary with seeding results
         """
         self.logger.info("🌱 Running data seeding...")
         seeding_results = await run_data_seeding(force_reseed=force_reseed)
-        
+
         self.startup_results["seeding"] = seeding_results
-        
+
         if seeding_results["status"] == "success":
             self.logger.info("✅ Data seeding completed successfully")
         elif seeding_results["status"] == "warning":
             self.logger.warning(f"⚠️ Data seeding completed with warnings: {seeding_results.get('message')}")
         else:
             self.logger.error(f"❌ Data seeding failed: {seeding_results.get('message')}")
-        
+
         return seeding_results
-    
+
     async def verify_health(self) -> Dict[str, Any]:
         """
         Check system health including database connectivity and seeded data.
-        
+
         Returns:
             Dictionary with health check results
         """
         self.logger.info("🏥 Verifying application health...")
         health_status = await verify_application_health()
-        
+
         self.startup_results["health"] = health_status
-        
+
         if not health_status["healthy"]:
             self.logger.error("❌ Application health check failed")
             for component, status in health_status["components"].items():
@@ -179,92 +177,87 @@ class BootstrapManager:
             self.logger.info("✅ All systems healthy")
             for component, status in health_status["components"].items():
                 self.logger.info(f"  {component}: {status}")
-        
+
         return health_status
-    
+
     async def startup(self, skip_seeding: bool = False, force_reseed: bool = False) -> Dict[str, Any]:
         """
         Complete startup sequence with all bootstrap components.
-        
+
         Args:
             skip_seeding: If True, skip the data seeding step
             force_reseed: If True, force re-seeding even if data exists
-            
+
         Returns:
             Dictionary with complete startup results
         """
         self.logger.info("🐺 Starting Wolf-Goat-Pig application bootstrap sequence...")
-        
+
         startup_success = True
-        
+
         try:
             # 1. Validate environment
             self.logger.info("🔍 Validating environment...")
             env_status = validate_environment()
             self.startup_results["environment"] = env_status
-            
+
             if not env_status["valid"]:
                 self.logger.error("❌ Environment validation failed:")
                 for error in env_status["errors"]:
                     self.logger.error(f"  - {error}")
                 startup_success = False
                 return self._build_startup_result(startup_success, "Environment validation failed")
-            
+
             if env_status["warnings"]:
                 for warning in env_status["warnings"]:
                     self.logger.warning(f"⚠️ {warning}")
-            
+
             self.logger.info("✅ Environment validation passed")
-            
+
             # 2. Check dependencies
             dep_status = self.check_dependencies()
             if not dep_status["valid"]:
                 startup_success = False
                 return self._build_startup_result(startup_success, "Dependency check failed")
-            
+
             # 3. Initialize database
             db_status = await self.initialize_database()
             if not db_status["initialized"] or not db_status["connected"]:
                 startup_success = False
                 return self._build_startup_result(startup_success, "Database initialization failed")
-            
+
             # 4. Seed data (optional)
             if not skip_seeding and os.getenv("SKIP_SEEDING", "false").lower() != "true":
                 seeding_results = await self.seed_data(force_reseed=force_reseed)
                 if seeding_results["status"] == "error":
                     self.logger.warning("🔄 Data seeding failed, but continuing with startup using fallback data")
-            
+
             # 5. Verify health
             health_status = await self.verify_health()
             if not health_status["healthy"]:
                 self.logger.warning("🔄 Health check failed, but continuing with startup")
-            
+
             self.logger.info("✅ Bootstrap sequence completed successfully")
             return self._build_startup_result(startup_success, "Bootstrap completed successfully")
-            
+
         except Exception as e:
             self.logger.error(f"❌ Critical error during bootstrap: {e}")
             startup_success = False
             return self._build_startup_result(startup_success, f"Bootstrap failed: {str(e)}")
-    
+
     def _build_startup_result(self, success: bool, message: str) -> Dict[str, Any]:
         """Build the final startup result dictionary."""
         return {
             "success": success,
             "message": message,
             "timestamp": time.time(),
-            "results": self.startup_results.copy()
+            "results": self.startup_results.copy(),
         }
 
 
 def validate_environment() -> Dict[str, Any]:
     """Validate and set up environment variables."""
-    env_status: Dict[str, Any] = {
-        "valid": True,
-        "warnings": [],
-        "errors": [],
-        "config": {}
-    }
+    env_status: Dict[str, Any] = {"valid": True, "warnings": [], "errors": [], "config": {}}
 
     # Get environment
     environment = os.getenv("ENVIRONMENT", "development")
@@ -277,15 +270,15 @@ def validate_environment() -> Dict[str, Any]:
         "SKIP_SEEDING": "false",
         "LOG_LEVEL": "INFO",
         "PORT": "8000",
-        "HOST": "0.0.0.0"
+        "HOST": "0.0.0.0",
     }
-    
+
     # Check required variables
     for var in required_vars:
         if not os.getenv(var):
             env_status["errors"].append(f"Required environment variable '{var}' is not set")
             env_status["valid"] = False
-    
+
     # Set optional variables with defaults
     for var, default in optional_vars.items():
         value = os.getenv(var, default)
@@ -295,7 +288,7 @@ def validate_environment() -> Dict[str, Any]:
             env_status["config"][var.lower()] = default
             if var not in os.environ:
                 os.environ[var] = default
-    
+
     # Environment-specific validation
     if environment == "production":
         if not os.getenv("DATABASE_URL"):
@@ -314,25 +307,13 @@ def validate_environment() -> Dict[str, Any]:
 
 def check_dependencies() -> Dict[str, Any]:
     """Check that all required dependencies are available."""
-    dep_status: Dict[str, Any] = {
-        "valid": True,
-        "missing": [],
-        "versions": {},
-        "optional_missing": []
-    }
+    dep_status: Dict[str, Any] = {"valid": True, "missing": [], "versions": {}, "optional_missing": []}
 
     # Core required packages for basic functionality
-    required_packages: List[str] = [
-        "sqlalchemy",
-        "pydantic"
-    ]
+    required_packages: List[str] = ["sqlalchemy", "pydantic"]
 
     # Optional packages that are needed for full functionality
-    optional_packages: List[str] = [
-        "fastapi",
-        "uvicorn",
-        "httpx"
-    ]
+    optional_packages: List[str] = ["fastapi", "uvicorn", "httpx"]
 
     # Check required packages
     for package in required_packages:
@@ -359,11 +340,7 @@ def check_dependencies() -> Dict[str, Any]:
 
 async def run_migrations() -> Dict[str, Any]:
     """Run database migrations to ensure schema is up-to-date."""
-    migration_result: Dict[str, Any] = {
-        "success": False,
-        "message": "",
-        "migrations_applied": []
-    }
+    migration_result: Dict[str, Any] = {"success": False, "message": "", "migrations_applied": []}
 
     try:
         import os
@@ -371,43 +348,52 @@ async def run_migrations() -> Dict[str, Any]:
         from sqlalchemy import text, inspect
         from sqlalchemy.engine import Inspector
 
-        database_url = os.getenv('DATABASE_URL', '')
-        is_postgresql = 'postgresql://' in database_url or 'postgres://' in database_url
+        database_url = os.getenv("DATABASE_URL", "")
+        is_postgresql = "postgresql://" in database_url or "postgres://" in database_url
 
         db = SessionLocal()
         try:
             # Check if game_state table exists
             inspector: Inspector = inspect(engine)
             tables: List[str] = inspector.get_table_names()
-            if 'game_state' not in tables:
+            if "game_state" not in tables:
                 migration_result["success"] = True
                 migration_result["message"] = "game_state table does not exist yet, will be created by init_db"
                 return migration_result
 
             # Get existing columns
             from typing import cast
-            columns_info = cast(List[Dict[str, Any]], inspector.get_columns('game_state'))
-            columns: List[str] = [col['name'] for col in columns_info]
+
+            columns_info = cast(List[Dict[str, Any]], inspector.get_columns("game_state"))
+            columns: List[str] = [col["name"] for col in columns_info]
             logging.debug(f"Existing game_state columns: {columns}")
 
             migrations_applied: List[str] = []
 
             # Migration 1: Add game_id column if missing
-            if 'game_id' not in columns:
+            if "game_id" not in columns:
                 logging.info("  Adding game_id column to game_state...")
                 if is_postgresql:
                     db.execute(text("ALTER TABLE game_state ADD COLUMN game_id VARCHAR"))
                     db.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_game_state_game_id ON game_state(game_id)"))
-                    db.execute(text("UPDATE game_state SET game_id = 'legacy-game-' || CAST(id AS VARCHAR) WHERE game_id IS NULL"))
+                    db.execute(
+                        text(
+                            "UPDATE game_state SET game_id = 'legacy-game-' || CAST(id AS VARCHAR) WHERE game_id IS NULL"
+                        )
+                    )
                 else:
                     db.execute(text("ALTER TABLE game_state ADD COLUMN game_id VARCHAR"))
                     db.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_game_state_game_id ON game_state(game_id)"))
-                    db.execute(text("UPDATE game_state SET game_id = 'legacy-game-' || CAST(id AS VARCHAR) WHERE game_id IS NULL"))
+                    db.execute(
+                        text(
+                            "UPDATE game_state SET game_id = 'legacy-game-' || CAST(id AS VARCHAR) WHERE game_id IS NULL"
+                        )
+                    )
                 migrations_applied.append("game_id column")
                 logging.info("  ✅ Added game_id column")
 
             # Migration 2: Add created_at column if missing
-            if 'created_at' not in columns:
+            if "created_at" not in columns:
                 logging.info("  Adding created_at column to game_state...")
                 if is_postgresql:
                     db.execute(text("ALTER TABLE game_state ADD COLUMN created_at VARCHAR"))
@@ -419,7 +405,7 @@ async def run_migrations() -> Dict[str, Any]:
                 logging.info("  ✅ Added created_at column")
 
             # Migration 3: Add updated_at column if missing
-            if 'updated_at' not in columns:
+            if "updated_at" not in columns:
                 logging.info("  Adding updated_at column to game_state...")
                 if is_postgresql:
                     db.execute(text("ALTER TABLE game_state ADD COLUMN updated_at VARCHAR"))
@@ -431,26 +417,30 @@ async def run_migrations() -> Dict[str, Any]:
                 logging.info("  ✅ Added updated_at column")
 
             # Migration 4: Add join_code column if missing
-            if 'join_code' not in columns:
+            if "join_code" not in columns:
                 logging.info("  Adding join_code column to game_state...")
                 if is_postgresql:
                     db.execute(text("ALTER TABLE game_state ADD COLUMN join_code VARCHAR"))
-                    db.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_game_state_join_code ON game_state(join_code)"))
+                    db.execute(
+                        text("CREATE UNIQUE INDEX IF NOT EXISTS idx_game_state_join_code ON game_state(join_code)")
+                    )
                 else:
                     db.execute(text("ALTER TABLE game_state ADD COLUMN join_code VARCHAR"))
-                    db.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_game_state_join_code ON game_state(join_code)"))
+                    db.execute(
+                        text("CREATE UNIQUE INDEX IF NOT EXISTS idx_game_state_join_code ON game_state(join_code)")
+                    )
                 migrations_applied.append("join_code column")
                 logging.info("  ✅ Added join_code column")
 
             # Migration 5: Add creator_user_id column if missing
-            if 'creator_user_id' not in columns:
+            if "creator_user_id" not in columns:
                 logging.info("  Adding creator_user_id column to game_state...")
                 db.execute(text("ALTER TABLE game_state ADD COLUMN creator_user_id VARCHAR"))
                 migrations_applied.append("creator_user_id column")
                 logging.info("  ✅ Added creator_user_id column")
 
             # Migration 6: Add game_status column if missing
-            if 'game_status' not in columns:
+            if "game_status" not in columns:
                 logging.info("  Adding game_status column to game_state...")
                 if is_postgresql:
                     db.execute(text("ALTER TABLE game_state ADD COLUMN game_status VARCHAR DEFAULT 'setup'"))
@@ -462,52 +452,131 @@ async def run_migrations() -> Dict[str, Any]:
                 logging.info("  ✅ Added game_status column")
 
             # Migration 7: Add tee_order column to game_players if missing
-            if 'game_players' in tables:
-                player_columns_info = cast(List[Dict[str, Any]], inspector.get_columns('game_players'))
-                player_columns: List[str] = [col['name'] for col in player_columns_info]
-                if 'tee_order' not in player_columns:
+            if "game_players" in tables:
+                player_columns_info = cast(List[Dict[str, Any]], inspector.get_columns("game_players"))
+                player_columns: List[str] = [col["name"] for col in player_columns_info]
+                if "tee_order" not in player_columns:
                     logging.info("  Adding tee_order column to game_players...")
                     if is_postgresql:
                         db.execute(text("ALTER TABLE game_players ADD COLUMN tee_order INTEGER"))
-                        db.execute(text("CREATE INDEX IF NOT EXISTS idx_game_players_tee_order ON game_players(game_id, tee_order)"))
+                        db.execute(
+                            text(
+                                "CREATE INDEX IF NOT EXISTS idx_game_players_tee_order ON game_players(game_id, tee_order)"
+                            )
+                        )
                     else:
                         db.execute(text("ALTER TABLE game_players ADD COLUMN tee_order INTEGER"))
-                        db.execute(text("CREATE INDEX IF NOT EXISTS idx_game_players_tee_order ON game_players(game_id, tee_order)"))
+                        db.execute(
+                            text(
+                                "CREATE INDEX IF NOT EXISTS idx_game_players_tee_order ON game_players(game_id, tee_order)"
+                            )
+                        )
                     migrations_applied.append("tee_order column to game_players")
                     logging.info("  ✅ Added tee_order column to game_players")
 
-            # Migration 8: Add special event stats to player_statistics
-            if 'player_statistics' in tables:
-                stats_columns_info = cast(List[Dict[str, Any]], inspector.get_columns('player_statistics'))
-                stats_columns: List[str] = [col['name'] for col in stats_columns_info]
+            # Migration 8: Add ALL missing columns to player_statistics
+            if "player_statistics" in tables:
+                stats_columns_info = cast(List[Dict[str, Any]], inspector.get_columns("player_statistics"))
+                stats_columns: List[str] = [col["name"] for col in stats_columns_info]
 
-                # Ping pong tracking
-                if 'ping_pong_count' not in stats_columns:
-                    logging.info("  Adding special event stats columns to player_statistics...")
-                    db.execute(text("ALTER TABLE player_statistics ADD COLUMN ping_pong_count INTEGER DEFAULT 0"))
-                    db.execute(text("ALTER TABLE player_statistics ADD COLUMN ping_pong_wins INTEGER DEFAULT 0"))
-                    db.execute(text("ALTER TABLE player_statistics ADD COLUMN invisible_aardvark_appearances INTEGER DEFAULT 0"))
-                    db.execute(text("ALTER TABLE player_statistics ADD COLUMN invisible_aardvark_wins INTEGER DEFAULT 0"))
-                    db.execute(text("ALTER TABLE player_statistics ADD COLUMN duncan_attempts INTEGER DEFAULT 0"))
-                    db.execute(text("ALTER TABLE player_statistics ADD COLUMN duncan_wins INTEGER DEFAULT 0"))
-                    db.execute(text("ALTER TABLE player_statistics ADD COLUMN tunkarri_attempts INTEGER DEFAULT 0"))
-                    db.execute(text("ALTER TABLE player_statistics ADD COLUMN tunkarri_wins INTEGER DEFAULT 0"))
-                    db.execute(text("ALTER TABLE player_statistics ADD COLUMN big_dick_attempts INTEGER DEFAULT 0"))
-                    db.execute(text("ALTER TABLE player_statistics ADD COLUMN big_dick_wins INTEGER DEFAULT 0"))
-                    migrations_applied.append("special event stats columns to player_statistics")
-                    logging.info("  ✅ Added special event stats columns to player_statistics")
+                # Define all columns that should exist with their types and defaults
+                required_columns = [
+                    # Special event tracking
+                    ("ping_pong_count", "INTEGER", "0"),
+                    ("ping_pong_wins", "INTEGER", "0"),
+                    ("invisible_aardvark_appearances", "INTEGER", "0"),
+                    ("invisible_aardvark_wins", "INTEGER", "0"),
+                    ("duncan_attempts", "INTEGER", "0"),
+                    ("duncan_wins", "INTEGER", "0"),
+                    ("tunkarri_attempts", "INTEGER", "0"),
+                    ("tunkarri_wins", "INTEGER", "0"),
+                    ("big_dick_attempts", "INTEGER", "0"),
+                    ("big_dick_wins", "INTEGER", "0"),
+                    # Score performance tracking
+                    ("eagles", "INTEGER", "0"),
+                    ("birdies", "INTEGER", "0"),
+                    ("pars", "INTEGER", "0"),
+                    ("bogeys", "INTEGER", "0"),
+                    ("double_bogeys", "INTEGER", "0"),
+                    ("worse_than_double", "INTEGER", "0"),
+                    # Streak tracking
+                    ("current_win_streak", "INTEGER", "0"),
+                    ("current_loss_streak", "INTEGER", "0"),
+                    ("best_win_streak", "INTEGER", "0"),
+                    ("worst_loss_streak", "INTEGER", "0"),
+                    # Role tracking
+                    ("times_as_wolf", "INTEGER", "0"),
+                    ("times_as_goat", "INTEGER", "0"),
+                    ("times_as_pig", "INTEGER", "0"),
+                    ("times_as_aardvark", "INTEGER", "0"),
+                    # Additional fields
+                    ("favorite_game_mode", "VARCHAR(50)", "NULL"),
+                    ("preferred_player_count", "INTEGER", "4"),
+                    ("best_hole_performance", "TEXT", "NULL"),
+                    ("worst_hole_performance", "TEXT", "NULL"),
+                    ("performance_trends", "TEXT", "NULL"),
+                    ("head_to_head_records", "TEXT", "NULL"),
+                    ("last_updated", "VARCHAR(50)", "NULL"),
+                    ("avg_earnings_per_game", "FLOAT", "0.0"),
+                    ("win_percentage", "FLOAT", "0.0"),
+                ]
+
+                columns_added = []
+                for col_name, col_type, default_val in required_columns:
+                    if col_name not in stats_columns:
+                        try:
+                            if is_postgresql:
+                                if default_val == "NULL":
+                                    db.execute(
+                                        text(
+                                            f'ALTER TABLE player_statistics ADD COLUMN IF NOT EXISTS "{col_name}" {col_type}'
+                                        )
+                                    )
+                                else:
+                                    db.execute(
+                                        text(
+                                            f'ALTER TABLE player_statistics ADD COLUMN IF NOT EXISTS "{col_name}" {col_type} DEFAULT {default_val}'
+                                        )
+                                    )
+                            else:
+                                if default_val == "NULL":
+                                    db.execute(
+                                        text(f'ALTER TABLE player_statistics ADD COLUMN "{col_name}" {col_type}')
+                                    )
+                                else:
+                                    db.execute(
+                                        text(
+                                            f'ALTER TABLE player_statistics ADD COLUMN "{col_name}" {col_type} DEFAULT {default_val}'
+                                        )
+                                    )
+                            columns_added.append(col_name)
+                        except Exception as col_err:
+                            # Column might already exist (race condition) - continue
+                            logging.warning(f"  Could not add column {col_name}: {col_err}")
+
+                if columns_added:
+                    migrations_applied.append(
+                        f"player_statistics columns ({len(columns_added)} added: {', '.join(columns_added[:5])}{'...' if len(columns_added) > 5 else ''})"
+                    )
+                    logging.info(f"  ✅ Added {len(columns_added)} columns to player_statistics")
 
             # Migration 9: Add special event stats to game_player_results
-            if 'game_player_results' in tables:
-                results_columns_info = cast(List[Dict[str, Any]], inspector.get_columns('game_player_results'))
-                results_columns: List[str] = [col['name'] for col in results_columns_info]
+            if "game_player_results" in tables:
+                results_columns_info = cast(List[Dict[str, Any]], inspector.get_columns("game_player_results"))
+                results_columns: List[str] = [col["name"] for col in results_columns_info]
 
-                if 'ping_pongs' not in results_columns:
+                if "ping_pongs" not in results_columns:
                     logging.info("  Adding special event stats columns to game_player_results...")
                     db.execute(text("ALTER TABLE game_player_results ADD COLUMN ping_pongs INTEGER DEFAULT 0"))
                     db.execute(text("ALTER TABLE game_player_results ADD COLUMN ping_pongs_won INTEGER DEFAULT 0"))
-                    db.execute(text("ALTER TABLE game_player_results ADD COLUMN invisible_aardvark_holes INTEGER DEFAULT 0"))
-                    db.execute(text("ALTER TABLE game_player_results ADD COLUMN invisible_aardvark_holes_won INTEGER DEFAULT 0"))
+                    db.execute(
+                        text("ALTER TABLE game_player_results ADD COLUMN invisible_aardvark_holes INTEGER DEFAULT 0")
+                    )
+                    db.execute(
+                        text(
+                            "ALTER TABLE game_player_results ADD COLUMN invisible_aardvark_holes_won INTEGER DEFAULT 0"
+                        )
+                    )
                     db.execute(text("ALTER TABLE game_player_results ADD COLUMN duncan_attempts INTEGER DEFAULT 0"))
                     db.execute(text("ALTER TABLE game_player_results ADD COLUMN duncan_wins INTEGER DEFAULT 0"))
                     db.execute(text("ALTER TABLE game_player_results ADD COLUMN tunkarri_attempts INTEGER DEFAULT 0"))
@@ -521,7 +590,9 @@ async def run_migrations() -> Dict[str, Any]:
 
             if migrations_applied:
                 migration_result["success"] = True
-                migration_result["message"] = f"Applied {len(migrations_applied)} migration(s): {', '.join(migrations_applied)}"
+                migration_result["message"] = (
+                    f"Applied {len(migrations_applied)} migration(s): {', '.join(migrations_applied)}"
+                )
                 migration_result["migrations_applied"] = migrations_applied
             else:
                 migration_result["success"] = True
@@ -544,12 +615,7 @@ async def run_migrations() -> Dict[str, Any]:
 
 async def initialize_database() -> Dict[str, Any]:
     """Initialize the database and verify connection."""
-    db_status: Dict[str, Any] = {
-        "initialized": False,
-        "connected": False,
-        "migrated": False,
-        "error": None
-    }
+    db_status: Dict[str, Any] = {"initialized": False, "connected": False, "migrated": False, "error": None}
 
     try:
         from app.database import init_db, SessionLocal
@@ -582,7 +648,9 @@ async def initialize_database() -> Dict[str, Any]:
                 if migration_result["success"]:
                     logging.info("✅ Database migrations completed")
                 else:
-                    logging.warning(f"⚠️ Database migrations completed with warnings: {migration_result.get('message', '')}")
+                    logging.warning(
+                        f"⚠️ Database migrations completed with warnings: {migration_result.get('message', '')}"
+                    )
             except Exception as e:
                 logging.warning(f"⚠️ Database migrations failed (continuing anyway): {e}")
                 db_status["migrated"] = False
@@ -597,46 +665,39 @@ async def initialize_database() -> Dict[str, Any]:
 async def run_data_seeding(force_reseed: bool = False) -> Dict[str, Any]:
     """Run the data seeding process."""
     logging.info("🌱 Starting data seeding process...")
-    
+
     try:
         from app.seed_data import seed_all_data
-        
+
         results = seed_all_data(force_reseed=force_reseed)
-        
+
         if results["status"] == "success":
             logging.info("✅ Data seeding completed successfully")
-            
+
             # Log summary
             if "results" in results:
                 for component, result in results["results"].items():
                     added = result.get("added", 0)
                     if added > 0:
                         logging.info(f"  📊 {component}: {added} items added")
-                        
+
         elif results["status"] == "warning":
             logging.warning(f"⚠️ Data seeding completed with warnings: {results.get('message')}")
-            
+
         else:
             logging.error(f"❌ Data seeding failed: {results.get('message')}")
-        
+
         return results
-        
+
     except Exception as e:
         logging.error(f"❌ Critical error during data seeding: {e}")
-        return {
-            "status": "error",
-            "message": f"Seeding process failed: {str(e)}"
-        }
+        return {"status": "error", "message": f"Seeding process failed: {str(e)}"}
 
 
 async def verify_application_health() -> Dict[str, Any]:
     """Verify that all application systems are healthy."""
-    health_status: Dict[str, Any] = {
-        "healthy": True,
-        "components": {},
-        "warnings": []
-    }
-    
+    health_status: Dict[str, Any] = {"healthy": True, "components": {}, "warnings": []}
+
     try:
         # Import after environment is set up
         from app.database import SessionLocal
@@ -644,7 +705,7 @@ async def verify_application_health() -> Dict[str, Any]:
         from app.wolf_goat_pig_simulation import WolfGoatPigGame  # type: ignore[import-not-found]
         from app.seed_data import get_seeding_status
         from sqlalchemy import text
-        
+
         # 1. Database health
         try:
             db = SessionLocal()
@@ -656,7 +717,7 @@ async def verify_application_health() -> Dict[str, Any]:
             health_status["components"]["database"] = f"unhealthy: {str(e)}"
             health_status["healthy"] = False
             logging.error(f"❌ Database health check failed: {e}")
-        
+
         # 2. Course availability
         try:
             courses = game_state.get_courses()
@@ -671,7 +732,7 @@ async def verify_application_health() -> Dict[str, Any]:
             health_status["components"]["courses"] = f"unhealthy: {str(e)}"
             health_status["healthy"] = False
             logging.error(f"❌ Course health check failed: {e}")
-        
+
         # 3. Simulation engine
         try:
             test_sim = WolfGoatPigGame(player_count=4)
@@ -681,7 +742,7 @@ async def verify_application_health() -> Dict[str, Any]:
             health_status["components"]["simulation"] = f"unhealthy: {str(e)}"
             health_status["healthy"] = False
             logging.error(f"❌ Simulation engine health check failed: {e}")
-        
+
         # 4. Data seeding status
         try:
             seeding_status = get_seeding_status()
@@ -696,22 +757,26 @@ async def verify_application_health() -> Dict[str, Any]:
             health_status["components"]["data_seeding"] = f"error: {str(e)}"
             health_status["warnings"].append("Data seeding status unavailable")
             logging.warning(f"⚠️ Data seeding health check failed: {e}")
-        
+
         # Overall health assessment
         unhealthy_components = [k for k, v in health_status["components"].items() if "unhealthy" in str(v)]
         if unhealthy_components:
             health_status["healthy"] = False
-            logging.error(f"❌ Application health check failed - unhealthy components: {', '.join(unhealthy_components)}")
+            logging.error(
+                f"❌ Application health check failed - unhealthy components: {', '.join(unhealthy_components)}"
+            )
         elif health_status["warnings"]:
-            logging.warning(f"⚠️ Application health check passed with warnings: {len(health_status['warnings'])} warnings")
+            logging.warning(
+                f"⚠️ Application health check passed with warnings: {len(health_status['warnings'])} warnings"
+            )
         else:
             logging.info("✅ Application health check passed - all systems healthy")
-            
+
     except Exception as e:
         health_status["healthy"] = False
         health_status["components"]["system"] = f"critical error: {str(e)}"
         logging.error(f"❌ Critical error during health check: {e}")
-    
+
     return health_status
 
 
@@ -729,7 +794,7 @@ async def start_server(host: str = "0.0.0.0", port: int = 8000, reload: bool = F
             port=port,
             reload=reload,
             log_level="info" if os.getenv("LOG_LEVEL", "INFO").upper() == "INFO" else "debug",
-            access_log=True
+            access_log=True,
         )
 
         server = uvicorn.Server(config)
@@ -746,28 +811,28 @@ async def start_server(host: str = "0.0.0.0", port: int = 8000, reload: bool = F
 def seed_data(force_reseed: bool = False) -> Dict[str, Any]:
     """
     Data seeding function that calls the seeding functions from app.seed_data.
-    
+
     This function provides a synchronous interface to the seeding process
     and handles errors gracefully for bootstrap testing scenarios.
-    
+
     Args:
         force_reseed: If True, force re-seeding even if data exists
-        
+
     Returns:
         Dictionary with seeding results and status
     """
     logger = logging.getLogger(__name__)
     logger.info("🌱 Starting data seeding process...")
-    
+
     try:
         # Import and call the main seeding function from app.seed_data
         from app.seed_data import seed_all_data
-        
+
         results = seed_all_data(force_reseed=force_reseed)
-        
+
         if results["status"] == "success":
             logger.info("✅ Data seeding completed successfully")
-            
+
             # Log summary if available
             if "results" in results:
                 total_added = 0
@@ -777,34 +842,26 @@ def seed_data(force_reseed: bool = False) -> Dict[str, Any]:
                         total_added += added
                     if added > 0:
                         logger.info(f"  📊 {component}: {added} items added")
-                
+
                 logger.info(f"  📈 Total items added: {total_added}")
-                        
+
         elif results["status"] == "warning":
             logger.warning(f"⚠️ Data seeding completed with warnings: {results.get('message')}")
-            
+
         else:
             logger.error(f"❌ Data seeding failed: {results.get('message')}")
-        
+
         return results
-        
+
     except ImportError as e:
         error_msg = f"Failed to import seeding functions: {str(e)}"
         logger.error(f"❌ {error_msg}")
-        return {
-            "status": "error",
-            "message": error_msg,
-            "timestamp": time.time()
-        }
-        
+        return {"status": "error", "message": error_msg, "timestamp": time.time()}
+
     except Exception as e:
         error_msg = f"Critical error during data seeding: {str(e)}"
         logger.error(f"❌ {error_msg}")
-        return {
-            "status": "error",
-            "message": error_msg,
-            "timestamp": time.time()
-        }
+        return {"status": "error", "message": error_msg, "timestamp": time.time()}
 
 
 def verify_health() -> Dict[str, Any]:
@@ -820,13 +877,8 @@ def verify_health() -> Dict[str, Any]:
     logger = logging.getLogger(__name__)
     logger.info("🏥 Checking application health...")
 
-    health_status: Dict[str, Any] = {
-        "healthy": True,
-        "components": {},
-        "warnings": [],
-        "timestamp": time.time()
-    }
-    
+    health_status: Dict[str, Any] = {"healthy": True, "components": {}, "warnings": [], "timestamp": time.time()}
+
     try:
         # Check if we can import required modules (dependency check)
         try:
@@ -835,7 +887,7 @@ def verify_health() -> Dict[str, Any]:
             from app.wolf_goat_pig import WolfGoatPigGame
             from app.seed_data import get_seeding_status
             from sqlalchemy import text
-            
+
             health_status["components"]["imports"] = "healthy"
             logger.info("✅ Required modules import successfully")
         except ImportError as e:
@@ -843,7 +895,7 @@ def verify_health() -> Dict[str, Any]:
             health_status["healthy"] = False
             logger.error(f"❌ Module import failed: {e}")
             return health_status
-        
+
         # 1. Database health check
         try:
             db = SessionLocal()
@@ -855,7 +907,7 @@ def verify_health() -> Dict[str, Any]:
             health_status["components"]["database"] = f"unhealthy: {str(e)}"
             health_status["healthy"] = False
             logger.error(f"❌ Database health check failed: {e}")
-        
+
         # 2. Course availability check
         try:
             courses = game_state.get_courses()
@@ -870,7 +922,7 @@ def verify_health() -> Dict[str, Any]:
             health_status["components"]["courses"] = f"error: {str(e)}"
             health_status["warnings"].append("Course availability check failed")
             logger.warning(f"⚠️ Course availability check failed: {e}")
-        
+
         # 3. Simulation engine check
         try:
             test_sim = WolfGoatPigGame(player_count=4)
@@ -880,7 +932,7 @@ def verify_health() -> Dict[str, Any]:
             health_status["components"]["simulation"] = f"error: {str(e)}"
             health_status["warnings"].append("Simulation engine check failed")
             logger.warning(f"⚠️ Simulation engine check failed: {e}")
-        
+
         # 4. Data seeding status check
         try:
             seeding_status = get_seeding_status()
@@ -895,13 +947,10 @@ def verify_health() -> Dict[str, Any]:
             health_status["components"]["data_seeding"] = f"error: {str(e)}"
             health_status["warnings"].append("Data seeding status unavailable")
             logger.warning(f"⚠️ Data seeding status check failed: {e}")
-        
+
         # Overall health assessment
-        unhealthy_components = [
-            k for k, v in health_status["components"].items() 
-            if "unhealthy" in str(v)
-        ]
-        
+        unhealthy_components = [k for k, v in health_status["components"].items() if "unhealthy" in str(v)]
+
         if unhealthy_components:
             health_status["healthy"] = False
             logger.error(f"❌ Health check failed - unhealthy components: {', '.join(unhealthy_components)}")
@@ -909,12 +958,12 @@ def verify_health() -> Dict[str, Any]:
             logger.warning(f"⚠️ Health check passed with {len(health_status['warnings'])} warnings")
         else:
             logger.info("✅ All systems healthy")
-            
+
     except Exception as e:
         health_status["healthy"] = False
         health_status["components"]["system"] = f"critical error: {str(e)}"
         logger.error(f"❌ Critical error during health check: {e}")
-    
+
     return health_status
 
 
@@ -932,26 +981,26 @@ async def main():
     parser.add_argument("--no-reload", action="store_true", help="Disable auto-reload in development")
     parser.add_argument("--bootstrap-test", action="store_true", help="Run bootstrap components test")
     parser.add_argument("--use-bootstrap-manager", action="store_true", help="Use BootstrapManager for startup")
-    
+
     args = parser.parse_args()
-    
+
     # Set environment if provided
     if args.environment:
         os.environ["ENVIRONMENT"] = args.environment
-    
+
     # Setup logging
     setup_logging(args.log_level)
-    
+
     logging.info("🐺 Wolf-Goat-Pig Application Startup")
     logging.info(f"Environment: {os.getenv('ENVIRONMENT', 'development')}")
-    
+
     # Handle bootstrap test mode
     if args.bootstrap_test:
         logging.info("🧪 Running bootstrap components test...")
 
         # Test each component independently
         test_results: Dict[str, str] = {}
-        
+
         # Test 1: BootstrapManager class availability
         try:
             manager = BootstrapManager()
@@ -960,7 +1009,7 @@ async def main():
         except Exception as e:
             test_results["bootstrap_manager"] = f"❌ Failed: {e}"
             logging.error(f"❌ BootstrapManager class: Failed - {e}")
-        
+
         # Test 2: seed_data function availability
         try:
             # Test that the function exists and can be called
@@ -974,7 +1023,7 @@ async def main():
         except Exception as e:
             test_results["seed_data"] = f"❌ Failed: {e}"
             logging.error(f"❌ seed_data function: Failed - {e}")
-        
+
         # Test 3: verify_health function availability
         try:
             # Test that the function exists and can be called
@@ -988,7 +1037,7 @@ async def main():
         except Exception as e:
             test_results["verify_health"] = f"❌ Failed: {e}"
             logging.error(f"❌ verify_health function: Failed - {e}")
-        
+
         # Summary
         logging.info("🧪 Bootstrap components test results:")
         all_passed: bool = True
@@ -996,98 +1045,98 @@ async def main():
             logging.info(f"  {component}: {test_result}")
             if "❌" in test_result:
                 all_passed = False
-        
+
         if all_passed:
             logging.info("✅ All bootstrap components test passed!")
             sys.exit(0)
         else:
             logging.error("❌ Some bootstrap components tests failed!")
             sys.exit(1)
-    
+
     # Handle BootstrapManager mode
     if args.use_bootstrap_manager:
         logging.info("🏗️ Using BootstrapManager for startup sequence...")
-        
+
         try:
             manager = BootstrapManager()
             result = await manager.startup(
                 skip_seeding=args.verify_setup or os.getenv("SKIP_SEEDING", "false").lower() == "true",
-                force_reseed=args.force_seed
+                force_reseed=args.force_seed,
             )
-            
+
             if result["success"]:
                 logging.info("✅ BootstrapManager startup completed successfully")
-                
+
                 # Exit early for verification modes
                 if args.check_health or args.verify_setup or args.seed_only:
                     sys.exit(0)
-                
+
                 # Continue to server startup for normal operation
                 logging.info("🎯 Continuing to server startup...")
             else:
                 logging.error(f"❌ BootstrapManager startup failed: {result['message']}")
                 sys.exit(1)
-                
+
         except Exception as e:
             logging.error(f"❌ BootstrapManager startup failed with exception: {e}")
             sys.exit(1)
-    
+
     # 1. Validate environment
     logging.info("🔍 Validating environment...")
     env_status = validate_environment()
-    
+
     if not env_status["valid"]:
         logging.error("❌ Environment validation failed:")
         for error in env_status["errors"]:
             logging.error(f"  - {error}")
         sys.exit(1)
-    
+
     if env_status["warnings"]:
         for warning in env_status["warnings"]:
             logging.warning(f"⚠️ {warning}")
-    
+
     logging.info("✅ Environment validation passed")
-    
+
     # 2. Check dependencies
     logging.info("📦 Checking dependencies...")
     dep_status = check_dependencies()
-    
+
     if not dep_status["valid"]:
         logging.error("❌ Missing required dependencies:")
         for package in dep_status["missing"]:
             logging.error(f"  - {package}")
         logging.error("Please install missing packages with: pip install -r requirements.txt")
         sys.exit(1)
-    
+
     logging.info("✅ All required dependencies available")
     for package, version in dep_status["versions"].items():
         logging.debug(f"  {package}: {version}")
-    
+
     # Log optional missing packages as warnings
     if dep_status.get("optional_missing"):
         logging.warning("⚠️ Optional packages missing (may affect full functionality):")
         for package in dep_status["optional_missing"]:
             logging.warning(f"  - {package}")
         logging.warning("Note: Server startup may not be available without uvicorn and fastapi")
-    
+
     # 3. Initialize database
     if not args.check_health:
         logging.info("🗄️ Initializing database...")
         db_status = await initialize_database()
-        
+
         if not db_status["initialized"]:
             logging.error(f"❌ Database initialization failed: {db_status.get('error', 'Unknown error')}")
             sys.exit(1)
-        
+
         if not db_status["connected"]:
             logging.error(f"❌ Database connection failed: {db_status.get('error', 'Unknown error')}")
             sys.exit(1)
-    
+
     # 4. Data seeding
     if args.seed_only or (not args.check_health and not args.verify_setup):
         if os.getenv("SKIP_SEEDING", "false").lower() != "true":
             seeding_results = await run_data_seeding(force_reseed=args.force_seed)
-            
+
             if seeding_results["status"] == "error":
                 logging.error("❌ Critical data seeding failure")
                 if not args.seed_only:
@@ -1096,18 +1145,18 @@ async def main():
                     sys.exit(1)
         else:
             logging.info("⏭️ Data seeding skipped (SKIP_SEEDING=true)")
-    
+
     # 5. Health verification
     if args.check_health or args.verify_setup or not args.seed_only:
         logging.info("🏥 Verifying application health...")
         health_status = await verify_application_health()
-        
+
         if not health_status["healthy"]:
             logging.error("❌ Application health check failed")
             for component, status in health_status["components"].items():
                 if "unhealthy" in str(status) or "error" in str(status):
                     logging.error(f"  {component}: {status}")
-            
+
             if args.check_health or args.verify_setup:
                 sys.exit(1)
             else:
@@ -1116,24 +1165,24 @@ async def main():
             logging.info("✅ All systems healthy")
             for component, status in health_status["components"].items():
                 logging.info(f"  {component}: {status}")
-    
+
     # 6. Exit early if only checking or verifying
     if args.check_health:
         logging.info("🏁 Health check complete")
         sys.exit(0 if health_status["healthy"] else 1)
-    
+
     if args.seed_only:
         logging.info("🏁 Data seeding complete")
         sys.exit(0)
-    
+
     if args.verify_setup:
         logging.info("🏁 Setup verification complete")
         sys.exit(0 if health_status["healthy"] else 1)
-    
+
     # 7. Start the server
     environment = os.getenv("ENVIRONMENT", "development")
     reload = environment == "development" and not args.no_reload
-    
+
     logging.info("🎯 All systems ready - starting server...")
     await start_server(host=args.host, port=args.port, reload=reload)
 
@@ -1148,12 +1197,8 @@ def run_bootstrap_test() -> bool:
     logging.info("🧪 Running standalone bootstrap components test...")
 
     # Test results
-    test_results: Dict[str, bool] = {
-        "bootstrap_manager": False,
-        "seed_data": False,
-        "verify_health": False
-    }
-    
+    test_results: Dict[str, bool] = {"bootstrap_manager": False, "seed_data": False, "verify_health": False}
+
     # Test 1: BootstrapManager class
     try:
         manager = BootstrapManager()
@@ -1161,7 +1206,7 @@ def run_bootstrap_test() -> bool:
         logging.info("✅ BootstrapManager class: Available")
     except Exception as e:
         logging.error(f"❌ BootstrapManager class: Failed - {e}")
-    
+
     # Test 2: seed_data function
     try:
         result = seed_data(force_reseed=False)
@@ -1172,8 +1217,8 @@ def run_bootstrap_test() -> bool:
             logging.error("❌ seed_data function: Available but returned invalid result")
     except Exception as e:
         logging.error(f"❌ seed_data function: Failed - {e}")
-    
-    # Test 3: verify_health function  
+
+    # Test 3: verify_health function
     try:
         result = verify_health()
         if result and "healthy" in result:
@@ -1183,14 +1228,14 @@ def run_bootstrap_test() -> bool:
             logging.error("❌ verify_health function: Available but returned invalid result")
     except Exception as e:
         logging.error(f"❌ verify_health function: Failed - {e}")
-    
+
     # Summary
     all_passed = all(test_results.values())
     passed_count = sum(test_results.values())
     total_count = len(test_results)
-    
+
     logging.info(f"🧪 Bootstrap test results: {passed_count}/{total_count} components passed")
-    
+
     if all_passed:
         logging.info("✅ All bootstrap components are available and functional!")
         return True
