@@ -8,7 +8,7 @@ Rate limited to prevent excessive API calls.
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
@@ -22,6 +22,67 @@ from ..services.player_service import PlayerService
 
 logger = logging.getLogger("app.routers.sheet_integration")
 
+
+def safe_float(
+    value: Any, default: float = 0.0, min_val: Optional[float] = None, max_val: Optional[float] = None
+) -> float:
+    """
+    Safely convert value to float with bounds checking.
+
+    Args:
+        value: Value to convert (can be str, int, float, None, etc.)
+        default: Default value if conversion fails
+        min_val: Optional minimum value (clamp if exceeded)
+        max_val: Optional maximum value (clamp if exceeded)
+
+    Returns:
+        Float value, or default if conversion fails
+    """
+    try:
+        if value is None:
+            return default
+        result = float(value)
+        # Check for invalid float values
+        if result != result:  # NaN check
+            return default
+        if abs(result) == float("inf"):
+            return default
+        # Apply bounds if specified
+        if min_val is not None:
+            result = max(min_val, result)
+        if max_val is not None:
+            result = min(max_val, result)
+        return result
+    except (ValueError, TypeError):
+        return default
+
+
+def safe_int(value: Any, default: int = 0, min_val: Optional[int] = None, max_val: Optional[int] = None) -> int:
+    """
+    Safely convert value to int with bounds checking.
+
+    Args:
+        value: Value to convert
+        default: Default value if conversion fails
+        min_val: Optional minimum value
+        max_val: Optional maximum value
+
+    Returns:
+        Int value, or default if conversion fails
+    """
+    try:
+        if value is None:
+            return default
+        result = int(float(value))  # Handle "3.0" -> 3
+        if min_val is not None:
+            result = max(min_val, result)
+        if max_val is not None:
+            result = min(max_val, result)
+        return result
+    except (ValueError, TypeError):
+        return default
+
+
 router = APIRouter(
     prefix="/sheet-integration",
     tags=["sheet_integration"],
@@ -30,10 +91,7 @@ router = APIRouter(
 
 
 @router.post("/analyze-structure")
-async def analyze_sheet_structure(
-    sheet_headers: List[str],
-    db: Session = Depends(get_db)
-) -> Dict[str, Any]:
+async def analyze_sheet_structure(sheet_headers: List[str], db: Session = Depends(get_db)) -> Dict[str, Any]:
     """
     Analyze Google Sheets structure and suggest column mappings.
 
@@ -47,17 +105,17 @@ async def analyze_sheet_structure(
             header_lower = header.lower()
             mapping = {"sheet_column": header}
 
-            if any(name in header_lower for name in ['member', 'player', 'name', 'golfer']):
+            if any(name in header_lower for name in ["member", "player", "name", "golfer"]):
                 mapping["db_field"] = "player_name"
-            elif any(name in header_lower for name in ['score', 'quarters', 'total']):
+            elif any(name in header_lower for name in ["score", "quarters", "total"]):
                 mapping["db_field"] = "total_earnings"
-            elif 'average' in header_lower:
+            elif "average" in header_lower:
                 mapping["db_field"] = "avg_earnings_per_game"
-            elif any(name in header_lower for name in ['rounds', 'games']):
+            elif any(name in header_lower for name in ["rounds", "games"]):
                 mapping["db_field"] = "games_played"
-            elif 'qb' in header_lower:
+            elif "qb" in header_lower:
                 mapping["db_field"] = "qb_count"
-            elif 'date' in header_lower:
+            elif "date" in header_lower:
                 mapping["db_field"] = "last_played"
             else:
                 mapping["db_field"] = ""
@@ -67,7 +125,7 @@ async def analyze_sheet_structure(
         return {
             "column_mappings": column_mappings,
             "total_columns": len(sheet_headers),
-            "mapped_columns": len([m for m in column_mappings if m["db_field"] is not None])
+            "mapped_columns": len([m for m in column_mappings if m["db_field"] is not None]),
         }
 
     except Exception as e:
@@ -78,10 +136,7 @@ async def analyze_sheet_structure(
 
 
 @router.post("/create-leaderboard")
-async def create_leaderboard_from_sheet(
-    sheet_data: List[Dict],
-    db: Session = Depends(get_db)
-) -> Dict[str, Any]:
+async def create_leaderboard_from_sheet(sheet_data: List[Dict], db: Session = Depends(get_db)) -> Dict[str, Any]:
     """
     Transform Google Sheets data into leaderboard format.
 
@@ -93,11 +148,7 @@ async def create_leaderboard_from_sheet(
         leaderboard_service = LeaderboardService(db)
         leaderboard = leaderboard_service.create_from_sheet_data(sheet_data)  # type: ignore[attr-defined]
 
-        return {
-            "leaderboard": leaderboard,
-            "player_count": len(leaderboard),
-            "created_at": datetime.now().isoformat()
-        }
+        return {"leaderboard": leaderboard, "player_count": len(leaderboard), "created_at": datetime.now().isoformat()}
 
     except Exception as e:
         logger.error(f"Error creating leaderboard from sheet: {e}")
@@ -107,10 +158,7 @@ async def create_leaderboard_from_sheet(
 
 
 @router.post("/sync-data")
-async def sync_sheet_data(
-    request: Dict,
-    db: Session = Depends(get_db)
-) -> Dict[str, Any]:
+async def sync_sheet_data(request: Dict, db: Session = Depends(get_db)) -> Dict[str, Any]:
     """
     Generic sheet data sync endpoint.
 
@@ -133,8 +181,7 @@ async def sync_sheet_data(
 
 @router.get("/export-current-data")
 def export_current_data_for_sheet(
-    sheet_headers: List[str] = Query(...),
-    db: Session = Depends(get_db)
+    sheet_headers: List[str] = Query(...), db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """
     Export current database data in sheet format.
@@ -151,7 +198,7 @@ def export_current_data_for_sheet(
             "data": export_data,
             "headers": sheet_headers,
             "row_count": len(export_data),
-            "exported_at": datetime.now().isoformat()
+            "exported_at": datetime.now().isoformat(),
         }
 
     except Exception as e:
@@ -163,9 +210,7 @@ def export_current_data_for_sheet(
 
 @router.post("/sync-wgp-sheet")
 async def sync_wgp_sheet_data(
-    request: Dict[str, str],
-    db: Session = Depends(get_db),
-    x_scheduled_job: Optional[str] = Header(None)
+    request: Dict[str, str], db: Session = Depends(get_db), x_scheduled_job: Optional[str] = Header(None)
 ) -> Dict[str, Any]:
     """
     Sync Wolf Goat Pig specific sheet data format.
@@ -197,7 +242,6 @@ async def sync_wgp_sheet_data(
             logger.info(f"Returning cached sheet sync data (CSV: {csv_url[:50]}...)")
             return dict(cached_result)
 
-
         # Fetch the CSV data (follow redirects for Google Sheets export URLs)
         async with httpx.AsyncClient(follow_redirects=True) as client:
             response = await client.get(csv_url, timeout=30)
@@ -205,7 +249,7 @@ async def sync_wgp_sheet_data(
         csv_text = response.text
 
         # Parse CSV
-        lines = csv_text.strip().split('\n')
+        lines = csv_text.strip().split("\n")
         if not lines:
             raise HTTPException(status_code=400, detail="Empty sheet data")
 
@@ -214,10 +258,11 @@ async def sync_wgp_sheet_data(
         headers = []
 
         for i, line in enumerate(lines):
-            temp_headers = [h.strip().strip('"') for h in line.split(',')]
+            temp_headers = [h.strip().strip('"') for h in line.split(",")]
             # Check if this line contains the actual column headers
-            if any('member' in h.lower() for h in temp_headers if h) and \
-               any('quarters' in h.lower() for h in temp_headers if h):
+            if any("member" in h.lower() for h in temp_headers if h) and any(
+                "quarters" in h.lower() for h in temp_headers if h
+            ):
                 header_line_index = i
                 headers = temp_headers
                 logger.info(f"Found headers at row {i + 1}: {headers}")
@@ -226,7 +271,7 @@ async def sync_wgp_sheet_data(
         if header_line_index == -1:
             # Fallback: assume headers are in the first non-empty row with multiple values
             for i, line in enumerate(lines):
-                temp_headers = [h.strip().strip('"') for h in line.split(',')]
+                temp_headers = [h.strip().strip('"') for h in line.split(",")]
                 if len([h for h in temp_headers if h]) >= 3:  # At least 3 non-empty columns
                     header_line_index = i
                     headers = temp_headers
@@ -243,9 +288,9 @@ async def sync_wgp_sheet_data(
         player_stats = {}
 
         # Start processing from the row after headers
-        for line in lines[header_line_index + 1:]:
+        for line in lines[header_line_index + 1 :]:
             if line.strip():
-                values = [v.strip().strip('"') for v in line.split(',')]
+                values = [v.strip().strip('"') for v in line.split(",")]
 
                 # Skip empty rows or rows with too few values
                 if len(values) < 2 or not any(v for v in values[:5]):  # Check first 5 columns
@@ -253,18 +298,29 @@ async def sync_wgp_sheet_data(
 
                 # Extract player name (try different column names)
                 player_name = None
-                for name_key in ['member', 'player', 'name', 'golfer']:
+                for name_key in ["member", "player", "name", "golfer"]:
                     if name_key in header_map and header_map[name_key] < len(values):
                         player_name = values[header_map[name_key]]
                         break
 
                 # Skip if no player name, or if it's a header/summary row
-                if not player_name or player_name.lower() in ['member', 'player', 'name', '', 'total', 'average', 'grand total']:
+                if not player_name or player_name.lower() in [
+                    "member",
+                    "player",
+                    "name",
+                    "",
+                    "total",
+                    "average",
+                    "grand total",
+                ]:
                     logger.info(f"Skipping non-player row: {player_name}")
                     continue
 
                 # Stop if we hit summary sections (like "Most Rounds Played")
-                if any(keyword in player_name.lower() for keyword in ['most rounds', 'top 5', 'best score', 'worst score', 'group size']):
+                if any(
+                    keyword in player_name.lower()
+                    for keyword in ["most rounds", "top 5", "best score", "worst score", "group size"]
+                ):
                     logger.info(f"Stopping at summary section: {player_name}")
                     break
 
@@ -276,34 +332,36 @@ async def sync_wgp_sheet_data(
                         "rounds": 0,
                         "qb": 0,
                         "games_won": 0,
-                        "total_earnings": 0.0
+                        "total_earnings": 0.0,
                     }
 
                 # Map the sheet columns to our data model
                 # Score column (total earnings - can be negative)
                 score_value = None
-                for score_key in ['score', 'sum score', 'total score', 'quarters']:
+                for score_key in ["score", "sum score", "total score", "quarters"]:
                     if score_key in header_map and header_map[score_key] < len(values):
                         score_value = values[header_map[score_key]]
                         break
 
-                if score_value and score_value != '':
+                if score_value and score_value != "":
                     try:
                         # Handle negative values (e.g., "-155")
                         score_int = int(float(score_value))  # Handle decimal values too
                         # Accumulate total earnings across multiple games
                         player_stats[player_name]["quarters"] += score_int
                         player_stats[player_name]["total_earnings"] += float(score_int)
-                        logger.debug(f"Added {score_value} to {player_name}, total now: {player_stats[player_name]['total_earnings']}")
+                        logger.debug(
+                            f"Added {score_value} to {player_name}, total now: {player_stats[player_name]['total_earnings']}"
+                        )
                     except (ValueError, IndexError) as e:
                         logger.warning(f"Error parsing score for {player_name}: {e}")
                         pass
 
                 # Average column
-                if 'average' in header_map and header_map['average'] < len(values):
+                if "average" in header_map and header_map["average"] < len(values):
                     try:
-                        avg_value = values[header_map['average']]
-                        if avg_value and avg_value != '':
+                        avg_value = values[header_map["average"]]
+                        if avg_value and avg_value != "":
                             player_stats[player_name]["average"] = float(avg_value)
                             logger.debug(f"Set {player_name} average to {avg_value}")
                     except (ValueError, IndexError) as e:
@@ -315,7 +373,7 @@ async def sync_wgp_sheet_data(
                 logger.debug(f"Incremented {player_name} rounds to {player_stats[player_name]['rounds']}")
 
                 # Check if they won this game (positive score)
-                if score_value and score_value != '':
+                if score_value and score_value != "":
                     try:
                         if float(score_value) > 0:
                             player_stats[player_name]["games_won"] += 1
@@ -323,10 +381,10 @@ async def sync_wgp_sheet_data(
                         pass
 
                 # QB column
-                if 'qb' in header_map and header_map['qb'] < len(values):
+                if "qb" in header_map and header_map["qb"] < len(values):
                     try:
-                        qb_value = values[header_map['qb']]
-                        if qb_value and qb_value != '':
+                        qb_value = values[header_map["qb"]]
+                        if qb_value and qb_value != "":
                             player_stats[player_name]["qb"] = int(qb_value)
                             logger.debug(f"Set {player_name} QB to {qb_value}")
                     except (ValueError, IndexError) as e:
@@ -349,7 +407,7 @@ async def sync_wgp_sheet_data(
             "players_processed": 0,
             "players_created": 0,
             "players_updated": 0,
-            "errors": []
+            "errors": [],
         }
 
         # Track GHIN data for response payload
@@ -358,15 +416,15 @@ async def sync_wgp_sheet_data(
         for player_name, stats in player_stats.items():
             try:
                 # Check if player exists
-                existing_player = db.query(models.PlayerProfile).filter(
-                    models.PlayerProfile.name == player_name
-                ).first()
+                existing_player = (
+                    db.query(models.PlayerProfile).filter(models.PlayerProfile.name == player_name).first()
+                )
 
                 if not existing_player:
                     # Create new player
                     player_data = schemas.PlayerProfileCreate(
                         name=player_name,
-                        handicap=10.0  # Default handicap
+                        handicap=10.0,  # Default handicap
                     )
                     new_player = player_service.create_player_profile(player_data)
                     sync_results["players_created"] += 1
@@ -376,42 +434,47 @@ async def sync_wgp_sheet_data(
                     sync_results["players_updated"] += 1
 
                 # Update or create statistics record
-                player_stats_record = db.query(models.PlayerStatistics).filter(
-                    models.PlayerStatistics.player_id == player_id
-                ).first()
+                player_stats_record = (
+                    db.query(models.PlayerStatistics).filter(models.PlayerStatistics.player_id == player_id).first()
+                )
 
                 if not player_stats_record:
                     # Create new statistics record
                     player_stats_record = models.PlayerStatistics(player_id=player_id)
                     db.add(player_stats_record)
 
-                # Update statistics with sheet data - use setattr to avoid Column type errors
-                setattr(player_stats_record, 'games_played', float(stats.get("rounds", 0)))
-                setattr(player_stats_record, 'total_earnings', float(stats.get("total_earnings", 0)))
+                # Update statistics with sheet data - use safe type coercion
+                rounds_played = safe_float(stats.get("rounds"), 0.0, min_val=0.0)
+                total_earnings = safe_float(stats.get("total_earnings"), 0.0)
+                avg_earnings = safe_float(stats.get("average"), 0.0)
+
+                setattr(player_stats_record, "games_played", rounds_played)
+                setattr(player_stats_record, "total_earnings", total_earnings)
 
                 # Calculate win percentage based on average earnings per game
-                if stats.get("rounds", 0) > 0 and stats.get("average", 0) > 0:
+                if rounds_played > 0 and avg_earnings > 0:
                     # If average is positive, estimate wins based on that
                     # Assuming positive average means winning more often
-                    avg_val = float(stats.get("average", 0))
-                    estimated_win_rate = min(100, max(0, (avg_val + 50) / 100 * 50))
-                    setattr(player_stats_record, 'win_percentage', estimated_win_rate)
-                    setattr(player_stats_record, 'games_won', int(stats.get("rounds", 0) * estimated_win_rate / 100))
+                    estimated_win_rate = safe_float((avg_earnings + 50) / 100 * 50, 0.0, min_val=0.0, max_val=100.0)
+                    estimated_wins = safe_int(rounds_played * estimated_win_rate / 100, 0, min_val=0)
+                    setattr(player_stats_record, "win_percentage", estimated_win_rate)
+                    setattr(player_stats_record, "games_won", estimated_wins)
                 else:
-                    setattr(player_stats_record, 'win_percentage', 0.0)
-                    setattr(player_stats_record, 'games_won', 0)
+                    setattr(player_stats_record, "win_percentage", 0.0)
+                    setattr(player_stats_record, "games_won", 0)
 
                 # Store additional metrics
-                setattr(player_stats_record, 'avg_earnings_per_game', float(stats.get("average", 0)))
+                setattr(player_stats_record, "avg_earnings_per_game", avg_earnings)
 
                 # Update timestamp
-                setattr(player_stats_record, 'last_updated', datetime.now().isoformat())
+                setattr(player_stats_record, "last_updated", datetime.now().isoformat())
 
                 # Try to fetch GHIN data if player has GHIN ID
                 ghin_data = None
                 if existing_player and existing_player.ghin_id:
                     try:
                         from ..services.ghin_service import GHINService
+
                         ghin_service = GHINService(db)
 
                         # Check if GHIN service is available
@@ -419,8 +482,10 @@ async def sync_wgp_sheet_data(
                             ghin_data = await ghin_service.sync_player_handicap(player_id)
                             if ghin_data:
                                 # Update handicap from GHIN
-                                existing_player.handicap = ghin_data.get('handicap_index', existing_player.handicap)
-                                logger.info(f"Updated GHIN data for {player_name}: handicap={ghin_data.get('handicap_index')}")
+                                existing_player.handicap = ghin_data.get("handicap_index", existing_player.handicap)
+                                logger.info(
+                                    f"Updated GHIN data for {player_name}: handicap={ghin_data.get('handicap_index')}"
+                                )
                         else:
                             # Fall back to stored GHIN data
                             ghin_data = ghin_service.get_player_ghin_data(player_id)
@@ -435,7 +500,7 @@ async def sync_wgp_sheet_data(
                         "ghin_id": ghin_data.get("ghin_id"),
                         "current_handicap": ghin_data.get("current_handicap"),
                         "recent_scores": ghin_data.get("recent_scores", [])[:5],  # Last 5 scores
-                        "last_updated": ghin_data.get("last_updated")
+                        "last_updated": ghin_data.get("last_updated"),
                     }
 
                 db.commit()
@@ -461,7 +526,7 @@ async def sync_wgp_sheet_data(
             "players_synced": list(player_stats.keys()),
             "sample_data": {name: stats for name, stats in list(player_stats.items())[:3]},  # First 3 players as sample
             "ghin_data": ghin_data_collection,  # GHIN scores and handicap data
-            "ghin_players_count": len(ghin_data_collection)
+            "ghin_players_count": len(ghin_data_collection),
         }
 
         # Cache the result for 1 hour
@@ -501,30 +566,25 @@ async def fetch_google_sheet(request: Dict[str, str]) -> Dict[str, Any]:
         csv_text = response.text
 
         # Parse CSV into structured data
-        lines = csv_text.strip().split('\n')
+        lines = csv_text.strip().split("\n")
         if not lines:
             raise HTTPException(status_code=400, detail="Empty sheet data")
 
         # First line is headers
-        headers = [h.strip().strip('"') for h in lines[0].split(',')]
+        headers = [h.strip().strip('"') for h in lines[0].split(",")]
 
         # Parse data rows
         data = []
         for line in lines[1:]:
             if line.strip():
-                values = [v.strip().strip('"') for v in line.split(',')]
+                values = [v.strip().strip('"') for v in line.split(",")]
                 row = {}
                 for i, header in enumerate(headers):
                     if i < len(values):
                         row[header] = values[i]
                 data.append(row)
 
-        return {
-            "headers": headers,
-            "data": data,
-            "row_count": len(data),
-            "fetched_at": datetime.now().isoformat()
-        }
+        return {"headers": headers, "data": data, "row_count": len(data), "fetched_at": datetime.now().isoformat()}
 
     except httpx.RequestError as e:
         logger.error(f"Error fetching Google Sheet: {e}")
@@ -554,7 +614,7 @@ async def compare_sheet_to_db_data(request: Dict, db: Session = Depends(get_db))
         return {
             "comparison": comparison,
             "differences_found": len(comparison.get("differences", [])),
-            "compared_at": datetime.now().isoformat()
+            "compared_at": datetime.now().isoformat(),
         }
 
     except Exception as e:

@@ -31,3 +31,8 @@ export { default as useTutorialProgress } from './useTutorialProgress';
 
 // Sync hooks (offline-first data management)
 export { default as useSyncStatus, useHoleSync } from './useSyncStatus';
+
+// Game state management hooks (refactored from SimpleScorekeeper)
+export { default as useGameState } from './useGameState';
+export { default as useBettingState } from './useBettingState';
+export { default as useUIState } from './useUIState';

@@ -181,37 +181,39 @@ describe('SimpleScorekeeper - Betting Interface', () => {
   });
 
   describe('Edge Cases', () => {
-    // TODO: This test needs to be updated to handle the offer/accept flow
-    test.skip('should handle very high wagers (64Q+)', () => {
+    // Note: Direct wager manipulation buttons (+/-, Double, ÷2, Reset) have been removed.
+    // Wager changes now happen via the offer/accept flow in useBettingState hook.
+    // The following tests validate the current wager display behavior.
+
+    test('should display initial wager correctly', () => {
       render(<SimpleScorekeeper {...defaultProps} />);
-
-      const doubleButton = screen.getByRole('button', { name: /Double/i });
-
-      // Get to 64Q
-      for (let i = 0; i < 6; i++) {
-        fireEvent.click(doubleButton);
-      }
-
-      expect(findWagerText(64)).toBe(true);
-
-      // High-stakes controls should still work
-      expect(screen.getByRole('button', { name: /÷2/ })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Reset/ })).toBeInTheDocument();
+      
+      // Default wager is 1Q
+      expect(findWagerText(1)).toBe(true);
     });
 
-    // TODO: Skipped - no +/- wager buttons in current UI
-    test.skip('should handle rapid button clicks', () => {
+    test('should display wager in lowercase q format', () => {
       render(<SimpleScorekeeper {...defaultProps} />);
+      
+      // The wager display uses lowercase 'q' (e.g., "1q")
+      const wagerDisplay = screen.getByText(/1q/);
+      expect(wagerDisplay).toBeInTheDocument();
+    });
 
-      const incrementButton = screen.getByRole('button', { name: '+' });
-
-      // Rapidly click increment
-      for (let i = 0; i < 10; i++) {
-        fireEvent.click(incrementButton);
-      }
-
-      // Should show 11Q
-      expect(findWagerText(11)).toBe(true);
+    test('wager display should be read-only (no direct manipulation buttons)', () => {
+      render(<SimpleScorekeeper {...defaultProps} />);
+      
+      // Verify old controls are not present
+      const incrementButton = screen.queryByRole('button', { name: '+' });
+      const decrementButton = screen.queryByRole('button', { name: '-' });
+      const halveButton = screen.queryByRole('button', { name: /÷2/ });
+      const resetButton = screen.queryByRole('button', { name: /^Reset$/i });
+      
+      expect(incrementButton).not.toBeInTheDocument();
+      expect(decrementButton).not.toBeInTheDocument();
+      expect(halveButton).not.toBeInTheDocument();
+      // Note: "Reset" may exist for other purposes, so we check specifically for wager reset
+      // which was removed along with +/- buttons
     });
   });
 

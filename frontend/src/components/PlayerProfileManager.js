@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from './ui';
 import { apiGet, apiPost, apiPut, apiDelete } from '../utils';
-import { UI_COLORS } from '../constants/colors';
+// UI_COLORS available from '../constants/colors' if needed
 
 /**
  * PlayerProfileManager - Component for managing player profiles

@@ -322,8 +322,10 @@ if os.getenv("ENVIRONMENT") != "production" or os.getenv("FRONTEND_URL", "").sta
         [
             "http://localhost:3000",  # Local development
             "http://localhost:3001",  # Alternative local port
+            "http://localhost:3333",  # E2E test port
             "http://127.0.0.1:3000",  # Alternative localhost
             "http://127.0.0.1:3001",  # Alternative localhost
+            "http://127.0.0.1:3333",  # Alternative E2E test port
         ]
     )
 

@@ -61,14 +61,21 @@ function App() {
 
   const handleBackendReady = () => {
     setBackendReady(true);
-    // Load rules once backend is ready
+    // Load rules once backend is ready with proper error handling
     fetch(`${API_URL}/rules`)
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+        return res.json();
+      })
       .then(data => {
-        // Handle rules data if needed
+        // Rules loaded successfully
+        console.log('[App] Rules loaded:', Object.keys(data || {}).length, 'rules');
       })
       .catch(err => {
-        console.warn('Could not load rules:', err);
+        // Log error but don't block app - rules are optional
+        console.warn('[App] Could not load rules:', err.message);
       });
   };
 

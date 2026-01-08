@@ -15,7 +15,7 @@ Or via API endpoint:
 """
 
 import logging
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import ProgrammingError, OperationalError
@@ -132,7 +132,7 @@ def add_column_sqlite(db: Session, table_name: str, column_name: str, column_typ
         return False
 
 
-def run_migration(db: Session = None) -> Dict[str, Any]:
+def run_migration(db: Optional[Session] = None) -> Dict[str, Any]:
     """
     Run the migration to add missing columns to player_statistics table.
 
@@ -140,24 +140,23 @@ def run_migration(db: Session = None) -> Dict[str, Any]:
         Dict with migration results
     """
     close_db = False
+    active_db: Session
     if db is None:
-        db = SessionLocal()
+        active_db = SessionLocal()
         close_db = True
+    else:
+        active_db = db
 
-    results = {
-        "status": "success",
-        "columns_added": [],
-        "columns_skipped": [],
-        "columns_failed": [],
-        "is_postgresql": False,
-    }
+    columns_added: List[str] = []
+    columns_skipped: List[str] = []
+    columns_failed: List[str] = []
+    is_postgresql = False
 
     try:
         # Detect database type
         try:
-            db.execute(text("SELECT version()"))
+            active_db.execute(text("SELECT version()"))
             is_postgresql = True
-            results["is_postgresql"] = True
             logger.info("Detected PostgreSQL database")
         except (ProgrammingError, OperationalError):
             is_postgresql = False
@@ -167,45 +166,50 @@ def run_migration(db: Session = None) -> Dict[str, Any]:
 
         for column_name, column_type, default_value in MISSING_COLUMNS:
             # Check if column already exists
-            if column_exists(db, table_name, column_name):
-                results["columns_skipped"].append(column_name)
+            if column_exists(active_db, table_name, column_name):
+                columns_skipped.append(column_name)
                 logger.info(f"Column {column_name} already exists, skipping")
                 continue
 
             # Add the column
             if is_postgresql:
-                success = add_column_postgresql(db, table_name, column_name, column_type, default_value)
+                success = add_column_postgresql(active_db, table_name, column_name, column_type, default_value)
             else:
-                success = add_column_sqlite(db, table_name, column_name, column_type, default_value)
+                success = add_column_sqlite(active_db, table_name, column_name, column_type, default_value)
 
             if success:
-                results["columns_added"].append(column_name)
+                columns_added.append(column_name)
                 logger.info(f"Added column {column_name}")
             else:
-                results["columns_failed"].append(column_name)
+                columns_failed.append(column_name)
 
-        if results["columns_failed"]:
-            results["status"] = "partial"
+        status = "partial" if columns_failed else "success"
 
         logger.info(
-            f"Migration complete: {len(results['columns_added'])} added, "
-            f"{len(results['columns_skipped'])} skipped, "
-            f"{len(results['columns_failed'])} failed"
+            f"Migration complete: {len(columns_added)} added, "
+            f"{len(columns_skipped)} skipped, "
+            f"{len(columns_failed)} failed"
         )
 
-        return results
+        return {
+            "status": status,
+            "columns_added": columns_added,
+            "columns_skipped": columns_skipped,
+            "columns_failed": columns_failed,
+            "is_postgresql": is_postgresql,
+        }
 
     except Exception as e:
         logger.error(f"Migration failed: {e}")
         return {
             "status": "error",
             "message": str(e),
-            "columns_added": results.get("columns_added", []),
-            "columns_failed": results.get("columns_failed", []),
+            "columns_added": columns_added,
+            "columns_failed": columns_failed,
         }
     finally:
         if close_db:
-            db.close()
+            active_db.close()
 
 
 if __name__ == "__main__":

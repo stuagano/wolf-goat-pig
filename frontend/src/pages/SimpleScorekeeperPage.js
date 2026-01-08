@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import { SimpleScorekeeper } from '../components/game';
 import { Card } from '../components/ui';
 import { useTheme } from '../theme/Provider';
+import ErrorBoundary, { GameErrorFallback } from '../components/common/ErrorBoundary';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -141,15 +142,17 @@ const SimpleScorekeeperPage = () => {
   const baseWager = gameData.base_wager || 1;
 
   return (
-    <SimpleScorekeeper
-      gameId={gameId}
-      players={players}
-      baseWager={baseWager}
-      initialHoleHistory={holeHistory}
-      initialCurrentHole={currentHoleNumber}
-      courseName={courseName}
-      initialStrokeAllocation={strokeAllocation}
-    />
+    <ErrorBoundary FallbackComponent={GameErrorFallback}>
+      <SimpleScorekeeper
+        gameId={gameId}
+        players={players}
+        baseWager={baseWager}
+        initialHoleHistory={holeHistory}
+        initialCurrentHole={currentHoleNumber}
+        courseName={courseName}
+        initialStrokeAllocation={strokeAllocation}
+      />
+    </ErrorBoundary>
   );
 };
 

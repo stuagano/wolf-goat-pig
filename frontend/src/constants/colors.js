@@ -284,7 +284,7 @@ export const getPlayerColor = (index) => {
 };
 
 // Export all color groups as a single object for convenience
-export default {
+const colorExports = {
   UI_COLORS,
   GOLF_COLORS,
   BETTING_COLORS,
@@ -299,3 +299,5 @@ export default {
   getLieColor,
   getPlayerColor,
 };
+
+export default colorExports;

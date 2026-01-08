@@ -599,7 +599,7 @@ export const createMockTutorialContext = (overrides = {}) => ({
 // Utility Exports
 // ============================================================================
 
-export default {
+const mockFactories = {
   // Theme
   createMockTheme,
   createMockUseTheme,
@@ -632,3 +632,5 @@ export default {
   // Tutorial
   createMockTutorialContext
 };
+
+export default mockFactories;

@@ -310,23 +310,23 @@ After each phase, verify:
 
 | # | Issue | Severity | File | Status |
 |---|-------|----------|------|--------|
-| 1 | Bare except clauses | Critical | wolf_goat_pig.py | ⬜ TODO |
-| 2 | DB session leaks | Critical | persistence_mixin.py | ⬜ TODO |
-| 3 | Type ignoring | High | main.py | ⬜ TODO |
-| 4 | Array bounds | High | SimpleScorekeeper.jsx | ⬜ TODO |
-| 5 | TODO tests | High | betting.test.js | ⬜ TODO |
-| 6 | Missing error handling | Medium | App.js | ⬜ TODO |
-| 7 | ESLint deps | Medium | SimpleScorekeeper.jsx | ⬜ TODO |
-| 8 | Dict defaults | Medium | Various | ⬜ TODO |
-| 9 | No logging | Medium | SimpleScorekeeper.jsx | ⬜ TODO |
-| 10 | DB null checks | Medium | ghin_service.py | ⬜ TODO |
-| 11 | No error boundary | Medium | SimpleScorekeeperPage.js | ⬜ TODO |
-| 12 | State complexity | Medium | SimpleScorekeeper.jsx | ⬜ TODO |
-| 13 | Vague PropTypes | Low | SimpleScorekeeper.jsx | ⬜ TODO |
-| 14 | Mobile CSS | Low | App.js | ⬜ TODO |
-| 15 | Test coverage | Medium | Various | ⬜ TODO |
-| 16 | Unused vars | Low | SimpleScorekeeper.jsx | ⬜ TODO |
-| 17 | Type coercion | Medium | sheet_integration.py | ⬜ TODO |
+| 1 | Bare except clauses | Critical | wolf_goat_pig.py | ✅ DONE |
+| 2 | DB session leaks | Critical | persistence_mixin.py | ✅ DONE (verified) |
+| 3 | Type ignoring | High | main.py | ✅ DONE (mypy clean) |
+| 4 | Array bounds | High | SimpleScorekeeper.jsx | ✅ DONE |
+| 5 | TODO tests | High | betting.test.js | ✅ DONE (updated for current UI) |
+| 6 | Missing error handling | Medium | App.js | ✅ DONE |
+| 7 | ESLint deps | Medium | SimpleScorekeeper.jsx | ✅ DONE |
+| 8 | Dict defaults | Medium | Various | ✅ DONE (safe_float/safe_int) |
+| 9 | No logging | Medium | SimpleScorekeeper.jsx | ✅ DONE (console.log added) |
+| 10 | DB null checks | Medium | ghin_service.py | ✅ DONE (already implemented) |
+| 11 | No error boundary | Medium | SimpleScorekeeperPage.js | ✅ DONE |
+| 12 | State complexity | Medium | SimpleScorekeeper.jsx | ✅ DONE (useReducer refactor) |
+| 13 | Vague PropTypes | Low | SimpleScorekeeper.jsx | ✅ DONE (betting_events shape) |
+| 14 | Mobile CSS | Low | App.js | ✅ DONE (927-line mobile-touch.css) |
+| 15 | Test coverage | Medium | Various | ✅ DONE (20.83% functions, 815 tests) |
+| 16 | Unused vars | Low | SimpleScorekeeper.jsx | ✅ DONE |
+| 17 | Type coercion | Medium | sheet_integration.py | ✅ DONE
 
 ---
 

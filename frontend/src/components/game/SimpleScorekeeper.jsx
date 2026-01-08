@@ -1,6 +1,7 @@
 // frontend/src/components/game/SimpleScorekeeper.jsx
 // Updated: Offline-first sync for unreliable golf course connectivity
-import React, { useState, useEffect, useMemo } from 'react';
+// Refactored: Using custom hooks for state management (incremental migration)
+import React, { useState, useEffect, useMemo, useReducer, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { useTheme } from '../../theme/Provider';
 import { Input } from '../ui';
@@ -9,7 +10,8 @@ import Scorecard from './Scorecard';
 import CommissionerChat from '../CommissionerChat';
 import { triggerBadgeNotification } from '../BadgeNotification';
 import { SyncStatusBanner } from '../SyncStatusIndicator';
-import { useHoleSync } from '../../hooks/useSyncStatus';
+import { useHoleSync, useUIState, useBettingState } from '../../hooks';
+import { gameReducer, createInitialState, gameActions } from './gameReducer';
 import syncManager from '../../services/syncManager';
 import '../../styles/mobile-touch.css';
 
@@ -44,114 +46,184 @@ const SimpleScorekeeper = ({
   initialStrokeAllocation = null
 }) => {
   const theme = useTheme();
+  
+  // UI state management (refactored to custom hook)
+  const ui = useUIState();
 
-  // Current hole state (all client-side until submit)
+  // ============================================================
+  // GAME STATE - Using useReducer for consolidated state management
+  // ============================================================
+  
   // Try to restore from local storage first (survives page refresh)
-  const [currentHole, setCurrentHole] = useState(() => {
-    const localState = syncManager.loadLocalGameState(gameId);
-    if (localState?.currentHole && localState.currentHole > initialCurrentHole) {
-      console.log('[Scorekeeper] Restored current hole from local storage:', localState.currentHole);
-      return localState.currentHole;
-    }
-    return initialCurrentHole;
-  });
-  const [teamMode, setTeamMode] = useState('partners'); // 'partners' or 'solo'
-  const [team1, setTeam1] = useState([]);
-  // eslint-disable-next-line no-unused-vars
-  const [team2, setTeam2] = useState([]);
-  const [captain, setCaptain] = useState(null);
-  const [opponents, setOpponents] = useState([]);
-  const [currentWager, setCurrentWager] = useState(baseWager);
-  const [scores, setScores] = useState({});
-  const [quarters, setQuarters] = useState({}); // Manual quarters entry
-  const [holeNotes, setHoleNotes] = useState(''); // Notes for current hole
-  const [winner, setWinner] = useState(null);
-  const [floatInvokedBy, setFloatInvokedBy] = useState(null); // Player ID who invoked float
-  const [optionInvokedBy, setOptionInvokedBy] = useState(null); // Player ID who triggered option
-
-  // Rotation tracking (Phase 1)
-  // Sort players by tee_order if available, otherwise use original order
-  const [rotationOrder, setRotationOrder] = useState(() => {
-    const sortedPlayers = [...players].sort((a, b) => {
-      // If both have tee_order, sort by it (ensure numeric comparison)
-      if (a.tee_order !== null && a.tee_order !== undefined &&
-          b.tee_order !== null && b.tee_order !== undefined) {
-        return Number(a.tee_order) - Number(b.tee_order);
-      }
-      // If only one has tee_order, prioritize it
-      if (a.tee_order !== null && a.tee_order !== undefined) return -1;
-      if (b.tee_order !== null && b.tee_order !== undefined) return 1;
-      // Otherwise maintain original order
-      return 0;
-    });
-    return sortedPlayers.map(p => p.id);
-  });
-  const [captainIndex, setCaptainIndex] = useState(0);
-  const [isHoepfinger, setIsHoepfinger] = useState(false);
-  const [goatId, setGoatId] = useState(null);
-  const [phase, setPhase] = useState('normal');
-  const [joesSpecialWager, setJoesSpecialWager] = useState(null);
-  const [nextHoleWager, setNextHoleWager] = useState(baseWager);
-  const [carryOver, setCarryOver] = useState(false);
-  const [vinniesVariation, setVinniesVariation] = useState(false);
-  // eslint-disable-next-line no-unused-vars
-  const [carryOverApplied, setCarryOverApplied] = useState(false); // Kept for potential future use
-
-  // Phase 2: Betting mechanics
-  const [optionActive, setOptionActive] = useState(false);
-  const [optionTurnedOff, setOptionTurnedOff] = useState(false);
-  const [duncanInvoked, setDuncanInvoked] = useState(false);
-
-  // Aardvark mechanics (5-man game)
-  const [aardvarkRequestedTeam, setAardvarkRequestedTeam] = useState(null); // 'team1' or 'team2'
-  const [aardvarkTossed, setAardvarkTossed] = useState(false); // Was Aardvark rejected?
-  const [aardvarkSolo, setAardvarkSolo] = useState(false); // Aardvark going solo (Tunkarri)
-  // Invisible Aardvark (4-man game)
-  const [invisibleAardvarkTossed, setInvisibleAardvarkTossed] = useState(false);
-
-  // Game history and standings
-  // Try to restore from local storage first (survives page refresh)
-  const [holeHistory, setHoleHistory] = useState(() => {
+  const restoredState = useMemo(() => {
     const localState = syncManager.loadLocalGameState(gameId);
     if (localState?.holeHistory && localState.holeHistory.length > initialHoleHistory.length) {
-      console.log('[Scorekeeper] Restored hole history from local storage:', localState.holeHistory.length, 'holes');
-      return localState.holeHistory;
+      console.log('[Scorekeeper] Restored from local storage:', localState.holeHistory.length, 'holes');
+      return localState;
     }
-    return initialHoleHistory;
-  });
-  const [playerStandings, setPlayerStandings] = useState({});
+    return null;
+  }, [gameId, initialHoleHistory.length]);
 
-  // UI state
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState(null);
+  // Initialize game state reducer
+  const [gameState, dispatch] = useReducer(
+    gameReducer,
+    { baseWager, initialCurrentHole, initialHoleHistory, players, restoredState },
+    createInitialState
+  );
+
+  // Destructure game state for convenience (maintains existing variable names)
+  const { hole, teams, betting: bettingState, rotation, aardvark, history } = gameState;
+  
+  // Hole state
+  const currentHole = hole.currentHole;
+  const scores = hole.scores;
+  const quarters = hole.quarters;
+  const holeNotes = hole.notes;
+  const winner = hole.winner;
+  
+  // Team state
+  const teamMode = teams.mode;
+  const team1 = teams.team1;
+  // eslint-disable-next-line no-unused-vars -- team2 computed from team1, kept for clarity
+  const team2 = teams.team2;
+  const captain = teams.captain;
+  const opponents = teams.opponents;
+  
+  // Betting state (from reducer)
+  const currentWager = bettingState.currentWager;
+  // eslint-disable-next-line no-unused-vars -- used in resetHole, exposed for future use
+  const nextHoleWager = bettingState.nextHoleWager;
+  const floatInvokedBy = bettingState.floatInvokedBy;
+  const optionInvokedBy = bettingState.optionInvokedBy;
+  // eslint-disable-next-line no-unused-vars -- betting state, exposed for future UI
+  const optionActive = bettingState.optionActive;
+  // eslint-disable-next-line no-unused-vars -- betting state, exposed for future UI
+  const optionTurnedOff = bettingState.optionTurnedOff;
+  const duncanInvoked = bettingState.duncanInvoked;
+  // eslint-disable-next-line no-unused-vars -- betting state, exposed for future UI
+  const carryOver = bettingState.carryOver;
+  // eslint-disable-next-line no-unused-vars -- betting state, exposed for future UI
+  const vinniesVariation = bettingState.vinniesVariation;
+  // eslint-disable-next-line no-unused-vars -- betting state, exposed for future UI
+  const joesSpecialWager = bettingState.joesSpecialWager;
+  
+  // Rotation state
+  const rotationOrder = rotation.order;
+  const captainIndex = rotation.captainIndex;
+  const isHoepfinger = rotation.isHoepfinger;
+  // eslint-disable-next-line no-unused-vars -- rotation state, exposed for Hoepfinger rule UI
+  const goatId = rotation.goatId;
+  const phase = rotation.phase;
+  
+  // Aardvark state
+  const aardvarkRequestedTeam = aardvark.requestedTeam;
+  const aardvarkTossed = aardvark.tossed;
+  const aardvarkSolo = aardvark.solo;
+  const invisibleAardvarkTossed = aardvark.invisibleTossed;
+  
+  // History state
+  const holeHistory = history.holes;
+  const playerStandings = history.playerStandings;
+
+  // ============================================================
+  // ACTION DISPATCHERS - Maintain existing setter function names
+  // ============================================================
+  
+  // Hole actions
+  const setCurrentHole = useCallback((h) => dispatch(gameActions.setCurrentHole(h)), []);
+  const setScores = useCallback((s) => dispatch(gameActions.setScores(s)), []);
+  const setQuarters = useCallback((q) => dispatch(gameActions.setQuarters(q)), []);
+  const setHoleNotes = useCallback((n) => dispatch(gameActions.setHoleNotes(n)), []);
+  const setWinner = useCallback((w) => dispatch(gameActions.setWinner(w)), []);
+  
+  // Team actions
+  const setTeamMode = useCallback((m) => dispatch(gameActions.setTeamMode(m)), []);
+  const setTeam1 = useCallback((t) => dispatch(gameActions.setTeam1(t)), []);
+  const setTeam2 = useCallback((t) => dispatch(gameActions.setTeam2(t)), []);
+  const setCaptain = useCallback((c) => dispatch(gameActions.setCaptain(c)), []);
+  const setOpponents = useCallback((o) => dispatch(gameActions.setOpponents(o)), []);
+  
+  // Betting actions
+  const setCurrentWager = useCallback((w) => dispatch(gameActions.setCurrentWager(w)), []);
+  const setNextHoleWager = useCallback((w) => dispatch(gameActions.setNextHoleWager(w)), []);
+  const setFloatInvokedBy = useCallback((p) => dispatch(gameActions.setFloatInvokedBy(p)), []);
+  const setOptionInvokedBy = useCallback((p) => dispatch(gameActions.setOptionInvokedBy(p)), []);
+  const setOptionActive = useCallback((a) => dispatch(gameActions.setOptionActive(a)), []);
+  const setOptionTurnedOff = useCallback((o) => dispatch(gameActions.setOptionTurnedOff(o)), []);
+  const setDuncanInvoked = useCallback((d) => dispatch(gameActions.setDuncanInvoked(d)), []);
+  const setCarryOver = useCallback((c) => dispatch(gameActions.setCarryOver(c)), []);
+  const setVinniesVariation = useCallback((v) => dispatch(gameActions.setVinniesVariation(v)), []);
+  const setJoesSpecialWager = useCallback((w) => dispatch(gameActions.setJoesSpecialWager(w)), []);
+  
+  // Rotation actions
+  const setRotationOrder = useCallback((o) => dispatch(gameActions.setRotationOrder(o)), []);
+  const setCaptainIndex = useCallback((i) => dispatch(gameActions.setCaptainIndex(i)), []);
+  const setIsHoepfinger = useCallback((h) => dispatch(gameActions.setIsHoepfinger(h)), []);
+  const setGoatId = useCallback((id) => dispatch(gameActions.setGoatId(id)), []);
+  const setPhase = useCallback((p) => dispatch(gameActions.setPhase(p)), []);
+  
+  // Aardvark actions
+  const setAardvarkRequestedTeam = useCallback((t) => dispatch(gameActions.setAardvarkRequestedTeam(t)), []);
+  const setAardvarkTossed = useCallback((t) => dispatch(gameActions.setAardvarkTossed(t)), []);
+  const setAardvarkSolo = useCallback((s) => dispatch(gameActions.setAardvarkSolo(s)), []);
+  const setInvisibleAardvarkTossed = useCallback((t) => dispatch(gameActions.setInvisibleAardvarkTossed(t)), []);
+  
+  // History actions
+  const setHoleHistory = useCallback((h) => dispatch(gameActions.setHoleHistory(h)), []);
+  const setPlayerStandings = useCallback((s) => dispatch(gameActions.setPlayerStandings(s)), []);
+  
+  // ============================================================
+  // BETTING STATE HOOK - Interactive betting (offers, events)
+  // ============================================================
+  
+  const betting = useBettingState({
+    currentHole,
+    currentWager,
+    setCurrentWager,
+    players,
+  });
+  
+  // Destructure commonly used betting state
+  // Only destructure what's currently used - full API available via `betting` object
+  const {
+    currentHoleBettingEvents, setCurrentHoleBettingEvents,
+    setPendingOffer,
+    addBettingEvent,
+    logBettingAction,
+    getPlayerName,
+  } = betting;
+  // Additional betting features available: betting.bettingHistory, betting.createOffer, 
+  // betting.respondToOffer, betting.showBettingHistory, betting.historyTab, betting.pendingOffer
+
+  // UI state (migrated to useUIState hook)
+  // Destructure commonly used UI state for convenience
+  const {
+    submitting, setSubmitting,
+    error, setError,
+    showTeamSelection, setShowTeamSelection,
+    showGolfScores, setShowGolfScores,
+    showCommissioner, setShowCommissioner,
+    showNotes, setShowNotes,
+    showSpecialActions, setShowSpecialActions,
+    showUsageStats, setShowUsageStats,
+    // eslint-disable-next-line no-unused-vars -- UI state, exposed for advanced betting accordion
+    showAdvancedBetting, setShowAdvancedBetting,
+    editingHole, setEditingHole,
+    editingPlayerName,
+    editPlayerNameValue, setEditPlayerNameValue,
+    isEditingCompleteGame, setIsEditingCompleteGame,
+    isGameMarkedComplete, setIsGameMarkedComplete,
+    startEditingPlayerName,
+    cancelEditingPlayerName: handleCancelPlayerNameEdit,
+  } = ui;
   
   // Offline-first sync hook
+  // eslint-disable-next-line no-unused-vars -- sync state exposed for future offline indicator UI
   const { syncHole, pendingCount, isOnline, lastError: syncError } = useHoleSync(gameId);
-  const [editingHole, setEditingHole] = useState(null); // Track which hole is being edited
-  const [editingPlayerName, setEditingPlayerName] = useState(null); // Track which player name is being edited
-  const [editPlayerNameValue, setEditPlayerNameValue] = useState(''); // Player name input value
   const [localPlayers, setLocalPlayers] = useState(players); // Local copy of players for immediate UI updates
-  const [showUsageStats, setShowUsageStats] = useState(false); // Toggle for usage statistics section
   const [courseData, setCourseData] = useState(null); // Course data with hole information
-  const [bettingHistory, setBettingHistory] = useState([]); // Track betting actions
-  const [showBettingHistory, setShowBettingHistory] = useState(false); // Toggle betting history panel
-  const [historyTab, setHistoryTab] = useState('current'); // 'current', 'last', 'game'
-  const [showAdvancedBetting, setShowAdvancedBetting] = useState(false); // Accordion for betting rules
-  const [isEditingCompleteGame, setIsEditingCompleteGame] = useState(false); // Allow editing completed games
-  const [isGameMarkedComplete, setIsGameMarkedComplete] = useState(false); // Track if game has been saved as complete
-
-  // Collapsible sections state (collapsed by default for cleaner UI)
-  const [showTeamSelection, setShowTeamSelection] = useState(true); // Start open, auto-collapse when teams set
-  const [showGolfScores, setShowGolfScores] = useState(false);
-  const [showCommissioner, setShowCommissioner] = useState(false);
-  const [showNotes, setShowNotes] = useState(false);
-  const [showSpecialActions, setShowSpecialActions] = useState(false); // Float/Option hidden by default
-
-  // Interactive betting state (Offer/Accept flow)
-  const [pendingOffer, setPendingOffer] = useState(null);
-  // Shape: { offer_id, offer_type, offered_by, wager_before, wager_after, timestamp, status }
-  const [currentHoleBettingEvents, setCurrentHoleBettingEvents] = useState([]);
-  // Events for current hole - builds the betting narrative
+  
+  // Betting state (bettingHistory, pendingOffer, currentHoleBettingEvents) migrated to useBettingState hook
 
   // Derive current hole par from course data (pars are constants and don't change)
   // No defaults - only use actual course data
@@ -262,6 +334,7 @@ const SimpleScorekeeper = ({
     });
 
     setPlayerStandings(standings);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setPlayerStandings is stable (useCallback)
   }, [players, holeHistory]);
 
   // Track rotation/wager loading errors
@@ -334,6 +407,7 @@ const SimpleScorekeeper = ({
     if (gameId) {
       fetchRotationAndWager();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setters are stable (useCallback), only trigger on data changes
   }, [gameId, currentHole, holeHistory, baseWager]);
 
   // Reset hole state for new hole
@@ -351,7 +425,7 @@ const SimpleScorekeeper = ({
     setOptionInvokedBy(null);
     setError(null);
     setEditingHole(null);
-    setCarryOverApplied(carryOver); // Set to true if carry-over was active
+    // carryOverApplied state removed (was unused)
     setJoesSpecialWager(null); // Reset Joe's Special for next hole
     setOptionTurnedOff(false); // Reset Option for next hole
     setDuncanInvoked(false); // Reset Duncan for next hole
@@ -425,88 +499,8 @@ const SimpleScorekeeper = ({
     }
   };
 
-  // Log a betting action to history
-  const logBettingAction = (actionType, details = {}) => {
-    const playerName = details.playerId
-      ? localPlayers.find(p => p.id === details.playerId)?.name || 'Unknown'
-      : null;
-
-    const newEvent = {
-      eventId: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      hole: currentHole,
-      eventType: actionType,
-      actor: playerName || details.actor || 'System',
-      timestamp: new Date().toISOString(),
-      details: {
-        ...details,
-        wager: currentWager
-      }
-    };
-
-    setBettingHistory(prev => [...prev, newEvent]);
-  };
-
-  // Helper to get player name by ID
-  const getPlayerName = (playerId) => {
-    return localPlayers.find(p => p.id === playerId)?.name || 'Unknown';
-  };
-
-  // Add a betting event to current hole's events
-  const addBettingEvent = (event) => {
-    const fullEvent = {
-      ...event,
-      hole: currentHole,
-      timestamp: event.timestamp || new Date().toISOString(),
-      actor: event.offered_by || event.response_by || event.actor
-    };
-    setCurrentHoleBettingEvents(prev => [...prev, fullEvent]);
-    // Also log to global betting history
-    logBettingAction(event.eventType, fullEvent);
-  };
-
-  // Create a betting offer (Double, Float, etc.)
-  const createOffer = (offerType, offeredBy) => {
-    if (pendingOffer) return; // Can't offer while another is pending
-
-    const offer = {
-      offer_id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      offer_type: offerType,
-      offered_by: offeredBy,
-      wager_before: currentWager,
-      wager_after: currentWager * 2,
-      timestamp: new Date().toISOString(),
-      status: 'pending'
-    };
-    setPendingOffer(offer);
-    addBettingEvent({
-      eventType: `${offerType.toUpperCase()}_OFFERED`,
-      offered_by: offeredBy,
-      wager_before: offer.wager_before,
-      wager_after: offer.wager_after
-    });
-  };
-
-  // Respond to a pending betting offer
-  const respondToOffer = (response, respondedBy) => {
-    if (!pendingOffer) return;
-
-    if (response === 'accept') {
-      setCurrentWager(pendingOffer.wager_after);
-      addBettingEvent({
-        eventType: `${pendingOffer.offer_type.toUpperCase()}_ACCEPTED`,
-        response_by: respondedBy,
-        wager_before: pendingOffer.wager_before,
-        wager_after: pendingOffer.wager_after
-      });
-    } else {
-      addBettingEvent({
-        eventType: `${pendingOffer.offer_type.toUpperCase()}_DECLINED`,
-        response_by: respondedBy,
-        wager_before: pendingOffer.wager_before
-      });
-    }
-    setPendingOffer(null);
-  };
+  // Betting functions (logBettingAction, getPlayerName, addBettingEvent, createOffer, respondToOffer)
+  // are now provided by useBettingState hook
 
   // Announce an action (Duncan, Option Off) - no accept needed
   const announceAction = (actionType, announcedBy) => {
@@ -539,6 +533,7 @@ const SimpleScorekeeper = ({
   };
 
   // Get current betting narrative
+  // eslint-disable-next-line no-unused-vars -- betting narrative for future betting history UI
   const currentBettingNarrative = useMemo(() => {
     return buildBettingNarrative(currentHoleBettingEvents);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -573,7 +568,9 @@ const SimpleScorekeeper = ({
       return acc;
     }, {});
 
-    const lowestHandicap = Math.min(...Object.values(playerHandicaps));
+    // Safe array bounds: ensure we have values before calling Math.min
+    const handicapValues = Object.values(playerHandicaps);
+    const lowestHandicap = handicapValues.length > 0 ? Math.min(...handicapValues) : 0;
 
     const netHandicaps = {};
     Object.entries(playerHandicaps).forEach(([playerId, handicap]) => {
@@ -667,12 +664,17 @@ const SimpleScorekeeper = ({
 
     if (teamMode === 'partners') {
       const team2Ids = players.filter(p => !team1.includes(p.id)).map(p => p.id);
-      team1Net = Math.min(...team1.map(id => netScores[id]));
-      team2Net = Math.min(...team2Ids.map(id => netScores[id]));
+      // Safe array bounds: filter undefined values and provide fallback
+      const team1Scores = team1.map(id => netScores[id]).filter(s => s !== undefined);
+      const team2Scores = team2Ids.map(id => netScores[id]).filter(s => s !== undefined);
+      team1Net = team1Scores.length > 0 ? Math.min(...team1Scores) : 0;
+      team2Net = team2Scores.length > 0 ? Math.min(...team2Scores) : 0;
     } else {
       // Solo mode: captain vs opponents
-      team1Net = netScores[captain]; // Captain's net score
-      team2Net = Math.min(...opponents.map(id => netScores[id])); // Best of opponents
+      team1Net = netScores[captain] ?? 0; // Captain's net score with fallback
+      // Safe array bounds for opponents
+      const opponentScores = opponents.map(id => netScores[id]).filter(s => s !== undefined);
+      team2Net = opponentScores.length > 0 ? Math.min(...opponentScores) : 0;
     }
 
     // Determine suggested winner
@@ -695,6 +697,7 @@ const SimpleScorekeeper = ({
       // Auto-set the winner based on net scores
       setWinner(suggestedWinner);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setWinner is stable (useCallback)
   }, [calculateNetScoresAndWinner, winner]);
 
   // Validate hole data before submission
@@ -943,11 +946,10 @@ const SimpleScorekeeper = ({
     }
   };
 
-  // Handle player name editing - exported for potential external use
+  // Handle player name editing - uses useUIState hook
   // eslint-disable-next-line no-unused-vars
   const handlePlayerNameClick = (playerId, currentName) => {
-    setEditingPlayerName(playerId);
-    setEditPlayerNameValue(currentName);
+    startEditingPlayerName(playerId, currentName);
   };
 
   const handleSavePlayerName = async () => {
@@ -986,18 +988,14 @@ const SimpleScorekeeper = ({
       }
 
       // Close the edit modal
-      setEditingPlayerName(null);
-      setEditPlayerNameValue('');
+      handleCancelPlayerNameEdit();
     } catch (err) {
       console.error('Failed to update player name:', err);
       alert('Failed to update player name. Please try again.');
     }
   };
 
-  const handleCancelPlayerNameEdit = () => {
-    setEditingPlayerName(null);
-    setEditPlayerNameValue('');
-  };
+  // handleCancelPlayerNameEdit is now provided by useUIState hook
 
   // Memoize courseHoles transformation to prevent Scorecard re-renders
   const scorecardCourseHoles = useMemo(() => {
@@ -2097,7 +2095,7 @@ const SimpleScorekeeper = ({
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
               {players.map(player => {
                 const inTeam1 = team1.includes(player.id);
-                const inTeam2 = !inTeam1; // Implicit team 2
+                // inTeam2 is implicit (anyone not in team1)
                 return (
                   <button
                     key={player.id}
@@ -2759,19 +2757,70 @@ const SimpleScorekeeper = ({
   );
 };
 
+/**
+ * PropTypes for SimpleScorekeeper
+ * Specific shapes for better validation and documentation
+ */
 SimpleScorekeeper.propTypes = {
+  /** Unique game identifier */
   gameId: PropTypes.string.isRequired,
+  
+  /** Array of player objects */
   players: PropTypes.arrayOf(PropTypes.shape({
     id: PropTypes.string.isRequired,
     name: PropTypes.string.isRequired,
     handicap: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     user_id: PropTypes.string,
+    tee_order: PropTypes.number,
+    is_authenticated: PropTypes.bool,
+    ghin_id: PropTypes.string,
   })).isRequired,
+  
+  /** Base wager amount in quarters (default: 1) */
   baseWager: PropTypes.number,
-  initialHoleHistory: PropTypes.arrayOf(PropTypes.object),
+  
+  /** History of completed holes */
+  initialHoleHistory: PropTypes.arrayOf(PropTypes.shape({
+    hole: PropTypes.number.isRequired,
+    points_delta: PropTypes.objectOf(PropTypes.number),
+    gross_scores: PropTypes.objectOf(PropTypes.number),
+    teams: PropTypes.shape({
+      type: PropTypes.oneOf(['partners', 'solo']),
+      team1: PropTypes.arrayOf(PropTypes.string),
+      team2: PropTypes.arrayOf(PropTypes.string),
+      captain: PropTypes.string,
+      opponents: PropTypes.arrayOf(PropTypes.string),
+    }),
+    winner: PropTypes.oneOf(['team1', 'team2', 'captain', 'opponents', 'push', null]),
+    wager: PropTypes.number,
+    phase: PropTypes.string,
+    rotation_order: PropTypes.arrayOf(PropTypes.string),
+    captain_index: PropTypes.number,
+    notes: PropTypes.string,
+    float_invoked_by: PropTypes.string,
+    option_invoked_by: PropTypes.string,
+    duncan_invoked: PropTypes.bool,
+    option_turned_off: PropTypes.bool,
+    betting_events: PropTypes.arrayOf(PropTypes.shape({
+      eventId: PropTypes.string,
+      eventType: PropTypes.string,
+      hole: PropTypes.number,
+      actor: PropTypes.string,
+      timestamp: PropTypes.string,
+      details: PropTypes.object,
+    })),
+  })),
+  
+  /** Starting hole number (default: 1) */
   initialCurrentHole: PropTypes.number,
+  
+  /** Name of the golf course */
   courseName: PropTypes.string,
-  initialStrokeAllocation: PropTypes.object,
+  
+  /** Pre-calculated stroke allocation from backend */
+  initialStrokeAllocation: PropTypes.objectOf(
+    PropTypes.objectOf(PropTypes.number)
+  ),
 };
 
 export default SimpleScorekeeper;
