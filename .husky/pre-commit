@@ -1,6 +1,16 @@
 #!/bin/sh
 set -e
 
+echo "📦 Verifying package-lock.json is in sync..."
+cd frontend
+if ! npm ci --dry-run 2>/dev/null; then
+  echo "❌ package-lock.json is out of sync with package.json!"
+  echo "   Run 'cd frontend && npm install' to fix."
+  exit 1
+fi
+echo "✅ package-lock.json is in sync"
+cd ..
+
 echo "🔍 Running simulation diagnostics (npm test)"
 npm test
 
