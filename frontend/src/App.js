@@ -171,9 +171,11 @@ function App() {
   // If backend isn't ready, show cold start handler
   if (!backendReady) {
     return (
-      <ColdStartHandler onReady={handleBackendReady}>
-        {/* This content will show once backend is ready */}
-      </ColdStartHandler>
+      <ThemeProvider>
+        <ColdStartHandler onReady={handleBackendReady}>
+          {/* This content will show once backend is ready */}
+        </ColdStartHandler>
+      </ThemeProvider>
     );
   }
 
