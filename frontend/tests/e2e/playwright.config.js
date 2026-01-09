@@ -7,7 +7,7 @@ export default defineConfig({
   workers: 1, // Run serially to avoid port conflicts
 
   use: {
-    baseURL: 'http://localhost:3333',
+    baseURL: 'http://localhost:3000',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     trace: 'retain-on-failure',
@@ -27,21 +27,21 @@ export default defineConfig({
   webServer: [
     {
       command: 'npm run start',
-      url: 'http://localhost:3333',
+      url: 'http://localhost:3000',
       timeout: 300 * 1000,
-      reuseExistingServer: false,
+      reuseExistingServer: true,
       cwd: '../../',
       env: {
         REACT_APP_API_URL: 'http://localhost:8333',
         REACT_APP_USE_MOCK_AUTH: 'true',
-        PORT: '3333',
+        PORT: '3000',
       },
     },
     {
       command: 'python3 -m uvicorn app.main:app --port 8333',
       port: 8333,
       timeout: 300 * 1000,
-      reuseExistingServer: false,
+      reuseExistingServer: true,
       cwd: '../../../backend',
     },
   ],
