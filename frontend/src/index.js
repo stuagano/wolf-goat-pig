@@ -4,12 +4,67 @@ import App from "./App";
 import { BrowserRouter } from "react-router-dom";
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 
+// Error boundary for catching React render errors
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('[ErrorBoundary] React error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '40px', textAlign: 'center', fontFamily: 'system-ui' }}>
+          <h1 style={{ color: '#dc2626' }}>Something went wrong</h1>
+          <pre style={{ 
+            background: '#fee2e2', 
+            padding: '20px', 
+            borderRadius: '8px',
+            textAlign: 'left',
+            overflow: 'auto',
+            maxWidth: '600px',
+            margin: '20px auto'
+          }}>
+            {this.state.error?.message || 'Unknown error'}
+          </pre>
+          <button 
+            onClick={() => window.location.reload()}
+            style={{
+              background: '#059669',
+              color: 'white',
+              padding: '12px 24px',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '16px'
+            }}
+          >
+            Reload Page
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </ErrorBoundary>
   </React.StrictMode>
 );
 
