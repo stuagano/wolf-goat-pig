@@ -81,7 +81,4 @@ if (process.env.NODE_ENV === 'production') {
   });
 } else {
   console.log('[DEV] Service worker disabled in development mode');
-} // Deploy 20251218-112908
-// Build trigger: $(date -u +%Y-%m-%dT%H:%M:%SZ)
-// Deploy trigger: 2025-12-20T19:42:44Z
-// Deployment verified: 2025-12-20T21:54:28Z
+} // Deploy 20260109-fix-blank-page
