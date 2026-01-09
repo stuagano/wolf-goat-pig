@@ -2499,15 +2499,12 @@ async def get_game_lobby(game_id: str, db: Session = Depends(database.get_db)) -
 async def set_tee_order(
     game_id: str, request: Dict[str, Any], db: Session = Depends(database.get_db)
 ) -> Dict[str, Any]:
-    """Set the tee order for the game based on tee toss results"""
+    """Set or update the tee order for the game at any time during gameplay"""
     try:
         game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
 
         if not game:
             raise HTTPException(status_code=404, detail="Game not found")
-
-        if game.game_status != "setup":
-            raise HTTPException(status_code=400, detail="Cannot set tee order after game has started")
 
         player_order = request.get("player_order", [])
         if not player_order:

@@ -222,7 +222,8 @@ const SimpleScorekeeper = ({
   const { syncHole, pendingCount, isOnline, lastError: syncError } = useHoleSync(gameId);
   const [localPlayers, setLocalPlayers] = useState(players); // Local copy of players for immediate UI updates
   const [courseData, setCourseData] = useState(null); // Course data with hole information
-  
+  const [editingOrder, setEditingOrder] = useState(false); // Track if user is editing hitting order
+
   // Betting state (bettingHistory, pendingOffer, currentHoleBettingEvents) migrated to useBettingState hook
 
   // Derive current hole par from course data (pars are constants and don't change)
@@ -952,6 +953,35 @@ const SimpleScorekeeper = ({
     startEditingPlayerName(playerId, currentName);
   };
 
+  // Handle reordering hitting order
+  const movePlayerInOrder = async (fromIndex, direction) => {
+    const toIndex = fromIndex + direction;
+    if (toIndex < 0 || toIndex >= rotationOrder.length) return;
+
+    const newOrder = [...rotationOrder];
+    [newOrder[fromIndex], newOrder[toIndex]] = [newOrder[toIndex], newOrder[fromIndex]];
+
+    // Update local state immediately for responsive UI
+    setRotationOrder(newOrder);
+
+    // Persist to backend
+    try {
+      const response = await fetch(`${API_BASE_URL}/games/${gameId}/tee-order`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ player_order: newOrder })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update hitting order');
+      }
+    } catch (error) {
+      console.error('Error updating hitting order:', error);
+      // Revert on error
+      setRotationOrder(rotationOrder);
+    }
+  };
+
   const handleSavePlayerName = async () => {
     if (!editingPlayerName || !editPlayerNameValue.trim()) {
       return;
@@ -1494,13 +1524,35 @@ const SimpleScorekeeper = ({
                 background: 'rgba(0,0,0,0.15)'
               }}>
                 <div style={{
-                  fontSize: '10px',
-                  textTransform: 'uppercase',
-                  letterSpacing: '1px',
-                  opacity: 0.8,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
                   marginBottom: '8px'
                 }}>
-                  Hitting Order
+                  <div style={{
+                    fontSize: '10px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px',
+                    opacity: 0.8
+                  }}>
+                    Hitting Order
+                  </div>
+                  <button
+                    onClick={() => setEditingOrder(!editingOrder)}
+                    style={{
+                      background: editingOrder ? theme.colors.primary : 'rgba(255,255,255,0.2)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '12px',
+                      padding: '4px 10px',
+                      fontSize: '11px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {editingOrder ? '✓ Done' : '✏️ Edit'}
+                  </button>
                 </div>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
                   {rotationOrder.map((playerId, index) => {
@@ -1526,6 +1578,26 @@ const SimpleScorekeeper = ({
                           border: isCaptain ? '2px solid rgba(255,255,255,0.5)' : '1px solid rgba(255,255,255,0.15)'
                         }}
                       >
+                        {editingOrder && index > 0 && (
+                          <button
+                            onClick={() => movePlayerInOrder(index, -1)}
+                            style={{
+                              background: 'rgba(255,255,255,0.3)',
+                              border: 'none',
+                              borderRadius: '50%',
+                              width: '22px',
+                              height: '22px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                              padding: '0'
+                            }}
+                          >
+                            ▲
+                          </button>
+                        )}
                         <span style={{
                           fontSize: '11px',
                           opacity: 0.8,
@@ -1562,6 +1634,26 @@ const SimpleScorekeeper = ({
                           }}>
                             ◐
                           </span>
+                        )}
+                        {editingOrder && index < rotationOrder.length - 1 && (
+                          <button
+                            onClick={() => movePlayerInOrder(index, 1)}
+                            style={{
+                              background: 'rgba(255,255,255,0.3)',
+                              border: 'none',
+                              borderRadius: '50%',
+                              width: '22px',
+                              height: '22px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                              padding: '0'
+                            }}
+                          >
+                            ▼
+                          </button>
                         )}
                       </div>
                     );
