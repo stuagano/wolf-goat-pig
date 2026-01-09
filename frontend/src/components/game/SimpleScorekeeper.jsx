@@ -2092,7 +2092,7 @@ const SimpleScorekeeper = ({
 
         {showTeamSelection && (teamMode === 'partners' ? (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(3, Math.ceil(players.length / 2))}, 1fr)`, gap: '12px' }}>
               {players.map(player => {
                 const inTeam1 = team1.includes(player.id);
                 // inTeam2 is implicit (anyone not in team1)
@@ -2118,8 +2118,8 @@ const SimpleScorekeeper = ({
               })}
             </div>
 
-            {/* 5-Man Aardvark - Compact */}
-            {players.length === 5 && team1.length >= 2 && (
+            {/* 5-Man and 6-Man Aardvark - Compact */}
+            {(players.length === 5 || players.length === 6) && team1.length >= 2 && (
               <div style={{
                 marginTop: '12px',
                 padding: '10px',
@@ -2128,7 +2128,7 @@ const SimpleScorekeeper = ({
                 border: '1px solid #90CAF9'
               }}>
                 <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#1565C0', marginBottom: '8px' }}>
-                  Aardvark: {players[4]?.name?.split(' ')[0]}
+                  Aardvark: {players[players.length === 5 ? 4 : 5]?.name?.split(' ')[0] || 'Player ' + (players.length)}
                 </div>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                   <button
@@ -2204,7 +2204,7 @@ const SimpleScorekeeper = ({
             )}
           </>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(3, Math.ceil(players.length / 2))}, 1fr)`, gap: '12px' }}>
             {players.map(player => {
               const isCaptain = captain === player.id;
               return (
@@ -2397,7 +2397,7 @@ const SimpleScorekeeper = ({
             <div style={{ fontSize: '12px', color: theme.colors.textSecondary, marginBottom: '12px', marginTop: '8px' }}>
               Enter strokes for tracking only
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(2, Math.ceil(players.length / 3))}, 1fr)`, gap: '12px' }}>
               {players.map(player => (
                 <div key={player.id} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <label style={{ flex: 1, fontWeight: 'bold' }}>

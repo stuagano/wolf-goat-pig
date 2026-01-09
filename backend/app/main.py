@@ -612,13 +612,14 @@ async def create_test_game(
     game_id = str(uuid.uuid4())
     current_time = datetime.now(timezone.utc).isoformat()
 
-    # Create mock players
+    # Create mock players (supports up to 6 players)
     mock_players = [
         {"id": "test-player-1", "name": "Test Player 1", "handicap": 18, "is_human": True},
         {"id": "test-player-2", "name": "Test Player 2", "handicap": 15, "is_human": False},
         {"id": "test-player-3", "name": "Test Player 3", "handicap": 12, "is_human": False},
         {"id": "test-player-4", "name": "Test Player 4", "handicap": 20, "is_human": False},
         {"id": "test-player-5", "name": "Test Player 5", "handicap": 16, "is_human": False},
+        {"id": "test-player-6", "name": "Test Player 6", "handicap": 14, "is_human": False},
     ][:player_count]
 
     # Initialize WolfGoatPigGame for this game
