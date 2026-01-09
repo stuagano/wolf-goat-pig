@@ -1555,13 +1555,29 @@ const SimpleScorekeeper = ({
                   </button>
                 </div>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                  {rotationOrder.map((playerId, index) => {
-                    const player = players.find(p => p.id === playerId);
-                    const isCaptain = index === captainIndex;
-                    const playerStrokes = playerStrokesMap[playerId] || 0;
-                    const hasFullStroke = playerStrokes >= 1;
-                    const hasHalfStroke = (playerStrokes % 1) >= 0.4;
-                    const fullStrokeCount = Math.floor(playerStrokes);
+                  {(() => {
+                    // Arrow button styles (reused for up/down arrows)
+                    const arrowButtonStyle = {
+                      background: 'rgba(255,255,255,0.3)',
+                      border: 'none',
+                      borderRadius: '50%',
+                      width: '22px',
+                      height: '22px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      padding: '0'
+                    };
+
+                    return rotationOrder.map((playerId, index) => {
+                      const player = players.find(p => p.id === playerId);
+                      const isCaptain = index === captainIndex;
+                      const playerStrokes = playerStrokesMap[playerId] || 0;
+                      const hasFullStroke = playerStrokes >= 1;
+                      const hasHalfStroke = (playerStrokes % 1) >= 0.4;
+                      const fullStrokeCount = Math.floor(playerStrokes);
 
                     return (
                       <div
@@ -1579,22 +1595,7 @@ const SimpleScorekeeper = ({
                         }}
                       >
                         {editingOrder && index > 0 && (
-                          <button
-                            onClick={() => movePlayerInOrder(index, -1)}
-                            style={{
-                              background: 'rgba(255,255,255,0.3)',
-                              border: 'none',
-                              borderRadius: '50%',
-                              width: '22px',
-                              height: '22px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              cursor: 'pointer',
-                              fontSize: '12px',
-                              padding: '0'
-                            }}
-                          >
+                          <button onClick={() => movePlayerInOrder(index, -1)} style={arrowButtonStyle}>
                             ▲
                           </button>
                         )}
@@ -1630,34 +1631,20 @@ const SimpleScorekeeper = ({
                             borderRadius: '10px',
                             fontSize: '10px',
                             fontWeight: 'bold',
-                            marginLeft: hasFullStroke ? '2px' : '2px'
+                            marginLeft: '2px'
                           }}>
                             ◐
                           </span>
                         )}
                         {editingOrder && index < rotationOrder.length - 1 && (
-                          <button
-                            onClick={() => movePlayerInOrder(index, 1)}
-                            style={{
-                              background: 'rgba(255,255,255,0.3)',
-                              border: 'none',
-                              borderRadius: '50%',
-                              width: '22px',
-                              height: '22px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              cursor: 'pointer',
-                              fontSize: '12px',
-                              padding: '0'
-                            }}
-                          >
+                          <button onClick={() => movePlayerInOrder(index, 1)} style={arrowButtonStyle}>
                             ▼
                           </button>
                         )}
                       </div>
                     );
-                  })}
+                    });
+                  })()}
                 </div>
               </div>
             )}
