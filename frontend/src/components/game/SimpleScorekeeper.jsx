@@ -2267,7 +2267,8 @@ const SimpleScorekeeper = ({
           {players.map((player) => {
             const currentVal = parseFloat(quarters[player.id]) || 0;
             const adjustQuarters = (delta) => {
-              setQuarters(prev => ({ ...prev, [player.id]: (currentVal + delta).toString() }));
+              // Fix: Don't use function updater - setQuarters dispatches directly to reducer
+              setQuarters({ ...quarters, [player.id]: (currentVal + delta).toString() });
             };
             return (
               <div key={player.id} style={{
