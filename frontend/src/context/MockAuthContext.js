@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from 'react';
+import React, { createContext } from 'react';
 import { Auth0Context } from '@auth0/auth0-react';
 
 const MockAuthContext = createContext();

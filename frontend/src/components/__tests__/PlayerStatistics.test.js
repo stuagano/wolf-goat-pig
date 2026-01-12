@@ -2,6 +2,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import PlayerStatistics from '../PlayerStatistics';
+import { apiGet } from '../../utils';
 
 // Mock the Card component
 jest.mock('../ui', () => ({
@@ -15,8 +16,6 @@ jest.mock('../../utils', () => ({
   ...jest.requireActual('../../utils'),
   apiGet: jest.fn(),
 }));
-
-import { apiGet } from '../../utils';
 
 describe('PlayerStatistics', () => {
   const mockStatistics = {

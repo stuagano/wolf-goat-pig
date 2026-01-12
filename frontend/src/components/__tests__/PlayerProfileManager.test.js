@@ -5,6 +5,7 @@ import '@testing-library/jest-dom';
 
 import { ThemeProvider } from '../../theme/Provider';
 import PlayerProfileManager from '../PlayerProfileManager';
+import { apiGet, apiPost, apiPut, apiDelete } from '../../utils';
 
 // Mock the API utilities
 jest.mock('../../utils', () => ({
@@ -14,8 +15,6 @@ jest.mock('../../utils', () => ({
   apiPut: jest.fn(),
   apiDelete: jest.fn(),
 }));
-
-import { apiGet, apiPost, apiPut, apiDelete } from '../../utils';
 
 global.confirm = jest.fn();
 

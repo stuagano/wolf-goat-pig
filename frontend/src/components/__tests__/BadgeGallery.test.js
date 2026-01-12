@@ -356,9 +356,7 @@ describe('BadgeGallery', () => {
 
       fetch.mockRejectedValue(new Error('Network error'));
 
-      await act(async () => {
-        render(<BadgeGallery playerId={1} />);
-      });
+      render(<BadgeGallery playerId={1} />);
 
       // Wait for loading to complete
       await waitForLoadingToComplete();

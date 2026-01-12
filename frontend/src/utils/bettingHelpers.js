@@ -2,58 +2,15 @@
  * Betting Helpers
  *
  * Shared utility functions for betting-related UI components.
- * Includes risk indicators, action icons, and betting-specific formatting.
+ * Includes action icons, betting-specific formatting, and EV calculations.
+ *
+ * Note: Color constants and risk helpers are in constants/colors.js
  */
 
-// Betting-specific color constants
-export const BETTING_COLORS = {
-  riskLow: '#4CAF50',
-  riskMedium: '#FF9800',
-  riskHigh: '#F44336',
-  favorable: '#4caf50',
-  unfavorable: '#f44336',
-  neutral: '#757575'
-};
+import { BETTING_COLORS, getRiskColor, getRiskIcon } from '../constants/colors';
 
-/**
- * Get color for risk level
- * @param {string} risk - Risk level: 'low', 'medium', 'high'
- * @returns {string} Hex color code
- */
-export const getRiskColor = (risk) => {
-  if (!risk) return BETTING_COLORS.neutral;
-
-  switch (risk.toLowerCase()) {
-    case 'low':
-      return BETTING_COLORS.riskLow;
-    case 'medium':
-      return BETTING_COLORS.riskMedium;
-    case 'high':
-      return BETTING_COLORS.riskHigh;
-    default:
-      return BETTING_COLORS.neutral;
-  }
-};
-
-/**
- * Get emoji icon for risk level
- * @param {string} risk - Risk level: 'low', 'medium', 'high'
- * @returns {string} Emoji icon
- */
-export const getRiskIcon = (risk) => {
-  if (!risk) return '⚪';
-
-  switch (risk.toLowerCase()) {
-    case 'low':
-      return '🟢';
-    case 'medium':
-      return '🟡';
-    case 'high':
-      return '🔴';
-    default:
-      return '⚪';
-  }
-};
+// Re-export for backwards compatibility
+export { BETTING_COLORS, getRiskColor, getRiskIcon };
 
 /**
  * Get emoji icon for betting action

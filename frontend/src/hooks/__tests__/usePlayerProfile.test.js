@@ -1,5 +1,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import usePlayerProfile from '../usePlayerProfile';
+import useFetchAsync from '../useFetchAsync';
+import { storage } from '../../utils/storage';
 
 // Create simple mock profiles without using factory (to match API response format)
 const mockProfiles = [
@@ -33,10 +35,6 @@ jest.mock('../../utils/storage', () => ({
     clear: jest.fn()
   }
 }));
-
-// Get reference to the mocked module so we can control it in tests
-import useFetchAsync from '../useFetchAsync';
-import { storage } from '../../utils/storage';
 
 describe('usePlayerProfile', () => {
   beforeEach(() => {
