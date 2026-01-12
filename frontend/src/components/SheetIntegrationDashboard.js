@@ -3,15 +3,19 @@ import { Card } from './ui';
 
 /**
  * SheetIntegrationDashboard - Manages Google Sheets integration for metrics and leaderboards
- * 
+ *
  * Features:
  * - Sheet structure analysis
  * - Data preview and validation
  * - Column mapping configuration
  * - Data sync and migration tools
  * - Comparison reports
+ * - Direct Google Sheets URL sync
  */
 const SheetIntegrationDashboard = () => {
+    const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+    const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM/export?format=csv&gid=0";
+
     const [sheetData, setSheetData] = useState(null);
     const [columnMappings, setColumnMappings] = useState([]);
     const [leaderboard, setLeaderboard] = useState(null);
@@ -19,6 +23,8 @@ const SheetIntegrationDashboard = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [activeTab, setActiveTab] = useState('upload');
+    const [syncResult, setSyncResult] = useState(null);
+    const [lastSync, setLastSync] = useState(null);
 
     const handleFileUpload = (event) => {
         const file = event.target.files[0];
@@ -153,6 +159,41 @@ const SheetIntegrationDashboard = () => {
             }
         } catch (err) {
             setError(`Error comparing data: ${err.message}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const syncFromGoogleSheets = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            setSyncResult(null);
+
+            const response = await fetch(`${API_URL}/sheet-integration/sync-wgp-sheet`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Scheduled-Job': 'true', // Bypass rate limiting
+                },
+                body: JSON.stringify({ csv_url: SHEET_CSV_URL }),
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                setSyncResult(result);
+                setLastSync(new Date());
+                setActiveTab('sync-results');
+
+                // Show success message
+                alert(`✅ Sync successful!\n\nPlayers processed: ${result.sync_results.players_processed}\nPlayers created: ${result.sync_results.players_created}\nPlayers updated: ${result.sync_results.players_updated}\n\nCheck the leaderboard to see updated data.`);
+            } else {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+            }
+        } catch (err) {
+            setError(`Error syncing from Google Sheets: ${err.message}`);
+            alert(`❌ Sync failed: ${err.message}`);
         } finally {
             setLoading(false);
         }
@@ -360,6 +401,41 @@ const SheetIntegrationDashboard = () => {
                 </div>
             )}
 
+            {/* Sync from Google Sheets - Quick Action */}
+            <Card className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200">
+                <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">🔄 Sync from Google Sheets</h3>
+                        <p className="text-sm text-gray-600 mb-1">
+                            Sync player data directly from your Google Sheet to the database.
+                        </p>
+                        <p className="text-xs text-gray-500">
+                            Sheet: Wolf-Goat-Pig Leaderboard
+                        </p>
+                        {lastSync && (
+                            <p className="text-xs text-green-600 mt-2">
+                                ✅ Last synced: {lastSync.toLocaleString()}
+                            </p>
+                        )}
+                    </div>
+                    <button
+                        onClick={syncFromGoogleSheets}
+                        disabled={loading}
+                        className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transition-all"
+                    >
+                        {loading ? (
+                            <span className="flex items-center">
+                                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Syncing...
+                            </span>
+                        ) : '🚀 Sync Now'}
+                    </button>
+                </div>
+            </Card>
+
             {/* Tab Navigation */}
             <div className="border-b border-gray-200">
                 <nav className="-mb-px flex space-x-8">
@@ -368,6 +444,12 @@ const SheetIntegrationDashboard = () => {
                         title="Upload Data"
                         isActive={activeTab === 'upload'}
                         onClick={() => setActiveTab('upload')}
+                    />
+                    <TabButton
+                        tab="sync-results"
+                        title="Sync Results"
+                        isActive={activeTab === 'sync-results'}
+                        onClick={() => setActiveTab('sync-results')}
                     />
                     <TabButton
                         tab="mappings"
@@ -483,6 +565,132 @@ const SheetIntegrationDashboard = () => {
                         <p className="text-gray-500">
                             Create a leaderboard first to see the preview.
                         </p>
+                    )}
+                </Card>
+            )}
+
+            {activeTab === 'sync-results' && (
+                <Card className="p-6">
+                    <h3 className="text-lg font-semibold mb-4">Google Sheets Sync Results</h3>
+                    {syncResult ? (
+                        <div className="space-y-6">
+                            {/* Summary Cards */}
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <Card className="p-4 bg-blue-50">
+                                    <h4 className="text-sm font-medium text-gray-600 mb-1">Players Processed</h4>
+                                    <p className="text-3xl font-bold text-blue-600">{syncResult.sync_results.players_processed}</p>
+                                </Card>
+                                <Card className="p-4 bg-green-50">
+                                    <h4 className="text-sm font-medium text-gray-600 mb-1">Players Created</h4>
+                                    <p className="text-3xl font-bold text-green-600">{syncResult.sync_results.players_created}</p>
+                                </Card>
+                                <Card className="p-4 bg-yellow-50">
+                                    <h4 className="text-sm font-medium text-gray-600 mb-1">Players Updated</h4>
+                                    <p className="text-3xl font-bold text-yellow-600">{syncResult.sync_results.players_updated}</p>
+                                </Card>
+                                <Card className="p-4 bg-purple-50">
+                                    <h4 className="text-sm font-medium text-gray-600 mb-1">Total Players</h4>
+                                    <p className="text-3xl font-bold text-purple-600">{syncResult.player_count}</p>
+                                </Card>
+                            </div>
+
+                            {/* Synced Players */}
+                            {syncResult.players_synced && syncResult.players_synced.length > 0 && (
+                                <Card className="p-4">
+                                    <h4 className="font-semibold text-gray-900 mb-3">Synced Players</h4>
+                                    <div className="flex flex-wrap gap-2">
+                                        {syncResult.players_synced.map((player, index) => (
+                                            <span key={index} className="px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">
+                                                ✓ {player}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </Card>
+                            )}
+
+                            {/* Sample Data */}
+                            {syncResult.sample_data && Object.keys(syncResult.sample_data).length > 0 && (
+                                <Card className="p-4">
+                                    <h4 className="font-semibold text-gray-900 mb-3">Sample Data (First 3 Players)</h4>
+                                    <div className="space-y-3">
+                                        {Object.entries(syncResult.sample_data).map(([playerName, stats]) => (
+                                            <div key={playerName} className="border-l-4 border-blue-400 pl-4 py-2 bg-gray-50 rounded">
+                                                <h5 className="font-medium text-gray-900">{playerName}</h5>
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2 text-sm text-gray-600">
+                                                    <div>
+                                                        <span className="font-medium">Quarters:</span> {stats.quarters}
+                                                    </div>
+                                                    <div>
+                                                        <span className="font-medium">Average:</span> {stats.average?.toFixed(2)}
+                                                    </div>
+                                                    <div>
+                                                        <span className="font-medium">Rounds:</span> {stats.rounds}
+                                                    </div>
+                                                    <div>
+                                                        <span className="font-medium">Earnings:</span> ${stats.total_earnings?.toFixed(2)}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </Card>
+                            )}
+
+                            {/* Errors */}
+                            {syncResult.sync_results.errors && syncResult.sync_results.errors.length > 0 && (
+                                <Card className="p-4 bg-red-50">
+                                    <h4 className="font-semibold text-red-900 mb-3">⚠️ Errors ({syncResult.sync_results.errors.length})</h4>
+                                    <div className="space-y-2">
+                                        {syncResult.sync_results.errors.map((error, index) => (
+                                            <div key={index} className="text-sm text-red-700 bg-white p-2 rounded">
+                                                {typeof error === 'string' ? error : JSON.stringify(error)}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </Card>
+                            )}
+
+                            {/* Sync Info */}
+                            <Card className="p-4 bg-gray-50">
+                                <h4 className="font-semibold text-gray-900 mb-2">Sync Information</h4>
+                                <div className="text-sm text-gray-600 space-y-1">
+                                    <p><strong>Synced at:</strong> {syncResult.synced_at}</p>
+                                    <p><strong>Headers found:</strong> {syncResult.headers_found?.join(', ')}</p>
+                                    {syncResult.ghin_players_count > 0 && (
+                                        <p><strong>GHIN data included:</strong> {syncResult.ghin_players_count} players</p>
+                                    )}
+                                </div>
+                            </Card>
+
+                            {/* Action Buttons */}
+                            <div className="flex space-x-4">
+                                <button
+                                    onClick={() => window.location.href = '/leaderboard'}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                >
+                                    View Leaderboard
+                                </button>
+                                <button
+                                    onClick={syncFromGoogleSheets}
+                                    disabled={loading}
+                                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                                >
+                                    Sync Again
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="text-center py-12">
+                            <div className="text-6xl mb-4">📊</div>
+                            <p className="text-gray-500 mb-4">No sync results yet.</p>
+                            <button
+                                onClick={syncFromGoogleSheets}
+                                disabled={loading}
+                                className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                            >
+                                Run Sync from Google Sheets
+                            </button>
+                        </div>
                     )}
                 </Card>
             )}
