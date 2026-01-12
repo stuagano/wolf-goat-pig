@@ -33,6 +33,23 @@ PlayerName.propTypes = {
 };
 
 /**
+ * Reusable styles for hitting order arrow buttons
+ */
+const ARROW_BUTTON_STYLE = {
+  background: 'rgba(255,255,255,0.3)',
+  border: 'none',
+  borderRadius: '50%',
+  width: '22px',
+  height: '22px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  cursor: 'pointer',
+  fontSize: '12px',
+  padding: '0'
+};
+
+/**
  * Simplified scorekeeper component - no game engine, just direct data entry
  * Client-side betting UI, single API call to complete each hole
  */
@@ -966,7 +983,7 @@ const SimpleScorekeeper = ({
 
     // Persist to backend
     try {
-      const response = await fetch(`${API_BASE_URL}/games/${gameId}/tee-order`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/games/${gameId}/tee-order`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ player_order: newOrder })
@@ -1555,29 +1572,13 @@ const SimpleScorekeeper = ({
                   </button>
                 </div>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                  {(() => {
-                    // Arrow button styles (reused for up/down arrows)
-                    const arrowButtonStyle = {
-                      background: 'rgba(255,255,255,0.3)',
-                      border: 'none',
-                      borderRadius: '50%',
-                      width: '22px',
-                      height: '22px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      fontSize: '12px',
-                      padding: '0'
-                    };
-
-                    return rotationOrder.map((playerId, index) => {
-                      const player = players.find(p => p.id === playerId);
-                      const isCaptain = index === captainIndex;
-                      const playerStrokes = playerStrokesMap[playerId] || 0;
-                      const hasFullStroke = playerStrokes >= 1;
-                      const hasHalfStroke = (playerStrokes % 1) >= 0.4;
-                      const fullStrokeCount = Math.floor(playerStrokes);
+                  {rotationOrder.map((playerId, index) => {
+                    const player = players.find(p => p.id === playerId);
+                    const isCaptain = index === captainIndex;
+                    const playerStrokes = playerStrokesMap[playerId] || 0;
+                    const hasFullStroke = playerStrokes >= 1;
+                    const hasHalfStroke = (playerStrokes % 1) >= 0.4;
+                    const fullStrokeCount = Math.floor(playerStrokes);
 
                     return (
                       <div
@@ -1595,7 +1596,7 @@ const SimpleScorekeeper = ({
                         }}
                       >
                         {editingOrder && index > 0 && (
-                          <button onClick={() => movePlayerInOrder(index, -1)} style={arrowButtonStyle}>
+                          <button onClick={() => movePlayerInOrder(index, -1)} style={ARROW_BUTTON_STYLE}>
                             ▲
                           </button>
                         )}
@@ -1637,14 +1638,13 @@ const SimpleScorekeeper = ({
                           </span>
                         )}
                         {editingOrder && index < rotationOrder.length - 1 && (
-                          <button onClick={() => movePlayerInOrder(index, 1)} style={arrowButtonStyle}>
+                          <button onClick={() => movePlayerInOrder(index, 1)} style={ARROW_BUTTON_STYLE}>
                             ▼
                           </button>
                         )}
                       </div>
                     );
-                    });
-                  })()}
+                  })}
                 </div>
               </div>
             )}
@@ -2377,7 +2377,8 @@ const SimpleScorekeeper = ({
                       // Allow empty, minus sign, numbers, and decimals
                       const val = e.target.value;
                       if (val === '' || val === '-' || /^-?\d*\.?\d*$/.test(val)) {
-                        setQuarters(prev => ({ ...prev, [player.id]: val }));
+                        // Don't use function updater - setQuarters dispatches directly to reducer
+                        setQuarters({ ...quarters, [player.id]: val });
                       }
                     }}
                     placeholder="0"
