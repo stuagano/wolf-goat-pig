@@ -230,39 +230,6 @@ class HoleAnalytics(TypedDict):
 
 
 # ============================================================================
-# Simulation Response Types
-# ============================================================================
-
-class SimulationSetupResponse(TypedDict):
-    """Simulation setup response."""
-    simulation_id: str
-    players: List[PlayerInfo]
-    course: CourseInfo
-    config: Dict[str, Any]
-    status: str
-
-
-class SimulationStateResponse(TypedDict, total=False):
-    """Current simulation state."""
-    simulation_id: str
-    current_hole: int
-    game_state: GameStateResponse
-    betting_state: BettingStateResponse
-    ai_recommendations: Dict[str, Any]
-    probabilities: Dict[str, float]
-
-
-class SimulationResultResponse(TypedDict):
-    """Simulation result response."""
-    simulation_id: str
-    outcome: str
-    final_scores: Dict[str, int]
-    winner: str
-    statistics: Dict[str, Any]
-    duration_ms: int
-
-
-# ============================================================================
 # Health & Status Response Types
 # ============================================================================
 

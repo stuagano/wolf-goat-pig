@@ -115,15 +115,7 @@ class GamePlayer(Base):
     joined_at = Column(String, nullable=True)
     created_at = Column(String)
 
-# Store simulation results for analysis
-class SimulationResult(Base):
-    __tablename__ = "simulation_results"
-    id = Column(Integer, primary_key=True, index=True)
-    course_name = Column(String, nullable=True)
-    player_count = Column(Integer)
-    simulation_count = Column(Integer)
-    results_data = Column(JSON)
-    created_at = Column(String)
+# SimulationResult model removed - simulation mode deprecated
 
 # Player Profile Management
 class PlayerProfile(Base):

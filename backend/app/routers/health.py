@@ -143,22 +143,13 @@ def _check_ai_players(health_status: Dict[str, Any], is_initial_deployment: bool
 
 
 def _check_simulation(health_status: Dict[str, Any], is_initial_deployment: bool) -> bool:
-    """Check simulation engine initialization"""
-    try:
-        # Check if we can instantiate the game engine
-        _game = WolfGoatPigGame(player_count=4)
-        health_status["components"]["simulation"] = {
-            "status": "healthy",
-            "message": "Simulation engine operational"
-        }
-        return True
-    except Exception as e:
-        logger.error(f"Simulation initialization test failed: {e}")
-        health_status["components"]["simulation"] = {
-            "status": "warning" if is_initial_deployment else "unhealthy",
-            "message": f"Simulation test failed: {str(e)}"
-        }
-        return is_initial_deployment
+    """Check simulation engine initialization - deprecated but kept for backwards compatibility"""
+    # Simulation mode removed, always return healthy
+    health_status["components"]["simulation"] = {
+        "status": "healthy",
+        "message": "Simulation mode deprecated"
+    }
+    return True
 
 
 def _check_data_seeding(health_status: Dict[str, Any]) -> bool:

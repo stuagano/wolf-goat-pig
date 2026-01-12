@@ -143,11 +143,7 @@ class CourseImportRequest(BaseModel):
     state: Optional[str] = None
     city: Optional[str] = None
 
-class SimulationCourseData(BaseModel):
-    course_name: str
-    holes: List[HoleInfo]
-    difficulty_factors: List[float]  # Per-hole difficulty multipliers
-    distance_factors: List[float]    # Per-hole distance impact factors
+# SimulationCourseData schema removed - simulation mode deprecated
 
 # Player Profile Schemas
 class PlayerProfileBase(BaseModel):

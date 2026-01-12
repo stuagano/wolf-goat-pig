@@ -702,7 +702,7 @@ async def verify_application_health() -> Dict[str, Any]:
         # Import after environment is set up
         from app.database import SessionLocal
         from app.wolf_goat_pig import WolfGoatPigGame  # noqa: F401
-        from app.wolf_goat_pig_simulator import WolfGoatPigSimulator  # noqa: F401
+        # WolfGoatPigSimulator removed - simulation mode deprecated
         from app.seed_data import get_seeding_status
         from sqlalchemy import text
 
