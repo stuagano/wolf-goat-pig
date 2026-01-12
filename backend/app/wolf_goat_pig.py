@@ -3289,7 +3289,7 @@ class WolfGoatPigGame(PersistenceMixin):
         if hasattr(self, 'shot_simulation_mode') and self.shot_simulation_mode:
             next_player = self._get_next_shot_player()
             if next_player:
-                # TODO: simulate_shot method does not exist
+                # Shot simulation removed - use manual shot recording instead
 
                 shot_result = None  # self.simulate_shot(next_player)
                 return shot_result, ["Shot simulated"], True, None
