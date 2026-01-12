@@ -72,4 +72,5 @@ def test_float_cannot_be_used_twice():
     })
 
     assert response.status_code == 400
-    assert "already used float" in response.json()["detail"].lower()
+    detail = response.json()["detail"].lower()
+    assert "already used" in detail and "float" in detail

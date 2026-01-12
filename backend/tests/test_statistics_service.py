@@ -105,11 +105,13 @@ def test_game_results(db, test_player_with_stats):
 
     for i in range(10):
         game_record = GameRecord(
+            game_id=f"test-game-{i}",
             game_mode="wolf_goat_pig",
             player_count=4,
-            current_hole=18,
-            status="completed",
-            created_at=(datetime.now() - timedelta(days=10 - i)).isoformat()
+            total_holes_played=18,
+            course_name="Test Course",
+            created_at=(datetime.now() - timedelta(days=10 - i)).isoformat(),
+            completed_at=datetime.now().isoformat()
         )
         db.add(game_record)
         db.flush()

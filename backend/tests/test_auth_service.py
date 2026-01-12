@@ -305,18 +305,18 @@ class TestAuth0AccountLinking:
 
     def test_link_auth0_handles_exception(self, db, existing_player):
         """Test that linking handles database exceptions gracefully."""
+        from unittest.mock import patch
         service = AuthService()
 
-        # Close the session to simulate DB error
-        db.close()
+        # Mock commit to raise an exception
+        with patch.object(db, 'commit', side_effect=Exception("Database error")):
+            result = service.link_auth0_to_player(
+                db=db,
+                auth0_id="auth0|error_test",
+                player_id=existing_player.id
+            )
 
-        result = service.link_auth0_to_player(
-            db=db,
-            auth0_id="auth0|error_test",
-            player_id=existing_player.id
-        )
-
-        assert result is False
+            assert result is False
 
 
 class TestGetCurrentUser:

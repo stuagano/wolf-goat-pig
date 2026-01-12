@@ -434,15 +434,16 @@ class TestLeaderboardErrorHandling:
 
     def test_handles_database_error(self, db):
         """Test graceful handling of database errors."""
+        from unittest.mock import patch
         service = LeaderboardService(db)
 
-        # Close the session to simulate DB error
-        db.close()
+        # Mock _generate_leaderboard to raise an exception
+        with patch.object(service, '_generate_leaderboard', side_effect=Exception("Database error")):
+            with pytest.raises(HTTPException) as exc_info:
+                service.get_leaderboard("total_earnings", db)
 
-        with pytest.raises(HTTPException) as exc_info:
-            service.get_leaderboard("total_earnings", db)
-
-        assert exc_info.value.status_code == 500
+            assert exc_info.value.status_code == 500
+            assert "Failed to retrieve leaderboard" in str(exc_info.value.detail)
 
 
 if __name__ == "__main__":
