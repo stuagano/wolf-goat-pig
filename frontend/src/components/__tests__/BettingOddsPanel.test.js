@@ -245,13 +245,13 @@ describe.skip('BettingOddsPanel', () => {
     });
 
     test('displays view switcher tabs', async () => {
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
-          />
-        </TestWrapper>
+      fetch.mockResolvedValue(createMockFetchResponse(oddsResponse));
+
+      renderWithContext(
+        <BettingOddsPanel
+          gameState={gameState}
+          onBettingAction={handlers.onBettingAction}
+        />
       );
 
       await waitFor(() => {
@@ -265,14 +265,12 @@ describe.skip('BettingOddsPanel', () => {
     });
 
     test('shows educational tooltips when enabled', async () => {
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
+      renderWithContext(
+        <BettingOddsPanel 
+            gameState={gameState} 
+            onBettingAction={handlers.onBettingAction}
             showEducationalTooltips={true}
           />
-        </TestWrapper>
       );
 
       await waitFor(() => {
@@ -283,14 +281,12 @@ describe.skip('BettingOddsPanel', () => {
     });
 
     test('hides educational tooltips when disabled', async () => {
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
+      renderWithContext(
+        <BettingOddsPanel 
+            gameState={gameState} 
+            onBettingAction={handlers.onBettingAction}
             showEducationalTooltips={false}
           />
-        </TestWrapper>
       );
 
       await waitFor(() => {
@@ -306,18 +302,16 @@ describe.skip('BettingOddsPanel', () => {
     beforeEach(async () => {
       fetch.mockResolvedValue({
         ok: true,
-        json: async () => mockOddsResponse
+        json: async () => oddsResponse
       });
     });
 
     test('displays individual player probabilities', async () => {
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
+      renderWithContext(
+        <BettingOddsPanel 
+            gameState={gameState} 
+            onBettingAction={handlers.onBettingAction}
           />
-        </TestWrapper>
       );
 
       await waitFor(() => {
@@ -332,13 +326,11 @@ describe.skip('BettingOddsPanel', () => {
     });
 
     test('displays team probabilities', async () => {
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
+      renderWithContext(
+        <BettingOddsPanel 
+            gameState={gameState} 
+            onBettingAction={handlers.onBettingAction}
           />
-        </TestWrapper>
       );
 
       await waitFor(() => {
@@ -351,13 +343,11 @@ describe.skip('BettingOddsPanel', () => {
     });
 
     test('displays recommended action', async () => {
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
+      renderWithContext(
+        <BettingOddsPanel 
+            gameState={gameState} 
+            onBettingAction={handlers.onBettingAction}
           />
-        </TestWrapper>
       );
 
       await waitFor(() => {
@@ -370,13 +360,11 @@ describe.skip('BettingOddsPanel', () => {
     test('calls onBettingAction when Take Action clicked', async () => {
       const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
 
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
+      renderWithContext(
+        <BettingOddsPanel 
+            gameState={gameState} 
+            onBettingAction={handlers.onBettingAction}
           />
-        </TestWrapper>
       );
 
       await waitFor(() => {
@@ -394,20 +382,18 @@ describe.skip('BettingOddsPanel', () => {
     beforeEach(async () => {
       fetch.mockResolvedValue({
         ok: true,
-        json: async () => mockOddsResponse
+        json: async () => oddsResponse
       });
     });
 
     test('switches to scenarios view', async () => {
       const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
 
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
+      renderWithContext(
+        <BettingOddsPanel 
+            gameState={gameState} 
+            onBettingAction={handlers.onBettingAction}
           />
-        </TestWrapper>
       );
 
       await waitFor(() => {
@@ -424,13 +410,11 @@ describe.skip('BettingOddsPanel', () => {
     test('displays betting scenarios with risk indicators', async () => {
       const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
 
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
+      renderWithContext(
+        <BettingOddsPanel 
+            gameState={gameState} 
+            onBettingAction={handlers.onBettingAction}
           />
-        </TestWrapper>
       );
 
       await waitFor(() => {
@@ -455,13 +439,11 @@ describe.skip('BettingOddsPanel', () => {
     test('expands scenario when clicked', async () => {
       const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
 
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
+      renderWithContext(
+        <BettingOddsPanel 
+            gameState={gameState} 
+            onBettingAction={handlers.onBettingAction}
           />
-        </TestWrapper>
       );
 
       await waitFor(() => {
@@ -488,13 +470,11 @@ describe.skip('BettingOddsPanel', () => {
     test('calls onBettingAction from scenario', async () => {
       const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
 
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
+      renderWithContext(
+        <BettingOddsPanel 
+            gameState={gameState} 
+            onBettingAction={handlers.onBettingAction}
           />
-        </TestWrapper>
       );
 
       await waitFor(() => {
@@ -524,13 +504,11 @@ describe.skip('BettingOddsPanel', () => {
 
       const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
 
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
+      renderWithContext(
+        <BettingOddsPanel 
+            gameState={gameState} 
+            onBettingAction={handlers.onBettingAction}
           />
-        </TestWrapper>
       );
 
       await waitFor(() => {
@@ -550,20 +528,18 @@ describe.skip('BettingOddsPanel', () => {
     beforeEach(async () => {
       fetch.mockResolvedValue({
         ok: true,
-        json: async () => mockOddsResponse
+        json: async () => oddsResponse
       });
     });
 
     test('switches to analysis view', async () => {
       const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
 
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
+      renderWithContext(
+        <BettingOddsPanel 
+            gameState={gameState} 
+            onBettingAction={handlers.onBettingAction}
           />
-        </TestWrapper>
       );
 
       await waitFor(() => {
@@ -581,13 +557,11 @@ describe.skip('BettingOddsPanel', () => {
     test('displays performance metrics', async () => {
       const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
 
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
+      renderWithContext(
+        <BettingOddsPanel 
+            gameState={gameState} 
+            onBettingAction={handlers.onBettingAction}
           />
-        </TestWrapper>
       );
 
       await waitFor(() => {
@@ -608,13 +582,11 @@ describe.skip('BettingOddsPanel', () => {
     test('displays risk assessment data', async () => {
       const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
 
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
+      renderWithContext(
+        <BettingOddsPanel 
+            gameState={gameState} 
+            onBettingAction={handlers.onBettingAction}
           />
-        </TestWrapper>
       );
 
       await waitFor(() => {
@@ -633,13 +605,11 @@ describe.skip('BettingOddsPanel', () => {
     test('displays probability visualization', async () => {
       const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
 
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
+      renderWithContext(
+        <BettingOddsPanel 
+            gameState={gameState} 
+            onBettingAction={handlers.onBettingAction}
           />
-        </TestWrapper>
       );
 
       await waitFor(() => {
@@ -655,13 +625,11 @@ describe.skip('BettingOddsPanel', () => {
     test('displays educational insights', async () => {
       const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
 
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
+      renderWithContext(
+        <BettingOddsPanel 
+            gameState={gameState} 
+            onBettingAction={handlers.onBettingAction}
           />
-        </TestWrapper>
       );
 
       await waitFor(() => {
@@ -681,18 +649,16 @@ describe.skip('BettingOddsPanel', () => {
     test('auto-updates at specified interval', async () => {
       fetch.mockResolvedValue({
         ok: true,
-        json: async () => mockOddsResponse
+        json: async () => oddsResponse
       });
 
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
+      renderWithContext(
+        <BettingOddsPanel 
+            gameState={gameState} 
+            onBettingAction={handlers.onBettingAction}
             autoUpdate={true}
             refreshInterval={2000}
           />
-        </TestWrapper>
       );
 
       // Initial call
@@ -714,18 +680,16 @@ describe.skip('BettingOddsPanel', () => {
     test('does not auto-update when disabled', async () => {
       fetch.mockResolvedValue({
         ok: true,
-        json: async () => mockOddsResponse
+        json: async () => oddsResponse
       });
 
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
+      renderWithContext(
+        <BettingOddsPanel 
+            gameState={gameState} 
+            onBettingAction={handlers.onBettingAction}
             autoUpdate={false}
             refreshInterval={1000}
           />
-        </TestWrapper>
       );
 
       // Initial call
@@ -747,17 +711,15 @@ describe.skip('BettingOddsPanel', () => {
 
       fetch.mockResolvedValue({
         ok: true,
-        json: async () => mockOddsResponse
+        json: async () => oddsResponse
       });
 
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
+      renderWithContext(
+        <BettingOddsPanel 
+            gameState={gameState} 
+            onBettingAction={handlers.onBettingAction}
             autoUpdate={false}
           />
-        </TestWrapper>
       );
 
       // Initial call
@@ -779,16 +741,14 @@ describe.skip('BettingOddsPanel', () => {
     test('sends correct request data structure', async () => {
       fetch.mockResolvedValue({
         ok: true,
-        json: async () => mockOddsResponse
+        json: async () => oddsResponse
       });
 
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
+      renderWithContext(
+        <BettingOddsPanel 
+            gameState={gameState} 
+            onBettingAction={handlers.onBettingAction}
           />
-        </TestWrapper>
       );
 
       await waitFor(() => {
@@ -831,13 +791,11 @@ describe.skip('BettingOddsPanel', () => {
         status: 500
       });
 
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
+      renderWithContext(
+        <BettingOddsPanel 
+            gameState={gameState} 
+            onBettingAction={handlers.onBettingAction}
           />
-        </TestWrapper>
       );
 
       await waitFor(() => {
@@ -863,14 +821,12 @@ describe.skip('BettingOddsPanel', () => {
         .mockResolvedValueOnce({ ok: true, json: async () => responses[1] })
         .mockResolvedValueOnce({ ok: true, json: async () => responses[2] });
 
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
+      renderWithContext(
+        <BettingOddsPanel 
+            gameState={gameState} 
+            onBettingAction={handlers.onBettingAction}
             autoUpdate={false}
           />
-        </TestWrapper>
       );
 
       // Wait for initial load
@@ -903,17 +859,15 @@ describe.skip('BettingOddsPanel', () => {
 
       fetch.mockResolvedValue({
         ok: true,
-        json: async () => mockOddsResponse
+        json: async () => oddsResponse
       });
 
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
+      renderWithContext(
+        <BettingOddsPanel 
+            gameState={gameState} 
+            onBettingAction={handlers.onBettingAction}
             autoUpdate={false}
           />
-        </TestWrapper>
       );
 
       // Multiple manual refreshes
@@ -957,13 +911,11 @@ describe.skip('BettingOddsPanel', () => {
         json: async () => minimalResponse
       });
 
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
+      renderWithContext(
+        <BettingOddsPanel 
+            gameState={gameState} 
+            onBettingAction={handlers.onBettingAction}
           />
-        </TestWrapper>
       );
 
       await waitFor(() => {
@@ -1009,13 +961,11 @@ describe.skip('BettingOddsPanel', () => {
 
       const start = performance.now();
 
-      render(
-        <TestWrapper>
-          <BettingOddsPanel 
-            gameState={mockGameState} 
-            onBettingAction={mockOnBettingAction}
+      renderWithContext(
+        <BettingOddsPanel 
+            gameState={gameState} 
+            onBettingAction={handlers.onBettingAction}
           />
-        </TestWrapper>
       );
 
       await waitFor(() => {
