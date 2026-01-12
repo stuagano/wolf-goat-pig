@@ -374,7 +374,7 @@ describe.skip('BettingOddsPanel', () => {
       const actionButton = screen.getByText('Take Action');
       await user.click(actionButton);
 
-      expect(mockOnBettingAction).toHaveBeenCalledWith(mockOddsResponse.betting_scenarios[0]);
+      expect(handlers.onBettingAction).toHaveBeenCalledWith(oddsResponse.betting_scenarios[0]);
     });
   });
 
@@ -492,11 +492,11 @@ describe.skip('BettingOddsPanel', () => {
       const actionButton = screen.getByText('💰 Offer');
       await user.click(actionButton);
 
-      expect(mockOnBettingAction).toHaveBeenCalledWith(mockOddsResponse.betting_scenarios[0]);
+      expect(handlers.onBettingAction).toHaveBeenCalledWith(oddsResponse.betting_scenarios[0]);
     });
 
     test('shows no scenarios message when empty', async () => {
-      const emptyResponse = { ...mockOddsResponse, betting_scenarios: [] };
+      const emptyResponse = { ...oddsResponse, betting_scenarios: [] };
       fetch.mockResolvedValue({
         ok: true,
         json: async () => emptyResponse
@@ -811,9 +811,9 @@ describe.skip('BettingOddsPanel', () => {
 
       // Mock multiple responses with different timestamps
       const responses = [
-        { ...mockOddsResponse, timestamp: '2024-01-15T10:30:00Z' },
-        { ...mockOddsResponse, timestamp: '2024-01-15T10:30:05Z' },
-        { ...mockOddsResponse, timestamp: '2024-01-15T10:30:10Z' }
+        { ...oddsResponse, timestamp: '2024-01-15T10:30:00Z' },
+        { ...oddsResponse, timestamp: '2024-01-15T10:30:05Z' },
+        { ...oddsResponse, timestamp: '2024-01-15T10:30:10Z' }
       ];
 
       fetch
@@ -930,7 +930,7 @@ describe.skip('BettingOddsPanel', () => {
 
     test('renders efficiently with complex data', async () => {
       const complexResponse = {
-        ...mockOddsResponse,
+        ...oddsResponse,
         player_probabilities: Object.fromEntries(
           Array.from({ length: 6 }, (_, i) => [
             `player${i + 1}`,
