@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui';
 import SheetIntegrationDashboard from '../components/SheetIntegrationDashboard';
 import WGPAnalyticsDashboard from '../components/WGPAnalyticsDashboard';
+import GHINIntegration from '../components/GHINIntegration';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
@@ -898,6 +899,16 @@ const AdminPage = () => {
                         🗃️ Database
                       </button>
                       <button
+                        onClick={() => setActiveTab('ghin')}
+                        className={`flex-1 px-4 py-2 rounded-md font-medium transition-colors ${
+                          activeTab === 'ghin'
+                            ? 'bg-white text-blue-600 shadow-sm'
+                            : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
+                        ⛳ GHIN
+                      </button>
+                      <button
                         onClick={() => setActiveTab('banners')}
                         className={`flex-1 px-4 py-2 rounded-md font-medium transition-colors ${
                           activeTab === 'banners'
@@ -1357,6 +1368,11 @@ const AdminPage = () => {
         {/* Sheets Integration Tab */}
         {activeTab === 'sheets' && (
           <SheetIntegrationDashboard />
+        )}
+
+        {/* GHIN Integration Tab */}
+        {activeTab === 'ghin' && (
+          <GHINIntegration />
         )}
 
         {/* Analytics Tab */}
