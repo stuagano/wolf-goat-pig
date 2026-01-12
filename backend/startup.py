@@ -701,8 +701,8 @@ async def verify_application_health() -> Dict[str, Any]:
     try:
         # Import after environment is set up
         from app.database import SessionLocal
-        from app.game_state import game_state  # noqa: F401
-        from app.wolf_goat_pig_simulation import WolfGoatPigGame  # noqa: F401
+        from app.wolf_goat_pig import WolfGoatPigGame  # noqa: F401
+        from app.wolf_goat_pig_simulator import WolfGoatPigSimulator  # noqa: F401
         from app.seed_data import get_seeding_status
         from sqlalchemy import text
 
@@ -720,7 +720,9 @@ async def verify_application_health() -> Dict[str, Any]:
 
         # 2. Course availability
         try:
-            courses = game_state.get_courses()
+            from app.state.course_manager import get_course_manager
+            course_manager = get_course_manager()
+            courses = course_manager.get_courses()
             if courses and len(courses) > 0:
                 health_status["components"]["courses"] = f"healthy ({len(courses)} courses)"
                 logging.info(f"✅ Course health check passed - {len(courses)} courses available")
@@ -883,7 +885,7 @@ def verify_health() -> Dict[str, Any]:
         # Check if we can import required modules (dependency check)
         try:
             from app.database import SessionLocal
-            from app.game_state import game_state
+            from app.state.course_manager import get_course_manager
             from app.wolf_goat_pig import WolfGoatPigGame
             from app.seed_data import get_seeding_status
             from sqlalchemy import text
@@ -910,7 +912,8 @@ def verify_health() -> Dict[str, Any]:
 
         # 2. Course availability check
         try:
-            courses = game_state.get_courses()
+            course_manager = get_course_manager()
+            courses = course_manager.get_courses()
             if courses and len(courses) > 0:
                 health_status["components"]["courses"] = f"healthy ({len(courses)} courses)"
                 logger.info(f"✅ Course availability verified - {len(courses)} courses")

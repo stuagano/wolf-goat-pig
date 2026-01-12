@@ -165,9 +165,9 @@ def fix_wing_point_course():
             # Update course totals
             wing_point.total_par = correct_total_par
             wing_point.total_yards = correct_total_yards
-            wing_point.course_rating = 67.4
-            wing_point.slope_rating = 120
-            wing_point.updated_at = datetime.now().isoformat()
+            wing_point.course_rating = 67.4  # type: ignore[assignment]
+            wing_point.slope_rating = 120  # type: ignore[assignment]
+            wing_point.updated_at = datetime.now().isoformat()  # type: ignore[assignment]
 
             # Update each hole
             for hole_data in CORRECT_WING_POINT_DATA:
