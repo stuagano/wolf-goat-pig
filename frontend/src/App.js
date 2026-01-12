@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Routes, Route, useNavigate, Navigate, useLocation } from "react-router-dom";
 import { useAuth0 } from "@auth0/auth0-react";
-import { MonteCarloSimulation } from "./components/simulation";
-import FeedAnalyzer from "./components/simulation/FeedAnalyzer";
 import ShotRangeAnalyzer from "./components/ShotRangeAnalyzer";
 import ColdStartHandler from "./components/ColdStartHandler";
 import TutorialSystem from "./components/tutorial/TutorialSystem";
@@ -243,11 +241,7 @@ function App() {
             {/* Temporarily disabled - will revisit simulation mode later */}
             {/* <Route path="/simulation" element={<SimulationMode />} /> */}
             {/* <Route path="/scorer" element={<ScorerMode />} /> */}
-            <Route path="/monte-carlo" element={
-              <ProtectedRoute>
-                <MonteCarloSimulation />
-              </ProtectedRoute>
-            } />
+            {/* Simulation routes removed - see commit: refactor: Remove simulation mode and all related code */}
             <Route path="/analytics" element={
               <ProtectedRoute>
                 <WGPAnalyticsDashboard />
@@ -261,11 +255,6 @@ function App() {
             <Route path="/signup" element={
               <ProtectedRoute>
                 <SignupPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/feed-analyzer" element={
-              <ProtectedRoute>
-                <FeedAnalyzer />
               </ProtectedRoute>
             } />
             <Route path="/leaderboard" element={<Leaderboard />} />
