@@ -1,7 +1,20 @@
 import React, { useId } from 'react';
 import { useTheme } from '../../theme/Provider';
 
-const Select = ({ 
+interface SelectOption {
+  value: string | number;
+  label: string;
+}
+
+interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+  label?: string;
+  error?: string | null;
+  options: (SelectOption | string)[];
+  selectStyle?: React.CSSProperties;
+  placeholder?: string;
+}
+
+const Select: React.FC<SelectProps> = ({ 
   label,
   error,
   disabled = false,
@@ -18,12 +31,12 @@ const Select = ({
   const generatedId = useId();
   const selectId = id || generatedId;
   
-  const containerStyle = {
+  const containerStyle: React.CSSProperties = {
     marginBottom: theme.spacing[4],
     ...style
   };
 
-  const labelStyle = {
+  const labelStyle: React.CSSProperties = {
     display: 'block',
     marginBottom: theme.spacing[2],
     fontSize: theme.typography.sm,
@@ -31,7 +44,7 @@ const Select = ({
     color: theme.colors.textPrimary,
   };
 
-  const baseSelectStyle = {
+  const baseSelectStyle: React.CSSProperties = {
     ...theme.inputStyle,
     fontFamily: theme.typography.fontFamily,
     fontSize: theme.typography.base,
@@ -45,28 +58,19 @@ const Select = ({
     backgroundPosition: 'right 12px center',
     backgroundSize: '16px',
     paddingRight: theme.spacing[10],
-    '&:focus': {
-      outline: 'none',
-      borderColor: theme.colors.primary,
-      boxShadow: `0 0 0 3px ${theme.colors.primary}20`,
-    },
     ...(error && {
       borderColor: theme.colors.error,
-      '&:focus': {
-        borderColor: theme.colors.error,
-        boxShadow: `0 0 0 3px ${theme.colors.error}20`,
-      }
     }),
     ...selectStyle
   };
 
-  const errorStyle = {
+  const errorStyle: React.CSSProperties = {
     marginTop: theme.spacing[1],
     fontSize: theme.typography.xs,
     color: theme.colors.error,
   };
 
-  const optionStyle = {
+  const optionStyle: React.CSSProperties = {
     padding: theme.spacing[2],
     backgroundColor: theme.colors.paper,
     color: theme.colors.textPrimary,
@@ -92,15 +96,19 @@ const Select = ({
             {placeholder}
           </option>
         )}
-        {options.map((option, index) => (
-          <option 
-            key={option.value || index} 
-            value={option.value || option}
-            style={optionStyle}
-          >
-            {option.label || option}
-          </option>
-        ))}
+        {options.map((option, index) => {
+          const optValue = typeof option === 'string' ? option : option.value;
+          const optLabel = typeof option === 'string' ? option : option.label;
+          return (
+            <option 
+              key={String(optValue) || index} 
+              value={optValue}
+              style={optionStyle}
+            >
+              {optLabel}
+            </option>
+          );
+        })}
       </select>
       {error && (
         <div style={errorStyle}>
