@@ -17,3 +17,4 @@ export { default as Scorecard } from './Scorecard';
 // Extracted/reusable components for score entry
 export { default as ScoreInputField } from './ScoreInputField';
 export { default as EditHoleModal } from './EditHoleModal';
+export { default as ShotAnalysisWidget } from './ShotAnalysisWidget';
