@@ -7,6 +7,8 @@ import { useTheme } from '../../theme/Provider';
 import { Input } from '../ui';
 import GameCompletionView from './GameCompletionView';
 import Scorecard from './Scorecard';
+import ShotAnalysisWidget from './ShotAnalysisWidget';
+import BettingOddsPanel from '../BettingOddsPanel';
 import CommissionerChat from '../CommissionerChat';
 import { triggerBadgeNotification } from '../BadgeNotification';
 import { SyncStatusBanner } from '../SyncStatusIndicator';
@@ -225,6 +227,8 @@ const SimpleScorekeeper = ({
     showUsageStats, setShowUsageStats,
     // eslint-disable-next-line no-unused-vars -- UI state, exposed for advanced betting accordion
     showAdvancedBetting, setShowAdvancedBetting,
+    showShotAnalysis, setShowShotAnalysis,
+    showBettingOdds, setShowBettingOdds,
     editingHole, setEditingHole,
     editingPlayerName,
     editPlayerNameValue, setEditPlayerNameValue,
@@ -240,6 +244,7 @@ const SimpleScorekeeper = ({
   const [localPlayers, setLocalPlayers] = useState(players); // Local copy of players for immediate UI updates
   const [courseData, setCourseData] = useState(null); // Course data with hole information
   const [editingOrder, setEditingOrder] = useState(false); // Track if user is editing hitting order
+  const [expandedPlayers, setExpandedPlayers] = useState({ 0: true }); // Track which player cards are expanded (first player by default)
 
   // Betting state (bettingHistory, pendingOffer, currentHoleBettingEvents) migrated to useBettingState hook
 
@@ -2001,6 +2006,99 @@ const SimpleScorekeeper = ({
         return null;
       })()}
 
+      {/* Betting Odds - Collapsible */}
+      <div style={{
+        background: theme.colors.paper,
+        borderRadius: '8px',
+        marginBottom: '12px',
+        border: `1px solid ${theme.colors.border}`,
+        overflow: 'hidden'
+      }}>
+        <div
+          onClick={() => setShowBettingOdds(!showBettingOdds)}
+          style={{
+            padding: '10px 12px',
+            fontSize: '13px',
+            fontWeight: 'bold',
+            color: theme.colors.textSecondary,
+            cursor: 'pointer',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            background: theme.colors.backgroundSecondary
+          }}
+        >
+          <span>📊 Real-Time Odds</span>
+          <span style={{ fontSize: '14px' }}>{showBettingOdds ? '▼' : '▶'}</span>
+        </div>
+        {showBettingOdds && (
+          <div style={{ padding: '12px' }}>
+            <BettingOddsPanel 
+              gameState={{
+                active: true,
+                current_hole: currentHole,
+                players: players.map(p => ({
+                  ...p,
+                  current_score: scores[p.id] || 0,
+                  shots_taken: scores[p.id] || 0, // Simplified
+                  distance_to_pin: 0, // Would need manual entry or GPS
+                  lie_type: 'fairway',
+                  is_captain: p.id === captain,
+                  team_id: team1.includes(p.id) ? 'team1' : (teamMode === 'partners' ? 'team2' : null)
+                })),
+                teams: { type: teamMode },
+                current_wager: currentWager,
+                is_doubled: false, // Need to track this from betting events
+                current_hole_par: holePar || 4
+              }}
+              onBettingAction={(scenario) => {
+                console.log('Suggested betting action:', scenario);
+                // Integration with actual betting state would go here
+              }}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Shot Analysis - Collapsible */}
+      <div style={{
+        background: theme.colors.paper,
+        borderRadius: '8px',
+        marginBottom: '12px',
+        border: `1px solid ${theme.colors.border}`,
+        overflow: 'hidden'
+      }}>
+        <div
+          onClick={() => setShowShotAnalysis(!showShotAnalysis)}
+          style={{
+            padding: '10px 12px',
+            fontSize: '13px',
+            fontWeight: 'bold',
+            color: theme.colors.textSecondary,
+            cursor: 'pointer',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            background: theme.colors.backgroundSecondary
+          }}
+        >
+          <span>🎯 Shot Recommendations</span>
+          <span style={{ fontSize: '14px' }}>{showShotAnalysis ? '▼' : '▶'}</span>
+        </div>
+        {showShotAnalysis && (
+          <div style={{ padding: '12px' }}>
+            <ShotAnalysisWidget 
+              holeNumber={currentHole}
+              players={players}
+              captainId={captain}
+              teamMode={teamMode}
+              playerStandings={playerStandings}
+              initialDistance={courseData?.holes?.find(h => h.hole_number === currentHole)?.yards || 150}
+            />
+          </div>
+        )}
+      </div>
+
       {/* Team Mode Selection - Enhanced Style */}
       <div style={{
         background: theme.colors.paper,
@@ -2308,29 +2406,26 @@ const SimpleScorekeeper = ({
         ))}
       </div>
 
-      {/* Quarters Entry (Primary) - Simplified */}
-      <div style={{
-        background: theme.colors.paper,
-        padding: '16px',
-        borderRadius: '8px',
-        marginBottom: '20px',
-        border: `1px solid ${theme.colors.border}`,
-        borderLeft: `4px solid ${theme.colors.primary}`,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
-      }}>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
+      {/* Quarters Entry (Primary) - Enhanced Player Cards */}
+      <div style={{ marginBottom: '20px' }}>
+        {/* Section Header with Sum */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: '12px'
+          marginBottom: '12px',
+          padding: '8px 12px',
+          background: theme.colors.backgroundSecondary,
+          borderRadius: '8px'
         }}>
           <h3 style={{
             margin: 0,
             textTransform: 'uppercase',
             letterSpacing: '0.5px',
             fontSize: '12px',
-            fontWeight: 'bold'
-          }}>Quarters</h3>
+            fontWeight: 'bold',
+            color: theme.colors.textSecondary
+          }}>Enter Quarters</h3>
           <div style={{ fontSize: '14px', fontWeight: 'bold' }}>
             Sum: {(() => {
               const sum = players.reduce((acc, p) => acc + (parseFloat(quarters[p.id]) || 0), 0);
@@ -2340,88 +2435,224 @@ const SimpleScorekeeper = ({
             })()}
           </div>
         </div>
-        
-        {/* Player quarters - direct text entry for any value including negatives */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {players.map((player) => {
+
+        {/* Player Cards */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {players.map((player, idx) => {
             const currentVal = parseFloat(quarters[player.id]) || 0;
+            const playerStrokes = scores[player.id];
+            const isExpanded = expandedPlayers[idx] || false;
+
             const adjustQuarters = (delta) => {
-              // Fix: Don't use function updater - setQuarters dispatches directly to reducer
               setQuarters({ ...quarters, [player.id]: (currentVal + delta).toString() });
             };
+
+            const toggleExpanded = () => {
+              setExpandedPlayers(prev => ({
+                ...prev,
+                [idx]: !prev[idx]
+              }));
+            };
+
             return (
-              <div key={player.id} style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '6px',
-                padding: '10px 12px',
-                background: currentVal !== 0 
-                  ? currentVal > 0 ? 'rgba(76,175,80,0.08)' : 'rgba(244,67,54,0.08)'
-                  : theme.colors.background,
-                borderRadius: '8px',
-                border: `1px solid ${currentVal > 0 ? '#4CAF50' : currentVal < 0 ? '#f44336' : theme.colors.border}`
-              }}>
-                {/* Player name and main input */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{ flex: 1, fontWeight: 'bold', fontSize: '15px' }}>
-                    {player.name.split(' ')[0]}
-                  </div>
-                  {/* Text input - allows typing negative numbers directly like "-96" */}
-                  <input
-                    data-testid={`quarters-input-${player.id}`}
-                    type="text"
-                    inputMode="numeric"
-                    pattern="-?[0-9]*\.?[0-9]*"
-                    value={quarters[player.id] ?? ''}
-                    onChange={(e) => {
-                      // Allow empty, minus sign, numbers, and decimals
-                      const val = e.target.value;
-                      if (val === '' || val === '-' || /^-?\d*\.?\d*$/.test(val)) {
-                        // Don't use function updater - setQuarters dispatches directly to reducer
-                        setQuarters({ ...quarters, [player.id]: val });
-                      }
-                    }}
-                    placeholder="0"
-                    style={{
-                      width: '90px',
-                      padding: '10px',
-                      fontSize: '20px',
-                      fontWeight: 'bold',
-                      border: `2px solid ${currentVal > 0 ? '#4CAF50' : currentVal < 0 ? '#f44336' : theme.colors.border}`,
-                      borderRadius: '8px',
-                      textAlign: 'center',
-                      color: currentVal > 0 ? '#4CAF50' : currentVal < 0 ? '#f44336' : 'inherit',
-                      background: 'white'
-                    }}
-                  />
-                </div>
-                {/* Quick adjust buttons */}
-                <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
-                  {[-10, -5, -1, +1, +5, +10].map((delta) => (
-                    <button
-                      key={delta}
-                      onClick={() => adjustQuarters(delta)}
-                      className="touch-optimized"
-                      style={{
-                        minWidth: '40px',
-                        height: '32px',
-                        borderRadius: '6px',
-                        border: `1px solid ${delta < 0 ? '#f44336' : '#4CAF50'}`,
-                        background: 'white',
-                        color: delta < 0 ? '#f44336' : '#4CAF50',
+              <div
+                key={player.id}
+                style={{
+                  background: theme.colors.paper,
+                  borderRadius: '16px',
+                  border: `2px solid ${isExpanded ? theme.colors.primary : theme.colors.border}`,
+                  boxShadow: isExpanded ? '0 4px 12px rgba(0,0,0,0.1)' : '0 2px 4px rgba(0,0,0,0.05)',
+                  overflow: 'hidden',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                {/* Player Header - Always Visible */}
+                <div
+                  onClick={toggleExpanded}
+                  style={{
+                    padding: '16px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    background: isExpanded ? 'rgba(0, 0, 0, 0.02)' : 'transparent'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    {/* Trophy icon for expanded player */}
+                    {isExpanded && (
+                      <div style={{
+                        background: 'rgba(255, 193, 7, 0.1)',
+                        padding: '8px',
+                        borderRadius: '10px'
+                      }}>
+                        <span style={{ fontSize: '20px' }}>🏆</span>
+                      </div>
+                    )}
+
+                    <div>
+                      <h3 style={{
+                        margin: 0,
+                        fontSize: '18px',
                         fontWeight: 'bold',
-                        fontSize: '13px',
-                        cursor: 'pointer'
-                      }}
-                    >{delta > 0 ? `+${delta}` : delta}</button>
-                  ))}
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        {player.name}
+                        {player.handicap != null && (
+                          <span style={{
+                            background: theme.colors.backgroundSecondary,
+                            color: theme.colors.textSecondary,
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            fontSize: '10px',
+                            fontWeight: 'bold'
+                          }}>
+                            HDCP {player.handicap}
+                          </span>
+                        )}
+                      </h3>
+                      <p style={{
+                        margin: '4px 0 0',
+                        fontSize: '12px',
+                        color: theme.colors.textSecondary,
+                        fontWeight: '500'
+                      }}>
+                        Strokes on this hole: {playerStrokes || 0}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Score Display */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px'
+                  }}>
+                    <div style={{
+                      background: theme.colors.backgroundSecondary,
+                      border: `1px solid ${theme.colors.border}`,
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <span style={{
+                        fontSize: '24px',
+                        fontWeight: 'bold',
+                        color: currentVal > 0 ? '#4CAF50' : currentVal < 0 ? '#f44336' : theme.colors.textPrimary
+                      }}>
+                        {currentVal > 0 ? `+${currentVal}` : currentVal || 0}
+                      </span>
+                    </div>
+
+                    <button style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      background: theme.colors.backgroundSecondary,
+                      border: `1px solid ${theme.colors.border}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer'
+                    }}>
+                      <span style={{ fontSize: '18px' }}>{isExpanded ? '▼' : '▶'}</span>
+                    </button>
+                  </div>
                 </div>
+
+                {/* Expanded Controls */}
+                {isExpanded && (
+                  <div style={{ padding: '0 16px 16px' }}>
+                    {/* Manual Entry */}
+                    <div style={{ marginBottom: '12px' }}>
+                      <label style={{
+                        display: 'block',
+                        fontSize: '11px',
+                        fontWeight: 'bold',
+                        color: theme.colors.textSecondary,
+                        textTransform: 'uppercase',
+                        marginBottom: '6px'
+                      }}>
+                        Manual Entry
+                      </label>
+                      <input
+                        data-testid={`quarters-input-${player.id}`}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="-?[0-9]*\.?[0-9]*"
+                        value={quarters[player.id] ?? ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === '' || val === '-' || /^-?\d*\.?\d*$/.test(val)) {
+                            setQuarters({ ...quarters, [player.id]: val });
+                          }
+                        }}
+                        placeholder="0"
+                        style={{
+                          width: '100%',
+                          padding: '14px',
+                          fontSize: '24px',
+                          fontWeight: 'bold',
+                          border: `2px solid ${currentVal > 0 ? '#4CAF50' : currentVal < 0 ? '#f44336' : theme.colors.border}`,
+                          borderRadius: '12px',
+                          textAlign: 'center',
+                          color: currentVal > 0 ? '#4CAF50' : currentVal < 0 ? '#f44336' : theme.colors.textPrimary,
+                          background: currentVal !== 0
+                            ? currentVal > 0 ? 'rgba(76,175,80,0.05)' : 'rgba(244,67,54,0.05)'
+                            : 'white',
+                          outline: 'none'
+                        }}
+                      />
+                    </div>
+
+                    {/* Quick Adjust Buttons */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '8px' }}>
+                      {[-10, -5, -1, +1, +5, +10].map((delta) => (
+                        <button
+                          key={delta}
+                          onClick={() => adjustQuarters(delta)}
+                          className="touch-optimized"
+                          style={{
+                            padding: '12px 8px',
+                            borderRadius: '10px',
+                            border: `2px solid ${delta < 0 ? '#EF5350' : '#66BB6A'}`,
+                            background: delta < 0
+                              ? 'linear-gradient(135deg, #FFEBEE 0%, #FFCDD2 100%)'
+                              : 'linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%)',
+                            color: delta < 0 ? '#C62828' : '#2E7D32',
+                            fontWeight: 'bold',
+                            fontSize: '14px',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.08)'
+                          }}
+                          onMouseDown={(e) => {
+                            e.target.style.transform = 'scale(0.95)';
+                          }}
+                          onMouseUp={(e) => {
+                            e.target.style.transform = 'scale(1)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.transform = 'scale(1)';
+                          }}
+                        >
+                          {delta > 0 ? `+${delta}` : delta}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
-        
-        {/* Simplified quick actions */}
+
+        {/* Quick Actions */}
         <div style={{ marginTop: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <button
             onClick={() => {
@@ -2429,52 +2660,92 @@ const SimpleScorekeeper = ({
               players.forEach(p => { allZero[p.id] = '0'; });
               setQuarters(allZero);
             }}
+            className="touch-optimized"
             style={{
-              padding: '8px 14px', borderRadius: '6px', fontSize: '13px',
-              border: `1px solid ${theme.colors.border}`, background: 'white', cursor: 'pointer'
+              padding: '10px 16px',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: 'bold',
+              border: `2px solid ${theme.colors.border}`,
+              background: 'white',
+              cursor: 'pointer',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
             }}
-          >Push (all 0)</button>
+          >
+            Push (all 0)
+          </button>
           <button
             onClick={() => {
               const cleared = {};
               players.forEach(p => { cleared[p.id] = ''; });
               setQuarters(cleared);
             }}
+            className="touch-optimized"
             style={{
-              padding: '8px 14px', borderRadius: '6px', fontSize: '13px',
-              border: `1px solid ${theme.colors.border}`, background: 'white', cursor: 'pointer'
+              padding: '10px 16px',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: 'bold',
+              border: `2px solid ${theme.colors.border}`,
+              background: 'white',
+              cursor: 'pointer',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
             }}
-          >Clear</button>
+          >
+            Clear
+          </button>
         </div>
       </div>
 
       {/* Scores (Optional) - Collapsible */}
-      <div style={{
-        background: theme.colors.paper,
-        padding: '16px',
-        borderRadius: '8px',
-        marginBottom: '20px'
-      }}>
-        <h3
+      <div style={{ marginBottom: '20px' }}>
+        <div
           onClick={() => setShowGolfScores(!showGolfScores)}
           style={{
-            margin: 0,
-            cursor: 'pointer',
             display: 'flex',
             justifyContent: 'space-between',
-            alignItems: 'center'
+            alignItems: 'center',
+            padding: '12px 16px',
+            background: theme.colors.paper,
+            borderRadius: '8px',
+            cursor: 'pointer',
+            border: `2px solid ${theme.colors.border}`,
+            boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
           }}
         >
-          <span>
-            Golf Scores <span style={{ fontWeight: 'normal', fontSize: '14px', color: theme.colors.textSecondary }}>(optional)</span>
-          </span>
-          <span style={{ fontSize: '14px', color: theme.colors.textSecondary }}>
-            {showGolfScores ? '▼' : '▶'}
-          </span>
-        </h3>
+          <h3 style={{
+            margin: 0,
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+            fontSize: '12px',
+            fontWeight: 'bold',
+            color: theme.colors.textSecondary
+          }}>
+            Golf Scores <span style={{ fontWeight: 'normal', fontSize: '11px', opacity: 0.7 }}>(optional)</span>
+          </h3>
+          <button style={{
+            width: '28px',
+            height: '28px',
+            borderRadius: '50%',
+            background: theme.colors.backgroundSecondary,
+            border: `1px solid ${theme.colors.border}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer'
+          }}>
+            <span style={{ fontSize: '16px' }}>{showGolfScores ? '▼' : '▶'}</span>
+          </button>
+        </div>
         {showGolfScores && (
-          <>
-            <div style={{ fontSize: '12px', color: theme.colors.textSecondary, marginBottom: '12px', marginTop: '8px' }}>
+          <div style={{
+            marginTop: '12px',
+            padding: '16px',
+            background: theme.colors.paper,
+            borderRadius: '8px',
+            border: `2px solid ${theme.colors.border}`
+          }}>
+            <div style={{ fontSize: '12px', color: theme.colors.textSecondary, marginBottom: '12px' }}>
               Enter strokes for tracking only
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(2, Math.ceil(players.length / 3))}, 1fr)`, gap: '12px' }}>
@@ -2506,36 +2777,58 @@ const SimpleScorekeeper = ({
                 </div>
               ))}
             </div>
-          </>
+          </div>
         )}
       </div>
 
       {/* Ask Commissioner Section - Collapsible */}
-      <div style={{
-        background: theme.colors.paper,
-        padding: '16px',
-        borderRadius: '8px',
-        marginBottom: '20px'
-      }}>
-        <h3
+      <div style={{ marginBottom: '20px' }}>
+        <div
           onClick={() => setShowCommissioner(!showCommissioner)}
           style={{
-            margin: 0,
-            cursor: 'pointer',
             display: 'flex',
             justifyContent: 'space-between',
-            alignItems: 'center'
+            alignItems: 'center',
+            padding: '12px 16px',
+            background: theme.colors.paper,
+            borderRadius: '8px',
+            cursor: 'pointer',
+            border: `2px solid ${theme.colors.border}`,
+            boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
           }}
         >
-          <span>
-            Ask Commissioner <span style={{ fontWeight: 'normal', fontSize: '14px', color: theme.colors.textSecondary }}>(optional)</span>
-          </span>
-          <span style={{ fontSize: '14px', color: theme.colors.textSecondary }}>
-            {showCommissioner ? '▼' : '▶'}
-          </span>
-        </h3>
+          <h3 style={{
+            margin: 0,
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+            fontSize: '12px',
+            fontWeight: 'bold',
+            color: theme.colors.textSecondary
+          }}>
+            Ask Commissioner <span style={{ fontWeight: 'normal', fontSize: '11px', opacity: 0.7 }}>(optional)</span>
+          </h3>
+          <button style={{
+            width: '28px',
+            height: '28px',
+            borderRadius: '50%',
+            background: theme.colors.backgroundSecondary,
+            border: `1px solid ${theme.colors.border}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer'
+          }}>
+            <span style={{ fontSize: '16px' }}>{showCommissioner ? '▼' : '▶'}</span>
+          </button>
+        </div>
         {showCommissioner && (
-          <div style={{ marginTop: '12px' }}>
+          <div style={{
+            marginTop: '12px',
+            padding: '16px',
+            background: theme.colors.paper,
+            borderRadius: '8px',
+            border: `2px solid ${theme.colors.border}`
+          }}>
             <CommissionerChat
               inline={true}
               gameState={{
@@ -2555,53 +2848,76 @@ const SimpleScorekeeper = ({
       </div>
 
       {/* Hole Notes (Optional) - Collapsible */}
-      <div style={{
-        background: theme.colors.paper,
-        padding: '16px',
-        borderRadius: '8px',
-        marginBottom: '20px'
-      }}>
-        <h3
+      <div style={{ marginBottom: '20px' }}>
+        <div
           onClick={() => setShowNotes(!showNotes)}
           style={{
-            margin: 0,
-            cursor: 'pointer',
             display: 'flex',
             justifyContent: 'space-between',
-            alignItems: 'center'
+            alignItems: 'center',
+            padding: '12px 16px',
+            background: theme.colors.paper,
+            borderRadius: '8px',
+            cursor: 'pointer',
+            border: `2px solid ${theme.colors.border}`,
+            boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
           }}
         >
-          <span>
-            Notes <span style={{ fontWeight: 'normal', fontSize: '14px', color: theme.colors.textSecondary }}>(optional)</span>
+          <h3 style={{
+            margin: 0,
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+            fontSize: '12px',
+            fontWeight: 'bold',
+            color: theme.colors.textSecondary
+          }}>
+            Notes <span style={{ fontWeight: 'normal', fontSize: '11px', opacity: 0.7 }}>(optional)</span>
             {!showNotes && holeNotes && (
-              <span style={{ marginLeft: '8px', fontSize: '12px', color: theme.colors.primary }}>
-                (has notes)
+              <span style={{ marginLeft: '8px', fontSize: '11px', color: theme.colors.primary, fontWeight: 'bold' }}>
+                ●
               </span>
             )}
-          </span>
-          <span style={{ fontSize: '14px', color: theme.colors.textSecondary }}>
-            {showNotes ? '▼' : '▶'}
-          </span>
-        </h3>
+          </h3>
+          <button style={{
+            width: '28px',
+            height: '28px',
+            borderRadius: '50%',
+            background: theme.colors.backgroundSecondary,
+            border: `1px solid ${theme.colors.border}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer'
+          }}>
+            <span style={{ fontSize: '16px' }}>{showNotes ? '▼' : '▶'}</span>
+          </button>
+        </div>
         {showNotes && (
-          <textarea
-            value={holeNotes}
-            onChange={(e) => setHoleNotes(e.target.value)}
-            placeholder="Add notes about this hole (disputes, unusual situations, etc.)"
-            style={{
-              width: '100%',
-              minHeight: '60px',
-              padding: '10px',
-              fontSize: '14px',
-              marginTop: '12px',
-              border: `2px solid ${theme.colors.border}`,
-            borderRadius: '6px',
-            resize: 'vertical',
-            fontFamily: 'inherit',
-            backgroundColor: theme.colors.inputBackground || theme.colors.paper,
-            color: theme.colors.textPrimary
-          }}
-        />
+          <div style={{
+            marginTop: '12px',
+            padding: '16px',
+            background: theme.colors.paper,
+            borderRadius: '8px',
+            border: `2px solid ${theme.colors.border}`
+          }}>
+            <textarea
+              value={holeNotes}
+              onChange={(e) => setHoleNotes(e.target.value)}
+              placeholder="Add notes about this hole (disputes, unusual situations, etc.)"
+              style={{
+                width: '100%',
+                minHeight: '60px',
+                padding: '10px',
+                fontSize: '14px',
+                border: `2px solid ${theme.colors.border}`,
+                borderRadius: '6px',
+                resize: 'vertical',
+                fontFamily: 'inherit',
+                backgroundColor: theme.colors.inputBackground || theme.colors.paper,
+                color: theme.colors.textPrimary
+              }}
+            />
+          </div>
         )}
       </div>
 
