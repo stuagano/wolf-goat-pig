@@ -211,13 +211,12 @@ export const SheetSyncProvider = ({ children }) => {
     }
   }, [parseSheetUrl, sheetUrl]);
 
-  // Initial sync on load - removed to prevent excessive API calls
-  // Users can manually trigger sync when needed
-  // useEffect(() => {
-  //   if (sheetUrl) {
-  //     performLiveSync();
-  //   }
-  // }, [performLiveSync, sheetUrl]);
+  // Initial sync on load - fetch once when component mounts
+  useEffect(() => {
+    if (sheetUrl && syncData.length === 0 && syncStatus === 'idle') {
+      performLiveSync();
+    }
+  }, []); // Empty dependency array = run once on mount
 
   // Auto sync interval
   useEffect(() => {
