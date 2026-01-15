@@ -241,6 +241,7 @@ export const SheetSyncProvider = ({ children }) => {
     if (sheetUrl && syncData.length === 0 && syncStatus === 'idle') {
       performLiveSync();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency array = run once on mount
 
   // Auto sync interval
