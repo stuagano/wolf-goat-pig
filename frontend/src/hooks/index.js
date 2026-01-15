@@ -36,3 +36,4 @@ export { default as useSyncStatus, useHoleSync } from './useSyncStatus';
 export { default as useGameState } from './useGameState';
 export { default as useBettingState } from './useBettingState';
 export { default as useUIState } from './useUIState';
+export { default as useShotAnalysis } from './useShotAnalysis';
