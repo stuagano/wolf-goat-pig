@@ -170,7 +170,8 @@ export const SheetSyncProvider = ({ children }) => {
               ...player,
               total_earnings: 0,
               games_played: 0,
-              wins: 0
+              wins: 0,
+              last_played: null
             };
           }
           aggregatedData[player.player_name].total_earnings += player.total_earnings;
@@ -178,7 +179,30 @@ export const SheetSyncProvider = ({ children }) => {
           if (player.total_earnings > 0) {
             aggregatedData[player.player_name].wins += 1;
           }
-          aggregatedData[player.player_name].last_played = player.last_played;
+
+          // Keep the most recent date
+          const currentDate = player.last_played;
+          const existingDate = aggregatedData[player.player_name].last_played;
+
+          if (currentDate && currentDate !== 'N/A') {
+            if (!existingDate || existingDate === 'N/A') {
+              aggregatedData[player.player_name].last_played = currentDate;
+            } else {
+              try {
+                const current = new Date(currentDate);
+                const existing = new Date(existingDate);
+                if (!isNaN(current.getTime()) && !isNaN(existing.getTime())) {
+                  aggregatedData[player.player_name].last_played = current > existing ? currentDate : existingDate;
+                } else {
+                  // If either date is invalid, keep the existing one
+                  aggregatedData[player.player_name].last_played = existingDate;
+                }
+              } catch (e) {
+                // If date parsing fails, just use the current value
+                aggregatedData[player.player_name].last_played = currentDate;
+              }
+            }
+          }
         }
       });
 
@@ -194,7 +218,8 @@ export const SheetSyncProvider = ({ children }) => {
         headers: sheetResponse.headers,
         rowCount: sheetResponse.row_count,
         playersFound: finalData.length,
-        sampleData: finalData.slice(0, 3)
+        sampleData: finalData.slice(0, 3),
+        rawDataSample: (sheetResponse.data || []).slice(0, 2) // Show raw data to debug column names
       });
 
       setSyncData(finalData);
