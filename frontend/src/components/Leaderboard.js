@@ -26,7 +26,6 @@ const Leaderboard = () => {
 
   const metrics = [
     { value: 'overall', label: 'Overall Ranking' },
-    { value: 'avg_score', label: 'Average Score' },
     { value: 'total_games', label: 'Most Rounds Played' },
     { value: 'win_rate', label: 'Win Rate' },
     { value: 'points_earned', label: 'Points Earned' },

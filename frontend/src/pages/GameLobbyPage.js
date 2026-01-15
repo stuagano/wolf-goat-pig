@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTheme } from '../theme/Provider';
+import { useSheetSync } from '../context';
 import CommissionerChat from '../components/CommissionerChat';
 import TeeTossModal from '../components/game/TeeTossModal';
 
@@ -10,6 +11,7 @@ function GameLobbyPage() {
   const theme = useTheme();
   const navigate = useNavigate();
   const { gameId } = useParams();
+  const { syncData: leaderboardPlayers } = useSheetSync();
 
   const [lobby, setLobby] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -27,6 +29,8 @@ function GameLobbyPage() {
   // settingTeeOrder tracks API call state - used in handleSetTeeOrder
   // eslint-disable-next-line no-unused-vars
   const [settingTeeOrder, setSettingTeeOrder] = useState(false);
+  const [playerSuggestions, setPlayerSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Poll lobby status every 2 seconds
   useEffect(() => {
@@ -115,6 +119,39 @@ function GameLobbyPage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
+  };
+
+  // Handle player name input and show suggestions
+  const handlePlayerNameChange = (value) => {
+    setNewPlayerName(value);
+
+    if (value.trim().length >= 2 && leaderboardPlayers.length > 0) {
+      // Find matching players (fuzzy match)
+      const matches = leaderboardPlayers
+        .filter(player => {
+          const playerName = (player.player_name || player.name || '').toLowerCase();
+          const searchTerm = value.toLowerCase().trim();
+
+          // Match if player name starts with search term or contains it
+          return playerName.includes(searchTerm);
+        })
+        .slice(0, 5); // Limit to 5 suggestions
+
+      setPlayerSuggestions(matches);
+      setShowSuggestions(matches.length > 0);
+    } else {
+      setPlayerSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  // Select a suggested player
+  const selectSuggestedPlayer = (player) => {
+    setNewPlayerName(player.player_name || player.name);
+    // Try to use the player's handicap if available
+    // Note: leaderboard doesn't have handicap data, but we can default it
+    setShowSuggestions(false);
+    setPlayerSuggestions([]);
   };
 
   const handleAddPlayer = async (e) => {
@@ -436,17 +473,24 @@ function GameLobbyPage() {
             marginBottom: 16,
             border: '2px solid ' + theme.colors.primary
           }}>
-            <div style={{ marginBottom: 12 }}>
+            <div style={{ marginBottom: 12, position: 'relative' }}>
               <label style={{ display: 'block', marginBottom: 4, fontWeight: 600, fontSize: 14 }}>
                 Player Name:
               </label>
               <input
                 type="text"
                 value={newPlayerName}
-                onChange={(e) => setNewPlayerName(e.target.value)}
-                placeholder="Enter player name"
+                onChange={(e) => handlePlayerNameChange(e.target.value)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} // Delay to allow click
+                onFocus={() => {
+                  if (newPlayerName.trim().length >= 2 && playerSuggestions.length > 0) {
+                    setShowSuggestions(true);
+                  }
+                }}
+                placeholder="Enter player name (e.g., Steve)"
                 maxLength={50}
                 required
+                autoComplete="off"
                 style={{
                   width: '100%',
                   padding: '8px 12px',
@@ -456,6 +500,60 @@ function GameLobbyPage() {
                   boxSizing: 'border-box'
                 }}
               />
+
+              {/* Player Name Suggestions Dropdown */}
+              {showSuggestions && playerSuggestions.length > 0 && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  background: 'white',
+                  border: '1px solid #ddd',
+                  borderTop: 'none',
+                  borderRadius: '0 0 6px 6px',
+                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                  maxHeight: '200px',
+                  overflowY: 'auto',
+                  zIndex: 1000
+                }}>
+                  <div style={{
+                    padding: '8px 12px',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    color: '#666',
+                    borderBottom: '1px solid #eee',
+                    background: '#f9f9f9'
+                  }}>
+                    Did you mean...
+                  </div>
+                  {playerSuggestions.map((player, index) => (
+                    <div
+                      key={index}
+                      onClick={() => selectSuggestedPlayer(player)}
+                      style={{
+                        padding: '10px 12px',
+                        cursor: 'pointer',
+                        borderBottom: index < playerSuggestions.length - 1 ? '1px solid #f0f0f0' : 'none',
+                        fontSize: 14,
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        transition: 'background-color 0.15s'
+                      }}
+                      onMouseEnter={(e) => e.target.style.backgroundColor = '#f5f5f5'}
+                      onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
+                    >
+                      <span style={{ fontWeight: 500 }}>
+                        {player.player_name || player.name}
+                      </span>
+                      <span style={{ fontSize: 12, color: '#999' }}>
+                        {player.games_played || 0} games
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div style={{ marginBottom: 12 }}>
               <label style={{ display: 'block', marginBottom: 4, fontWeight: 600, fontSize: 14 }}>
