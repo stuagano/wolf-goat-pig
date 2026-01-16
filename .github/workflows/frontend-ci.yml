@@ -76,7 +76,7 @@ jobs:
         REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL || 'http://localhost:8000' }}
     
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: frontend-build-${{ matrix.node-version }}
         path: frontend/build/
@@ -107,7 +107,7 @@ jobs:
       continue-on-error: true
     
     - name: Upload bundle analysis
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: bundle-analysis
         path: frontend/bundle-stats.json
