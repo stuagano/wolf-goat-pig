@@ -869,7 +869,8 @@ const SimpleScorekeeper = ({
           winner: hole.winner,
           wager: hole.wager,
           gross_scores: hole.gross_scores,
-          phase: hole.phase
+          phase: hole.phase,
+          notes: hole.notes || null
         };
       });
 

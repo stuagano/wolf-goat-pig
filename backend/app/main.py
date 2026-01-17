@@ -2934,15 +2934,24 @@ async def save_quarters_only(game_id: str, request: QuartersOnlyRequest, db: Ses
                 player["total_points"] = standings[player_id]
 
         # Convert hole_quarters to hole_history format for compatibility
+        # Include all optional details (teams, winner, wager, gross_scores, phase, notes)
         hole_history = []
         for hole_num in range(1, 19):
             hole_str = str(hole_num)
             if hole_str in request.hole_quarters:
+                # Get all optional details for this hole
+                hole_details = (request.optional_details or {}).get(hole_str, {})
                 hole_entry = {
                     "hole": hole_num,
                     "points_delta": request.hole_quarters[hole_str],
                     "quarters_only": True,
-                    "notes": (request.optional_details or {}).get(hole_str, {}).get("notes", ""),
+                    "notes": hole_details.get("notes", ""),
+                    # Include all other fields from optional_details
+                    "teams": hole_details.get("teams"),
+                    "winner": hole_details.get("winner"),
+                    "wager": hole_details.get("wager"),
+                    "gross_scores": hole_details.get("gross_scores"),
+                    "phase": hole_details.get("phase"),
                 }
                 hole_history.append(hole_entry)
         game_state["hole_history"] = hole_history
