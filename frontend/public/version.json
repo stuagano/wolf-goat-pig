@@ -1,5 +1,7 @@
 {
-  "version": "1.1.0",
-  "buildTime": "2026-01-22T00:00:00.000Z",
-  "releaseNotes": "Cache bust for styling updates - SignupCalendar design, ThemeProvider fixes"
+  "version": "0.1.1.22025",
+  "baseVersion": "0.1.1",
+  "buildNumber": 22025,
+  "buildTime": "2026-01-22T22:47:05.527Z",
+  "timestamp": "2026-01-22T22-47-05"
 }

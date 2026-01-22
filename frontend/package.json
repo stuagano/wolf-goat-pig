@@ -22,6 +22,7 @@
   },
   "scripts": {
     "start": "react-scripts start",
+    "prebuild": "node scripts/update-sw-version.js",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "test:ci": "react-scripts test --watchAll=false --ci",
@@ -34,6 +35,7 @@
     "eject": "react-scripts eject",
     "lint": "eslint src/**/*.{js,jsx}",
     "typecheck": "tsc --noEmit",
+    "prevercel-build": "node scripts/update-sw-version.js",
     "vercel-build": "react-scripts build",
     "prepare": "node -e \"try{require('husky')}catch(e){process.exit(0)};require('child_process').execSync('husky',{stdio:'inherit'})\"",
     "test:e2e": "playwright test --config tests/e2e/playwright.config.js",
