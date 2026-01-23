@@ -23,6 +23,7 @@ const AppFooter = () => {
   const [updateStatus, setUpdateStatus] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
   const [cacheStats, setCacheStats] = useState(null);
+  const [isVersionHovered, setIsVersionHovered] = useState(false);
 
   const handleCheckUpdates = useCallback(async () => {
     setIsChecking(true);
@@ -139,6 +140,11 @@ const AppFooter = () => {
     fontSize: '13px',
     color: theme.colors.textSecondary,
     flexWrap: 'wrap',
+    cursor: 'pointer',
+    padding: '4px 8px',
+    borderRadius: '6px',
+    transition: 'background 0.2s',
+    background: isVersionHovered ? (theme.colors.border + '40') : 'transparent',
   };
 
   const buttonGroupStyle = {
@@ -197,8 +203,17 @@ const AppFooter = () => {
     <footer style={footerStyle}>
       <div style={containerStyle}>
         <div style={rowStyle}>
-          {/* Version Info */}
-          <div style={versionInfoStyle}>
+          {/* Version Info - clickable to show details */}
+          <div
+            style={versionInfoStyle}
+            onClick={handleShowDetails}
+            onKeyDown={(e) => e.key === 'Enter' && handleShowDetails()}
+            onMouseEnter={() => setIsVersionHovered(true)}
+            onMouseLeave={() => setIsVersionHovered(false)}
+            role="button"
+            tabIndex={0}
+            title="Click to show build details"
+          >
             <span>
               <strong>Version:</strong> {APP_VERSION}
             </span>
