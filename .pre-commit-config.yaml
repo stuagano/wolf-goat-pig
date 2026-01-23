@@ -53,3 +53,20 @@ repos:
         pass_filenames: false
         args: ['backend/app/']
         verbose: true
+
+      # Frontend deployment linter - catches caching/SW issues
+      - id: lint-frontend-deploy
+        name: Frontend Deployment Linter
+        entry: node frontend/scripts/lint-frontend-deploy.js
+        language: system
+        files: ^frontend/(public|src)/.*\.(js|jsx|ts|tsx|json|css)$
+        pass_filenames: false
+        verbose: true
+
+      # Ensure service worker version script exists when SW changes
+      - id: check-sw-version-script
+        name: Check SW Version Script
+        entry: bash -c 'test -f frontend/scripts/update-sw-version.js || (echo "❌ Missing frontend/scripts/update-sw-version.js" && exit 1)'
+        language: system
+        files: ^frontend/public/service-worker\.js$
+        pass_filenames: false
