@@ -27,7 +27,8 @@
       "Bash(wc:*)",
       "Bash(npm ci:*)",
       "Bash(git restore:*)",
-      "Bash(xargs cat:*)"
+      "Bash(xargs cat:*)",
+      "WebFetch(domain:thousand-cranes.com)"
     ],
     "deny": []
   }

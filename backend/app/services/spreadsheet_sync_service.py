@@ -335,3 +335,181 @@ def get_spreadsheet_sync_service() -> SpreadsheetSyncService:
     if _sync_service is None:
         _sync_service = SpreadsheetSyncService()
     return _sync_service
+
+
+@dataclass
+class ReconciliationResult:
+    """Result of comparing two spreadsheets."""
+
+    primary_only: List[RoundResult]  # Rounds only in primary (real) sheet
+    writable_only: List[RoundResult]  # Rounds only in writable (app) sheet
+    matched: int  # Count of matching rounds
+    primary_total: int
+    writable_total: int
+
+    @property
+    def is_synced(self) -> bool:
+        return len(self.primary_only) == 0 and len(self.writable_only) == 0
+
+
+class ReconciliationService:
+    """Service for reconciling data between primary and writable spreadsheets.
+
+    During the transition period, scores may be entered in either:
+    - The primary spreadsheet (legacy manual entry)
+    - The writable copy (via the app)
+
+    This service helps identify discrepancies and sync them.
+    """
+
+    def __init__(self):
+        self.primary = SpreadsheetSyncService(PRIMARY_SHEET_ID)
+        self.writable = SpreadsheetSyncService(WRITABLE_SHEET_ID)
+
+    def _round_key(self, r: RoundResult) -> str:
+        """Create a unique key for a round result."""
+        return f"{r.date}|{r.group}|{r.member}|{r.score}"
+
+    def compare_sheets(self) -> ReconciliationResult:
+        """Compare primary and writable sheets to find differences."""
+        primary_rounds = self.primary.get_all_rounds()
+        writable_rounds = self.writable.get_all_rounds()
+
+        primary_keys = {self._round_key(r): r for r in primary_rounds}
+        writable_keys = {self._round_key(r): r for r in writable_rounds}
+
+        primary_only = [r for k, r in primary_keys.items() if k not in writable_keys]
+        writable_only = [r for k, r in writable_keys.items() if k not in primary_keys]
+        matched = len(set(primary_keys.keys()) & set(writable_keys.keys()))
+
+        return ReconciliationResult(
+            primary_only=primary_only,
+            writable_only=writable_only,
+            matched=matched,
+            primary_total=len(primary_rounds),
+            writable_total=len(writable_rounds),
+        )
+
+    def sync_primary_to_writable(self, dry_run: bool = True) -> Dict[str, Any]:
+        """Copy missing rounds from primary to writable sheet.
+
+        Args:
+            dry_run: If True, only report what would be synced without making changes.
+
+        Returns:
+            Summary of sync operation.
+        """
+        result = self.compare_sheets()
+
+        if not result.primary_only:
+            return {
+                "status": "already_synced",
+                "message": "Writable sheet already has all rounds from primary",
+                "matched": result.matched,
+            }
+
+        if dry_run:
+            return {
+                "status": "dry_run",
+                "message": f"Would copy {len(result.primary_only)} rounds from primary to writable",
+                "rounds_to_copy": [
+                    {"date": r.date, "group": r.group, "member": r.member, "score": r.score}
+                    for r in result.primary_only
+                ],
+            }
+
+        # Actually sync
+        success = self.writable.add_round_results(result.primary_only)
+
+        if success:
+            return {
+                "status": "success",
+                "message": f"Copied {len(result.primary_only)} rounds from primary to writable",
+                "rounds_copied": len(result.primary_only),
+            }
+        else:
+            return {
+                "status": "error",
+                "message": "Failed to copy rounds to writable sheet",
+            }
+
+    def sync_writable_to_primary(self, dry_run: bool = True) -> Dict[str, Any]:
+        """Copy missing rounds from writable to primary sheet.
+
+        NOTE: This requires write access to the primary sheet.
+
+        Args:
+            dry_run: If True, only report what would be synced.
+
+        Returns:
+            Summary of sync operation.
+        """
+        result = self.compare_sheets()
+
+        if not result.writable_only:
+            return {
+                "status": "already_synced",
+                "message": "Primary sheet already has all rounds from writable",
+                "matched": result.matched,
+            }
+
+        if dry_run:
+            return {
+                "status": "dry_run",
+                "message": f"Would copy {len(result.writable_only)} rounds from writable to primary",
+                "rounds_to_copy": [
+                    {"date": r.date, "group": r.group, "member": r.member, "score": r.score}
+                    for r in result.writable_only
+                ],
+            }
+
+        # Actually sync - this may fail if we don't have write access to primary
+        success = self.primary.add_round_results(result.writable_only)
+
+        if success:
+            return {
+                "status": "success",
+                "message": f"Copied {len(result.writable_only)} rounds from writable to primary",
+                "rounds_copied": len(result.writable_only),
+            }
+        else:
+            return {
+                "status": "error",
+                "message": "Failed to copy rounds to primary sheet (may need write access)",
+            }
+
+    def get_sync_status(self) -> Dict[str, Any]:
+        """Get a summary of sync status between the two sheets."""
+        result = self.compare_sheets()
+
+        return {
+            "is_synced": result.is_synced,
+            "primary_sheet": {
+                "id": PRIMARY_SHEET_ID,
+                "total_rounds": result.primary_total,
+                "unique_rounds": len(result.primary_only),
+            },
+            "writable_sheet": {
+                "id": WRITABLE_SHEET_ID,
+                "total_rounds": result.writable_total,
+                "unique_rounds": len(result.writable_only),
+            },
+            "matched_rounds": result.matched,
+            "primary_only_sample": [
+                {"date": r.date, "member": r.member, "score": r.score} for r in result.primary_only[:5]
+            ],
+            "writable_only_sample": [
+                {"date": r.date, "member": r.member, "score": r.score} for r in result.writable_only[:5]
+            ],
+        }
+
+
+_reconciliation_service: Optional[ReconciliationService] = None
+
+
+def get_reconciliation_service() -> ReconciliationService:
+    """Get the singleton reconciliation service."""
+    global _reconciliation_service
+    if _reconciliation_service is None:
+        _reconciliation_service = ReconciliationService()
+    return _reconciliation_service

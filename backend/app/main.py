@@ -368,6 +368,11 @@ from .routers import spreadsheet_sync
 
 app.include_router(spreadsheet_sync.router)
 
+# Include unified data routes (merges all data sources)
+from .routers import unified_data
+
+app.include_router(unified_data.router)
+
 # Include modular routers
 app.include_router(health.router)
 app.include_router(sheet_integration.router)

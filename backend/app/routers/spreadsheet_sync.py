@@ -17,6 +17,7 @@ from ..services.spreadsheet_sync_service import (
     PRIMARY_SHEET_ID,
     WRITABLE_SHEET_ID,
     RoundResult,
+    get_reconciliation_service,
     get_spreadsheet_sync_service,
 )
 
@@ -226,3 +227,110 @@ def get_spreadsheet_config():
             "F": "Duration",
         },
     }
+
+
+# ============================================================================
+# Reconciliation Endpoints
+# ============================================================================
+
+
+@router.get("/reconcile/status")
+def get_reconciliation_status():
+    """Get sync status between primary and writable spreadsheets.
+
+    Returns a summary showing:
+    - Whether sheets are in sync
+    - Count of rounds unique to each sheet
+    - Sample of mismatched rounds
+    """
+    try:
+        service = get_reconciliation_service()
+        return service.get_sync_status()
+    except Exception as e:
+        logger.error(f"Failed to get reconciliation status: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get status: {str(e)}")
+
+
+@router.post("/reconcile/primary-to-writable")
+def sync_primary_to_writable(dry_run: bool = Query(True, description="Preview changes without applying")):
+    """Copy missing rounds from primary sheet to writable sheet.
+
+    Use this to pull in rounds that were entered directly in the primary
+    spreadsheet (legacy manual entry) into the app's writable copy.
+
+    Args:
+        dry_run: If True (default), only shows what would be synced.
+                 Set to False to actually perform the sync.
+    """
+    try:
+        service = get_reconciliation_service()
+        return service.sync_primary_to_writable(dry_run=dry_run)
+    except Exception as e:
+        logger.error(f"Failed to sync primary to writable: {e}")
+        raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")
+
+
+@router.post("/reconcile/writable-to-primary")
+def sync_writable_to_primary(dry_run: bool = Query(True, description="Preview changes without applying")):
+    """Copy missing rounds from writable sheet to primary sheet.
+
+    Use this to push rounds entered via the app to the primary spreadsheet.
+
+    NOTE: This requires write access to the primary sheet. If you don't have
+    write access, you'll need to manually copy the data or request access.
+
+    Args:
+        dry_run: If True (default), only shows what would be synced.
+                 Set to False to actually perform the sync.
+    """
+    try:
+        service = get_reconciliation_service()
+        return service.sync_writable_to_primary(dry_run=dry_run)
+    except Exception as e:
+        logger.error(f"Failed to sync writable to primary: {e}")
+        raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")
+
+
+@router.get("/reconcile/diff")
+def get_reconciliation_diff():
+    """Get detailed diff between primary and writable sheets.
+
+    Returns all rounds that exist in only one sheet.
+    """
+    try:
+        service = get_reconciliation_service()
+        result = service.compare_sheets()
+
+        return {
+            "summary": {
+                "is_synced": result.is_synced,
+                "primary_total": result.primary_total,
+                "writable_total": result.writable_total,
+                "matched": result.matched,
+                "primary_only_count": len(result.primary_only),
+                "writable_only_count": len(result.writable_only),
+            },
+            "primary_only": [
+                {
+                    "date": r.date,
+                    "group": r.group,
+                    "member": r.member,
+                    "score": r.score,
+                    "location": r.location,
+                }
+                for r in result.primary_only
+            ],
+            "writable_only": [
+                {
+                    "date": r.date,
+                    "group": r.group,
+                    "member": r.member,
+                    "score": r.score,
+                    "location": r.location,
+                }
+                for r in result.writable_only
+            ],
+        }
+    except Exception as e:
+        logger.error(f"Failed to get reconciliation diff: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get diff: {str(e)}")
