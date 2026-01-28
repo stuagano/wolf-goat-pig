@@ -42,17 +42,24 @@ from .post_hole_analytics import PostHoleAnalyzer
 
 # Import routers
 from .routers import courses, health, players, sheet_integration
-# betting_events router removed - events now sent inline with hole completion
 
+# betting_events router removed - events now sent inline with hole completion
 # Email scheduler will be initialized on-demand to prevent startup blocking
 # from .services.email_scheduler import email_scheduler
 from .services.email_service import SMTPEmailProvider, get_email_service
 from .services.game_lifecycle_service import get_game_lifecycle_service
 from .services.leaderboard_service import get_leaderboard_service
+from .services.legacy_player_service import (
+    get_canonical_name,
+    get_legacy_players,
+    is_valid_legacy_player,
+    validate_player_for_legacy,
+)
 from .services.legacy_signup_service import get_legacy_signup_service
 from .services.notification_service import get_notification_service
 from .services.sunday_game_service import generate_sunday_pairings
 from .services.team_formation_service import TeamFormationService
+
 # Simulation timeline enhancements removed
 from .state.course_manager import CourseManager
 from .validators import (
@@ -6792,6 +6799,41 @@ def _compute_shot_probabilities(
 
     return _normalize_probabilities(base_distribution)
 
+
+# Legacy Player System Endpoints
+
+
+@app.get("/legacy-players")
+def list_legacy_players():
+    """Get all players known to the legacy tee sheet system.
+
+    These are the only player names that will sync successfully
+    to the thousand-cranes.com tee sheet.
+    """
+    players = get_legacy_players()
+    return {"count": len(players), "players": players}
+
+
+@app.get("/legacy-players/validate/{name}")
+def validate_legacy_player(name: str):
+    """Validate a player name against the legacy system.
+
+    Returns whether the name is valid, the canonical spelling if found,
+    and suggestions for similar names if not found.
+    """
+    return validate_player_for_legacy(name)
+
+
+@app.get("/legacy-players/search")
+def search_legacy_players(q: str = Query(description="Search query for player name")):
+    """Search for legacy players by partial name match.
+
+    Returns players whose names contain the search query (case-insensitive).
+    """
+    players = get_legacy_players()
+    query_lower = q.lower()
+    matches = [p for p in players if query_lower in p.lower()]
+    return {"query": q, "count": len(matches), "players": matches}
 
 
 # Daily Sign-up System Endpoints
