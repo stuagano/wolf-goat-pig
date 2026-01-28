@@ -106,11 +106,10 @@ const DatabaseMigrations = () => {
     }
 
     // eslint-disable-next-line no-restricted-globals
-    if (
-      !confirm(
-        "Run ALL pending migrations? This will apply all schema changes.",
-      )
-    ) {
+    const userConfirmed = confirm(
+      "Run ALL pending migrations? This will apply all schema changes.",
+    );
+    if (!userConfirmed) {
       return;
     }
 
