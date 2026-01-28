@@ -1,25 +1,27 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth0 } from '@auth0/auth0-react';
-import './DatabaseMigrations.css';
+import React, { useState, useEffect } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
+import "./DatabaseMigrations.css";
 
 const DatabaseMigrations = () => {
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [adminKey, setAdminKey] = useState(localStorage.getItem('adminKey') || '');
+  const [adminKey, setAdminKey] = useState(
+    localStorage.getItem("adminKey") || "",
+  );
   const [logs, setLogs] = useState([]);
   const { user } = useAuth0();
 
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+  const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
-  const addLog = (message, type = 'info') => {
+  const addLog = (message, type = "info") => {
     const timestamp = new Date().toLocaleTimeString();
-    setLogs(prev => [...prev, { timestamp, message, type }]);
+    setLogs((prev) => [...prev, { timestamp, message, type }]);
   };
 
   const fetchStatus = async () => {
     if (!adminKey) {
-      setError('Please enter admin key');
+      setError("Please enter admin key");
       return;
     }
 
@@ -29,8 +31,8 @@ const DatabaseMigrations = () => {
     try {
       const response = await fetch(`${API_URL}/migrations/status`, {
         headers: {
-          'X-Admin-Key': adminKey
-        }
+          "X-Admin-Key": adminKey,
+        },
       });
 
       if (!response.ok) {
@@ -39,13 +41,13 @@ const DatabaseMigrations = () => {
 
       const data = await response.json();
       setStatus(data);
-      addLog('Schema status loaded successfully', 'success');
+      addLog("Schema status loaded successfully", "success");
 
       // Save admin key if successful
-      localStorage.setItem('adminKey', adminKey);
+      localStorage.setItem("adminKey", adminKey);
     } catch (err) {
       setError(err.message);
-      addLog(`Error: ${err.message}`, 'error');
+      addLog(`Error: ${err.message}`, "error");
     } finally {
       setLoading(false);
     }
@@ -53,7 +55,7 @@ const DatabaseMigrations = () => {
 
   const runMigration = async (migrationName) => {
     if (!adminKey) {
-      setError('Please enter admin key');
+      setError("Please enter admin key");
       return;
     }
 
@@ -69,11 +71,11 @@ const DatabaseMigrations = () => {
       const response = await fetch(
         `${API_URL}/migrations/run?migration_name=${migrationName}`,
         {
-          method: 'POST',
+          method: "POST",
           headers: {
-            'X-Admin-Key': adminKey
-          }
-        }
+            "X-Admin-Key": adminKey,
+          },
+        },
       );
 
       if (!response.ok) {
@@ -81,17 +83,17 @@ const DatabaseMigrations = () => {
       }
 
       const data = await response.json();
-      addLog(`Migration ${migrationName} completed`, 'success');
+      addLog(`Migration ${migrationName} completed`, "success");
 
       if (data.changes && data.changes.length > 0) {
-        data.changes.forEach(change => addLog(`  - ${change}`, 'info'));
+        data.changes.forEach((change) => addLog(`  - ${change}`, "info"));
       }
 
       // Refresh status
       await fetchStatus();
     } catch (err) {
       setError(err.message);
-      addLog(`Error running ${migrationName}: ${err.message}`, 'error');
+      addLog(`Error running ${migrationName}: ${err.message}`, "error");
     } finally {
       setLoading(false);
     }
@@ -99,12 +101,16 @@ const DatabaseMigrations = () => {
 
   const runAllMigrations = async () => {
     if (!adminKey) {
-      setError('Please enter admin key');
+      setError("Please enter admin key");
       return;
     }
 
     // eslint-disable-next-line no-restricted-globals
-    if (!confirm('Run ALL pending migrations? This will apply all schema changes.')) {
+    if (
+      !confirm(
+        "Run ALL pending migrations? This will apply all schema changes.",
+      )
+    ) {
       return;
     }
 
@@ -113,10 +119,10 @@ const DatabaseMigrations = () => {
 
     try {
       const response = await fetch(`${API_URL}/migrations/run-all`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'X-Admin-Key': adminKey
-        }
+          "X-Admin-Key": adminKey,
+        },
       });
 
       if (!response.ok) {
@@ -124,33 +130,53 @@ const DatabaseMigrations = () => {
       }
 
       const data = await response.json();
-      addLog('All migrations completed', 'success');
+      addLog("All migrations completed", "success");
 
       if (data.migrations_applied && data.migrations_applied.length > 0) {
-        data.migrations_applied.forEach(migration =>
-          addLog(`  - Applied: ${migration}`, 'info')
+        data.migrations_applied.forEach((migration) =>
+          addLog(`  - Applied: ${migration}`, "info"),
         );
       } else {
-        addLog('  - No migrations were needed', 'info');
+        addLog("  - No migrations were needed", "info");
       }
 
       // Refresh status
       await fetchStatus();
     } catch (err) {
       setError(err.message);
-      addLog(`Error running all migrations: ${err.message}`, 'error');
+      addLog(`Error running all migrations: ${err.message}`, "error");
     } finally {
       setLoading(false);
     }
   };
 
   const availableMigrations = [
-    { name: 'add_tee_order', description: 'Add tee_order column to game_players' },
-    { name: 'add_game_id', description: 'Add game_id column to game_state' },
-    { name: 'add_timestamps', description: 'Add created_at/updated_at columns' },
-    { name: 'add_join_code', description: 'Add join_code column to game_state' },
-    { name: 'add_creator_user_id', description: 'Add creator_user_id column to game_state' },
-    { name: 'add_game_status', description: 'Add game_status column to game_state' }
+    {
+      name: "add_tee_order",
+      description: "Add tee_order column to game_players",
+    },
+    { name: "add_game_id", description: "Add game_id column to game_state" },
+    {
+      name: "add_timestamps",
+      description: "Add created_at/updated_at columns",
+    },
+    {
+      name: "add_join_code",
+      description: "Add join_code column to game_state",
+    },
+    {
+      name: "add_creator_user_id",
+      description: "Add creator_user_id column to game_state",
+    },
+    {
+      name: "add_game_status",
+      description: "Add game_status column to game_state",
+    },
+    {
+      name: "add_legacy_name",
+      description:
+        "Add legacy_name column to player_profiles for tee sheet linking",
+    },
   ];
 
   useEffect(() => {
@@ -189,11 +215,12 @@ const DatabaseMigrations = () => {
             disabled={loading || !adminKey}
             className="btn-primary"
           >
-            {loading ? 'Loading...' : 'Load Status'}
+            {loading ? "Loading..." : "Load Status"}
           </button>
         </div>
         <p className="admin-key-hint">
-          Use ADMIN_KEY from environment or "dev-admin-key-INSECURE" in development
+          Use ADMIN_KEY from environment or "dev-admin-key-INSECURE" in
+          development
         </p>
       </div>
 
@@ -211,40 +238,51 @@ const DatabaseMigrations = () => {
             <div className="tables-list">
               <h3>All Tables ({status.all_tables?.length || 0})</h3>
               <div className="table-chips">
-                {status.all_tables?.map(table => (
-                  <span key={table} className="chip">{table}</span>
+                {status.all_tables?.map((table) => (
+                  <span key={table} className="chip">
+                    {table}
+                  </span>
                 ))}
               </div>
             </div>
 
-            {status.critical_tables && Object.keys(status.critical_tables).length > 0 && (
-              <div className="critical-tables">
-                <h3>Critical Tables Detail</h3>
-                {Object.entries(status.critical_tables).map(([tableName, tableInfo]) => (
-                  <div key={tableName} className="table-detail">
-                    <h4>{tableName}</h4>
-                    <div className="columns-section">
-                      <strong>Columns ({tableInfo.columns.length}):</strong>
-                      <div className="column-chips">
-                        {tableInfo.columns.map(col => (
-                          <span key={col} className="chip chip-column">{col}</span>
-                        ))}
-                      </div>
-                    </div>
-                    {tableInfo.indexes && tableInfo.indexes.length > 0 && (
-                      <div className="indexes-section">
-                        <strong>Indexes ({tableInfo.indexes.length}):</strong>
-                        <div className="column-chips">
-                          {tableInfo.indexes.map(idx => (
-                            <span key={idx} className="chip chip-index">{idx}</span>
-                          ))}
+            {status.critical_tables &&
+              Object.keys(status.critical_tables).length > 0 && (
+                <div className="critical-tables">
+                  <h3>Critical Tables Detail</h3>
+                  {Object.entries(status.critical_tables).map(
+                    ([tableName, tableInfo]) => (
+                      <div key={tableName} className="table-detail">
+                        <h4>{tableName}</h4>
+                        <div className="columns-section">
+                          <strong>Columns ({tableInfo.columns.length}):</strong>
+                          <div className="column-chips">
+                            {tableInfo.columns.map((col) => (
+                              <span key={col} className="chip chip-column">
+                                {col}
+                              </span>
+                            ))}
+                          </div>
                         </div>
+                        {tableInfo.indexes && tableInfo.indexes.length > 0 && (
+                          <div className="indexes-section">
+                            <strong>
+                              Indexes ({tableInfo.indexes.length}):
+                            </strong>
+                            <div className="column-chips">
+                              {tableInfo.indexes.map((idx) => (
+                                <span key={idx} className="chip chip-index">
+                                  {idx}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+                    ),
+                  )}
+                </div>
+              )}
           </div>
 
           <div className="migrations-actions">
@@ -261,7 +299,7 @@ const DatabaseMigrations = () => {
             </div>
 
             <div className="migrations-list">
-              {availableMigrations.map(migration => (
+              {availableMigrations.map((migration) => (
                 <div key={migration.name} className="migration-item">
                   <div className="migration-info">
                     <strong>{migration.name}</strong>
@@ -292,10 +330,7 @@ const DatabaseMigrations = () => {
               </div>
             ))}
           </div>
-          <button
-            onClick={() => setLogs([])}
-            className="btn-clear-logs"
-          >
+          <button onClick={() => setLogs([])} className="btn-clear-logs">
             Clear Logs
           </button>
         </div>
@@ -304,8 +339,8 @@ const DatabaseMigrations = () => {
       <div className="warning-section">
         <h3>⚠️ Warning</h3>
         <p>
-          This interface allows direct database schema modifications.
-          Always backup your data before running migrations in production.
+          This interface allows direct database schema modifications. Always
+          backup your data before running migrations in production.
         </p>
         <p>
           Migrations are designed to be idempotent (safe to run multiple times).
