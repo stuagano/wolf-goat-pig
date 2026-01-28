@@ -8,22 +8,26 @@ Supports both PostgreSQL (production) and SQLite (development).
 import os
 import sys
 from pathlib import Path
-from app.database import engine
+
 from sqlalchemy import text
+
+from app.database import engine
+
 
 def get_database_type():
     """Determine if we're using PostgreSQL or SQLite."""
     db_url = str(engine.url)
-    if 'postgresql' in db_url or 'postgres' in db_url:
-        return 'postgresql'
-    elif 'sqlite' in db_url:
-        return 'sqlite'
+    if "postgresql" in db_url or "postgres" in db_url:
+        return "postgresql"
+    elif "sqlite" in db_url:
+        return "sqlite"
     else:
-        return 'unknown'
+        return "unknown"
+
 
 def run_migrations():
     """Run all pending migrations."""
-    migrations_dir = Path(__file__).parent / 'migrations'
+    migrations_dir = Path(__file__).parent / "migrations"
 
     if not migrations_dir.exists():
         print("✅ No migrations directory found - skipping")
@@ -33,17 +37,15 @@ def run_migrations():
     print(f"📊 Database type: {db_type}")
 
     # Determine which migration files to run
-    if db_type == 'postgresql':
+    if db_type == "postgresql":
         migration_files = [
-            'enable_uuid_extension_postgres.sql',
-            'add_game_id_to_game_state_postgres.sql',
-            'add_join_codes_postgres.sql'
+            "enable_uuid_extension_postgres.sql",
+            "add_game_id_to_game_state_postgres.sql",
+            "add_join_codes_postgres.sql",
+            "add_legacy_name_postgres.sql",
         ]
-    elif db_type == 'sqlite':
-        migration_files = [
-            'add_game_id_to_game_state.sql',
-            'add_join_codes_and_player_linking.sql'
-        ]
+    elif db_type == "sqlite":
+        migration_files = ["add_game_id_to_game_state.sql", "add_join_codes_and_player_linking.sql"]
     else:
         print(f"❌ Unknown database type: {db_type}")
         return False
@@ -63,11 +65,11 @@ def run_migrations():
             print(f"🔄 Running migration: {filename}")
 
             # Read and execute migration
-            with open(filepath, 'r') as f:
+            with open(filepath, "r") as f:
                 sql = f.read()
 
                 # Split on semicolons and execute each statement
-                statements = [s.strip() for s in sql.split(';') if s.strip() and not s.strip().startswith('--')]
+                statements = [s.strip() for s in sql.split(";") if s.strip() and not s.strip().startswith("--")]
 
                 for statement in statements:
                     if statement:
@@ -76,13 +78,16 @@ def run_migrations():
                         except Exception as e:
                             # Check if error is "already exists" which we can safely ignore
                             error_msg = str(e).lower()
-                            if any(phrase in error_msg for phrase in [
-                                'already exists',
-                                'duplicate column',
-                                'duplicate key',
-                                'column already exists',
-                                'near "exists"',  # SQLite doesn't support IF NOT EXISTS with ALTER TABLE ADD COLUMN
-                            ]):
+                            if any(
+                                phrase in error_msg
+                                for phrase in [
+                                    "already exists",
+                                    "duplicate column",
+                                    "duplicate key",
+                                    "column already exists",
+                                    'near "exists"',  # SQLite doesn't support IF NOT EXISTS with ALTER TABLE ADD COLUMN
+                                ]
+                            ):
                                 print(f"   ℹ️  Skipping (already applied): {statement[:50]}...")
                             else:
                                 print(f"   ❌ Error: {e}")
@@ -103,7 +108,8 @@ def run_migrations():
     finally:
         connection.close()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     print("🚀 Running database migrations...")
     success = run_migrations()
     sys.exit(0 if success else 1)
