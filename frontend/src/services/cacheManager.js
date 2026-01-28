@@ -5,17 +5,35 @@
  * Ensures users always have the latest version of the app.
  */
 
-// App version - update this with each release
-export const APP_VERSION = '1.0.0';
+// App version - loaded from version.json at init, fallback to package version
+export let APP_VERSION = "0.1.1";
 
 // Build timestamp - auto-generated during build
-export const BUILD_TIMESTAMP = process.env.REACT_APP_BUILD_TIME || new Date().toISOString();
+export const BUILD_TIMESTAMP =
+  process.env.REACT_APP_BUILD_TIME || new Date().toISOString();
+
+// Load version from version.json (generated at build time)
+let versionLoaded = false;
+async function loadVersion() {
+  if (versionLoaded) return;
+  try {
+    const response = await fetch("/version.json", { cache: "no-store" });
+    if (response.ok) {
+      const data = await response.json();
+      APP_VERSION = data.version || APP_VERSION;
+      versionLoaded = true;
+      console.log("[CacheManager] Loaded version:", APP_VERSION);
+    }
+  } catch (e) {
+    console.warn("[CacheManager] Could not load version.json:", e.message);
+  }
+}
 
 // Cache keys
 const CACHE_KEYS = {
-  APP_VERSION: 'wgp_app_version',
-  LAST_UPDATE_CHECK: 'wgp_last_update_check',
-  UPDATE_DISMISSED: 'wgp_update_dismissed',
+  APP_VERSION: "wgp_app_version",
+  LAST_UPDATE_CHECK: "wgp_last_update_check",
+  UPDATE_DISMISSED: "wgp_update_dismissed",
 };
 
 // How often to check for updates (in milliseconds)
@@ -39,7 +57,7 @@ export function storeCurrentVersion() {
   try {
     localStorage.setItem(CACHE_KEYS.APP_VERSION, APP_VERSION);
   } catch (error) {
-    console.warn('[CacheManager] Failed to store version:', error);
+    console.warn("[CacheManager] Failed to store version:", error);
   }
 }
 
@@ -67,7 +85,7 @@ export function hasAppUpdated() {
  * Clear all application caches
  */
 export async function clearAllCaches() {
-  console.log('[CacheManager] Clearing all caches...');
+  console.log("[CacheManager] Clearing all caches...");
 
   const results = {
     serviceWorkerCache: false,
@@ -77,33 +95,36 @@ export async function clearAllCaches() {
 
   try {
     // Clear Service Worker caches
-    if ('caches' in window) {
+    if ("caches" in window) {
       const cacheNames = await caches.keys();
       await Promise.all(
         cacheNames.map((cacheName) => {
-          console.log('[CacheManager] Deleting cache:', cacheName);
+          console.log("[CacheManager] Deleting cache:", cacheName);
           return caches.delete(cacheName);
-        })
+        }),
       );
       results.serviceWorkerCache = true;
     }
   } catch (error) {
-    console.error('[CacheManager] Failed to clear SW caches:', error);
+    console.error("[CacheManager] Failed to clear SW caches:", error);
   }
 
   try {
     // Clear localStorage (except critical game data)
-    const gameDataKeys = ['wolf-goat-pig-game-state', 'wolf-goat-pig-game-backup'];
+    const gameDataKeys = [
+      "wolf-goat-pig-game-state",
+      "wolf-goat-pig-game-backup",
+    ];
     const keysToKeep = [...gameDataKeys];
 
     Object.keys(localStorage).forEach((key) => {
-      if (!keysToKeep.some(k => key.includes(k))) {
+      if (!keysToKeep.some((k) => key.includes(k))) {
         localStorage.removeItem(key);
       }
     });
     results.localStorage = true;
   } catch (error) {
-    console.error('[CacheManager] Failed to clear localStorage:', error);
+    console.error("[CacheManager] Failed to clear localStorage:", error);
   }
 
   try {
@@ -111,10 +132,10 @@ export async function clearAllCaches() {
     sessionStorage.clear();
     results.sessionStorage = true;
   } catch (error) {
-    console.error('[CacheManager] Failed to clear sessionStorage:', error);
+    console.error("[CacheManager] Failed to clear sessionStorage:", error);
   }
 
-  console.log('[CacheManager] Cache clear results:', results);
+  console.log("[CacheManager] Cache clear results:", results);
   return results;
 }
 
@@ -122,7 +143,7 @@ export async function clearAllCaches() {
  * Force refresh the app by clearing caches and reloading
  */
 export async function forceRefresh() {
-  console.log('[CacheManager] Force refreshing app...');
+  console.log("[CacheManager] Force refreshing app...");
 
   // Clear all caches
   await clearAllCaches();
@@ -131,9 +152,9 @@ export async function forceRefresh() {
   storeCurrentVersion();
 
   // Unregister service worker and reload
-  if ('serviceWorker' in navigator) {
+  if ("serviceWorker" in navigator) {
     const registrations = await navigator.serviceWorker.getRegistrations();
-    await Promise.all(registrations.map(reg => reg.unregister()));
+    await Promise.all(registrations.map((reg) => reg.unregister()));
   }
 
   // Hard reload
@@ -153,15 +174,15 @@ export async function checkForUpdates() {
 
     // Fetch version file with cache-busting query string
     const response = await fetch(`/version.json?t=${Date.now()}`, {
-      cache: 'no-store',
+      cache: "no-store",
       headers: {
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
       },
     });
 
     if (!response.ok) {
-      return { updateAvailable: false, error: 'Version check failed' };
+      return { updateAvailable: false, error: "Version check failed" };
     }
 
     const serverVersion = await response.json();
@@ -179,7 +200,7 @@ export async function checkForUpdates() {
       releaseNotes: serverVersion.releaseNotes || null,
     };
   } catch (error) {
-    console.warn('[CacheManager] Update check failed:', error);
+    console.warn("[CacheManager] Update check failed:", error);
     return { updateAvailable: false, error: error.message };
   }
 }
@@ -210,8 +231,8 @@ export function isUpdateDismissed(version) {
  * Send message to service worker to skip waiting
  */
 export function skipWaiting() {
-  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-    navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
+  if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({ type: "SKIP_WAITING" });
   }
 }
 
@@ -225,7 +246,7 @@ export async function getCacheStats() {
     entries: 0,
   };
 
-  if ('caches' in window) {
+  if ("caches" in window) {
     try {
       const cacheNames = await caches.keys();
       stats.cacheNames = cacheNames;
@@ -236,7 +257,7 @@ export async function getCacheStats() {
         stats.entries += keys.length;
       }
     } catch (error) {
-      console.warn('[CacheManager] Failed to get cache stats:', error);
+      console.warn("[CacheManager] Failed to get cache stats:", error);
     }
   }
 
@@ -247,10 +268,18 @@ export async function getCacheStats() {
  * Initialize cache manager
  * Call this when the app starts
  */
-export function initCacheManager() {
+export async function initCacheManager() {
+  // Load version from version.json first
+  await loadVersion();
+
   // Check for version update on app start
   if (hasAppUpdated()) {
-    console.log('[CacheManager] App updated from', getStoredVersion(), 'to', APP_VERSION);
+    console.log(
+      "[CacheManager] App updated from",
+      getStoredVersion(),
+      "to",
+      APP_VERSION,
+    );
     storeCurrentVersion();
 
     // Clear old caches on version update
@@ -261,16 +290,21 @@ export function initCacheManager() {
   setInterval(() => {
     checkForUpdates().then((result) => {
       if (result.updateAvailable) {
-        console.log('[CacheManager] New version available:', result.serverVersion);
+        console.log(
+          "[CacheManager] New version available:",
+          result.serverVersion,
+        );
         // Dispatch custom event for UI to handle
-        window.dispatchEvent(new CustomEvent('appUpdateAvailable', {
-          detail: result
-        }));
+        window.dispatchEvent(
+          new CustomEvent("appUpdateAvailable", {
+            detail: result,
+          }),
+        );
       }
     });
   }, UPDATE_CHECK_INTERVAL);
 
-  console.log('[CacheManager] Initialized - Version:', APP_VERSION);
+  console.log("[CacheManager] Initialized - Version:", APP_VERSION);
 }
 
 const cacheManager = {
