@@ -17,6 +17,7 @@ from ..services.spreadsheet_sync_service import (
     PRIMARY_SHEET_ID,
     WRITABLE_SHEET_ID,
     RoundResult,
+    _get_access_token,
     get_reconciliation_service,
     get_spreadsheet_sync_service,
 )
@@ -212,6 +213,32 @@ def sync_round_to_spreadsheet(request: SyncRoundRequest):
 @router.get("/config")
 def get_spreadsheet_config():
     """Get the current spreadsheet configuration."""
+    import os
+
+    # Check OAuth status
+    oauth_creds = os.environ.get("GOOGLE_OAUTH_CREDENTIALS")
+    oauth_status = "not_configured"
+    if oauth_creds:
+        try:
+            import json
+
+            creds = json.loads(oauth_creds)
+            has_refresh = bool(creds.get("refresh_token"))
+            has_client_id = bool(creds.get("client_id"))
+            has_client_secret = bool(creds.get("client_secret"))
+            if has_refresh and has_client_id and has_client_secret:
+                oauth_status = "configured"
+            else:
+                oauth_status = (
+                    f"incomplete (refresh={has_refresh}, client_id={has_client_id}, secret={has_client_secret})"
+                )
+        except Exception as e:
+            oauth_status = f"invalid_json: {e}"
+
+    # Test token retrieval
+    token = _get_access_token()
+    token_status = "success" if token else "failed"
+
     return {
         "primary_sheet_id": PRIMARY_SHEET_ID,
         "writable_sheet_id": WRITABLE_SHEET_ID,
@@ -226,6 +253,8 @@ def get_spreadsheet_config():
             "E": "Location",
             "F": "Duration",
         },
+        "oauth_status": oauth_status,
+        "token_status": token_status,
     }
 
 
