@@ -15,7 +15,12 @@ Sheet Structure:
   - E: Location (e.g., "Wing Point")
   - F: Duration (e.g., "3:55:00")
 
-The service uses Google Sheets API v4 with service account or OAuth credentials.
+The service uses Google Sheets API v4 with OAuth credentials.
+
+To enable write access:
+1. Share the writable spreadsheet with stuagano@gmail.com as Editor
+2. Ensure gcloud is authenticated with that account:
+   gcloud auth application-default login --scopes="openid,https://www.googleapis.com/auth/userinfo.email,https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/spreadsheets,https://www.googleapis.com/auth/drive"
 """
 
 from __future__ import annotations
@@ -30,11 +35,11 @@ from typing import Any, Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 # Spreadsheet IDs
-PRIMARY_SHEET_ID = "19AabC4vx0jRXHIAmz8QJfqTIBxxvMfFUplB0abg8mdA"  # Read-only original
-WRITABLE_SHEET_ID = "1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM"  # Writable copy
+PRIMARY_SHEET_ID = "1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM"  # The real/primary dashboard (read-only)
+WRITABLE_SHEET_ID = "19AabC4vx0jRXHIAmz8QJfqTIBxxvMfFUplB0abg8mdA"  # Stuart's writable copy for app sync
 
-# GCP quota project for API calls
-QUOTA_PROJECT = "gcp-sandbox-field-eng"
+# GCP quota project for API calls (stuagano@gmail.com's project)
+QUOTA_PROJECT = "stuartgano-n8n"
 
 
 @dataclass
