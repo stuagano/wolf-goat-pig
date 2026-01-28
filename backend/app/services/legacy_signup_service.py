@@ -197,7 +197,9 @@ class LegacySignupSyncService:
         payload = self.build_payload(signup, action_field, action_value)
 
         if not payload:
-            logger.debug("Legacy signup sync skipped: empty payload for signup id=%s", getattr(signup, "id", "<unknown>"))
+            logger.debug(
+                "Legacy signup sync skipped: empty payload for signup id=%s", getattr(signup, "id", "<unknown>")
+            )
             return False
 
         headers: Dict[str, str] = {}
@@ -241,13 +243,43 @@ class LegacySignupSyncService:
         action_field: Optional[str],
         action_value: Optional[str],
     ) -> Dict[str, Any]:
-        """Translate our signup model into the legacy CGI payload schema."""
+        """Translate our signup model into the legacy CGI payload schema.
+
+        Uses the player's legacy_name from their PlayerProfile if available,
+        falling back to player_name if no legacy mapping exists.
+        """
 
         base_payload: Dict[str, Any] = {}
 
+        # Resolve the player name for the legacy system
+        # Priority: PlayerProfile.legacy_name > DailySignup.player_name
+        player_name_for_legacy = getattr(signup, "player_name", None)
+
+        # Try to get legacy_name from PlayerProfile if we have a profile ID
+        player_profile_id = getattr(signup, "player_profile_id", None)
+        if player_profile_id:
+            try:
+                from ..database import SessionLocal
+                from ..models import PlayerProfile
+
+                db = SessionLocal()
+                try:
+                    profile = db.query(PlayerProfile).filter(PlayerProfile.id == player_profile_id).first()
+                    if profile and profile.legacy_name:
+                        player_name_for_legacy = profile.legacy_name
+                        logger.debug(
+                            "Using legacy_name '%s' for player_profile_id=%s",
+                            player_name_for_legacy,
+                            player_profile_id,
+                        )
+                finally:
+                    db.close()
+            except Exception as e:
+                logger.warning("Failed to lookup legacy_name for profile %s: %s", player_profile_id, e)
+
         attribute_map = {
             "date": getattr(signup, "date", None),
-            "player_name": getattr(signup, "player_name", None),
+            "player_name": player_name_for_legacy,
             "player_profile_id": getattr(signup, "player_profile_id", None),
             "preferred_start_time": getattr(signup, "preferred_start_time", None),
             "notes": getattr(signup, "notes", None),
@@ -295,4 +327,3 @@ def reset_legacy_signup_service() -> None:
 
     global _legacy_signup_service
     _legacy_signup_service = None
-

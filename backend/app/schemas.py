@@ -11,6 +11,7 @@ class Rule(BaseModel):
     title: str
     description: str
 
+
 class HoleInfo(BaseModel):
     hole_number: int
     par: int
@@ -19,63 +20,65 @@ class HoleInfo(BaseModel):
     description: Optional[str] = None
     tee_box: str = "regular"
 
-    @field_validator('par')
+    @field_validator("par")
     @classmethod
     def validate_par(cls, v):
         if not 3 <= v <= 6:
-            raise ValueError('Par must be between 3 and 6')
+            raise ValueError("Par must be between 3 and 6")
         return v
 
-    @field_validator('handicap')
+    @field_validator("handicap")
     @classmethod
     def validate_handicap(cls, v):
         if not 1 <= v <= 18:
-            raise ValueError('Handicap must be between 1 and 18')
+            raise ValueError("Handicap must be between 1 and 18")
         return v
 
-    @field_validator('yards')
+    @field_validator("yards")
     @classmethod
     def validate_yards(cls, v):
         if v < 100:
-            raise ValueError('Yards must be at least 100')
+            raise ValueError("Yards must be at least 100")
         if v > 700:
-            raise ValueError('Yards cannot exceed 700')
+            raise ValueError("Yards cannot exceed 700")
         return v
+
 
 class CourseCreate(BaseModel):
     name: str
     description: Optional[str] = None
     holes: List[HoleInfo]
 
-    @field_validator('holes')
+    @field_validator("holes")
     @classmethod
     def validate_holes(cls, v):
         if len(v) != 18:
-            raise ValueError('Course must have exactly 18 holes')
+            raise ValueError("Course must have exactly 18 holes")
 
         # Check for unique handicaps
         handicaps = [hole.handicap for hole in v]
         if len(set(handicaps)) != 18:
-            raise ValueError('All handicaps must be unique (1-18)')
+            raise ValueError("All handicaps must be unique (1-18)")
 
         # Check for unique hole numbers
         hole_numbers = [hole.hole_number for hole in v]
         if sorted(hole_numbers) != list(range(1, 19)):
-            raise ValueError('Hole numbers must be 1-18 and unique')
+            raise ValueError("Hole numbers must be 1-18 and unique")
 
         # Validate total par
         total_par = sum(hole.par for hole in v)
         if not 70 <= total_par <= 74:
-            raise ValueError('Total par must be between 70 and 74')
+            raise ValueError("Total par must be between 70 and 74")
 
         return v
 
-    @field_validator('name')
+    @field_validator("name")
     @classmethod
     def validate_name(cls, v):
         if not v or len(v.strip()) < 3:
-            raise ValueError('Course name must be at least 3 characters')
+            raise ValueError("Course name must be at least 3 characters")
         return v.strip()
+
 
 class CourseResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -91,35 +94,38 @@ class CourseResponse(BaseModel):
     created_at: str
     updated_at: str
 
+
 class CourseUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     holes: Optional[List[HoleInfo]] = None
 
-    @field_validator('holes')
+    @field_validator("holes")
     @classmethod
     def validate_holes_update(cls, v):
         if v is not None:
             # Same validation as CourseCreate
             if len(v) != 18:
-                raise ValueError('Course must have exactly 18 holes')
+                raise ValueError("Course must have exactly 18 holes")
 
             handicaps = [hole.handicap for hole in v]
             if len(set(handicaps)) != 18:
-                raise ValueError('All handicaps must be unique (1-18)')
+                raise ValueError("All handicaps must be unique (1-18)")
 
             hole_numbers = [hole.hole_number for hole in v]
             if sorted(hole_numbers) != list(range(1, 19)):
-                raise ValueError('Hole numbers must be 1-18 and unique')
+                raise ValueError("Hole numbers must be 1-18 and unique")
 
             total_par = sum(hole.par for hole in v)
             if not 70 <= total_par <= 74:
-                raise ValueError('Total par must be between 70 and 74')
+                raise ValueError("Total par must be between 70 and 74")
 
         return v
 
+
 class CourseList(BaseModel):
     courses: List[CourseResponse]
+
 
 class CourseStats(BaseModel):
     total_par: int
@@ -132,73 +138,82 @@ class CourseStats(BaseModel):
     shortest_hole: HoleInfo
     difficulty_rating: float
 
+
 class CourseComparison(BaseModel):
     course1: CourseResponse
     course2: CourseResponse
     stats1: CourseStats
     stats2: CourseStats
 
+
 class CourseImportRequest(BaseModel):
     course_name: str
     state: Optional[str] = None
     city: Optional[str] = None
 
+
 # SimulationCourseData schema removed - simulation mode deprecated
+
 
 # Player Profile Schemas
 class PlayerProfileBase(BaseModel):
     name: str
+    legacy_name: Optional[str] = None  # Name in legacy tee sheet system (thousand-cranes.com)
     handicap: float = 18.0
     avatar_url: Optional[str] = None
     email: Optional[str] = None
     preferences: Optional[Dict[str, Any]] = None
 
+
 class PlayerProfileCreate(PlayerProfileBase):
-    @field_validator('name')
+    @field_validator("name")
     @classmethod
     def validate_name(cls, v):
         if not v or len(v.strip()) < 2:
-            raise ValueError('Player name must be at least 2 characters')
+            raise ValueError("Player name must be at least 2 characters")
         if len(v.strip()) > 50:
-            raise ValueError('Player name cannot exceed 50 characters')
+            raise ValueError("Player name cannot exceed 50 characters")
         return v.strip()
 
-    @field_validator('handicap')
+    @field_validator("handicap")
     @classmethod
     def validate_handicap(cls, v):
         if v < 0:
-            raise ValueError('Handicap cannot be negative')
+            raise ValueError("Handicap cannot be negative")
         if v > 54:
-            raise ValueError('Handicap cannot exceed 54')
+            raise ValueError("Handicap cannot exceed 54")
         return v
+
 
 class PlayerProfileUpdate(BaseModel):
     name: Optional[str] = None
+    legacy_name: Optional[str] = None  # Name in legacy tee sheet system
     handicap: Optional[float] = None
     avatar_url: Optional[str] = None
     preferences: Optional[Dict[str, Any]] = None
     last_played: Optional[str] = None
 
-    @field_validator('name')
+    @field_validator("name")
     @classmethod
     def validate_name(cls, v):
         if v is not None:
             if len(v.strip()) < 2:
-                raise ValueError('Player name must be at least 2 characters')
+                raise ValueError("Player name must be at least 2 characters")
             if len(v.strip()) > 50:
-                raise ValueError('Player name cannot exceed 50 characters')
+                raise ValueError("Player name cannot exceed 50 characters")
             return v.strip()
         return v
 
-    @field_validator('handicap')
+    @field_validator("handicap")
     @classmethod
     def validate_handicap(cls, v):
         if v is not None:
             if v < 0:
-                raise ValueError('Handicap cannot be negative')
+                raise ValueError("Handicap cannot be negative")
             if v > 54:
-                raise ValueError('Handicap cannot exceed 54')
+                raise ValueError("Handicap cannot exceed 54")
         return v
+
 
 class PlayerProfileResponse(PlayerProfileBase):
     id: int
@@ -211,6 +226,7 @@ class PlayerProfileResponse(PlayerProfileBase):
     is_ai: bool = False
     playing_style: Optional[str] = None
     description: Optional[str] = None
+
 
 # Player Statistics Schemas
 class PlayerStatisticsResponse(BaseModel):
@@ -269,6 +285,7 @@ class PlayerStatisticsResponse(BaseModel):
     head_to_head_records: Dict[str, Any] = {}
     last_updated: str
 
+
 # Game Record Schemas
 class GameRecordCreate(BaseModel):
     game_id: str
@@ -277,10 +294,12 @@ class GameRecordCreate(BaseModel):
     player_count: int
     game_settings: Optional[Dict[str, Any]] = None
 
+
 class GameRecordUpdate(BaseModel):
     completed_at: Optional[str] = None
     game_duration_minutes: Optional[int] = None
     final_scores: Optional[Dict[str, Any]] = None
+
 
 class GameRecordResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -296,6 +315,7 @@ class GameRecordResponse(BaseModel):
     completed_at: Optional[str]
     game_settings: Dict[str, Any]
     final_scores: Dict[str, Any]
+
 
 # Game Player Result Schemas
 class GamePlayerResultCreate(BaseModel):
@@ -326,6 +346,7 @@ class GamePlayerResultCreate(BaseModel):
     hole_scores: Optional[Dict[str, Any]] = None
     betting_history: Optional[List[Dict[str, Any]]] = None
     performance_metrics: Optional[Dict[str, Any]] = None
+
 
 class GamePlayerResultResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -374,11 +395,13 @@ class PlayerAchievementResponse(BaseModel):
     game_record_id: Optional[int]
     achievement_data: Dict[str, Any]
 
+
 # Composite Schemas
 class PlayerProfileWithStats(BaseModel):
     profile: PlayerProfileResponse
     statistics: PlayerStatisticsResponse
     recent_achievements: List[PlayerAchievementResponse] = []
+
 
 class PlayerPerformanceAnalytics(BaseModel):
     player_id: int
@@ -388,6 +411,7 @@ class PlayerPerformanceAnalytics(BaseModel):
     strength_analysis: Dict[str, Any]
     improvement_recommendations: List[str]
     comparative_analysis: Dict[str, Any]
+
 
 class LeaderboardEntry(BaseModel):
     rank: int
@@ -399,27 +423,32 @@ class LeaderboardEntry(BaseModel):
     total_earnings: float
     partnership_success: float
 
+
 # Game Setup and Simulation Schemas
 class GameSetupRequest(BaseModel):
     players: List[str]
     course_name: str
     game_settings: Optional[Dict[str, Any]] = None
 
+
 class OddsCalculationRequest(BaseModel):
     players: List[Dict[str, Any]]
     hole_info: Dict[str, Any]
     current_state: Optional[Dict[str, Any]] = None
+
 
 class MonteCarloRequest(BaseModel):
     players: List[Dict[str, Any]]
     hole_info: Dict[str, Any]
     simulation_params: Optional[Dict[str, Any]] = None
 
+
 class ShotAnalysisRequest(BaseModel):
     player_id: str
     distance_to_pin: float
     lie_type: str
     club_options: List[str]
+
 
 # Daily Sign-up System Schemas
 class DailySignupCreate(BaseModel):
@@ -429,19 +458,21 @@ class DailySignupCreate(BaseModel):
     preferred_start_time: Optional[str] = None
     notes: Optional[str] = None
 
-    @field_validator('date')
+    @field_validator("date")
     @classmethod
     def validate_date(cls, v):
         try:
-            datetime.strptime(v, '%Y-%m-%d')
+            datetime.strptime(v, "%Y-%m-%d")
             return v
         except ValueError:
-            raise ValueError('Date must be in YYYY-MM-DD format')
+            raise ValueError("Date must be in YYYY-MM-DD format")
+
 
 class DailySignupUpdate(BaseModel):
     preferred_start_time: Optional[str] = None
     notes: Optional[str] = None
     status: Optional[str] = None
+
 
 class DailySignupResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -457,6 +488,7 @@ class DailySignupResponse(BaseModel):
     created_at: str
     updated_at: str
 
+
 class PlayerAvailabilityCreate(BaseModel):
     player_profile_id: int
     day_of_week: int  # 0-6
@@ -465,18 +497,20 @@ class PlayerAvailabilityCreate(BaseModel):
     is_available: bool = True
     notes: Optional[str] = None
 
-    @field_validator('day_of_week')
+    @field_validator("day_of_week")
     @classmethod
     def validate_day_of_week(cls, v):
         if not 0 <= v <= 6:
-            raise ValueError('Day of week must be between 0 (Monday) and 6 (Sunday)')
+            raise ValueError("Day of week must be between 0 (Monday) and 6 (Sunday)")
         return v
+
 
 class PlayerAvailabilityUpdate(BaseModel):
     available_from_time: Optional[str] = None
     available_to_time: Optional[str] = None
     is_available: Optional[bool] = None
     notes: Optional[str] = None
+
 
 class PlayerAvailabilityResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -491,6 +525,7 @@ class PlayerAvailabilityResponse(BaseModel):
     created_at: str
     updated_at: str
 
+
 class EmailPreferencesCreate(BaseModel):
     player_profile_id: int
     daily_signups_enabled: bool = True
@@ -501,13 +536,14 @@ class EmailPreferencesCreate(BaseModel):
     email_frequency: str = "daily"  # daily, weekly, monthly, never
     preferred_notification_time: str = "8:00 AM"
 
-    @field_validator('email_frequency')
+    @field_validator("email_frequency")
     @classmethod
     def validate_email_frequency(cls, v):
-        allowed_frequencies = ['daily', 'weekly', 'monthly', 'never']
+        allowed_frequencies = ["daily", "weekly", "monthly", "never"]
         if v not in allowed_frequencies:
-            raise ValueError(f'Email frequency must be one of: {", ".join(allowed_frequencies)}')
+            raise ValueError(f"Email frequency must be one of: {', '.join(allowed_frequencies)}")
         return v
+
 
 class EmailPreferencesUpdate(BaseModel):
     daily_signups_enabled: Optional[bool] = None
@@ -518,14 +554,15 @@ class EmailPreferencesUpdate(BaseModel):
     email_frequency: Optional[str] = None
     preferred_notification_time: Optional[str] = None
 
-    @field_validator('email_frequency')
+    @field_validator("email_frequency")
     @classmethod
     def validate_email_frequency(cls, v):
         if v is not None:
-            allowed_frequencies = ['daily', 'weekly', 'monthly', 'never']
+            allowed_frequencies = ["daily", "weekly", "monthly", "never"]
             if v not in allowed_frequencies:
-                raise ValueError(f'Email frequency must be one of: {", ".join(allowed_frequencies)}')
+                raise ValueError(f"Email frequency must be one of: {', '.join(allowed_frequencies)}")
         return v
+
 
 class EmailPreferencesResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -542,20 +579,24 @@ class EmailPreferencesResponse(BaseModel):
     created_at: str
     updated_at: str
 
+
 # Composite schemas for frontend
 class DailySignupSummary(BaseModel):
     date: str
     signups: List[DailySignupResponse]
     total_count: int
 
+
 class WeeklySignupView(BaseModel):
     week_start: str  # YYYY-MM-DD for the Monday
     daily_summaries: List[DailySignupSummary]
+
 
 class PlayerWithAvailability(BaseModel):
     profile: PlayerProfileResponse
     availability: List[PlayerAvailabilityResponse]
     email_preferences: Optional[EmailPreferencesResponse] = None
+
 
 # Daily Message schemas
 class DailyMessageCreate(BaseModel):
@@ -564,8 +605,10 @@ class DailyMessageCreate(BaseModel):
     player_profile_id: Optional[int] = None
     player_name: Optional[str] = None
 
+
 class DailyMessageUpdate(BaseModel):
     message: Optional[str] = None
+
 
 class DailyMessageResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -580,6 +623,7 @@ class DailyMessageResponse(BaseModel):
     created_at: str
     updated_at: str
 
+
 # Extended daily summary to include messages
 class DailySignupWithMessages(BaseModel):
     date: str
@@ -588,9 +632,11 @@ class DailySignupWithMessages(BaseModel):
     messages: List[DailyMessageResponse]
     message_count: int
 
+
 class WeeklySignupWithMessagesView(BaseModel):
     week_start: str  # YYYY-MM-DD for the Monday
     daily_summaries: List[DailySignupWithMessages]
+
 
 # Game Banner Schemas
 class GameBannerCreate(BaseModel):
@@ -603,22 +649,23 @@ class GameBannerCreate(BaseModel):
     show_icon: bool = True
     dismissible: bool = False
 
-    @field_validator('banner_type')
+    @field_validator("banner_type")
     @classmethod
     def validate_banner_type(cls, v):
-        allowed_types = ['info', 'warning', 'announcement', 'rules']
+        allowed_types = ["info", "warning", "announcement", "rules"]
         if v not in allowed_types:
-            raise ValueError(f'Banner type must be one of: {", ".join(allowed_types)}')
+            raise ValueError(f"Banner type must be one of: {', '.join(allowed_types)}")
         return v
 
-    @field_validator('message')
+    @field_validator("message")
     @classmethod
     def validate_message(cls, v):
         if not v or len(v.strip()) < 1:
-            raise ValueError('Banner message cannot be empty')
+            raise ValueError("Banner message cannot be empty")
         if len(v) > 500:
-            raise ValueError('Banner message cannot exceed 500 characters')
+            raise ValueError("Banner message cannot exceed 500 characters")
         return v.strip()
+
 
 class GameBannerUpdate(BaseModel):
     title: Optional[str] = None
@@ -630,25 +677,26 @@ class GameBannerUpdate(BaseModel):
     show_icon: Optional[bool] = None
     dismissible: Optional[bool] = None
 
-    @field_validator('banner_type')
+    @field_validator("banner_type")
     @classmethod
     def validate_banner_type(cls, v):
         if v is not None:
-            allowed_types = ['info', 'warning', 'announcement', 'rules']
+            allowed_types = ["info", "warning", "announcement", "rules"]
             if v not in allowed_types:
-                raise ValueError(f'Banner type must be one of: {", ".join(allowed_types)}')
+                raise ValueError(f"Banner type must be one of: {', '.join(allowed_types)}")
         return v
 
-    @field_validator('message')
+    @field_validator("message")
     @classmethod
     def validate_message(cls, v):
         if v is not None:
             if len(v.strip()) < 1:
-                raise ValueError('Banner message cannot be empty')
+                raise ValueError("Banner message cannot be empty")
             if len(v) > 500:
-                raise ValueError('Banner message cannot exceed 500 characters')
+                raise ValueError("Banner message cannot exceed 500 characters")
             return v.strip()
         return v
+
 
 class GameBannerResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -665,6 +713,7 @@ class GameBannerResponse(BaseModel):
     created_at: str
     updated_at: Optional[str]
 
+
 # Join Game Schemas
 class JoinGameRequest(BaseModel):
     player_name: str
@@ -672,20 +721,20 @@ class JoinGameRequest(BaseModel):
     user_id: Optional[str] = None
     player_profile_id: Optional[int] = None
 
-    @field_validator('player_name')
+    @field_validator("player_name")
     @classmethod
     def validate_player_name(cls, v):
         if not v or len(v.strip()) < 2:
-            raise ValueError('Player name must be at least 2 characters')
+            raise ValueError("Player name must be at least 2 characters")
         if len(v.strip()) > 50:
-            raise ValueError('Player name cannot exceed 50 characters')
+            raise ValueError("Player name cannot exceed 50 characters")
         return v.strip()
 
-    @field_validator('handicap')
+    @field_validator("handicap")
     @classmethod
     def validate_handicap(cls, v):
         if v < 0:
-            raise ValueError('Handicap cannot be negative')
+            raise ValueError("Handicap cannot be negative")
         if v > 54:
-            raise ValueError('Handicap cannot exceed 54')
+            raise ValueError("Handicap cannot exceed 54")
         return v

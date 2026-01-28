@@ -1,4 +1,3 @@
-
 from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.types import JSON
@@ -18,11 +17,13 @@ def get_uuid_column():
     # Always use String to avoid UUID type casting issues in PostgreSQL
     return String
 
+
 class Rule(Base):
     __tablename__ = "rules"
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True)
     description = Column(String)
+
 
 # Enhanced Course model for proper course management
 class Course(Base):
@@ -68,12 +69,14 @@ class Course(Base):
         """Get all holes within a handicap range (for Creecher calculations)"""
         return [h for h in self.holes if min_handicap <= h.handicap <= max_handicap]
 
+
 class Hole(Base):
     """
     Hole model representing individual holes in a golf course.
     Each hole has a par, yardage, and handicap index (stroke index 1-18).
     The handicap index determines the order of difficulty for handicap calculations.
     """
+
     __tablename__ = "holes"
     id = Column(Integer, primary_key=True, index=True)
     course_id = Column(Integer, ForeignKey("courses.id"), index=True)
@@ -87,6 +90,7 @@ class Hole(Base):
     # Relationship back to course
     course = relationship("Course", back_populates="holes")
 
+
 # For MVP: store the entire game state as a JSON blob
 # Updated to support multiple active games with unique game_id
 class GameStateModel(Base):
@@ -99,6 +103,7 @@ class GameStateModel(Base):
     state = Column(JSON)
     created_at = Column(String)
     updated_at = Column(String)
+
 
 # Track authenticated players in games
 class GamePlayer(Base):
@@ -115,13 +120,16 @@ class GamePlayer(Base):
     joined_at = Column(String, nullable=True)
     created_at = Column(String)
 
+
 # SimulationResult model removed - simulation mode deprecated
+
 
 # Player Profile Management
 class PlayerProfile(Base):
     __tablename__ = "player_profiles"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
+    legacy_name = Column(String, nullable=True, index=True)  # Name in legacy tee sheet system (thousand-cranes.com)
     email = Column(String, nullable=True, unique=True, index=True)  # Email for notifications
     handicap = Column(Float, default=18.0)
     ghin_id = Column(String, nullable=True, unique=True, index=True)  # GHIN ID for handicap lookup
@@ -130,13 +138,16 @@ class PlayerProfile(Base):
     created_at = Column(String)
     updated_at = Column(String, nullable=True)
     last_played = Column(String, nullable=True)
-    preferences = Column(JSON, default=lambda: {
-        "ai_difficulty": "medium",
-        "preferred_game_modes": ["wolf_goat_pig"],
-        "preferred_player_count": 4,
-        "betting_style": "conservative",
-        "display_hints": True
-    })
+    preferences = Column(
+        JSON,
+        default=lambda: {
+            "ai_difficulty": "medium",
+            "preferred_game_modes": ["wolf_goat_pig"],
+            "preferred_player_count": 4,
+            "betting_style": "conservative",
+            "display_hints": True,
+        },
+    )
     is_active = Column(Integer, default=1)  # SQLite uses integers for booleans
     is_ai = Column(Integer, default=0)
     playing_style = Column(String, nullable=True)
@@ -144,6 +155,7 @@ class PlayerProfile(Base):
     personality_traits = Column(JSON, nullable=True)
     strengths = Column(JSON, nullable=True)
     weaknesses = Column(JSON, nullable=True)
+
 
 class PlayerStatistics(Base):
     __tablename__ = "player_statistics"
@@ -200,6 +212,7 @@ class PlayerStatistics(Base):
     head_to_head_records = Column(JSON, default=dict)  # Track records vs other players
     last_updated = Column(String)
 
+
 class GameRecord(Base):
     __tablename__ = "game_records"
     id = Column(Integer, primary_key=True, index=True)
@@ -213,6 +226,7 @@ class GameRecord(Base):
     completed_at = Column(String, nullable=True)
     game_settings = Column(JSON, default=dict)  # Store game configuration
     final_scores = Column(JSON, default=dict)  # Final leaderboard
+
 
 class GamePlayerResult(Base):
     __tablename__ = "game_player_results"
@@ -246,6 +260,7 @@ class GamePlayerResult(Base):
     performance_metrics = Column(JSON, default=dict)  # Advanced metrics
     created_at = Column(String)
 
+
 class PlayerAchievement(Base):
     __tablename__ = "player_achievements"
     id = Column(Integer, primary_key=True, index=True)
@@ -256,6 +271,7 @@ class PlayerAchievement(Base):
     earned_date = Column(String)
     game_record_id = Column(Integer, nullable=True)  # Game where achievement was earned
     achievement_data = Column(JSON, default=dict)  # Additional achievement details
+
 
 # Daily Sign-up System Models
 class DailySignup(Base):
@@ -271,6 +287,7 @@ class DailySignup(Base):
     created_at = Column(String)
     updated_at = Column(String)
 
+
 class PlayerAvailability(Base):
     __tablename__ = "player_availability"
     id = Column(Integer, primary_key=True, index=True)
@@ -282,6 +299,7 @@ class PlayerAvailability(Base):
     notes = Column(String, nullable=True)  # e.g., "Only after work"
     created_at = Column(String)
     updated_at = Column(String)
+
 
 class EmailPreferences(Base):
     __tablename__ = "email_preferences"
@@ -297,6 +315,7 @@ class EmailPreferences(Base):
     created_at = Column(String)
     updated_at = Column(String)
 
+
 class DailyMessage(Base):
     __tablename__ = "daily_messages"
     id = Column(Integer, primary_key=True, index=True)
@@ -308,6 +327,7 @@ class DailyMessage(Base):
     is_active = Column(Integer, default=1)  # 1=active, 0=deleted/hidden
     created_at = Column(String)
     updated_at = Column(String)
+
 
 # GHIN Integration Models
 class GHINScore(Base):
@@ -328,6 +348,7 @@ class GHINScore(Base):
     created_at = Column(String)
     updated_at = Column(String)
 
+
 class GHINHandicapHistory(Base):
     __tablename__ = "ghin_handicap_history"
     id = Column(Integer, primary_key=True, index=True)
@@ -339,6 +360,7 @@ class GHINHandicapHistory(Base):
     scores_used_count = Column(Integer, nullable=True)  # Number of scores used in calculation
     synced_at = Column(String)  # When this record was synced from GHIN
     created_at = Column(String)
+
 
 # Matchmaking Models
 class MatchSuggestion(Base):
@@ -356,6 +378,7 @@ class MatchSuggestion(Base):
     created_at = Column(String)
     expires_at = Column(String)  # When this suggestion expires
 
+
 class MatchPlayer(Base):
     __tablename__ = "match_players"
     id = Column(Integer, primary_key=True, index=True)
@@ -367,6 +390,7 @@ class MatchPlayer(Base):
     responded_at = Column(String, nullable=True)
     created_at = Column(String)
     updated_at = Column(String, nullable=True)
+
 
 # Achievement Badge System Models
 class Badge(Base):
@@ -389,6 +413,7 @@ class Badge(Base):
     created_at = Column(String)
     updated_at = Column(String, nullable=True)
 
+
 class PlayerBadgeEarned(Base):
     __tablename__ = "player_badges_earned"
     id = Column(Integer, primary_key=True, index=True)
@@ -401,6 +426,7 @@ class PlayerBadgeEarned(Base):
     is_favorited = Column(Boolean, default=False)
     created_at = Column(String)
     updated_at = Column(String, nullable=True)
+
 
 class BadgeProgress(Base):
     __tablename__ = "badge_progress"
@@ -415,6 +441,7 @@ class BadgeProgress(Base):
     created_at = Column(String)
     updated_at = Column(String)
 
+
 class BadgeSeries(Base):
     __tablename__ = "badge_series"
     id = Column(Integer, primary_key=True, index=True)
@@ -426,6 +453,7 @@ class BadgeSeries(Base):
     image_url = Column(String, nullable=True)  # Series artwork
     is_active = Column(Boolean, default=True)
     created_at = Column(String)
+
 
 class PlayerSeriesProgress(Base):
     __tablename__ = "player_series_progress"
@@ -440,6 +468,7 @@ class PlayerSeriesProgress(Base):
     created_at = Column(String)
     updated_at = Column(String)
 
+
 class SeasonalBadge(Base):
     __tablename__ = "seasonal_badges"
     id = Column(Integer, primary_key=True, index=True)
@@ -451,6 +480,7 @@ class SeasonalBadge(Base):
     max_earners = Column(Integer, nullable=True)  # Limited number of players who can earn
     current_earners = Column(Integer, default=0)
     created_at = Column(String)
+
 
 # Game Banner System
 class GameBanner(Base):
@@ -466,6 +496,7 @@ class GameBanner(Base):
     dismissible = Column(Boolean, default=False)  # Can users dismiss it
     created_at = Column(String)
     updated_at = Column(String, nullable=True)
+
 
 # Notification System
 class Notification(Base):
@@ -486,6 +517,7 @@ class GeneratedPairing(Base):
     Created by the Saturday afternoon RNG calculator job (or manually triggered).
     Displayed on the signup page and emailed to all signed-up players.
     """
+
     __tablename__ = "generated_pairings"
     id = Column(Integer, primary_key=True, index=True)
     game_date = Column(String, unique=True, index=True)  # YYYY-MM-DD format (Sunday's date)

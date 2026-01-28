@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from ..database import SessionLocal
 from ..models import EmailPreferences, PlayerProfile
+from .legacy_player_service import find_similar_players, get_canonical_name
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,7 @@ AUTH0_ALGORITHMS = ["RS256"]
 
 # Security scheme for FastAPI
 security = HTTPBearer()
+
 
 class AuthService:
     """Service for handling authentication and user management"""
@@ -59,7 +61,7 @@ class AuthService:
                     signing_key.key,
                     algorithms=AUTH0_ALGORITHMS,
                     audience=AUTH0_API_AUDIENCE,
-                    issuer=f"https://{AUTH0_DOMAIN}/"
+                    issuer=f"https://{AUTH0_DOMAIN}/",
                 )
                 return dict(payload)
             else:
@@ -69,7 +71,7 @@ class AuthService:
                     "sub": "auth0|123456789",
                     "email": "test@example.com",
                     "name": "Test User",
-                    "picture": "https://example.com/avatar.jpg"
+                    "picture": "https://example.com/avatar.jpg",
                 }
 
         except JWTError as e:
@@ -87,14 +89,22 @@ class AuthService:
         picture = auth0_user.get("picture")
 
         # Try to find existing player by email
-        player = db.query(PlayerProfile).filter(
-            PlayerProfile.email == email
-        ).first()
+        player = db.query(PlayerProfile).filter(PlayerProfile.email == email).first()
 
         if not player:
+            # Try to match name to legacy tee sheet system
+            legacy_name = get_canonical_name(name)
+            if not legacy_name:
+                # Try fuzzy matching
+                suggestions = find_similar_players(name, max_results=1)
+                if suggestions:
+                    legacy_name = suggestions[0]
+                    logger.info(f"Fuzzy matched '{name}' to legacy name '{legacy_name}'")
+
             # Create new player profile
             player = PlayerProfile(
                 name=name,
+                legacy_name=legacy_name,  # Link to legacy tee sheet system
                 email=email,
                 avatar_url=picture,
                 created_at=datetime.now().isoformat(),
@@ -106,8 +116,8 @@ class AuthService:
                     "preferred_game_modes": ["wolf_goat_pig"],
                     "preferred_player_count": 4,
                     "betting_style": "conservative",
-                    "display_hints": True
-                }
+                    "display_hints": True,
+                },
             )
             db.add(player)
             db.commit()
@@ -117,7 +127,7 @@ class AuthService:
             email_prefs = EmailPreferences(
                 player_profile_id=player.id,
                 created_at=datetime.now().isoformat(),
-                updated_at=datetime.now().isoformat()
+                updated_at=datetime.now().isoformat(),
             )
             db.add(email_prefs)
             db.commit()
@@ -139,7 +149,7 @@ class AuthService:
                 update_needed = True
 
             if update_needed:
-                setattr(player, 'updated_at', datetime.now().isoformat())
+                setattr(player, "updated_at", datetime.now().isoformat())
                 db.commit()
                 logger.info(f"Updated player profile for {player.name}")
 
@@ -150,9 +160,7 @@ class AuthService:
         """Link an Auth0 account to an existing player profile"""
 
         try:
-            player = db.query(PlayerProfile).filter(
-                PlayerProfile.id == player_id
-            ).first()
+            player = db.query(PlayerProfile).filter(PlayerProfile.id == player_id).first()
 
             if not player:
                 logger.error(f"Player with ID {player_id} not found")
@@ -160,13 +168,13 @@ class AuthService:
 
             # Store Auth0 ID in preferences
             if not player.preferences:
-                setattr(player, 'preferences', {})
+                setattr(player, "preferences", {})
 
             # Create new dict to trigger SQLAlchemy change detection
             updated_prefs = dict(player.preferences) if player.preferences else {}
             updated_prefs["auth0_id"] = auth0_id
             player.preferences = updated_prefs
-            setattr(player, 'updated_at', datetime.now().isoformat())
+            setattr(player, "updated_at", datetime.now().isoformat())
 
             db.commit()
             logger.info(f"Linked Auth0 account {auth0_id} to player {player.name}")
@@ -177,12 +185,13 @@ class AuthService:
             db.rollback()
             return False
 
+
 # Global auth service instance
 auth_service = AuthService()
 
+
 def get_current_user(
-    token: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(AuthService.get_db)
+    token: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(AuthService.get_db)
 ) -> PlayerProfile:
     """Dependency to get the current authenticated user"""
 
