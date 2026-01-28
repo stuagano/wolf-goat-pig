@@ -39,7 +39,9 @@ import Navigation from "./components/Navigation";
 import AppFooter from "./components/AppFooter";
 import { BadgeNotificationManager } from "./components/BadgeNotification";
 import UpdateNotification from "./components/UpdateNotification";
+import OfflineIndicator from "./components/OfflineIndicator";
 import { initCacheManager } from "./services/cacheManager";
+import { setupAutoSync } from "./services/offlineStorage";
 import "./styles/mobile-touch.css"; // Import mobile touch optimization styles
 
 const API_URL = process.env.REACT_APP_API_URL || "";
@@ -58,9 +60,25 @@ function App() {
   // Check if we're using mock auth
   const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === "true";
 
-  // Initialize cache manager on app start
+  // Initialize cache manager and auto-sync on app start
   useEffect(() => {
     initCacheManager();
+
+    // Setup auto-sync when connection is restored
+    const cleanupAutoSync = setupAutoSync((results) => {
+      console.log("[App] Auto-sync completed:", results);
+      if (results.synced > 0) {
+        // Could show a toast notification here
+        console.log(`[App] Synced ${results.synced} pending requests`);
+      }
+      if (results.failed > 0) {
+        console.warn(`[App] Failed to sync ${results.failed} requests`);
+      }
+    });
+
+    return () => {
+      cleanupAutoSync();
+    };
   }, []);
 
   const handleBackendReady = () => {
@@ -312,6 +330,7 @@ function App() {
           }}
         >
           <Navigation />
+          <OfflineIndicator />
           <BadgeNotificationManager />
           <UpdateNotification />
           <div style={{ flex: 1 }}>
