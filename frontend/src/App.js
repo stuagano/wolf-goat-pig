@@ -41,7 +41,7 @@ import { BadgeNotificationManager } from "./components/BadgeNotification";
 import UpdateNotification from "./components/UpdateNotification";
 import OfflineIndicator from "./components/OfflineIndicator";
 import { initCacheManager } from "./services/cacheManager";
-import { setupAutoSync } from "./services/offlineStorage";
+import syncManager from "./services/syncManager";
 import "./styles/mobile-touch.css"; // Import mobile touch optimization styles
 
 const API_URL = process.env.REACT_APP_API_URL || "";
@@ -64,20 +64,20 @@ function App() {
   useEffect(() => {
     initCacheManager();
 
-    // Setup auto-sync when connection is restored
-    const cleanupAutoSync = setupAutoSync((results) => {
-      console.log("[App] Auto-sync completed:", results);
-      if (results.synced > 0) {
-        // Could show a toast notification here
-        console.log(`[App] Synced ${results.synced} pending requests`);
-      }
-      if (results.failed > 0) {
-        console.warn(`[App] Failed to sync ${results.failed} requests`);
+    // Setup syncManager's auto-sync for game data
+    // This handles offline queue processing when connection is restored
+    const cleanupAutoSync = syncManager.setupAutoSync();
+
+    // Log sync status changes
+    const cleanupListener = syncManager.addSyncListener((status) => {
+      if (status.pendingCount > 0 && status.isOnline && !status.isProcessing) {
+        console.log(`[App] ${status.pendingCount} pending syncs waiting`);
       }
     });
 
     return () => {
       cleanupAutoSync();
+      cleanupListener();
     };
   }, []);
 
