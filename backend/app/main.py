@@ -363,6 +363,11 @@ app.include_router(badge_router)
 # Include migrations management routes
 app.include_router(migrations_router)
 
+# Include spreadsheet sync routes (admin)
+from .routers import spreadsheet_sync
+
+app.include_router(spreadsheet_sync.router)
+
 # Include modular routers
 app.include_router(health.router)
 app.include_router(sheet_integration.router)
