@@ -25,9 +25,12 @@ To enable write access:
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import subprocess
+import urllib.parse
+import urllib.request
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -75,7 +78,44 @@ class RoundSummary:
 
 
 def _get_access_token() -> Optional[str]:
-    """Get OAuth access token using gcloud CLI."""
+    """Get OAuth access token.
+
+    Tries in order:
+    1. GOOGLE_OAUTH_CREDENTIALS env var (for production - contains refresh token)
+    2. gcloud CLI (for local development)
+    """
+    # Try environment variable first (production)
+    oauth_creds_json = os.environ.get("GOOGLE_OAUTH_CREDENTIALS")
+    if oauth_creds_json:
+        try:
+            creds = json.loads(oauth_creds_json)
+            refresh_token = creds.get("refresh_token")
+            client_id = creds.get("client_id")
+            client_secret = creds.get("client_secret")
+
+            if refresh_token and client_id and client_secret:
+                # Exchange refresh token for access token
+                token_url = "https://oauth2.googleapis.com/token"
+                data = urllib.parse.urlencode(
+                    {
+                        "client_id": client_id,
+                        "client_secret": client_secret,
+                        "refresh_token": refresh_token,
+                        "grant_type": "refresh_token",
+                    }
+                ).encode("utf-8")
+
+                req = urllib.request.Request(token_url, data=data, method="POST")
+                with urllib.request.urlopen(req, timeout=10) as response:
+                    result = json.loads(response.read())
+                    access_token = result.get("access_token")
+                    if access_token:
+                        logger.info("Got access token from GOOGLE_OAUTH_CREDENTIALS")
+                        return access_token
+        except Exception as e:
+            logger.error(f"Failed to get token from GOOGLE_OAUTH_CREDENTIALS: {e}")
+
+    # Fall back to gcloud CLI (local development)
     try:
         result = subprocess.run(
             ["gcloud", "auth", "application-default", "print-access-token"], capture_output=True, text=True, timeout=10
@@ -91,9 +131,6 @@ def _get_access_token() -> Optional[str]:
 
 def _sheets_api_get(sheet_id: str, range_spec: str) -> Optional[Dict[str, Any]]:
     """Make a GET request to the Sheets API."""
-    import json
-    import urllib.request
-
     token = _get_access_token()
     if not token:
         return None
@@ -118,9 +155,6 @@ def _sheets_api_get(sheet_id: str, range_spec: str) -> Optional[Dict[str, Any]]:
 
 def _sheets_api_append(sheet_id: str, range_spec: str, values: List[List[Any]]) -> bool:
     """Append rows to a sheet."""
-    import json
-    import urllib.request
-
     token = _get_access_token()
     if not token:
         return False
