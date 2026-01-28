@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Routes, Route, useNavigate, Navigate, useLocation } from "react-router-dom";
+import {
+  Routes,
+  Route,
+  useNavigate,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 import { useAuth0 } from "@auth0/auth0-react";
 import ShotRangeAnalyzer from "./components/ShotRangeAnalyzer";
 import ColdStartHandler from "./components/ColdStartHandler";
@@ -15,6 +21,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { TutorialProvider } from "./context/TutorialContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import LoginButton from "./components/auth/LoginButton";
+import { OnboardingWrapper } from "./components/auth";
 import { HomePage, GameScorerPage, SimpleScorekeeperPage } from "./pages";
 import SignupPage from "./pages/SignupPage";
 import AboutPage from "./pages/AboutPage";
@@ -37,7 +44,6 @@ import "./styles/mobile-touch.css"; // Import mobile touch optimization styles
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
-
 // Navigation component has been moved to its own file
 
 function App() {
@@ -45,12 +51,12 @@ function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, isLoading } = useAuth0();
-  
+
   const [backendReady, setBackendReady] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
 
   // Check if we're using mock auth
-  const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === 'true';
+  const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === "true";
 
   // Initialize cache manager on app start
   useEffect(() => {
@@ -61,19 +67,23 @@ function App() {
     setBackendReady(true);
     // Load rules once backend is ready with proper error handling
     fetch(`${API_URL}/rules`)
-      .then(res => {
+      .then((res) => {
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}: ${res.statusText}`);
         }
         return res.json();
       })
-      .then(data => {
+      .then((data) => {
         // Rules loaded successfully
-        console.log('[App] Rules loaded:', Object.keys(data || {}).length, 'rules');
+        console.log(
+          "[App] Rules loaded:",
+          Object.keys(data || {}).length,
+          "rules",
+        );
       })
-      .catch(err => {
+      .catch((err) => {
         // Log error but don't block app - rules are optional
-        console.warn('[App] Could not load rules:', err.message);
+        console.warn("[App] Could not load rules:", err.message);
       });
   };
 
@@ -81,24 +91,30 @@ function App() {
   if (isLoading && !useMockAuth) {
     return (
       <ThemeProvider>
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-          background: theme.colors.background
-        }}>
-          <div style={{
-            ...theme.cardStyle,
-            textAlign: 'center',
-            padding: '40px'
-          }}>
-            <div style={{ 
-              fontSize: '24px',
-              marginBottom: '16px',
-              color: theme.colors.primary 
-            }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "100vh",
+            background: theme.colors.background,
+          }}
+        >
+          <div
+            style={{
+              ...theme.cardStyle,
+              textAlign: "center",
+              padding: "40px",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "24px",
+                marginBottom: "16px",
+                color: theme.colors.primary,
+              }}
+            >
               🔄 Loading...
             </div>
             <p style={{ color: theme.colors.textSecondary }}>
@@ -114,52 +130,66 @@ function App() {
   if (!isAuthenticated && !useMockAuth) {
     return (
       <ThemeProvider>
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-          background: theme.colors.background,
-          padding: '20px'
-        }}>
-          <div style={{
-            ...theme.cardStyle,
-            textAlign: 'center',
-            padding: '40px',
-            maxWidth: '500px'
-          }}>
-            <div style={{ 
-              fontSize: '48px',
-              marginBottom: '16px' 
-            }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "100vh",
+            background: theme.colors.background,
+            padding: "20px",
+          }}
+        >
+          <div
+            style={{
+              ...theme.cardStyle,
+              textAlign: "center",
+              padding: "40px",
+              maxWidth: "500px",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "48px",
+                marginBottom: "16px",
+              }}
+            >
               🐷🐺🐐
             </div>
-            <h1 style={{ 
-              color: theme.colors.primary,
-              marginBottom: '8px',
-              fontSize: '2.5rem'
-            }}>
+            <h1
+              style={{
+                color: theme.colors.primary,
+                marginBottom: "8px",
+                fontSize: "2.5rem",
+              }}
+            >
               Wolf Goat Pig
             </h1>
-            <p style={{ 
-              color: theme.colors.textSecondary,
-              marginBottom: '24px',
-              fontSize: '1.2rem'
-            }}>
+            <p
+              style={{
+                color: theme.colors.textSecondary,
+                marginBottom: "24px",
+                fontSize: "1.2rem",
+              }}
+            >
               The Ultimate Golf Betting Game
             </p>
-            <p style={{ 
-              color: theme.colors.textSecondary,
-              marginBottom: '32px'
-            }}>
+            <p
+              style={{
+                color: theme.colors.textSecondary,
+                marginBottom: "32px",
+              }}
+            >
               Please log in to start playing Wolf Goat Pig with your friends.
             </p>
-            <LoginButton style={{
-              fontSize: '18px',
-              padding: '16px 32px',
-              minWidth: '200px'
-            }} />
+            <LoginButton
+              style={{
+                fontSize: "18px",
+                padding: "16px 32px",
+                minWidth: "200px",
+              }}
+            />
           </div>
         </div>
       </ThemeProvider>
@@ -178,43 +208,88 @@ function App() {
   }
 
   // Show splash screen only on homepage after backend is ready
-  if (showSplash && location.pathname === '/') {
+  if (showSplash && location.pathname === "/") {
     return (
       <ThemeProvider>
-        <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100vh',background:theme.colors.background}}>
-          <div style={{...theme.cardStyle, textAlign:'center', maxWidth: 400, marginTop: -80}}>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>🐷🐺🐐</div>
-            <h1 style={{color:theme.colors.primary, fontSize:32, marginBottom:16}}>Wolf Goat Pig</h1>
-            <p style={{fontSize:18, color:theme.colors.textPrimary, marginBottom:24}}>Golf Game Tracker</p>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "100vh",
+            background: theme.colors.background,
+          }}
+        >
+          <div
+            style={{
+              ...theme.cardStyle,
+              textAlign: "center",
+              maxWidth: 400,
+              marginTop: -80,
+            }}
+          >
+            <div style={{ fontSize: "48px", marginBottom: "16px" }}>🐷🐺🐐</div>
+            <h1
+              style={{
+                color: theme.colors.primary,
+                fontSize: 32,
+                marginBottom: 16,
+              }}
+            >
+              Wolf Goat Pig
+            </h1>
+            <p
+              style={{
+                fontSize: 18,
+                color: theme.colors.textPrimary,
+                marginBottom: 24,
+              }}
+            >
+              Golf Game Tracker
+            </p>
             {!isAuthenticated && !useMockAuth ? (
-              <div style={{ marginBottom: '16px' }}>
-                <p style={{ fontSize: 14, color: theme.colors.textSecondary, marginBottom: 16 }}>
+              <div style={{ marginBottom: "16px" }}>
+                <p
+                  style={{
+                    fontSize: 14,
+                    color: theme.colors.textSecondary,
+                    marginBottom: 16,
+                  }}
+                >
                   Please log in to start playing
                 </p>
-                <LoginButton style={{
-                  fontSize: '18px',
-                  padding: '12px 32px',
-                  minWidth: '180px'
-                }} />
+                <LoginButton
+                  style={{
+                    fontSize: "18px",
+                    padding: "12px 32px",
+                    minWidth: "180px",
+                  }}
+                />
               </div>
             ) : (
-              <button 
-                style={{...theme.buttonStyle, fontSize:22, width:220, margin:'0 auto'}} 
+              <button
+                style={{
+                  ...theme.buttonStyle,
+                  fontSize: 22,
+                  width: 220,
+                  margin: "0 auto",
+                }}
                 onClick={() => setShowSplash(false)}
               >
                 Enter Game
               </button>
             )}
-            <button 
+            <button
               style={{
-                ...theme.buttonStyle, 
-                fontSize: 16, 
-                width: 220, 
-                margin: '8px auto 0', 
-                background: 'transparent',
+                ...theme.buttonStyle,
+                fontSize: 16,
+                width: 220,
+                margin: "8px auto 0",
+                background: "transparent",
                 color: theme.colors.textSecondary,
-                border: `1px solid ${theme.colors.textSecondary}`
-              }} 
+                border: `1px solid ${theme.colors.textSecondary}`,
+              }}
               onClick={() => setShowSplash(false)}
             >
               Browse Without Login
@@ -228,71 +303,108 @@ function App() {
   // Main application
   return (
     <ThemeProvider>
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-        <Navigation />
-        <BadgeNotificationManager />
-        <UpdateNotification />
-        <div style={{ flex: 1 }}>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/game" element={<CreateGamePage />} />
-            <Route path="/game/:gameId" element={<SimpleScorekeeperPage />} />
-            <Route path="/game-scorer" element={<GameScorerPage />} />
-            {/* Temporarily disabled - will revisit simulation mode later */}
-            {/* <Route path="/simulation" element={<SimulationMode />} /> */}
-            {/* <Route path="/scorer" element={<ScorerMode />} /> */}
-            {/* Simulation routes removed - see commit: refactor: Remove simulation mode and all related code */}
-            <Route path="/analytics" element={
-              <ProtectedRoute>
-                <WGPAnalyticsDashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/analyzer" element={
-              <ProtectedRoute>
-                <ShotRangeAnalyzer />
-              </ProtectedRoute>
-            } />
-            <Route path="/signup" element={
-              <ProtectedRoute>
-                <SignupPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/leaderboard" element={<Leaderboard />} />
-            <Route path="/sheets" element={
-              <ProtectedRoute>
-                <SheetIntegrationDashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/live-sync" element={
-              <ProtectedRoute>
-                <GoogleSheetsLiveSync />
-              </ProtectedRoute>
-            } />
-            <Route path="/tutorial" element={<TutorialSystem onComplete={() => navigate('/game')} onExit={() => navigate('/')} />} />
-            <Route path="/about" element={<AboutPage />} />
-            <Route path="/rules" element={<RulesPage />} />
-            <Route path="/admin" element={
-              <ProtectedRoute>
-                <AdminPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/migrations" element={
-              <ProtectedRoute>
-                <DatabaseMigrations />
-              </ProtectedRoute>
-            } />
-            <Route path="/join" element={<JoinGamePage />} />
-            <Route path="/join/:code" element={<JoinGamePage />} />
-            <Route path="/lobby/:gameId" element={<GameLobbyPage />} />
-            <Route path="/games/active" element={<ActiveGamesPage />} />
-            <Route path="/games/completed" element={<CompletedGamesPage />} />
-            {/* Demo route removed from build */}
-            {/* <Route path="/test-multiplayer" element={<TestMultiplayerPage />} /> */}
-            <Route path="*" element={<Navigate to="/" />} />
-          </Routes>
+      <OnboardingWrapper>
+        <div
+          style={{
+            minHeight: "100vh",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <Navigation />
+          <BadgeNotificationManager />
+          <UpdateNotification />
+          <div style={{ flex: 1 }}>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/game" element={<CreateGamePage />} />
+              <Route path="/game/:gameId" element={<SimpleScorekeeperPage />} />
+              <Route path="/game-scorer" element={<GameScorerPage />} />
+              {/* Temporarily disabled - will revisit simulation mode later */}
+              {/* <Route path="/simulation" element={<SimulationMode />} /> */}
+              {/* <Route path="/scorer" element={<ScorerMode />} /> */}
+              {/* Simulation routes removed - see commit: refactor: Remove simulation mode and all related code */}
+              <Route
+                path="/analytics"
+                element={
+                  <ProtectedRoute>
+                    <WGPAnalyticsDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/analyzer"
+                element={
+                  <ProtectedRoute>
+                    <ShotRangeAnalyzer />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/signup"
+                element={
+                  <ProtectedRoute>
+                    <SignupPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/leaderboard" element={<Leaderboard />} />
+              <Route
+                path="/sheets"
+                element={
+                  <ProtectedRoute>
+                    <SheetIntegrationDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/live-sync"
+                element={
+                  <ProtectedRoute>
+                    <GoogleSheetsLiveSync />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/tutorial"
+                element={
+                  <TutorialSystem
+                    onComplete={() => navigate("/game")}
+                    onExit={() => navigate("/")}
+                  />
+                }
+              />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/rules" element={<RulesPage />} />
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute>
+                    <AdminPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/migrations"
+                element={
+                  <ProtectedRoute>
+                    <DatabaseMigrations />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/join" element={<JoinGamePage />} />
+              <Route path="/join/:code" element={<JoinGamePage />} />
+              <Route path="/lobby/:gameId" element={<GameLobbyPage />} />
+              <Route path="/games/active" element={<ActiveGamesPage />} />
+              <Route path="/games/completed" element={<CompletedGamesPage />} />
+              {/* Demo route removed from build */}
+              {/* <Route path="/test-multiplayer" element={<TestMultiplayerPage />} /> */}
+              <Route path="*" element={<Navigate to="/" />} />
+            </Routes>
+          </div>
+          <AppFooter />
         </div>
-        <AppFooter />
-      </div>
+      </OnboardingWrapper>
     </ThemeProvider>
   );
 }
@@ -300,9 +412,9 @@ function App() {
 // Main App wrapper with providers
 const AppWithProviders = () => {
   // Choose between mock auth and real Auth0 based on environment
-  const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === 'true';
+  const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === "true";
   const AuthProviderComponent = useMockAuth ? MockAuthProvider : AuthProvider;
-  
+
   return (
     <AuthProviderComponent>
       <SheetSyncProvider>
@@ -316,4 +428,4 @@ const AppWithProviders = () => {
   );
 };
 
-export default AppWithProviders; 
+export default AppWithProviders;
