@@ -258,19 +258,45 @@ def update_course(
         db_course.total_par = sum(h.get("par", 0) for h in holes)
         db_course.total_yards = sum(h.get("yards", 0) for h in holes)
 
-        # Update Hole records - delete existing and create new ones
-        db.query(models.Hole).filter(models.Hole.course_id == db_course.id).delete()
+        # Update Hole records intelligently
+        # Get existing holes for this course
+        existing_holes = db.query(models.Hole).filter(models.Hole.course_id == db_course.id).all()
+        existing_holes_dict = {hole.hole_number: hole for hole in existing_holes}
+
+        # Track which hole numbers are in the update
+        update_hole_numbers = {h.get("hole_number") for h in holes}
+
+        # Update or create holes from the update
         for hole_data in holes:
-            db_hole = models.Hole(
-                course_id=db_course.id,
-                hole_number=hole_data.get("hole_number"),
-                par=hole_data.get("par"),
-                yards=hole_data.get("yards"),
-                handicap=hole_data.get("handicap"),
-                description=hole_data.get("description"),
-                tee_box=hole_data.get("tee_box", "regular")
-            )
-            db.add(db_hole)
+            hole_number = hole_data.get("hole_number")
+            if hole_number in existing_holes_dict:
+                # Update existing hole
+                db_hole = existing_holes_dict[hole_number]
+                db_hole.par = hole_data.get("par")
+                db_hole.yards = hole_data.get("yards")
+                db_hole.handicap = hole_data.get("handicap")
+                db_hole.description = hole_data.get("description")
+                db_hole.tee_box = hole_data.get("tee_box", "regular")
+            else:
+                # Create new hole
+                db_hole = models.Hole(
+                    course_id=db_course.id,
+                    hole_number=hole_number,
+                    par=hole_data.get("par"),
+                    yards=hole_data.get("yards"),
+                    handicap=hole_data.get("handicap"),
+                    description=hole_data.get("description"),
+                    tee_box=hole_data.get("tee_box", "regular")
+                )
+                db.add(db_hole)
+
+        # Only delete holes that are no longer in the update (if a full 18-hole update is provided)
+        # This prevents accidental deletion of holes when doing partial updates
+        if len(holes) == 18:
+            # Full course update - safe to delete holes not in update
+            for hole_number in existing_holes_dict:
+                if hole_number not in update_hole_numbers:
+                    db.delete(existing_holes_dict[hole_number])
 
     db_course.updated_at = datetime.now(timezone.utc).isoformat()
 
