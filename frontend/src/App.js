@@ -35,6 +35,7 @@ import GameLobbyPage from "./pages/GameLobbyPage";
 // import TestMultiplayerPage from "./pages/demo/TestMultiplayerPage";
 import ActiveGamesPage from "./pages/ActiveGamesPage";
 import CompletedGamesPage from "./pages/CompletedGamesPage";
+import AccountPage from "./pages/AccountPage";
 import Navigation from "./components/Navigation";
 import AppFooter from "./components/AppFooter";
 import { BadgeNotificationManager } from "./components/BadgeNotification";
@@ -416,6 +417,7 @@ function App() {
               <Route path="/lobby/:gameId" element={<GameLobbyPage />} />
               <Route path="/games/active" element={<ActiveGamesPage />} />
               <Route path="/games/completed" element={<CompletedGamesPage />} />
+              <Route path="/account" element={<AccountPage />} />
               {/* Demo route removed from build */}
               {/* <Route path="/test-multiplayer" element={<TestMultiplayerPage />} /> */}
               <Route path="*" element={<Navigate to="/" />} />
