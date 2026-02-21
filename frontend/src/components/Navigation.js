@@ -36,11 +36,12 @@ const Navigation = () => {
     { path: '/', label: 'Home', icon: '🏠' },
     { path: '/game', label: 'Game', icon: '⚔️' },
     { path: '/games/active', label: 'Active', icon: '🎮' },
-    { path: '/games/completed', label: 'History', icon: '🏆' },
+    { path: '/account', label: 'Account', icon: '👤' },
   ];
 
   // "More" sheet items
   const moreItems = [
+    { path: '/games/completed', label: 'Game History', icon: '🏆' },
     { path: '/signup', label: 'Sign Up Players', icon: '📝' },
     { path: '/leaderboard', label: 'Leaderboard', icon: '📊' },
     { path: '/simulation', label: 'Practice Mode', icon: '🎯' },
@@ -381,7 +382,20 @@ const Navigation = () => {
 
                 {isAuthenticated ? (
                   <>
-                    <span style={{ color: '#fff', fontSize: '14px' }}>{user?.name || 'User'}</span>
+                    <button
+                      style={{
+                        ...navButtonStyle,
+                        fontSize: 14,
+                        borderColor: isActivePath('/account') ? '#fff' : 'rgba(255,255,255,0.5)',
+                        background: isActivePath('/account') ? 'rgba(255,255,255,0.2)' : 'transparent',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                      onClick={() => handleNavigate('/account')}
+                    >
+                      👤 {user?.name || 'Account'}
+                    </button>
                     {!useMockAuth && (
                       <button
                         style={{...navButtonStyle, fontSize: 14, borderColor: 'rgba(255,255,255,0.5)'}}
@@ -515,14 +529,16 @@ const Navigation = () => {
           {/* Auth in More Sheet */}
           {isAuthenticated ? (
             <>
-              <div style={{
-                ...sheetItemStyle(false),
-                cursor: 'default',
-                background: theme.isDark ? '#374151' : '#f3f4f6'
-              }}>
+              <button
+                style={sheetItemStyle(isActivePath('/account'))}
+                onClick={() => handleNavigate('/account')}
+              >
                 <span style={sheetIconStyle}>👤</span>
-                <span>{user?.name || 'User'}</span>
-              </div>
+                <span>Account Settings</span>
+                {isActivePath('/account') && (
+                  <span style={{ marginLeft: 'auto', color: theme.colors.primary }}>✓</span>
+                )}
+              </button>
               {!useMockAuth && (
                 <button
                   style={sheetItemStyle(false)}
