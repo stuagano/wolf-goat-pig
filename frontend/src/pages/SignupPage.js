@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useSearchParams } from 'react-router-dom';
 import SignupCalendar from '../components/signup/SignupCalendar';
@@ -7,35 +7,39 @@ import PlayerAvailability from '../components/signup/PlayerAvailability';
 import AllPlayersAvailability from '../components/signup/AllPlayersAvailability';
 import MatchmakingSuggestions from '../components/signup/MatchmakingSuggestions';
 import EmailPreferences from '../components/signup/EmailPreferences';
+import '../styles/mobile-touch.css';
 
 const SignupPage = () => {
   const { user, isAuthenticated, loginWithRedirect } = useAuth0();
   const [searchParams, setSearchParams] = useSearchParams();
-  
+
   // Initialize state from URL params or defaults
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'calendar');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [selectedDate, setSelectedDate] = useState(null);
   const [viewMode, setViewMode] = useState('week'); // 'week' or 'daily'
-  
-  // Update URL when tab changes
+  const isUserNavigation = useRef(false);
+
+  // Handle tab click: update state and URL together to avoid effect loops
+  const handleTabClick = useCallback((tabId) => {
+    isUserNavigation.current = true;
+    setActiveTab(tabId);
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('tab', tabId);
+    setSearchParams(newParams, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  // Handle browser back/forward buttons only
   useEffect(() => {
-    const currentTab = searchParams.get('tab');
-    if (currentTab === activeTab) {
+    if (isUserNavigation.current) {
+      isUserNavigation.current = false;
       return;
     }
-    const newParams = new URLSearchParams(searchParams);
-    newParams.set('tab', activeTab);
-    setSearchParams(newParams, { replace: true });
-  }, [activeTab, searchParams, setSearchParams]);
-  
-  // Handle browser back/forward buttons
-  useEffect(() => {
     const tabFromUrl = searchParams.get('tab');
     if (tabFromUrl && tabFromUrl !== activeTab) {
       setActiveTab(tabFromUrl);
     }
-  }, [activeTab, searchParams]);
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Tab configuration
   const tabs = [
@@ -144,14 +148,13 @@ const SignupPage = () => {
       </div>
 
       {/* Tab Navigation - Mobile Optimized */}
-      <div style={{
-        borderBottom: '2px solid #dee2e6',
-        marginBottom: '20px',
-        overflowX: 'auto',
-        WebkitOverflowScrolling: 'touch',
-        msOverflowStyle: 'none',
-        scrollbarWidth: 'none'
-      }}>
+      <div
+        className="mobile-tab-container"
+        style={{
+          borderBottom: '2px solid #dee2e6',
+          marginBottom: '20px'
+        }}
+      >
         <div style={{
           display: 'flex',
           gap: '4px',
@@ -161,30 +164,11 @@ const SignupPage = () => {
           {tabs.map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                background: activeTab === tab.id ? '#047857' : 'transparent',
-                color: activeTab === tab.id ? 'white' : '#495057',
-                border: activeTab === tab.id ? 'none' : '1px solid #dee2e6',
-                padding: '12px 16px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '600',
-                borderRadius: '8px',
-                marginBottom: '4px',
-                transition: 'all 0.15s',
-                whiteSpace: 'nowrap',
-                minHeight: '48px',
-                touchAction: 'manipulation',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
+              className={`signup-tab-button ${activeTab === tab.id ? 'signup-tab-active' : ''}`}
+              onClick={() => handleTabClick(tab.id)}
             >
               <span style={{ fontSize: '16px' }}>{tab.icon}</span>
-              <span className="tab-label-text" style={{
-                display: 'inline'
-              }}>{tab.label.replace(tab.icon + ' ', '')}</span>
+              <span className="tab-label-text">{tab.label.replace(tab.icon + ' ', '')}</span>
             </button>
           ))}
         </div>
