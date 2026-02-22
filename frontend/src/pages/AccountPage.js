@@ -107,8 +107,6 @@ const gatherStats = () => {
 function AccountPage() {
   const { user, isAuthenticated, logout } = useAuth0();
   const theme = useTheme();
-  const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === 'true';
-
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
   const [stats, setStats] = useState(null);
@@ -587,7 +585,7 @@ function AccountPage() {
           />
           <SettingRow
             label="Auth Provider"
-            value={useMockAuth ? 'Mock (Dev)' : 'Auth0'}
+            value="Auth0"
             theme={theme}
             noBorder
           />
@@ -595,7 +593,7 @@ function AccountPage() {
       )}
 
       {/* Logout Button */}
-      {isAuthenticated && !useMockAuth && (
+      {isAuthenticated && (
         <button
           onClick={handleLogout}
           style={{

@@ -7,14 +7,6 @@ const ProtectedRoute = ({ children, fallback = null }) => {
   const { isAuthenticated, isLoading } = useAuth0();
   const theme = useTheme();
   
-  // Check if we're using mock auth
-  const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === 'true';
-  
-  // If using mock auth, always render children
-  if (useMockAuth) {
-    return children;
-  }
-
   if (isLoading) {
     return (
       <div style={{

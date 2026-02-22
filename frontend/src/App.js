@@ -16,7 +16,6 @@ import GoogleSheetsLiveSync from "./components/GoogleSheetsLiveSync";
 import Leaderboard from "./components/Leaderboard";
 import { ThemeProvider, useTheme } from "./theme/Provider";
 import { SheetSyncProvider } from "./context";
-import { MockAuthProvider } from "./context/MockAuthContext";
 import { AuthProvider } from "./context/AuthContext";
 import { TutorialProvider } from "./context/TutorialContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
@@ -57,9 +56,6 @@ function App() {
 
   const [backendReady, setBackendReady] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
-
-  // Check if we're using mock auth
-  const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === "true";
 
   // Initialize cache manager and auto-sync on app start
   useEffect(() => {
@@ -107,7 +103,7 @@ function App() {
   };
 
   // Show loading screen while checking authentication
-  if (isLoading && !useMockAuth) {
+  if (isLoading) {
     return (
       <ThemeProvider>
         <div
@@ -145,8 +141,8 @@ function App() {
     );
   }
 
-  // Show login screen if not authenticated (unless using mock auth)
-  if (!isAuthenticated && !useMockAuth) {
+  // Show login screen if not authenticated
+  if (!isAuthenticated) {
     return (
       <ThemeProvider>
         <div
@@ -267,7 +263,7 @@ function App() {
             >
               Golf Game Tracker
             </p>
-            {!isAuthenticated && !useMockAuth ? (
+            {!isAuthenticated ? (
               <div style={{ marginBottom: "16px" }}>
                 <p
                   style={{
@@ -432,12 +428,8 @@ function App() {
 
 // Main App wrapper with providers
 const AppWithProviders = () => {
-  // Choose between mock auth and real Auth0 based on environment
-  const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === "true";
-  const AuthProviderComponent = useMockAuth ? MockAuthProvider : AuthProvider;
-
   return (
-    <AuthProviderComponent>
+    <AuthProvider>
       <SheetSyncProvider>
         <TutorialProvider>
           <ThemeProvider>
@@ -445,7 +437,7 @@ const AppWithProviders = () => {
           </ThemeProvider>
         </TutorialProvider>
       </SheetSyncProvider>
-    </AuthProviderComponent>
+    </AuthProvider>
   );
 };
 

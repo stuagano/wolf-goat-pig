@@ -7,14 +7,7 @@ const AuthHealthCheck = () => {
   const [authStatus, setAuthStatus] = useState('checking');
   const theme = useTheme();
   
-  const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === 'true';
-
   useEffect(() => {
-    if (useMockAuth) {
-      setAuthStatus('mock');
-      return;
-    }
-
     if (isLoading) {
       setAuthStatus('loading');
     } else if (error) {
@@ -24,17 +17,10 @@ const AuthHealthCheck = () => {
     } else {
       setAuthStatus('unauthenticated');
     }
-  }, [isLoading, error, isAuthenticated, useMockAuth]);
+  }, [isLoading, error, isAuthenticated]);
 
   const getStatusInfo = () => {
     switch (authStatus) {
-      case 'mock':
-        return {
-          icon: '🎭',
-          title: 'Mock Authentication Active',
-          message: 'Using test authentication for development',
-          color: theme.colors.warning || '#f59e0b'
-        };
       case 'loading':
         return {
           icon: '⏳',

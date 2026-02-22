@@ -12,14 +12,7 @@ const Navigation = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
-  // Use mock auth if environment variable is set
-  const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === 'true';
-
-  // Get auth state from Auth0 or mock
-  const { isAuthenticated: auth0IsAuthenticated, user: auth0User, loginWithRedirect, logout } = useAuth0();
-
-  const isAuthenticated = useMockAuth ? true : auth0IsAuthenticated;
-  const user = useMockAuth ? { name: 'Test User' } : auth0User;
+  const { isAuthenticated, user, loginWithRedirect, logout } = useAuth0();
 
   // Check if user is admin
   const adminEmails = ['stuagano@gmail.com', 'admin@wgp.com'];
