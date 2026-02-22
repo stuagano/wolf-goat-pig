@@ -12,14 +12,7 @@ const Navigation = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
-  // Use mock auth if environment variable is set
-  const useMockAuth = process.env.REACT_APP_USE_MOCK_AUTH === 'true';
-
-  // Get auth state from Auth0 or mock
-  const { isAuthenticated: auth0IsAuthenticated, user: auth0User, loginWithRedirect, logout } = useAuth0();
-
-  const isAuthenticated = useMockAuth ? true : auth0IsAuthenticated;
-  const user = useMockAuth ? { name: 'Test User' } : auth0User;
+  const { isAuthenticated, user, loginWithRedirect, logout } = useAuth0();
 
   // Check if user is admin
   const adminEmails = ['stuagano@gmail.com', 'admin@wgp.com'];
@@ -396,24 +389,20 @@ const Navigation = () => {
                     >
                       👤 {user?.name || 'Account'}
                     </button>
-                    {!useMockAuth && (
-                      <button
-                        style={{...navButtonStyle, fontSize: 14, borderColor: 'rgba(255,255,255,0.5)'}}
-                        onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
-                      >
-                        Logout
-                      </button>
-                    )}
-                  </>
-                ) : (
-                  !useMockAuth && (
                     <button
                       style={{...navButtonStyle, fontSize: 14, borderColor: 'rgba(255,255,255,0.5)'}}
-                      onClick={() => loginWithRedirect()}
+                      onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
                     >
-                      Login
+                      Logout
                     </button>
-                  )
+                  </>
+                ) : (
+                  <button
+                    style={{...navButtonStyle, fontSize: 14, borderColor: 'rgba(255,255,255,0.5)'}}
+                    onClick={() => loginWithRedirect()}
+                  >
+                    Login
+                  </button>
                 )}
               </div>
             </div>
@@ -539,26 +528,22 @@ const Navigation = () => {
                   <span style={{ marginLeft: 'auto', color: theme.colors.primary }}>✓</span>
                 )}
               </button>
-              {!useMockAuth && (
-                <button
-                  style={sheetItemStyle(false)}
-                  onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
-                >
-                  <span style={sheetIconStyle}>🚪</span>
-                  <span>Logout</span>
-                </button>
-              )}
-            </>
-          ) : (
-            !useMockAuth && (
               <button
                 style={sheetItemStyle(false)}
-                onClick={() => loginWithRedirect()}
+                onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
               >
-                <span style={sheetIconStyle}>🔐</span>
-                <span>Login</span>
+                <span style={sheetIconStyle}>🚪</span>
+                <span>Logout</span>
               </button>
-            )
+            </>
+          ) : (
+            <button
+              style={sheetItemStyle(false)}
+              onClick={() => loginWithRedirect()}
+            >
+              <span style={sheetIconStyle}>🔐</span>
+              <span>Login</span>
+            </button>
           )}
         </div>
       )}
