@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useSearchParams } from 'react-router-dom';
-import SignupCalendar from '../components/signup/SignupCalendar';
 import DailySignupView from '../components/signup/DailySignupView';
 import PlayerAvailability from '../components/signup/PlayerAvailability';
 import AllPlayersAvailability from '../components/signup/AllPlayersAvailability';
@@ -13,11 +12,8 @@ const SignupPage = () => {
   const { user, isAuthenticated, loginWithRedirect } = useAuth0();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Initialize state from URL params or defaults
+  // Default to 'calendar' (day view) - this is the primary view
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'calendar');
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [selectedDate, setSelectedDate] = useState(null);
-  const [viewMode, setViewMode] = useState('week'); // 'week' or 'daily'
   const isUserNavigation = useRef(false);
 
   // Handle tab click: update state and URL together to avoid effect loops
@@ -41,29 +37,14 @@ const SignupPage = () => {
     }
   }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Tab configuration
+  // Tab configuration - Day view is first and default
   const tabs = [
-    { id: 'calendar', label: '📅 Daily Signups', icon: '📅' },
+    { id: 'calendar', label: '📅 Tee Sheet', icon: '📅' },
     { id: 'availability', label: '🕒 My Availability', icon: '🕒' },
     { id: 'all-availability', label: '👥 All Players', icon: '👥' },
     { id: 'matchmaking', label: '⛳ Matchmaking', icon: '⛳' },
     { id: 'preferences', label: '📧 Email Settings', icon: '📧' }
   ];
-
-  const handleSignupChange = () => {
-    // Trigger refresh of any related components
-    setRefreshTrigger(prev => prev + 1);
-  };
-
-  const handleDateSelect = (date) => {
-    setSelectedDate(date);
-    setViewMode('daily');
-  };
-
-  const handleBackToWeek = () => {
-    setViewMode('week');
-    setSelectedDate(null);
-  };
 
   if (!isAuthenticated) {
     return (
@@ -116,33 +97,21 @@ const SignupPage = () => {
       padding: '20px'
     }}>
       {/* Page Header */}
-      <div style={{ marginBottom: '30px' }}>
-        <h1 style={{ 
+      <div style={{ marginBottom: '20px' }}>
+        <h1 style={{
           color: '#333',
-          marginBottom: '10px',
-          fontSize: '28px',
+          marginBottom: '4px',
+          fontSize: '24px',
           fontWeight: '700'
         }}>
-          🏌️ Golf Sign-up & Daily Messages
+          WGP Tee Sheet
         </h1>
-        <p style={{ 
-          color: '#6c757d', 
-          fontSize: '16px',
-          margin: 0
-        }}>
-          Manage your daily golf sign-ups, post messages, and set preferences
-        </p>
         {user && (
           <div style={{
-            marginTop: '10px',
-            padding: '8px 12px',
-            background: '#e3f2fd',
-            color: '#1976d2',
-            borderRadius: '6px',
             fontSize: '14px',
-            display: 'inline-block'
+            color: '#6b7280'
           }}>
-            Welcome, {user.name || user.email}
+            {user.name || user.email}
           </div>
         )}
       </div>
@@ -177,31 +146,7 @@ const SignupPage = () => {
       {/* Tab Content */}
       <div style={{ minHeight: '500px' }}>
         {activeTab === 'calendar' && (
-          <div>
-            {viewMode === 'week' ? (
-              <div>
-                <div style={{ marginBottom: '20px' }}>
-                  <h2 style={{ color: '#333', marginBottom: '10px' }}>
-                    📅 Daily Golf Sign-ups & Message Board
-                  </h2>
-                  <p style={{ color: '#6c757d', fontSize: '14px' }}>
-                    View and manage sign-ups for the next 7 days, plus post messages on the daily message board. 
-                    Click on a day to see detailed signup options with tee times and player selection!
-                  </p>
-                </div>
-                <SignupCalendar 
-                  key={refreshTrigger} 
-                  onSignupChange={handleSignupChange} 
-                  onDateSelect={handleDateSelect}
-                />
-              </div>
-            ) : (
-              <DailySignupView 
-                selectedDate={selectedDate}
-                onBack={handleBackToWeek}
-              />
-            )}
-          </div>
+          <DailySignupView />
         )}
 
         {activeTab === 'availability' && (
@@ -245,40 +190,6 @@ const SignupPage = () => {
         )}
       </div>
 
-      {/* Footer Info */}
-      <div style={{
-        marginTop: '40px',
-        padding: '20px',
-        background: '#f8f9fa',
-        borderRadius: '8px',
-        border: '1px solid #dee2e6'
-      }}>
-        <h4 style={{ color: '#495057', marginBottom: '10px' }}>
-          💡 How it works
-        </h4>
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
-          gap: '15px',
-          fontSize: '14px',
-          color: '#6c757d'
-        }}>
-          <div>
-            <strong>Daily Sign-ups:</strong> View who's playing each day and add yourself to the list. 
-            Perfect for organizing regular games.
-          </div>
-          <div>
-            <strong>Message Board:</strong> Post messages on any day to share special events, course conditions, 
-            or just chat with other players.
-          </div>
-          <div>
-            <strong>Availability:</strong> Set your preferred times so others know when you're typically free to play.
-          </div>
-          <div>
-            <strong>Email Control:</strong> Choose what notifications you want to receive and reduce email overload.
-          </div>
-        </div>
-      </div>
     </div>
   );
 };
