@@ -664,6 +664,69 @@ function HomePage() {
           </button>
         </div>
         
+        {/* Legacy Pages */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gap: '16px',
+          marginBottom: '30px'
+        }}>
+          <a
+            href="https://thousand-cranes.com/WolfGoatPig/wgp_tee_sheet.cgi"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              padding: '20px 16px',
+              background: 'rgba(255, 255, 255, 0.95)',
+              color: '#1F2937',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.08)',
+              textAlign: 'center',
+              backdropFilter: 'blur(10px)',
+              textDecoration: 'none',
+              display: 'block'
+            }}
+          >
+            <div style={{ fontSize: '1.8rem', marginBottom: '8px' }}>📋</div>
+            <div>Legacy Sign Up</div>
+            <div style={{ fontSize: '0.8rem', color: '#6B7280', marginTop: '4px', fontWeight: '400' }}>
+              Original tee sheet
+            </div>
+          </a>
+          <a
+            href="https://docs.google.com/spreadsheets/d/1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              padding: '20px 16px',
+              background: 'rgba(255, 255, 255, 0.95)',
+              color: '#1F2937',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.08)',
+              textAlign: 'center',
+              backdropFilter: 'blur(10px)',
+              textDecoration: 'none',
+              display: 'block'
+            }}
+          >
+            <div style={{ fontSize: '1.8rem', marginBottom: '8px' }}>📊</div>
+            <div>Legacy Standings</div>
+            <div style={{ fontSize: '0.8rem', color: '#6B7280', marginTop: '4px', fontWeight: '400' }}>
+              Spreadsheet standings
+            </div>
+          </a>
+        </div>
+
         {/* Auth Status Check for Development */}
         <AuthHealthCheck />
         
