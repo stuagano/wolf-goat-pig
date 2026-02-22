@@ -389,24 +389,20 @@ const Navigation = () => {
                     >
                       👤 {user?.name || 'Account'}
                     </button>
-                    {!useMockAuth && (
-                      <button
-                        style={{...navButtonStyle, fontSize: 14, borderColor: 'rgba(255,255,255,0.5)'}}
-                        onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
-                      >
-                        Logout
-                      </button>
-                    )}
-                  </>
-                ) : (
-                  !useMockAuth && (
                     <button
                       style={{...navButtonStyle, fontSize: 14, borderColor: 'rgba(255,255,255,0.5)'}}
-                      onClick={() => loginWithRedirect()}
+                      onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
                     >
-                      Login
+                      Logout
                     </button>
-                  )
+                  </>
+                ) : (
+                  <button
+                    style={{...navButtonStyle, fontSize: 14, borderColor: 'rgba(255,255,255,0.5)'}}
+                    onClick={() => loginWithRedirect()}
+                  >
+                    Login
+                  </button>
                 )}
               </div>
             </div>
@@ -532,26 +528,22 @@ const Navigation = () => {
                   <span style={{ marginLeft: 'auto', color: theme.colors.primary }}>✓</span>
                 )}
               </button>
-              {!useMockAuth && (
-                <button
-                  style={sheetItemStyle(false)}
-                  onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
-                >
-                  <span style={sheetIconStyle}>🚪</span>
-                  <span>Logout</span>
-                </button>
-              )}
-            </>
-          ) : (
-            !useMockAuth && (
               <button
                 style={sheetItemStyle(false)}
-                onClick={() => loginWithRedirect()}
+                onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
               >
-                <span style={sheetIconStyle}>🔐</span>
-                <span>Login</span>
+                <span style={sheetIconStyle}>🚪</span>
+                <span>Logout</span>
               </button>
-            )
+            </>
+          ) : (
+            <button
+              style={sheetItemStyle(false)}
+              onClick={() => loginWithRedirect()}
+            >
+              <span style={sheetIconStyle}>🔐</span>
+              <span>Login</span>
+            </button>
           )}
         </div>
       )}
