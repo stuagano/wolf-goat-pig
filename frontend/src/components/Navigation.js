@@ -40,6 +40,8 @@ const Navigation = () => {
     { path: '/tutorial', label: 'Tutorial', icon: '🎓' },
     { path: '/rules', label: 'Rules', icon: '📋' },
     { path: '/about', label: 'About', icon: 'ℹ️' },
+    { href: 'https://thousand-cranes.com/WolfGoatPig/wgp_tee_sheet.cgi', label: 'Legacy Sign Up', icon: '📋', external: true },
+    { href: 'https://docs.google.com/spreadsheets/d/1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM', label: 'Legacy Standings', icon: '📊', external: true },
     ...(showAdminLink ? [{ path: '/admin', label: 'Admin', icon: '🔧' }] : [])
   ];
 
@@ -54,6 +56,8 @@ const Navigation = () => {
     { path: '/tutorial', label: '🎓 Tutorial', primary: false },
     { path: '/about', label: 'ℹ️ About', primary: false },
     { path: '/rules', label: '📋 Rules', primary: false },
+    { href: 'https://thousand-cranes.com/WolfGoatPig/wgp_tee_sheet.cgi', label: '📋 Legacy Sign Up', primary: false, external: true },
+    { href: 'https://docs.google.com/spreadsheets/d/1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM', label: '📊 Legacy Standings', primary: false, external: true },
     ...(showAdminLink ? [{ path: '/admin', label: '🔧 Admin', primary: true }] : [])
   ];
 
@@ -326,11 +330,39 @@ const Navigation = () => {
                     minWidth: '200px',
                     zIndex: 1000
                   }}>
-                    {allNavLinks.filter(link => !link.primary).map(({ path, label }) => {
-                      const isActive = isActivePath(path);
+                    {allNavLinks.filter(link => !link.primary).map((link) => {
+                      if (link.external) {
+                        return (
+                          <a
+                            key={link.href}
+                            href={link.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: 'block',
+                              width: '100%',
+                              padding: '12px 16px',
+                              background: 'transparent',
+                              border: 'none',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              textAlign: 'left',
+                              color: theme.isDark ? '#fff' : '#1f2937',
+                              fontSize: '14px',
+                              fontWeight: '500',
+                              marginBottom: '4px',
+                              textDecoration: 'none'
+                            }}
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            {link.label} ↗
+                          </a>
+                        );
+                      }
+                      const isActive = isActivePath(link.path);
                       return (
                         <button
-                          key={path}
+                          key={link.path}
                           style={{
                             display: 'block',
                             width: '100%',
@@ -345,9 +377,9 @@ const Navigation = () => {
                             fontWeight: isActive ? '600' : '500',
                             marginBottom: '4px'
                           }}
-                          onClick={() => handleNavigate(path)}
+                          onClick={() => handleNavigate(link.path)}
                         >
-                          {label}
+                          {link.label}
                         </button>
                       );
                     })}
@@ -477,16 +509,32 @@ const Navigation = () => {
             More Options
           </h3>
 
-          {moreItems.map(({ path, label, icon }) => {
-            const isActive = isActivePath(path);
+          {moreItems.map((item) => {
+            if (item.external) {
+              return (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ ...sheetItemStyle(false), textDecoration: 'none' }}
+                  onClick={() => setIsMoreSheetOpen(false)}
+                >
+                  <span style={sheetIconStyle}>{item.icon}</span>
+                  <span>{item.label}</span>
+                  <span style={{ marginLeft: 'auto', fontSize: '12px', opacity: 0.5 }}>↗</span>
+                </a>
+              );
+            }
+            const isActive = isActivePath(item.path);
             return (
               <button
-                key={path}
+                key={item.path}
                 style={sheetItemStyle(isActive)}
-                onClick={() => handleNavigate(path)}
+                onClick={() => handleNavigate(item.path)}
               >
-                <span style={sheetIconStyle}>{icon}</span>
-                <span>{label}</span>
+                <span style={sheetIconStyle}>{item.icon}</span>
+                <span>{item.label}</span>
                 {isActive && (
                   <span style={{ marginLeft: 'auto', color: theme.colors.primary }}>✓</span>
                 )}
