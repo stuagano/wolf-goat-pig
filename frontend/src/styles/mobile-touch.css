@@ -684,10 +684,58 @@
   display: none;
 }
 
+/* ===========================================
+   SIGNUP TAB BUTTONS
+   Touch-optimized tab navigation for signup page
+   =========================================== */
+
+.signup-tab-button {
+  background: transparent;
+  color: #495057;
+  border: 1px solid #dee2e6;
+  padding: 12px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  min-height: 48px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.signup-tab-button:active {
+  transform: scale(0.95);
+  opacity: 0.85;
+}
+
+.signup-tab-button.signup-tab-active {
+  background: #047857;
+  color: white;
+  border-color: #047857;
+}
+
+.signup-tab-button.signup-tab-active:active {
+  background: #065f46;
+  transform: scale(0.97);
+}
+
 /* Hide tab text on small mobile, show only icons */
 @media (max-width: 480px) {
   .tab-label-text {
     display: none !important;
+  }
+
+  .signup-tab-button {
+    padding: 10px 14px;
+    min-height: 44px;
   }
 }
 
