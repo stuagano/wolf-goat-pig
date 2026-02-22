@@ -27,17 +27,16 @@ const Navigation = () => {
   // Bottom tab bar items (always visible on mobile)
   const bottomTabItems = [
     { path: '/', label: 'Home', icon: '🏠' },
+    { path: '/signup', label: 'Sign Up', icon: '📅' },
     { path: '/game', label: 'Game', icon: '⚔️' },
-    { path: '/games/active', label: 'Active', icon: '🎮' },
     { path: '/account', label: 'Account', icon: '👤' },
   ];
 
   // "More" sheet items
   const moreItems = [
+    { path: '/games/active', label: 'Active Games', icon: '🎮' },
     { path: '/games/completed', label: 'Game History', icon: '🏆' },
-    { path: '/signup', label: 'Sign Up Players', icon: '📝' },
     { path: '/leaderboard', label: 'Leaderboard', icon: '📊' },
-    { path: '/simulation', label: 'Practice Mode', icon: '🎯' },
     { path: '/tutorial', label: 'Tutorial', icon: '🎓' },
     { path: '/rules', label: 'Rules', icon: '📋' },
     { path: '/about', label: 'About', icon: 'ℹ️' },
@@ -47,12 +46,11 @@ const Navigation = () => {
   // All nav links for desktop
   const allNavLinks = [
     { path: '/', label: '🏠 Home', primary: true },
+    { path: '/signup', label: '📅 Sign Up', primary: true },
     { path: '/game', label: '⚔️ Game', primary: true },
     { path: '/games/active', label: '🎮 Active', primary: true },
-    { path: '/games/completed', label: '🏆 History', primary: true },
-    { path: '/signup', label: '📝 Sign Up', primary: false },
+    { path: '/games/completed', label: '🏆 History', primary: false },
     { path: '/leaderboard', label: '📊 Leaderboard', primary: false },
-    { path: '/simulation', label: '🎯 Practice', primary: false },
     { path: '/tutorial', label: '🎓 Tutorial', primary: false },
     { path: '/about', label: 'ℹ️ About', primary: false },
     { path: '/rules', label: '📋 Rules', primary: false },

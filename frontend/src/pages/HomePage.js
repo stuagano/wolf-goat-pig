@@ -48,11 +48,8 @@ function HomePage() {
         .wgp-header-container {
           padding: 25px 15px !important;
         }
-        .wgp-main-grid {
-          grid-template-columns: 1fr !important;
-        }
         .wgp-box-grid {
-          grid-template-columns: 1fr !important;
+          grid-template-columns: repeat(2, 1fr) !important;
         }
         .wgp-join-title {
           font-size: 1.8rem !important;
@@ -68,6 +65,9 @@ function HomePage() {
         .wgp-subtitle {
           font-size: 1rem !important;
         }
+        .wgp-box-grid {
+          grid-template-columns: repeat(2, 1fr) !important;
+        }
         .wgp-join-title {
           font-size: 1.5rem !important;
         }
@@ -80,61 +80,16 @@ function HomePage() {
     return () => document.head.removeChild(styleSheet);
   }, []);
   
-  const mainBoxes = [
-    {
-      icon: '⚔️',
-      title: 'Multiplayer Game',
-      description: 'Create a game and share the join code with your friends',
-      action: () => navigate('/game'),
-      buttonText: 'Create Game',
-      color: '#047857' // deep forest green
-    },
-    {
-      icon: '🎮',
-      title: 'Active Games',
-      description: 'View and resume your in-progress games',
-      action: () => navigate('/games/active'),
-      buttonText: 'View Games',
-      color: '#10B981' // bright green
-    },
-    {
-      icon: '🏆',
-      title: 'Game History',
-      description: 'Review your completed games and results',
-      action: () => navigate('/games/completed'),
-      buttonText: 'View History',
-      color: '#0369A1' // deep water blue
-    },
-    {
-      icon: '📝',
-      title: 'Sign Up Players',
-      description: 'Organize games and manage player availability',
-      action: () => navigate('/signup'),
-      buttonText: 'Sign Up',
-      color: '#7C2D12' // warm brown
-    },
-    {
-      icon: '🎓',
-      title: 'Tutorial',
-      description: 'Learn the rules and strategies of Wolf Goat Pig',
-      action: () => navigate('/tutorial'),
-      buttonText: 'Start Tutorial',
-      color: '#065F46' // pine green
-    }
-  ];
-  
   const menuItems = [
-    { icon: 'ℹ️', label: 'About Wolf Goat Pig', path: '/about' },
-    { icon: '📖', label: 'Game Rules', path: '/rules' },
+    { icon: '📅', label: 'Mark Availability', path: '/signup' },
     { icon: '⚔️', label: 'Start Multiplayer Game', path: '/game' },
     { icon: '🔗', label: 'Join Game with Code', path: '/join' },
-    { icon: '🎮', label: 'Practice Mode', path: '/simulation' },
-    { icon: '📝', label: 'Sign Up Players', path: '/signup' },
-    { icon: '🏆', label: 'Leaderboard', path: '/leaderboard' },
+    { icon: '🎮', label: 'Active Games', path: '/games/active' },
+    { icon: '🏆', label: 'Game History', path: '/games/completed' },
+    { icon: '📖', label: 'Game Rules', path: '/rules' },
     { icon: '🎓', label: 'Tutorial', path: '/tutorial' },
     { icon: '📊', label: 'Analytics', path: '/analytics' },
-    { icon: '🔄', label: 'Live Sync', path: '/live-sync' },
-    { icon: '🧪', label: 'Test Multiplayer (Dev)', path: '/test-multiplayer' },
+    { icon: 'ℹ️', label: 'About Wolf Goat Pig', path: '/about' },
   ];
   
   return (
@@ -331,93 +286,45 @@ function HomePage() {
           )}
         </div>
         
-        {/* Multiplayer Section - Always visible */}
+        {/* Player Sign-Up & Availability - Primary CTA */}
         <div style={{
-          background: 'rgba(255, 255, 255, 0.95)',
+          background: 'rgba(255, 255, 255, 0.98)',
           borderRadius: '16px',
           padding: '40px',
-          marginBottom: '40px',
+          marginBottom: '30px',
           boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
-          backdropFilter: 'blur(10px)'
+          backdropFilter: 'blur(10px)',
+          border: '2px solid rgba(4, 120, 87, 0.3)'
         }}>
           <h3 style={{
             fontSize: '2rem',
             fontWeight: 'bold',
             color: '#1F2937',
-            marginBottom: '16px',
+            marginBottom: '8px',
             textAlign: 'center'
           }}>
-            🌐 Multiplayer Games
+            Mark Your Availability
           </h3>
           <p style={{
             color: '#6B7280',
             fontSize: '1.1rem',
             textAlign: 'center',
-            marginBottom: '30px'
+            marginBottom: '24px'
           }}>
-            Create a game and share a join code with your friends!
+            Sign up for daily games, see who's playing, and set your schedule
           </p>
-
-          {/* Resume Game Button - shown if active session exists */}
-          {activeGameSession && (
-            <div style={{
-              background: 'linear-gradient(135deg, #F59E0B, #D97706)',
-              borderRadius: '12px',
-              padding: '20px',
-              marginBottom: '20px',
-              boxShadow: '0 4px 6px rgba(245, 158, 11, 0.3)'
-            }}>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '16px'
-              }}>
-                <div style={{ flex: 1, minWidth: '200px' }}>
-                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'white', marginBottom: '8px' }}>
-                    🎮 Active Game Found
-                  </div>
-                  <div style={{ color: 'rgba(255, 255, 255, 0.95)', fontSize: '1rem' }}>
-                    Playing as <strong>{activeGameSession.playerName}</strong>
-                  </div>
-                  <div style={{ color: 'rgba(255, 255, 255, 0.85)', fontSize: '0.9rem', marginTop: '4px' }}>
-                    Join Code: <strong>{activeGameSession.joinCode}</strong>
-                  </div>
-                </div>
-                <button
-                  onClick={() => navigate(`/game/${activeGameSession.gameId}`)}
-                  style={{
-                    padding: '16px 32px',
-                    background: 'white',
-                    color: '#D97706',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '16px',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
-                  onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
-                >
-                  ↩️ Resume Game
-                </button>
-              </div>
-            </div>
-          )}
 
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-            gap: '20px'
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: '16px',
+            marginBottom: '24px'
           }}>
             <button
-              onClick={() => navigate('/game')}
+              onClick={() => navigate('/signup?tab=calendar')}
               style={{
-                padding: '20px',
-                background: '#047857',
+                padding: '24px 20px',
+                background: 'linear-gradient(135deg, #047857, #065F46)',
                 color: 'white',
                 border: 'none',
                 borderRadius: '12px',
@@ -425,242 +332,337 @@ function HomePage() {
                 fontWeight: '600',
                 cursor: 'pointer',
                 transition: 'all 0.3s ease',
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+                boxShadow: '0 4px 6px rgba(4, 120, 87, 0.3)'
               }}
               onMouseEnter={(e) => {
-                e.target.style.background = '#065F46';
-                e.target.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.transform = 'translateY(-3px)';
+                e.currentTarget.style.boxShadow = '0 8px 15px rgba(4, 120, 87, 0.4)';
               }}
               onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 6px rgba(4, 120, 87, 0.3)';
+              }}
+            >
+              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📅</div>
+              <div style={{ fontSize: '1.1rem' }}>Daily Sign-ups</div>
+              <div style={{ fontSize: '0.85rem', opacity: 0.9, marginTop: '6px' }}>
+                Sign up for today or this week
+              </div>
+            </button>
+            <button
+              onClick={() => navigate('/signup?tab=availability')}
+              style={{
+                padding: '24px 20px',
+                background: 'linear-gradient(135deg, #0369A1, #075985)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 4px 6px rgba(3, 105, 161, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-3px)';
+                e.currentTarget.style.boxShadow = '0 8px 15px rgba(3, 105, 161, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 6px rgba(3, 105, 161, 0.3)';
+              }}
+            >
+              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🕒</div>
+              <div style={{ fontSize: '1.1rem' }}>My Availability</div>
+              <div style={{ fontSize: '0.85rem', opacity: 0.9, marginTop: '6px' }}>
+                Set your weekly schedule
+              </div>
+            </button>
+            <button
+              onClick={() => navigate('/signup?tab=all-availability')}
+              style={{
+                padding: '24px 20px',
+                background: 'linear-gradient(135deg, #7C2D12, #9A3412)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 4px 6px rgba(124, 45, 18, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-3px)';
+                e.currentTarget.style.boxShadow = '0 8px 15px rgba(124, 45, 18, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 6px rgba(124, 45, 18, 0.3)';
+              }}
+            >
+              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>👥</div>
+              <div style={{ fontSize: '1.1rem' }}>Who's Playing</div>
+              <div style={{ fontSize: '0.85rem', opacity: 0.9, marginTop: '6px' }}>
+                See all player availability
+              </div>
+            </button>
+          </div>
+
+          <div style={{ textAlign: 'center' }}>
+            <button
+              onClick={() => navigate('/signup?tab=matchmaking')}
+              style={{
+                padding: '10px 24px',
+                background: 'transparent',
+                color: '#047857',
+                border: '1px solid #047857',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
                 e.target.style.background = '#047857';
-                e.target.style.transform = 'translateY(0)';
-              }}
-            >
-              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🎮</div>
-              <div>Create New Game</div>
-              <div style={{ fontSize: '0.9rem', opacity: 0.9, marginTop: '8px' }}>
-                You manage, share join code
-              </div>
-            </button>
-            <button
-              onClick={() => navigate('/join')}
-              style={{
-                padding: '20px',
-                background: '#0369A1',
-                color: 'white',
-                border: 'none',
-                borderRadius: '12px',
-                fontSize: '16px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.background = '#075985';
-                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.color = 'white';
               }}
               onMouseLeave={(e) => {
-                e.target.style.background = '#0369A1';
-                e.target.style.transform = 'translateY(0)';
+                e.target.style.background = 'transparent';
+                e.target.style.color = '#047857';
               }}
             >
-              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🔗</div>
-              <div>Join with Code</div>
-              <div style={{ fontSize: '0.9rem', opacity: 0.9, marginTop: '8px' }}>
-                Enter friend's join code
-              </div>
-            </button>
-            <button
-              onClick={() => navigate('/game-scorer')}
-              style={{
-                padding: '20px',
-                background: '#7C2D12',
-                color: 'white',
-                border: 'none',
-                borderRadius: '12px',
-                fontSize: '16px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.background = '#9A3412';
-                e.target.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.background = '#7C2D12';
-                e.target.style.transform = 'translateY(0)';
-              }}
-            >
-              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⚽</div>
-              <div>Score Rounds</div>
-              <div style={{ fontSize: '0.9rem', opacity: 0.9, marginTop: '8px' }}>
-                Access active games or start new
-              </div>
-            </button>
-            <button
-              onClick={() => navigate('/test-multiplayer')}
-              style={{
-                padding: '20px',
-                background: '#65A30D',
-                color: 'white',
-                border: 'none',
-                borderRadius: '12px',
-                fontSize: '16px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.background = '#84CC16';
-                e.target.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.background = '#65A30D';
-                e.target.style.transform = 'translateY(0)';
-              }}
-            >
-              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🧪</div>
-              <div>Test Mode</div>
-              <div style={{ fontSize: '0.9rem', opacity: 0.9, marginTop: '8px' }}>
-                Test without login
-              </div>
+              View Matchmaking Suggestions
             </button>
           </div>
         </div>
 
-        {/* Main Game Boxes - Show only when authenticated */}
-        {isAuthenticated && (
-          <div className="wgp-main-grid" style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: '30px',
-            marginBottom: '60px'
+        {/* Resume Game Banner - shown if active session exists */}
+        {activeGameSession && (
+          <div style={{
+            background: 'linear-gradient(135deg, #F59E0B, #D97706)',
+            borderRadius: '12px',
+            padding: '20px',
+            marginBottom: '30px',
+            boxShadow: '0 4px 6px rgba(245, 158, 11, 0.3)'
           }}>
-            {mainBoxes.map((box, index) => (
-            <div
-              key={index}
-              style={{
-                background: 'rgba(255, 255, 255, 0.95)',
-                borderRadius: '16px',
-                padding: '30px',
-                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1)',
-                transform: 'translateY(0)',
-                transition: 'all 0.3s ease',
-                cursor: 'pointer',
-                backdropFilter: 'blur(10px)'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-8px)';
-                e.currentTarget.style.boxShadow = '0 25px 30px -5px rgba(0, 0, 0, 0.15), 0 15px 15px -5px rgba(0, 0, 0, 0.08)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)';
-              }}
-              onClick={box.action}
-            >
-              <div style={{ 
-                fontSize: '3rem', 
-                marginBottom: '16px',
-                textAlign: 'center'
-              }}>
-                {box.icon}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '16px'
+            }}>
+              <div style={{ flex: 1, minWidth: '200px' }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'white', marginBottom: '8px' }}>
+                  Active Game Found
+                </div>
+                <div style={{ color: 'rgba(255, 255, 255, 0.95)', fontSize: '1rem' }}>
+                  Playing as <strong>{activeGameSession.playerName}</strong>
+                </div>
+                <div style={{ color: 'rgba(255, 255, 255, 0.85)', fontSize: '0.9rem', marginTop: '4px' }}>
+                  Join Code: <strong>{activeGameSession.joinCode}</strong>
+                </div>
               </div>
-              <h2 style={{
-                fontSize: '1.5rem',
-                fontWeight: 'bold',
-                color: '#1F2937',
-                marginBottom: '12px',
-                textAlign: 'center'
-              }}>
-                {box.title}
-              </h2>
-              <p style={{
-                color: '#6B7280',
-                marginBottom: '24px',
-                textAlign: 'center',
-                minHeight: '48px'
-              }}>
-                {box.description}
-              </p>
               <button
+                onClick={() => navigate(`/game/${activeGameSession.gameId}`)}
                 style={{
-                  width: '100%',
-                  padding: '12px 24px',
-                  background: box.color,
-                  color: 'white',
+                  padding: '16px 32px',
+                  background: 'white',
+                  color: '#D97706',
                   border: 'none',
                   borderRadius: '8px',
                   fontSize: '16px',
-                  fontWeight: '600',
+                  fontWeight: '700',
                   cursor: 'pointer',
-                  transition: 'opacity 0.2s'
+                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                  transition: 'all 0.2s'
                 }}
-                onMouseEnter={(e) => e.target.style.opacity = '0.9'}
-                onMouseLeave={(e) => e.target.style.opacity = '1'}
+                onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
               >
-                {box.buttonText}
+                Resume Game
               </button>
             </div>
-          ))}
           </div>
         )}
-        
-        {/* Show game options only after authentication */}
-        {!isAuthenticated && (
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.95)',
-            borderRadius: '16px',
-            padding: '40px',
-            textAlign: 'center',
-            marginBottom: '40px',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
-            backdropFilter: 'blur(10px)'
-          }}>
-            <h3 style={{
-              fontSize: '2rem',
-              fontWeight: 'bold',
+
+        {/* Quick Actions Grid */}
+        <div className="wgp-box-grid" style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+          gap: '16px',
+          marginBottom: '30px'
+        }}>
+          <button
+            onClick={() => navigate('/game')}
+            style={{
+              padding: '20px 16px',
+              background: 'rgba(255, 255, 255, 0.95)',
               color: '#1F2937',
-              marginBottom: '20px'
-            }}>
-              🏌️ Preview the Experience
-            </h3>
-            <p style={{
-              color: '#4B5563',
-              fontSize: '1.1rem',
-              marginBottom: '30px',
-              lineHeight: '1.6'
-            }}>
-              Wolf Goat Pig is Wing Point's signature golf betting game. Sign in above to unlock full access to games, stats tracking, and tournaments.
-            </p>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: '20px',
-              marginTop: '30px'
-            }}>
-              <div style={{ textAlign: 'center', padding: '20px' }}>
-                <div style={{ fontSize: '2.5rem', marginBottom: '10px' }}>🎮</div>
-                <h4 style={{ color: '#1F2937', marginBottom: '8px' }}>Practice Mode</h4>
-                <p style={{ color: '#6B7280', fontSize: '0.9rem' }}>Learn against AI</p>
-              </div>
-              <div style={{ textAlign: 'center', padding: '20px' }}>
-                <div style={{ fontSize: '2.5rem', marginBottom: '10px' }}>🏆</div>
-                <h4 style={{ color: '#1F2937', marginBottom: '8px' }}>Live Leaderboard</h4>
-                <p style={{ color: '#6B7280', fontSize: '0.9rem' }}>Track your ranking</p>
-              </div>
-              <div style={{ textAlign: 'center', padding: '20px' }}>
-                <div style={{ fontSize: '2.5rem', marginBottom: '10px' }}>⚔️</div>
-                <h4 style={{ color: '#1F2937', marginBottom: '8px' }}>Real Games</h4>
-                <p style={{ color: '#6B7280', fontSize: '0.9rem' }}>Play with members</p>
-              </div>
-            </div>
-          </div>
-        )}
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.08)',
+              textAlign: 'center',
+              backdropFilter: 'blur(10px)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 8px 15px rgba(0, 0, 0, 0.12)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.08)';
+            }}
+          >
+            <div style={{ fontSize: '1.8rem', marginBottom: '8px' }}>⚔️</div>
+            <div>New Game</div>
+          </button>
+          <button
+            onClick={() => navigate('/join')}
+            style={{
+              padding: '20px 16px',
+              background: 'rgba(255, 255, 255, 0.95)',
+              color: '#1F2937',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.08)',
+              textAlign: 'center',
+              backdropFilter: 'blur(10px)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 8px 15px rgba(0, 0, 0, 0.12)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.08)';
+            }}
+          >
+            <div style={{ fontSize: '1.8rem', marginBottom: '8px' }}>🔗</div>
+            <div>Join Game</div>
+          </button>
+          <button
+            onClick={() => navigate('/games/active')}
+            style={{
+              padding: '20px 16px',
+              background: 'rgba(255, 255, 255, 0.95)',
+              color: '#1F2937',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.08)',
+              textAlign: 'center',
+              backdropFilter: 'blur(10px)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 8px 15px rgba(0, 0, 0, 0.12)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.08)';
+            }}
+          >
+            <div style={{ fontSize: '1.8rem', marginBottom: '8px' }}>🎮</div>
+            <div>Active Games</div>
+          </button>
+          <button
+            onClick={() => navigate('/games/completed')}
+            style={{
+              padding: '20px 16px',
+              background: 'rgba(255, 255, 255, 0.95)',
+              color: '#1F2937',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.08)',
+              textAlign: 'center',
+              backdropFilter: 'blur(10px)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 8px 15px rgba(0, 0, 0, 0.12)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.08)';
+            }}
+          >
+            <div style={{ fontSize: '1.8rem', marginBottom: '8px' }}>🏆</div>
+            <div>History</div>
+          </button>
+          <button
+            onClick={() => navigate('/game-scorer')}
+            style={{
+              padding: '20px 16px',
+              background: 'rgba(255, 255, 255, 0.95)',
+              color: '#1F2937',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.08)',
+              textAlign: 'center',
+              backdropFilter: 'blur(10px)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 8px 15px rgba(0, 0, 0, 0.12)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.08)';
+            }}
+          >
+            <div style={{ fontSize: '1.8rem', marginBottom: '8px' }}>📝</div>
+            <div>Score Rounds</div>
+          </button>
+          <button
+            onClick={() => navigate('/tutorial')}
+            style={{
+              padding: '20px 16px',
+              background: 'rgba(255, 255, 255, 0.95)',
+              color: '#1F2937',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.08)',
+              textAlign: 'center',
+              backdropFilter: 'blur(10px)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 8px 15px rgba(0, 0, 0, 0.12)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.08)';
+            }}
+          >
+            <div style={{ fontSize: '1.8rem', marginBottom: '8px' }}>🎓</div>
+            <div>Tutorial</div>
+          </button>
+        </div>
         
         {/* Auth Status Check for Development */}
         <AuthHealthCheck />
