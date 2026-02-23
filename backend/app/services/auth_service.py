@@ -12,7 +12,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
-from ..database import SessionLocal
+from ..database import SessionLocal, get_db
 from ..models import EmailPreferences, PlayerProfile
 from .legacy_player_service import find_similar_players, get_canonical_name
 
@@ -191,7 +191,7 @@ auth_service = AuthService()
 
 
 def get_current_user(
-    token: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(AuthService.get_db)
+    token: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)
 ) -> PlayerProfile:
     """Dependency to get the current authenticated user"""
 
