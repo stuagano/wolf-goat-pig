@@ -15,6 +15,7 @@ from .shot_range_analysis import ShotRangeAnalyzer
 
 class ShotQuality(Enum):
     """Enumeration of shot quality levels."""
+
     EXCELLENT = "excellent"
     GOOD = "good"
     AVERAGE = "average"
@@ -24,6 +25,7 @@ class ShotQuality(Enum):
 
 class LieType(Enum):
     """Enumeration of lie types on the golf course."""
+
     FAIRWAY = "fairway"
     FIRST_CUT = "first cut"
     ROUGH = "rough"
@@ -37,7 +39,7 @@ class LieType(Enum):
 class ShotResult:
     """
     Represents the result of a golf shot in the Wolf Goat Pig simulation.
-    
+
     This class encapsulates all shot-related data and provides
     methods for position analysis, scoring probability, and strategic implications.
     """
@@ -90,7 +92,7 @@ class ShotResult:
             raise ValueError(f"Shot quality must be one of: {valid_qualities}")
 
         # Validate lie type
-        valid_lies = [l.value for l in LieType]
+        valid_lies = [lie.value for lie in LieType]
         if self.lie not in valid_lies:
             raise ValueError(f"Lie type must be one of: {valid_lies}")
 
@@ -161,7 +163,7 @@ class ShotResult:
             "quality_score": score,
             "description": quality,
             "lie_type": lie,
-            "distance_category": "Short" if remaining <= 100 else "Medium" if remaining <= 150 else "Long"
+            "distance_category": ("Short" if remaining <= 100 else "Medium" if remaining <= 150 else "Long"),
         }
 
     def _calculate_scoring_probability(self) -> None:
@@ -193,7 +195,7 @@ class ShotResult:
             "double_bogey": double_prob,
             "expected_score": round(2 + (bogey_prob * 0.01) + (double_prob * 0.02), 1),
             "position_factor": position_quality["quality_score"],
-            "handicap_factor": handicap_factor
+            "handicap_factor": handicap_factor,
         }
 
     def _calculate_partnership_value(self) -> None:
@@ -229,10 +231,10 @@ class ShotResult:
         self._partnership_value = {
             "partnership_appeal": final_value,
             "reason": f"{shot_quality} shot, {remaining} yards remaining",
-            "strategic_value": "High" if final_value >= 70 else "Medium" if final_value >= 50 else "Low",
+            "strategic_value": ("High" if final_value >= 70 else "Medium" if final_value >= 50 else "Low"),
             "base_value": base_value,
             "position_bonus": position_bonus,
-            "handicap_bonus": handicap_bonus
+            "handicap_bonus": handicap_bonus,
         }
 
     def _calculate_shot_range_analysis(self) -> None:
@@ -246,7 +248,7 @@ class ShotResult:
             "hazards_present": self.remaining > 150,
             "risk_reward_available": True,
             "hero_shot_possible": self.remaining > 200,
-            "opponent_style": "balanced"  # Default, will be updated
+            "opponent_style": "balanced",  # Default, will be updated
         }
 
         # Perform range analysis
@@ -254,7 +256,7 @@ class ShotResult:
             lie_type=self.lie,
             distance_to_pin=self.remaining,
             player_handicap=self.player.handicap,
-            game_situation=game_situation
+            game_situation=game_situation,
         )
 
     def get_strategic_implications(self) -> list:
@@ -293,7 +295,7 @@ class ShotResult:
             "good": "hit a solid drive",
             "average": "found the fairway",
             "poor": "struggled off the tee",
-            "terrible": "got into trouble"
+            "terrible": "got into trouble",
         }
 
         # Lie descriptors
@@ -304,7 +306,7 @@ class ShotResult:
             "bunker": "caught the fairway bunker",
             "trees": "behind some trees",
             "hazard": "near the hazard",
-            "deep rough": "buried in thick rough"
+            "deep rough": "buried in thick rough",
         }
 
         # Player identifier
@@ -342,15 +344,16 @@ class ShotResult:
             "partnership_value": self.get_partnership_value(),
             "shot_range_analysis": self.get_shot_range_analysis(),
             "strategic_implications": self.get_strategic_implications(),
-            "shot_description": self.get_shot_description()
+            "shot_description": self.get_shot_description(),
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> 'ShotResult':
+    def from_dict(cls, data: dict) -> "ShotResult":
         """Create a ShotResult instance from a dictionary."""
         # Handle player data
         if isinstance(data["player"], dict):
             from .player import Player
+
             player = Player.from_dict(data["player"])
         else:
             player = data["player"]
@@ -365,7 +368,7 @@ class ShotResult:
             hole_number=data.get("hole_number"),
             shot_number=data.get("shot_number"),
             wind_factor=data.get("wind_factor"),
-            pressure_factor=data.get("pressure_factor")
+            pressure_factor=data.get("pressure_factor"),
         )
 
     def __str__(self) -> str:
@@ -374,21 +377,34 @@ class ShotResult:
 
     def __repr__(self) -> str:
         """Detailed string representation for debugging."""
-        return (f"ShotResult(player={self.player.name}, drive={self.drive}, "
-                f"lie='{self.lie}', remaining={self.remaining}, "
-                f"quality='{self.shot_quality}', penalty={self.penalty})")
+        return (
+            f"ShotResult(player={self.player.name}, drive={self.drive}, "
+            f"lie='{self.lie}', remaining={self.remaining}, "
+            f"quality='{self.shot_quality}', penalty={self.penalty})"
+        )
 
     def __eq__(self, other: object) -> bool:
         """Equality comparison based on shot characteristics."""
         if not isinstance(other, ShotResult):
             return False
-        return (self.player.id == other.player.id and
-                self.drive == other.drive and
-                self.lie == other.lie and
-                self.remaining == other.remaining and
-                self.shot_quality == other.shot_quality and
-                self.penalty == other.penalty)
+        return (
+            self.player.id == other.player.id
+            and self.drive == other.drive
+            and self.lie == other.lie
+            and self.remaining == other.remaining
+            and self.shot_quality == other.shot_quality
+            and self.penalty == other.penalty
+        )
 
     def __hash__(self) -> int:
         """Hash based on shot characteristics."""
-        return hash((self.player.id, self.drive, self.lie, self.remaining, self.shot_quality, self.penalty))
+        return hash(
+            (
+                self.player.id,
+                self.drive,
+                self.lie,
+                self.remaining,
+                self.shot_quality,
+                self.penalty,
+            )
+        )

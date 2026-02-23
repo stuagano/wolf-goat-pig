@@ -63,8 +63,8 @@ jobs:
         cd backend
         pip install flake8 black isort
         black --check app/ tests/
-        isort --check-only app/ tests/
-        flake8 app/ tests/ --max-line-length=120 --extend-ignore=E203,W503
+        isort --check-only --profile black app/ tests/
+        flake8 app/ tests/
     
     - name: Run type checking
       run: |

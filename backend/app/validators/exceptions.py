@@ -26,7 +26,7 @@ class ValidationError(Exception):
         self,
         message: str,
         field: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None
+        details: Optional[Dict[str, Any]] = None,
     ):
         self.message = message
         self.field = field
@@ -52,7 +52,6 @@ class GameStateValidationError(ValidationError):
     - Trying to form partnership after deadline
     - Invalid player action for current game phase
     """
-    pass
 
 
 class BettingValidationError(ValidationError):
@@ -64,7 +63,6 @@ class BettingValidationError(ValidationError):
     - Using Duncan after partnership formed
     - Invalid wager amount
     """
-    pass
 
 
 class HandicapValidationError(ValidationError):
@@ -76,7 +74,6 @@ class HandicapValidationError(ValidationError):
     - Invalid stroke allocation
     - Incorrect net score calculation
     """
-    pass
 
 
 class PartnershipValidationError(ValidationError):
@@ -88,7 +85,6 @@ class PartnershipValidationError(ValidationError):
     - Partnership offer after tee shots complete
     - Invalid player ID in partnership
     """
-    pass
 
 
 class RuleViolationError(ValidationError):
@@ -105,4 +101,3 @@ class RuleViolationError(ValidationError):
     - Invalid player attempting to take action out of turn
     - Invoking Duncan after partnership formed
     """
-    pass

@@ -23,17 +23,21 @@ from ..models import GamePlayerResult, GameRecord, PlayerProfile, PlayerStatisti
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class TrendPoint:
     """Data class for trend analysis points."""
+
     timestamp: str
     value: float
     game_id: Optional[str] = None
     context: Optional[Dict[str, Any]] = None
 
+
 @dataclass
 class PerformanceMetric:
     """Data class for performance metrics."""
+
     name: str
     value: float
     percentile: float
@@ -41,15 +45,18 @@ class PerformanceMetric:
     confidence: float
     description: str
 
+
 @dataclass
 class InsightRecommendation:
     """Data class for performance insights and recommendations."""
+
     category: str
     priority: str  # 'high', 'medium', 'low'
     title: str
     description: str
     data_support: Dict[str, Any]
     suggested_actions: List[str]
+
 
 class StatisticsService:
     """Advanced statistics and analytics service."""
@@ -61,17 +68,13 @@ class StatisticsService:
         """Calculate advanced performance metrics for a player."""
         try:
             # Get player data
-            player_stats = self.db.query(PlayerStatistics).filter(
-                PlayerStatistics.player_id == player_id
-            ).first()
+            player_stats = self.db.query(PlayerStatistics).filter(PlayerStatistics.player_id == player_id).first()
 
             if not player_stats:
                 return {}
 
             # Get all players for comparison
-            all_stats = self.db.query(PlayerStatistics).filter(
-                PlayerStatistics.games_played >= 5
-            ).all()
+            all_stats = self.db.query(PlayerStatistics).filter(PlayerStatistics.games_played >= 5).all()
 
             metrics = {}
 
@@ -87,7 +90,7 @@ class StatisticsService:
                 percentile=win_rate_percentile,
                 trend=win_rate_trend,
                 confidence=0.8 if int(player_stats.games_played) >= 20 else 0.5,
-                description=f"You win {win_rate:.1f}% of your games"
+                description=f"You win {win_rate:.1f}% of your games",
             )
 
             # Earnings Efficiency
@@ -102,7 +105,7 @@ class StatisticsService:
                 percentile=earnings_percentile,
                 trend=earnings_trend,
                 confidence=0.9 if int(player_stats.games_played) >= 15 else 0.6,
-                description=f"You earn {earnings_per_game:.2f} quarters per game on average"
+                description=f"You earn {earnings_per_game:.2f} quarters per game on average",
             )
 
             # Betting Accuracy
@@ -116,12 +119,14 @@ class StatisticsService:
                 percentile=betting_percentile,
                 trend="stable",  # Would need more detailed analysis
                 confidence=0.8 if int(player_stats.total_bets) >= 50 else 0.4,
-                description=f"You make successful bets {betting_accuracy:.1f}% of the time"
+                description=f"You make successful bets {betting_accuracy:.1f}% of the time",
             )
 
             # Partnership Synergy
             partnership_success = float(player_stats.partnership_success_rate) * 100
-            all_partnership_success = [float(s.partnership_success_rate) * 100 for s in all_stats if int(s.partnerships_formed) > 0]
+            all_partnership_success = [
+                float(s.partnership_success_rate) * 100 for s in all_stats if int(s.partnerships_formed) > 0
+            ]
             partnership_percentile = self._calculate_percentile(partnership_success, all_partnership_success)
 
             metrics["partnership_synergy"] = PerformanceMetric(
@@ -130,7 +135,7 @@ class StatisticsService:
                 percentile=partnership_percentile,
                 trend="stable",
                 confidence=0.7 if int(player_stats.partnerships_formed) >= 10 else 0.3,
-                description=f"Your partnerships succeed {partnership_success:.1f}% of the time"
+                description=f"Your partnerships succeed {partnership_success:.1f}% of the time",
             )
 
             # Consistency Score (inverse of variance)
@@ -144,7 +149,7 @@ class StatisticsService:
                 percentile=consistency_percentile,
                 trend="stable",
                 confidence=0.8 if int(player_stats.games_played) >= 25 else 0.5,
-                description=f"Your consistency score is {consistency_score:.1f}/100"
+                description=f"Your consistency score is {consistency_score:.1f}/100",
             )
 
             return metrics
@@ -159,54 +164,70 @@ class StatisticsService:
             cutoff_date = (datetime.now() - timedelta(days=days)).isoformat()
 
             # Get recent game results
-            results = self.db.query(GamePlayerResult).filter(
-                and_(
-                    GamePlayerResult.player_profile_id == player_id,
-                    GamePlayerResult.created_at >= cutoff_date
+            results = (
+                self.db.query(GamePlayerResult)
+                .filter(
+                    and_(
+                        GamePlayerResult.player_profile_id == player_id,
+                        GamePlayerResult.created_at >= cutoff_date,
+                    )
                 )
-            ).order_by(GamePlayerResult.created_at).all()
+                .order_by(GamePlayerResult.created_at)
+                .all()
+            )
 
             trends: Dict[str, List[TrendPoint]] = {
                 "earnings": [],
                 "position": [],
                 "betting_success": [],
-                "holes_won": []
+                "holes_won": [],
             }
 
             for result in results:
                 timestamp = str(result.created_at)
 
                 # Earnings trend
-                trends["earnings"].append(TrendPoint(
-                    timestamp=timestamp,
-                    value=float(result.total_earnings),
-                    game_id=str(result.game_record_id),
-                    context={"position": int(result.final_position)}
-                ))
+                trends["earnings"].append(
+                    TrendPoint(
+                        timestamp=timestamp,
+                        value=float(result.total_earnings),
+                        game_id=str(result.game_record_id),
+                        context={"position": int(result.final_position)},
+                    )
+                )
 
                 # Position trend (inverted for better visualization)
-                trends["position"].append(TrendPoint(
-                    timestamp=timestamp,
-                    value=float(5 - int(result.final_position)),  # Invert so higher is better
-                    game_id=str(result.game_record_id),
-                    context={"actual_position": int(result.final_position)}
-                ))
+                trends["position"].append(
+                    TrendPoint(
+                        timestamp=timestamp,
+                        value=float(5 - int(result.final_position)),  # Invert so higher is better
+                        game_id=str(result.game_record_id),
+                        context={"actual_position": int(result.final_position)},
+                    )
+                )
 
                 # Betting success trend
                 betting_rate = result.successful_bets / max(1, result.total_bets)
-                trends["betting_success"].append(TrendPoint(
-                    timestamp=timestamp,
-                    value=float(betting_rate * 100),
-                    game_id=str(result.game_record_id),
-                    context={"successful_bets": result.successful_bets, "total_bets": result.total_bets}
-                ))
+                trends["betting_success"].append(
+                    TrendPoint(
+                        timestamp=timestamp,
+                        value=float(betting_rate * 100),
+                        game_id=str(result.game_record_id),
+                        context={
+                            "successful_bets": result.successful_bets,
+                            "total_bets": result.total_bets,
+                        },
+                    )
+                )
 
                 # Holes won trend
-                trends["holes_won"].append(TrendPoint(
-                    timestamp=timestamp,
-                    value=float(result.holes_won),
-                    game_id=str(result.game_record_id)
-                ))
+                trends["holes_won"].append(
+                    TrendPoint(
+                        timestamp=timestamp,
+                        value=float(result.holes_won),
+                        game_id=str(result.game_record_id),
+                    )
+                )
 
             return trends
 
@@ -221,9 +242,7 @@ class StatisticsService:
 
             # Get player metrics
             metrics = self.get_advanced_player_metrics(player_id)
-            player_stats = self.db.query(PlayerStatistics).filter(
-                PlayerStatistics.player_id == player_id
-            ).first()
+            player_stats = self.db.query(PlayerStatistics).filter(PlayerStatistics.player_id == player_id).first()
 
             if not player_stats:
                 return insights
@@ -232,115 +251,127 @@ class StatisticsService:
             if "betting_accuracy" in metrics:
                 betting_metric = metrics["betting_accuracy"]
                 if betting_metric.percentile < 25 and betting_metric.confidence > 0.5:
-                    insights.append(InsightRecommendation(
-                        category="betting",
-                        priority="high",
-                        title="Improve Betting Strategy",
-                        description=f"Your betting accuracy ({betting_metric.value:.1f}%) is in the bottom 25% of players.",
-                        data_support={
-                            "current_rate": betting_metric.value,
-                            "percentile": betting_metric.percentile,
-                            "total_bets": player_stats.total_bets
-                        },
-                        suggested_actions=[
-                            "Be more conservative with your betting decisions",
-                            "Study the odds before placing bets",
-                            "Focus on partnerships rather than risky solo plays"
-                        ]
-                    ))
+                    insights.append(
+                        InsightRecommendation(
+                            category="betting",
+                            priority="high",
+                            title="Improve Betting Strategy",
+                            description=f"Your betting accuracy ({betting_metric.value:.1f}%) is in the bottom 25% of players.",
+                            data_support={
+                                "current_rate": betting_metric.value,
+                                "percentile": betting_metric.percentile,
+                                "total_bets": player_stats.total_bets,
+                            },
+                            suggested_actions=[
+                                "Be more conservative with your betting decisions",
+                                "Study the odds before placing bets",
+                                "Focus on partnerships rather than risky solo plays",
+                            ],
+                        )
+                    )
                 elif betting_metric.percentile > 75:
-                    insights.append(InsightRecommendation(
-                        category="betting",
-                        priority="low",
-                        title="Excellent Betting Skills",
-                        description=f"Your betting accuracy ({betting_metric.value:.1f}%) is in the top 25% of players.",
-                        data_support={
-                            "current_rate": betting_metric.value,
-                            "percentile": betting_metric.percentile
-                        },
-                        suggested_actions=[
-                            "Consider more aggressive betting strategies",
-                            "Look for opportunities to double or raise stakes",
-                            "Share your betting insights with partners"
-                        ]
-                    ))
+                    insights.append(
+                        InsightRecommendation(
+                            category="betting",
+                            priority="low",
+                            title="Excellent Betting Skills",
+                            description=f"Your betting accuracy ({betting_metric.value:.1f}%) is in the top 25% of players.",
+                            data_support={
+                                "current_rate": betting_metric.value,
+                                "percentile": betting_metric.percentile,
+                            },
+                            suggested_actions=[
+                                "Consider more aggressive betting strategies",
+                                "Look for opportunities to double or raise stakes",
+                                "Share your betting insights with partners",
+                            ],
+                        )
+                    )
 
             # Partnership Analysis
             if player_stats.partnerships_formed >= 5:
                 partnership_rate = player_stats.partnership_success_rate
                 if partnership_rate < 0.4:
-                    insights.append(InsightRecommendation(
-                        category="partnership",
-                        priority="medium",
-                        title="Partnership Selection",
-                        description=f"Your partnerships succeed only {partnership_rate*100:.1f}% of the time.",
-                        data_support={
-                            "success_rate": partnership_rate,
-                            "partnerships_formed": player_stats.partnerships_formed,
-                            "partnerships_won": player_stats.partnerships_won
-                        },
-                        suggested_actions=[
-                            "Be more selective when choosing partners",
-                            "Consider handicap compatibility when partnering",
-                            "Communicate better with your partners during games"
-                        ]
-                    ))
+                    insights.append(
+                        InsightRecommendation(
+                            category="partnership",
+                            priority="medium",
+                            title="Partnership Selection",
+                            description=f"Your partnerships succeed only {partnership_rate*100:.1f}% of the time.",
+                            data_support={
+                                "success_rate": partnership_rate,
+                                "partnerships_formed": player_stats.partnerships_formed,
+                                "partnerships_won": player_stats.partnerships_won,
+                            },
+                            suggested_actions=[
+                                "Be more selective when choosing partners",
+                                "Consider handicap compatibility when partnering",
+                                "Communicate better with your partners during games",
+                            ],
+                        )
+                    )
 
             # Consistency Analysis
             recent_results = self._get_recent_position_variance(player_id)
             if recent_results["variance"] > 2.0:
-                insights.append(InsightRecommendation(
-                    category="consistency",
-                    priority="medium",
-                    title="Improve Consistency",
-                    description="Your performance varies significantly between games.",
-                    data_support={
-                        "variance": recent_results["variance"],
-                        "games_analyzed": recent_results["games_analyzed"]
-                    },
-                    suggested_actions=[
-                        "Focus on maintaining steady performance",
-                        "Develop a consistent pre-game routine",
-                        "Avoid extreme risk-taking that leads to volatile results"
-                    ]
-                ))
+                insights.append(
+                    InsightRecommendation(
+                        category="consistency",
+                        priority="medium",
+                        title="Improve Consistency",
+                        description="Your performance varies significantly between games.",
+                        data_support={
+                            "variance": recent_results["variance"],
+                            "games_analyzed": recent_results["games_analyzed"],
+                        },
+                        suggested_actions=[
+                            "Focus on maintaining steady performance",
+                            "Develop a consistent pre-game routine",
+                            "Avoid extreme risk-taking that leads to volatile results",
+                        ],
+                    )
+                )
 
             # Experience-based insights
             if player_stats.games_played < 10:
-                insights.append(InsightRecommendation(
-                    category="experience",
-                    priority="high",
-                    title="Build Experience",
-                    description="Play more games to develop reliable strategies.",
-                    data_support={"games_played": player_stats.games_played},
-                    suggested_actions=[
-                        "Play at least 20 games to establish patterns",
-                        "Try different strategies to find what works",
-                        "Focus on learning rather than winning initially"
-                    ]
-                ))
+                insights.append(
+                    InsightRecommendation(
+                        category="experience",
+                        priority="high",
+                        title="Build Experience",
+                        description="Play more games to develop reliable strategies.",
+                        data_support={"games_played": player_stats.games_played},
+                        suggested_actions=[
+                            "Play at least 20 games to establish patterns",
+                            "Try different strategies to find what works",
+                            "Focus on learning rather than winning initially",
+                        ],
+                    )
+                )
 
             # Solo vs Partnership Balance
             solo_rate = player_stats.solo_attempts / max(1, player_stats.games_played)
             solo_success = player_stats.solo_wins / max(1, player_stats.solo_attempts)
 
             if solo_rate > 0.3 and solo_success < 0.2:
-                insights.append(InsightRecommendation(
-                    category="strategy",
-                    priority="high",
-                    title="Reduce Solo Play Risk",
-                    description=f"You go solo {solo_rate*100:.1f}% of the time but only win {solo_success*100:.1f}% of those attempts.",
-                    data_support={
-                        "solo_rate": solo_rate,
-                        "solo_success": solo_success,
-                        "solo_attempts": player_stats.solo_attempts
-                    },
-                    suggested_actions=[
-                        "Be more selective about going solo",
-                        "Only go solo when you have a significant advantage",
-                        "Focus more on partnership strategies"
-                    ]
-                ))
+                insights.append(
+                    InsightRecommendation(
+                        category="strategy",
+                        priority="high",
+                        title="Reduce Solo Play Risk",
+                        description=f"You go solo {solo_rate*100:.1f}% of the time but only win {solo_success*100:.1f}% of those attempts.",
+                        data_support={
+                            "solo_rate": solo_rate,
+                            "solo_success": solo_success,
+                            "solo_attempts": player_stats.solo_attempts,
+                        },
+                        suggested_actions=[
+                            "Be more selective about going solo",
+                            "Only go solo when you have a significant advantage",
+                            "Focus more on partnership strategies",
+                        ],
+                    )
+                )
 
             return insights
 
@@ -353,13 +384,23 @@ class StatisticsService:
         try:
             # Define available metrics and their queries
             from sqlalchemy import Float
+
             metric_queries = {
                 "total_earnings": (PlayerStatistics.total_earnings, desc),
-                "win_rate": (func.cast(PlayerStatistics.games_won, Float) / func.cast(PlayerStatistics.games_played, Float), desc),
+                "win_rate": (
+                    func.cast(PlayerStatistics.games_won, Float) / func.cast(PlayerStatistics.games_played, Float),
+                    desc,
+                ),
                 "avg_earnings": (PlayerStatistics.avg_earnings_per_hole, desc),
                 "betting_success": (PlayerStatistics.betting_success_rate, desc),
-                "partnership_success": (PlayerStatistics.partnership_success_rate, desc),
-                "consistency": (PlayerStatistics.games_played, desc)  # Placeholder - would need calculated field
+                "partnership_success": (
+                    PlayerStatistics.partnership_success_rate,
+                    desc,
+                ),
+                "consistency": (
+                    PlayerStatistics.games_played,
+                    desc,
+                ),  # Placeholder - would need calculated field
             }
 
             if metric not in metric_queries:
@@ -368,25 +409,29 @@ class StatisticsService:
             query_field, order_func = metric_queries[metric]
 
             # Query for leaderboard
-            query = self.db.query(
-                PlayerProfile.id,
-                PlayerProfile.name,
-                PlayerStatistics.games_played,
-                PlayerStatistics.games_won,
-                PlayerStatistics.total_earnings,
-                PlayerStatistics.avg_earnings_per_hole,
-                PlayerStatistics.betting_success_rate,
-                PlayerStatistics.partnership_success_rate,
-                query_field.label("metric_value")
-            ).join(
-                PlayerStatistics, PlayerProfile.id == PlayerStatistics.player_id
-            ).filter(
-                and_(
-                    PlayerProfile.is_active == 1,
-                    PlayerProfile.is_ai == 0,  # Exclude AI players from leaderboard
-                    PlayerStatistics.games_played >= 5
+            query = (
+                self.db.query(
+                    PlayerProfile.id,
+                    PlayerProfile.name,
+                    PlayerStatistics.games_played,
+                    PlayerStatistics.games_won,
+                    PlayerStatistics.total_earnings,
+                    PlayerStatistics.avg_earnings_per_hole,
+                    PlayerStatistics.betting_success_rate,
+                    PlayerStatistics.partnership_success_rate,
+                    query_field.label("metric_value"),
                 )
-            ).order_by(order_func(query_field)).limit(limit)
+                .join(PlayerStatistics, PlayerProfile.id == PlayerStatistics.player_id)
+                .filter(
+                    and_(
+                        PlayerProfile.is_active == 1,
+                        PlayerProfile.is_ai == 0,  # Exclude AI players from leaderboard
+                        PlayerStatistics.games_played >= 5,
+                    )
+                )
+                .order_by(order_func(query_field))
+                .limit(limit)
+            )
 
             results = query.all()
 
@@ -394,18 +439,20 @@ class StatisticsService:
             for rank, result in enumerate(results, 1):
                 win_rate = (result.games_won / max(1, result.games_played)) * 100
 
-                leaderboard.append({
-                    "rank": rank,
-                    "player_id": result.id,
-                    "player_name": result.name,
-                    "games_played": result.games_played,
-                    "win_rate": round(win_rate, 1),
-                    "total_earnings": round(result.total_earnings, 2),
-                    "avg_earnings": round(result.avg_earnings_per_hole, 2),
-                    "betting_success": round(result.betting_success_rate * 100, 1),
-                    "partnership_success": round(result.partnership_success_rate * 100, 1),
-                    "metric_value": float(result.metric_value) if result.metric_value else 0.0
-                })
+                leaderboard.append(
+                    {
+                        "rank": rank,
+                        "player_id": result.id,
+                        "player_name": result.name,
+                        "games_played": result.games_played,
+                        "win_rate": round(win_rate, 1),
+                        "total_earnings": round(result.total_earnings, 2),
+                        "avg_earnings": round(result.avg_earnings_per_hole, 2),
+                        "betting_success": round(result.betting_success_rate * 100, 1),
+                        "partnership_success": round(result.partnership_success_rate * 100, 1),
+                        "metric_value": (float(result.metric_value) if result.metric_value else 0.0),
+                    }
+                )
 
             return leaderboard
 
@@ -426,13 +473,15 @@ class StatisticsService:
             results = base_query.all()
 
             # Group by game mode and player count
-            mode_analytics: Dict[str, Dict[str, Any]] = defaultdict(lambda: {
-                "games_played": 0,
-                "total_earnings": 0.0,
-                "wins": 0,
-                "avg_position": 0.0,
-                "player_count_breakdown": defaultdict(int)
-            })
+            mode_analytics: Dict[str, Dict[str, Any]] = defaultdict(
+                lambda: {
+                    "games_played": 0,
+                    "total_earnings": 0.0,
+                    "wins": 0,
+                    "avg_position": 0.0,
+                    "player_count_breakdown": defaultdict(int),
+                }
+            )
 
             for result in results:
                 game_record = self.db.query(GameRecord).filter(GameRecord.id == result.game_record_id).first()
@@ -462,9 +511,7 @@ class StatisticsService:
     def calculate_skill_rating(self, player_id: int) -> Dict[str, float]:
         """Calculate skill ratings similar to ELO or Glicko systems."""
         try:
-            player_stats = self.db.query(PlayerStatistics).filter(
-                PlayerStatistics.player_id == player_id
-            ).first()
+            player_stats = self.db.query(PlayerStatistics).filter(PlayerStatistics.player_id == player_id).first()
 
             if not player_stats:
                 return {"overall": 1200.0, "confidence": 0.0}  # Default rating
@@ -504,7 +551,7 @@ class StatisticsService:
                 "betting_component": round(betting_rating * experience_factor, 1),
                 "partnership_component": round(partnership_rating * experience_factor, 1),
                 "confidence": round(confidence, 2),
-                "games_played": int(player_stats.games_played)
+                "games_played": int(player_stats.games_played),
             }
 
         except Exception as e:
@@ -523,16 +570,20 @@ class StatisticsService:
 
     def _analyze_win_rate_trend(self, player_id: int) -> str:
         """Analyze win rate trend over recent games."""
-        recent_results = self.db.query(GamePlayerResult.final_position).filter(
-            GamePlayerResult.player_profile_id == player_id
-        ).order_by(desc(GamePlayerResult.created_at)).limit(10).all()
+        recent_results = (
+            self.db.query(GamePlayerResult.final_position)
+            .filter(GamePlayerResult.player_profile_id == player_id)
+            .order_by(desc(GamePlayerResult.created_at))
+            .limit(10)
+            .all()
+        )
 
         if len(recent_results) < 5:
             return "stable"
 
         positions = [result.final_position for result in recent_results]
-        first_half = positions[:len(positions)//2]
-        second_half = positions[len(positions)//2:]
+        first_half = positions[: len(positions) // 2]
+        second_half = positions[len(positions) // 2 :]
 
         first_half_avg = sum(first_half) / len(first_half)
         second_half_avg = sum(second_half) / len(second_half)
@@ -547,16 +598,20 @@ class StatisticsService:
 
     def _analyze_earnings_trend(self, player_id: int) -> str:
         """Analyze earnings trend over recent games."""
-        recent_results = self.db.query(GamePlayerResult.total_earnings).filter(
-            GamePlayerResult.player_profile_id == player_id
-        ).order_by(desc(GamePlayerResult.created_at)).limit(10).all()
+        recent_results = (
+            self.db.query(GamePlayerResult.total_earnings)
+            .filter(GamePlayerResult.player_profile_id == player_id)
+            .order_by(desc(GamePlayerResult.created_at))
+            .limit(10)
+            .all()
+        )
 
         if len(recent_results) < 5:
             return "stable"
 
         earnings = [result.total_earnings for result in recent_results]
-        first_half = earnings[:len(earnings)//2]
-        second_half = earnings[len(earnings)//2:]
+        first_half = earnings[: len(earnings) // 2]
+        second_half = earnings[len(earnings) // 2 :]
 
         first_half_avg = sum(first_half) / len(first_half)
         second_half_avg = sum(second_half) / len(second_half)
@@ -570,9 +625,13 @@ class StatisticsService:
 
     def _calculate_consistency_score(self, player_id: int) -> float:
         """Calculate consistency score (0-100, higher is more consistent)."""
-        recent_results = self.db.query(GamePlayerResult.final_position).filter(
-            GamePlayerResult.player_profile_id == player_id
-        ).order_by(desc(GamePlayerResult.created_at)).limit(20).all()
+        recent_results = (
+            self.db.query(GamePlayerResult.final_position)
+            .filter(GamePlayerResult.player_profile_id == player_id)
+            .order_by(desc(GamePlayerResult.created_at))
+            .limit(20)
+            .all()
+        )
 
         if len(recent_results) < 5:
             return 50.0  # Default for insufficient data
@@ -590,9 +649,13 @@ class StatisticsService:
 
     def _get_recent_position_variance(self, player_id: int) -> Dict[str, Any]:
         """Get variance in recent finishing positions."""
-        recent_results = self.db.query(GamePlayerResult.final_position).filter(
-            GamePlayerResult.player_profile_id == player_id
-        ).order_by(desc(GamePlayerResult.created_at)).limit(15).all()
+        recent_results = (
+            self.db.query(GamePlayerResult.final_position)
+            .filter(GamePlayerResult.player_profile_id == player_id)
+            .order_by(desc(GamePlayerResult.created_at))
+            .limit(15)
+            .all()
+        )
 
         if len(recent_results) < 3:
             return {"variance": 0.0, "games_analyzed": len(recent_results)}
@@ -609,20 +672,20 @@ class StatisticsService:
             "games_analyzed": len(recent_results),
             "mean_position": statistics.mean(positions),
             "best_position": min(positions),
-            "worst_position": max(positions)
+            "worst_position": max(positions),
         }
 
     def get_head_to_head(self, player_id: int, opponent_id: int) -> Dict[str, Any]:
         """Get head-to-head record between two players."""
         try:
             # Find games where both players participated
-            player_results = self.db.query(GamePlayerResult).filter(
-                GamePlayerResult.player_profile_id == player_id
-            ).all()
+            player_results = (
+                self.db.query(GamePlayerResult).filter(GamePlayerResult.player_profile_id == player_id).all()
+            )
 
-            opponent_results = self.db.query(GamePlayerResult).filter(
-                GamePlayerResult.player_profile_id == opponent_id
-            ).all()
+            opponent_results = (
+                self.db.query(GamePlayerResult).filter(GamePlayerResult.player_profile_id == opponent_id).all()
+            )
 
             # Group by game_record_id
             player_games = {r.game_record_id: r for r in player_results}
@@ -635,7 +698,7 @@ class StatisticsService:
                 return {
                     "status": "no_games",
                     "games_together": 0,
-                    "message": "No games played together"
+                    "message": "No games played together",
                 }
 
             wins = 0
@@ -665,7 +728,7 @@ class StatisticsService:
                 "ties": ties,
                 "win_rate": (wins / total_games) * 100 if total_games > 0 else 0,
                 "earnings_differential": round(earnings_diff, 2),
-                "avg_earnings_diff_per_game": round(earnings_diff / total_games, 2) if total_games > 0 else 0
+                "avg_earnings_diff_per_game": (round(earnings_diff / total_games, 2) if total_games > 0 else 0),
             }
 
         except Exception as e:
@@ -676,9 +739,9 @@ class StatisticsService:
         """Get head-to-head records against all opponents."""
         try:
             # Get all games the player participated in
-            player_results = self.db.query(GamePlayerResult).filter(
-                GamePlayerResult.player_profile_id == player_id
-            ).all()
+            player_results = (
+                self.db.query(GamePlayerResult).filter(GamePlayerResult.player_profile_id == player_id).all()
+            )
 
             player_games = {r.game_record_id: r for r in player_results}
             game_ids = list(player_games.keys())
@@ -687,22 +750,28 @@ class StatisticsService:
                 return {}
 
             # Get all opponents from those games
-            opponent_results = self.db.query(GamePlayerResult).filter(
-                and_(
-                    GamePlayerResult.game_record_id.in_(game_ids),
-                    GamePlayerResult.player_profile_id != player_id
+            opponent_results = (
+                self.db.query(GamePlayerResult)
+                .filter(
+                    and_(
+                        GamePlayerResult.game_record_id.in_(game_ids),
+                        GamePlayerResult.player_profile_id != player_id,
+                    )
                 )
-            ).all()
+                .all()
+            )
 
             # Group opponent results by player
-            opponents_data: Dict[int, Dict[str, Any]] = defaultdict(lambda: {
-                "name": "",
-                "wins": 0,
-                "losses": 0,
-                "ties": 0,
-                "games_together": 0,
-                "earnings_diff": 0.0
-            })
+            opponents_data: Dict[int, Dict[str, Any]] = defaultdict(
+                lambda: {
+                    "name": "",
+                    "wins": 0,
+                    "losses": 0,
+                    "ties": 0,
+                    "games_together": 0,
+                    "earnings_diff": 0.0,
+                }
+            )
 
             for opp_result in opponent_results:
                 opp_id = int(opp_result.player_profile_id)
@@ -720,9 +789,7 @@ class StatisticsService:
                     else:
                         opponents_data[opp_id]["ties"] += 1
 
-                    opponents_data[opp_id]["earnings_diff"] += (
-                        player_result.total_earnings - opp_result.total_earnings
-                    )
+                    opponents_data[opp_id]["earnings_diff"] += player_result.total_earnings - opp_result.total_earnings
 
             # Format results
             result = {}
@@ -734,8 +801,8 @@ class StatisticsService:
                     "wins": data["wins"],
                     "losses": data["losses"],
                     "ties": data["ties"],
-                    "win_rate": (data["wins"] / total_games) * 100 if total_games > 0 else 0,
-                    "earnings_differential": round(data["earnings_diff"], 2)
+                    "win_rate": ((data["wins"] / total_games) * 100 if total_games > 0 else 0),
+                    "earnings_differential": round(data["earnings_diff"], 2),
                 }
 
             return result
@@ -748,9 +815,13 @@ class StatisticsService:
         """Get detailed streak analysis for a player."""
         try:
             # Get recent game results ordered by date
-            results = self.db.query(GamePlayerResult).filter(
-                GamePlayerResult.player_profile_id == player_id
-            ).order_by(desc(GamePlayerResult.created_at)).limit(50).all()
+            results = (
+                self.db.query(GamePlayerResult)
+                .filter(GamePlayerResult.player_profile_id == player_id)
+                .order_by(desc(GamePlayerResult.created_at))
+                .limit(50)
+                .all()
+            )
 
             if not results:
                 return {"status": "no_games"}
@@ -791,12 +862,12 @@ class StatisticsService:
                 "status": "available",
                 "current_streak": {
                     "type": current_streak_type,
-                    "count": current_streak_count
+                    "count": current_streak_count,
                 },
                 "best_win_streak": best_win_streak,
                 "worst_loss_streak": worst_loss_streak,
                 "games_analyzed": len(results),
-                "recent_form": self._calculate_recent_form_string(results[:5])
+                "recent_form": self._calculate_recent_form_string(results[:5]),
             }
 
         except Exception as e:
@@ -820,34 +891,34 @@ class StatisticsService:
     def get_special_event_analytics(self, player_id: int) -> Dict[str, Any]:
         """Get analytics for special events (ping pong, invisible aardvark, etc.)."""
         try:
-            stats = self.db.query(PlayerStatistics).filter(
-                PlayerStatistics.player_id == player_id
-            ).first()
+            stats = self.db.query(PlayerStatistics).filter(PlayerStatistics.player_id == player_id).first()
 
             if not stats:
                 return {"status": "no_data"}
 
             # Calculate success rates for each special event
             ping_pong_rate = (int(stats.ping_pong_wins or 0) / max(1, int(stats.ping_pong_count or 0))) * 100
-            invisible_aardvark_rate = (int(stats.invisible_aardvark_wins or 0) / max(1, int(stats.invisible_aardvark_appearances or 0))) * 100
+            invisible_aardvark_rate = (
+                int(stats.invisible_aardvark_wins or 0) / max(1, int(stats.invisible_aardvark_appearances or 0))
+            ) * 100
             duncan_rate = (int(stats.duncan_wins or 0) / max(1, int(stats.duncan_attempts or 0))) * 100
             tunkarri_rate = (int(stats.tunkarri_wins or 0) / max(1, int(stats.tunkarri_attempts or 0))) * 100
             big_dick_rate = (int(stats.big_dick_wins or 0) / max(1, int(stats.big_dick_attempts or 0))) * 100
 
             total_special_events = (
-                int(stats.ping_pong_count or 0) +
-                int(stats.invisible_aardvark_appearances or 0) +
-                int(stats.duncan_attempts or 0) +
-                int(stats.tunkarri_attempts or 0) +
-                int(stats.big_dick_attempts or 0)
+                int(stats.ping_pong_count or 0)
+                + int(stats.invisible_aardvark_appearances or 0)
+                + int(stats.duncan_attempts or 0)
+                + int(stats.tunkarri_attempts or 0)
+                + int(stats.big_dick_attempts or 0)
             )
 
             total_special_wins = (
-                int(stats.ping_pong_wins or 0) +
-                int(stats.invisible_aardvark_wins or 0) +
-                int(stats.duncan_wins or 0) +
-                int(stats.tunkarri_wins or 0) +
-                int(stats.big_dick_wins or 0)
+                int(stats.ping_pong_wins or 0)
+                + int(stats.invisible_aardvark_wins or 0)
+                + int(stats.duncan_wins or 0)
+                + int(stats.tunkarri_wins or 0)
+                + int(stats.big_dick_wins or 0)
             )
 
             return {
@@ -855,33 +926,33 @@ class StatisticsService:
                 "ping_pong": {
                     "count": int(stats.ping_pong_count or 0),
                     "wins": int(stats.ping_pong_wins or 0),
-                    "success_rate": round(ping_pong_rate, 1)
+                    "success_rate": round(ping_pong_rate, 1),
                 },
                 "invisible_aardvark": {
                     "appearances": int(stats.invisible_aardvark_appearances or 0),
                     "wins": int(stats.invisible_aardvark_wins or 0),
-                    "success_rate": round(invisible_aardvark_rate, 1)
+                    "success_rate": round(invisible_aardvark_rate, 1),
                 },
                 "duncan": {
                     "attempts": int(stats.duncan_attempts or 0),
                     "wins": int(stats.duncan_wins or 0),
-                    "success_rate": round(duncan_rate, 1)
+                    "success_rate": round(duncan_rate, 1),
                 },
                 "tunkarri": {
                     "attempts": int(stats.tunkarri_attempts or 0),
                     "wins": int(stats.tunkarri_wins or 0),
-                    "success_rate": round(tunkarri_rate, 1)
+                    "success_rate": round(tunkarri_rate, 1),
                 },
                 "big_dick": {
                     "attempts": int(stats.big_dick_attempts or 0),
                     "wins": int(stats.big_dick_wins or 0),
-                    "success_rate": round(big_dick_rate, 1)
+                    "success_rate": round(big_dick_rate, 1),
                 },
                 "totals": {
                     "total_events": total_special_events,
                     "total_wins": total_special_wins,
-                    "overall_success_rate": round((total_special_wins / max(1, total_special_events)) * 100, 1)
-                }
+                    "overall_success_rate": round((total_special_wins / max(1, total_special_events)) * 100, 1),
+                },
             }
 
         except Exception as e:
@@ -891,9 +962,7 @@ class StatisticsService:
     def get_score_performance_analytics(self, player_id: int) -> Dict[str, Any]:
         """Get detailed score performance analytics."""
         try:
-            stats = self.db.query(PlayerStatistics).filter(
-                PlayerStatistics.player_id == player_id
-            ).first()
+            stats = self.db.query(PlayerStatistics).filter(PlayerStatistics.player_id == player_id).first()
 
             if not stats:
                 return {"status": "no_data"}
@@ -919,7 +988,7 @@ class StatisticsService:
                     "pars": pars,
                     "bogeys": bogeys,
                     "double_bogeys": double_bogeys,
-                    "worse_than_double": worse
+                    "worse_than_double": worse,
                 },
                 "rates": {
                     "eagle_rate": round((eagles / max(1, total_holes)) * 100, 2),
@@ -927,7 +996,7 @@ class StatisticsService:
                     "par_rate": round((pars / max(1, total_holes)) * 100, 2),
                     "bogey_rate": round((bogeys / max(1, total_holes)) * 100, 2),
                     "double_bogey_rate": round((double_bogeys / max(1, total_holes)) * 100, 2),
-                    "worse_rate": round((worse / max(1, total_holes)) * 100, 2)
+                    "worse_rate": round((worse / max(1, total_holes)) * 100, 2),
                 },
                 "summary": {
                     "total_holes": total_holes,
@@ -936,8 +1005,8 @@ class StatisticsService:
                     "under_par": under_par,
                     "under_par_rate": round((under_par / max(1, total_holes)) * 100, 2),
                     "over_par": over_par,
-                    "over_par_rate": round((over_par / max(1, total_holes)) * 100, 2)
-                }
+                    "over_par_rate": round((over_par / max(1, total_holes)) * 100, 2),
+                },
             }
 
         except Exception as e:

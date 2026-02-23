@@ -8,7 +8,7 @@ Rate limited to prevent excessive API calls.
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
@@ -24,7 +24,10 @@ logger = logging.getLogger("app.routers.sheet_integration")
 
 
 def safe_float(
-    value: Any, default: float = 0.0, min_val: Optional[float] = None, max_val: Optional[float] = None
+    value: Any,
+    default: float = 0.0,
+    min_val: Optional[float] = None,
+    max_val: Optional[float] = None,
 ) -> float:
     """
     Safely convert value to float with bounds checking.
@@ -57,7 +60,12 @@ def safe_float(
         return default
 
 
-def safe_int(value: Any, default: int = 0, min_val: Optional[int] = None, max_val: Optional[int] = None) -> int:
+def safe_int(
+    value: Any,
+    default: int = 0,
+    min_val: Optional[int] = None,
+    max_val: Optional[int] = None,
+) -> int:
     """
     Safely convert value to int with bounds checking.
 
@@ -148,7 +156,11 @@ async def create_leaderboard_from_sheet(sheet_data: List[Dict], db: Session = De
         leaderboard_service = LeaderboardService(db)
         leaderboard = leaderboard_service.create_from_sheet_data(sheet_data)  # type: ignore[attr-defined]
 
-        return {"leaderboard": leaderboard, "player_count": len(leaderboard), "created_at": datetime.now().isoformat()}
+        return {
+            "leaderboard": leaderboard,
+            "player_count": len(leaderboard),
+            "created_at": datetime.now().isoformat(),
+        }
 
     except Exception as e:
         logger.error(f"Error creating leaderboard from sheet: {e}")
@@ -210,7 +222,9 @@ def export_current_data_for_sheet(
 
 @router.post("/sync-wgp-sheet")
 async def sync_wgp_sheet_data(
-    request: Dict[str, str], db: Session = Depends(get_db), x_scheduled_job: Optional[str] = Header(None)
+    request: Dict[str, str],
+    db: Session = Depends(get_db),
+    x_scheduled_job: Optional[str] = Header(None),
 ) -> Dict[str, Any]:
     """
     Sync Wolf Goat Pig specific sheet data format.
@@ -319,7 +333,13 @@ async def sync_wgp_sheet_data(
                 # Stop if we hit summary sections (like "Most Rounds Played")
                 if any(
                     keyword in player_name.lower()
-                    for keyword in ["most rounds", "top 5", "best score", "worst score", "group size"]
+                    for keyword in [
+                        "most rounds",
+                        "top 5",
+                        "best score",
+                        "worst score",
+                        "group size",
+                    ]
                 ):
                     logger.info(f"Stopping at summary section: {player_name}")
                     break
@@ -355,7 +375,6 @@ async def sync_wgp_sheet_data(
                         )
                     except (ValueError, IndexError) as e:
                         logger.warning(f"Error parsing score for {player_name}: {e}")
-                        pass
 
                 # Average column
                 if "average" in header_map and header_map["average"] < len(values):
@@ -366,7 +385,6 @@ async def sync_wgp_sheet_data(
                             logger.debug(f"Set {player_name} average to {avg_value}")
                     except (ValueError, IndexError) as e:
                         logger.warning(f"Error parsing average for {player_name}: {e}")
-                        pass
 
                 # Count rounds/games played (increment for each row)
                 player_stats[player_name]["rounds"] += 1
@@ -389,7 +407,6 @@ async def sync_wgp_sheet_data(
                             logger.debug(f"Set {player_name} QB to {qb_value}")
                     except (ValueError, IndexError) as e:
                         logger.warning(f"Error parsing QB for {player_name}: {e}")
-                        pass
 
                 # Log successful player data extraction
                 if player_stats[player_name]["quarters"] != 0 or player_stats[player_name]["rounds"] > 0:
@@ -584,7 +601,12 @@ async def fetch_google_sheet(request: Dict[str, str]) -> Dict[str, Any]:
                         row[header] = values[i]
                 data.append(row)
 
-        return {"headers": headers, "data": data, "row_count": len(data), "fetched_at": datetime.now().isoformat()}
+        return {
+            "headers": headers,
+            "data": data,
+            "row_count": len(data),
+            "fetched_at": datetime.now().isoformat(),
+        }
 
     except httpx.RequestError as e:
         logger.error(f"Error fetching Google Sheet: {e}")

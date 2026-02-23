@@ -6,8 +6,8 @@ and creates individual Hole records for each hole.
 """
 
 import logging
+from typing import Any, Dict, Optional
 
-from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
 
 from ..database import SessionLocal
@@ -63,7 +63,7 @@ def migrate_holes_from_json(db: Optional[Session] = None) -> Dict[str, Any]:
                     yards=hole_data.get("yards"),
                     handicap=hole_data.get("handicap"),
                     description=hole_data.get("description"),
-                    tee_box=hole_data.get("tee_box", "regular")
+                    tee_box=hole_data.get("tee_box", "regular"),
                 )
                 db.add(hole)
                 holes_created += 1
@@ -77,16 +77,13 @@ def migrate_holes_from_json(db: Optional[Session] = None) -> Dict[str, Any]:
         return {
             "status": "success",
             "courses_migrated": courses_migrated,
-            "holes_created": holes_created
+            "holes_created": holes_created,
         }
 
     except Exception as e:
         db.rollback()
         logger.error(f"Migration failed: {e}")
-        return {
-            "status": "error",
-            "message": str(e)
-        }
+        return {"status": "error", "message": str(e)}
     finally:
         if close_db:
             db.close()

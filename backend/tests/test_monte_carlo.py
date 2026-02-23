@@ -4,17 +4,8 @@ Unit tests for MonteCarloEngine
 Tests Monte Carlo simulation for Wolf Goat Pig betting odds calculation.
 """
 
-import pytest
-from app.services.monte_carlo import (
-    MonteCarloEngine,
-    SimulationParams,
-    SimulationResult
-)
-from app.services.odds_calculator import (
-    PlayerState,
-    HoleState,
-    TeamConfiguration
-)
+from app.services.monte_carlo import MonteCarloEngine, SimulationParams, SimulationResult
+from app.services.odds_calculator import HoleState, PlayerState, TeamConfiguration
 
 
 class TestSimulationParams:
@@ -29,11 +20,7 @@ class TestSimulationParams:
 
     def test_custom_params(self):
         """Test custom simulation parameters"""
-        params = SimulationParams(
-            num_simulations=5000,
-            confidence_level=0.90,
-            use_parallel=False
-        )
+        params = SimulationParams(num_simulations=5000, confidence_level=0.90, use_parallel=False)
         assert params.num_simulations == 5000
         assert params.confidence_level == 0.90
         assert params.use_parallel is False
@@ -63,7 +50,7 @@ class TestMonteCarloEngine:
             PlayerState(id="p1", name="Player 1", handicap=10.0),
             PlayerState(id="p2", name="Player 2", handicap=15.0),
             PlayerState(id="p3", name="Player 3", handicap=20.0),
-            PlayerState(id="p4", name="Player 4", handicap=12.0)
+            PlayerState(id="p4", name="Player 4", handicap=12.0),
         ]
         hole = HoleState(hole_number=1, par=4, teams=TeamConfiguration.PENDING)
 
@@ -80,8 +67,7 @@ class TestMonteCarloEngine:
         assert result1.num_simulations_run == result2.num_simulations_run
         # Win probabilities should be very close
         for player_id in result1.win_probabilities:
-            assert abs(result1.win_probabilities[player_id] -
-                      result2.win_probabilities[player_id]) < 0.01
+            assert abs(result1.win_probabilities[player_id] - result2.win_probabilities[player_id]) < 0.01
 
 
 class TestShotSuccessProbability:
@@ -91,10 +77,7 @@ class TestShotSuccessProbability:
         """Test short distances have high success probability"""
         engine = MonteCarloEngine()
         prob = engine._calculate_shot_success_probability(
-            handicap=10.0,
-            distance=10.0,
-            lie_type="green",
-            hole_difficulty=3.0
+            handicap=10.0, distance=10.0, lie_type="green", hole_difficulty=3.0
         )
         assert prob > 0.7  # Short putt should be high probability
 
@@ -102,10 +85,7 @@ class TestShotSuccessProbability:
         """Test long distances have lower success probability"""
         engine = MonteCarloEngine()
         prob = engine._calculate_shot_success_probability(
-            handicap=10.0,
-            distance=200.0,
-            lie_type="fairway",
-            hole_difficulty=3.0
+            handicap=10.0, distance=200.0, lie_type="fairway", hole_difficulty=3.0
         )
         assert prob < 0.5  # Long shot should be lower probability
 
@@ -114,17 +94,11 @@ class TestShotSuccessProbability:
         engine = MonteCarloEngine()
 
         prob_scratch = engine._calculate_shot_success_probability(
-            handicap=0.0,
-            distance=150.0,
-            lie_type="fairway",
-            hole_difficulty=3.0
+            handicap=0.0, distance=150.0, lie_type="fairway", hole_difficulty=3.0
         )
 
         prob_high_hcp = engine._calculate_shot_success_probability(
-            handicap=25.0,
-            distance=150.0,
-            lie_type="fairway",
-            hole_difficulty=3.0
+            handicap=25.0, distance=150.0, lie_type="fairway", hole_difficulty=3.0
         )
 
         assert prob_scratch > prob_high_hcp
@@ -134,17 +108,11 @@ class TestShotSuccessProbability:
         engine = MonteCarloEngine()
 
         prob_fairway = engine._calculate_shot_success_probability(
-            handicap=15.0,
-            distance=100.0,
-            lie_type="fairway",
-            hole_difficulty=3.0
+            handicap=15.0, distance=100.0, lie_type="fairway", hole_difficulty=3.0
         )
 
         prob_rough = engine._calculate_shot_success_probability(
-            handicap=15.0,
-            distance=100.0,
-            lie_type="deep_rough",
-            hole_difficulty=3.0
+            handicap=15.0, distance=100.0, lie_type="deep_rough", hole_difficulty=3.0
         )
 
         assert prob_fairway > prob_rough
@@ -159,10 +127,20 @@ class TestHoleSimulation:
         engine.set_seed(42)
 
         players = [
-            PlayerState(id="p1", name="Player 1", handicap=10.0,
-                       distance_to_pin=400.0, lie_type="fairway"),
-            PlayerState(id="p2", name="Player 2", handicap=15.0,
-                       distance_to_pin=400.0, lie_type="fairway")
+            PlayerState(
+                id="p1",
+                name="Player 1",
+                handicap=10.0,
+                distance_to_pin=400.0,
+                lie_type="fairway",
+            ),
+            PlayerState(
+                id="p2",
+                name="Player 2",
+                handicap=15.0,
+                distance_to_pin=400.0,
+                lie_type="fairway",
+            ),
         ]
         hole = HoleState(hole_number=1, par=4)
 
@@ -182,7 +160,7 @@ class TestHoleSimulation:
 
         players = [
             PlayerState(id="p1", name="Player 1", handicap=10.0),
-            PlayerState(id="p2", name="Player 2", handicap=20.0)
+            PlayerState(id="p2", name="Player 2", handicap=20.0),
         ]
         hole = HoleState(hole_number=1, par=4, teams=TeamConfiguration.PENDING)
 
@@ -207,7 +185,7 @@ class TestTeamConfigurations:
             PlayerState(id="captain", name="Captain", handicap=10.0, is_captain=True),
             PlayerState(id="p2", name="Player 2", handicap=15.0),
             PlayerState(id="p3", name="Player 3", handicap=20.0),
-            PlayerState(id="p4", name="Player 4", handicap=18.0)
+            PlayerState(id="p4", name="Player 4", handicap=18.0),
         ]
         hole = HoleState(hole_number=1, par=4, teams=TeamConfiguration.SOLO)
 
@@ -226,7 +204,7 @@ class TestTeamConfigurations:
             PlayerState(id="p1", name="Player 1", handicap=10.0, team_id="team1"),
             PlayerState(id="p2", name="Player 2", handicap=15.0, team_id="team1"),
             PlayerState(id="p3", name="Player 3", handicap=20.0, team_id="team2"),
-            PlayerState(id="p4", name="Player 4", handicap=18.0, team_id="team2")
+            PlayerState(id="p4", name="Player 4", handicap=18.0, team_id="team2"),
         ]
         hole = HoleState(hole_number=1, par=4, teams=TeamConfiguration.PARTNERS)
 
@@ -243,7 +221,7 @@ class TestParallelSimulation:
         """Test parallel gives similar results to sequential"""
         players = [
             PlayerState(id="p1", name="Player 1", handicap=10.0),
-            PlayerState(id="p2", name="Player 2", handicap=15.0)
+            PlayerState(id="p2", name="Player 2", handicap=15.0),
         ]
         hole = HoleState(hole_number=1, par=4, teams=TeamConfiguration.PENDING)
 
@@ -262,8 +240,7 @@ class TestParallelSimulation:
         # Results should be similar (within 10% due to parallel execution differences)
         for player_id in result_seq.win_probabilities:
             if player_id in result_par.win_probabilities:
-                diff = abs(result_seq.win_probabilities[player_id] -
-                          result_par.win_probabilities[player_id])
+                diff = abs(result_seq.win_probabilities[player_id] - result_par.win_probabilities[player_id])
                 assert diff < 0.15  # Allow 15% difference
 
 
@@ -277,7 +254,7 @@ class TestConfidenceIntervals:
 
         players = [
             PlayerState(id="p1", name="Player 1", handicap=10.0),
-            PlayerState(id="p2", name="Player 2", handicap=15.0)
+            PlayerState(id="p2", name="Player 2", handicap=15.0),
         ]
         hole = HoleState(hole_number=1, par=4, teams=TeamConfiguration.PENDING)
 
@@ -299,7 +276,7 @@ class TestDetailedOutcomes:
 
         players = [
             PlayerState(id="p1", name="Player 1", handicap=10.0),
-            PlayerState(id="p2", name="Player 2", handicap=15.0)
+            PlayerState(id="p2", name="Player 2", handicap=15.0),
         ]
         hole = HoleState(hole_number=1, par=4, teams=TeamConfiguration.PENDING)
 
@@ -319,7 +296,7 @@ class TestFactoryFunction:
 
         players = [
             PlayerState(id="p1", name="Player 1", handicap=10.0),
-            PlayerState(id="p2", name="Player 2", handicap=15.0)
+            PlayerState(id="p2", name="Player 2", handicap=15.0),
         ]
         hole = HoleState(hole_number=1, par=4, teams=TeamConfiguration.PENDING)
 

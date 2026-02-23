@@ -353,7 +353,6 @@ const SimpleScorekeeper = ({
     setShowUsageStats,
     // eslint-disable-next-line no-unused-vars -- UI state, exposed for advanced betting accordion
     showAdvancedBetting,
-    setShowAdvancedBetting,
     showShotAnalysis,
     setShowShotAnalysis,
     showBettingOdds,
@@ -372,12 +371,8 @@ const SimpleScorekeeper = ({
   } = ui;
 
   // Offline-first sync hook
-  // eslint-disable-next-line no-unused-vars -- sync state exposed for future offline indicator UI
   const {
     syncHole,
-    pendingCount,
-    isOnline,
-    lastError: syncError,
   } = useHoleSync(gameId);
   const [localPlayers, setLocalPlayers] = useState(players); // Local copy of players for immediate UI updates
   const [courseData, setCourseData] = useState(null); // Course data with hole information

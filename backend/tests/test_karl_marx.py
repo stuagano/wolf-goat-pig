@@ -1,6 +1,7 @@
 """Test Karl Marx Rule - uneven distribution favors player furthest down"""
-import pytest
+
 from fastapi.testclient import TestClient
+
 from app.main import app
 
 client = TestClient(app)
@@ -16,16 +17,29 @@ def test_karl_marx_5man_uneven_loss():
 
     # Simulate a few holes to establish standings
     # Hole 1: p1 & p2 win, p3 & p4 & p5 lose (3v2)
-    client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 1,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "teams": {"type": "partners", "team1": [player_ids[0], player_ids[1]], "team2": [player_ids[2], player_ids[3], player_ids[4]]},
-        "final_wager": 2,
-        "winner": "team1",
-        "scores": {player_ids[0]: 4, player_ids[1]: 4, player_ids[2]: 5, player_ids[3]: 6, player_ids[4]: 6},
-        "hole_par": 4
-    })
+    client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 1,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "teams": {
+                "type": "partners",
+                "team1": [player_ids[0], player_ids[1]],
+                "team2": [player_ids[2], player_ids[3], player_ids[4]],
+            },
+            "final_wager": 2,
+            "winner": "team1",
+            "scores": {
+                player_ids[0]: 4,
+                player_ids[1]: 4,
+                player_ids[2]: 5,
+                player_ids[3]: 6,
+                player_ids[4]: 6,
+            },
+            "hole_par": 4,
+        },
+    )
 
     # Get current standings to verify Goat
     state_response = client.get(f"/games/{game_id}/state")
@@ -33,9 +47,9 @@ def test_karl_marx_5man_uneven_loss():
 
     players_state = game_state.get("players", [])
     # Find p3 and p4 in the players state
-    p3_state = next(p for p in players_state if p["id"] == player_ids[2])
-    p4_state = next(p for p in players_state if p["id"] == player_ids[3])
-    p5_state = next(p for p in players_state if p["id"] == player_ids[4])
+    next(p for p in players_state if p["id"] == player_ids[2])
+    next(p for p in players_state if p["id"] == player_ids[3])
+    next(p for p in players_state if p["id"] == player_ids[4])
 
     # After hole 1:
     # - Team1 wins: p1 and p2 each get 2Q = 4Q total
@@ -49,32 +63,63 @@ def test_karl_marx_5man_uneven_loss():
 
     # Hole 2: Make p3 go further down
     # Rotation: [p3, p4, p5, p1, p2] so p3 is captain (index 0)
-    client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 2,
-        "rotation_order": player_ids[2:] + player_ids[:2],  # [p3, p4, p5, p1, p2]
-        "captain_index": 0,  # p3 is captain
-        "teams": {"type": "solo", "captain": player_ids[2], "opponents": [player_ids[3], player_ids[4], player_ids[0], player_ids[1]]},
-        "final_wager": 1,
-        "winner": "opponents",
-        "scores": {player_ids[2]: 8, player_ids[3]: 5, player_ids[4]: 5, player_ids[0]: 4, player_ids[1]: 4},
-        "hole_par": 4
-    })
+    client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 2,
+            "rotation_order": player_ids[2:] + player_ids[:2],  # [p3, p4, p5, p1, p2]
+            "captain_index": 0,  # p3 is captain
+            "teams": {
+                "type": "solo",
+                "captain": player_ids[2],
+                "opponents": [
+                    player_ids[3],
+                    player_ids[4],
+                    player_ids[0],
+                    player_ids[1],
+                ],
+            },
+            "final_wager": 1,
+            "winner": "opponents",
+            "scores": {
+                player_ids[2]: 8,
+                player_ids[3]: 5,
+                player_ids[4]: 5,
+                player_ids[0]: 4,
+                player_ids[1]: 4,
+            },
+            "hole_par": 4,
+        },
+    )
 
     # Now p3 is further down: -2Q (from hole 1) - 4Q (from hole 2 solo loss) = -6Q
     # p4 and p5 are at: -2Q each
 
     # Hole 3: 2v3 teams, with p3 & p4 on losing team
     # This will trigger Karl Marx: p3 (Goat at -6Q) should lose less than p4 (at -2Q)
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 3,
-        "rotation_order": player_ids[2:] + player_ids[:2],
-        "captain_index": 0,
-        "teams": {"type": "partners", "team1": [player_ids[2], player_ids[3]], "team2": [player_ids[4], player_ids[0], player_ids[1]]},
-        "final_wager": 1,
-        "winner": "team2",
-        "scores": {player_ids[2]: 6, player_ids[3]: 6, player_ids[4]: 4, player_ids[0]: 4, player_ids[1]: 4},
-        "hole_par": 4
-    })
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 3,
+            "rotation_order": player_ids[2:] + player_ids[:2],
+            "captain_index": 0,
+            "teams": {
+                "type": "partners",
+                "team1": [player_ids[2], player_ids[3]],
+                "team2": [player_ids[4], player_ids[0], player_ids[1]],
+            },
+            "final_wager": 1,
+            "winner": "team2",
+            "scores": {
+                player_ids[2]: 6,
+                player_ids[3]: 6,
+                player_ids[4]: 4,
+                player_ids[0]: 4,
+                player_ids[1]: 4,
+            },
+            "hole_par": 4,
+        },
+    )
 
     assert response.status_code == 200
     result = response.json()["hole_result"]
@@ -96,33 +141,64 @@ def test_karl_marx_5man_uneven_win():
 
     # Simulate holes to establish p1 as Goat
     # Hole 1: p1 goes solo and loses
-    client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 1,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "teams": {"type": "solo", "captain": player_ids[0], "opponents": [player_ids[1], player_ids[2], player_ids[3], player_ids[4]]},
-        "final_wager": 2,
-        "winner": "opponents",
-        "scores": {player_ids[0]: 8, player_ids[1]: 4, player_ids[2]: 4, player_ids[3]: 5, player_ids[4]: 5},
-        "hole_par": 4
-    })
+    client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 1,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "teams": {
+                "type": "solo",
+                "captain": player_ids[0],
+                "opponents": [
+                    player_ids[1],
+                    player_ids[2],
+                    player_ids[3],
+                    player_ids[4],
+                ],
+            },
+            "final_wager": 2,
+            "winner": "opponents",
+            "scores": {
+                player_ids[0]: 8,
+                player_ids[1]: 4,
+                player_ids[2]: 4,
+                player_ids[3]: 5,
+                player_ids[4]: 5,
+            },
+            "hole_par": 4,
+        },
+    )
 
     # Now p1 is Goat at -8Q, others are at +2Q each
 
     # Hole 2: p1 & p2 win on 2v3 team (uneven split)
     # Rotation: [p1, p2, p3, p4, p5] so p1 is captain, p5 is Aardvark
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 2,
-        "rotation_order": player_ids,  # [p1, p2, p3, p4, p5]
-        "captain_index": 0,  # p1 is captain
-        "teams": {"type": "partners", "team1": [player_ids[0], player_ids[1]], "team2": [player_ids[2], player_ids[3], player_ids[4]]},
-        "aardvark_requested_team": "team2",  # Aardvark joins team2
-        "aardvark_tossed": False,
-        "final_wager": 1,
-        "winner": "team1",
-        "scores": {player_ids[0]: 4, player_ids[1]: 4, player_ids[2]: 5, player_ids[3]: 6, player_ids[4]: 6},
-        "hole_par": 4
-    })
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 2,
+            "rotation_order": player_ids,  # [p1, p2, p3, p4, p5]
+            "captain_index": 0,  # p1 is captain
+            "teams": {
+                "type": "partners",
+                "team1": [player_ids[0], player_ids[1]],
+                "team2": [player_ids[2], player_ids[3], player_ids[4]],
+            },
+            "aardvark_requested_team": "team2",  # Aardvark joins team2
+            "aardvark_tossed": False,
+            "final_wager": 1,
+            "winner": "team1",
+            "scores": {
+                player_ids[0]: 4,
+                player_ids[1]: 4,
+                player_ids[2]: 5,
+                player_ids[3]: 6,
+                player_ids[4]: 6,
+            },
+            "hole_par": 4,
+        },
+    )
 
     assert response.status_code == 200
     result = response.json()["hole_result"]
@@ -143,16 +219,29 @@ def test_karl_marx_hanging_chad():
     player_ids = [p["id"] for p in players]
 
     # Hole 1: 2v3 with p1 & p2 on team1 (both start at 0 = tied)
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 1,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "teams": {"type": "partners", "team1": [player_ids[0], player_ids[1]], "team2": [player_ids[2], player_ids[3], player_ids[4]]},
-        "final_wager": 1,
-        "winner": "team2",
-        "scores": {player_ids[0]: 5, player_ids[1]: 5, player_ids[2]: 4, player_ids[3]: 4, player_ids[4]: 4},
-        "hole_par": 4
-    })
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 1,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "teams": {
+                "type": "partners",
+                "team1": [player_ids[0], player_ids[1]],
+                "team2": [player_ids[2], player_ids[3], player_ids[4]],
+            },
+            "final_wager": 1,
+            "winner": "team2",
+            "scores": {
+                player_ids[0]: 5,
+                player_ids[1]: 5,
+                player_ids[2]: 4,
+                player_ids[3]: 4,
+                player_ids[4]: 4,
+            },
+            "hole_par": 4,
+        },
+    )
 
     assert response.status_code == 200
     result = response.json()["hole_result"]
@@ -176,30 +265,54 @@ def test_karl_marx_not_applied_in_4man():
     player_ids = [p["id"] for p in players]
 
     # Make p1 the Goat
-    client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 1,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "teams": {"type": "solo", "captain": player_ids[0], "opponents": [player_ids[1], player_ids[2], player_ids[3]]},
-        "final_wager": 2,
-        "winner": "opponents",
-        "scores": {player_ids[0]: 8, player_ids[1]: 4, player_ids[2]: 4, player_ids[3]: 4},
-        "hole_par": 4
-    })
+    client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 1,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "teams": {
+                "type": "solo",
+                "captain": player_ids[0],
+                "opponents": [player_ids[1], player_ids[2], player_ids[3]],
+            },
+            "final_wager": 2,
+            "winner": "opponents",
+            "scores": {
+                player_ids[0]: 8,
+                player_ids[1]: 4,
+                player_ids[2]: 4,
+                player_ids[3]: 4,
+            },
+            "hole_par": 4,
+        },
+    )
 
     # Now p1 is Goat at -6Q
 
     # Hole 2: p1 & p2 partners (2v2)
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 2,
-        "rotation_order": player_ids[1:] + [player_ids[0]],
-        "captain_index": 0,
-        "teams": {"type": "partners", "team1": [player_ids[0], player_ids[1]], "team2": [player_ids[2], player_ids[3]]},
-        "final_wager": 2,
-        "winner": "team2",
-        "scores": {player_ids[0]: 5, player_ids[1]: 5, player_ids[2]: 4, player_ids[3]: 4},
-        "hole_par": 4
-    })
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 2,
+            "rotation_order": player_ids[1:] + [player_ids[0]],
+            "captain_index": 0,
+            "teams": {
+                "type": "partners",
+                "team1": [player_ids[0], player_ids[1]],
+                "team2": [player_ids[2], player_ids[3]],
+            },
+            "final_wager": 2,
+            "winner": "team2",
+            "scores": {
+                player_ids[0]: 5,
+                player_ids[1]: 5,
+                player_ids[2]: 4,
+                player_ids[3]: 4,
+            },
+            "hole_par": 4,
+        },
+    )
 
     assert response.status_code == 200
     result = response.json()["hole_result"]

@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 @dataclass
 class ShotStateEntry:
     """Data class for tracking shot state entries"""
+
     player_id: str
     shot_result: Dict[str, Any]
     probabilities: Optional[Dict[str, Any]] = None
@@ -16,6 +17,7 @@ class ShotState:
     Manages the chronological shot sequence during hole play.
     Extracted from GameState to follow single responsibility principle.
     """
+
     phase: str = "tee_shots"
     current_player_index: int = 0
     completed_shots: List[ShotStateEntry] = field(default_factory=list)
@@ -36,14 +38,14 @@ class ShotState:
         self.current_player_index += 1
         return self.current_player_index < self._get_phase_player_count()
 
-    def add_completed_shot(self, player_id: str, shot_result: Dict[str, Any],
-                          probabilities: Optional[Dict[str, Any]] = None) -> None:
+    def add_completed_shot(
+        self,
+        player_id: str,
+        shot_result: Dict[str, Any],
+        probabilities: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """Add a completed shot to the sequence"""
-        shot = ShotStateEntry(
-            player_id=player_id,
-            shot_result=shot_result,
-            probabilities=probabilities
-        )
+        shot = ShotStateEntry(player_id=player_id, shot_result=shot_result, probabilities=probabilities)
         self.completed_shots.append(shot)
 
     def has_next_shot(self, hitting_order: List[str]) -> bool:
@@ -80,12 +82,12 @@ class ShotState:
                 {
                     "player_id": shot.player_id,
                     "shot_result": shot.shot_result,
-                    "probabilities": shot.probabilities
+                    "probabilities": shot.probabilities,
                 }
                 for shot in self.completed_shots
             ],
             "next_player": self.get_current_player_id(hitting_order),
-            "pending_decisions": self.pending_decisions
+            "pending_decisions": self.pending_decisions,
         }
 
     def add_pending_decision(self, decision: Dict[str, Any]) -> None:
@@ -101,11 +103,13 @@ class ShotState:
         tee_shots = []
         for shot in self.completed_shots:
             if self.phase == "tee_shots" or shot.shot_result.get("shot_type") == "tee_shot":
-                tee_shots.append({
-                    "player_id": shot.player_id,
-                    "result": shot.shot_result,
-                    "probabilities": shot.probabilities
-                })
+                tee_shots.append(
+                    {
+                        "player_id": shot.player_id,
+                        "result": shot.shot_result,
+                        "probabilities": shot.probabilities,
+                    }
+                )
         return tee_shots
 
     def is_phase_complete(self, hitting_order: List[str]) -> bool:
@@ -147,11 +151,11 @@ class ShotState:
                 {
                     "player_id": shot.player_id,
                     "shot_result": shot.shot_result,
-                    "probabilities": shot.probabilities
+                    "probabilities": shot.probabilities,
                 }
                 for shot in self.completed_shots
             ],
-            "pending_decisions": self.pending_decisions
+            "pending_decisions": self.pending_decisions,
         }
 
     def from_dict(self, data: Dict[str, Any]) -> None:
@@ -166,12 +170,14 @@ class ShotState:
             shot = ShotStateEntry(
                 player_id=shot_data.get("player_id", ""),
                 shot_result=shot_data.get("shot_result", {}),
-                probabilities=shot_data.get("probabilities")
+                probabilities=shot_data.get("probabilities"),
             )
             self.completed_shots.append(shot)
 
     def __repr__(self) -> str:
-        return (f"ShotState(phase='{self.phase}', "
-                f"current_player_index={self.current_player_index}, "
-                f"completed_shots={len(self.completed_shots)}, "
-                f"pending_decisions={len(self.pending_decisions)})")
+        return (
+            f"ShotState(phase='{self.phase}', "
+            f"current_player_index={self.current_player_index}, "
+            f"completed_shots={len(self.completed_shots)}, "
+            f"pending_decisions={len(self.pending_decisions)})"
+        )

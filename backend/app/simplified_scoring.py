@@ -8,19 +8,22 @@ mechanics while reducing the serialization overhead.
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class SimpleHoleResult:
     """Simplified hole result with just essential data"""
+
     hole_number: int
     scores: Dict[str, int]  # player_id -> score
     wager: int
     team_type: str  # "solo" or "partners" - defaults to "partners" if None
     winners: List[str]
     points_awarded: Dict[str, int]  # player_id -> points change
+
 
 class SimplifiedScoring:
     """
@@ -33,17 +36,22 @@ class SimplifiedScoring:
         self.players = {p["id"]: {"name": p["name"], "points": 0} for p in players}
         self.hole_results: Dict[int, SimpleHoleResult] = {}
 
-    def enter_hole_scores(self, hole_number: int, scores: Dict[str, int],
-                         teams: Dict[str, Any], wager: int = 1) -> Dict[str, Any]:
+    def enter_hole_scores(
+        self,
+        hole_number: int,
+        scores: Dict[str, int],
+        teams: Dict[str, Any],
+        wager: int = 1,
+    ) -> Dict[str, Any]:
         """
         Simplified hole scoring that focuses on core mechanics.
-        
+
         Args:
             hole_number: Current hole number
             scores: Dict mapping player_id to their score for this hole
             teams: Team configuration for this hole
             wager: Wager amount (default 1)
-            
+
         Returns:
             Dict with scoring results and point changes
         """
@@ -72,7 +80,7 @@ class SimplifiedScoring:
                 wager=wager,
                 team_type=teams.get("type") or "partners",
                 winners=result.get("winners", []),
-                points_awarded=result["points_changes"]
+                points_awarded=result["points_changes"],
             )
             self.hole_results[hole_number] = hole_result
 
@@ -84,16 +92,15 @@ class SimplifiedScoring:
                 "hole_summary": {
                     "hole": hole_number,
                     "winners": [self.players[pid]["name"] for pid in result.get("winners", [])],
-                    "wager": wager
-                }
+                    "wager": wager,
+                },
             }
 
         except Exception as e:
             logger.error(f"Error in simplified hole scoring: {e}")
             return {"error": f"Scoring failed: {str(e)}"}
 
-    def _calculate_solo_points(self, scores: Dict[str, int], teams: Dict[str, Any],
-                              wager: int) -> Dict[str, Any]:
+    def _calculate_solo_points(self, scores: Dict[str, int], teams: Dict[str, Any], wager: int) -> Dict[str, Any]:
         """Calculate points for solo play (one vs all others)"""
         solo_player = teams.get("solo_player")
         if not solo_player or solo_player not in scores:
@@ -135,11 +142,10 @@ class SimplifiedScoring:
             "points_changes": points_changes,
             "winners": winners,
             "message": message,
-            "halved": len(winners) == 0
+            "halved": len(winners) == 0,
         }
 
-    def _calculate_partners_points(self, scores: Dict[str, int], teams: Dict[str, Any],
-                                  wager: int) -> Dict[str, Any]:
+    def _calculate_partners_points(self, scores: Dict[str, int], teams: Dict[str, Any], wager: int) -> Dict[str, Any]:
         """Calculate points for partner play (two teams of two)"""
         team1 = teams.get("team1", [])
         team2 = teams.get("team2", [])
@@ -180,7 +186,7 @@ class SimplifiedScoring:
             "points_changes": points_changes,
             "winners": winners,
             "message": message,
-            "halved": len(winners) == 0
+            "halved": len(winners) == 0,
         }
 
     def get_game_summary(self) -> Dict[str, Any]:
@@ -188,12 +194,12 @@ class SimplifiedScoring:
         return {
             "players": self.players,
             "holes_played": len(self.hole_results),
-            "last_hole_result": max(self.hole_results.keys()) if self.hole_results else None,
+            "last_hole_result": (max(self.hole_results.keys()) if self.hole_results else None),
             "leaderboard": sorted(
                 [(pid, p["name"], p["points"]) for pid, p in self.players.items()],
                 key=lambda x: x[2],  # Sort by points
-                reverse=True
-            )
+                reverse=True,
+            ),
         }
 
     def get_hole_history(self) -> List[Dict[str, Any]]:
@@ -201,12 +207,14 @@ class SimplifiedScoring:
         history = []
         for hole_num in sorted(self.hole_results.keys()):
             result = self.hole_results[hole_num]
-            history.append({
-                "hole": hole_num,
-                "scores": result.scores,
-                "team_type": result.team_type,
-                "wager": result.wager,
-                "winners": [self.players[pid]["name"] for pid in result.winners],
-                "points_awarded": result.points_awarded
-            })
+            history.append(
+                {
+                    "hole": hole_num,
+                    "scores": result.scores,
+                    "team_type": result.team_type,
+                    "wager": result.wager,
+                    "winners": [self.players[pid]["name"] for pid in result.winners],
+                    "points_awarded": result.points_awarded,
+                }
+            )
         return history

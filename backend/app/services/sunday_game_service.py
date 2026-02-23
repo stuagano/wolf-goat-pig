@@ -27,7 +27,7 @@ def _resolve_seed(explicit_seed: Optional[int]) -> Optional[int]:
         logger.warning(
             "Invalid %s value '%s'. Falling back to non-deterministic randomness.",
             SUNDAY_GAME_SEED_ENV,
-            env_value
+            env_value,
         )
         return None
 
@@ -41,12 +41,7 @@ def _build_rng(seed: Optional[int], salt: int = 0) -> Random:
     return Random(seed + salt)
 
 
-def generate_sunday_pairings(
-    players: List[Dict],
-    *,
-    num_rotations: int = 3,
-    seed: Optional[int] = None
-) -> Dict:
+def generate_sunday_pairings(players: List[Dict], *, num_rotations: int = 3, seed: Optional[int] = None) -> Dict:
     """Generate randomized Sunday pairings and select one rotation when multiple exist."""
     if len(players) < 4:
         logger.info("Sunday pairings requested with insufficient players: %s", len(players))
@@ -86,7 +81,7 @@ def generate_sunday_pairings(
         "Generated %s Sunday rotations (seed=%s). Selected rotation %s.",
         len(rotations),
         resolved_seed,
-        selected_rotation.get("rotation_number") if isinstance(selected_rotation, dict) else "unknown",
+        (selected_rotation.get("rotation_number") if isinstance(selected_rotation, dict) else "unknown"),
     )
 
     return {

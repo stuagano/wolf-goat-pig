@@ -12,15 +12,17 @@ from typing import List, Optional
 
 class HandicapCategory(Enum):
     """Enumeration of handicap categories for player classification."""
+
     SCRATCH = "scratch"  # 0-5
-    LOW = "low"          # 6-12
-    MID = "mid"          # 13-18
-    HIGH = "high"        # 19-25
+    LOW = "low"  # 6-12
+    MID = "mid"  # 13-18
+    HIGH = "high"  # 19-25
     BEGINNER = "beginner"  # 26+
 
 
 class StrengthLevel(Enum):
     """Enumeration of player strength levels."""
+
     EXCELLENT = "excellent"
     GOOD = "good"
     AVERAGE = "average"
@@ -32,7 +34,7 @@ class StrengthLevel(Enum):
 class Player:
     """
     Represents a golfer in the Wolf Goat Pig simulation.
-    
+
     This class encapsulates all player-related data and provides
     methods for handicap analysis, scoring, and game state management.
     """
@@ -158,11 +160,11 @@ class Player:
             "is_human": self.is_human,
             "hole_scores": self.hole_scores.copy(),
             "float_used": self.float_used,
-            "last_points": self.last_points
+            "last_points": self.last_points,
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> 'Player':
+    def from_dict(cls, data: dict) -> "Player":
         """Create a Player instance from a dictionary."""
         return cls(
             id=data["id"],
@@ -173,7 +175,7 @@ class Player:
             is_human=data.get("is_human", False),
             hole_scores=data.get("hole_scores", {}),
             float_used=data.get("float_used", False),
-            last_points=data.get("last_points", 0)
+            last_points=data.get("last_points", 0),
         )
 
     def __str__(self) -> str:
@@ -182,9 +184,11 @@ class Player:
 
     def __repr__(self) -> str:
         """Detailed string representation for debugging."""
-        return (f"Player(id='{self.id}', name='{self.name}', "
-                f"handicap={self.handicap}, points={self.points}, "
-                f"strength='{self.strength}')")
+        return (
+            f"Player(id='{self.id}', name='{self.name}', "
+            f"handicap={self.handicap}, points={self.points}, "
+            f"strength='{self.strength}')"
+        )
 
     def __eq__(self, other: object) -> bool:
         """Equality comparison based on player ID."""
@@ -201,15 +205,15 @@ class Player:
         """
         Get the human player ID from a list of players.
         This is a centralized utility function for human player identification.
-        
+
         Args:
             players: List of Player objects
-            
+
         Returns:
             str: The ID of the human player, or first player as fallback
         """
         for player in players:
-            if hasattr(player, 'is_human') and player.is_human:
+            if hasattr(player, "is_human") and player.is_human:
                 return player.id
 
         # Fallback: assume first player is human (for backward compatibility)

@@ -15,10 +15,11 @@ Or via API endpoint:
 """
 
 import logging
-from typing import Dict, Any, List, Tuple, Optional
+from typing import Any, Dict, List, Optional, Tuple
+
 from sqlalchemy import text
+from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import ProgrammingError, OperationalError
 
 from ..database import SessionLocal
 
@@ -74,9 +75,9 @@ def column_exists(db: Session, table_name: str, column_name: str) -> bool:
     try:
         # Try PostgreSQL method first
         result = db.execute(
-            text(f"""
-            SELECT column_name 
-            FROM information_schema.columns 
+            text("""
+            SELECT column_name
+            FROM information_schema.columns
             WHERE table_name = :table_name AND column_name = :column_name
         """),
             {"table_name": table_name, "column_name": column_name},

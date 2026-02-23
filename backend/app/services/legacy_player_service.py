@@ -23,7 +23,7 @@ _PLAYERS_FILE = Path(__file__).parent.parent / "data" / "legacy_players.json"
 
 # Cached player data
 _players_cache: Optional[List[str]] = None
-_players_cache_lower: Optional[dict] = None  # lowercase -> original mapping
+_players_cache_lower: Optional[dict[str, str]] = None  # lowercase -> original mapping
 
 
 def _load_players() -> List[str]:
@@ -61,7 +61,7 @@ def get_legacy_players() -> List[str]:
 def is_valid_legacy_player(name: str) -> bool:
     """Check if a player name exists in the legacy system (case-insensitive)."""
     _load_players()
-    return name.lower() in _players_cache_lower
+    return name.lower() in _players_cache_lower  # type: ignore[operator]
 
 
 def get_canonical_name(name: str) -> Optional[str]:
@@ -70,7 +70,7 @@ def get_canonical_name(name: str) -> Optional[str]:
     Returns None if the player is not found.
     """
     _load_players()
-    return _players_cache_lower.get(name.lower())
+    return _players_cache_lower.get(name.lower())  # type: ignore[union-attr]
 
 
 def find_similar_players(name: str, max_results: int = 5) -> List[str]:
@@ -86,7 +86,7 @@ def find_similar_players(name: str, max_results: int = 5) -> List[str]:
     matches = get_close_matches(name.lower(), [p.lower() for p in players], n=max_results, cutoff=0.6)
 
     # Return the original-cased versions
-    return [_players_cache_lower[m] for m in matches]
+    return [_players_cache_lower[m] for m in matches]  # type: ignore[index]
 
 
 def validate_player_for_legacy(name: str) -> dict:

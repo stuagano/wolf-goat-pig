@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Any, Dict, List
 
 from .database import SessionLocal
-from .models import Course, Hole
+from .models import Course
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,13 @@ CORRECT_WING_POINT_DATA: List[Dict[str, Any]] = [
         "stroke_index": 1,
         "description": "The Challenge - handicap 1, tough dogleg left requiring precision",
     },
-    {"hole_number": 4, "par": 3, "yards": 112, "stroke_index": 17, "description": "Precision - short but tricky par 3"},
+    {
+        "hole_number": 4,
+        "par": 3,
+        "yards": 112,
+        "stroke_index": 17,
+        "description": "Precision - short but tricky par 3",
+    },
     {
         "hole_number": 5,
         "par": 5,
@@ -165,9 +171,9 @@ def fix_wing_point_course():
             # Update course totals
             wing_point.total_par = correct_total_par
             wing_point.total_yards = correct_total_yards
-            wing_point.course_rating = 67.4  # type: ignore[assignment]
-            wing_point.slope_rating = 120  # type: ignore[assignment]
-            wing_point.updated_at = datetime.now().isoformat()  # type: ignore[assignment]
+            wing_point.course_rating = 67.4
+            wing_point.slope_rating = 120
+            wing_point.updated_at = datetime.now().isoformat()
 
             # Update each hole
             for hole_data in CORRECT_WING_POINT_DATA:

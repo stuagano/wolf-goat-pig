@@ -8,6 +8,7 @@ class PlayerManager:
     Manages players, hitting order, and captain rotation for the game.
     Extracted from GameState for single responsibility.
     """
+
     def __init__(self, players: Optional[List[Player]] = None):
         self.players: List[Player] = players if players is not None else []
         self.hitting_order: List[str] = [p.id for p in self.players] if self.players else []
@@ -36,7 +37,7 @@ class PlayerManager:
         return {
             "players": [p.to_dict() for p in self.players],
             "hitting_order": list(self.hitting_order),
-            "captain_id": self.captain_id
+            "captain_id": self.captain_id,
         }
 
     def from_dict(self, data: Dict) -> None:

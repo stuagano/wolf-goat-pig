@@ -45,7 +45,7 @@ class FallbackGameManager:
     def generate_join_code(self) -> str:
         """Generate a unique 6-character join code."""
         while True:
-            code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+            code = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
             if code not in self.games_by_join_code:
                 return code
 
@@ -55,7 +55,7 @@ class FallbackGameManager:
         join_code: Optional[str] = None,
         creator_user_id: Optional[str] = None,
         game_status: str = "setup",
-        state: Optional[dict] = None
+        state: Optional[dict] = None,
     ) -> dict:
         """Create a new game in memory."""
         if not self.enabled:
@@ -75,7 +75,7 @@ class FallbackGameManager:
             "state": state or {},
             "created_at": now,
             "updated_at": now,
-            "fallback_mode": True
+            "fallback_mode": True,
         }
 
         self.games[game_id] = game
@@ -103,10 +103,10 @@ class FallbackGameManager:
 
         # Update fields
         for key, value in updates.items():
-            if key != 'id' and key != 'game_id':  # Don't allow changing these
+            if key != "id" and key != "game_id":  # Don't allow changing these
                 game[key] = value
 
-        game['updated_at'] = datetime.now(timezone.utc).isoformat()
+        game["updated_at"] = datetime.now(timezone.utc).isoformat()
 
         logger.debug(f"Updated fallback game: {game_id}")
         return game
@@ -118,8 +118,8 @@ class FallbackGameManager:
             return False
 
         # Remove from join code mapping
-        if game.get('join_code'):
-            self.games_by_join_code.pop(game['join_code'], None)
+        if game.get("join_code"):
+            self.games_by_join_code.pop(game["join_code"], None)
 
         # Remove game
         del self.games[game_id]
@@ -138,7 +138,7 @@ class FallbackGameManager:
             "enabled": self.enabled,
             "total_games": len(self.games),
             "games": list(self.games.keys()),
-            "warning": "Games are stored in memory only and will be lost on restart" if self.enabled else None
+            "warning": ("Games are stored in memory only and will be lost on restart" if self.enabled else None),
         }
 
 

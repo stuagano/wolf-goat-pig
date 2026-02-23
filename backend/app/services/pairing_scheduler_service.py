@@ -44,25 +44,16 @@ class PairingSchedulerService:
     def get_signups_for_date(db: Session, game_date: str) -> List[DailySignup]:
         """Get all active signups for a specific date."""
         return (
-            db.query(DailySignup)
-            .filter(DailySignup.date == game_date)
-            .filter(DailySignup.status == "signed_up")
-            .all()
+            db.query(DailySignup).filter(DailySignup.date == game_date).filter(DailySignup.status == "signed_up").all()
         )
 
     @staticmethod
     def get_existing_pairing(db: Session, game_date: str) -> Optional[GeneratedPairing]:
         """Check if pairings already exist for a date."""
-        return (
-            db.query(GeneratedPairing)
-            .filter(GeneratedPairing.game_date == game_date)
-            .first()
-        )
+        return db.query(GeneratedPairing).filter(GeneratedPairing.game_date == game_date).first()
 
     @staticmethod
-    def build_player_list(
-        db: Session, signups: List[DailySignup]
-    ) -> List[Dict]:
+    def build_player_list(db: Session, signups: List[DailySignup]) -> List[Dict]:
         """Convert signups to player dicts with handicap info."""
         players = []
         for signup in signups:
@@ -74,11 +65,7 @@ class PairingSchedulerService:
 
             # Try to get actual handicap from profile
             if signup.player_profile_id:
-                profile = (
-                    db.query(PlayerProfile)
-                    .filter(PlayerProfile.id == signup.player_profile_id)
-                    .first()
-                )
+                profile = db.query(PlayerProfile).filter(PlayerProfile.id == signup.player_profile_id).first()
                 if profile and profile.handicap is not None:
                     player_data["handicap"] = profile.handicap
 
@@ -91,7 +78,7 @@ class PairingSchedulerService:
         db: Session,
         game_date: str,
         generated_by: str = "scheduler",
-        force_regenerate: bool = False
+        force_regenerate: bool = False,
     ) -> Tuple[Optional[GeneratedPairing], str]:
         """Generate random pairings for a game date.
 
@@ -112,7 +99,10 @@ class PairingSchedulerService:
         # Get signups
         signups = PairingSchedulerService.get_signups_for_date(db, game_date)
         if len(signups) < 4:
-            return None, f"Not enough players signed up ({len(signups)}). Need at least 4."
+            return (
+                None,
+                f"Not enough players signed up ({len(signups)}). Need at least 4.",
+            )
 
         # Build player list
         players = PairingSchedulerService.build_player_list(db, signups)
@@ -135,11 +125,9 @@ class PairingSchedulerService:
             "players": players,
             "generation_method": "random",
             "remaining_players": [
-                p for p in players
-                if not any(
-                    p["player_name"] in [tp.get("player_name") for tp in t.get("players", [])]
-                    for t in teams
-                )
+                p
+                for p in players
+                if not any(p["player_name"] in [tp.get("player_name") for tp in t.get("players", [])] for t in teams)
             ],
         }
 
@@ -186,10 +174,7 @@ class PairingSchedulerService:
         return None
 
     @staticmethod
-    def send_pairing_notifications(
-        db: Session,
-        pairing: GeneratedPairing
-    ) -> Tuple[int, int]:
+    def send_pairing_notifications(db: Session, pairing: GeneratedPairing) -> Tuple[int, int]:
         """Send email notifications to all signed-up players and the golf course.
 
         Returns:
@@ -231,21 +216,14 @@ class PairingSchedulerService:
             if not profile_id:
                 continue
 
-            profile = (
-                db.query(PlayerProfile)
-                .filter(PlayerProfile.id == profile_id)
-                .first()
-            )
+            profile = db.query(PlayerProfile).filter(PlayerProfile.id == profile_id).first()
 
             if not profile or not profile.email:
                 logger.debug("No email for player %s", player.get("player_name"))
                 continue
 
             # Find which team they're on
-            team_number = PairingSchedulerService.find_player_team(
-                player.get("player_name", ""),
-                teams
-            )
+            team_number = PairingSchedulerService.find_player_team(player.get("player_name", ""), teams)
 
             try:
                 success = email_service.send_pairing_notification(
@@ -308,9 +286,7 @@ class PairingSchedulerService:
             }
 
         # Send notifications
-        emails_sent, emails_failed = PairingSchedulerService.send_pairing_notifications(
-            db, pairing
-        )
+        emails_sent, emails_failed = PairingSchedulerService.send_pairing_notifications(db, pairing)
 
         return {
             "success": True,

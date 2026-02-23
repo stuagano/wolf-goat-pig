@@ -16,22 +16,19 @@ Author: Test Suite
 Date: 2024-11-03
 """
 
+from unittest.mock import Mock, patch
+
 import pytest
-from unittest.mock import Mock, MagicMock, patch, PropertyMock
-from datetime import datetime
 from fastapi import HTTPException
 
-from app.services.game_lifecycle_service import (
-    GameLifecycleService,
-    get_game_lifecycle_service
-)
 from app.domain.player import Player
 from app.models import GameStateModel
-
+from app.services.game_lifecycle_service import GameLifecycleService, get_game_lifecycle_service
 
 # ============================================================================
 # FIXTURES
 # ============================================================================
+
 
 @pytest.fixture
 def mock_db():
@@ -44,7 +41,6 @@ def mock_db():
     db.query = Mock()
     return db
 
-from backend.app.wolf_goat_pig import WolfGoatPigGame
 
 @pytest.fixture
 def mock_simulation():
@@ -65,7 +61,7 @@ def sample_players():
         Player(id="p1", name="Alice", handicap=10.0, points=0),
         Player(id="p2", name="Bob", handicap=15.0, points=0),
         Player(id="p3", name="Charlie", handicap=20.0, points=0),
-        Player(id="p4", name="Dave", handicap=12.0, points=0)
+        Player(id="p4", name="Dave", handicap=12.0, points=0),
     ]
 
 
@@ -83,7 +79,7 @@ def mock_game_record():
         "players": [],
         "course_name": "Test Course",
         "base_wager": 1,
-        "created_at": "2024-11-03T00:00:00"
+        "created_at": "2024-11-03T00:00:00",
     }
     record.created_at = "2024-11-03T00:00:00"
     record.updated_at = "2024-11-03T00:00:00"
@@ -104,14 +100,23 @@ def service():
 # CREATE_GAME TESTS
 # ============================================================================
 
+
 class TestCreateGame:
     """Test create_game method."""
 
-    @patch('app.services.game_lifecycle_service.WolfGoatPigGame')
-    @patch('app.services.game_lifecycle_service.uuid.uuid4')
-    @patch('app.services.game_lifecycle_service.datetime')
-    def test_create_game_success(self, mock_datetime, mock_uuid, mock_sim_class,
-                                 service, mock_db, sample_players, mock_simulation):
+    @patch("app.services.game_lifecycle_service.WolfGoatPigGame")
+    @patch("app.services.game_lifecycle_service.uuid.uuid4")
+    @patch("app.services.game_lifecycle_service.datetime")
+    def test_create_game_success(
+        self,
+        mock_datetime,
+        mock_uuid,
+        mock_sim_class,
+        service,
+        mock_db,
+        sample_players,
+        mock_simulation,
+    ):
         """Test successful game creation with all parameters."""
         # Arrange
         mock_uuid.return_value = Mock()
@@ -127,7 +132,7 @@ class TestCreateGame:
             course_name="Test Course",
             base_wager=2,
             join_code="ABC123",
-            creator_user_id="user123"
+            creator_user_id="user123",
         )
 
         # Assert
@@ -142,12 +147,19 @@ class TestCreateGame:
         mock_db.refresh.assert_called_once()
         assert game_id in service._active_games
 
-    @patch('app.services.game_lifecycle_service.WolfGoatPigGame')
-    @patch('app.services.game_lifecycle_service.uuid.uuid4')
-    @patch('app.services.game_lifecycle_service.datetime')
-    def test_create_game_minimum_parameters(self, mock_datetime, mock_uuid,
-                                           mock_sim_class, service, mock_db,
-                                           sample_players, mock_simulation):
+    @patch("app.services.game_lifecycle_service.WolfGoatPigGame")
+    @patch("app.services.game_lifecycle_service.uuid.uuid4")
+    @patch("app.services.game_lifecycle_service.datetime")
+    def test_create_game_minimum_parameters(
+        self,
+        mock_datetime,
+        mock_uuid,
+        mock_sim_class,
+        service,
+        mock_db,
+        sample_players,
+        mock_simulation,
+    ):
         """Test game creation with minimum required parameters."""
         # Arrange
         mock_uuid.return_value = Mock()
@@ -156,11 +168,7 @@ class TestCreateGame:
         mock_sim_class.return_value = mock_simulation
 
         # Act
-        game_id, simulation = service.create_game(
-            db=mock_db,
-            player_count=4,
-            players=sample_players
-        )
+        game_id, simulation = service.create_game(db=mock_db, player_count=4, players=sample_players)
 
         # Assert
         assert game_id == "test-game-id"
@@ -170,26 +178,17 @@ class TestCreateGame:
     def test_create_game_invalid_player_count_too_low(self, service, mock_db, sample_players):
         """Test game creation fails with too few players."""
         with pytest.raises(HTTPException) as exc_info:
-            service.create_game(
-                db=mock_db,
-                player_count=3,
-                players=sample_players[:3]
-            )
+            service.create_game(db=mock_db, player_count=3, players=sample_players[:3])
 
         assert exc_info.value.status_code == 400
         assert "player_count must be between 4 and 6" in str(exc_info.value.detail)
 
     def test_create_game_invalid_player_count_too_high(self, service, mock_db):
         """Test game creation fails with too many players."""
-        players = [Player(id=f"p{i}", name=f"Player{i}", handicap=10.0)
-                  for i in range(1, 8)]
+        players = [Player(id=f"p{i}", name=f"Player{i}", handicap=10.0) for i in range(1, 8)]
 
         with pytest.raises(HTTPException) as exc_info:
-            service.create_game(
-                db=mock_db,
-                player_count=7,
-                players=players
-            )
+            service.create_game(db=mock_db, player_count=7, players=players)
 
         assert exc_info.value.status_code == 400
         assert "player_count must be between 4 and 6" in str(exc_info.value.detail)
@@ -197,19 +196,22 @@ class TestCreateGame:
     def test_create_game_player_count_mismatch(self, service, mock_db, sample_players):
         """Test game creation fails when player count doesn't match players list."""
         with pytest.raises(HTTPException) as exc_info:
-            service.create_game(
-                db=mock_db,
-                player_count=4,
-                players=sample_players[:2]  # Only 2 players
-            )
+            service.create_game(db=mock_db, player_count=4, players=sample_players[:2])  # Only 2 players
 
         assert exc_info.value.status_code == 400
         assert "Expected 4 players, got 2" in str(exc_info.value.detail)
 
-    @patch('app.services.game_lifecycle_service.WolfGoatPigGame')
-    @patch('app.services.game_lifecycle_service.uuid.uuid4')
-    def test_create_game_database_error(self, mock_uuid, mock_sim_class,
-                                       service, mock_db, sample_players, mock_simulation):
+    @patch("app.services.game_lifecycle_service.WolfGoatPigGame")
+    @patch("app.services.game_lifecycle_service.uuid.uuid4")
+    def test_create_game_database_error(
+        self,
+        mock_uuid,
+        mock_sim_class,
+        service,
+        mock_db,
+        sample_players,
+        mock_simulation,
+    ):
         """Test game creation handles database errors."""
         # Arrange
         mock_uuid.return_value = Mock()
@@ -219,22 +221,25 @@ class TestCreateGame:
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
-            service.create_game(
-                db=mock_db,
-                player_count=4,
-                players=sample_players
-            )
+            service.create_game(db=mock_db, player_count=4, players=sample_players)
 
         assert exc_info.value.status_code == 500
         assert "Failed to create game" in str(exc_info.value.detail)
         mock_db.rollback.assert_called_once()
 
-    @patch('app.services.game_lifecycle_service.WolfGoatPigGame')
-    @patch('app.services.game_lifecycle_service.uuid.uuid4')
-    @patch('app.services.game_lifecycle_service.datetime')
-    def test_create_game_with_custom_base_wager(self, mock_datetime, mock_uuid,
-                                                mock_sim_class, service, mock_db,
-                                                sample_players, mock_simulation):
+    @patch("app.services.game_lifecycle_service.WolfGoatPigGame")
+    @patch("app.services.game_lifecycle_service.uuid.uuid4")
+    @patch("app.services.game_lifecycle_service.datetime")
+    def test_create_game_with_custom_base_wager(
+        self,
+        mock_datetime,
+        mock_uuid,
+        mock_sim_class,
+        service,
+        mock_db,
+        sample_players,
+        mock_simulation,
+    ):
         """Test game creation with custom base wager."""
         # Arrange
         mock_uuid.return_value = Mock()
@@ -243,38 +248,35 @@ class TestCreateGame:
         mock_sim_class.return_value = mock_simulation
 
         # Act
-        game_id, simulation = service.create_game(
-            db=mock_db,
-            player_count=4,
-            players=sample_players,
-            base_wager=5
-        )
+        game_id, simulation = service.create_game(db=mock_db, player_count=4, players=sample_players, base_wager=5)
 
         # Assert - base_wager is stored in game state, not on the game object
         # The game object doesn't have a global betting_state attribute
         # Betting state is managed per-hole when each hole starts
         assert game_id == "test-game-id"
 
-    @patch('app.services.game_lifecycle_service.WolfGoatPigGame')
-    @patch('app.services.game_lifecycle_service.uuid.uuid4')
-    @patch('app.services.game_lifecycle_service.datetime')
-    def test_create_game_six_players(self, mock_datetime, mock_uuid, mock_sim_class,
-                                    service, mock_db, mock_simulation):
+    @patch("app.services.game_lifecycle_service.WolfGoatPigGame")
+    @patch("app.services.game_lifecycle_service.uuid.uuid4")
+    @patch("app.services.game_lifecycle_service.datetime")
+    def test_create_game_six_players(
+        self,
+        mock_datetime,
+        mock_uuid,
+        mock_sim_class,
+        service,
+        mock_db,
+        mock_simulation,
+    ):
         """Test game creation with 6 players."""
         # Arrange
-        players = [Player(id=f"p{i}", name=f"Player{i}", handicap=10.0)
-                  for i in range(1, 7)]
+        players = [Player(id=f"p{i}", name=f"Player{i}", handicap=10.0) for i in range(1, 7)]
         mock_uuid.return_value = Mock()
         mock_uuid.return_value.__str__ = Mock(return_value="test-game-id")
         mock_datetime.now.return_value.isoformat.return_value = "2024-11-03T00:00:00"
         mock_sim_class.return_value = mock_simulation
 
         # Act
-        game_id, simulation = service.create_game(
-            db=mock_db,
-            player_count=6,
-            players=players
-        )
+        game_id, simulation = service.create_game(db=mock_db, player_count=6, players=players)
 
         # Assert
         assert game_id == "test-game-id"
@@ -284,6 +286,7 @@ class TestCreateGame:
 # ============================================================================
 # GET_GAME TESTS
 # ============================================================================
+
 
 class TestGetGame:
     """Test get_game method."""
@@ -301,9 +304,8 @@ class TestGetGame:
         assert result == mock_simulation
         mock_db.query.assert_not_called()
 
-    @patch('app.services.game_lifecycle_service.WolfGoatPigGame')
-    def test_get_game_from_database(self, mock_sim_class, service, mock_db,
-                                   mock_game_record, mock_simulation):
+    @patch("app.services.game_lifecycle_service.WolfGoatPigGame")
+    def test_get_game_from_database(self, mock_sim_class, service, mock_db, mock_game_record, mock_simulation):
         """Test loading game from database when not in cache."""
         # Arrange
         game_id = "db-game-id"
@@ -331,9 +333,8 @@ class TestGetGame:
         assert exc_info.value.status_code == 404
         assert f"Game {game_id} not found" in str(exc_info.value.detail)
 
-    @patch('app.services.game_lifecycle_service.WolfGoatPigGame')
-    def test_get_game_failed_to_load(self, mock_sim_class, service, mock_db,
-                                    mock_game_record):
+    @patch("app.services.game_lifecycle_service.WolfGoatPigGame")
+    def test_get_game_failed_to_load(self, mock_sim_class, service, mock_db, mock_game_record):
         """Test error when game fails to load from database."""
         # Arrange
         game_id = "db-game-id"
@@ -362,9 +363,8 @@ class TestGetGame:
         assert exc_info.value.status_code == 500
         assert "Error loading game" in str(exc_info.value.detail)
 
-    @patch('app.services.game_lifecycle_service.WolfGoatPigGame')
-    def test_get_game_caches_after_db_load(self, mock_sim_class, service, mock_db,
-                                          mock_game_record, mock_simulation):
+    @patch("app.services.game_lifecycle_service.WolfGoatPigGame")
+    def test_get_game_caches_after_db_load(self, mock_sim_class, service, mock_db, mock_game_record, mock_simulation):
         """Test that game is cached after loading from database."""
         # Arrange
         game_id = "db-game-id"
@@ -391,12 +391,12 @@ class TestGetGame:
 # START_GAME TESTS
 # ============================================================================
 
+
 class TestStartGame:
     """Test start_game method."""
 
-    @patch('app.services.game_lifecycle_service.datetime')
-    def test_start_game_success(self, mock_datetime, service, mock_db,
-                               mock_simulation, mock_game_record):
+    @patch("app.services.game_lifecycle_service.datetime")
+    def test_start_game_success(self, mock_datetime, service, mock_db, mock_simulation, mock_game_record):
         """Test successful game start from setup state."""
         # Arrange
         game_id = "test-game-id"
@@ -427,8 +427,7 @@ class TestStartGame:
 
         assert exc_info.value.status_code == 404
 
-    def test_start_game_already_in_progress(self, service, mock_db,
-                                           mock_simulation, mock_game_record):
+    def test_start_game_already_in_progress(self, service, mock_db, mock_simulation, mock_game_record):
         """Test error when trying to start already in-progress game."""
         # Arrange
         game_id = "test-game-id"
@@ -443,8 +442,7 @@ class TestStartGame:
         assert exc_info.value.status_code == 400
         assert "Cannot start game in 'in_progress' status" in str(exc_info.value.detail)
 
-    def test_start_game_already_completed(self, service, mock_db,
-                                         mock_simulation, mock_game_record):
+    def test_start_game_already_completed(self, service, mock_db, mock_simulation, mock_game_record):
         """Test error when trying to start completed game."""
         # Arrange
         game_id = "test-game-id"
@@ -459,8 +457,7 @@ class TestStartGame:
         assert exc_info.value.status_code == 400
         assert "Cannot start game in 'completed' status" in str(exc_info.value.detail)
 
-    def test_start_game_database_error(self, service, mock_db,
-                                      mock_simulation, mock_game_record):
+    def test_start_game_database_error(self, service, mock_db, mock_simulation, mock_game_record):
         """Test handling of database errors during game start."""
         # Arrange
         game_id = "test-game-id"
@@ -482,12 +479,12 @@ class TestStartGame:
 # PAUSE_GAME TESTS
 # ============================================================================
 
+
 class TestPauseGame:
     """Test pause_game method."""
 
-    @patch('app.services.game_lifecycle_service.datetime')
-    def test_pause_game_success(self, mock_datetime, service, mock_db,
-                               mock_simulation, mock_game_record):
+    @patch("app.services.game_lifecycle_service.datetime")
+    def test_pause_game_success(self, mock_datetime, service, mock_db, mock_simulation, mock_game_record):
         """Test successful game pause."""
         # Arrange
         game_id = "test-game-id"
@@ -518,8 +515,7 @@ class TestPauseGame:
 
         assert exc_info.value.status_code == 404
 
-    def test_pause_game_not_in_progress(self, service, mock_db,
-                                       mock_simulation, mock_game_record):
+    def test_pause_game_not_in_progress(self, service, mock_db, mock_simulation, mock_game_record):
         """Test error when trying to pause game not in progress."""
         # Arrange
         game_id = "test-game-id"
@@ -534,8 +530,7 @@ class TestPauseGame:
         assert exc_info.value.status_code == 400
         assert "Can only pause games that are in progress" in str(exc_info.value.detail)
 
-    def test_pause_game_already_completed(self, service, mock_db,
-                                         mock_simulation, mock_game_record):
+    def test_pause_game_already_completed(self, service, mock_db, mock_simulation, mock_game_record):
         """Test error when trying to pause completed game."""
         # Arrange
         game_id = "test-game-id"
@@ -549,8 +544,7 @@ class TestPauseGame:
 
         assert exc_info.value.status_code == 400
 
-    def test_pause_game_database_error(self, service, mock_db,
-                                      mock_simulation, mock_game_record):
+    def test_pause_game_database_error(self, service, mock_db, mock_simulation, mock_game_record):
         """Test handling of database errors during game pause."""
         # Arrange
         game_id = "test-game-id"
@@ -572,12 +566,12 @@ class TestPauseGame:
 # RESUME_GAME TESTS
 # ============================================================================
 
+
 class TestResumeGame:
     """Test resume_game method."""
 
-    @patch('app.services.game_lifecycle_service.datetime')
-    def test_resume_game_success(self, mock_datetime, service, mock_db,
-                                mock_simulation, mock_game_record):
+    @patch("app.services.game_lifecycle_service.datetime")
+    def test_resume_game_success(self, mock_datetime, service, mock_db, mock_simulation, mock_game_record):
         """Test successful game resume."""
         # Arrange
         game_id = "test-game-id"
@@ -608,8 +602,7 @@ class TestResumeGame:
 
         assert exc_info.value.status_code == 404
 
-    def test_resume_game_not_paused(self, service, mock_db,
-                                   mock_simulation, mock_game_record):
+    def test_resume_game_not_paused(self, service, mock_db, mock_simulation, mock_game_record):
         """Test error when trying to resume game not paused."""
         # Arrange
         game_id = "test-game-id"
@@ -624,8 +617,7 @@ class TestResumeGame:
         assert exc_info.value.status_code == 400
         assert "Can only resume games that are paused" in str(exc_info.value.detail)
 
-    def test_resume_game_in_setup(self, service, mock_db,
-                                 mock_simulation, mock_game_record):
+    def test_resume_game_in_setup(self, service, mock_db, mock_simulation, mock_game_record):
         """Test error when trying to resume game in setup."""
         # Arrange
         game_id = "test-game-id"
@@ -639,8 +631,7 @@ class TestResumeGame:
 
         assert exc_info.value.status_code == 400
 
-    def test_resume_game_database_error(self, service, mock_db,
-                                       mock_simulation, mock_game_record):
+    def test_resume_game_database_error(self, service, mock_db, mock_simulation, mock_game_record):
         """Test handling of database errors during game resume."""
         # Arrange
         game_id = "test-game-id"
@@ -662,12 +653,20 @@ class TestResumeGame:
 # COMPLETE_GAME TESTS
 # ============================================================================
 
+
 class TestCompleteGame:
     """Test complete_game method."""
 
-    @patch('app.services.game_lifecycle_service.datetime')
-    def test_complete_game_success(self, mock_datetime, service, mock_db,
-                                  mock_simulation, mock_game_record, sample_players):
+    @patch("app.services.game_lifecycle_service.datetime")
+    def test_complete_game_success(
+        self,
+        mock_datetime,
+        service,
+        mock_db,
+        mock_simulation,
+        mock_game_record,
+        sample_players,
+    ):
         """Test successful game completion."""
         # Arrange
         game_id = "test-game-id"
@@ -691,9 +690,8 @@ class TestCompleteGame:
         assert mock_game_record.state["game_status"] == "completed"
         mock_db.commit.assert_called_once()
 
-    @patch('app.services.game_lifecycle_service.datetime')
-    def test_complete_game_already_completed(self, mock_datetime, service, mock_db,
-                                            mock_simulation, mock_game_record):
+    @patch("app.services.game_lifecycle_service.datetime")
+    def test_complete_game_already_completed(self, mock_datetime, service, mock_db, mock_simulation, mock_game_record):
         """Test completing already completed game returns existing stats."""
         # Arrange
         game_id = "test-game-id"
@@ -721,9 +719,16 @@ class TestCompleteGame:
 
         assert exc_info.value.status_code == 404
 
-    @patch('app.services.game_lifecycle_service.datetime')
-    def test_complete_game_with_course_name(self, mock_datetime, service, mock_db,
-                                           mock_simulation, mock_game_record, sample_players):
+    @patch("app.services.game_lifecycle_service.datetime")
+    def test_complete_game_with_course_name(
+        self,
+        mock_datetime,
+        service,
+        mock_db,
+        mock_simulation,
+        mock_game_record,
+        sample_players,
+    ):
         """Test game completion includes course name."""
         # Arrange
         game_id = "test-game-id"
@@ -740,9 +745,16 @@ class TestCompleteGame:
         # Assert
         assert result["course_name"] == "Pebble Beach"
 
-    @patch('app.services.game_lifecycle_service.datetime')
-    def test_complete_game_with_base_wager(self, mock_datetime, service, mock_db,
-                                          mock_simulation, mock_game_record, sample_players):
+    @patch("app.services.game_lifecycle_service.datetime")
+    def test_complete_game_with_base_wager(
+        self,
+        mock_datetime,
+        service,
+        mock_db,
+        mock_simulation,
+        mock_game_record,
+        sample_players,
+    ):
         """Test game completion includes base wager."""
         # Arrange
         game_id = "test-game-id"
@@ -759,8 +771,7 @@ class TestCompleteGame:
         # Assert
         assert result["base_wager"] == 5
 
-    def test_complete_game_database_error(self, service, mock_db,
-                                         mock_simulation, mock_game_record):
+    def test_complete_game_database_error(self, service, mock_db, mock_simulation, mock_game_record):
         """Test handling of database errors during game completion."""
         # Arrange
         game_id = "test-game-id"
@@ -777,9 +788,16 @@ class TestCompleteGame:
         assert "Failed to complete game" in str(exc_info.value.detail)
         mock_db.rollback.assert_called_once()
 
-    @patch('app.services.game_lifecycle_service.datetime')
-    def test_complete_game_stores_final_stats(self, mock_datetime, service, mock_db,
-                                             mock_simulation, mock_game_record, sample_players):
+    @patch("app.services.game_lifecycle_service.datetime")
+    def test_complete_game_stores_final_stats(
+        self,
+        mock_datetime,
+        service,
+        mock_db,
+        mock_simulation,
+        mock_game_record,
+        sample_players,
+    ):
         """Test that final stats are stored in database state."""
         # Arrange
         game_id = "test-game-id"
@@ -790,7 +808,7 @@ class TestCompleteGame:
         mock_db.query.return_value.filter.return_value.first.return_value = mock_game_record
 
         # Act
-        result = service.complete_game(mock_db, game_id)
+        service.complete_game(mock_db, game_id)
 
         # Assert
         assert "final_stats" in mock_game_record.state
@@ -800,6 +818,7 @@ class TestCompleteGame:
 # ============================================================================
 # LIST_ACTIVE_GAMES TESTS
 # ============================================================================
+
 
 class TestListActiveGames:
     """Test list_active_games method."""
@@ -864,6 +883,7 @@ class TestListActiveGames:
 # CLEANUP_GAME TESTS
 # ============================================================================
 
+
 class TestCleanupGame:
     """Test cleanup_game method."""
 
@@ -922,6 +942,7 @@ class TestCleanupGame:
 # ============================================================================
 # CLEANUP_ALL_GAMES TESTS
 # ============================================================================
+
 
 class TestCleanupAllGames:
     """Test cleanup_all_games method."""
@@ -982,6 +1003,7 @@ class TestCleanupAllGames:
 # SINGLETON PATTERN TESTS
 # ============================================================================
 
+
 class TestSingletonPattern:
     """Test singleton pattern implementation."""
 
@@ -1030,15 +1052,24 @@ class TestSingletonPattern:
 # INTEGRATION TESTS
 # ============================================================================
 
+
 class TestIntegration:
     """Test multiple methods working together."""
 
-    @patch('app.services.game_lifecycle_service.WolfGoatPigGame')
-    @patch('app.services.game_lifecycle_service.uuid.uuid4')
-    @patch('app.services.game_lifecycle_service.datetime')
-    def test_full_game_lifecycle(self, mock_datetime, mock_uuid, mock_sim_class,
-                                 service, mock_db, sample_players, mock_simulation,
-                                 mock_game_record):
+    @patch("app.services.game_lifecycle_service.WolfGoatPigGame")
+    @patch("app.services.game_lifecycle_service.uuid.uuid4")
+    @patch("app.services.game_lifecycle_service.datetime")
+    def test_full_game_lifecycle(
+        self,
+        mock_datetime,
+        mock_uuid,
+        mock_sim_class,
+        service,
+        mock_db,
+        sample_players,
+        mock_simulation,
+        mock_game_record,
+    ):
         """Test complete game lifecycle from creation to completion."""
         # Arrange
         game_id = "test-game-id"
@@ -1051,11 +1082,7 @@ class TestIntegration:
         mock_db.query.return_value.filter.return_value.first.return_value = mock_game_record
 
         # Act 1: Create game
-        created_id, sim = service.create_game(
-            db=mock_db,
-            player_count=4,
-            players=sample_players
-        )
+        created_id, sim = service.create_game(db=mock_db, player_count=4, players=sample_players)
 
         # Act 2: Start game
         mock_game_record.game_status = "setup"
@@ -1078,11 +1105,19 @@ class TestIntegration:
         assert result["status"] == "completed"
         assert game_id in service._active_games
 
-    @patch('app.services.game_lifecycle_service.WolfGoatPigGame')
-    @patch('app.services.game_lifecycle_service.uuid.uuid4')
-    @patch('app.services.game_lifecycle_service.datetime')
-    def test_multiple_games_management(self, mock_datetime, mock_uuid, mock_sim_class,
-                                      service, mock_db, sample_players, mock_simulation):
+    @patch("app.services.game_lifecycle_service.WolfGoatPigGame")
+    @patch("app.services.game_lifecycle_service.uuid.uuid4")
+    @patch("app.services.game_lifecycle_service.datetime")
+    def test_multiple_games_management(
+        self,
+        mock_datetime,
+        mock_uuid,
+        mock_sim_class,
+        service,
+        mock_db,
+        sample_players,
+        mock_simulation,
+    ):
         """Test managing multiple games simultaneously."""
         # Arrange
         game_ids = []
@@ -1095,11 +1130,7 @@ class TestIntegration:
             mock_sim_class.return_value = mock_simulation
 
             # Act: Create game
-            service.create_game(
-                db=mock_db,
-                player_count=4,
-                players=sample_players
-            )
+            service.create_game(db=mock_db, player_count=4, players=sample_players)
 
         # Assert
         active_games = service.list_active_games()
@@ -1115,8 +1146,7 @@ class TestIntegration:
         assert len(active_games) == 2
         assert game_ids[1] not in active_games
 
-    def test_cache_behavior_across_operations(self, service, mock_db,
-                                             mock_simulation, mock_game_record):
+    def test_cache_behavior_across_operations(self, service, mock_db, mock_simulation, mock_game_record):
         """Test that cache behaves correctly across different operations."""
         # Arrange
         game_id = "cache-test-game"

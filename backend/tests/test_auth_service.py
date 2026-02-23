@@ -8,22 +8,17 @@ Tests authentication and user management including:
 - Database session management
 """
 
-import pytest
 import os
 from datetime import datetime
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
+
+import pytest
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from fastapi import HTTPException
-from fastapi.security import HTTPAuthorizationCredentials
 
-from app.services.auth_service import (
-    AuthService,
-    auth_service,
-    get_current_user,
-)
-from app.models import Base, PlayerProfile, EmailPreferences
-
+from app.models import Base, EmailPreferences, PlayerProfile
+from app.services.auth_service import AuthService, auth_service
 
 # Test database setup
 TEST_DATABASE_URL = "sqlite:///./test_auth_service.db"
@@ -50,7 +45,7 @@ def mock_auth0_user():
         "sub": "auth0|test123456",
         "email": "testuser@example.com",
         "name": "Test User",
-        "picture": "https://example.com/avatar.jpg"
+        "picture": "https://example.com/avatar.jpg",
     }
 
 
@@ -63,10 +58,7 @@ def existing_player(db):
         handicap=15.0,
         avatar_url="https://old-avatar.com/img.jpg",
         created_at=datetime.now().isoformat(),
-        preferences={
-            "ai_difficulty": "easy",
-            "display_hints": True
-        }
+        preferences={"ai_difficulty": "easy", "display_hints": True},
     )
     db.add(player)
     db.commit()
@@ -111,18 +103,15 @@ class TestTokenVerification:
     @patch.dict(os.environ, {"ENVIRONMENT": "development"})
     def test_verify_token_development_mode(self, db):
         """Test token verification in development mode returns mock data."""
-        credentials = HTTPAuthorizationCredentials(
-            scheme="Bearer",
-            credentials="mock_token_for_testing"
-        )
+        credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="mock_token_for_testing")
 
         # In development mode, should return mock user data
-        with patch.object(AuthService, 'verify_token') as mock_verify:
+        with patch.object(AuthService, "verify_token") as mock_verify:
             mock_verify.return_value = {
                 "sub": "auth0|123456789",
                 "email": "test@example.com",
                 "name": "Test User",
-                "picture": "https://example.com/avatar.jpg"
+                "picture": "https://example.com/avatar.jpg",
             }
 
             result = mock_verify(credentials)
@@ -130,10 +119,13 @@ class TestTokenVerification:
             assert result["sub"] == "auth0|123456789"
             assert result["email"] == "test@example.com"
 
-    @patch.dict(os.environ, {"ENVIRONMENT": "production", "AUTH0_DOMAIN": "your-domain.auth0.com"})
+    @patch.dict(
+        os.environ,
+        {"ENVIRONMENT": "production", "AUTH0_DOMAIN": "your-domain.auth0.com"},
+    )
     def test_verify_token_production_unconfigured(self, db):
         """Test that unconfigured production auth raises error."""
-        service = AuthService()
+        AuthService()
         credentials = Mock()
         credentials.credentials = "some_token"
 
@@ -161,7 +153,7 @@ class TestPlayerProfileManagement:
         service = AuthService()
         auth0_user = {
             "sub": "auth0|email_only",
-            "email": "emailonly@example.com"
+            "email": "emailonly@example.com",
             # No name or picture
         }
 
@@ -181,7 +173,7 @@ class TestPlayerProfileManagement:
             "sub": "auth0|new_auth0_id",
             "email": "existing@example.com",  # Same as existing_player
             "name": "Different Name",
-            "picture": "https://new-picture.com/img.jpg"
+            "picture": "https://new-picture.com/img.jpg",
         }
 
         player = service.get_or_create_player_profile(db, auth0_user)
@@ -199,7 +191,7 @@ class TestPlayerProfileManagement:
             handicap=18.0,
             avatar_url=None,
             created_at=datetime.now().isoformat(),
-            preferences={}
+            preferences={},
         )
         db.add(player)
         db.commit()
@@ -208,7 +200,7 @@ class TestPlayerProfileManagement:
         auth0_user = {
             "sub": "auth0|avatar_update",
             "email": "noavatar@example.com",
-            "picture": "https://new-avatar.com/img.jpg"
+            "picture": "https://new-avatar.com/img.jpg",
         }
 
         updated_player = service.get_or_create_player_profile(db, auth0_user)
@@ -222,7 +214,7 @@ class TestPlayerProfileManagement:
         # existing_player has preferences but no auth0_id
         auth0_user = {
             "sub": "auth0|new_id_for_existing",
-            "email": "existing@example.com"
+            "email": "existing@example.com",
         }
 
         player = service.get_or_create_player_profile(db, auth0_user)
@@ -238,9 +230,7 @@ class TestPlayerProfileManagement:
         player = service.get_or_create_player_profile(db, mock_auth0_user)
 
         # Check email preferences were created
-        email_prefs = db.query(EmailPreferences).filter(
-            EmailPreferences.player_profile_id == player.id
-        ).first()
+        email_prefs = db.query(EmailPreferences).filter(EmailPreferences.player_profile_id == player.id).first()
 
         assert email_prefs is not None
 
@@ -252,11 +242,7 @@ class TestAuth0AccountLinking:
         """Test linking Auth0 account to existing player."""
         service = AuthService()
 
-        result = service.link_auth0_to_player(
-            db=db,
-            auth0_id="auth0|linked_account",
-            player_id=existing_player.id
-        )
+        result = service.link_auth0_to_player(db=db, auth0_id="auth0|linked_account", player_id=existing_player.id)
 
         assert result is True
 
@@ -268,11 +254,7 @@ class TestAuth0AccountLinking:
         """Test linking to non-existent player returns False."""
         service = AuthService()
 
-        result = service.link_auth0_to_player(
-            db=db,
-            auth0_id="auth0|some_account",
-            player_id=99999
-        )
+        result = service.link_auth0_to_player(db=db, auth0_id="auth0|some_account", player_id=99999)
 
         assert result is False
 
@@ -284,18 +266,14 @@ class TestAuth0AccountLinking:
             email="noprefs@example.com",
             handicap=20.0,
             created_at=datetime.now().isoformat(),
-            preferences=None
+            preferences=None,
         )
         db.add(player)
         db.commit()
 
         service = AuthService()
 
-        result = service.link_auth0_to_player(
-            db=db,
-            auth0_id="auth0|prefs_test",
-            player_id=player.id
-        )
+        result = service.link_auth0_to_player(db=db, auth0_id="auth0|prefs_test", player_id=player.id)
 
         assert result is True
 
@@ -306,15 +284,12 @@ class TestAuth0AccountLinking:
     def test_link_auth0_handles_exception(self, db, existing_player):
         """Test that linking handles database exceptions gracefully."""
         from unittest.mock import patch
+
         service = AuthService()
 
         # Mock commit to raise an exception
-        with patch.object(db, 'commit', side_effect=Exception("Database error")):
-            result = service.link_auth0_to_player(
-                db=db,
-                auth0_id="auth0|error_test",
-                player_id=existing_player.id
-            )
+        with patch.object(db, "commit", side_effect=Exception("Database error")):
+            result = service.link_auth0_to_player(db=db, auth0_id="auth0|error_test", player_id=existing_player.id)
 
             assert result is False
 
@@ -322,20 +297,16 @@ class TestAuth0AccountLinking:
 class TestGetCurrentUser:
     """Test the get_current_user dependency."""
 
-    @patch('app.services.auth_service.auth_service')
+    @patch("app.services.auth_service.auth_service")
     def test_get_current_user_flow(self, mock_service, db):
         """Test the full get_current_user authentication flow."""
         mock_service.verify_token.return_value = {
             "sub": "auth0|current_user",
             "email": "current@example.com",
-            "name": "Current User"
+            "name": "Current User",
         }
 
-        mock_player = PlayerProfile(
-            id=1,
-            name="Current User",
-            email="current@example.com"
-        )
+        mock_player = PlayerProfile(id=1, name="Current User", email="current@example.com")
         mock_service.get_or_create_player_profile.return_value = mock_player
 
         # The actual get_current_user is a FastAPI dependency
@@ -356,10 +327,7 @@ class TestDefaultPlayerSettings:
     def test_default_handicap_on_creation(self, db):
         """Test that default handicap is set on player creation."""
         service = AuthService()
-        auth0_user = {
-            "sub": "auth0|default_handicap",
-            "email": "default@example.com"
-        }
+        auth0_user = {"sub": "auth0|default_handicap", "email": "default@example.com"}
 
         player = service.get_or_create_player_profile(db, auth0_user)
 
@@ -368,10 +336,7 @@ class TestDefaultPlayerSettings:
     def test_default_preferences_structure(self, db):
         """Test that default preferences have expected structure."""
         service = AuthService()
-        auth0_user = {
-            "sub": "auth0|default_prefs",
-            "email": "prefs@example.com"
-        }
+        auth0_user = {"sub": "auth0|default_prefs", "email": "prefs@example.com"}
 
         player = service.get_or_create_player_profile(db, auth0_user)
 
@@ -381,7 +346,7 @@ class TestDefaultPlayerSettings:
             "preferred_game_modes",
             "preferred_player_count",
             "betting_style",
-            "display_hints"
+            "display_hints",
         ]
 
         for key in expected_keys:
@@ -390,10 +355,7 @@ class TestDefaultPlayerSettings:
     def test_default_game_mode_is_wolf_goat_pig(self, db):
         """Test that default game mode includes wolf_goat_pig."""
         service = AuthService()
-        auth0_user = {
-            "sub": "auth0|game_mode",
-            "email": "gamemode@example.com"
-        }
+        auth0_user = {"sub": "auth0|game_mode", "email": "gamemode@example.com"}
 
         player = service.get_or_create_player_profile(db, auth0_user)
 
@@ -440,8 +402,8 @@ class TestErrorHandling:
 
     def test_invalid_email_format_handled(self, db):
         """Test handling of user without email."""
-        service = AuthService()
-        auth0_user = {
+        AuthService()
+        _auth0_user = {  # noqa: F841
             "sub": "auth0|no_email_user"
             # No email provided
         }
@@ -471,21 +433,21 @@ class TestUpdatedAtTimestamp:
             avatar_url=None,
             created_at="2024-01-01T00:00:00",
             updated_at="2024-01-01T00:00:00",
-            preferences={}
+            preferences={},
         )
         db.add(player)
         db.commit()
 
-        original_updated = player.updated_at
+        player.updated_at
 
         service = AuthService()
         auth0_user = {
             "sub": "auth0|timestamp_update",
             "email": "timestamp@example.com",
-            "picture": "https://new.com/img.jpg"  # Triggers update
+            "picture": "https://new.com/img.jpg",  # Triggers update
         }
 
-        updated_player = service.get_or_create_player_profile(db, auth0_user)
+        service.get_or_create_player_profile(db, auth0_user)
 
         # updated_at should be different after update
         # Note: Depends on implementation storing the update

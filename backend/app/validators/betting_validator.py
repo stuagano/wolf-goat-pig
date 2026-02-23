@@ -34,23 +34,18 @@ class BettingValidator:
             raise BettingValidationError(
                 "Base wager must be an integer",
                 field="base_wager",
-                details={"value": base_wager, "type": type(base_wager).__name__}
+                details={"value": base_wager, "type": type(base_wager).__name__},
             )
 
         if base_wager <= 0:
             raise BettingValidationError(
                 "Base wager must be positive",
                 field="base_wager",
-                details={"value": base_wager}
+                details={"value": base_wager},
             )
 
     @classmethod
-    def validate_double(
-        cls,
-        already_doubled: bool,
-        wagering_closed: bool,
-        partnership_formed: bool
-    ) -> None:
+    def validate_double(cls, already_doubled: bool, wagering_closed: bool, partnership_formed: bool) -> None:
         """
         Validate double action is allowed.
 
@@ -66,30 +61,25 @@ class BettingValidator:
             raise BettingValidationError(
                 "Hole has already been doubled",
                 field="double",
-                details={"already_doubled": True}
+                details={"already_doubled": True},
             )
 
         if wagering_closed:
             raise BettingValidationError(
                 "Wagering is closed for this hole",
                 field="double",
-                details={"wagering_closed": True}
+                details={"wagering_closed": True},
             )
 
         if not partnership_formed:
             raise BettingValidationError(
                 "Partnership must be formed before doubling",
                 field="double",
-                details={"partnership_formed": False}
+                details={"partnership_formed": False},
             )
 
     @classmethod
-    def validate_duncan(
-        cls,
-        is_captain: bool,
-        partnership_formed: bool,
-        tee_shots_complete: bool
-    ) -> None:
+    def validate_duncan(cls, is_captain: bool, partnership_formed: bool, tee_shots_complete: bool) -> None:
         """
         Validate The Duncan (captain goes solo) is allowed.
 
@@ -105,29 +95,25 @@ class BettingValidator:
             raise BettingValidationError(
                 "Only the captain can invoke The Duncan",
                 field="duncan",
-                details={"is_captain": False}
+                details={"is_captain": False},
             )
 
         if partnership_formed:
             raise BettingValidationError(
                 "Cannot invoke The Duncan after partnership formed",
                 field="duncan",
-                details={"partnership_formed": True}
+                details={"partnership_formed": True},
             )
 
         if tee_shots_complete:
             raise BettingValidationError(
                 "Cannot invoke The Duncan after tee shots complete",
                 field="duncan",
-                details={"tee_shots_complete": True}
+                details={"tee_shots_complete": True},
             )
 
     @classmethod
-    def validate_carry_over(
-        cls,
-        hole_number: int,
-        previous_hole_tied: bool
-    ) -> None:
+    def validate_carry_over(cls, hole_number: int, previous_hole_tied: bool) -> None:
         """
         Validate carry over is allowed.
 
@@ -142,23 +128,18 @@ class BettingValidator:
             raise BettingValidationError(
                 "Cannot carry over on first hole",
                 field="carry_over",
-                details={"hole_number": hole_number}
+                details={"hole_number": hole_number},
             )
 
         if not previous_hole_tied:
             raise BettingValidationError(
                 "Previous hole must have been tied to carry over",
                 field="carry_over",
-                details={"previous_hole_tied": False}
+                details={"previous_hole_tied": False},
             )
 
     @classmethod
-    def calculate_wager_multiplier(
-        cls,
-        doubled: bool = False,
-        carry_over: bool = False,
-        duncan: bool = False
-    ) -> int:
+    def calculate_wager_multiplier(cls, doubled: bool = False, carry_over: bool = False, duncan: bool = False) -> int:
         """
         Calculate wager multiplier based on betting modifiers.
 
@@ -184,11 +165,7 @@ class BettingValidator:
         return multiplier
 
     @classmethod
-    def calculate_total_wager(
-        cls,
-        base_wager: int,
-        multiplier: int
-    ) -> int:
+    def calculate_total_wager(cls, base_wager: int, multiplier: int) -> int:
         """
         Calculate total wager amount.
 

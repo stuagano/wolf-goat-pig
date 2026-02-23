@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
+
 class TeamFormationService:
     """Service for creating random team formations from daily signups."""
 
@@ -18,16 +19,16 @@ class TeamFormationService:
         players: List[Dict],
         seed: Optional[int] = None,
         max_teams: Optional[int] = None,
-        rng: Optional[Random] = None
+        rng: Optional[Random] = None,
     ) -> List[Dict]:
         """
         Generate random 4-player teams from a list of signed-up players.
-        
+
         Args:
             players: List of player dictionaries with player info
             seed: Optional random seed for reproducible results
             max_teams: Maximum number of teams to create (default: all possible)
-            
+
         Returns:
             List of team dictionaries with 4 players each
         """
@@ -60,7 +61,7 @@ class TeamFormationService:
                 "team_id": team_number,
                 "players": team_players,
                 "created_at": datetime.now().isoformat(),
-                "formation_method": "random"
+                "formation_method": "random",
             }
             teams.append(team)
             team_number += 1
@@ -77,18 +78,16 @@ class TeamFormationService:
 
     @staticmethod
     def create_team_pairings_with_rotations(
-        players: List[Dict],
-        num_rotations: int = 3,
-        seed: Optional[int] = None
+        players: List[Dict], num_rotations: int = 3, seed: Optional[int] = None
     ) -> List[Dict]:
         """
         Create multiple team pairing rotations for variety throughout the day.
-        
+
         Args:
             players: List of player dictionaries
             num_rotations: Number of different team rotations to create
             seed: Optional random seed for reproducible results
-            
+
         Returns:
             List of rotation dictionaries, each containing teams for that rotation
         """
@@ -107,37 +106,33 @@ class TeamFormationService:
             rotation_seed = rotation_seed_generator.randrange(0, 2**32)
             rotation_rng = Random(rotation_seed)
 
-            teams = TeamFormationService.generate_random_teams(
-                players,
-                max_teams=None,
-                rng=rotation_rng
-            )
+            teams = TeamFormationService.generate_random_teams(players, max_teams=None, rng=rotation_rng)
 
             if teams:
-                rotations.append({
-                    "rotation_number": rotation + 1,
-                    "teams": teams,
-                    "created_at": datetime.now().isoformat(),
-                    "total_teams": len(teams),
-                    "total_players_assigned": len(teams) * 4
-                })
+                rotations.append(
+                    {
+                        "rotation_number": rotation + 1,
+                        "teams": teams,
+                        "created_at": datetime.now().isoformat(),
+                        "total_teams": len(teams),
+                        "total_players_assigned": len(teams) * 4,
+                    }
+                )
 
         return rotations
 
     @staticmethod
     def generate_balanced_teams(
-        players: List[Dict],
-        skill_key: str = "handicap",
-        seed: Optional[int] = None
+        players: List[Dict], skill_key: str = "handicap", seed: Optional[int] = None
     ) -> List[Dict]:
         """
         Generate teams with balanced skill levels using handicap or skill ratings.
-        
+
         Args:
             players: List of player dictionaries
             skill_key: Key to use for skill-based balancing (e.g., 'handicap')
             seed: Optional random seed
-            
+
         Returns:
             List of balanced team dictionaries
         """
@@ -179,10 +174,10 @@ class TeamFormationService:
             if len(all_players) >= 8:
                 # Take best, worst, middle-low, middle-high
                 team_players = [
-                    all_players.pop(0),      # Best player
-                    all_players.pop(-1),     # Worst player
-                    all_players.pop(len(all_players)//2),  # Middle player
-                    all_players.pop(len(all_players)//2)   # Another middle player
+                    all_players.pop(0),  # Best player
+                    all_players.pop(-1),  # Worst player
+                    all_players.pop(len(all_players) // 2),  # Middle player
+                    all_players.pop(len(all_players) // 2),  # Another middle player
                 ]
             else:
                 # Just take first 4 remaining players
@@ -197,7 +192,7 @@ class TeamFormationService:
                 "players": team_players,
                 "average_handicap": round(team_avg_handicap, 1),
                 "created_at": datetime.now().isoformat(),
-                "formation_method": "balanced"
+                "formation_method": "balanced",
             }
             teams.append(team)
             team_number += 1
@@ -208,10 +203,10 @@ class TeamFormationService:
     def create_team_summary(teams: List[Dict]) -> Dict:
         """
         Create a summary of the team formation results.
-        
+
         Args:
             teams: List of team dictionaries
-            
+
         Returns:
             Summary dictionary with statistics
         """
@@ -220,7 +215,7 @@ class TeamFormationService:
                 "total_teams": 0,
                 "total_players_assigned": 0,
                 "formation_method": None,
-                "created_at": datetime.now().isoformat()
+                "created_at": datetime.now().isoformat(),
             }
 
         total_players = sum(len(team["players"]) for team in teams)
@@ -231,21 +226,19 @@ class TeamFormationService:
             "total_players_assigned": total_players,
             "formation_method": formation_method,
             "created_at": datetime.now().isoformat(),
-            "teams": teams
+            "teams": teams,
         }
 
         # Add average handicap info if available
         if formation_method == "balanced":
             handicaps: List[float] = [
-                float(team.get("average_handicap", 0))
-                for team in teams
-                if team.get("average_handicap") is not None
+                float(team.get("average_handicap", 0)) for team in teams if team.get("average_handicap") is not None
             ]
             if handicaps:
                 summary["average_team_handicap"] = round(sum(handicaps) / len(handicaps), 1)
                 summary["handicap_range"] = {
                     "min": min(handicaps),
-                    "max": max(handicaps)
+                    "max": max(handicaps),
                 }
 
         return summary
@@ -254,10 +247,10 @@ class TeamFormationService:
     def validate_team_formation(teams: List[Dict]) -> Dict:
         """
         Validate that team formation results are correct.
-        
+
         Args:
             teams: List of team dictionaries
-            
+
         Returns:
             Validation result dictionary
         """
@@ -289,7 +282,7 @@ class TeamFormationService:
         validation: Dict[str, Any] = {
             "is_valid": is_valid,
             "errors": errors,
-            "warnings": warnings
+            "warnings": warnings,
         }
 
         return validation

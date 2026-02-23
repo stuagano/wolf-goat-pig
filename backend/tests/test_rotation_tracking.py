@@ -1,6 +1,7 @@
 """Test captain rotation tracking functionality."""
-import pytest
+
 from fastapi.testclient import TestClient
+
 from app.main import app
 
 client = TestClient(app)
@@ -16,20 +17,28 @@ def test_complete_hole_stores_rotation_order():
     player_ids = [p["id"] for p in players]
 
     # Complete hole 1 with rotation order
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 1,
-        "rotation_order": player_ids,  # NEW FIELD
-        "captain_index": 0,             # NEW FIELD
-        "teams": {
-            "type": "partners",
-            "team1": [player_ids[0], player_ids[1]],
-            "team2": [player_ids[2], player_ids[3]]
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 1,
+            "rotation_order": player_ids,  # NEW FIELD
+            "captain_index": 0,  # NEW FIELD
+            "teams": {
+                "type": "partners",
+                "team1": [player_ids[0], player_ids[1]],
+                "team2": [player_ids[2], player_ids[3]],
+            },
+            "final_wager": 1,
+            "winner": "team1",
+            "scores": {
+                player_ids[0]: 4,
+                player_ids[1]: 5,
+                player_ids[2]: 5,
+                player_ids[3]: 6,
+            },
+            "hole_par": 4,
         },
-        "final_wager": 1,
-        "winner": "team1",
-        "scores": {player_ids[0]: 4, player_ids[1]: 5, player_ids[2]: 5, player_ids[3]: 6},
-        "hole_par": 4
-    })
+    )
 
     assert response.status_code == 200
     hole_result = response.json()["hole_result"]
@@ -47,16 +56,28 @@ def test_rotation_advances_each_hole():
     player_ids = [p["id"] for p in players]
 
     # Hole 1: First player is captain (index 0)
-    client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 1,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "teams": {"type": "partners", "team1": [player_ids[0], player_ids[1]], "team2": [player_ids[2], player_ids[3]]},
-        "final_wager": 1,
-        "winner": "team1",
-        "scores": {player_ids[0]: 4, player_ids[1]: 5, player_ids[2]: 5, player_ids[3]: 6},
-        "hole_par": 4
-    })
+    client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 1,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "teams": {
+                "type": "partners",
+                "team1": [player_ids[0], player_ids[1]],
+                "team2": [player_ids[2], player_ids[3]],
+            },
+            "final_wager": 1,
+            "winner": "team1",
+            "scores": {
+                player_ids[0]: 4,
+                player_ids[1]: 5,
+                player_ids[2]: 5,
+                player_ids[3]: 6,
+            },
+            "hole_par": 4,
+        },
+    )
 
     # Get next rotation - should shift left by 1
     state_response = client.get(f"/games/{game_id}/next-rotation")

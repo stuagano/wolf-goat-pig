@@ -20,11 +20,7 @@ from sqlalchemy import and_, desc
 from sqlalchemy.orm import Session
 
 from ..badge_engine import BadgeEngine
-from ..models import (
-    Badge,
-    PlayerAchievement,
-    PlayerBadgeEarned,
-)
+from ..models import Badge, PlayerAchievement, PlayerBadgeEarned
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +51,7 @@ class AchievementService:
         self,
         player_profile_id: int,
         badge_name: str,
-        game_record_id: Optional[int] = None
+        game_record_id: Optional[int] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Award a badge to a player by badge name.
@@ -70,21 +66,23 @@ class AchievementService:
         """
         try:
             # Get badge by name
-            badge = self.db.query(Badge).filter(
-                and_(Badge.name == badge_name, Badge.is_active == True)
-            ).first()
+            badge = self.db.query(Badge).filter(and_(Badge.name == badge_name, Badge.is_active == True)).first()
 
             if not badge:
                 logger.warning(f"Badge '{badge_name}' not found or inactive")
                 return None
 
             # Check if player already has this badge
-            existing = self.db.query(PlayerBadgeEarned).filter(
-                and_(
-                    PlayerBadgeEarned.player_profile_id == player_profile_id,
-                    PlayerBadgeEarned.badge_id == badge.id
+            existing = (
+                self.db.query(PlayerBadgeEarned)
+                .filter(
+                    and_(
+                        PlayerBadgeEarned.player_profile_id == player_profile_id,
+                        PlayerBadgeEarned.badge_id == badge.id,
+                    )
                 )
-            ).first()
+                .first()
+            )
 
             if existing:
                 logger.info(f"Player {player_profile_id} already has badge '{badge_name}'")
@@ -94,7 +92,7 @@ class AchievementService:
             earned_badge = self.badge_engine._award_badge(
                 player_profile_id=player_profile_id,
                 badge_id=int(badge.id),
-                game_record_id=game_record_id
+                game_record_id=game_record_id,
             )
 
             if earned_badge:
@@ -112,7 +110,7 @@ class AchievementService:
                     "earned_at": earned_badge.earned_at,
                     "serial_number": earned_badge.serial_number,
                     "image_url": badge.image_url,
-                    "points_value": badge.points_value
+                    "points_value": badge.points_value,
                 }
 
             return None
@@ -134,28 +132,32 @@ class AchievementService:
         """
         try:
             # Query all badges earned by player
-            earned_badges = self.db.query(PlayerBadgeEarned, Badge).join(
-                Badge, PlayerBadgeEarned.badge_id == Badge.id
-            ).filter(
-                PlayerBadgeEarned.player_profile_id == player_profile_id
-            ).order_by(desc(PlayerBadgeEarned.earned_at)).all()
+            earned_badges = (
+                self.db.query(PlayerBadgeEarned, Badge)
+                .join(Badge, PlayerBadgeEarned.badge_id == Badge.id)
+                .filter(PlayerBadgeEarned.player_profile_id == player_profile_id)
+                .order_by(desc(PlayerBadgeEarned.earned_at))
+                .all()
+            )
 
             badges_list = []
             for earned, badge in earned_badges:
-                badges_list.append({
-                    "badge_id": badge.id,
-                    "badge_name": badge.name,
-                    "description": badge.description,
-                    "category": badge.category,
-                    "rarity": badge.rarity,
-                    "earned_at": earned.earned_at,
-                    "serial_number": earned.serial_number,
-                    "game_record_id": earned.game_record_id,
-                    "image_url": badge.image_url,
-                    "points_value": badge.points_value,
-                    "is_favorited": earned.is_favorited,
-                    "showcase_position": earned.showcase_position
-                })
+                badges_list.append(
+                    {
+                        "badge_id": badge.id,
+                        "badge_name": badge.name,
+                        "description": badge.description,
+                        "category": badge.category,
+                        "rarity": badge.rarity,
+                        "earned_at": earned.earned_at,
+                        "serial_number": earned.serial_number,
+                        "game_record_id": earned.game_record_id,
+                        "image_url": badge.image_url,
+                        "points_value": badge.points_value,
+                        "is_favorited": earned.is_favorited,
+                        "showcase_position": earned.showcase_position,
+                    }
+                )
 
             logger.info(f"Retrieved {len(badges_list)} badges for player {player_profile_id}")
             return badges_list
@@ -176,20 +178,22 @@ class AchievementService:
 
             badges_list = []
             for badge in badges:
-                badges_list.append({
-                    "badge_id": badge.id,
-                    "badge_name": badge.name,
-                    "description": badge.description,
-                    "category": badge.category,
-                    "rarity": badge.rarity,
-                    "trigger_type": badge.trigger_type,
-                    "image_url": badge.image_url,
-                    "points_value": badge.points_value,
-                    "max_supply": badge.max_supply,
-                    "current_supply": badge.current_supply,
-                    "series_id": badge.series_id,
-                    "tier": badge.tier
-                })
+                badges_list.append(
+                    {
+                        "badge_id": badge.id,
+                        "badge_name": badge.name,
+                        "description": badge.description,
+                        "category": badge.category,
+                        "rarity": badge.rarity,
+                        "trigger_type": badge.trigger_type,
+                        "image_url": badge.image_url,
+                        "points_value": badge.points_value,
+                        "max_supply": badge.max_supply,
+                        "current_supply": badge.current_supply,
+                        "series_id": badge.series_id,
+                        "tier": badge.tier,
+                    }
+                )
 
             logger.info(f"Retrieved {len(badges_list)} available badges")
             return badges_list
@@ -198,11 +202,7 @@ class AchievementService:
             logger.error(f"Error getting available badges: {e}")
             raise
 
-    def check_badge_eligibility(
-        self,
-        player_profile_id: int,
-        badge_name: str
-    ) -> bool:
+    def check_badge_eligibility(self, player_profile_id: int, badge_name: str) -> bool:
         """
         Check if a player is eligible for a specific badge.
 
@@ -215,21 +215,23 @@ class AchievementService:
         """
         try:
             # Get badge by name
-            badge = self.db.query(Badge).filter(
-                and_(Badge.name == badge_name, Badge.is_active == True)
-            ).first()
+            badge = self.db.query(Badge).filter(and_(Badge.name == badge_name, Badge.is_active == True)).first()
 
             if not badge:
                 logger.warning(f"Badge '{badge_name}' not found or inactive")
                 return False
 
             # Check if already earned
-            already_earned = self.db.query(PlayerBadgeEarned).filter(
-                and_(
-                    PlayerBadgeEarned.player_profile_id == player_profile_id,
-                    PlayerBadgeEarned.badge_id == badge.id
+            already_earned = (
+                self.db.query(PlayerBadgeEarned)
+                .filter(
+                    and_(
+                        PlayerBadgeEarned.player_profile_id == player_profile_id,
+                        PlayerBadgeEarned.badge_id == badge.id,
+                    )
                 )
-            ).first()
+                .first()
+            )
 
             if already_earned:
                 return False
@@ -239,9 +241,9 @@ class AchievementService:
                 return False
 
             # For progression badges, check progress
-            if badge.trigger_type in ['career_milestone', 'progression']:
+            if badge.trigger_type in ["career_milestone", "progression"]:
                 progress = self.calculate_badge_progress(player_profile_id, badge_name)
-                progress_pct = progress.get('progress_percentage', 0)
+                progress_pct = progress.get("progress_percentage", 0)
                 return bool(progress_pct >= 100)
 
             # For other badge types, return True (actual eligibility determined by BadgeEngine)
@@ -251,11 +253,7 @@ class AchievementService:
             logger.error(f"Error checking badge eligibility for player {player_profile_id}: {e}")
             raise
 
-    def calculate_badge_progress(
-        self,
-        player_profile_id: int,
-        badge_name: str
-    ) -> Dict[str, Any]:
+    def calculate_badge_progress(self, player_profile_id: int, badge_name: str) -> Dict[str, Any]:
         """
         Calculate progress toward earning a badge.
 
@@ -268,23 +266,25 @@ class AchievementService:
         """
         try:
             # Get badge by name
-            badge = self.db.query(Badge).filter(
-                and_(Badge.name == badge_name, Badge.is_active == True)
-            ).first()
+            badge = self.db.query(Badge).filter(and_(Badge.name == badge_name, Badge.is_active == True)).first()
 
             if not badge:
                 return {
                     "badge_name": badge_name,
-                    "error": "Badge not found or inactive"
+                    "error": "Badge not found or inactive",
                 }
 
             # Check if already earned
-            already_earned = self.db.query(PlayerBadgeEarned).filter(
-                and_(
-                    PlayerBadgeEarned.player_profile_id == player_profile_id,
-                    PlayerBadgeEarned.badge_id == badge.id
+            already_earned = (
+                self.db.query(PlayerBadgeEarned)
+                .filter(
+                    and_(
+                        PlayerBadgeEarned.player_profile_id == player_profile_id,
+                        PlayerBadgeEarned.badge_id == badge.id,
+                    )
                 )
-            ).first()
+                .first()
+            )
 
             if already_earned:
                 return {
@@ -292,13 +292,12 @@ class AchievementService:
                     "badge_name": badge.name,
                     "earned": True,
                     "earned_at": already_earned.earned_at,
-                    "progress_percentage": 100.0
+                    "progress_percentage": 100.0,
                 }
 
             # Get or create progress record
             progress = self.badge_engine._get_or_create_progress(
-                player_profile_id=player_profile_id,
-                badge_id=int(badge.id)
+                player_profile_id=player_profile_id, badge_id=int(badge.id)
             )
 
             # Build response
@@ -313,7 +312,7 @@ class AchievementService:
                 "target_progress": progress.target_progress,
                 "progress_percentage": progress.progress_percentage,
                 "requirements": badge.trigger_condition or {},
-                "trigger_type": badge.trigger_type
+                "trigger_type": badge.trigger_type,
             }
 
             logger.info(
@@ -343,32 +342,32 @@ class AchievementService:
             List of dicts containing achievement information
         """
         try:
-            achievements = self.db.query(PlayerAchievement).filter(
-                PlayerAchievement.player_profile_id == player_profile_id
-            ).order_by(desc(PlayerAchievement.earned_date)).all()
+            achievements = (
+                self.db.query(PlayerAchievement)
+                .filter(PlayerAchievement.player_profile_id == player_profile_id)
+                .order_by(desc(PlayerAchievement.earned_date))
+                .all()
+            )
 
             achievements_list = []
             for achievement in achievements:
-                achievements_list.append({
-                    "id": achievement.id,
-                    "achievement_type": achievement.achievement_type,
-                    "achievement_name": achievement.achievement_name,
-                    "description": achievement.description,
-                    "earned_date": achievement.earned_date,
-                    "game_record_id": achievement.game_record_id,
-                    "achievement_data": achievement.achievement_data
-                })
+                achievements_list.append(
+                    {
+                        "id": achievement.id,
+                        "achievement_type": achievement.achievement_type,
+                        "achievement_name": achievement.achievement_name,
+                        "description": achievement.description,
+                        "earned_date": achievement.earned_date,
+                        "game_record_id": achievement.game_record_id,
+                        "achievement_data": achievement.achievement_data,
+                    }
+                )
 
-            logger.info(
-                f"Retrieved {len(achievements_list)} legacy achievements "
-                f"for player {player_profile_id}"
-            )
+            logger.info(f"Retrieved {len(achievements_list)} legacy achievements " f"for player {player_profile_id}")
             return achievements_list
 
         except Exception as e:
-            logger.error(
-                f"Error getting legacy achievements for player {player_profile_id}: {e}"
-            )
+            logger.error(f"Error getting legacy achievements for player {player_profile_id}: {e}")
             raise
 
     def create_achievement(
@@ -378,7 +377,7 @@ class AchievementService:
         description: str,
         achievement_name: Optional[str] = None,
         game_record_id: Optional[int] = None,
-        achievement_data: Optional[Dict[str, Any]] = None
+        achievement_data: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Create a new PlayerAchievement record (legacy system).
@@ -398,21 +397,18 @@ class AchievementService:
             achievement = PlayerAchievement(
                 player_profile_id=player_profile_id,
                 achievement_type=achievement_type,
-                achievement_name=achievement_name or achievement_type.replace('_', ' ').title(),
+                achievement_name=achievement_name or achievement_type.replace("_", " ").title(),
                 description=description,
                 earned_date=datetime.now().isoformat(),
                 game_record_id=game_record_id,
-                achievement_data=achievement_data or {}
+                achievement_data=achievement_data or {},
             )
 
             self.db.add(achievement)
             self.db.commit()
             self.db.refresh(achievement)
 
-            logger.info(
-                f"Created legacy achievement '{achievement_type}' "
-                f"for player {player_profile_id}"
-            )
+            logger.info(f"Created legacy achievement '{achievement_type}' " f"for player {player_profile_id}")
 
             return {
                 "id": achievement.id,
@@ -421,14 +417,12 @@ class AchievementService:
                 "description": achievement.description,
                 "earned_date": achievement.earned_date,
                 "game_record_id": achievement.game_record_id,
-                "achievement_data": achievement.achievement_data
+                "achievement_data": achievement.achievement_data,
             }
 
         except Exception as e:
             self.db.rollback()
-            logger.error(
-                f"Error creating legacy achievement for player {player_profile_id}: {e}"
-            )
+            logger.error(f"Error creating legacy achievement for player {player_profile_id}: {e}")
             raise
 
     # ====================================================================================
@@ -450,9 +444,9 @@ class AchievementService:
         """
         try:
             # Get all achievements for this player
-            achievements = self.db.query(PlayerAchievement).filter(
-                PlayerAchievement.player_profile_id == player_profile_id
-            ).all()
+            achievements = (
+                self.db.query(PlayerAchievement).filter(PlayerAchievement.player_profile_id == player_profile_id).all()
+            )
 
             if not achievements:
                 logger.info(f"No legacy achievements found for player {player_profile_id}")
@@ -462,13 +456,13 @@ class AchievementService:
 
             # Define mapping from achievement_type to badge_name
             achievement_to_badge_map = {
-                'first_win': 'Lone Wolf',
-                'big_earner': 'The Gambler',
-                'partnership_master': 'Dynamic Duo',
-                'solo_warrior': 'Wolf Pack Leader',
-                'betting_expert': 'High Roller',
-                'veteran': 'Veteran',
-                'consistent_winner': 'Pestilence'
+                "first_win": "Lone Wolf",
+                "big_earner": "The Gambler",
+                "partnership_master": "Dynamic Duo",
+                "solo_warrior": "Wolf Pack Leader",
+                "betting_expert": "High Roller",
+                "veteran": "Veteran",
+                "consistent_winner": "Pestilence",
             }
 
             for achievement in achievements:
@@ -476,16 +470,14 @@ class AchievementService:
                 badge_name = achievement_to_badge_map.get(str(achievement.achievement_type))
 
                 if not badge_name:
-                    logger.debug(
-                        f"No badge mapping for achievement type '{achievement.achievement_type}'"
-                    )
+                    logger.debug(f"No badge mapping for achievement type '{achievement.achievement_type}'")
                     continue
 
                 # Try to award the badge
                 result = self.award_badge(
                     player_profile_id=player_profile_id,
                     badge_name=badge_name,
-                    game_record_id=int(achievement.game_record_id) if achievement.game_record_id else None
+                    game_record_id=(int(achievement.game_record_id) if achievement.game_record_id else None),
                 )
 
                 if result:
@@ -503,9 +495,7 @@ class AchievementService:
             return migrated_count
 
         except Exception as e:
-            logger.error(
-                f"Error migrating achievements to badges for player {player_profile_id}: {e}"
-            )
+            logger.error(f"Error migrating achievements to badges for player {player_profile_id}: {e}")
             raise
 
 

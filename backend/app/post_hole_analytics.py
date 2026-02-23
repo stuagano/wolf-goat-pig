@@ -15,6 +15,7 @@ class DecisionQuality(Enum):
     POOR = "poor"
     TERRIBLE = "terrible"
 
+
 class InsightCategory(Enum):
     PARTNERSHIP = "partnership"
     BETTING = "betting"
@@ -23,9 +24,11 @@ class InsightCategory(Enum):
     SHOT_SELECTION = "shots"
     STRATEGY = "strategy"
 
+
 @dataclass
 class DecisionPoint:
     """Represents a key decision point during the hole"""
+
     decision_type: str  # "partnership_offer", "double_decision", "solo_decision", etc.
     player_id: str
     timestamp: str
@@ -36,9 +39,11 @@ class DecisionPoint:
     quality: DecisionQuality
     explanation: str
 
+
 @dataclass
 class PartnershipAnalysis:
     """Analysis of partnership decisions"""
+
     partnership_formed: bool
     captain_id: str
     partner_id: Optional[str]
@@ -49,9 +54,11 @@ class PartnershipAnalysis:
     optimal_choice: bool
     explanation: str
 
+
 @dataclass
 class BettingAnalysis:
     """Analysis of betting decisions"""
+
     doubles_offered: int
     doubles_accepted: int
     doubles_declined: int
@@ -62,9 +69,11 @@ class BettingAnalysis:
     costly_mistakes: List[str]
     net_quarter_impact: int
 
+
 @dataclass
 class ShotAnalysis:
     """Analysis of shot selection and execution"""
+
     total_shots: int
     shot_quality_distribution: Dict[str, int]  # excellent: 2, good: 3, etc.
     clutch_shots: List[Dict[str, Any]]  # Important shots and their outcomes
@@ -72,18 +81,22 @@ class ShotAnalysis:
     best_shot: Optional[Dict[str, Any]]
     pressure_performance: float  # 0-1, how well performed under pressure
 
+
 @dataclass
 class KeyMoment:
     """Represents a pivotal moment in the hole"""
+
     description: str
     impact: str  # "game_changing", "significant", "minor"
     quarters_swing: int
     player_involved: str
     timestamp: str
 
+
 @dataclass
 class PostHoleAnalytics:
     """Complete post-hole analytics package"""
+
     hole_number: int
     hole_par: int
     hole_yardage: int
@@ -165,17 +178,13 @@ class PostHoleAnalyzer:
             decision_points, partnership_analysis, betting_analysis, key_moments
         )
 
-        tips = self._generate_tips(
-            decision_points, partnership_analysis, betting_analysis, shot_analysis
-        )
+        tips = self._generate_tips(decision_points, partnership_analysis, betting_analysis, shot_analysis)
 
         # AI comparison
         ai_comparison = self._generate_ai_comparison(hole_state, decision_points)
 
         # Historical comparison
-        historical_comparison = self._generate_historical_comparison(
-            hole_number, overall_performance, decision_points
-        )
+        historical_comparison = self._generate_historical_comparison(hole_number, overall_performance, decision_points)
 
         return PostHoleAnalytics(
             hole_number=hole_number,
@@ -198,7 +207,7 @@ class PostHoleAnalyzer:
             ai_comparison=ai_comparison,
             historical_comparison=historical_comparison,
             tips_for_improvement=tips,
-            similar_scenarios_to_practice=self._suggest_practice_scenarios(hole_state, decision_points)
+            similar_scenarios_to_practice=self._suggest_practice_scenarios(hole_state, decision_points),
         )
 
     def _determine_winner(self, hole_state: Any) -> Tuple[str, int]:
@@ -248,7 +257,7 @@ class PostHoleAnalyzer:
                     outcome=event.details.get("outcome", "pending"),
                     quarters_impact=event.details.get("quarters_impact", 0),
                     quality=quality,
-                    explanation=explanation
+                    explanation=explanation,
                 )
                 decisions.append(decision)
 
@@ -269,8 +278,7 @@ class PostHoleAnalyzer:
         if hole_state.teams.type == "partners" and partnership_event:
             # Analyze the partnership
             chemistry = self._calculate_partnership_chemistry(
-                hole_state.teams.captain,
-                partnership_event.details.get("partner_id")
+                hole_state.teams.captain, partnership_event.details.get("partner_id")
             )
 
             return PartnershipAnalysis(
@@ -282,7 +290,7 @@ class PostHoleAnalyzer:
                 chemistry_rating=chemistry,
                 alternative_partners=self._get_alternative_partners(hole_state, timeline_events),
                 optimal_choice=self._was_optimal_partner(hole_state, partnership_event),
-                explanation=self._explain_partnership_decision(hole_state, partnership_event)
+                explanation=self._explain_partnership_decision(hole_state, partnership_event),
             )
 
         elif hole_state.teams.type == "solo":
@@ -295,7 +303,7 @@ class PostHoleAnalyzer:
                 chemistry_rating=0.0,
                 alternative_partners=self._get_alternative_partners(hole_state, timeline_events),
                 optimal_choice=self._was_solo_optimal(hole_state),
-                explanation=self._explain_solo_decision(hole_state)
+                explanation=self._explain_solo_decision(hole_state),
             )
 
         return None
@@ -331,12 +339,18 @@ class PostHoleAnalyzer:
             aggressive_rating=self._calculate_aggression_rating(doubles_offered, doubles_accepted),
             missed_opportunities=missed_opportunities,
             costly_mistakes=costly_mistakes,
-            net_quarter_impact=self._calculate_betting_impact(hole_state)
+            net_quarter_impact=self._calculate_betting_impact(hole_state),
         )
 
     def _analyze_shots(self, hole_state: Any, timeline_events: Any) -> ShotAnalysis:
         """Analyze shot selection and execution"""
-        shot_quality_dist = {"excellent": 0, "good": 0, "average": 0, "poor": 0, "terrible": 0}
+        shot_quality_dist = {
+            "excellent": 0,
+            "good": 0,
+            "average": 0,
+            "poor": 0,
+            "terrible": 0,
+        }
         clutch_shots = []
         all_shots = []
 
@@ -349,7 +363,7 @@ class PostHoleAnalyzer:
                     "player": event.player_id,
                     "quality": quality,
                     "distance": event.details.get("distance_to_pin"),
-                    "pressure": event.details.get("pressure_level", "normal")
+                    "pressure": event.details.get("pressure_level", "normal"),
                 }
                 all_shots.append(shot_info)
 
@@ -360,9 +374,9 @@ class PostHoleAnalyzer:
             total_shots=sum(shot_quality_dist.values()),
             shot_quality_distribution=shot_quality_dist,
             clutch_shots=clutch_shots,
-            worst_shot=min(all_shots, key=lambda x: self._shot_quality_value(x["quality"])) if all_shots else None,
-            best_shot=max(all_shots, key=lambda x: self._shot_quality_value(x["quality"])) if all_shots else None,
-            pressure_performance=self._calculate_pressure_performance(clutch_shots)
+            worst_shot=(min(all_shots, key=lambda x: self._shot_quality_value(x["quality"])) if all_shots else None),
+            best_shot=(max(all_shots, key=lambda x: self._shot_quality_value(x["quality"])) if all_shots else None),
+            pressure_performance=self._calculate_pressure_performance(clutch_shots),
         )
 
     def _identify_key_moments(self, timeline_events: Any, hole_state: Any) -> List[KeyMoment]:
@@ -376,7 +390,7 @@ class PostHoleAnalyzer:
                     impact=self._determine_impact_level(event),
                     quarters_swing=event.details.get("quarters_impact", 0),
                     player_involved=event.player_id,
-                    timestamp=event.timestamp.isoformat()
+                    timestamp=event.timestamp.isoformat(),
                 )
                 key_moments.append(moment)
 
@@ -423,7 +437,7 @@ class PostHoleAnalyzer:
             DecisionQuality.GOOD: 75,
             DecisionQuality.NEUTRAL: 50,
             DecisionQuality.POOR: 25,
-            DecisionQuality.TERRIBLE: 0
+            DecisionQuality.TERRIBLE: 0,
         }
 
         total = sum(quality_values[d.quality] for d in decisions)
@@ -456,7 +470,9 @@ class PostHoleAnalyzer:
 
         # Betting insights
         if betting.missed_opportunities:
-            points.append(f"Be more aggressive after excellent shots - missed {len(betting.missed_opportunities)} double opportunities")
+            points.append(
+                f"Be more aggressive after excellent shots - missed {len(betting.missed_opportunities)} double opportunities"
+            )
 
         return points[:5]  # Limit to top 5 points
 
@@ -493,8 +509,12 @@ class PostHoleAnalyzer:
 
     def _is_key_moment(self, event: Any) -> bool:
         """Determine if an event is a key moment"""
-        return event.type in ["double_accepted", "double_declined", "partnership_formed", "solo_decision"] or \
-               (event.type == "shot" and event.details.get("holed", False))
+        return event.type in [
+            "double_accepted",
+            "double_declined",
+            "partnership_formed",
+            "solo_decision",
+        ] or (event.type == "shot" and event.details.get("holed", False))
 
     def _determine_impact_level(self, event: Any) -> str:
         """Determine the impact level of an event"""
@@ -538,7 +558,7 @@ class PostHoleAnalyzer:
         return {
             "different_decisions": 2,
             "ai_expected_outcome": "win by 2 strokes",
-            "key_difference": "AI would have partnered after first shot instead of second"
+            "key_difference": "AI would have partnered after first shot instead of second",
         }
 
     def _generate_historical_comparison(self, hole_number: Any, performance: Any, decisions: Any) -> Dict[str, Any]:
@@ -547,7 +567,10 @@ class PostHoleAnalyzer:
             "avg_performance_this_hole": 65.0,
             "this_hole_performance": performance,
             "improvement": performance > 65.0,
-            "common_mistakes_this_hole": ["Going solo too often", "Missing double opportunities"]
+            "common_mistakes_this_hole": [
+                "Going solo too often",
+                "Missing double opportunities",
+            ],
         }
 
     def _calculate_partnership_chemistry(self, captain_id: Any, partner_id: Any) -> float:

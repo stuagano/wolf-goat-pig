@@ -7,7 +7,7 @@ Useful for manual schema changes during development and deployment.
 
 import logging
 import os
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Dict, cast
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy import inspect, text
@@ -64,7 +64,7 @@ async def get_migration_status(db: Session = Depends(get_db), _: bool = Depends(
                         "name": col["name"],
                         "type": str(col["type"]),
                         "nullable": col.get("nullable", True),
-                        "default": str(col.get("default")) if col.get("default") is not None else None,
+                        "default": (str(col.get("default")) if col.get("default") is not None else None),
                     }
                     serialized_columns.append(serialized_col)
 
@@ -83,7 +83,9 @@ async def get_migration_status(db: Session = Depends(get_db), _: bool = Depends(
 
 @router.post("/run")
 async def run_migration(
-    migration_name: str, db: Session = Depends(get_db), _: bool = Depends(verify_admin_key)
+    migration_name: str,
+    db: Session = Depends(get_db),
+    _: bool = Depends(verify_admin_key),
 ) -> Dict[str, Any]:
     """Run a specific migration by name.
 
@@ -110,7 +112,8 @@ async def run_migration(
 
     if migration_name not in migrations:
         raise HTTPException(
-            status_code=400, detail=f"Unknown migration: {migration_name}. Available: {list(migrations.keys())}"
+            status_code=400,
+            detail=f"Unknown migration: {migration_name}. Available: {list(migrations.keys())}",
         )
 
     try:

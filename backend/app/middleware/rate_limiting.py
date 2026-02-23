@@ -28,7 +28,7 @@ class RateLimiter:
         self,
         key: str,
         min_interval_seconds: int = 3600,  # 1 hour default
-        client_id: Optional[str] = None
+        client_id: Optional[str] = None,
     ) -> bool:
         """
         Check if a request should be allowed based on rate limit.
@@ -68,14 +68,14 @@ class RateLimiter:
                         "message": f"Rate limit exceeded. This endpoint can only be called once per {min_interval_seconds // 3600} hour(s).",
                         "retry_after_seconds": remaining_seconds,
                         "last_request": self.last_request[rate_key].isoformat(),
-                        "next_allowed": (now + remaining).isoformat()
+                        "next_allowed": (now + remaining).isoformat(),
                     },
                     headers={
                         "Retry-After": str(remaining_seconds),
                         "X-RateLimit-Limit": "1",
                         "X-RateLimit-Remaining": "0",
-                        "X-RateLimit-Reset": str(int((now + remaining).timestamp()))
-                    }
+                        "X-RateLimit-Reset": str(int((now + remaining).timestamp())),
+                    },
                 )
 
         # Request allowed
@@ -107,10 +107,10 @@ class RateLimiter:
             "keys": {
                 key: {
                     "last_request": timestamp.isoformat(),
-                    "total_requests": self.request_counts.get(key, 0)
+                    "total_requests": self.request_counts.get(key, 0),
                 }
                 for key, timestamp in self.last_request.items()
-            }
+            },
         }
 
 

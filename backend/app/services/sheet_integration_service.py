@@ -23,20 +23,25 @@ from .statistics_service import StatisticsService
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class SheetColumnMapping:
     """Maps Google Sheet columns to database fields."""
+
     sheet_column: str
     db_field: str
     data_type: str  # 'text', 'number', 'percentage', 'currency', 'date'
     transformation: Optional[str] = None  # Optional transformation function name
 
+
 @dataclass
 class SheetDataRow:
     """Represents a row of data from the Google Sheet."""
+
     raw_data: Dict[str, Any]
     mapped_data: Dict[str, Any]
     validation_errors: List[str] = field(default_factory=list)
+
 
 class SheetIntegrationService:
     """Service for integrating Google Sheets data with the application."""
@@ -52,12 +57,27 @@ class SheetIntegrationService:
             SheetColumnMapping("Games Won", "games_won", "number"),
             SheetColumnMapping("Win Rate", "win_rate", "percentage", "percentage_to_decimal"),
             SheetColumnMapping("Total Earnings", "total_earnings", "currency", "currency_to_float"),
-            SheetColumnMapping("Avg Earnings Per Game", "avg_earnings_per_game", "currency", "currency_to_float"),
+            SheetColumnMapping(
+                "Avg Earnings Per Game",
+                "avg_earnings_per_game",
+                "currency",
+                "currency_to_float",
+            ),
             SheetColumnMapping("Best Finish", "best_finish", "number"),
             SheetColumnMapping("Holes Won", "holes_won", "number"),
             SheetColumnMapping("Partnerships", "partnerships_formed", "number"),
-            SheetColumnMapping("Partnership Success", "partnership_success_rate", "percentage", "percentage_to_decimal"),
-            SheetColumnMapping("Betting Success", "betting_success_rate", "percentage", "percentage_to_decimal"),
+            SheetColumnMapping(
+                "Partnership Success",
+                "partnership_success_rate",
+                "percentage",
+                "percentage_to_decimal",
+            ),
+            SheetColumnMapping(
+                "Betting Success",
+                "betting_success_rate",
+                "percentage",
+                "percentage_to_decimal",
+            ),
             SheetColumnMapping("Solo Attempts", "solo_attempts", "number"),
             SheetColumnMapping("Solo Wins", "solo_wins", "number"),
         ]
@@ -100,11 +120,25 @@ class SheetIntegrationService:
             elif any(pattern in header_lower for pattern in ["partnerships", "team ups"]):
                 mappings.append(SheetColumnMapping(header, "partnerships_formed", "number"))
             elif any(pattern in header_lower for pattern in ["partnership success", "team success"]):
-                mappings.append(SheetColumnMapping(header, "partnership_success_rate", "percentage", "percentage_to_decimal"))
+                mappings.append(
+                    SheetColumnMapping(
+                        header,
+                        "partnership_success_rate",
+                        "percentage",
+                        "percentage_to_decimal",
+                    )
+                )
 
             # Betting data
             elif any(pattern in header_lower for pattern in ["betting success", "bet success", "betting %"]):
-                mappings.append(SheetColumnMapping(header, "betting_success_rate", "percentage", "percentage_to_decimal"))
+                mappings.append(
+                    SheetColumnMapping(
+                        header,
+                        "betting_success_rate",
+                        "percentage",
+                        "percentage_to_decimal",
+                    )
+                )
 
             # Solo play
             elif any(pattern in header_lower for pattern in ["solo attempts", "solo tries"]):
@@ -128,12 +162,14 @@ class SheetIntegrationService:
                     data_type = "text"
                     transformation = None
 
-                mappings.append(SheetColumnMapping(
-                    header,
-                    header.lower().replace(" ", "_").replace("-", "_"),
-                    data_type,
-                    transformation
-                ))
+                mappings.append(
+                    SheetColumnMapping(
+                        header,
+                        header.lower().replace(" ", "_").replace("-", "_"),
+                        data_type,
+                        transformation,
+                    )
+                )
 
         return mappings
 
@@ -193,11 +229,12 @@ class SheetIntegrationService:
         return SheetDataRow(
             raw_data=row_data,
             mapped_data=mapped_data,
-            validation_errors=errors if errors else []
+            validation_errors=errors if errors else [],
         )
 
-    def create_leaderboard_from_sheet_data(self, sheet_data: List[Dict[str, Any]],
-                                         mappings: List[SheetColumnMapping]) -> List[Dict[str, Any]]:
+    def create_leaderboard_from_sheet_data(
+        self, sheet_data: List[Dict[str, Any]], mappings: List[SheetColumnMapping]
+    ) -> List[Dict[str, Any]]:
         """Create a leaderboard from sheet data."""
         validated_rows = []
 
@@ -218,14 +255,15 @@ class SheetIntegrationService:
 
         return validated_rows
 
-    def sync_sheet_data_to_database(self, sheet_data: List[Dict[str, Any]],
-                                   mappings: List[SheetColumnMapping]) -> Dict[str, Any]:
+    def sync_sheet_data_to_database(
+        self, sheet_data: List[Dict[str, Any]], mappings: List[SheetColumnMapping]
+    ) -> Dict[str, Any]:
         """Sync sheet data to the database (create/update player profiles and statistics)."""
         results: Dict[str, Any] = {
             "players_processed": 0,
             "players_created": 0,
             "players_updated": 0,
-            "errors": []
+            "errors": [],
         }
 
         try:
@@ -237,10 +275,7 @@ class SheetIntegrationService:
                     validated_row = self.validate_sheet_row(row, mappings)
 
                     if validated_row.validation_errors:
-                        results["errors"].append({
-                            "row": row,
-                            "errors": validated_row.validation_errors
-                        })
+                        results["errors"].append({"row": row, "errors": validated_row.validation_errors})
                         savepoint.rollback()
                         continue
 
@@ -253,9 +288,7 @@ class SheetIntegrationService:
                         continue
 
                     # Find or create player profile
-                    player = self.db.query(PlayerProfile).filter(
-                        PlayerProfile.name == player_name
-                    ).first()
+                    player = self.db.query(PlayerProfile).filter(PlayerProfile.name == player_name).first()
 
                     if not player:
                         # Create new player profile
@@ -263,16 +296,14 @@ class SheetIntegrationService:
                             name=player_name,
                             handicap=data.get("handicap", 18.0),
                             created_date=datetime.now().isoformat(),
-                            is_active=1
+                            is_active=1,
                         )
                         self.db.add(player)
                         self.db.flush()  # Get the ID
                         results["players_created"] += 1
 
                     # Find or create player statistics
-                    stats = self.db.query(PlayerStatistics).filter(
-                        PlayerStatistics.player_id == player.id
-                    ).first()
+                    stats = self.db.query(PlayerStatistics).filter(PlayerStatistics.player_id == player.id).first()
 
                     if not stats:
                         stats = PlayerStatistics(player_id=player.id)
@@ -280,11 +311,11 @@ class SheetIntegrationService:
                         self.db.flush()
 
                     # Update statistics from sheet data
-                    for field, value in data.items():
-                        if field != "player_name" and hasattr(stats, field) and value is not None:
-                            setattr(stats, field, value)
+                    for field_name, value in data.items():
+                        if field_name != "player_name" and hasattr(stats, field_name) and value is not None:
+                            setattr(stats, field_name, value)
 
-                    setattr(stats, 'last_updated', datetime.now().isoformat())
+                    setattr(stats, "last_updated", datetime.now().isoformat())
                     results["players_updated"] += 1
                     results["players_processed"] += 1
 
@@ -295,10 +326,7 @@ class SheetIntegrationService:
                     # Rollback just this player's changes and continue with others
                     savepoint.rollback()
                     logger.error(f"Error processing player from row {row}: {e}")
-                    results["errors"].append({
-                        "row": row,
-                        "errors": [f"Database error: {str(e)}"]
-                    })
+                    results["errors"].append({"row": row, "errors": [f"Database error: {str(e)}"]})
                     continue
 
             # Final commit for the entire transaction
@@ -316,9 +344,11 @@ class SheetIntegrationService:
         """Export current database data in sheet format for comparison."""
         try:
             # Get all active players with statistics
-            query = self.db.query(PlayerProfile, PlayerStatistics).join(
-                PlayerStatistics, PlayerProfile.id == PlayerStatistics.player_id
-            ).filter(PlayerProfile.is_active == 1)
+            query = (
+                self.db.query(PlayerProfile, PlayerStatistics)
+                .join(PlayerStatistics, PlayerProfile.id == PlayerStatistics.player_id)
+                .filter(PlayerProfile.is_active == 1)
+            )
 
             results = query.all()
             sheet_data = []
@@ -346,8 +376,10 @@ class SheetIntegrationService:
                 sheet_data.append(row)
 
             # Sort by total earnings or primary metric
-            sheet_data.sort(key=lambda x: float(str(x.get("Total Earnings", "0")).replace("$", "").replace(",", "")),
-                          reverse=True)
+            sheet_data.sort(
+                key=lambda x: float(str(x.get("Total Earnings", "0")).replace("$", "").replace(",", "")),
+                reverse=True,
+            )
 
             return sheet_data
 
@@ -355,10 +387,12 @@ class SheetIntegrationService:
             logger.error(f"Error exporting data to sheet format: {e}")
             return []
 
-    def generate_sheet_comparison_report(self,
-                                       current_data: List[Dict[str, Any]],
-                                       sheet_data: List[Dict[str, Any]],
-                                       mappings: List[SheetColumnMapping]) -> Dict[str, Any]:
+    def generate_sheet_comparison_report(
+        self,
+        current_data: List[Dict[str, Any]],
+        sheet_data: List[Dict[str, Any]],
+        mappings: List[SheetColumnMapping],
+    ) -> Dict[str, Any]:
         """Generate a comparison report between current database and sheet data."""
         report: Dict[str, Any] = {
             "summary": {
@@ -367,9 +401,9 @@ class SheetIntegrationService:
                 "common_players": 0,
                 "database_only": [],
                 "sheet_only": [],
-                "data_differences": []
+                "data_differences": [],
             },
-            "detailed_comparison": []
+            "detailed_comparison": [],
         }
 
         try:
@@ -394,17 +428,16 @@ class SheetIntegrationService:
                         sheet_value = sheet_row.get(mapping.sheet_column)
 
                         if str(db_value) != str(sheet_value):
-                            differences.append({
-                                "field": mapping.sheet_column,
-                                "database_value": db_value,
-                                "sheet_value": sheet_value
-                            })
+                            differences.append(
+                                {
+                                    "field": mapping.sheet_column,
+                                    "database_value": db_value,
+                                    "sheet_value": sheet_value,
+                                }
+                            )
 
                     if differences:
-                        report["detailed_comparison"].append({
-                            "player": player_name,
-                            "differences": differences
-                        })
+                        report["detailed_comparison"].append({"player": player_name, "differences": differences})
 
                 elif player_name in db_players:
                     report["summary"]["database_only"].append(player_name)

@@ -9,6 +9,7 @@ from ..models import Course, Hole
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class CourseManager:
     """Manages golf course data by interacting directly with the database."""
@@ -111,26 +112,23 @@ class CourseManager:
         db: Session = SessionLocal()
         try:
             new_course = Course(
-                name=course_data['name'],
-                description=course_data.get('description'),
-                total_par=course_data['total_par'],
-                total_yards=course_data['total_yards'],
-                course_rating=course_data.get('course_rating'),
-                slope_rating=course_data.get('slope_rating'),
+                name=course_data["name"],
+                description=course_data.get("description"),
+                total_par=course_data["total_par"],
+                total_yards=course_data["total_yards"],
+                course_rating=course_data.get("course_rating"),
+                slope_rating=course_data.get("slope_rating"),
             )
             db.add(new_course)
             db.flush()  # To get the new_course.id
 
-            holes_data = course_data.get('holes_data', [])
+            holes_data = course_data.get("holes_data", [])
             for hole_data in holes_data:
                 # Map stroke_index to handicap if present (different naming conventions)
                 mapped_hole_data = hole_data.copy()
-                if 'stroke_index' in mapped_hole_data:
-                    mapped_hole_data['handicap'] = mapped_hole_data.pop('stroke_index')
-                new_hole = Hole(
-                    course_id=new_course.id,
-                    **mapped_hole_data
-                )
+                if "stroke_index" in mapped_hole_data:
+                    mapped_hole_data["handicap"] = mapped_hole_data.pop("stroke_index")
+                new_hole = Hole(course_id=new_course.id, **mapped_hole_data)
                 db.add(new_hole)
 
             db.commit()
@@ -158,8 +156,10 @@ class CourseManager:
             return []
         return [h.handicap for h in sorted(course.holes, key=lambda x: x.hole_number)]
 
+
 # Singleton instance of the CourseManager
 _course_manager_instance = None
+
 
 def get_course_manager() -> CourseManager:
     """Provides a singleton instance of the CourseManager."""

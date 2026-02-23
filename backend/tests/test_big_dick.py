@@ -1,6 +1,7 @@
 """Test The Big Dick - 18th Hole Special - Phase 4, Task 5"""
-import pytest
+
 from fastapi.testclient import TestClient
+
 from app.main import app
 
 client = TestClient(app)
@@ -14,21 +15,29 @@ def test_big_dick_on_hole_18():
     player_ids = [p["id"] for p in players]
 
     # Hole 18: Player 2 (not captain) declares Big Dick
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 18,
-        "rotation_order": player_ids,
-        "captain_index": 0,  # Captain is player_ids[0]
-        "big_dick_invoked_by": player_ids[1],  # Player 2 declares Big Dick
-        "teams": {
-            "type": "solo",
-            "captain": player_ids[1],  # Player 2 vs everyone else
-            "opponents": [player_ids[0], player_ids[2], player_ids[3]]
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 18,
+            "rotation_order": player_ids,
+            "captain_index": 0,  # Captain is player_ids[0]
+            "big_dick_invoked_by": player_ids[1],  # Player 2 declares Big Dick
+            "teams": {
+                "type": "solo",
+                "captain": player_ids[1],  # Player 2 vs everyone else
+                "opponents": [player_ids[0], player_ids[2], player_ids[3]],
+            },
+            "final_wager": 2,
+            "winner": "captain",
+            "scores": {
+                player_ids[0]: 5,
+                player_ids[1]: 4,
+                player_ids[2]: 5,
+                player_ids[3]: 6,
+            },
+            "hole_par": 4,
         },
-        "final_wager": 2,
-        "winner": "captain",
-        "scores": {player_ids[0]: 5, player_ids[1]: 4, player_ids[2]: 5, player_ids[3]: 6},
-        "hole_par": 4
-    })
+    )
 
     assert response.status_code == 200
     result = response.json()["hole_result"]
@@ -47,21 +56,29 @@ def test_big_dick_only_on_hole_18():
     player_ids = [p["id"] for p in players]
 
     # Try to invoke Big Dick on hole 17 (should fail)
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 17,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "big_dick_invoked_by": player_ids[1],
-        "teams": {
-            "type": "solo",
-            "captain": player_ids[1],
-            "opponents": [player_ids[0], player_ids[2], player_ids[3]]
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 17,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "big_dick_invoked_by": player_ids[1],
+            "teams": {
+                "type": "solo",
+                "captain": player_ids[1],
+                "opponents": [player_ids[0], player_ids[2], player_ids[3]],
+            },
+            "final_wager": 2,
+            "winner": "captain",
+            "scores": {
+                player_ids[0]: 5,
+                player_ids[1]: 4,
+                player_ids[2]: 5,
+                player_ids[3]: 6,
+            },
+            "hole_par": 4,
         },
-        "final_wager": 2,
-        "winner": "captain",
-        "scores": {player_ids[0]: 5, player_ids[1]: 4, player_ids[2]: 5, player_ids[3]: 6},
-        "hole_par": 4
-    })
+    )
 
     assert response.status_code == 400
     assert "18" in response.json()["detail"].lower() or "big dick" in response.json()["detail"].lower()
@@ -75,21 +92,29 @@ def test_big_dick_1_vs_all():
     player_ids = [p["id"] for p in players]
 
     # Hole 18: Player 3 declares Big Dick
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 18,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "big_dick_invoked_by": player_ids[2],
-        "teams": {
-            "type": "solo",
-            "captain": player_ids[2],
-            "opponents": [player_ids[0], player_ids[1], player_ids[3]]
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 18,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "big_dick_invoked_by": player_ids[2],
+            "teams": {
+                "type": "solo",
+                "captain": player_ids[2],
+                "opponents": [player_ids[0], player_ids[1], player_ids[3]],
+            },
+            "final_wager": 2,
+            "winner": "captain",
+            "scores": {
+                player_ids[0]: 5,
+                player_ids[1]: 5,
+                player_ids[2]: 3,
+                player_ids[3]: 6,
+            },
+            "hole_par": 4,
         },
-        "final_wager": 2,
-        "winner": "captain",
-        "scores": {player_ids[0]: 5, player_ids[1]: 5, player_ids[2]: 3, player_ids[3]: 6},
-        "hole_par": 4
-    })
+    )
 
     assert response.status_code == 200
     result = response.json()["hole_result"]
@@ -98,7 +123,11 @@ def test_big_dick_1_vs_all():
     assert result["teams"]["type"] == "solo"
     assert result["teams"]["captain"] == player_ids[2]
     assert len(result["teams"]["opponents"]) == 3
-    assert set(result["teams"]["opponents"]) == {player_ids[0], player_ids[1], player_ids[3]}
+    assert set(result["teams"]["opponents"]) == {
+        player_ids[0],
+        player_ids[1],
+        player_ids[3],
+    }
 
 
 def test_big_dick_captain_vs_opponents_payout():
@@ -109,21 +138,29 @@ def test_big_dick_captain_vs_opponents_payout():
     player_ids = [p["id"] for p in players]
 
     # Hole 18: Big Dick declared, captain wins
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 18,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "big_dick_invoked_by": player_ids[0],
-        "teams": {
-            "type": "solo",
-            "captain": player_ids[0],
-            "opponents": [player_ids[1], player_ids[2], player_ids[3]]
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 18,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "big_dick_invoked_by": player_ids[0],
+            "teams": {
+                "type": "solo",
+                "captain": player_ids[0],
+                "opponents": [player_ids[1], player_ids[2], player_ids[3]],
+            },
+            "final_wager": 2,
+            "winner": "captain",
+            "scores": {
+                player_ids[0]: 3,
+                player_ids[1]: 5,
+                player_ids[2]: 5,
+                player_ids[3]: 6,
+            },
+            "hole_par": 4,
         },
-        "final_wager": 2,
-        "winner": "captain",
-        "scores": {player_ids[0]: 3, player_ids[1]: 5, player_ids[2]: 5, player_ids[3]: 6},
-        "hole_par": 4
-    })
+    )
 
     assert response.status_code == 200
     result = response.json()["hole_result"]
@@ -149,21 +186,29 @@ def test_big_dick_saved_in_hole_history():
     player_ids = [p["id"] for p in players]
 
     # Hole 18: Big Dick declared
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 18,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "big_dick_invoked_by": player_ids[0],
-        "teams": {
-            "type": "solo",
-            "captain": player_ids[0],
-            "opponents": [player_ids[1], player_ids[2], player_ids[3]]
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 18,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "big_dick_invoked_by": player_ids[0],
+            "teams": {
+                "type": "solo",
+                "captain": player_ids[0],
+                "opponents": [player_ids[1], player_ids[2], player_ids[3]],
+            },
+            "final_wager": 2,
+            "winner": "captain",
+            "scores": {
+                player_ids[0]: 3,
+                player_ids[1]: 5,
+                player_ids[2]: 5,
+                player_ids[3]: 6,
+            },
+            "hole_par": 4,
         },
-        "final_wager": 2,
-        "winner": "captain",
-        "scores": {player_ids[0]: 3, player_ids[1]: 5, player_ids[2]: 5, player_ids[3]: 6},
-        "hole_par": 4
-    })
+    )
 
     assert response.status_code == 200
     result = response.json()["hole_result"]
@@ -181,20 +226,28 @@ def test_normal_solo_on_hole_18_still_works():
     player_ids = [p["id"] for p in players]
 
     # Hole 18: Normal solo by captain (not Big Dick)
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 18,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "teams": {
-            "type": "solo",
-            "captain": player_ids[0],
-            "opponents": [player_ids[1], player_ids[2], player_ids[3]]
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 18,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "teams": {
+                "type": "solo",
+                "captain": player_ids[0],
+                "opponents": [player_ids[1], player_ids[2], player_ids[3]],
+            },
+            "final_wager": 2,
+            "winner": "captain",
+            "scores": {
+                player_ids[0]: 3,
+                player_ids[1]: 5,
+                player_ids[2]: 5,
+                player_ids[3]: 6,
+            },
+            "hole_par": 4,
         },
-        "final_wager": 2,
-        "winner": "captain",
-        "scores": {player_ids[0]: 3, player_ids[1]: 5, player_ids[2]: 5, player_ids[3]: 6},
-        "hole_par": 4
-    })
+    )
 
     assert response.status_code == 200
     result = response.json()["hole_result"]

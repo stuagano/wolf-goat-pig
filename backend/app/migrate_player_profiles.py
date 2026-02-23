@@ -8,7 +8,7 @@ of the application startup process.
 
 Usage:
     python migrate_player_profiles.py [--drop-existing]
-    
+
 Options:
     --drop-existing    Drop existing tables before creating new ones (DANGEROUS!)
 """
@@ -30,12 +30,13 @@ from .models import Base, PlayerProfile, PlayerStatistics
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 def check_table_exists(engine, table_name):
     """Check if a table exists in the database."""
     try:
         with engine.connect() as conn:
             result = conn.execute(text(f"""
-                SELECT name FROM sqlite_master 
+                SELECT name FROM sqlite_master
                 WHERE type='table' AND name='{table_name}'
             """))
             return result.fetchone() is not None
@@ -43,15 +44,16 @@ def check_table_exists(engine, table_name):
         logger.error(f"Error checking if table {table_name} exists: {e}")
         return False
 
+
 def create_player_profile_tables(engine, drop_existing=False):
     """Create all player profile related tables."""
 
     tables_to_create = [
-        'player_profiles',
-        'player_statistics',
-        'game_records',
-        'game_player_results',
-        'player_achievements'
+        "player_profiles",
+        "player_statistics",
+        "game_records",
+        "game_player_results",
+        "player_achievements",
     ]
 
     try:
@@ -71,11 +73,11 @@ def create_player_profile_tables(engine, drop_existing=False):
                 with engine.connect() as conn:
                     # Drop tables in reverse dependency order
                     drop_order = [
-                        'player_achievements',
-                        'game_player_results',
-                        'game_records',
-                        'player_statistics',
-                        'player_profiles'
+                        "player_achievements",
+                        "game_player_results",
+                        "game_records",
+                        "player_statistics",
+                        "player_profiles",
                     ]
 
                     for table_name in drop_order:
@@ -106,7 +108,7 @@ def create_player_profile_tables(engine, drop_existing=False):
         create_performance_indexes(engine)
 
         # Insert sample data if requested
-        if len(sys.argv) > 1 and '--sample-data' in sys.argv:
+        if len(sys.argv) > 1 and "--sample-data" in sys.argv:
             create_sample_data(engine)
 
         logger.info("Player profile migration completed successfully!")
@@ -115,8 +117,10 @@ def create_player_profile_tables(engine, drop_existing=False):
     except Exception as e:
         logger.error(f"Error during migration: {e}")
         import traceback
+
         traceback.print_exc()
         return False
+
 
 def create_performance_indexes(engine):
     """Create database indexes for better query performance."""
@@ -128,27 +132,23 @@ def create_performance_indexes(engine):
             "CREATE INDEX IF NOT EXISTS idx_player_profiles_name ON player_profiles(name)",
             "CREATE INDEX IF NOT EXISTS idx_player_profiles_active ON player_profiles(is_active)",
             "CREATE INDEX IF NOT EXISTS idx_player_profiles_last_played ON player_profiles(last_played)",
-
             # Player statistics
             "CREATE INDEX IF NOT EXISTS idx_player_statistics_player_id ON player_statistics(player_id)",
             "CREATE INDEX IF NOT EXISTS idx_player_statistics_games_played ON player_statistics(games_played)",
             "CREATE INDEX IF NOT EXISTS idx_player_statistics_total_earnings ON player_statistics(total_earnings)",
-
             # Game records
             "CREATE INDEX IF NOT EXISTS idx_game_records_game_id ON game_records(game_id)",
             "CREATE INDEX IF NOT EXISTS idx_game_records_created_at ON game_records(created_at)",
             "CREATE INDEX IF NOT EXISTS idx_game_records_course ON game_records(course_name)",
-
             # Game player results
             "CREATE INDEX IF NOT EXISTS idx_game_player_results_game_id ON game_player_results(game_record_id)",
             "CREATE INDEX IF NOT EXISTS idx_game_player_results_player_id ON game_player_results(player_profile_id)",
             "CREATE INDEX IF NOT EXISTS idx_game_player_results_position ON game_player_results(final_position)",
             "CREATE INDEX IF NOT EXISTS idx_game_player_results_created_at ON game_player_results(created_at)",
-
             # Player achievements
             "CREATE INDEX IF NOT EXISTS idx_player_achievements_player_id ON player_achievements(player_profile_id)",
             "CREATE INDEX IF NOT EXISTS idx_player_achievements_type ON player_achievements(achievement_type)",
-            "CREATE INDEX IF NOT EXISTS idx_player_achievements_date ON player_achievements(earned_date)"
+            "CREATE INDEX IF NOT EXISTS idx_player_achievements_date ON player_achievements(earned_date)",
         ]
 
         with engine.connect() as conn:
@@ -165,6 +165,7 @@ def create_performance_indexes(engine):
 
     except Exception as e:
         logger.error(f"Error creating indexes: {e}")
+
 
 def create_sample_data(engine):
     """Create sample player profiles and statistics for testing."""
@@ -185,8 +186,8 @@ def create_sample_data(engine):
                     "preferred_game_modes": ["wolf_goat_pig"],
                     "preferred_player_count": 4,
                     "betting_style": "moderate",
-                    "display_hints": True
-                }
+                    "display_hints": True,
+                },
             },
             {
                 "name": "Demo User",
@@ -196,33 +197,28 @@ def create_sample_data(engine):
                     "preferred_game_modes": ["wolf_goat_pig"],
                     "preferred_player_count": 4,
                     "betting_style": "conservative",
-                    "display_hints": True
-                }
-            }
+                    "display_hints": True,
+                },
+            },
         ]
 
         created_profiles = []
         for profile_data in sample_profiles:
             # Check if profile already exists
-            existing = db.query(PlayerProfile).filter(
-                PlayerProfile.name == profile_data["name"]
-            ).first()
+            existing = db.query(PlayerProfile).filter(PlayerProfile.name == profile_data["name"]).first()
 
             if not existing:
                 profile = PlayerProfile(
                     name=profile_data["name"],
                     handicap=profile_data["handicap"],
                     created_date=datetime.now().isoformat(),
-                    preferences=profile_data["preferences"]
+                    preferences=profile_data["preferences"],
                 )
                 db.add(profile)
                 db.flush()  # Get the ID
 
                 # Create initial statistics
-                stats = PlayerStatistics(
-                    player_id=profile.id,
-                    last_updated=datetime.now().isoformat()
-                )
+                stats = PlayerStatistics(player_id=profile.id, last_updated=datetime.now().isoformat())
                 db.add(stats)
 
                 created_profiles.append(profile)
@@ -237,9 +233,10 @@ def create_sample_data(engine):
 
     except Exception as e:
         logger.error(f"Error creating sample data: {e}")
-        if 'db' in locals():
+        if "db" in locals():
             db.rollback()
             db.close()
+
 
 def verify_migration(engine):
     """Verify that the migration was successful."""
@@ -269,25 +266,37 @@ def verify_migration(engine):
 
     except Exception as e:
         logger.error(f"Error during verification: {e}")
-        if 'db' in locals():
+        if "db" in locals():
             db.close()
         return False
 
+
 def main():
     """Main migration function."""
-    parser = argparse.ArgumentParser(description='Migrate player profile database tables')
-    parser.add_argument('--drop-existing', action='store_true',
-                        help='Drop existing tables before creating new ones (DANGEROUS!)')
-    parser.add_argument('--sample-data', action='store_true',
-                        help='Create sample player profiles for testing')
-    parser.add_argument('--verify-only', action='store_true',
-                        help='Only verify existing tables, do not create new ones')
+    parser = argparse.ArgumentParser(description="Migrate player profile database tables")
+    parser.add_argument(
+        "--drop-existing",
+        action="store_true",
+        help="Drop existing tables before creating new ones (DANGEROUS!)",
+    )
+    parser.add_argument(
+        "--sample-data",
+        action="store_true",
+        help="Create sample player profiles for testing",
+    )
+    parser.add_argument(
+        "--verify-only",
+        action="store_true",
+        help="Only verify existing tables, do not create new ones",
+    )
 
     args = parser.parse_args()
 
     if args.drop_existing:
-        response = input("This will DROP existing player profile tables and ALL DATA will be lost! Are you sure? (type 'yes' to confirm): ")
-        if response.lower() != 'yes':
+        response = input(
+            "This will DROP existing player profile tables and ALL DATA will be lost! Are you sure? (type 'yes' to confirm): "
+        )
+        if response.lower() != "yes":
             logger.info("Migration cancelled by user")
             return
 
@@ -309,8 +318,10 @@ def main():
     except Exception as e:
         logger.error(f"Fatal error during migration: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

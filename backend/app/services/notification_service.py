@@ -20,7 +20,7 @@ Notification types supported:
 """
 
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import HTTPException
@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 # ====================================================================================
 # NOTIFICATION SERVICE
 # ====================================================================================
+
 
 class NotificationService:
     """
@@ -76,7 +77,7 @@ class NotificationService:
         notification_type: str,
         message: str,
         db: Session,
-        data: Optional[Dict[str, Any]] = None
+        data: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Send a notification to a specific player.
@@ -107,14 +108,11 @@ class NotificationService:
                 "betting_update",
                 "achievement_earned",
                 "partnership_formed",
-                "hole_complete"
+                "hole_complete",
             ]
 
             if notification_type not in valid_types:
-                logger.warning(
-                    f"Unknown notification type '{notification_type}', "
-                    f"proceeding anyway"
-                )
+                logger.warning(f"Unknown notification type '{notification_type}', " f"proceeding anyway")
 
             # Create notification record
             notification = Notification(
@@ -123,17 +121,14 @@ class NotificationService:
                 message=message,
                 data=data or {},
                 is_read=False,
-                created_at=datetime.now(timezone.utc).isoformat()
+                created_at=datetime.now(timezone.utc).isoformat(),
             )
 
             db.add(notification)
             db.commit()
             db.refresh(notification)
 
-            logger.info(
-                f"Sent {notification_type} notification to player {player_id}: "
-                f"'{message}'"
-            )
+            logger.info(f"Sent {notification_type} notification to player {player_id}: " f"'{message}'")
 
             return {
                 "id": notification.id,
@@ -142,25 +137,20 @@ class NotificationService:
                 "message": notification.message,
                 "data": notification.data,
                 "is_read": notification.is_read,
-                "created_at": notification.created_at
+                "created_at": notification.created_at,
             }
 
         except Exception as e:
             db.rollback()
-            logger.error(
-                f"Error sending notification to player {player_id}: {e}"
-            )
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to send notification: {str(e)}"
-            )
+            logger.error(f"Error sending notification to player {player_id}: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to send notification: {str(e)}")
 
     def get_player_notifications(
         self,
         player_id: int,
         db: Session,
         unread_only: bool = False,
-        limit: Optional[int] = None
+        limit: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """
         Get all notifications for a specific player.
@@ -183,9 +173,7 @@ class NotificationService:
         """
         try:
             # Build query
-            query = db.query(Notification).filter(
-                Notification.player_profile_id == player_id
-            )
+            query = db.query(Notification).filter(Notification.player_profile_id == player_id)
 
             # Apply filters
             if unread_only:
@@ -202,37 +190,29 @@ class NotificationService:
 
             result = []
             for notification in notifications:
-                result.append({
-                    "id": notification.id,
-                    "player_profile_id": notification.player_profile_id,
-                    "notification_type": notification.notification_type,
-                    "message": notification.message,
-                    "data": notification.data,
-                    "is_read": notification.is_read,
-                    "created_at": notification.created_at
-                })
+                result.append(
+                    {
+                        "id": notification.id,
+                        "player_profile_id": notification.player_profile_id,
+                        "notification_type": notification.notification_type,
+                        "message": notification.message,
+                        "data": notification.data,
+                        "is_read": notification.is_read,
+                        "created_at": notification.created_at,
+                    }
+                )
 
             logger.debug(
-                f"Retrieved {len(result)} notifications for player {player_id} "
-                f"(unread_only={unread_only})"
+                f"Retrieved {len(result)} notifications for player {player_id} " f"(unread_only={unread_only})"
             )
 
             return result
 
         except Exception as e:
-            logger.error(
-                f"Error retrieving notifications for player {player_id}: {e}"
-            )
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to retrieve notifications: {str(e)}"
-            )
+            logger.error(f"Error retrieving notifications for player {player_id}: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to retrieve notifications: {str(e)}")
 
-    def mark_as_read(
-        self,
-        notification_id: int,
-        db: Session
-    ) -> Dict[str, Any]:
+    def mark_as_read(self, notification_id: int, db: Session) -> Dict[str, Any]:
         """
         Mark a specific notification as read.
 
@@ -251,19 +231,14 @@ class NotificationService:
         """
         try:
             # Get notification
-            notification = db.query(Notification).filter(
-                Notification.id == notification_id
-            ).first()
+            notification = db.query(Notification).filter(Notification.id == notification_id).first()
 
             if not notification:
                 logger.warning(f"Notification {notification_id} not found")
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Notification {notification_id} not found"
-                )
+                raise HTTPException(status_code=404, detail=f"Notification {notification_id} not found")
 
             # Update read status
-            setattr(notification, 'is_read', True)
+            setattr(notification, "is_read", True)
             db.commit()
             db.refresh(notification)
 
@@ -276,7 +251,7 @@ class NotificationService:
                 "message": notification.message,
                 "data": notification.data,
                 "is_read": notification.is_read,
-                "created_at": notification.created_at
+                "created_at": notification.created_at,
             }
 
         except HTTPException:
@@ -284,16 +259,9 @@ class NotificationService:
         except Exception as e:
             db.rollback()
             logger.error(f"Error marking notification {notification_id} as read: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to mark notification as read: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"Failed to mark notification as read: {str(e)}")
 
-    def mark_all_as_read(
-        self,
-        player_id: int,
-        db: Session
-    ) -> int:
+    def mark_all_as_read(self, player_id: int, db: Session) -> int:
         """
         Mark all notifications for a player as read.
 
@@ -313,40 +281,36 @@ class NotificationService:
         """
         try:
             # Get all unread notifications for player
-            unread_notifications = db.query(Notification).filter(
-                Notification.player_profile_id == player_id,
-                Notification.is_read == False
-            ).all()
+            unread_notifications = (
+                db.query(Notification)
+                .filter(
+                    Notification.player_profile_id == player_id,
+                    Notification.is_read == False,
+                )
+                .all()
+            )
 
             count = len(unread_notifications)
 
             # Mark all as read
             for notification in unread_notifications:
-                setattr(notification, 'is_read', True)
+                setattr(notification, "is_read", True)
 
             db.commit()
 
-            logger.info(
-                f"Marked {count} notifications as read for player {player_id}"
-            )
+            logger.info(f"Marked {count} notifications as read for player {player_id}")
 
             return count
 
         except Exception as e:
             db.rollback()
-            logger.error(
-                f"Error marking all notifications as read for player {player_id}: {e}"
-            )
+            logger.error(f"Error marking all notifications as read for player {player_id}: {e}")
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to mark all notifications as read: {str(e)}"
+                detail=f"Failed to mark all notifications as read: {str(e)}",
             )
 
-    def delete_notification(
-        self,
-        notification_id: int,
-        db: Session
-    ) -> Dict[str, str]:
+    def delete_notification(self, notification_id: int, db: Session) -> Dict[str, str]:
         """
         Delete a specific notification.
 
@@ -365,45 +329,29 @@ class NotificationService:
         """
         try:
             # Get notification
-            notification = db.query(Notification).filter(
-                Notification.id == notification_id
-            ).first()
+            notification = db.query(Notification).filter(Notification.id == notification_id).first()
 
             if not notification:
                 logger.warning(f"Notification {notification_id} not found")
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Notification {notification_id} not found"
-                )
+                raise HTTPException(status_code=404, detail=f"Notification {notification_id} not found")
 
             # Delete notification
             player_id = notification.player_profile_id
             db.delete(notification)
             db.commit()
 
-            logger.info(
-                f"Deleted notification {notification_id} for player {player_id}"
-            )
+            logger.info(f"Deleted notification {notification_id} for player {player_id}")
 
-            return {
-                "message": f"Notification {notification_id} deleted successfully"
-            }
+            return {"message": f"Notification {notification_id} deleted successfully"}
 
         except HTTPException:
             raise
         except Exception as e:
             db.rollback()
             logger.error(f"Error deleting notification {notification_id}: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to delete notification: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"Failed to delete notification: {str(e)}")
 
-    def get_unread_count(
-        self,
-        player_id: int,
-        db: Session
-    ) -> int:
+    def get_unread_count(self, player_id: int, db: Session) -> int:
         """
         Get the count of unread notifications for a player.
 
@@ -422,22 +370,24 @@ class NotificationService:
             HTTPException: If query fails
         """
         try:
-            count = db.query(Notification).filter(
-                Notification.player_profile_id == player_id,
-                Notification.is_read == False
-            ).count()
+            count = (
+                db.query(Notification)
+                .filter(
+                    Notification.player_profile_id == player_id,
+                    Notification.is_read == False,
+                )
+                .count()
+            )
 
             logger.debug(f"Player {player_id} has {count} unread notifications")
 
-            return count
+            return int(count)
 
         except Exception as e:
-            logger.error(
-                f"Error getting unread count for player {player_id}: {e}"
-            )
+            logger.error(f"Error getting unread count for player {player_id}: {e}")
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to get unread notification count: {str(e)}"
+                detail=f"Failed to get unread notification count: {str(e)}",
             )
 
     def broadcast_to_game(
@@ -446,7 +396,7 @@ class NotificationService:
         notification_type: str,
         message: str,
         db: Session,
-        data: Optional[Dict[str, Any]] = None
+        data: Optional[Dict[str, Any]] = None,
     ) -> int:
         """
         Broadcast a notification to all players in a game.
@@ -473,9 +423,7 @@ class NotificationService:
             from ..models import GamePlayer
 
             # Get all players in the game
-            game_players = db.query(GamePlayer).filter(
-                GamePlayer.game_id == game_id
-            ).all()
+            game_players = db.query(GamePlayer).filter(GamePlayer.game_id == game_id).all()
 
             if not game_players:
                 logger.warning(f"No players found for game {game_id}")
@@ -492,41 +440,29 @@ class NotificationService:
                             notification_type=notification_type,
                             message=message,
                             db=db,
-                            data=data
+                            data=data,
                         )
                         notification_count += 1
                     except Exception as e:
-                        logger.error(
-                            f"Error sending notification to player "
-                            f"{game_player.player_profile_id}: {e}"
-                        )
+                        logger.error(f"Error sending notification to player " f"{game_player.player_profile_id}: {e}")
                         # Continue with other players even if one fails
                         continue
 
             logger.info(
-                f"Broadcast {notification_type} notification to {notification_count} "
-                f"players in game {game_id}"
+                f"Broadcast {notification_type} notification to {notification_count} " f"players in game {game_id}"
             )
 
             return notification_count
 
         except Exception as e:
             logger.error(f"Error broadcasting to game {game_id}: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to broadcast notification: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"Failed to broadcast notification: {str(e)}")
 
     # ====================================================================================
     # UTILITY METHODS
     # ====================================================================================
 
-    def delete_old_notifications(
-        self,
-        player_id: int,
-        db: Session,
-        days_old: int = 30
-    ) -> int:
+    def delete_old_notifications(self, player_id: int, db: Session, days_old: int = 30) -> int:
         """
         Delete notifications older than a specified number of days.
 
@@ -550,10 +486,14 @@ class NotificationService:
             cutoff_date = (datetime.now(timezone.utc) - timedelta(days=days_old)).isoformat()
 
             # Get old notifications
-            old_notifications = db.query(Notification).filter(
-                Notification.player_profile_id == player_id,
-                Notification.created_at < cutoff_date
-            ).all()
+            old_notifications = (
+                db.query(Notification)
+                .filter(
+                    Notification.player_profile_id == player_id,
+                    Notification.created_at < cutoff_date,
+                )
+                .all()
+            )
 
             count = len(old_notifications)
 
@@ -563,28 +503,16 @@ class NotificationService:
 
             db.commit()
 
-            logger.info(
-                f"Deleted {count} notifications older than {days_old} days "
-                f"for player {player_id}"
-            )
+            logger.info(f"Deleted {count} notifications older than {days_old} days " f"for player {player_id}")
 
             return count
 
         except Exception as e:
             db.rollback()
-            logger.error(
-                f"Error deleting old notifications for player {player_id}: {e}"
-            )
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to delete old notifications: {str(e)}"
-            )
+            logger.error(f"Error deleting old notifications for player {player_id}: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to delete old notifications: {str(e)}")
 
-    def get_notification_by_id(
-        self,
-        notification_id: int,
-        db: Session
-    ) -> Optional[Dict[str, Any]]:
+    def get_notification_by_id(self, notification_id: int, db: Session) -> Optional[Dict[str, Any]]:
         """
         Get a specific notification by ID.
 
@@ -602,9 +530,7 @@ class NotificationService:
             HTTPException: If query fails
         """
         try:
-            notification = db.query(Notification).filter(
-                Notification.id == notification_id
-            ).first()
+            notification = db.query(Notification).filter(Notification.id == notification_id).first()
 
             if not notification:
                 return None
@@ -616,15 +542,12 @@ class NotificationService:
                 "message": notification.message,
                 "data": notification.data,
                 "is_read": notification.is_read,
-                "created_at": notification.created_at
+                "created_at": notification.created_at,
             }
 
         except Exception as e:
             logger.error(f"Error getting notification {notification_id}: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to get notification: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"Failed to get notification: {str(e)}")
 
 
 # ====================================================================================

@@ -75,7 +75,7 @@ class DataStatusResponse(BaseModel):
 def get_unified_leaderboard(
     limit: int = Query(50, ge=1, le=200, description="Maximum number of players"),
     db: Session = Depends(get_db),
-):
+) -> Any:
     """Get the unified leaderboard from all data sources.
 
     This merges and deduplicates data from:
@@ -108,7 +108,7 @@ def get_unified_rounds(
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of rounds"),
     offset: int = Query(0, ge=0, description="Number of rounds to skip"),
     db: Session = Depends(get_db),
-):
+) -> Any:
     """Get all rounds from all data sources.
 
     Returns rounds sorted by date (most recent first).
@@ -137,7 +137,7 @@ def get_unified_rounds(
 def get_rounds_by_date(
     date: str,
     db: Session = Depends(get_db),
-):
+) -> Any:
     """Get all rounds for a specific date.
 
     Args:
@@ -165,7 +165,7 @@ def get_rounds_by_date(
 def get_player_history(
     member_name: str,
     db: Session = Depends(get_db),
-):
+) -> Any:
     """Get all rounds for a specific player.
 
     Args:
@@ -224,7 +224,7 @@ def get_player_stats(
         "found": True,
         "total_quarters": total_quarters,
         "rounds_played": round_count,
-        "average_per_round": round(total_quarters / round_count, 1) if round_count else 0,
+        "average_per_round": (round(total_quarters / round_count, 1) if round_count else 0),
         "best_round": best,
         "worst_round": worst,
         "sources": sources,
@@ -239,7 +239,7 @@ def get_player_stats(
 
 
 @router.get("/status", response_model=DataStatusResponse)
-def get_data_status(db: Session = Depends(get_db)):
+def get_data_status(db: Session = Depends(get_db)) -> Any:
     """Get status of all data sources.
 
     Returns availability and record counts for each source,

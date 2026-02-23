@@ -28,7 +28,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-from sqlalchemy import text
+from sqlalchemy import and_, text
 from sqlalchemy.orm import Session
 
 from . import crud, database, models, schemas
@@ -50,9 +50,7 @@ from .services.email_service import SMTPEmailProvider, get_email_service
 from .services.game_lifecycle_service import get_game_lifecycle_service
 from .services.leaderboard_service import get_leaderboard_service
 from .services.legacy_player_service import (
-    get_canonical_name,
     get_legacy_players,
-    is_valid_legacy_player,
     validate_player_for_legacy,
 )
 from .services.legacy_signup_service import get_legacy_signup_service
@@ -62,11 +60,7 @@ from .services.team_formation_service import TeamFormationService
 
 # Simulation timeline enhancements removed
 from .state.course_manager import CourseManager
-from .validators import (
-    GameStateValidationError,
-    GameStateValidator,
-    HandicapValidator,
-)
+from .validators import GameStateValidationError, GameStateValidator, HandicapValidator
 from .wolf_goat_pig import Player, WolfGoatPigGame
 
 # Global variable for email scheduler (initialized on demand)
@@ -203,7 +197,8 @@ class CompleteHoleRequest(BaseModel):
     )
     # Interactive betting tracking
     betting_narrative: Optional[str] = Field(
-        None, description="Human-readable narrative of betting actions (e.g., 'Stuart doubles → accepted')"
+        None,
+        description="Human-readable narrative of betting actions (e.g., 'Stuart doubles → accepted')",
     )
     betting_events: Optional[List[Dict]] = Field(None, description="List of betting events for this hole")
 
@@ -219,7 +214,7 @@ class RotationSelectionRequest(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Lifespan context manager for startup and shutdown events."""
-    global email_scheduler, post_hole_analyzer, course_manager
+    global post_hole_analyzer, course_manager
 
     # Startup
     logger.info("🐺 Wolf Goat Pig API starting up...")
@@ -288,7 +283,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-ENABLE_TEST_ENDPOINTS = os.getenv("ENABLE_TEST_ENDPOINTS", "false").lower() in {"1", "true", "yes"}
+ENABLE_TEST_ENDPOINTS = os.getenv("ENABLE_TEST_ENDPOINTS", "false").lower() in {
+    "1",
+    "true",
+    "yes",
+}
 ADMIN_EMAILS = {"stuagano@gmail.com", "admin@wgp.com"}
 
 
@@ -396,7 +395,10 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     logger.error(f"Request Host header: {request.headers.get('host')}")
     if request.client is not None:
         logger.error(f"Request Client host: {request.client.host}")
-    return JSONResponse(status_code=exc.status_code, content={"error": "HTTP error", "detail": exc.detail})
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": "HTTP error", "detail": exc.detail},
+    )
 
 
 @app.exception_handler(Exception)
@@ -468,14 +470,20 @@ async def ghin_lookup(
         # Get GHIN credentials from environment
         email = os.getenv("GHIN_API_USER")
         password = os.getenv("GHIN_API_PASS")
-        static_token = os.getenv("GHIN_API_STATIC_TOKEN", "ghincom")
+        os.getenv("GHIN_API_STATIC_TOKEN", "ghincom")
 
         if not email or not password:
-            raise HTTPException(status_code=500, detail="GHIN credentials not configured in environment variables.")
+            raise HTTPException(
+                status_code=500,
+                detail="GHIN credentials not configured in environment variables.",
+            )
 
         ghin_service = GHINService(db)
         if not await ghin_service.initialize():
-            raise HTTPException(status_code=500, detail="GHIN service not available. Check credentials and logs.")
+            raise HTTPException(
+                status_code=500,
+                detail="GHIN service not available. Check credentials and logs.",
+            )
 
         search_results = await ghin_service.search_golfers(last_name, first_name, page, per_page)
         return search_results
@@ -483,7 +491,8 @@ async def ghin_lookup(
     except httpx.HTTPStatusError as e:
         logger.error(f"GHIN API error: {e.response.status_code} - {e.response.text}")
         raise HTTPException(
-            status_code=e.response.status_code, detail=f"GHIN API error: {e.response.status_code} - {e.response.text}"
+            status_code=e.response.status_code,
+            detail=f"GHIN API error: {e.response.status_code} - {e.response.text}",
         )
     except Exception as e:
         logger.error(f"Error in GHIN lookup: {e}")
@@ -492,7 +501,8 @@ async def ghin_lookup(
 
 @app.post("/ghin/sync-player-handicap/{player_id}", response_model=Dict[str, Any])
 async def sync_player_ghin_handicap(
-    player_id: int = Path(..., description="The ID of the player to sync"), db: Session = Depends(database.get_db)
+    player_id: int = Path(..., description="The ID of the player to sync"),
+    db: Session = Depends(database.get_db),
 ) -> Dict[str, Any]:
     """Sync a specific player's handicap from GHIN."""
     from .services.ghin_service import GHINService
@@ -500,13 +510,20 @@ async def sync_player_ghin_handicap(
     logger.info(f"Attempting to sync GHIN handicap for player ID: {player_id}")
     ghin_service = GHINService(db)
     if not await ghin_service.initialize():
-        raise HTTPException(status_code=500, detail="GHIN service not available. Check credentials and logs.")
+        raise HTTPException(
+            status_code=500,
+            detail="GHIN service not available. Check credentials and logs.",
+        )
 
     synced_data = await ghin_service.sync_player_handicap(player_id)
 
     if synced_data:
         logger.info(f"Successfully synced handicap for player {player_id}")
-        return {"status": "success", "message": "Handicap synced successfully", "data": synced_data}
+        return {
+            "status": "success",
+            "message": "Handicap synced successfully",
+            "data": synced_data,
+        }
     else:
         logger.error(f"Failed to sync handicap for player {player_id}")
         raise HTTPException(
@@ -610,7 +627,9 @@ async def create_game_with_join_code(
 
 @app.post("/games/create-test")
 async def create_test_game(
-    course_name: Optional[str] = None, player_count: int = 4, db: Session = Depends(database.get_db)
+    course_name: Optional[str] = None,
+    player_count: int = 4,
+    db: Session = Depends(database.get_db),
 ) -> Dict[str, Any]:
     """
     Create a test game with mock players and immediately start it - for single-device testing
@@ -629,12 +648,42 @@ async def create_test_game(
 
     # Create mock players (supports up to 6 players)
     mock_players = [
-        {"id": "test-player-1", "name": "Test Player 1", "handicap": 18, "is_human": True},
-        {"id": "test-player-2", "name": "Test Player 2", "handicap": 15, "is_human": False},
-        {"id": "test-player-3", "name": "Test Player 3", "handicap": 12, "is_human": False},
-        {"id": "test-player-4", "name": "Test Player 4", "handicap": 20, "is_human": False},
-        {"id": "test-player-5", "name": "Test Player 5", "handicap": 16, "is_human": False},
-        {"id": "test-player-6", "name": "Test Player 6", "handicap": 14, "is_human": False},
+        {
+            "id": "test-player-1",
+            "name": "Test Player 1",
+            "handicap": 18,
+            "is_human": True,
+        },
+        {
+            "id": "test-player-2",
+            "name": "Test Player 2",
+            "handicap": 15,
+            "is_human": False,
+        },
+        {
+            "id": "test-player-3",
+            "name": "Test Player 3",
+            "handicap": 12,
+            "is_human": False,
+        },
+        {
+            "id": "test-player-4",
+            "name": "Test Player 4",
+            "handicap": 20,
+            "is_human": False,
+        },
+        {
+            "id": "test-player-5",
+            "name": "Test Player 5",
+            "handicap": 16,
+            "is_human": False,
+        },
+        {
+            "id": "test-player-6",
+            "name": "Test Player 6",
+            "handicap": 14,
+            "is_human": False,
+        },
     ][:player_count]
 
     # Initialize WolfGoatPigGame for this game
@@ -665,7 +714,11 @@ async def create_test_game(
             logger.error(f"Failed to load course for test game: {course_error}")
             test_course_manager = None
 
-    simulation = WolfGoatPigGame(player_count=player_count, players=wgp_players, course_manager=test_course_manager)
+    simulation = WolfGoatPigGame(
+        player_count=player_count,
+        players=wgp_players,
+        course_manager=test_course_manager,
+    )
 
     # Get the game state (game is already started in __init__)
     game_state = simulation.get_game_state()
@@ -692,7 +745,6 @@ async def create_test_game(
     service._active_games[game_id] = simulation
 
     # Try to save to database first
-    database_saved = False
     fallback_mode = False
 
     try:
@@ -730,7 +782,6 @@ async def create_test_game(
 
         db.commit()
         db.refresh(game_state_model)
-        database_saved = True
 
         logger.info(f"✅ Created test game {game_id} in database with {player_count} mock players")
 
@@ -787,7 +838,10 @@ async def create_test_game(
 
 @app.patch("/games/{game_id}/players/{player_id}/name")
 async def update_player_name(  # type: ignore
-    game_id: str, player_id: str, name_update: dict, db: Session = Depends(database.get_db)
+    game_id: str,
+    player_id: str,
+    name_update: dict,
+    db: Session = Depends(database.get_db),
 ):
     """
     Update a player's name in an active game.
@@ -849,7 +903,10 @@ async def update_player_name(  # type: ignore
                 # Also update GamePlayer record
                 game_player = (
                     db.query(models.GamePlayer)
-                    .filter(models.GamePlayer.game_id == game_id, models.GamePlayer.player_slot_id == player_id)
+                    .filter(
+                        models.GamePlayer.game_id == game_id,
+                        models.GamePlayer.player_slot_id == player_id,
+                    )
                     .first()
                 )
 
@@ -883,9 +940,7 @@ async def update_player_name(  # type: ignore
 
 
 @app.delete("/games/{game_id}/players/{player_slot_id}")
-async def remove_player(  # type: ignore
-    game_id: str, player_slot_id: str, db: Session = Depends(database.get_db)
-):
+async def remove_player(game_id: str, player_slot_id: str, db: Session = Depends(database.get_db)):  # type: ignore
     """
     Remove a player from a game in setup/lobby status.
     Only allowed before game starts.
@@ -903,12 +958,18 @@ async def remove_player(  # type: ignore
 
         # Only allow removing players if game hasn't started
         if game.status not in ["setup", "lobby"]:
-            raise HTTPException(status_code=400, detail="Cannot remove players from a game that has already started")
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot remove players from a game that has already started",
+            )
 
         # Remove from game_players table
         game_player = (
             db.query(models.GamePlayer)
-            .filter(models.GamePlayer.game_id == game_id, models.GamePlayer.player_slot_id == player_slot_id)
+            .filter(
+                models.GamePlayer.game_id == game_id,
+                models.GamePlayer.player_slot_id == player_slot_id,
+            )
             .first()
         )
 
@@ -947,7 +1008,10 @@ async def remove_player(  # type: ignore
 
 @app.patch("/games/{game_id}/players/{player_slot_id}/handicap")
 async def update_player_handicap(  # type: ignore
-    game_id: str, player_slot_id: str, handicap_update: dict, db: Session = Depends(database.get_db)
+    game_id: str,
+    player_slot_id: str,
+    handicap_update: dict,
+    db: Session = Depends(database.get_db),
 ):
     """
     Update a player's handicap in a game in setup/lobby status.
@@ -984,7 +1048,10 @@ async def update_player_handicap(  # type: ignore
         # Update in game_players table
         game_player = (
             db.query(models.GamePlayer)
-            .filter(models.GamePlayer.game_id == game_id, models.GamePlayer.player_slot_id == player_slot_id)
+            .filter(
+                models.GamePlayer.game_id == game_id,
+                models.GamePlayer.player_slot_id == player_slot_id,
+            )
             .first()
         )
 
@@ -1057,7 +1124,10 @@ async def complete_hole(  # type: ignore
         # Phase 4: The Big Dick validation
         if request.big_dick_invoked_by:
             if request.hole_number != 18:
-                raise HTTPException(status_code=400, detail="The Big Dick can only be invoked on hole 18")
+                raise HTTPException(
+                    status_code=400,
+                    detail="The Big Dick can only be invoked on hole 18",
+                )
 
         # Phase 5: The Aardvark validation (5-man games only)
         player_count = len(request.rotation_order)
@@ -1100,7 +1170,8 @@ async def complete_hole(  # type: ignore
                 # In solo mode, captain field contains the solo player
                 if request.teams.captain != aardvark_id:
                     raise HTTPException(
-                        status_code=400, detail="The Tunkarri can only be invoked by the Aardvark (player #5)."
+                        status_code=400,
+                        detail="The Tunkarri can only be invoked by the Aardvark (player #5).",
                     )
 
         # Hole 18 push with carry-over validation
@@ -1131,7 +1202,10 @@ async def complete_hole(  # type: ignore
 
         # Validate: Tunkarri only in 5-man/6-man games
         if request.tunkarri_invoked and player_count < 5:
-            raise HTTPException(status_code=400, detail="The Tunkarri is only available in 5-man or 6-man games.")
+            raise HTTPException(
+                status_code=400,
+                detail="The Tunkarri is only available in 5-man or 6-man games.",
+            )
 
         # Phase 4: Enhanced Error Handling & Validation
         rotation_player_ids = set(request.rotation_order)
@@ -1155,7 +1229,10 @@ async def complete_hole(  # type: ignore
             team2_set = set(team2)
             overlap = team1_set.intersection(team2_set)
             if overlap:
-                raise HTTPException(status_code=400, detail=f"Players cannot be on both teams: {overlap}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Players cannot be on both teams: {overlap}",
+                )
 
         elif request.teams.type == "solo":
             captain = request.teams.captain
@@ -1176,7 +1253,10 @@ async def complete_hole(  # type: ignore
             # - Any other player can go solo (by rejecting Captain's partnership offer)
             # - On hole 18, Big Dick allows the points leader to go solo
             if captain and captain not in rotation_player_ids:
-                raise HTTPException(status_code=400, detail=f"Solo player {captain} is not in rotation_order")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Solo player {captain} is not in rotation_order",
+                )
 
             # Check for duplicates in opponents
             if len(opponents) != len(set(opponents)):
@@ -1192,32 +1272,44 @@ async def complete_hole(  # type: ignore
             missing = rotation_player_ids - all_team_players_set
             extra = all_team_players_set - rotation_player_ids
             if missing:
-                raise HTTPException(status_code=400, detail=f"Players in rotation but not on teams: {missing}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Players in rotation but not on teams: {missing}",
+                )
             if extra:
-                raise HTTPException(status_code=400, detail=f"Players on teams but not in rotation: {extra}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Players on teams but not in rotation: {extra}",
+                )
 
         # Validate scores (after team validation)
         # Check all scores are for players in rotation
         for player_id in request.scores.keys():
             if player_id not in rotation_player_ids:
                 raise HTTPException(
-                    status_code=400, detail=f"Score provided for player {player_id} not in rotation order"
+                    status_code=400,
+                    detail=f"Score provided for player {player_id} not in rotation order",
                 )
 
         # Check all rotation players have scores
         for player_id in rotation_player_ids:
             if player_id not in request.scores:
-                raise HTTPException(status_code=400, detail=f"Missing score for player {player_id} in rotation")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Missing score for player {player_id} in rotation",
+                )
 
         # Validate score values
         for player_id, score in request.scores.items():
             if score < 0:
                 raise HTTPException(
-                    status_code=400, detail=f"Score cannot be negative. Player {player_id} has score {score}"
+                    status_code=400,
+                    detail=f"Score cannot be negative. Player {player_id} has score {score}",
                 )
             if score > 15:
                 raise HTTPException(
-                    status_code=400, detail=f"Score unreasonably high (max 15). Player {player_id} has score {score}"
+                    status_code=400,
+                    detail=f"Score unreasonably high (max 15). Player {player_id} has score {score}",
                 )
 
         # Get current game state
@@ -1493,7 +1585,7 @@ async def complete_hole(  # type: ignore
             "joes_special_wager": request.joes_special_wager,
             "option_turned_off": request.option_turned_off,
             "duncan_invoked": request.duncan_invoked,
-            "tunkarri_invoked": request.tunkarri_invoked if player_count >= 5 else False,
+            "tunkarri_invoked": (request.tunkarri_invoked if player_count >= 5 else False),
             "teams": request.teams.model_dump(),
             "wager": request.final_wager,
             "final_wager": request.final_wager,  # Phase 4: Add final_wager field
@@ -1508,9 +1600,9 @@ async def complete_hole(  # type: ignore
             "doubles_history": request.doubles_history or [],  # Phase 4: Add doubles history
             "big_dick_invoked_by": request.big_dick_invoked_by,  # Phase 4: The Big Dick
             # Phase 5: The Aardvark (5-man games only)
-            "aardvark_requested_team": request.aardvark_requested_team if player_count == 5 else None,
+            "aardvark_requested_team": (request.aardvark_requested_team if player_count == 5 else None),
             "aardvark_tossed": request.aardvark_tossed if player_count == 5 else False,
-            "aardvark_ping_ponged": request.aardvark_ping_ponged if player_count == 5 else False,
+            "aardvark_ping_ponged": (request.aardvark_ping_ponged if player_count == 5 else False),
             "aardvark_solo": request.aardvark_solo if player_count == 5 else False,
             # Interactive betting narrative
             "betting_narrative": request.betting_narrative,
@@ -1519,7 +1611,8 @@ async def complete_hole(  # type: ignore
 
         # Add or update hole in history
         existing_hole_index = next(
-            (i for i, h in enumerate(game_state["hole_history"]) if h.get("hole") == request.hole_number), None
+            (i for i, h in enumerate(game_state["hole_history"]) if h.get("hole") == request.hole_number),
+            None,
         )
 
         if existing_hole_index is not None:
@@ -1604,7 +1697,10 @@ async def complete_hole(  # type: ignore
 
             # Update player float/solo counts in simulation
             if request.float_invoked_by:
-                float_player = next((p for p in simulation.players if p.id == request.float_invoked_by), None)
+                float_player = next(
+                    (p for p in simulation.players if p.id == request.float_invoked_by),
+                    None,
+                )
                 if float_player:
                     float_player.float_used += 1
 
@@ -1623,7 +1719,11 @@ async def complete_hole(  # type: ignore
             try:
                 notification_service = get_notification_service()
                 # Calculate final standings for notification message
-                final_standings = sorted(game_state.get("players", []), key=lambda p: p.get("points", 0), reverse=True)
+                final_standings = sorted(
+                    game_state.get("players", []),
+                    key=lambda p: p.get("points", 0),
+                    reverse=True,
+                )
                 winner_name = final_standings[0].get("id", "Unknown") if final_standings else "Unknown"
                 winner_points = final_standings[0].get("points", 0) if final_standings else 0
 
@@ -1660,7 +1760,10 @@ async def complete_hole(  # type: ignore
 
 @app.patch("/games/{game_id}/holes/{hole_number}")
 async def update_hole(  # type: ignore
-    game_id: str, hole_number: int, request: CompleteHoleRequest, db: Session = Depends(database.get_db)
+    game_id: str,
+    hole_number: int,
+    request: CompleteHoleRequest,
+    db: Session = Depends(database.get_db),
 ):
     """
     Update an existing hole's data. Uses same validation as complete_hole.
@@ -1687,7 +1790,8 @@ async def update_hole(  # type: ignore
             raise HTTPException(status_code=404, detail="No holes recorded for this game")
 
         existing_hole_index = next(
-            (i for i, h in enumerate(game_state["hole_history"]) if h.get("hole") == hole_number), None
+            (i for i, h in enumerate(game_state["hole_history"]) if h.get("hole") == hole_number),
+            None,
         )
 
         if existing_hole_index is None:
@@ -1752,7 +1856,10 @@ async def update_hole(  # type: ignore
         # Validate scores
         for player_id in request.scores.keys():
             if player_id not in rotation_player_ids:
-                raise HTTPException(status_code=400, detail=f"Score for player {player_id} not in rotation")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Score for player {player_id} not in rotation",
+                )
 
         for player_id in rotation_player_ids:
             if player_id not in request.scores:
@@ -1943,7 +2050,7 @@ async def update_hole(  # type: ignore
             "joes_special_wager": request.joes_special_wager,
             "option_turned_off": request.option_turned_off,
             "duncan_invoked": request.duncan_invoked,
-            "tunkarri_invoked": request.tunkarri_invoked if player_count >= 5 else False,
+            "tunkarri_invoked": (request.tunkarri_invoked if player_count >= 5 else False),
             "teams": request.teams.model_dump(),
             "wager": request.final_wager,
             "final_wager": request.final_wager,
@@ -1957,9 +2064,9 @@ async def update_hole(  # type: ignore
             "carry_over_applied": request.carry_over_applied,
             "doubles_history": request.doubles_history or [],
             "big_dick_invoked_by": request.big_dick_invoked_by,
-            "aardvark_requested_team": request.aardvark_requested_team if player_count == 5 else None,
+            "aardvark_requested_team": (request.aardvark_requested_team if player_count == 5 else None),
             "aardvark_tossed": request.aardvark_tossed if player_count == 5 else False,
-            "aardvark_ping_ponged": request.aardvark_ping_ponged if player_count == 5 else False,
+            "aardvark_ping_ponged": (request.aardvark_ping_ponged if player_count == 5 else False),
             "aardvark_solo": request.aardvark_solo if player_count == 5 else False,
             # Interactive betting narrative
             "betting_narrative": request.betting_narrative,
@@ -2020,9 +2127,7 @@ async def update_hole(  # type: ignore
 
 
 @app.delete("/games/{game_id}/holes/{hole_number}")
-async def delete_hole(  # type: ignore
-    game_id: str, hole_number: int, db: Session = Depends(database.get_db)
-):
+async def delete_hole(game_id: str, hole_number: int, db: Session = Depends(database.get_db)):  # type: ignore
     """
     Delete a hole from hole_history.
     Recalculates all player totals and updates current_hole if needed.
@@ -2041,7 +2146,8 @@ async def delete_hole(  # type: ignore
             raise HTTPException(status_code=404, detail="No holes recorded for this game")
 
         existing_hole_index = next(
-            (i for i, h in enumerate(game_state["hole_history"]) if h.get("hole") == hole_number), None
+            (i for i, h in enumerate(game_state["hole_history"]) if h.get("hole") == hole_number),
+            None,
         )
 
         if existing_hole_index is None:
@@ -2102,9 +2208,7 @@ async def delete_hole(  # type: ignore
 
 
 @app.get("/games/{game_id}/next-rotation", deprecated=True)
-async def get_next_rotation(  # type: ignore
-    game_id: str, db: Session = Depends(database.get_db)
-):
+async def get_next_rotation(game_id: str, db: Session = Depends(database.get_db)):  # type: ignore
     """
     DEPRECATED: Not needed for quarters-only scoring.
 
@@ -2179,7 +2283,9 @@ async def get_next_rotation(  # type: ignore
 
 @app.get("/games/{game_id}/next-hole-wager", deprecated=True)
 async def get_next_hole_wager(  # type: ignore
-    game_id: str, current_hole: Optional[int] = None, db: Session = Depends(database.get_db)
+    game_id: str,
+    current_hole: Optional[int] = None,
+    db: Session = Depends(database.get_db),
 ):
     """
     DEPRECATED: Not needed for quarters-only scoring.
@@ -2277,7 +2383,9 @@ async def get_next_hole_wager(  # type: ignore
 
 @app.post("/games/{game_id}/select-rotation", deprecated=True)
 async def select_rotation(  # type: ignore
-    game_id: str, request: RotationSelectionRequest, db: Session = Depends(database.get_db)
+    game_id: str,
+    request: RotationSelectionRequest,
+    db: Session = Depends(database.get_db),
 ):
     """
     DEPRECATED: Not needed for quarters-only scoring.
@@ -2311,16 +2419,23 @@ async def select_rotation(  # type: ignore
 
     # Validate: Only 5-man games
     if player_count != 5:
-        raise HTTPException(status_code=400, detail="Dynamic rotation selection only applies to 5-player games")
+        raise HTTPException(
+            status_code=400,
+            detail="Dynamic rotation selection only applies to 5-player games",
+        )
 
     # Validate: Only holes 16, 17, 18
     if request.hole_number not in [16, 17, 18]:
-        raise HTTPException(status_code=400, detail="Rotation selection only allowed on holes 16, 17, and 18")
+        raise HTTPException(
+            status_code=400,
+            detail="Rotation selection only allowed on holes 16, 17, and 18",
+        )
 
     # Validate: Position must be 1-5 for 5-man game
     if request.selected_position < 1 or request.selected_position > 5:
         raise HTTPException(
-            status_code=400, detail=f"Invalid position {request.selected_position}. Must be 1-5 for 5-player games"
+            status_code=400,
+            detail=f"Invalid position {request.selected_position}. Must be 1-5 for 5-player games",
         )
 
     # Identify current Goat (player with lowest total points)
@@ -2375,7 +2490,9 @@ async def select_rotation(  # type: ignore
 
 @app.post("/games/join/{join_code}")
 async def join_game_with_code(  # type: ignore
-    join_code: str, request: schemas.JoinGameRequest, db: Session = Depends(database.get_db)
+    join_code: str,
+    request: schemas.JoinGameRequest,
+    db: Session = Depends(database.get_db),
 ):
     """Join a game using a join code"""
     try:
@@ -2392,7 +2509,10 @@ async def join_game_with_code(  # type: ignore
         if request.user_id:
             existing = (
                 db.query(models.GamePlayer)
-                .filter(models.GamePlayer.game_id == game.game_id, models.GamePlayer.user_id == request.user_id)
+                .filter(
+                    models.GamePlayer.game_id == game.game_id,
+                    models.GamePlayer.user_id == request.user_id,
+                )
                 .first()
             )
             if existing:
@@ -2532,7 +2652,10 @@ async def set_tee_order(
 
         # Validate that all players in the game are in the order
         if len(player_order) != len(players):
-            raise HTTPException(status_code=400, detail=f"player_order must include all {len(players)} players")
+            raise HTTPException(
+                status_code=400,
+                detail=f"player_order must include all {len(players)} players",
+            )
 
         # Validate all player IDs exist
         for player_slot_id in player_order:
@@ -2558,7 +2681,11 @@ async def set_tee_order(
 
         logger.info(f"Tee order set for game {game_id}: {player_order}")
 
-        return {"status": "success", "message": "Tee order set successfully", "player_order": player_order}
+        return {
+            "status": "success",
+            "message": "Tee order set successfully",
+            "player_order": player_order,
+        }
 
     except HTTPException:
         raise
@@ -2610,7 +2737,9 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
                 )
 
             wgp_player = Player(
-                id=cast(str, p.player_slot_id), name=cast(str, p.player_name), handicap=cast(float, player_handicap)
+                id=cast(str, p.player_slot_id),
+                name=cast(str, p.player_name),
+                handicap=cast(float, player_handicap),
             )
             wgp_players.append(wgp_player)
 
@@ -2648,7 +2777,9 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
         try:
             # Create simulation with configured player count, actual players, and course manager
             simulation = WolfGoatPigGame(
-                player_count=configured_player_count, players=wgp_players, course_manager=course_manager
+                player_count=configured_player_count,
+                players=wgp_players,
+                course_manager=course_manager,
             )
             logger.info(f"Simulation initialized for game {game_id}")
         except Exception as init_error:
@@ -2775,9 +2906,7 @@ async def get_games(  # type: ignore
 
 
 @app.delete("/games/{game_id}")
-async def delete_game(  # type: ignore
-    game_id: str, db: Session = Depends(database.get_db)
-):
+async def delete_game(game_id: str, db: Session = Depends(database.get_db)):  # type: ignore
     """
     Delete a game and all associated data.
 
@@ -2881,7 +3010,12 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
 
         logger.info(f"Game {game_id} marked as completed")
 
-        return {"success": True, "message": "Game marked as completed", "game_id": game_id, "game_status": "completed"}
+        return {
+            "success": True,
+            "message": "Game marked as completed",
+            "game_id": game_id,
+            "game_status": "completed",
+        }
 
     except HTTPException:
         raise
@@ -2926,7 +3060,10 @@ async def save_quarters_only(game_id: str, request: QuartersOnlyRequest, db: Ses
                 validation_errors.append(f"Hole {hole_str}: sum is {hole_sum}, must be 0")
 
         if validation_errors:
-            raise HTTPException(status_code=400, detail=f"Zero-sum validation failed: {'; '.join(validation_errors)}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Zero-sum validation failed: {'; '.join(validation_errors)}",
+            )
 
         # Calculate standings
         standings = {}
@@ -3055,7 +3192,12 @@ async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_
                 "game_id": game_id,
                 "game_status": "setup",
                 "players": [
-                    {"id": p.player_slot_id, "name": p.player_name, "handicap": p.handicap, "tee_order": p.tee_order}
+                    {
+                        "id": p.player_slot_id,
+                        "name": p.player_name,
+                        "handicap": p.handicap,
+                        "tee_order": p.tee_order,
+                    }
                     for p in players
                 ],
                 "message": "Game not started yet. Please start from lobby.",
@@ -3147,7 +3289,9 @@ async def perform_game_action_by_id(  # type: ignore
                 player_handicap = p.handicap if p.handicap is not None else 18.0
 
                 wgp_player = Player(
-                    id=cast(str, p.player_slot_id), name=cast(str, p.player_name), handicap=cast(float, player_handicap)
+                    id=cast(str, p.player_slot_id),
+                    name=cast(str, p.player_name),
+                    handicap=cast(float, player_handicap),
                 )
                 wgp_players.append(wgp_player)
 
@@ -3175,7 +3319,9 @@ async def perform_game_action_by_id(  # type: ignore
 
             # Create new simulation with course manager
             simulation = WolfGoatPigGame(
-                player_count=configured_player_count, players=wgp_players, course_manager=course_manager
+                player_count=configured_player_count,
+                players=wgp_players,
+                course_manager=course_manager,
             )
 
             # Restore full game state from database
@@ -3497,7 +3643,6 @@ async def unified_action(game_id: str, action: ActionRequest, db: Session = Depe
     except HTTPException:
         # Re-raise HTTPExceptions to preserve their status codes
         raise
-        raise HTTPException(status_code=500, detail=f"Action failed: {str(e)}")  # type: ignore
 
 
 # Global game instance (per-game instances are preferred)
@@ -3545,23 +3690,23 @@ async def handle_initialize_game(game: WolfGoatPigGame, payload: Dict[str, Any])
                     logger.error("No courses available, using emergency fallback")
                     course_name = "Emergency Course"
                     # Ensure fallback courses are available
-                    fallback_courses = get_fallback_courses()  # type: ignore
-                    game_state.course_manager.course_data = fallback_courses  # type: ignore
+                    fallback_courses = get_fallback_courses()  # type: ignore  # noqa: F821
+                    game_state.course_manager.course_data = fallback_courses  # type: ignore  # noqa: F821
         except Exception as course_error:
             logger.error(f"Course verification failed: {course_error}")
             course_name = "Emergency Course"
-            fallback_courses = get_fallback_courses()  # type: ignore
-            game_state.course_manager.course_data = fallback_courses  # type: ignore
+            fallback_courses = get_fallback_courses()  # type: ignore  # noqa: F821
+            game_state.course_manager.course_data = fallback_courses  # type: ignore  # noqa: F821
 
         # Initialize game state with players (with error handling)
         try:
-            game_state.setup_players(players, course_name)  # type: ignore
+            game_state.setup_players(players, course_name)  # type: ignore  # noqa: F821
             logger.info(f"Game state initialized successfully with {len(players)} players")
         except Exception as game_state_error:
             logger.error(f"Game state setup failed: {game_state_error}")
             # Try with minimal setup
             try:
-                game_state.reset()  # type: ignore
+                game_state.reset()  # type: ignore  # noqa: F821
                 logger.warning("Fell back to basic game state reset")
             except Exception as reset_error:
                 logger.error(f"Even game state reset failed: {reset_error}")
@@ -3573,7 +3718,13 @@ async def handle_initialize_game(game: WolfGoatPigGame, payload: Dict[str, Any])
             wgp_players = []
             for player in players:
                 try:
-                    wgp_players.append(Player(id=player["id"], name=player["name"], handicap=player["handicap"]))
+                    wgp_players.append(
+                        Player(
+                            id=player["id"],
+                            name=player["name"],
+                            handicap=player["handicap"],
+                        )
+                    )
                 except Exception as player_creation_error:
                     logger.error(f"Failed to create Player for {player['name']}: {player_creation_error}")
                     # Create with minimal data
@@ -3591,7 +3742,9 @@ async def handle_initialize_game(game: WolfGoatPigGame, payload: Dict[str, Any])
             # Initialize the simulation with these players and course manager
             try:
                 game.__init__(
-                    player_count=len(wgp_players), players=wgp_players, course_manager=game_state.course_manager
+                    player_count=len(wgp_players),
+                    players=wgp_players,
+                    course_manager=game_state.course_manager,  # noqa: F821
                 )  # type: ignore
                 logger.info("WGP simulation initialized successfully with course data")
             except Exception as sim_init_error:
@@ -3660,7 +3813,12 @@ async def handle_initialize_game(game: WolfGoatPigGame, payload: Dict[str, Any])
             current_state = game.get_game_state()
             if not current_state:
                 logger.warning("Empty game state returned, creating minimal state")
-                current_state = {"active": True, "current_hole": 1, "players": players, "course": course_name}
+                current_state = {
+                    "active": True,
+                    "current_hole": 1,
+                    "players": players,
+                    "course": course_name,
+                }
         except Exception as state_error:
             logger.error(f"Failed to get game state: {state_error}")
             # Create minimal state
@@ -3680,7 +3838,11 @@ async def handle_initialize_game(game: WolfGoatPigGame, payload: Dict[str, Any])
             game_state=current_state,
             log_message=success_message,
             available_actions=[
-                {"action_type": "PLAY_SHOT", "prompt": "Start first hole", "player_turn": players[0]["name"]}
+                {
+                    "action_type": "PLAY_SHOT",
+                    "prompt": "Start first hole",
+                    "player_turn": players[0]["name"],
+                }
             ],
             timeline_event={
                 "id": "init_1",
@@ -3864,7 +4026,12 @@ async def handle_play_shot(game: WolfGoatPigGame, payload: Dict[str, Any] = None
                 )
             elif not hole_state.hole_complete:
                 # All players have played but hole not complete - might need scoring
-                available_actions.append({"action_type": "ENTER_HOLE_SCORES", "prompt": "Enter final scores for hole"})
+                available_actions.append(
+                    {
+                        "action_type": "ENTER_HOLE_SCORES",
+                        "prompt": "Enter final scores for hole",
+                    }
+                )
 
             # Check for betting opportunities using RuleManager
             rule_mgr = RuleManager.get_instance()
@@ -3914,10 +4081,13 @@ async def handle_request_partnership(game: WolfGoatPigGame, payload: Dict[str, A
         target_player = payload.get("target_player_name")
 
         if not partner_id and not target_player:
-            raise HTTPException(status_code=400, detail="Either partner_id or target_player_name is required")
+            raise HTTPException(
+                status_code=400,
+                detail="Either partner_id or target_player_name is required",
+            )
 
         # Get current game state
-        current_state = game.get_game_state()
+        game.get_game_state()
 
         # Get the actual captain ID from the current hole state
         hole_state = game.hole_states[game.current_hole]
@@ -4005,7 +4175,7 @@ async def handle_respond_partnership(game: WolfGoatPigGame, payload: Dict[str, A
         accepted = payload.get("accepted", False)
 
         # Get current game state
-        current_state = game.get_game_state()
+        game.get_game_state()
 
         # Get the partner ID from the pending request
         hole_state = game.hole_states[game.current_hole]
@@ -4016,10 +4186,10 @@ async def handle_respond_partnership(game: WolfGoatPigGame, payload: Dict[str, A
 
         # Respond to partnership
         if accepted:
-            result = game.respond_to_partnership(partner_id, True)
+            game.respond_to_partnership(partner_id, True)
             message = "Partnership accepted! Teams are formed."
         else:
-            result = game.respond_to_partnership(partner_id, False)
+            game.respond_to_partnership(partner_id, False)
             message = "Partnership declined. Captain goes solo."
 
         # Add timeline event to hole progression if available
@@ -4056,7 +4226,7 @@ async def handle_declare_solo(game: WolfGoatPigGame) -> ActionResponse:
     """Handle captain going solo"""
     try:
         # Get current game state
-        current_state = game.get_game_state()
+        game.get_game_state()
 
         # Get the actual captain ID from the current hole state
         hole_state = game.hole_states.get(game.current_hole)
@@ -4066,7 +4236,7 @@ async def handle_declare_solo(game: WolfGoatPigGame) -> ActionResponse:
         captain_id = hole_state.teams.captain
 
         # Captain goes solo
-        result = game.captain_go_solo(captain_id)
+        game.captain_go_solo(captain_id)
 
         # Add timeline event to hole progression if available
         if hasattr(wgp_simulation, "hole_progression") and game.hole_progression:  # type: ignore
@@ -4111,17 +4281,20 @@ async def handle_offer_double(game: WolfGoatPigGame, payload: Dict[str, Any]) ->
 
         # Validate partnerships formed before betting using RuleManager
         if not rule_mgr.are_partnerships_formed(game_state, game.current_hole):
-            raise HTTPException(status_code=400, detail="Partnerships must be formed before betting can start")
+            raise HTTPException(
+                status_code=400,
+                detail="Partnerships must be formed before betting can start",
+            )
 
         # Validate player can double using RuleManager
         if not rule_mgr.can_double(player_id, game_state):
             raise HTTPException(status_code=400, detail="Cannot double at this time")
 
         # Get current game state
-        current_state = game.get_game_state()
+        game.get_game_state()
 
         # Offer double
-        result = game.offer_double(player_id)
+        game.offer_double(player_id)
 
         player_name = game._get_player_name(player_id)
 
@@ -4161,14 +4334,14 @@ async def handle_accept_double(game: WolfGoatPigGame, payload: Dict[str, Any]) -
         accepted = payload.get("accepted", False)
 
         # Get current game state
-        current_state = game.get_game_state()
+        game.get_game_state()
 
         # Respond to double
         if accepted:
-            result = game.respond_to_double("responding_team", True)
+            game.respond_to_double("responding_team", True)
             message = "Double accepted! Wager doubled."
         else:
-            result = game.respond_to_double("responding_team", False)
+            game.respond_to_double("responding_team", False)
             message = "Double declined. Original wager maintained."
 
         # Add timeline event to hole progression if available
@@ -4208,7 +4381,10 @@ async def handle_concede_putt(game: WolfGoatPigGame, payload: Dict[str, Any]) ->
         conceded_player = payload.get("conceded_player")
 
         if not conceding_player or not conceded_player:
-            raise HTTPException(status_code=400, detail="conceding_player and conceded_player are required")
+            raise HTTPException(
+                status_code=400,
+                detail="conceding_player and conceded_player are required",
+            )
 
         # Get current game state
         current_state = game.get_game_state()
@@ -4238,7 +4414,7 @@ async def handle_advance_hole(game: WolfGoatPigGame) -> ActionResponse:
     """Handle advancing to the next hole"""
     try:
         # Advance to next hole
-        result = game.advance_to_next_hole()
+        game.advance_to_next_hole()
 
         # Get updated game state
         current_state = game.get_game_state()
@@ -4292,7 +4468,12 @@ async def handle_offer_big_dick(game: WolfGoatPigGame, payload: Dict[str, Any]) 
         return ActionResponse(
             game_state=updated_state,
             log_message=result["message"],
-            available_actions=[{"action_type": "ACCEPT_BIG_DICK", "prompt": "Accept/Decline Big Dick challenge"}],
+            available_actions=[
+                {
+                    "action_type": "ACCEPT_BIG_DICK",
+                    "prompt": "Accept/Decline Big Dick challenge",
+                }
+            ],
             timeline_event={
                 "id": f"big_dick_offer_{datetime.now().timestamp()}",
                 "timestamp": datetime.now().isoformat(),
@@ -4350,7 +4531,10 @@ async def handle_ping_pong_aardvark(game: WolfGoatPigGame, payload: Dict[str, An
                 "timestamp": datetime.now().isoformat(),
                 "type": "ping_pong_aardvark",
                 "description": result["message"],
-                "details": {"new_wager": result["new_wager"], "ping_pong_count": result.get("ping_pong_count", 0)},
+                "details": {
+                    "new_wager": result["new_wager"],
+                    "ping_pong_count": result.get("ping_pong_count", 0),
+                },
             },
         )
     except Exception as e:
@@ -4373,7 +4557,12 @@ async def handle_aardvark_join_request(game: WolfGoatPigGame, payload: Dict[str,
         return ActionResponse(
             game_state=updated_state,
             log_message=result["message"],
-            available_actions=[{"action_type": "AARDVARK_TOSS", "prompt": f"Accept or toss {result['aardvark_name']}"}],
+            available_actions=[
+                {
+                    "action_type": "AARDVARK_TOSS",
+                    "prompt": f"Accept or toss {result['aardvark_name']}",
+                }
+            ],
             timeline_event={
                 "id": f"aardvark_request_{datetime.now().timestamp()}",
                 "timestamp": datetime.now().isoformat(),
@@ -4405,7 +4594,11 @@ async def handle_aardvark_toss(game: WolfGoatPigGame, payload: Dict[str, Any]) -
                 "timestamp": datetime.now().isoformat(),
                 "type": "aardvark_toss",
                 "description": result["message"],
-                "details": {"team_id": team_id, "accepted": accept, "status": result["status"]},
+                "details": {
+                    "team_id": team_id,
+                    "accepted": accept,
+                    "status": result["status"],
+                },
             },
         )
     except Exception as e:
@@ -4434,7 +4627,11 @@ async def handle_aardvark_go_solo(game: WolfGoatPigGame, payload: Dict[str, Any]
                 "timestamp": datetime.now().isoformat(),
                 "type": "aardvark_solo",
                 "description": result["message"],
-                "details": {"aardvark_id": aardvark_id, "use_tunkarri": use_tunkarri, "status": result["status"]},
+                "details": {
+                    "aardvark_id": aardvark_id,
+                    "use_tunkarri": use_tunkarri,
+                    "status": result["status"],
+                },
             },
         )
     except Exception as e:
@@ -4450,7 +4647,9 @@ async def handle_joes_special(game: WolfGoatPigGame, payload: Dict[str, Any]) ->
         # Apply Joe's Special using RuleManager
         rule_mgr = RuleManager.get_instance()
         rule_mgr.apply_joes_special(
-            game_state=game.get_game_state(), hole_number=game.current_hole, selected_value=selected_value
+            game_state=game.get_game_state(),
+            hole_number=game.current_hole,
+            selected_value=selected_value,
         )
 
         updated_state = game.get_game_state()
@@ -4509,7 +4708,10 @@ async def handle_enter_hole_scores(game: WolfGoatPigGame, payload: Dict[str, Any
             game_state=updated_state,
             log_message=result.get("message", "Hole scores entered and points calculated"),
             available_actions=[
-                {"action_type": "GET_POST_HOLE_ANALYSIS", "prompt": "View Hole Analysis"},
+                {
+                    "action_type": "GET_POST_HOLE_ANALYSIS",
+                    "prompt": "View Hole Analysis",
+                },
                 {"action_type": "ADVANCE_HOLE", "prompt": "Continue to Next Hole"},
             ],
             timeline_event={
@@ -4587,7 +4789,10 @@ async def handle_get_advanced_analytics(game: WolfGoatPigGame, payload: Dict[str
             log_message="Advanced analytics data retrieved",
             available_actions=[
                 {"action_type": "PLAY_SHOT", "prompt": "Continue Game"},
-                {"action_type": "GET_ADVANCED_ANALYTICS", "prompt": "Refresh Analytics"},
+                {
+                    "action_type": "GET_ADVANCED_ANALYTICS",
+                    "prompt": "Refresh Analytics",
+                },
             ],
             timeline_event={
                 "id": f"analytics_viewed_{datetime.now().timestamp()}",
@@ -4660,7 +4865,10 @@ async def handle_calculate_hole_points(payload: Dict[str, Any]) -> ActionRespons
             game_state=updated_state,
             log_message="Hole points calculated",
             available_actions=[
-                {"action_type": "GET_POST_HOLE_ANALYSIS", "prompt": "View Hole Analysis"},
+                {
+                    "action_type": "GET_POST_HOLE_ANALYSIS",
+                    "prompt": "View Hole Analysis",
+                },
                 {"action_type": "ADVANCE_HOLE", "prompt": "Continue to Next Hole"},
             ],
             timeline_event={
@@ -4698,7 +4906,10 @@ async def handle_invoke_float(game: WolfGoatPigGame, payload: Dict[str, Any]) ->
         # Check if partnerships have been formed (REQUIRED before any betting)
         rule_mgr = RuleManager.get_instance()
         if not rule_mgr.are_partnerships_formed(game_state, game.current_hole):
-            raise HTTPException(status_code=400, detail="Partnerships must be formed before betting can start")
+            raise HTTPException(
+                status_code=400,
+                detail="Partnerships must be formed before betting can start",
+            )
 
         # Validate captain can double (Float is a type of double)
         try:
@@ -4707,7 +4918,7 @@ async def handle_invoke_float(game: WolfGoatPigGame, payload: Dict[str, Any]) ->
             raise HTTPException(status_code=400, detail=str(e))
 
         # Invoke the float
-        result = game.invoke_float(captain_id)
+        game.invoke_float(captain_id)
         updated_state = game.get_game_state()
 
         return ActionResponse(
@@ -4749,7 +4960,10 @@ async def handle_toggle_option(game: WolfGoatPigGame, payload: Dict[str, Any]) -
         # Check if partnerships have been formed (REQUIRED before any betting)
         rule_mgr = RuleManager.get_instance()
         if not rule_mgr.are_partnerships_formed(game_state, game.current_hole):
-            raise HTTPException(status_code=400, detail="Partnerships must be formed before betting can start")
+            raise HTTPException(
+                status_code=400,
+                detail="Partnerships must be formed before betting can start",
+            )
 
         # Additional validation: Check if captain can invoke option (type of doubling)
         full_game_state = game.get_game_state()
@@ -4757,7 +4971,11 @@ async def handle_toggle_option(game: WolfGoatPigGame, payload: Dict[str, Any]) -
             raise HTTPException(status_code=400, detail="Cannot toggle Option at this time")
 
         # Apply The Option using RuleManager (FULL IMPLEMENTATION)
-        rule_mgr.apply_option(game_state=game_state, captain_id=captain_id, hole_number=game_state.current_hole)
+        rule_mgr.apply_option(
+            game_state=game_state,
+            captain_id=captain_id,
+            hole_number=game_state.current_hole,
+        )
 
         # Get the new option state for logging
         hole_state = game_state.hole_states[game_state.current_hole]
@@ -4774,7 +4992,10 @@ async def handle_toggle_option(game: WolfGoatPigGame, payload: Dict[str, Any]) -
                 "timestamp": datetime.now().isoformat(),
                 "type": "option_toggled",
                 "description": f"Captain {'activated' if not current_option else 'deactivated'} The Option",
-                "details": {"captain_id": captain_id, "option_active": not current_option},
+                "details": {
+                    "captain_id": captain_id,
+                    "option_active": not current_option,
+                },
             },
         )
     except Exception as e:
@@ -4803,7 +5024,10 @@ async def handle_flush(game: WolfGoatPigGame, payload: Dict[str, Any]) -> Action
         # Check if partnerships have been formed (REQUIRED before any betting/conceding)
         rule_mgr = RuleManager.get_instance()
         if not rule_mgr.are_partnerships_formed(game_state, game.current_hole):
-            raise HTTPException(status_code=400, detail="Partnerships must be formed before you can flush")
+            raise HTTPException(
+                status_code=400,
+                detail="Partnerships must be formed before you can flush",
+            )
 
         # Validate game is in correct phase for concession
         try:
@@ -4830,7 +5054,7 @@ async def handle_flush(game: WolfGoatPigGame, payload: Dict[str, Any]) -> Action
 
         # Award concession points using ScoringManager
         scoring_mgr = get_scoring_manager()
-        points_awarded = scoring_mgr.award_concession_points(
+        scoring_mgr.award_concession_points(
             game_state=game_state,
             conceding_player=player_id,
             conceding_team=team_id,
@@ -4900,7 +5124,11 @@ async def get_shot_range_analysis(request: ShotRangeAnalysisRequest) -> Dict[str
             opponent_styles=request.opponent_styles,
         )
 
-        return {"status": "success", "analysis": analysis, "timestamp": datetime.now().isoformat()}
+        return {
+            "status": "success",
+            "analysis": analysis,
+            "timestamp": datetime.now().isoformat(),
+        }
 
     except Exception as e:
         logger.error(f"Error in shot range analysis: {e}")
@@ -4989,7 +5217,10 @@ async def calculate_real_time_odds(request: OddsCalculationRequest) -> Dict[str,
                 mc_params.max_simulation_time_ms = request.simulation_params.get("max_time_ms", 25.0)
 
             simulation_result = run_monte_carlo_simulation(
-                player_states, hole_state, mc_params.num_simulations, mc_params.max_simulation_time_ms
+                player_states,
+                hole_state,
+                mc_params.num_simulations,
+                mc_params.max_simulation_time_ms,
             )
 
             simulation_details = {
@@ -5004,7 +5235,9 @@ async def calculate_real_time_odds(request: OddsCalculationRequest) -> Dict[str,
 
         # Calculate comprehensive odds
         odds_result = calculator.calculate_real_time_odds(
-            player_states, hole_state, game_context={"monte_carlo_result": simulation_details if use_mc else None}
+            player_states,
+            hole_state,
+            game_context={"monte_carlo_result": simulation_details if use_mc else None},
         )
 
         # Convert betting scenarios to response format
@@ -5085,7 +5318,7 @@ async def get_current_betting_opportunities():
                         "current_wager": hole_state.betting.current_wager,
                         "potential_wager": hole_state.betting.current_wager * 2,
                         "risk_level": "medium",
-                        "timing": "optimal" if not hole_state.wagering_closed else "limited",
+                        "timing": ("optimal" if not hole_state.wagering_closed else "limited"),
                     }
                 )
 
@@ -5102,7 +5335,11 @@ async def get_current_betting_opportunities():
                         try:
                             if rule_mgr.can_form_partnership(captain_id, player.id, current_state):  # type: ignore
                                 available_partners.append(
-                                    {"id": player.id, "name": player.name, "handicap": player.handicap}
+                                    {
+                                        "id": player.id,
+                                        "name": player.name,
+                                        "handicap": player.handicap,
+                                    }
                                 )
                         except RuleViolationError:
                             # Partnership not allowed
@@ -5133,7 +5370,9 @@ async def get_current_betting_opportunities():
 
 
 @app.post("/wgp/quick-odds")
-async def calculate_quick_odds(players_data: List[Dict[str, Any]] = Body(...)) -> Dict[str, Any]:
+async def calculate_quick_odds(
+    players_data: List[Dict[str, Any]] = Body(...),
+) -> Dict[str, Any]:
     """
     Quick odds calculation for immediate feedback.
     Optimized for sub-50ms response time.
@@ -5202,7 +5441,11 @@ async def get_odds_history(game_id: str, hole_number: Optional[int] = None) -> D
         history_data = {
             "game_id": game_id,
             "holes": {},
-            "trends": {"volatility_by_hole": {}, "betting_patterns": {}, "accuracy_metrics": {}},
+            "trends": {
+                "volatility_by_hole": {},
+                "betting_patterns": {},
+                "accuracy_metrics": {},
+            },
         }
 
         # If specific hole requested
@@ -5256,9 +5499,11 @@ def get_leaderboard(  # type: ignore
                     player_name=entry.get("player_name"),
                     total_earnings=total_earnings,
                     games_played=games,
-                    win_percentage=entry.get("win_percentage", 0) * 100
-                    if entry.get("win_percentage", 0) <= 1
-                    else entry.get("win_percentage", 0),
+                    win_percentage=(
+                        entry.get("win_percentage", 0) * 100
+                        if entry.get("win_percentage", 0) <= 1
+                        else entry.get("win_percentage", 0)
+                    ),
                     avg_earnings=total_earnings / games if games > 0 else 0,
                     partnership_success=entry.get("partnership_success", 0),
                 )
@@ -5274,9 +5519,7 @@ def get_leaderboard(  # type: ignore
 
 
 @app.get("/leaderboard/{metric}")
-def get_leaderboard_by_metric(  # type: ignore
-    metric: str, limit: int = Query(10, ge=1, le=100)
-):
+def get_leaderboard_by_metric(metric: str, limit: int = Query(10, ge=1, le=100)):  # type: ignore
     """Get leaderboard sorted by specific metric. Uses LeaderboardService."""
     try:
         db = database.SessionLocal()
@@ -5296,7 +5539,11 @@ def get_leaderboard_by_metric(  # type: ignore
         leaderboard_type = metric_map.get(metric, "total_earnings")
         leaderboard = leaderboard_service.get_leaderboard(leaderboard_type=leaderboard_type, db=db, limit=limit)
 
-        return {"metric": metric, "leaderboard": leaderboard, "total_players": len(leaderboard)}
+        return {
+            "metric": metric,
+            "leaderboard": leaderboard,
+            "total_players": len(leaderboard),
+        }
 
     except Exception as e:
         logger.error(f"Error getting leaderboard by metric {metric}: {e}")
@@ -5354,7 +5601,12 @@ def get_player_performance():
             "active_players": active_players,
             "recent_signups": recent_signups,
             "average_handicap": 15.5,  # Placeholder calculation
-            "performance_metrics": {"games_played": 0, "average_score": 0, "best_round": 0, "worst_round": 0},
+            "performance_metrics": {
+                "games_played": 0,
+                "average_score": 0,
+                "best_round": 0,
+                "worst_round": 0,
+            },
             "last_updated": datetime.now().isoformat(),
         }
 
@@ -5406,7 +5658,10 @@ async def sync_ghin_handicaps():
         # Initialize and check if available
         await ghin_service.initialize()
         if not ghin_service.is_available():
-            raise HTTPException(status_code=503, detail="GHIN service not available. Check configuration.")
+            raise HTTPException(
+                status_code=503,
+                detail="GHIN service not available. Check configuration.",
+            )
 
         # Sync all player handicaps
         sync_results = await ghin_service.sync_all_players_handicaps()
@@ -5442,7 +5697,10 @@ def record_game_result(game_result: schemas.GamePlayerResultCreate) -> Dict[str,
 
         logger.info(f"Recorded game result for player {game_result.player_profile_id}")
 
-        return {"message": "Game result recorded successfully", "achievements_earned": achievements}
+        return {
+            "message": "Game result recorded successfully",
+            "achievements_earned": achievements,
+        }
 
     except HTTPException:
         raise
@@ -5717,7 +5975,13 @@ async def sync_wgp_sheet_data(request: Dict[str, str], db: Session = Depends(dat
                 # Stop if we hit summary sections (like "Most Rounds Played")
                 if any(
                     keyword in player_name.lower()
-                    for keyword in ["most rounds", "top 5", "best score", "worst score", "group size"]
+                    for keyword in [
+                        "most rounds",
+                        "top 5",
+                        "best score",
+                        "worst score",
+                        "group size",
+                    ]
                 ):
                     logger.info(f"Stopping at summary section: {player_name}")
                     break
@@ -5753,7 +6017,6 @@ async def sync_wgp_sheet_data(request: Dict[str, str], db: Session = Depends(dat
                         )
                     except (ValueError, IndexError) as e:
                         logger.warning(f"Error parsing score for {player_name}: {e}")
-                        pass
 
                 # Average column
                 if "average" in header_map and header_map["average"] < len(values):
@@ -5764,7 +6027,6 @@ async def sync_wgp_sheet_data(request: Dict[str, str], db: Session = Depends(dat
                             logger.debug(f"Set {player_name} average to {avg_value}")
                     except (ValueError, IndexError) as e:
                         logger.warning(f"Error parsing average for {player_name}: {e}")
-                        pass
 
                 # Count rounds/games played (increment for each row)
                 player_stats[player_name]["rounds"] += 1
@@ -5787,7 +6049,6 @@ async def sync_wgp_sheet_data(request: Dict[str, str], db: Session = Depends(dat
                             logger.debug(f"Set {player_name} QB to {qb_value}")
                     except (ValueError, IndexError) as e:
                         logger.warning(f"Error parsing QB for {player_name}: {e}")
-                        pass
 
                 # Log successful player data extraction
                 if player_stats[player_name]["quarters"] != 0 or player_stats[player_name]["rounds"] > 0:
@@ -6040,7 +6301,10 @@ async def test_admin_email(request: Dict[str, Any], x_admin_email: str = Header(
         test_service = EmailService()
 
         if not test_service.is_configured:  # type: ignore
-            raise HTTPException(status_code=400, detail="Email service not configured. Please provide SMTP settings.")
+            raise HTTPException(
+                status_code=400,
+                detail="Email service not configured. Please provide SMTP settings.",
+            )
 
         # Send test email
         success = test_service.send_test_email(to_email=test_email, admin_name=x_admin_email)
@@ -6106,7 +6370,10 @@ def start_oauth2_authorization(request: Dict[str, Any], x_admin_email: str = Hea
         # The redirect URI should point to the backend API, not the frontend
         auth_url = oauth2_service.get_auth_url()  # type: ignore
 
-        return {"auth_url": auth_url, "message": "Visit the auth_url to complete authorization"}
+        return {
+            "auth_url": auth_url,
+            "message": "Visit the auth_url to complete authorization",
+        }
 
     except FileNotFoundError:
         raise HTTPException(
@@ -6321,7 +6588,10 @@ async def test_oauth2_email(request: Dict[str, Any], x_admin_email: str = Header
         success = oauth2_service.send_test_email(test_email, x_admin_email)
 
         if success:
-            return {"status": "success", "message": f"Test email sent to {test_email} using OAuth2"}
+            return {
+                "status": "success",
+                "message": f"Test email sent to {test_email} using OAuth2",
+            }
         else:
             raise HTTPException(status_code=500, detail="Failed to send test email")
 
@@ -6361,7 +6631,10 @@ async def upload_gmail_credentials(file: UploadFile = File(...), x_admin_email: 
         with open(oauth2_service.credentials_path, "w") as f:  # type: ignore
             json.dump(credentials_data, f)
 
-        return {"status": "success", "message": "Gmail credentials file uploaded successfully"}
+        return {
+            "status": "success",
+            "message": "Gmail credentials file uploaded successfully",
+        }
 
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON file")
@@ -6372,7 +6645,7 @@ async def upload_gmail_credentials(file: UploadFile = File(...), x_admin_email: 
         raise HTTPException(status_code=500, detail=str(e))
 
 
-## BANNER MANAGEMENT ROUTES ##
+# BANNER MANAGEMENT ROUTES
 
 
 @app.get("/banner")
@@ -6442,7 +6715,9 @@ async def get_banner_config(x_admin_email: str = Header(None), db: Session = Dep
 
 @app.post("/admin/banner")
 async def create_or_update_banner(  # type: ignore
-    banner_data: schemas.GameBannerCreate, x_admin_email: str = Header(None), db: Session = Depends(database.get_db)
+    banner_data: schemas.GameBannerCreate,
+    x_admin_email: str = Header(None),
+    db: Session = Depends(database.get_db),
 ):
     """Create or update the game banner (admin only)"""
     # Check admin access
@@ -6556,7 +6831,9 @@ async def update_banner(  # type: ignore
 
 @app.delete("/admin/banner/{banner_id}")
 async def delete_banner(  # type: ignore
-    banner_id: int, x_admin_email: str = Header(None), db: Session = Depends(database.get_db)
+    banner_id: int,
+    x_admin_email: str = Header(None),
+    db: Session = Depends(database.get_db),
 ):
     """Delete a banner (admin only)"""
     # Check admin access
@@ -6615,7 +6892,12 @@ async def fetch_google_sheet(request: Dict[str, str]):  # type: ignore
                     row[header] = values[i] if i < len(values) else ""
                 data.append(row)
 
-        return {"headers": headers, "data": data, "total_rows": len(data), "fetched_at": datetime.now().isoformat()}
+        return {
+            "headers": headers,
+            "data": data,
+            "total_rows": len(data),
+            "fetched_at": datetime.now().isoformat(),
+        }
 
     except httpx.RequestError as e:
         logger.error(f"Error fetching Google Sheet: {e}")
@@ -6647,7 +6929,10 @@ def compare_sheet_with_database(sheet_data: List[Dict[str, Any]]):  # type: igno
         # Generate comparison report
         comparison_report = sheet_service.generate_sheet_comparison_report(current_data, sheet_data, mappings)
 
-        return {"comparison_report": comparison_report, "compared_at": datetime.now().isoformat()}
+        return {
+            "comparison_report": comparison_report,
+            "compared_at": datetime.now().isoformat(),
+        }
 
     except Exception as e:
         logger.error(f"Error comparing sheet data: {e}")
@@ -6867,7 +7152,10 @@ def get_weekly_signups(week_start: str = Query(description="YYYY-MM-DD format fo
 
             signups = (
                 db.query(models.DailySignup)
-                .filter(models.DailySignup.date == date_str, models.DailySignup.status != "cancelled")
+                .filter(
+                    models.DailySignup.date == date_str,
+                    models.DailySignup.status != "cancelled",
+                )
                 .all()
             )
 
@@ -7110,14 +7398,20 @@ def get_weekly_signups_with_messages(week_start: str = Query(description="YYYY-M
             # Get signups
             signups = (
                 db.query(models.DailySignup)
-                .filter(models.DailySignup.date == date_str, models.DailySignup.status != "cancelled")
+                .filter(
+                    models.DailySignup.date == date_str,
+                    models.DailySignup.status != "cancelled",
+                )
                 .all()
             )
 
             # Get messages
             messages = (
                 db.query(models.DailyMessage)
-                .filter(models.DailyMessage.date == date_str, models.DailyMessage.is_active == 1)
+                .filter(
+                    models.DailyMessage.date == date_str,
+                    models.DailyMessage.is_active == 1,
+                )
                 .order_by(models.DailyMessage.message_time)
                 .all()
             )
@@ -7250,7 +7544,10 @@ def _get_active_signups_for_date(db: Session, date: str) -> List[models.DailySig
 
 
 def _build_player_payload(
-    signups: List[models.DailySignup], *, include_handicap: bool = False, db: Optional[Session] = None
+    signups: List[models.DailySignup],
+    *,
+    include_handicap: bool = False,
+    db: Optional[Session] = None,
 ) -> List[Dict[str, Any]]:
     """Convert signup records into the player dictionaries used by formation services."""
     if include_handicap and db is None:
@@ -7263,11 +7560,7 @@ def _build_player_payload(
         profile_ids = [s.player_profile_id for s in signups if s.player_profile_id is not None]
         if profile_ids:
             profiles = (
-                db.query(models.PlayerProfile)
-                .filter(  # type: ignore
-                    models.PlayerProfile.id.in_(profile_ids)
-                )
-                .all()
+                db.query(models.PlayerProfile).filter(models.PlayerProfile.id.in_(profile_ids)).all()  # type: ignore
             )
             handicap_lookup = {profile.id: profile.handicap for profile in profiles}
 
@@ -7324,7 +7617,12 @@ def generate_random_teams_for_date(  # type: ignore
 
         logger.info(f"Generated {len(teams)} random teams for date {date}")
 
-        return {"summary": summary, "teams": teams, "validation": validation, "remaining_players": len(signups) % 4}
+        return {
+            "summary": summary,
+            "teams": teams,
+            "validation": validation,
+            "remaining_players": len(signups) % 4,
+        }
 
     except HTTPException:
         raise
@@ -7369,7 +7667,12 @@ def generate_balanced_teams_for_date(  # type: ignore
 
         logger.info(f"Generated {len(teams)} balanced teams for date {date}")
 
-        return {"summary": summary, "teams": teams, "validation": validation, "remaining_players": len(signups) % 4}
+        return {
+            "summary": summary,
+            "teams": teams,
+            "validation": validation,
+            "remaining_players": len(signups) % 4,
+        }
 
     except HTTPException:
         raise
@@ -7409,7 +7712,12 @@ def generate_team_rotations_for_date(  # type: ignore
 
         logger.info(f"Generated {len(rotations)} team rotations for date {date}")
 
-        return {"date": date, "total_signups": len(signups), "num_rotations": len(rotations), "rotations": rotations}
+        return {
+            "date": date,
+            "total_signups": len(signups),
+            "num_rotations": len(rotations),
+            "rotations": rotations,
+        }
 
     except HTTPException:
         raise
@@ -7471,7 +7779,10 @@ def get_players_for_date(date: str = Path(description="Date in YYYY-MM-DD format
         # Get all signups for the specified date
         signups = (
             db.query(models.DailySignup)
-            .filter(models.DailySignup.date == date, models.DailySignup.status != "cancelled")
+            .filter(
+                models.DailySignup.date == date,
+                models.DailySignup.status != "cancelled",
+            )
             .all()
         )
 
@@ -7585,7 +7896,11 @@ def generate_and_save_pairings(  # type: ignore
             "team_count": pairing.team_count,
             "remaining_players": pairing.remaining_players,
             "pairings": pairing.pairings_data,
-            "notifications": {"sent": emails_sent, "failed": emails_failed, "enabled": send_notifications},
+            "notifications": {
+                "sent": emails_sent,
+                "failed": emails_failed,
+                "enabled": send_notifications,
+            },
         }
 
     except HTTPException:
@@ -7614,7 +7929,12 @@ def resend_pairing_notifications(date: str = Path(description="Date in YYYY-MM-D
 
         emails_sent, emails_failed = PairingSchedulerService.send_pairing_notifications(db, pairing)
 
-        return {"success": True, "date": date, "emails_sent": emails_sent, "emails_failed": emails_failed}
+        return {
+            "success": True,
+            "date": date,
+            "emails_sent": emails_sent,
+            "emails_failed": emails_failed,
+        }
 
     except HTTPException:
         raise
@@ -7670,7 +7990,11 @@ def delete_generated_pairings(date: str = Path(description="Date in YYYY-MM-DD f
         db.delete(pairing)
         db.commit()
 
-        return {"success": True, "date": date, "message": f"Pairings for {date} deleted"}
+        return {
+            "success": True,
+            "date": date,
+            "message": f"Pairings for {date} deleted",
+        }
 
     except HTTPException:
         raise
@@ -7760,7 +8084,10 @@ async def send_signup_confirmation_email(email_data: dict):  # type: ignore
         missing_fields = [field for field in required_fields if not email_data.get(field)]
 
         if missing_fields:
-            raise HTTPException(status_code=400, detail=f"Missing required fields: {', '.join(missing_fields)}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Missing required fields: {', '.join(missing_fields)}",
+            )
 
         success = email_service.send_signup_confirmation(
             to_email=email_data["to_email"],
@@ -7769,7 +8096,10 @@ async def send_signup_confirmation_email(email_data: dict):  # type: ignore
         )
 
         if success:
-            return {"message": "Signup confirmation email sent", "to_email": email_data["to_email"]}
+            return {
+                "message": "Signup confirmation email sent",
+                "to_email": email_data["to_email"],
+            }
         else:
             raise HTTPException(status_code=500, detail="Failed to send signup confirmation email")
 
@@ -7793,7 +8123,10 @@ async def send_daily_reminder_email(email_data: dict):  # type: ignore
         missing_fields = [field for field in required_fields if not email_data.get(field)]
 
         if missing_fields:
-            raise HTTPException(status_code=400, detail=f"Missing required fields: {', '.join(missing_fields)}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Missing required fields: {', '.join(missing_fields)}",
+            )
 
         success = email_service.send_daily_signup_reminder(  # type: ignore
             to_email=email_data["to_email"],
@@ -7802,7 +8135,10 @@ async def send_daily_reminder_email(email_data: dict):  # type: ignore
         )
 
         if success:
-            return {"message": "Daily reminder email sent", "to_email": email_data["to_email"]}
+            return {
+                "message": "Daily reminder email sent",
+                "to_email": email_data["to_email"],
+            }
         else:
             raise HTTPException(status_code=500, detail="Failed to send daily reminder email")
 
@@ -7826,7 +8162,10 @@ async def send_weekly_summary_email(email_data: dict):  # type: ignore
         missing_fields = [field for field in required_fields if not email_data.get(field)]
 
         if missing_fields:
-            raise HTTPException(status_code=400, detail=f"Missing required fields: {', '.join(missing_fields)}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Missing required fields: {', '.join(missing_fields)}",
+            )
 
         success = email_service.send_weekly_summary(  # type: ignore
             to_email=email_data["to_email"],
@@ -7835,7 +8174,10 @@ async def send_weekly_summary_email(email_data: dict):  # type: ignore
         )
 
         if success:
-            return {"message": "Weekly summary email sent", "to_email": email_data["to_email"]}
+            return {
+                "message": "Weekly summary email sent",
+                "to_email": email_data["to_email"],
+            }
         else:
             raise HTTPException(status_code=500, detail="Failed to send weekly summary email")
 
@@ -7878,14 +8220,14 @@ async def initialize_email_scheduler():
 @app.get("/email/scheduler-status")
 async def get_email_scheduler_status():
     """Get the status of the email scheduler"""
-    global email_scheduler
-
     return {
         "initialized": email_scheduler is not None,
         "running": email_scheduler is not None and hasattr(email_scheduler, "_started") and email_scheduler._started,
-        "message": "Scheduler running"
-        if email_scheduler
-        else "Scheduler not initialized. Call /email/initialize-scheduler to start.",
+        "message": (
+            "Scheduler running"
+            if email_scheduler
+            else "Scheduler not initialized. Call /email/initialize-scheduler to start."
+        ),
     }
 
 
@@ -7901,9 +8243,7 @@ STATIC_DIR = Path(__file__).parent.parent.parent / "frontend" / "build"
 
 
 @app.get("/matchmaking/suggestions")
-def get_match_suggestions(  # type: ignore
-    min_overlap_hours: float = 2.0, preferred_days: Optional[str] = None
-):
+def get_match_suggestions(min_overlap_hours: float = 2.0, preferred_days: Optional[str] = None):  # type: ignore
     """
     Get matchmaking suggestions based on player availability.
 
@@ -7954,7 +8294,9 @@ def get_match_suggestions(  # type: ignore
 
         # Find matches
         matches = MatchmakingService.find_matches(
-            all_players_data, min_overlap_hours=min_overlap_hours, preferred_days=preferred_days_list
+            all_players_data,
+            min_overlap_hours=min_overlap_hours,
+            preferred_days=preferred_days_list,
         )
 
         # Get recent match history to filter out recently matched players
@@ -8007,7 +8349,10 @@ async def create_and_notify_matches():
         matches_response = get_match_suggestions(min_overlap_hours=2.0)
 
         if not matches_response["matches"]:
-            return {"message": "No suitable matches found", "matches_checked": matches_response["total_matches_found"]}
+            return {
+                "message": "No suitable matches found",
+                "matches_checked": matches_response["total_matches_found"],
+            }
 
         db = database.SessionLocal()
         email_service = get_email_service()
@@ -8056,7 +8401,9 @@ async def create_and_notify_matches():
                 try:
                     for recipient in notification["recipients"]:
                         await email_service.send_email(  # type: ignore
-                            to_email=recipient, subject=notification["subject"], body=notification["body"]
+                            to_email=recipient,
+                            subject=notification["subject"],
+                            body=notification["body"],
                         )
 
                     # Mark as sent
@@ -8127,7 +8474,9 @@ async def get_db_schemas(x_admin_email: Optional[str] = Header(None), db: Sessio
 
 @app.get("/admin/db/schemas/{schema_name}/tables")
 async def get_db_tables(
-    schema_name: str, x_admin_email: Optional[str] = Header(None), db: Session = Depends(database.get_db)
+    schema_name: str,
+    x_admin_email: Optional[str] = Header(None),
+    db: Session = Depends(database.get_db),
 ):  # type: ignore
     """Get all tables within a specific schema."""
     require_admin(x_admin_email)
@@ -8157,13 +8506,21 @@ async def get_table_content(
         )
         result = db.execute(check_query, {"schema_name": schema_name, "table_name": table_name}).fetchone()
         if not result:
-            raise HTTPException(status_code=404, detail=f"Table '{table_name}' not found in schema '{schema_name}'")
+            raise HTTPException(
+                status_code=404,
+                detail=f"Table '{table_name}' not found in schema '{schema_name}'",
+            )
 
         query = text(f"SELECT * FROM {schema_name}.{table_name} LIMIT 100;")
         table_content = db.execute(query).fetchall()
         columns = table_content[0].keys() if table_content else []
         rows = [dict(row._mapping) for row in table_content]
-        return {"schema": schema_name, "table": table_name, "columns": list(columns), "rows": rows}
+        return {
+            "schema": schema_name,
+            "table": table_name,
+            "columns": list(columns),
+            "rows": rows,
+        }
     except Exception as e:
         logger.error(f"Error getting content for table {schema_name}.{table_name}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get table content: {str(e)}")
@@ -8196,7 +8553,8 @@ async def get_orphaned_games(
         orphaned = (
             db.query(models.GameStateModel)
             .filter(
-                models.GameStateModel.game_status == "setup", models.GameStateModel.created_at < cutoff_time.isoformat()
+                models.GameStateModel.game_status == "setup",
+                models.GameStateModel.created_at < cutoff_time.isoformat(),
             )
             .all()
         )
@@ -8247,7 +8605,8 @@ async def delete_orphaned_games(
         orphaned = (
             db.query(models.GameStateModel)
             .filter(
-                models.GameStateModel.game_status == "setup", models.GameStateModel.created_at < cutoff_time.isoformat()
+                models.GameStateModel.game_status == "setup",
+                models.GameStateModel.created_at < cutoff_time.isoformat(),
             )
             .all()
         )
@@ -8347,7 +8706,10 @@ async def get_database_stats(x_admin_email: Optional[str] = Header(None), db: Se
         # Notifications
         total_notifications = db.query(models.Notification).count()
         unread_notifications = db.query(models.Notification).filter(models.Notification.is_read == False).count()
-        stats["notifications"] = {"total": total_notifications, "unread": unread_notifications}
+        stats["notifications"] = {
+            "total": total_notifications,
+            "unread": unread_notifications,
+        }
 
         return {"generated_at": datetime.now(timezone.utc).isoformat(), "stats": stats}
     except Exception as e:
@@ -8380,7 +8742,8 @@ async def run_database_migration(
             raise HTTPException(status_code=500, detail=f"Migration failed: {str(e)}")
     else:
         raise HTTPException(
-            status_code=400, detail=f"Unknown migration: {migration}. Available: add_statistics_columns"
+            status_code=400,
+            detail=f"Unknown migration: {migration}. Available: add_statistics_columns",
         )
 
 
@@ -8400,7 +8763,7 @@ if ENABLE_TEST_ENDPOINTS:
             "static_dir_exists": static_dir.exists(),
             "index_file": str(index_file),
             "index_file_exists": index_file.exists(),
-            "static_dir_contents": list(static_dir.iterdir()) if static_dir.exists() else [],
+            "static_dir_contents": (list(static_dir.iterdir()) if static_dir.exists() else []),
         }
 
 
@@ -8479,7 +8842,11 @@ async def score_hole_simplified(payload: Dict[str, Any]):  # type: ignore
         if "error" in result:
             raise HTTPException(status_code=400, detail=result["error"])
 
-        return {"success": True, "hole_result": result, "game_summary": game.get_game_summary()}
+        return {
+            "success": True,
+            "hole_result": result,
+            "game_summary": game.get_game_summary(),
+        }
 
     except HTTPException:
         raise
@@ -8501,7 +8868,11 @@ async def get_simplified_game_status(game_id: str):  # type: ignore
 
         game = simplified_games[game_id]
 
-        return {"game_id": game_id, "game_summary": game.get_game_summary(), "hole_history": game.get_hole_history()}
+        return {
+            "game_id": game_id,
+            "game_summary": game.get_game_summary(),
+            "hole_history": game.get_hole_history(),
+        }
 
     except HTTPException:
         raise

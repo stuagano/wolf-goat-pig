@@ -47,7 +47,7 @@ class GameLifecycleService:
 
     def __init__(self) -> None:
         """Initialize the service with empty active games cache."""
-        if getattr(self, '_initialized', False):
+        if getattr(self, "_initialized", False):
             return
 
         self._active_games: Dict[str, WolfGoatPigGame] = {}
@@ -62,7 +62,7 @@ class GameLifecycleService:
         course_name: Optional[str] = None,
         base_wager: Optional[float] = None,
         join_code: Optional[str] = None,
-        creator_user_id: Optional[str] = None
+        creator_user_id: Optional[str] = None,
     ) -> Tuple[str, WolfGoatPigGame]:
         """
         Create a new Wolf Goat Pig game.
@@ -102,11 +102,7 @@ class GameLifecycleService:
             logger.info(f"Creating new game {game_id} with {player_count} players")
 
             # Initialize game engine
-            game = WolfGoatPigGame(
-                game_id=game_id,
-                player_count=len(players),
-                players=players
-            )
+            game = WolfGoatPigGame(game_id=game_id, player_count=len(players), players=players)
 
             # Set optional parameters
             if base_wager is not None:
@@ -123,13 +119,13 @@ class GameLifecycleService:
                         "id": p.id,
                         "name": p.name,
                         "handicap": p.handicap,
-                        "points": p.points
+                        "points": p.points,
                     }
                     for p in players
                 ],
                 "course_name": course_name,
                 "base_wager": base_wager or 1,
-                "created_at": current_time
+                "created_at": current_time,
             }
 
             # Create database record
@@ -140,7 +136,7 @@ class GameLifecycleService:
                 state=initial_state,
                 game_status="setup",
                 created_at=current_time,
-                updated_at=current_time
+                updated_at=current_time,
             )
 
             db.add(game_record)
@@ -159,10 +155,7 @@ class GameLifecycleService:
         except Exception as e:
             db.rollback()
             logger.error(f"Error creating game: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to create game: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"Failed to create game: {str(e)}")
 
     def get_game(self, db: Session, game_id: str) -> WolfGoatPigGame:
         """
@@ -191,28 +184,20 @@ class GameLifecycleService:
             # Load from database
             logger.info(f"Game {game_id} not in cache, loading from database")
 
-            game_record = db.query(GameStateModel).filter(
-                GameStateModel.game_id == game_id
-            ).first()
+            game_record = db.query(GameStateModel).filter(GameStateModel.game_id == game_id).first()
 
             if not game_record:
                 logger.warning(f"Game {game_id} not found in database")
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Game {game_id} not found"
-                )
+                raise HTTPException(status_code=404, detail=f"Game {game_id} not found")
 
             # Reconstruct simulation from database state
             # Initialize game engine (will load state from DB via PersistenceMixin)
             game = WolfGoatPigGame(game_id=game_id)
 
             # Verify the game was loaded successfully
-            if not hasattr(game, '_loaded_from_db') or not game._loaded_from_db:
+            if not hasattr(game, "_loaded_from_db") or not game._loaded_from_db:
                 logger.error(f"Failed to load game {game_id} from database")
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Failed to load game {game_id}"
-                )
+                raise HTTPException(status_code=500, detail=f"Failed to load game {game_id}")
 
             # Add to cache
             self._active_games[game_id] = game
@@ -224,10 +209,7 @@ class GameLifecycleService:
             raise
         except Exception as e:
             logger.error(f"Error retrieving game {game_id}: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Error loading game: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"Error loading game: {str(e)}")
 
     def start_game(self, db: Session, game_id: str) -> WolfGoatPigGame:
         """
@@ -252,9 +234,7 @@ class GameLifecycleService:
             game = self.get_game(db, game_id)
 
             # Get the database record
-            game_record = db.query(GameStateModel).filter(
-                GameStateModel.game_id == game_id
-            ).first()
+            game_record = db.query(GameStateModel).filter(GameStateModel.game_id == game_id).first()
 
             if not game_record:
                 raise HTTPException(status_code=404, detail=f"Game {game_id} not found")
@@ -263,15 +243,15 @@ class GameLifecycleService:
             if game_record.game_status != "setup":
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Cannot start game in '{game_record.game_status}' status"
+                    detail=f"Cannot start game in '{game_record.game_status}' status",
                 )
 
             # Update status - use setattr to avoid Column type errors
-            setattr(game_record, 'game_status', "in_progress")
+            setattr(game_record, "game_status", "in_progress")
             if game_record.state:
                 state_dict = cast(Dict[str, Any], game_record.state)
                 state_dict["game_status"] = "in_progress"
-            setattr(game_record, 'updated_at', datetime.now(timezone.utc).isoformat())
+            setattr(game_record, "updated_at", datetime.now(timezone.utc).isoformat())
 
             db.commit()
 
@@ -283,10 +263,7 @@ class GameLifecycleService:
         except Exception as e:
             db.rollback()
             logger.error(f"Error starting game {game_id}: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to start game: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"Failed to start game: {str(e)}")
 
     def pause_game(self, db: Session, game_id: str) -> WolfGoatPigGame:
         """
@@ -310,26 +287,21 @@ class GameLifecycleService:
             game = self.get_game(db, game_id)
 
             # Get the database record
-            game_record = db.query(GameStateModel).filter(
-                GameStateModel.game_id == game_id
-            ).first()
+            game_record = db.query(GameStateModel).filter(GameStateModel.game_id == game_id).first()
 
             if not game_record:
                 raise HTTPException(status_code=404, detail=f"Game {game_id} not found")
 
             # Validate state transition
             if game_record.game_status != "in_progress":
-                raise HTTPException(
-                    status_code=400,
-                    detail="Can only pause games that are in progress"
-                )
+                raise HTTPException(status_code=400, detail="Can only pause games that are in progress")
 
             # Update status - use setattr to avoid Column type errors
-            setattr(game_record, 'game_status', "paused")
+            setattr(game_record, "game_status", "paused")
             if game_record.state:
                 state_dict = cast(Dict[str, Any], game_record.state)
                 state_dict["game_status"] = "paused"
-            setattr(game_record, 'updated_at', datetime.now(timezone.utc).isoformat())
+            setattr(game_record, "updated_at", datetime.now(timezone.utc).isoformat())
 
             db.commit()
 
@@ -341,10 +313,7 @@ class GameLifecycleService:
         except Exception as e:
             db.rollback()
             logger.error(f"Error pausing game {game_id}: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to pause game: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"Failed to pause game: {str(e)}")
 
     def resume_game(self, db: Session, game_id: str) -> WolfGoatPigGame:
         """
@@ -368,26 +337,21 @@ class GameLifecycleService:
             game = self.get_game(db, game_id)
 
             # Get the database record
-            game_record = db.query(GameStateModel).filter(
-                GameStateModel.game_id == game_id
-            ).first()
+            game_record = db.query(GameStateModel).filter(GameStateModel.game_id == game_id).first()
 
             if not game_record:
                 raise HTTPException(status_code=404, detail=f"Game {game_id} not found")
 
             # Validate state transition
             if game_record.game_status != "paused":
-                raise HTTPException(
-                    status_code=400,
-                    detail="Can only resume games that are paused"
-                )
+                raise HTTPException(status_code=400, detail="Can only resume games that are paused")
 
             # Update status - use setattr to avoid Column type errors
-            setattr(game_record, 'game_status', "in_progress")
+            setattr(game_record, "game_status", "in_progress")
             if game_record.state:
                 state_dict = cast(Dict[str, Any], game_record.state)
                 state_dict["game_status"] = "in_progress"
-            setattr(game_record, 'updated_at', datetime.now(timezone.utc).isoformat())
+            setattr(game_record, "updated_at", datetime.now(timezone.utc).isoformat())
 
             db.commit()
 
@@ -399,10 +363,7 @@ class GameLifecycleService:
         except Exception as e:
             db.rollback()
             logger.error(f"Error resuming game {game_id}: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to resume game: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"Failed to resume game: {str(e)}")
 
     def complete_game(self, db: Session, game_id: str) -> Dict[str, Any]:
         """
@@ -427,9 +388,7 @@ class GameLifecycleService:
             game = self.get_game(db, game_id)
 
             # Get the database record
-            game_record = db.query(GameStateModel).filter(
-                GameStateModel.game_id == game_id
-            ).first()
+            game_record = db.query(GameStateModel).filter(GameStateModel.game_id == game_id).first()
 
             if not game_record:
                 raise HTTPException(status_code=404, detail=f"Game {game_id} not found")
@@ -445,27 +404,27 @@ class GameLifecycleService:
                 "status": "completed",
                 "completed_at": datetime.now(timezone.utc).isoformat(),
                 "final_scores": {},
-                "total_holes_played": game.current_hole - 1 if hasattr(game, 'current_hole') else 0,
+                "total_holes_played": (game.current_hole - 1 if hasattr(game, "current_hole") else 0),
                 "course_name": game_record.state.get("course_name"),
-                "base_wager": game_record.state.get("base_wager", 1)
+                "base_wager": game_record.state.get("base_wager", 1),
             }
 
             # Extract player results
-            if hasattr(game, 'players'):
+            if hasattr(game, "players"):
                 for player in game.players:
                     final_stats["final_scores"][player.id] = {
                         "name": player.name,
                         "points": player.points,
-                        "handicap": player.handicap
+                        "handicap": player.handicap,
                     }
 
             # Update database record - use setattr to avoid Column type errors
-            setattr(game_record, 'game_status', "completed")
+            setattr(game_record, "game_status", "completed")
             if game_record.state:
                 state_dict = cast(Dict[str, Any], game_record.state)
                 state_dict["game_status"] = "completed"
                 state_dict["final_stats"] = final_stats
-            setattr(game_record, 'updated_at', datetime.now(timezone.utc).isoformat())
+            setattr(game_record, "updated_at", datetime.now(timezone.utc).isoformat())
 
             db.commit()
 
@@ -477,10 +436,7 @@ class GameLifecycleService:
         except Exception as e:
             db.rollback()
             logger.error(f"Error completing game {game_id}: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to complete game: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"Failed to complete game: {str(e)}")
 
     def list_active_games(self) -> List[str]:
         """

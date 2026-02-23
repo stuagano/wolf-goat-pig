@@ -4,14 +4,12 @@ Unit tests for OddsCalculator
 Tests real-time odds calculation for Wolf Goat Pig betting system.
 """
 
-import pytest
 from app.services.odds_calculator import (
-    OddsCalculator,
-    PlayerState,
     HoleState,
+    OddsCalculator,
+    OddsResult,
+    PlayerState,
     TeamConfiguration,
-    BettingScenario,
-    OddsResult
 )
 
 
@@ -41,10 +39,7 @@ class TestShotSuccessProbability:
         """Test basic probability calculation"""
         calc = OddsCalculator()
         prob = calc._calculate_shot_success_probability(
-            handicap=15.0,
-            distance=100.0,
-            lie_type="fairway",
-            hole_difficulty=3.0
+            handicap=15.0, distance=100.0, lie_type="fairway", hole_difficulty=3.0
         )
         assert 0.05 <= prob <= 0.95
 
@@ -52,12 +47,8 @@ class TestShotSuccessProbability:
         """Test distance affects success probability"""
         calc = OddsCalculator()
 
-        prob_short = calc._calculate_shot_success_probability(
-            15.0, 50.0, "fairway", 3.0
-        )
-        prob_long = calc._calculate_shot_success_probability(
-            15.0, 200.0, "fairway", 3.0
-        )
+        prob_short = calc._calculate_shot_success_probability(15.0, 50.0, "fairway", 3.0)
+        prob_long = calc._calculate_shot_success_probability(15.0, 200.0, "fairway", 3.0)
 
         assert prob_short > prob_long
 
@@ -65,12 +56,8 @@ class TestShotSuccessProbability:
         """Test handicap affects success probability"""
         calc = OddsCalculator()
 
-        prob_low_hcp = calc._calculate_shot_success_probability(
-            5.0, 150.0, "fairway", 3.0
-        )
-        prob_high_hcp = calc._calculate_shot_success_probability(
-            25.0, 150.0, "fairway", 3.0
-        )
+        prob_low_hcp = calc._calculate_shot_success_probability(5.0, 150.0, "fairway", 3.0)
+        prob_high_hcp = calc._calculate_shot_success_probability(25.0, 150.0, "fairway", 3.0)
 
         assert prob_low_hcp > prob_high_hcp
 
@@ -78,12 +65,8 @@ class TestShotSuccessProbability:
         """Test lie type affects success probability"""
         calc = OddsCalculator()
 
-        prob_green = calc._calculate_shot_success_probability(
-            15.0, 50.0, "green", 3.0
-        )
-        prob_rough = calc._calculate_shot_success_probability(
-            15.0, 50.0, "deep_rough", 3.0
-        )
+        prob_green = calc._calculate_shot_success_probability(15.0, 50.0, "green", 3.0)
+        prob_rough = calc._calculate_shot_success_probability(15.0, 50.0, "deep_rough", 3.0)
 
         assert prob_green > prob_rough
 
@@ -92,18 +75,14 @@ class TestShotSuccessProbability:
         calc = OddsCalculator()
 
         # First call
-        prob1 = calc._calculate_shot_success_probability(
-            15.0, 100.0, "fairway", 3.0
-        )
+        prob1 = calc._calculate_shot_success_probability(15.0, 100.0, "fairway", 3.0)
 
         # Should hit cache
         cache_key = (15.0, 100.0, "fairway", 3.0)
         assert cache_key in calc._probability_cache
 
         # Second call should return same result
-        prob2 = calc._calculate_shot_success_probability(
-            15.0, 100.0, "fairway", 3.0
-        )
+        prob2 = calc._calculate_shot_success_probability(15.0, 100.0, "fairway", 3.0)
 
         assert prob1 == prob2
 
@@ -120,7 +99,7 @@ class TestHoleCompletionProbability:
             handicap=15.0,
             shots_taken=0,
             distance_to_pin=400.0,
-            lie_type="fairway"
+            lie_type="fairway",
         )
         hole = HoleState(hole_number=1, par=4)
 
@@ -139,7 +118,7 @@ class TestHoleCompletionProbability:
             handicap=10.0,
             shots_taken=2,
             distance_to_pin=10.0,
-            lie_type="green"
+            lie_type="green",
         )
         hole = HoleState(hole_number=1, par=4)
 
@@ -155,8 +134,7 @@ class TestTeamWinProbability:
     def test_pending_teams(self):
         """Test pending team configuration"""
         calc = OddsCalculator()
-        players = [PlayerState(id=f"p{i}", name=f"Player {i}", handicap=15.0)
-                  for i in range(4)]
+        players = [PlayerState(id=f"p{i}", name=f"Player {i}", handicap=15.0) for i in range(4)]
         hole = HoleState(hole_number=1, par=4, teams=TeamConfiguration.PENDING)
 
         probs = calc._calculate_team_win_probability(players, hole)
@@ -171,7 +149,7 @@ class TestTeamWinProbability:
             PlayerState(id="captain", name="Captain", handicap=10.0, is_captain=True),
             PlayerState(id="p2", name="Player 2", handicap=15.0),
             PlayerState(id="p3", name="Player 3", handicap=20.0),
-            PlayerState(id="p4", name="Player 4", handicap=18.0)
+            PlayerState(id="p4", name="Player 4", handicap=18.0),
         ]
         hole = HoleState(hole_number=1, par=4, teams=TeamConfiguration.SOLO)
 
@@ -189,7 +167,7 @@ class TestTeamWinProbability:
             PlayerState(id="p1", name="Player 1", handicap=10.0, team_id="team1"),
             PlayerState(id="p2", name="Player 2", handicap=15.0, team_id="team1"),
             PlayerState(id="p3", name="Player 3", handicap=20.0, team_id="team2"),
-            PlayerState(id="p4", name="Player 4", handicap=18.0, team_id="team2")
+            PlayerState(id="p4", name="Player 4", handicap=18.0, team_id="team2"),
         ]
         hole = HoleState(hole_number=1, par=4, teams=TeamConfiguration.PARTNERS)
 
@@ -207,36 +185,21 @@ class TestExpectedValue:
     def test_offer_double_ev(self):
         """Test EV for offering double"""
         calc = OddsCalculator()
-        ev = calc._calculate_expected_value(
-            "offer_double",
-            win_prob=0.6,
-            current_wager=1,
-            players=[]
-        )
+        ev = calc._calculate_expected_value("offer_double", win_prob=0.6, current_wager=1, players=[])
         # With 60% win rate, offering double should have positive EV
         assert ev > 0
 
     def test_accept_double_ev(self):
         """Test EV for accepting double"""
         calc = OddsCalculator()
-        ev = calc._calculate_expected_value(
-            "accept_double",
-            win_prob=0.5,
-            current_wager=1,
-            players=[]
-        )
+        ev = calc._calculate_expected_value("accept_double", win_prob=0.5, current_wager=1, players=[])
         # With 50% win rate, accepting double has neutral EV
         assert abs(ev) < 0.1
 
     def test_go_solo_ev(self):
         """Test EV for going solo"""
         calc = OddsCalculator()
-        ev = calc._calculate_expected_value(
-            "go_solo",
-            win_prob=0.3,
-            current_wager=1,
-            players=[]
-        )
+        ev = calc._calculate_expected_value("go_solo", win_prob=0.3, current_wager=1, players=[])
         # With 30% win rate vs 3 opponents, EV should be analyzed
         assert isinstance(ev, float)
 
@@ -273,7 +236,7 @@ class TestBettingScenarios:
             PlayerState(id="captain", name="Captain", handicap=10.0, is_captain=True),
             PlayerState(id="p2", name="Player 2", handicap=15.0),
             PlayerState(id="p3", name="Player 3", handicap=20.0),
-            PlayerState(id="p4", name="Player 4", handicap=18.0)
+            PlayerState(id="p4", name="Player 4", handicap=18.0),
         ]
         hole = HoleState(hole_number=1, par=4, teams=TeamConfiguration.SOLO, current_wager=1)
         team_probs = {"captain": 0.3, "opponents": 0.7}
@@ -291,10 +254,7 @@ class TestRealTimeOdds:
     def test_calculate_real_time_odds(self):
         """Test complete odds calculation pipeline"""
         calc = OddsCalculator()
-        players = [
-            PlayerState(id=f"p{i}", name=f"Player {i}", handicap=15.0)
-            for i in range(4)
-        ]
+        players = [PlayerState(id=f"p{i}", name=f"Player {i}", handicap=15.0) for i in range(4)]
         hole = HoleState(hole_number=1, par=4, teams=TeamConfiguration.PENDING)
 
         result = calc.calculate_real_time_odds(players, hole)
@@ -333,7 +293,7 @@ class TestUtilityFunctions:
             "handicap": 15.0,
             "shots_taken": 2,
             "distance_to_pin": 100.0,
-            "lie_type": "fairway"
+            "lie_type": "fairway",
         }
 
         player = create_player_state_from_game_data(player_data)
@@ -352,7 +312,7 @@ class TestUtilityFunctions:
             "par": 4,
             "difficulty_rating": 3.5,
             "teams": "solo",
-            "current_wager": 2
+            "current_wager": 2,
         }
 
         hole = create_hole_state_from_game_data(hole_data)

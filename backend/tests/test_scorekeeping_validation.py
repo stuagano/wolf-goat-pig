@@ -1,6 +1,7 @@
 """Test Scorekeeping Validation - points must balance to zero"""
-import pytest
+
 from fastapi.testclient import TestClient
+
 from app.main import app
 
 client = TestClient(app)
@@ -14,16 +15,28 @@ def test_partners_points_balance_to_zero():
     player_ids = [p["id"] for p in players]
 
     # Hole 1: partners 2v2
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 1,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "teams": {"type": "partners", "team1": [player_ids[0], player_ids[1]], "team2": [player_ids[2], player_ids[3]]},
-        "final_wager": 2,
-        "winner": "team1",
-        "scores": {player_ids[0]: 4, player_ids[1]: 4, player_ids[2]: 5, player_ids[3]: 5},
-        "hole_par": 4
-    })
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 1,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "teams": {
+                "type": "partners",
+                "team1": [player_ids[0], player_ids[1]],
+                "team2": [player_ids[2], player_ids[3]],
+            },
+            "final_wager": 2,
+            "winner": "team1",
+            "scores": {
+                player_ids[0]: 4,
+                player_ids[1]: 4,
+                player_ids[2]: 5,
+                player_ids[3]: 5,
+            },
+            "hole_par": 4,
+        },
+    )
 
     assert response.status_code == 200
     result = response.json()["hole_result"]
@@ -42,16 +55,28 @@ def test_solo_points_balance_to_zero():
     player_ids = [p["id"] for p in players]
 
     # Hole 1: solo (1v3)
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 1,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "teams": {"type": "solo", "captain": player_ids[0], "opponents": [player_ids[1], player_ids[2], player_ids[3]]},
-        "final_wager": 2,
-        "winner": "captain",
-        "scores": {player_ids[0]: 4, player_ids[1]: 5, player_ids[2]: 5, player_ids[3]: 6},
-        "hole_par": 4
-    })
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 1,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "teams": {
+                "type": "solo",
+                "captain": player_ids[0],
+                "opponents": [player_ids[1], player_ids[2], player_ids[3]],
+            },
+            "final_wager": 2,
+            "winner": "captain",
+            "scores": {
+                player_ids[0]: 4,
+                player_ids[1]: 5,
+                player_ids[2]: 5,
+                player_ids[3]: 6,
+            },
+            "hole_par": 4,
+        },
+    )
 
     assert response.status_code == 200
     result = response.json()["hole_result"]
@@ -70,17 +95,29 @@ def test_duncan_points_balance_to_zero():
     player_ids = [p["id"] for p in players]
 
     # Hole 1: solo with Duncan (3-for-2)
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 1,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "duncan_invoked": True,
-        "teams": {"type": "solo", "captain": player_ids[0], "opponents": [player_ids[1], player_ids[2], player_ids[3]]},
-        "final_wager": 2,
-        "winner": "captain",
-        "scores": {player_ids[0]: 4, player_ids[1]: 5, player_ids[2]: 5, player_ids[3]: 6},
-        "hole_par": 4
-    })
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 1,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "duncan_invoked": True,
+            "teams": {
+                "type": "solo",
+                "captain": player_ids[0],
+                "opponents": [player_ids[1], player_ids[2], player_ids[3]],
+            },
+            "final_wager": 2,
+            "winner": "captain",
+            "scores": {
+                player_ids[0]: 4,
+                player_ids[1]: 5,
+                player_ids[2]: 5,
+                player_ids[3]: 6,
+            },
+            "hole_par": 4,
+        },
+    )
 
     assert response.status_code == 200
     result = response.json()["hole_result"]
@@ -102,29 +139,48 @@ def test_double_points_still_balance_to_zero():
     for hole_num in range(1, 17):
         captain_idx = (hole_num - 1) % 4
         rotation = player_ids[captain_idx:] + player_ids[:captain_idx]
-        client.post(f"/games/{game_id}/holes/complete", json={
-            "hole_number": hole_num,
-            "rotation_order": rotation,
-            "captain_index": 0,
-            "teams": {"type": "partners", "team1": [rotation[0], rotation[1]], "team2": [rotation[2], rotation[3]]},
-            "final_wager": 1,
-            "winner": "team1",
-            "scores": {rotation[0]: 4, rotation[1]: 4, rotation[2]: 5, rotation[3]: 5},
-            "hole_par": 4
-        })
+        client.post(
+            f"/games/{game_id}/holes/complete",
+            json={
+                "hole_number": hole_num,
+                "rotation_order": rotation,
+                "captain_index": 0,
+                "teams": {
+                    "type": "partners",
+                    "team1": [rotation[0], rotation[1]],
+                    "team2": [rotation[2], rotation[3]],
+                },
+                "final_wager": 1,
+                "winner": "team1",
+                "scores": {
+                    rotation[0]: 4,
+                    rotation[1]: 4,
+                    rotation[2]: 5,
+                    rotation[3]: 5,
+                },
+                "hole_par": 4,
+            },
+        )
 
     # Hole 17: double points
     rotation = player_ids
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 17,
-        "rotation_order": rotation,
-        "captain_index": 0,
-        "teams": {"type": "partners", "team1": [rotation[0], rotation[1]], "team2": [rotation[2], rotation[3]]},
-        "final_wager": 2,
-        "winner": "team1",
-        "scores": {rotation[0]: 4, rotation[1]: 4, rotation[2]: 5, rotation[3]: 5},
-        "hole_par": 4
-    })
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 17,
+            "rotation_order": rotation,
+            "captain_index": 0,
+            "teams": {
+                "type": "partners",
+                "team1": [rotation[0], rotation[1]],
+                "team2": [rotation[2], rotation[3]],
+            },
+            "final_wager": 2,
+            "winner": "team1",
+            "scores": {rotation[0]: 4, rotation[1]: 4, rotation[2]: 5, rotation[3]: 5},
+            "hole_par": 4,
+        },
+    )
 
     assert response.status_code == 200
     result = response.json()["hole_result"]
@@ -143,16 +199,29 @@ def test_5man_karl_marx_points_balance():
     player_ids = [p["id"] for p in players]
 
     # Hole 1: 2v3 teams (triggers Karl Marx)
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 1,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "teams": {"type": "partners", "team1": [player_ids[0], player_ids[1]], "team2": [player_ids[2], player_ids[3], player_ids[4]]},
-        "final_wager": 1,
-        "winner": "team1",
-        "scores": {player_ids[0]: 4, player_ids[1]: 4, player_ids[2]: 5, player_ids[3]: 6, player_ids[4]: 6},
-        "hole_par": 4
-    })
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 1,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "teams": {
+                "type": "partners",
+                "team1": [player_ids[0], player_ids[1]],
+                "team2": [player_ids[2], player_ids[3], player_ids[4]],
+            },
+            "final_wager": 1,
+            "winner": "team1",
+            "scores": {
+                player_ids[0]: 4,
+                player_ids[1]: 4,
+                player_ids[2]: 5,
+                player_ids[3]: 6,
+                player_ids[4]: 6,
+            },
+            "hole_par": 4,
+        },
+    )
 
     assert response.status_code == 200
     result = response.json()["hole_result"]
@@ -171,16 +240,28 @@ def test_push_points_balance_to_zero():
     player_ids = [p["id"] for p in players]
 
     # Hole 1: push
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 1,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "teams": {"type": "partners", "team1": [player_ids[0], player_ids[1]], "team2": [player_ids[2], player_ids[3]]},
-        "final_wager": 2,
-        "winner": "push",
-        "scores": {player_ids[0]: 4, player_ids[1]: 4, player_ids[2]: 4, player_ids[3]: 4},
-        "hole_par": 4
-    })
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 1,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "teams": {
+                "type": "partners",
+                "team1": [player_ids[0], player_ids[1]],
+                "team2": [player_ids[2], player_ids[3]],
+            },
+            "final_wager": 2,
+            "winner": "push",
+            "scores": {
+                player_ids[0]: 4,
+                player_ids[1]: 4,
+                player_ids[2]: 4,
+                player_ids[3]: 4,
+            },
+            "hole_par": 4,
+        },
+    )
 
     assert response.status_code == 200
     result = response.json()["hole_result"]
