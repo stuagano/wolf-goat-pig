@@ -31,7 +31,7 @@ router = APIRouter(prefix="/players", tags=["players"])
 
 
 # ============================================================================
-# Player Profile CRUD Endpoints
+# Player Profile Create/List Endpoints (no path params)
 # ============================================================================
 
 
@@ -57,6 +57,266 @@ def get_all_player_profiles(
     profiles = player_service.get_all_player_profiles(active_only=active_only)
     logger.info(f"Retrieved {len(profiles)} player profiles")
     return profiles
+
+
+# ============================================================================
+# Player Search Endpoints (static paths - must be before /{player_id})
+# ============================================================================
+
+
+@router.get("/all", response_model=List[schemas.PlayerProfileResponse])
+@handle_api_errors(operation_name="get all players")
+def get_all_players(
+    active_only: bool = Query(True, description="Only return active players"), db: Session = Depends(get_db)
+) -> List[schemas.PlayerProfileResponse]:
+    """Get all player profiles."""
+    player_service = PlayerService(db)
+    return player_service.get_all_player_profiles(active_only=active_only)
+
+
+@router.get("/name/{player_name}", response_model=schemas.PlayerProfileResponse)
+@handle_api_errors(operation_name="get player by name")
+def get_player_profile_by_name(player_name: str, db: Session = Depends(get_db)) -> schemas.PlayerProfileResponse:
+    """Get a player profile by name."""
+    player_service = PlayerService(db)
+    profile = player_service.get_player_profile_by_name(player_name)
+    return require_not_none(profile, "Player", player_name)
+
+
+@router.get("/availability/all", response_model=List[Dict])
+@handle_api_errors(operation_name="get all players availability")
+def get_all_players_availability(db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
+    """Get all players' weekly availability with their names."""
+    players_with_availability = db.query(models.PlayerProfile).all()
+
+    result: List[Dict[str, Any]] = []
+    for player in players_with_availability:
+        player_data: Dict[str, Any] = {
+            "player_id": player.id,
+            "player_name": player.name,
+            "email": player.email,
+            "availability": [],
+        }
+
+        availability = (
+            db.query(models.PlayerAvailability).filter(models.PlayerAvailability.player_profile_id == player.id).all()
+        )
+
+        for avail in availability:
+            player_data["availability"].append(
+                {
+                    "day_of_week": avail.day_of_week,
+                    "is_available": avail.is_available,
+                    "available_from_time": avail.available_from_time,
+                    "available_to_time": avail.available_to_time,
+                    "notes": avail.notes,
+                }
+            )
+
+        result.append(player_data)
+
+    return result
+
+
+# ============================================================================
+# Current User Endpoints (/me) - must be before /{player_id}
+# ============================================================================
+
+
+@router.get("/me", response_model=schemas.PlayerProfileResponse)
+@handle_api_errors(operation_name="get my profile")
+async def get_my_profile(
+    current_user: models.PlayerProfile = Depends(get_current_user),
+) -> schemas.PlayerProfileResponse:
+    """Get current authenticated user's profile."""
+    return schemas.PlayerProfileResponse.model_validate(current_user)
+
+
+@router.put("/me/legacy-name", response_model=schemas.PlayerProfileResponse)
+@handle_api_errors(operation_name="update my legacy name")
+async def update_my_legacy_name(
+    legacy_name_update: Dict[str, Optional[str]],
+    current_user: models.PlayerProfile = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> schemas.PlayerProfileResponse:
+    """
+    Update current user's legacy name for tee sheet sync.
+
+    The legacy_name must match a player in the thousand-cranes.com tee sheet system.
+    """
+    from ..services.legacy_player_service import get_canonical_name, is_valid_legacy_player
+
+    legacy_name = legacy_name_update.get("legacy_name")
+
+    if legacy_name:
+        # Validate against legacy player list
+        canonical = get_canonical_name(legacy_name)
+        if not canonical:
+            from fastapi import HTTPException
+
+            raise HTTPException(
+                status_code=400,
+                detail=f"'{legacy_name}' is not a valid legacy player name. Use /legacy-players to see valid names.",
+            )
+        legacy_name = canonical  # Use canonical casing
+
+    # Update the profile
+    current_user.legacy_name = legacy_name
+    current_user.updated_at = datetime.now(timezone.utc).isoformat()
+    db.commit()
+    db.refresh(current_user)
+
+    logger.info(f"Updated legacy_name for user {current_user.id} to '{legacy_name}'")
+    return schemas.PlayerProfileResponse.model_validate(current_user)
+
+
+@router.get("/me/availability", response_model=List[schemas.PlayerAvailabilityResponse])
+@handle_api_errors(operation_name="get my availability")
+async def get_my_availability(
+    current_user: models.PlayerProfile = Depends(get_current_user), db: Session = Depends(get_db)
+) -> List[schemas.PlayerAvailabilityResponse]:
+    """Get current user's weekly availability."""
+    availability = (
+        db.query(models.PlayerAvailability).filter(models.PlayerAvailability.player_profile_id == current_user.id).all()
+    )
+    return [schemas.PlayerAvailabilityResponse.from_orm(a) for a in availability]
+
+
+@router.post("/me/availability", response_model=schemas.PlayerAvailabilityResponse)
+@handle_api_errors(operation_name="set my availability")
+async def set_my_availability(
+    availability: schemas.PlayerAvailabilityCreate,
+    current_user: models.PlayerProfile = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> schemas.PlayerAvailabilityResponse:
+    """Set or update current user's availability for a specific day."""
+    # Override the player_profile_id with the current user's ID
+    availability.player_profile_id = cast(int, current_user.id)
+
+    existing = (
+        db.query(models.PlayerAvailability)
+        .filter(
+            models.PlayerAvailability.player_profile_id == current_user.id,
+            models.PlayerAvailability.day_of_week == availability.day_of_week,
+        )
+        .first()
+    )
+
+    now = datetime.now(timezone.utc).isoformat()
+
+    if existing:
+        existing.available_from_time = availability.available_from_time
+        existing.available_to_time = availability.available_to_time
+        existing.is_available = availability.is_available
+        existing.notes = availability.notes
+        existing.updated_at = now
+        db.commit()
+        db.refresh(existing)
+        logger.info(f"Updated availability for user {current_user.id}, day {availability.day_of_week}")
+        return schemas.PlayerAvailabilityResponse.from_orm(existing)
+
+    # Create new
+    db_availability = models.PlayerAvailability(
+        player_profile_id=current_user.id,
+        day_of_week=availability.day_of_week,
+        available_from_time=availability.available_from_time,
+        available_to_time=availability.available_to_time,
+        is_available=availability.is_available,
+        notes=availability.notes,
+        created_at=now,
+        updated_at=now,
+    )
+    db.add(db_availability)
+    db.commit()
+    db.refresh(db_availability)
+
+    logger.info(f"Created availability for user {current_user.id}, day {availability.day_of_week}")
+    return schemas.PlayerAvailabilityResponse.from_orm(db_availability)
+
+
+@router.get("/me/email-preferences", response_model=schemas.EmailPreferencesResponse)
+@handle_api_errors(operation_name="get my email preferences")
+async def get_my_email_preferences(
+    current_user: models.PlayerProfile = Depends(get_current_user), db: Session = Depends(get_db)
+) -> schemas.EmailPreferencesResponse:
+    """Get current user's email preferences."""
+    now = datetime.now(timezone.utc).isoformat()
+
+    prefs = (
+        db.query(models.EmailPreferences).filter(models.EmailPreferences.player_profile_id == current_user.id).first()
+    )
+
+    if not prefs:
+        prefs = models.EmailPreferences(player_profile_id=current_user.id, created_at=now, updated_at=now)
+        db.add(prefs)
+        db.commit()
+        db.refresh(prefs)
+
+    return schemas.EmailPreferencesResponse(
+        id=cast(int, prefs.id),
+        player_profile_id=cast(int, prefs.player_profile_id),
+        daily_signups_enabled=bool(prefs.daily_signups_enabled),
+        signup_confirmations_enabled=bool(prefs.signup_confirmations_enabled),
+        signup_reminders_enabled=bool(prefs.signup_reminders_enabled),
+        game_invitations_enabled=bool(prefs.game_invitations_enabled),
+        weekly_summary_enabled=bool(prefs.weekly_summary_enabled),
+        email_frequency=cast(str, prefs.email_frequency),
+        preferred_notification_time=cast(str, prefs.preferred_notification_time),
+        created_at=cast(str, prefs.created_at),
+        updated_at=cast(str, prefs.updated_at),
+    )
+
+
+@router.put("/me/email-preferences", response_model=schemas.EmailPreferencesResponse)
+@handle_api_errors(operation_name="update my email preferences")
+async def update_my_email_preferences(
+    preferences_update: schemas.EmailPreferencesUpdate,
+    current_user: models.PlayerProfile = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> schemas.EmailPreferencesResponse:
+    """Update current user's email preferences."""
+    now = datetime.now(timezone.utc).isoformat()
+
+    prefs = (
+        db.query(models.EmailPreferences).filter(models.EmailPreferences.player_profile_id == current_user.id).first()
+    )
+
+    if not prefs:
+        prefs = models.EmailPreferences(player_profile_id=current_user.id, created_at=now)
+        db.add(prefs)
+
+    update_data = preferences_update.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        if hasattr(prefs, field):
+            # Convert bool to int for SQLite
+            if isinstance(value, bool):
+                value = 1 if value else 0
+            setattr(prefs, field, value)
+
+    prefs.updated_at = now  # type: ignore
+    db.commit()
+    db.refresh(prefs)
+
+    logger.info(f"Updated email preferences for user {current_user.id}")
+
+    return schemas.EmailPreferencesResponse(
+        id=cast(int, prefs.id),
+        player_profile_id=cast(int, prefs.player_profile_id),
+        daily_signups_enabled=bool(prefs.daily_signups_enabled),
+        signup_confirmations_enabled=bool(prefs.signup_confirmations_enabled),
+        signup_reminders_enabled=bool(prefs.signup_reminders_enabled),
+        game_invitations_enabled=bool(prefs.game_invitations_enabled),
+        weekly_summary_enabled=bool(prefs.weekly_summary_enabled),
+        email_frequency=cast(str, prefs.email_frequency),
+        preferred_notification_time=cast(str, prefs.preferred_notification_time),
+        created_at=cast(str, prefs.created_at),
+        updated_at=cast(str, prefs.updated_at),
+    )
+
+
+# ============================================================================
+# Player Profile CRUD by ID (parameterized - must be after static paths)
+# ============================================================================
 
 
 @router.get("/{player_id}", response_model=schemas.PlayerProfileResponse)
@@ -91,30 +351,6 @@ def delete_player_profile(player_id: int, db: Session = Depends(get_db)) -> Dict
         require_not_none(None, "Player", player_id)  # Raises 404
     logger.info(f"Deleted player profile {player_id}")
     return {"message": f"Player {player_id} has been deleted"}
-
-
-# ============================================================================
-# Player Search Endpoints
-# ============================================================================
-
-
-@router.get("/all", response_model=List[schemas.PlayerProfileResponse])
-@handle_api_errors(operation_name="get all players")
-def get_all_players(
-    active_only: bool = Query(True, description="Only return active players"), db: Session = Depends(get_db)
-) -> List[schemas.PlayerProfileResponse]:
-    """Get all player profiles."""
-    player_service = PlayerService(db)
-    return player_service.get_all_player_profiles(active_only=active_only)
-
-
-@router.get("/name/{player_name}", response_model=schemas.PlayerProfileResponse)
-@handle_api_errors(operation_name="get player by name")
-def get_player_profile_by_name(player_name: str, db: Session = Depends(get_db)) -> schemas.PlayerProfileResponse:
-    """Get a player profile by name."""
-    player_service = PlayerService(db)
-    profile = player_service.get_player_profile_by_name(player_name)
-    return require_not_none(profile, "Player", player_name)
 
 
 # ============================================================================
@@ -315,124 +551,8 @@ def get_score_performance_analytics(player_id: int, db: Session = Depends(get_db
 
 
 # ============================================================================
-# Current User Endpoints (/me)
+# Player Availability Endpoints (by player_id)
 # ============================================================================
-
-
-@router.get("/me", response_model=schemas.PlayerProfileResponse)
-@handle_api_errors(operation_name="get my profile")
-async def get_my_profile(
-    current_user: models.PlayerProfile = Depends(get_current_user),
-) -> schemas.PlayerProfileResponse:
-    """Get current authenticated user's profile."""
-    return schemas.PlayerProfileResponse.model_validate(current_user)
-
-
-@router.put("/me/legacy-name", response_model=schemas.PlayerProfileResponse)
-@handle_api_errors(operation_name="update my legacy name")
-async def update_my_legacy_name(
-    legacy_name_update: Dict[str, Optional[str]],
-    current_user: models.PlayerProfile = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> schemas.PlayerProfileResponse:
-    """
-    Update current user's legacy name for tee sheet sync.
-
-    The legacy_name must match a player in the thousand-cranes.com tee sheet system.
-    """
-    from ..services.legacy_player_service import get_canonical_name, is_valid_legacy_player
-
-    legacy_name = legacy_name_update.get("legacy_name")
-
-    if legacy_name:
-        # Validate against legacy player list
-        canonical = get_canonical_name(legacy_name)
-        if not canonical:
-            from fastapi import HTTPException
-
-            raise HTTPException(
-                status_code=400,
-                detail=f"'{legacy_name}' is not a valid legacy player name. Use /legacy-players to see valid names.",
-            )
-        legacy_name = canonical  # Use canonical casing
-
-    # Update the profile
-    current_user.legacy_name = legacy_name
-    current_user.updated_at = datetime.now(timezone.utc).isoformat()
-    db.commit()
-    db.refresh(current_user)
-
-    logger.info(f"Updated legacy_name for user {current_user.id} to '{legacy_name}'")
-    return schemas.PlayerProfileResponse.model_validate(current_user)
-
-
-# ============================================================================
-# Player Availability Endpoints
-# ============================================================================
-
-
-@router.get("/me/availability", response_model=List[schemas.PlayerAvailabilityResponse])
-@handle_api_errors(operation_name="get my availability")
-async def get_my_availability(
-    current_user: models.PlayerProfile = Depends(get_current_user), db: Session = Depends(get_db)
-) -> List[schemas.PlayerAvailabilityResponse]:
-    """Get current user's weekly availability."""
-    availability = (
-        db.query(models.PlayerAvailability).filter(models.PlayerAvailability.player_profile_id == current_user.id).all()
-    )
-    return [schemas.PlayerAvailabilityResponse.from_orm(a) for a in availability]
-
-
-@router.post("/me/availability", response_model=schemas.PlayerAvailabilityResponse)
-@handle_api_errors(operation_name="set my availability")
-async def set_my_availability(
-    availability: schemas.PlayerAvailabilityCreate,
-    current_user: models.PlayerProfile = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> schemas.PlayerAvailabilityResponse:
-    """Set or update current user's availability for a specific day."""
-    # Override the player_profile_id with the current user's ID
-    availability.player_profile_id = cast(int, current_user.id)
-
-    existing = (
-        db.query(models.PlayerAvailability)
-        .filter(
-            models.PlayerAvailability.player_profile_id == current_user.id,
-            models.PlayerAvailability.day_of_week == availability.day_of_week,
-        )
-        .first()
-    )
-
-    now = datetime.now(timezone.utc).isoformat()
-
-    if existing:
-        existing.available_from_time = availability.available_from_time
-        existing.available_to_time = availability.available_to_time
-        existing.is_available = availability.is_available
-        existing.notes = availability.notes
-        existing.updated_at = now
-        db.commit()
-        db.refresh(existing)
-        logger.info(f"Updated availability for user {current_user.id}, day {availability.day_of_week}")
-        return schemas.PlayerAvailabilityResponse.from_orm(existing)
-
-    # Create new
-    db_availability = models.PlayerAvailability(
-        player_profile_id=current_user.id,
-        day_of_week=availability.day_of_week,
-        available_from_time=availability.available_from_time,
-        available_to_time=availability.available_to_time,
-        is_available=availability.is_available,
-        notes=availability.notes,
-        created_at=now,
-        updated_at=now,
-    )
-    db.add(db_availability)
-    db.commit()
-    db.refresh(db_availability)
-
-    logger.info(f"Created availability for user {current_user.id}, day {availability.day_of_week}")
-    return schemas.PlayerAvailabilityResponse.from_orm(db_availability)
 
 
 @router.get("/{player_id}/availability", response_model=List[schemas.PlayerAvailabilityResponse])
@@ -446,41 +566,6 @@ def get_player_availability(player_id: int, db: Session = Depends(get_db)) -> Li
         .all()
     )
     return [schemas.PlayerAvailabilityResponse.from_orm(avail) for avail in availability]
-
-
-@router.get("/availability/all", response_model=List[Dict])
-@handle_api_errors(operation_name="get all players availability")
-def get_all_players_availability(db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
-    """Get all players' weekly availability with their names."""
-    players_with_availability = db.query(models.PlayerProfile).all()
-
-    result: List[Dict[str, Any]] = []
-    for player in players_with_availability:
-        player_data: Dict[str, Any] = {
-            "player_id": player.id,
-            "player_name": player.name,
-            "email": player.email,
-            "availability": [],
-        }
-
-        availability = (
-            db.query(models.PlayerAvailability).filter(models.PlayerAvailability.player_profile_id == player.id).all()
-        )
-
-        for avail in availability:
-            player_data["availability"].append(
-                {
-                    "day_of_week": avail.day_of_week,
-                    "is_available": avail.is_available,
-                    "available_from_time": avail.available_from_time,
-                    "available_to_time": avail.available_to_time,
-                    "notes": avail.notes,
-                }
-            )
-
-        result.append(player_data)
-
-    return result
 
 
 @router.post("/{player_id}/availability", response_model=schemas.PlayerAvailabilityResponse)
@@ -531,7 +616,7 @@ def set_player_availability(
 
 
 # ============================================================================
-# Email Preferences Endpoints
+# Email Preferences Endpoints (by player_id)
 # ============================================================================
 
 
@@ -578,83 +663,3 @@ def update_email_preferences(
 
     logger.info(f"Updated email preferences for player {player_id}")
     return schemas.EmailPreferencesResponse.from_orm(preferences)
-
-
-@router.get("/me/email-preferences", response_model=schemas.EmailPreferencesResponse)
-@handle_api_errors(operation_name="get my email preferences")
-async def get_my_email_preferences(
-    current_user: models.PlayerProfile = Depends(get_current_user), db: Session = Depends(get_db)
-) -> schemas.EmailPreferencesResponse:
-    """Get current user's email preferences."""
-    now = datetime.now(timezone.utc).isoformat()
-
-    prefs = (
-        db.query(models.EmailPreferences).filter(models.EmailPreferences.player_profile_id == current_user.id).first()
-    )
-
-    if not prefs:
-        prefs = models.EmailPreferences(player_profile_id=current_user.id, created_at=now, updated_at=now)
-        db.add(prefs)
-        db.commit()
-        db.refresh(prefs)
-
-    return schemas.EmailPreferencesResponse(
-        id=cast(int, prefs.id),
-        player_profile_id=cast(int, prefs.player_profile_id),
-        daily_signups_enabled=bool(prefs.daily_signups_enabled),
-        signup_confirmations_enabled=bool(prefs.signup_confirmations_enabled),
-        signup_reminders_enabled=bool(prefs.signup_reminders_enabled),
-        game_invitations_enabled=bool(prefs.game_invitations_enabled),
-        weekly_summary_enabled=bool(prefs.weekly_summary_enabled),
-        email_frequency=cast(str, prefs.email_frequency),
-        preferred_notification_time=cast(str, prefs.preferred_notification_time),
-        created_at=cast(str, prefs.created_at),
-        updated_at=cast(str, prefs.updated_at),
-    )
-
-
-@router.put("/me/email-preferences", response_model=schemas.EmailPreferencesResponse)
-@handle_api_errors(operation_name="update my email preferences")
-async def update_my_email_preferences(
-    preferences_update: schemas.EmailPreferencesUpdate,
-    current_user: models.PlayerProfile = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> schemas.EmailPreferencesResponse:
-    """Update current user's email preferences."""
-    now = datetime.now(timezone.utc).isoformat()
-
-    prefs = (
-        db.query(models.EmailPreferences).filter(models.EmailPreferences.player_profile_id == current_user.id).first()
-    )
-
-    if not prefs:
-        prefs = models.EmailPreferences(player_profile_id=current_user.id, created_at=now)
-        db.add(prefs)
-
-    update_data = preferences_update.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        if hasattr(prefs, field):
-            # Convert bool to int for SQLite
-            if isinstance(value, bool):
-                value = 1 if value else 0
-            setattr(prefs, field, value)
-
-    prefs.updated_at = now  # type: ignore
-    db.commit()
-    db.refresh(prefs)
-
-    logger.info(f"Updated email preferences for user {current_user.id}")
-
-    return schemas.EmailPreferencesResponse(
-        id=cast(int, prefs.id),
-        player_profile_id=cast(int, prefs.player_profile_id),
-        daily_signups_enabled=bool(prefs.daily_signups_enabled),
-        signup_confirmations_enabled=bool(prefs.signup_confirmations_enabled),
-        signup_reminders_enabled=bool(prefs.signup_reminders_enabled),
-        game_invitations_enabled=bool(prefs.game_invitations_enabled),
-        weekly_summary_enabled=bool(prefs.weekly_summary_enabled),
-        email_frequency=cast(str, prefs.email_frequency),
-        preferred_notification_time=cast(str, prefs.preferred_notification_time),
-        created_at=cast(str, prefs.created_at),
-        updated_at=cast(str, prefs.updated_at),
-    )
