@@ -1,6 +1,7 @@
 """Test Enhanced Error Handling & Validation - Phase 4, Task 2"""
-import pytest
+
 from fastapi.testclient import TestClient
+
 from app.main import app
 
 client = TestClient(app)
@@ -14,16 +15,23 @@ def test_duplicate_players_on_same_team():
     player_ids = [p["id"] for p in players]
 
     # Try to put same player on team twice
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 1,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "teams": {"type": "partners", "team1": [player_ids[0], player_ids[0]], "team2": [player_ids[2], player_ids[3]]},
-        "final_wager": 2,
-        "winner": "team1",
-        "scores": {player_ids[0]: 4, player_ids[2]: 5, player_ids[3]: 5},
-        "hole_par": 4
-    })
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 1,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "teams": {
+                "type": "partners",
+                "team1": [player_ids[0], player_ids[0]],
+                "team2": [player_ids[2], player_ids[3]],
+            },
+            "final_wager": 2,
+            "winner": "team1",
+            "scores": {player_ids[0]: 4, player_ids[2]: 5, player_ids[3]: 5},
+            "hole_par": 4,
+        },
+    )
 
     assert response.status_code == 400
     assert "duplicate" in response.json()["detail"].lower()
@@ -37,16 +45,23 @@ def test_duplicate_players_on_different_teams():
     player_ids = [p["id"] for p in players]
 
     # Try to put same player on both teams
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 1,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "teams": {"type": "partners", "team1": [player_ids[0], player_ids[1]], "team2": [player_ids[1], player_ids[3]]},
-        "final_wager": 2,
-        "winner": "team1",
-        "scores": {player_ids[0]: 4, player_ids[1]: 4, player_ids[3]: 5},
-        "hole_par": 4
-    })
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 1,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "teams": {
+                "type": "partners",
+                "team1": [player_ids[0], player_ids[1]],
+                "team2": [player_ids[1], player_ids[3]],
+            },
+            "final_wager": 2,
+            "winner": "team1",
+            "scores": {player_ids[0]: 4, player_ids[1]: 4, player_ids[3]: 5},
+            "hole_par": 4,
+        },
+    )
 
     assert response.status_code == 400
     assert "duplicate" in response.json()["detail"].lower() or "both teams" in response.json()["detail"].lower()
@@ -61,16 +76,29 @@ def test_captain_not_in_rotation_order():
 
     # Try to use a player NOT in rotation as solo player - should fail
     fake_player_id = "fake_player_not_in_rotation"
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 1,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "teams": {"type": "solo", "captain": fake_player_id, "opponents": player_ids},
-        "final_wager": 2,
-        "winner": "captain",
-        "scores": {player_ids[0]: 5, player_ids[1]: 4, player_ids[2]: 5, player_ids[3]: 6, fake_player_id: 3},
-        "hole_par": 4
-    })
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 1,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "teams": {
+                "type": "solo",
+                "captain": fake_player_id,
+                "opponents": player_ids,
+            },
+            "final_wager": 2,
+            "winner": "captain",
+            "scores": {
+                player_ids[0]: 5,
+                player_ids[1]: 4,
+                player_ids[2]: 5,
+                player_ids[3]: 6,
+                fake_player_id: 3,
+            },
+            "hole_par": 4,
+        },
+    )
 
     assert response.status_code == 400
     assert "rotation" in response.json()["detail"].lower() or "solo" in response.json()["detail"].lower()
@@ -84,16 +112,28 @@ def test_negative_score_rejected():
     player_ids = [p["id"] for p in players]
 
     # Try to submit negative score
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 1,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "teams": {"type": "partners", "team1": [player_ids[0], player_ids[1]], "team2": [player_ids[2], player_ids[3]]},
-        "final_wager": 2,
-        "winner": "team1",
-        "scores": {player_ids[0]: -1, player_ids[1]: 4, player_ids[2]: 5, player_ids[3]: 5},
-        "hole_par": 4
-    })
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 1,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "teams": {
+                "type": "partners",
+                "team1": [player_ids[0], player_ids[1]],
+                "team2": [player_ids[2], player_ids[3]],
+            },
+            "final_wager": 2,
+            "winner": "team1",
+            "scores": {
+                player_ids[0]: -1,
+                player_ids[1]: 4,
+                player_ids[2]: 5,
+                player_ids[3]: 5,
+            },
+            "hole_par": 4,
+        },
+    )
 
     assert response.status_code == 400
     assert "score" in response.json()["detail"].lower() or "negative" in response.json()["detail"].lower()
@@ -107,16 +147,28 @@ def test_unreasonably_high_score_rejected():
     player_ids = [p["id"] for p in players]
 
     # Try to submit score > 15 (unrealistic)
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 1,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "teams": {"type": "partners", "team1": [player_ids[0], player_ids[1]], "team2": [player_ids[2], player_ids[3]]},
-        "final_wager": 2,
-        "winner": "team1",
-        "scores": {player_ids[0]: 4, player_ids[1]: 4, player_ids[2]: 25, player_ids[3]: 5},
-        "hole_par": 4
-    })
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 1,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "teams": {
+                "type": "partners",
+                "team1": [player_ids[0], player_ids[1]],
+                "team2": [player_ids[2], player_ids[3]],
+            },
+            "final_wager": 2,
+            "winner": "team1",
+            "scores": {
+                player_ids[0]: 4,
+                player_ids[1]: 4,
+                player_ids[2]: 25,
+                player_ids[3]: 5,
+            },
+            "hole_par": 4,
+        },
+    )
 
     assert response.status_code == 400
     assert "score" in response.json()["detail"].lower()
@@ -130,16 +182,27 @@ def test_missing_player_in_scores():
     player_ids = [p["id"] for p in players]
 
     # Missing one player's score
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 1,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "teams": {"type": "partners", "team1": [player_ids[0], player_ids[1]], "team2": [player_ids[2], player_ids[3]]},
-        "final_wager": 2,
-        "winner": "team1",
-        "scores": {player_ids[0]: 4, player_ids[1]: 4, player_ids[2]: 5},  # missing player_ids[3]
-        "hole_par": 4
-    })
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 1,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "teams": {
+                "type": "partners",
+                "team1": [player_ids[0], player_ids[1]],
+                "team2": [player_ids[2], player_ids[3]],
+            },
+            "final_wager": 2,
+            "winner": "team1",
+            "scores": {
+                player_ids[0]: 4,
+                player_ids[1]: 4,
+                player_ids[2]: 5,
+            },  # missing player_ids[3]
+            "hole_par": 4,
+        },
+    )
 
     assert response.status_code == 400
     assert "score" in response.json()["detail"].lower() or "missing" in response.json()["detail"].lower()
@@ -154,16 +217,29 @@ def test_extra_player_in_scores():
 
     # Extra player ID not in rotation
     fake_player_id = "fake-player-999"
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 1,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "teams": {"type": "partners", "team1": [player_ids[0], player_ids[1]], "team2": [player_ids[2], player_ids[3]]},
-        "final_wager": 2,
-        "winner": "team1",
-        "scores": {player_ids[0]: 4, player_ids[1]: 4, player_ids[2]: 5, player_ids[3]: 5, fake_player_id: 6},
-        "hole_par": 4
-    })
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 1,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "teams": {
+                "type": "partners",
+                "team1": [player_ids[0], player_ids[1]],
+                "team2": [player_ids[2], player_ids[3]],
+            },
+            "final_wager": 2,
+            "winner": "team1",
+            "scores": {
+                player_ids[0]: 4,
+                player_ids[1]: 4,
+                player_ids[2]: 5,
+                player_ids[3]: 5,
+                fake_player_id: 6,
+            },
+            "hole_par": 4,
+        },
+    )
 
     assert response.status_code == 400
     assert "score" in response.json()["detail"].lower() or "rotation" in response.json()["detail"].lower()
@@ -177,16 +253,23 @@ def test_invalid_team_formation_solo_wrong_count():
     player_ids = [p["id"] for p in players]
 
     # Solo with 2 captains (invalid)
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 1,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "teams": {"type": "solo", "captain": player_ids[0], "opponents": [player_ids[2], player_ids[3]]},  # Missing 1 opponent
-        "final_wager": 2,
-        "winner": "captain",
-        "scores": {player_ids[0]: 4, player_ids[2]: 5, player_ids[3]: 6},
-        "hole_par": 4
-    })
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 1,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "teams": {
+                "type": "solo",
+                "captain": player_ids[0],
+                "opponents": [player_ids[2], player_ids[3]],
+            },  # Missing 1 opponent
+            "final_wager": 2,
+            "winner": "captain",
+            "scores": {player_ids[0]: 4, player_ids[2]: 5, player_ids[3]: 6},
+            "hole_par": 4,
+        },
+    )
 
     assert response.status_code == 400
     assert "team" in response.json()["detail"].lower() or "opponent" in response.json()["detail"].lower()
@@ -200,16 +283,28 @@ def test_zero_or_negative_wager():
     player_ids = [p["id"] for p in players]
 
     # Zero wager
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 1,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "teams": {"type": "partners", "team1": [player_ids[0], player_ids[1]], "team2": [player_ids[2], player_ids[3]]},
-        "final_wager": 0,
-        "winner": "team1",
-        "scores": {player_ids[0]: 4, player_ids[1]: 4, player_ids[2]: 5, player_ids[3]: 5},
-        "hole_par": 4
-    })
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 1,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "teams": {
+                "type": "partners",
+                "team1": [player_ids[0], player_ids[1]],
+                "team2": [player_ids[2], player_ids[3]],
+            },
+            "final_wager": 0,
+            "winner": "team1",
+            "scores": {
+                player_ids[0]: 4,
+                player_ids[1]: 4,
+                player_ids[2]: 5,
+                player_ids[3]: 5,
+            },
+            "hole_par": 4,
+        },
+    )
 
     # Accept either 400 (custom validation) or 422 (Pydantic validation)
     assert response.status_code in [400, 422]
@@ -228,16 +323,28 @@ def test_invalid_hole_number():
     player_ids = [p["id"] for p in players]
 
     # Hole 0 (invalid)
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 0,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "teams": {"type": "partners", "team1": [player_ids[0], player_ids[1]], "team2": [player_ids[2], player_ids[3]]},
-        "final_wager": 2,
-        "winner": "team1",
-        "scores": {player_ids[0]: 4, player_ids[1]: 4, player_ids[2]: 5, player_ids[3]: 5},
-        "hole_par": 4
-    })
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 0,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "teams": {
+                "type": "partners",
+                "team1": [player_ids[0], player_ids[1]],
+                "team2": [player_ids[2], player_ids[3]],
+            },
+            "final_wager": 2,
+            "winner": "team1",
+            "scores": {
+                player_ids[0]: 4,
+                player_ids[1]: 4,
+                player_ids[2]: 5,
+                player_ids[3]: 5,
+            },
+            "hole_par": 4,
+        },
+    )
 
     # Accept either 400 (custom validation) or 422 (Pydantic validation)
     assert response.status_code in [400, 422]
@@ -247,16 +354,28 @@ def test_invalid_hole_number():
     # If Pydantic validation, it's validated (422 is correct)
 
     # Hole 19 (invalid)
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 19,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "teams": {"type": "partners", "team1": [player_ids[0], player_ids[1]], "team2": [player_ids[2], player_ids[3]]},
-        "final_wager": 2,
-        "winner": "team1",
-        "scores": {player_ids[0]: 4, player_ids[1]: 4, player_ids[2]: 5, player_ids[3]: 5},
-        "hole_par": 4
-    })
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 19,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "teams": {
+                "type": "partners",
+                "team1": [player_ids[0], player_ids[1]],
+                "team2": [player_ids[2], player_ids[3]],
+            },
+            "final_wager": 2,
+            "winner": "team1",
+            "scores": {
+                player_ids[0]: 4,
+                player_ids[1]: 4,
+                player_ids[2]: 5,
+                player_ids[3]: 5,
+            },
+            "hole_par": 4,
+        },
+    )
 
     # Accept either 400 (custom validation) or 422 (Pydantic validation)
     assert response.status_code in [400, 422]
@@ -274,16 +393,28 @@ def test_all_players_accounted_for_in_teams():
     player_ids = [p["id"] for p in players]
 
     # Only 3 players in teams (missing 1)
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 1,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "teams": {"type": "partners", "team1": [player_ids[0], player_ids[1]], "team2": [player_ids[2]]},  # Missing player_ids[3]
-        "final_wager": 2,
-        "winner": "team1",
-        "scores": {player_ids[0]: 4, player_ids[1]: 4, player_ids[2]: 5, player_ids[3]: 5},
-        "hole_par": 4
-    })
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 1,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "teams": {
+                "type": "partners",
+                "team1": [player_ids[0], player_ids[1]],
+                "team2": [player_ids[2]],
+            },  # Missing player_ids[3]
+            "final_wager": 2,
+            "winner": "team1",
+            "scores": {
+                player_ids[0]: 4,
+                player_ids[1]: 4,
+                player_ids[2]: 5,
+                player_ids[3]: 5,
+            },
+            "hole_par": 4,
+        },
+    )
 
     assert response.status_code == 400
     assert "team" in response.json()["detail"].lower() or "player" in response.json()["detail"].lower()

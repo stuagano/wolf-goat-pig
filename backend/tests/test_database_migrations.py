@@ -4,11 +4,12 @@ Test database migrations and schema validation.
 This ensures that required migrations have been applied and that the
 database schema matches what the application expects.
 """
+
 import pytest
-from sqlalchemy import inspect, create_engine
-from sqlalchemy.orm import Session
-from app.database import get_db, engine
-from app.models import GamePlayer, GameStateModel
+from sqlalchemy import inspect
+
+from app.database import engine, get_db
+from app.models import GamePlayer
 from startup import run_migrations
 
 
@@ -24,10 +25,9 @@ class TestDatabaseSchema:
         inspector = inspect(engine)
 
         # Get columns for game_players table
-        columns = [col['name'] for col in inspector.get_columns('game_players')]
+        columns = [col["name"] for col in inspector.get_columns("game_players")]
 
-        assert 'tee_order' in columns, \
-            "game_players table missing tee_order column - migration not applied"
+        assert "tee_order" in columns, "game_players table missing tee_order column - migration not applied"
 
     def test_game_players_tee_order_is_nullable(self):
         """Test that tee_order column is nullable.
@@ -37,67 +37,64 @@ class TestDatabaseSchema:
         """
         inspector = inspect(engine)
 
-        columns = {col['name']: col for col in inspector.get_columns('game_players')}
+        columns = {col["name"]: col for col in inspector.get_columns("game_players")}
 
-        assert 'tee_order' in columns, "tee_order column does not exist"
-        assert columns['tee_order']['nullable'], \
-            "tee_order column should be nullable for backward compatibility"
+        assert "tee_order" in columns, "tee_order column does not exist"
+        assert columns["tee_order"]["nullable"], "tee_order column should be nullable for backward compatibility"
 
     def test_game_state_has_required_columns(self):
         """Test that game_state table has all required columns."""
         inspector = inspect(engine)
 
         required_columns = [
-            'id',
-            'game_id',
-            'created_at',
-            'updated_at',
-            'join_code',
-            'creator_user_id',
-            'game_status'
+            "id",
+            "game_id",
+            "created_at",
+            "updated_at",
+            "join_code",
+            "creator_user_id",
+            "game_status",
         ]
 
-        columns = [col['name'] for col in inspector.get_columns('game_state')]
+        columns = [col["name"] for col in inspector.get_columns("game_state")]
 
         for required_col in required_columns:
-            assert required_col in columns, \
-                f"game_state table missing required column: {required_col}"
+            assert required_col in columns, f"game_state table missing required column: {required_col}"
 
     def test_game_players_has_required_columns(self):
         """Test that game_players table has all required columns."""
         inspector = inspect(engine)
 
         required_columns = [
-            'id',
-            'game_id',
-            'player_slot_id',
-            'user_id',
-            'player_profile_id',
-            'player_name',
-            'handicap',
-            'tee_order',  # The new column that caused production errors
-            'join_status',
-            'joined_at',
-            'created_at'
+            "id",
+            "game_id",
+            "player_slot_id",
+            "user_id",
+            "player_profile_id",
+            "player_name",
+            "handicap",
+            "tee_order",  # The new column that caused production errors
+            "join_status",
+            "joined_at",
+            "created_at",
         ]
 
-        columns = [col['name'] for col in inspector.get_columns('game_players')]
+        columns = [col["name"] for col in inspector.get_columns("game_players")]
 
         for required_col in required_columns:
-            assert required_col in columns, \
-                f"game_players table missing required column: {required_col}"
+            assert required_col in columns, f"game_players table missing required column: {required_col}"
 
     def test_tee_order_index_exists(self):
         """Test that the tee_order index exists for performance."""
         inspector = inspect(engine)
 
         # Get indexes for game_players table
-        indexes = inspector.get_indexes('game_players')
-        index_names = [idx['name'] for idx in indexes]
+        indexes = inspector.get_indexes("game_players")
+        index_names = [idx["name"] for idx in indexes]
 
         # Check if any index on tee_order exists (name may vary by database)
         # Accept any index that includes tee_order or game_id
-        has_relevant_index = any('game_id' in idx.get('column_names', []) for idx in indexes)
+        any("game_id" in idx.get("column_names", []) for idx in indexes)
 
         # This is a performance optimization, not a critical requirement
         # The test passes if basic indexes exist on the table
@@ -114,9 +111,8 @@ class TestMigrations:
 
         assert result is not None, "Migration result should not be None"
         assert isinstance(result, dict), "Migration result should be a dictionary"
-        assert 'success' in result, "Migration result should have 'success' key"
-        assert result['success'] is True, \
-            f"Migrations should succeed: {result.get('message', 'No message')}"
+        assert "success" in result, "Migration result should have 'success' key"
+        assert result["success"] is True, f"Migrations should succeed: {result.get('message', 'No message')}"
 
     @pytest.mark.asyncio
     async def test_migrations_are_idempotent(self):
@@ -126,13 +122,13 @@ class TestMigrations:
         result2 = await run_migrations()
 
         # Both should succeed
-        assert result1['success'] is True, "First migration run should succeed"
-        assert result2['success'] is True, "Second migration run should succeed"
+        assert result1["success"] is True, "First migration run should succeed"
+        assert result2["success"] is True, "Second migration run should succeed"
 
         # Second run should report no migrations needed
-        assert 'No migrations needed' in result2['message'] or \
-               'migration' in result2['message'].lower(), \
-            "Second run should indicate migrations are up-to-date"
+        assert (
+            "No migrations needed" in result2["message"] or "migration" in result2["message"].lower()
+        ), "Second run should indicate migrations are up-to-date"
 
 
 class TestModelDefinitions:
@@ -140,30 +136,27 @@ class TestModelDefinitions:
 
     def test_game_player_model_has_tee_order_attribute(self):
         """Test that GamePlayer model defines tee_order attribute."""
-        assert hasattr(GamePlayer, 'tee_order'), \
-            "GamePlayer model missing tee_order attribute"
+        assert hasattr(GamePlayer, "tee_order"), "GamePlayer model missing tee_order attribute"
 
         # Verify it's a Column
-        assert hasattr(GamePlayer.tee_order, 'type'), \
-            "tee_order should be a SQLAlchemy Column"
+        assert hasattr(GamePlayer.tee_order, "type"), "tee_order should be a SQLAlchemy Column"
 
     def test_game_player_model_matches_table(self):
         """Test that GamePlayer model matches game_players table structure."""
         inspector = inspect(engine)
-        table_columns = {col['name'] for col in inspector.get_columns('game_players')}
+        table_columns = {col["name"] for col in inspector.get_columns("game_players")}
 
         # Get model columns (excluding internal SQLAlchemy attributes)
         model_columns = {
-            attr for attr in dir(GamePlayer)
-            if not attr.startswith('_') and
-            hasattr(getattr(GamePlayer, attr), 'type')
+            attr for attr in dir(GamePlayer) if not attr.startswith("_") and hasattr(getattr(GamePlayer, attr), "type")
         }
 
         # Model should have all columns that exist in the table
-        for col in ['tee_order', 'player_name', 'handicap', 'game_id']:
+        for col in ["tee_order", "player_name", "handicap", "game_id"]:
             if col in table_columns:
-                assert col in model_columns or hasattr(GamePlayer, col), \
-                    f"GamePlayer model missing column that exists in table: {col}"
+                assert col in model_columns or hasattr(
+                    GamePlayer, col
+                ), f"GamePlayer model missing column that exists in table: {col}"
 
 
 class TestDatabaseIntegration:
@@ -180,7 +173,7 @@ class TestDatabaseIntegration:
                 player_slot_id=1,
                 player_name="Test Player",
                 handicap=10.0,
-                tee_order=1
+                tee_order=1,
             )
 
             db.add(player)
@@ -212,7 +205,7 @@ class TestDatabaseIntegration:
                 game_id="test-game-id-2",
                 player_slot_id=1,
                 player_name="Test Player 2",
-                handicap=15.0
+                handicap=15.0,
             )
 
             db.add(player)
@@ -240,12 +233,27 @@ class TestDatabaseIntegration:
 
             # Create multiple players with different tee orders
             players = [
-                GamePlayer(game_id=game_id, player_slot_id=1, player_name="Player 1",
-                          handicap=10.0, tee_order=3),
-                GamePlayer(game_id=game_id, player_slot_id=2, player_name="Player 2",
-                          handicap=15.0, tee_order=1),
-                GamePlayer(game_id=game_id, player_slot_id=3, player_name="Player 3",
-                          handicap=20.0, tee_order=2),
+                GamePlayer(
+                    game_id=game_id,
+                    player_slot_id=1,
+                    player_name="Player 1",
+                    handicap=10.0,
+                    tee_order=3,
+                ),
+                GamePlayer(
+                    game_id=game_id,
+                    player_slot_id=2,
+                    player_name="Player 2",
+                    handicap=15.0,
+                    tee_order=1,
+                ),
+                GamePlayer(
+                    game_id=game_id,
+                    player_slot_id=3,
+                    player_name="Player 3",
+                    handicap=20.0,
+                    tee_order=2,
+                ),
             ]
 
             for player in players:
@@ -253,10 +261,7 @@ class TestDatabaseIntegration:
             db.commit()
 
             # Query ordered by tee_order
-            ordered = db.query(GamePlayer)\
-                .filter(GamePlayer.game_id == game_id)\
-                .order_by(GamePlayer.tee_order)\
-                .all()
+            ordered = db.query(GamePlayer).filter(GamePlayer.game_id == game_id).order_by(GamePlayer.tee_order).all()
 
             assert len(ordered) == 3, "Should have 3 players"
             assert ordered[0].player_name == "Player 2", "First should be Player 2 (tee_order=1)"

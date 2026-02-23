@@ -35,8 +35,7 @@ class HandicapValidator:
 
     @staticmethod
     def validate_and_normalize_handicap(
-        handicap: Optional[Union[int, float, str]],
-        player_name: Optional[str] = None
+        handicap: Optional[Union[int, float, str]], player_name: Optional[str] = None
     ) -> float:
         """
         Validate and normalize handicap value with fallback to default.
@@ -151,21 +150,21 @@ class HandicapValidator:
             raise HandicapValidationError(
                 f"{field_name} must be a number",
                 field=field_name,
-                details={"value": handicap, "type": type(handicap).__name__}
+                details={"value": handicap, "type": type(handicap).__name__},
             )
 
         if handicap < cls.MIN_HANDICAP:
             raise HandicapValidationError(
                 f"{field_name} cannot be less than {cls.MIN_HANDICAP}",
                 field=field_name,
-                details={"value": handicap, "min": cls.MIN_HANDICAP}
+                details={"value": handicap, "min": cls.MIN_HANDICAP},
             )
 
         if handicap > cls.MAX_HANDICAP:
             raise HandicapValidationError(
                 f"{field_name} cannot exceed {cls.MAX_HANDICAP}",
                 field=field_name,
-                details={"value": handicap, "max": cls.MAX_HANDICAP}
+                details={"value": handicap, "max": cls.MAX_HANDICAP},
             )
 
     @classmethod
@@ -184,7 +183,7 @@ class HandicapValidator:
             raise HandicapValidationError(
                 f"{field_name} must be an integer",
                 field=field_name,
-                details={"value": stroke_index, "type": type(stroke_index).__name__}
+                details={"value": stroke_index, "type": type(stroke_index).__name__},
             )
 
         if stroke_index < cls.MIN_STROKE_INDEX or stroke_index > cls.MAX_STROKE_INDEX:
@@ -194,17 +193,13 @@ class HandicapValidator:
                 details={
                     "value": stroke_index,
                     "min": cls.MIN_STROKE_INDEX,
-                    "max": cls.MAX_STROKE_INDEX
-                }
+                    "max": cls.MAX_STROKE_INDEX,
+                },
             )
-
 
     @classmethod
     def calculate_strokes_received_with_creecher(
-        cls,
-        course_handicap: float,
-        stroke_index: int,
-        validate: bool = True
+        cls, course_handicap: float, stroke_index: int, validate: bool = True
     ) -> float:
         """
         Calculate strokes received with Creecher Feature (half strokes).
@@ -323,7 +318,7 @@ class HandicapValidator:
         cls,
         gross_score: Union[int, float],
         strokes_received: Union[int, float],
-        validate: bool = True
+        validate: bool = True,
     ) -> float:
         """
         Calculate net score from gross score and strokes received.
@@ -353,14 +348,17 @@ class HandicapValidator:
                 raise HandicapValidationError(
                     "Gross score must be a positive number",
                     field="gross_score",
-                    details={"value": gross_score, "type": type(gross_score).__name__}
+                    details={"value": gross_score, "type": type(gross_score).__name__},
                 )
 
             if not isinstance(strokes_received, (int, float)) or strokes_received < 0:
                 raise HandicapValidationError(
                     "Strokes received must be a non-negative number",
                     field="strokes_received",
-                    details={"value": strokes_received, "type": type(strokes_received).__name__}
+                    details={
+                        "value": strokes_received,
+                        "type": type(strokes_received).__name__,
+                    },
                 )
 
         return float(gross_score) - float(strokes_received)
@@ -385,28 +383,28 @@ class HandicapValidator:
             raise HandicapValidationError(
                 "Course rating must be a number",
                 field="course_rating",
-                details={"value": course_rating}
+                details={"value": course_rating},
             )
 
         if course_rating < 60.0 or course_rating > 85.0:
             raise HandicapValidationError(
                 "Course rating must be between 60.0 and 85.0",
                 field="course_rating",
-                details={"value": course_rating, "min": 60.0, "max": 85.0}
+                details={"value": course_rating, "min": 60.0, "max": 85.0},
             )
 
         if not isinstance(slope_rating, int):
             raise HandicapValidationError(
                 "Slope rating must be an integer",
                 field="slope_rating",
-                details={"value": slope_rating}
+                details={"value": slope_rating},
             )
 
         if slope_rating < 55 or slope_rating > 155:
             raise HandicapValidationError(
                 "Slope rating must be between 55 and 155",
                 field="slope_rating",
-                details={"value": slope_rating, "min": 55, "max": 155}
+                details={"value": slope_rating, "min": 55, "max": 155},
             )
 
     @classmethod
@@ -416,7 +414,7 @@ class HandicapValidator:
         slope_rating: int,
         course_rating: float,
         par: int,
-        validate: bool = True
+        validate: bool = True,
     ) -> int:
         """
         Calculate course handicap from handicap index using USGA formula.
@@ -441,26 +439,15 @@ class HandicapValidator:
             cls.validate_course_rating(course_rating, slope_rating)
 
             if not isinstance(par, int) or par < 54 or par > 90:
-                raise HandicapValidationError(
-                    "Par must be between 54 and 90",
-                    field="par",
-                    details={"value": par}
-                )
+                raise HandicapValidationError("Par must be between 54 and 90", field="par", details={"value": par})
 
         # USGA Course Handicap Formula
-        course_handicap = (
-            (handicap_index * slope_rating / 113.0) +
-            (course_rating - par)
-        )
+        course_handicap = (handicap_index * slope_rating / 113.0) + (course_rating - par)
 
         return round(course_handicap)
 
     @classmethod
-    def validate_stroke_allocation(
-        cls,
-        players_handicaps: List[float],
-        hole_stroke_indexes: List[int]
-    ) -> None:
+    def validate_stroke_allocation(cls, players_handicaps: List[float], hole_stroke_indexes: List[int]) -> None:
         """
         Validate stroke allocation for all players on all holes.
 
@@ -479,7 +466,7 @@ class HandicapValidator:
                 raise HandicapValidationError(
                     f"Invalid handicap for player {i}: {e.message}",
                     field=f"player_{i}_handicap",
-                    details=e.details
+                    details=e.details,
                 )
 
         # Validate each hole's stroke index
@@ -487,7 +474,7 @@ class HandicapValidator:
             raise HandicapValidationError(
                 "Must have stroke indexes for all 18 holes",
                 field="hole_stroke_indexes",
-                details={"count": len(hole_stroke_indexes), "expected": 18}
+                details={"count": len(hole_stroke_indexes), "expected": 18},
             )
 
         # Check for unique stroke indexes 1-18
@@ -496,18 +483,12 @@ class HandicapValidator:
 
         if sorted_indexes != expected_indexes:
             missing = set(expected_indexes) - set(hole_stroke_indexes)
-            duplicates = [
-                idx for idx in hole_stroke_indexes
-                if hole_stroke_indexes.count(idx) > 1
-            ]
+            duplicates = [idx for idx in hole_stroke_indexes if hole_stroke_indexes.count(idx) > 1]
 
             raise HandicapValidationError(
                 "Stroke indexes must be unique values 1-18",
                 field="hole_stroke_indexes",
-                details={
-                    "missing": list(missing),
-                    "duplicates": list(set(duplicates))
-                }
+                details={"missing": list(missing), "duplicates": list(set(duplicates))},
             )
 
     @classmethod
@@ -549,7 +530,7 @@ class HandicapValidator:
         cls,
         team1_handicaps: List[float],
         team2_handicaps: List[float],
-        max_difference: float = 10.0
+        max_difference: float = 10.0,
     ) -> Dict[str, Any]:
         """
         Validate team handicaps are balanced and fair.
@@ -583,8 +564,8 @@ class HandicapValidator:
                     "team1_average": round(team1_avg, 1),
                     "team2_average": round(team2_avg, 1),
                     "difference": round(difference, 1),
-                    "max_allowed": max_difference
-                }
+                    "max_allowed": max_difference,
+                },
             )
 
         return {
@@ -592,5 +573,5 @@ class HandicapValidator:
             "team1_average": round(team1_avg, 1),
             "team2_average": round(team2_avg, 1),
             "difference": round(difference, 1),
-            "balanced": difference <= (max_difference / 2)
+            "balanced": difference <= (max_difference / 2),
         }

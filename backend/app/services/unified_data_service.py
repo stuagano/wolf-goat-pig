@@ -11,7 +11,6 @@ The service deduplicates data and provides a unified leaderboard and round histo
 from __future__ import annotations
 
 import logging
-from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -19,13 +18,8 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import GamePlayerResult, GameRecord, PlayerProfile
-from .spreadsheet_sync_service import (
-    PRIMARY_SHEET_ID,
-    WRITABLE_SHEET_ID,
-    RoundResult,
-    SpreadsheetSyncService,
-)
+from ..models import GamePlayerResult, GameRecord
+from .spreadsheet_sync_service import PRIMARY_SHEET_ID, WRITABLE_SHEET_ID, RoundResult, SpreadsheetSyncService
 
 logger = logging.getLogger(__name__)
 
@@ -143,7 +137,7 @@ class UnifiedDataService:
             member=result.player_name,
             score=int(result.total_earnings),  # Convert earnings to quarters
             location=record.course_name or "Unknown",
-            duration=f"{record.game_duration_minutes}:00" if record.game_duration_minutes else None,
+            duration=(f"{record.game_duration_minutes}:00" if record.game_duration_minutes else None),
             source="database",
         )
 
@@ -191,7 +185,12 @@ class UnifiedDataService:
                     results = db.query(GamePlayerResult).filter(GamePlayerResult.game_record_id == record.id).all()
                     for result in results:
                         unified = self._db_result_to_unified(result, record)
-                        key = (unified.date, unified.group, unified.member, unified.score)
+                        key = (
+                            unified.date,
+                            unified.group,
+                            unified.member,
+                            unified.score,
+                        )
                         if key not in all_rounds:
                             all_rounds[key] = unified
             except Exception as e:
@@ -269,8 +268,16 @@ class UnifiedDataService:
             Status info for each source including record counts
         """
         status = {
-            "primary_sheet": {"available": False, "record_count": 0, "id": PRIMARY_SHEET_ID},
-            "writable_sheet": {"available": False, "record_count": 0, "id": WRITABLE_SHEET_ID},
+            "primary_sheet": {
+                "available": False,
+                "record_count": 0,
+                "id": PRIMARY_SHEET_ID,
+            },
+            "writable_sheet": {
+                "available": False,
+                "record_count": 0,
+                "id": WRITABLE_SHEET_ID,
+            },
             "database": {"available": False, "record_count": 0},
             "unified_total": 0,
             "deduplicated_total": 0,
@@ -278,17 +285,17 @@ class UnifiedDataService:
 
         try:
             primary_rounds = self.primary_sheet.get_all_rounds()
-            status["primary_sheet"]["available"] = True
-            status["primary_sheet"]["record_count"] = len(primary_rounds)
+            status["primary_sheet"]["available"] = True  # type: ignore[index]
+            status["primary_sheet"]["record_count"] = len(primary_rounds)  # type: ignore[index]
         except Exception as e:
-            status["primary_sheet"]["error"] = str(e)
+            status["primary_sheet"]["error"] = str(e)  # type: ignore[index]
 
         try:
             writable_rounds = self.writable_sheet.get_all_rounds()
-            status["writable_sheet"]["available"] = True
-            status["writable_sheet"]["record_count"] = len(writable_rounds)
+            status["writable_sheet"]["available"] = True  # type: ignore[index]
+            status["writable_sheet"]["record_count"] = len(writable_rounds)  # type: ignore[index]
         except Exception as e:
-            status["writable_sheet"]["error"] = str(e)
+            status["writable_sheet"]["error"] = str(e)  # type: ignore[index]
 
         try:
             db = self._get_db()
@@ -298,16 +305,16 @@ class UnifiedDataService:
                 .filter(GameRecord.completed_at.isnot(None))
                 .count()
             )
-            status["database"]["available"] = True
-            status["database"]["record_count"] = db_count
+            status["database"]["available"] = True  # type: ignore[index]
+            status["database"]["record_count"] = db_count  # type: ignore[index]
         except Exception as e:
-            status["database"]["error"] = str(e)
+            status["database"]["error"] = str(e)  # type: ignore[index]
 
         # Calculate totals
         status["unified_total"] = (
-            status["primary_sheet"]["record_count"]
-            + status["writable_sheet"]["record_count"]
-            + status["database"]["record_count"]
+            status["primary_sheet"]["record_count"]  # type: ignore[index]
+            + status["writable_sheet"]["record_count"]  # type: ignore[index]
+            + status["database"]["record_count"]  # type: ignore[index]
         )
 
         try:

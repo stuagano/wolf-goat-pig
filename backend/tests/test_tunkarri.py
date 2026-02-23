@@ -1,6 +1,7 @@
 """Test The Tunkarri - Phase 5 Advanced Rule"""
-import pytest
+
 from fastapi.testclient import TestClient
+
 from app.main import app
 
 client = TestClient(app)
@@ -16,21 +17,35 @@ def test_tunkarri_win_3_for_2_payout():
     # Aardvark (player 5) goes solo with Tunkarri and wins
     aardvark_id = player_ids[4]  # Position 5 (index 4)
 
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 5,
-        "rotation_order": player_ids,
-        "captain_index": 4,  # Aardvark is at index 4
-        "teams": {
-            "type": "solo",
-            "captain": aardvark_id,  # Aardvark goes solo
-            "opponents": [player_ids[0], player_ids[1], player_ids[2], player_ids[3]]
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 5,
+            "rotation_order": player_ids,
+            "captain_index": 4,  # Aardvark is at index 4
+            "teams": {
+                "type": "solo",
+                "captain": aardvark_id,  # Aardvark goes solo
+                "opponents": [
+                    player_ids[0],
+                    player_ids[1],
+                    player_ids[2],
+                    player_ids[3],
+                ],
+            },
+            "tunkarri_invoked": True,  # Aardvark declares before Captain hits
+            "final_wager": 2,
+            "winner": "captain",  # Aardvark wins
+            "scores": {
+                player_ids[0]: 5,
+                player_ids[1]: 5,
+                player_ids[2]: 5,
+                player_ids[3]: 5,
+                player_ids[4]: 3,
+            },
+            "hole_par": 4,
         },
-        "tunkarri_invoked": True,  # Aardvark declares before Captain hits
-        "final_wager": 2,
-        "winner": "captain",  # Aardvark wins
-        "scores": {player_ids[0]: 5, player_ids[1]: 5, player_ids[2]: 5, player_ids[3]: 5, player_ids[4]: 3},
-        "hole_par": 4
-    })
+    )
 
     assert response.status_code == 200
     result = response.json()["hole_result"]
@@ -65,21 +80,35 @@ def test_tunkarri_loss_normal_payout():
 
     aardvark_id = player_ids[4]
 
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 5,
-        "rotation_order": player_ids,
-        "captain_index": 4,  # Aardvark is at index 4
-        "teams": {
-            "type": "solo",
-            "captain": aardvark_id,
-            "opponents": [player_ids[0], player_ids[1], player_ids[2], player_ids[3]]
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 5,
+            "rotation_order": player_ids,
+            "captain_index": 4,  # Aardvark is at index 4
+            "teams": {
+                "type": "solo",
+                "captain": aardvark_id,
+                "opponents": [
+                    player_ids[0],
+                    player_ids[1],
+                    player_ids[2],
+                    player_ids[3],
+                ],
+            },
+            "tunkarri_invoked": True,
+            "final_wager": 2,
+            "winner": "opponents",  # Aardvark loses
+            "scores": {
+                player_ids[0]: 4,
+                player_ids[1]: 4,
+                player_ids[2]: 4,
+                player_ids[3]: 4,
+                player_ids[4]: 7,
+            },
+            "hole_par": 4,
         },
-        "tunkarri_invoked": True,
-        "final_wager": 2,
-        "winner": "opponents",  # Aardvark loses
-        "scores": {player_ids[0]: 4, player_ids[1]: 4, player_ids[2]: 4, player_ids[3]: 4, player_ids[4]: 7},
-        "hole_par": 4
-    })
+    )
 
     assert response.status_code == 200
     result = response.json()["hole_result"]
@@ -108,21 +137,35 @@ def test_tunkarri_validation_only_aardvark():
     player_ids = [p["id"] for p in players]
 
     # Try to have non-Aardvark player invoke Tunkarri (should fail)
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 5,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "teams": {
-            "type": "solo",
-            "captain": player_ids[0],  # Player 1 (NOT Aardvark)
-            "opponents": [player_ids[1], player_ids[2], player_ids[3], player_ids[4]]
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 5,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "teams": {
+                "type": "solo",
+                "captain": player_ids[0],  # Player 1 (NOT Aardvark)
+                "opponents": [
+                    player_ids[1],
+                    player_ids[2],
+                    player_ids[3],
+                    player_ids[4],
+                ],
+            },
+            "tunkarri_invoked": True,  # INVALID - not Aardvark
+            "final_wager": 2,
+            "winner": "captain",
+            "scores": {
+                player_ids[0]: 3,
+                player_ids[1]: 5,
+                player_ids[2]: 5,
+                player_ids[3]: 5,
+                player_ids[4]: 5,
+            },
+            "hole_par": 4,
         },
-        "tunkarri_invoked": True,  # INVALID - not Aardvark
-        "final_wager": 2,
-        "winner": "captain",
-        "scores": {player_ids[0]: 3, player_ids[1]: 5, player_ids[2]: 5, player_ids[3]: 5, player_ids[4]: 5},
-        "hole_par": 4
-    })
+    )
 
     assert response.status_code == 400
     assert "aardvark" in response.json()["detail"].lower()
@@ -136,21 +179,30 @@ def test_tunkarri_validation_only_solo():
     player_ids = [p["id"] for p in players]
 
     # Try to invoke Tunkarri in partners mode (should fail)
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 5,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "teams": {
-            "type": "partners",
-            "team1": [player_ids[0], player_ids[1]],
-            "team2": [player_ids[2], player_ids[3], player_ids[4]]
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 5,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "teams": {
+                "type": "partners",
+                "team1": [player_ids[0], player_ids[1]],
+                "team2": [player_ids[2], player_ids[3], player_ids[4]],
+            },
+            "tunkarri_invoked": True,  # INVALID - not solo mode
+            "final_wager": 2,
+            "winner": "team1",
+            "scores": {
+                player_ids[0]: 4,
+                player_ids[1]: 4,
+                player_ids[2]: 5,
+                player_ids[3]: 5,
+                player_ids[4]: 5,
+            },
+            "hole_par": 4,
         },
-        "tunkarri_invoked": True,  # INVALID - not solo mode
-        "final_wager": 2,
-        "winner": "team1",
-        "scores": {player_ids[0]: 4, player_ids[1]: 4, player_ids[2]: 5, player_ids[3]: 5, player_ids[4]: 5},
-        "hole_par": 4
-    })
+    )
 
     assert response.status_code == 400
     assert "solo mode" in response.json()["detail"].lower()
@@ -163,21 +215,29 @@ def test_tunkarri_validation_only_5man():
     players = game_response.json()["players"]
     player_ids = [p["id"] for p in players]
 
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 5,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "teams": {
-            "type": "solo",
-            "captain": player_ids[0],
-            "opponents": [player_ids[1], player_ids[2], player_ids[3]]
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 5,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "teams": {
+                "type": "solo",
+                "captain": player_ids[0],
+                "opponents": [player_ids[1], player_ids[2], player_ids[3]],
+            },
+            "tunkarri_invoked": True,  # INVALID - 4-man game
+            "final_wager": 2,
+            "winner": "captain",
+            "scores": {
+                player_ids[0]: 3,
+                player_ids[1]: 5,
+                player_ids[2]: 5,
+                player_ids[3]: 5,
+            },
+            "hole_par": 4,
         },
-        "tunkarri_invoked": True,  # INVALID - 4-man game
-        "final_wager": 2,
-        "winner": "captain",
-        "scores": {player_ids[0]: 3, player_ids[1]: 5, player_ids[2]: 5, player_ids[3]: 5},
-        "hole_par": 4
-    })
+    )
 
     assert response.status_code == 400
     assert "5-man" in response.json()["detail"].lower() or "6-man" in response.json()["detail"].lower()
@@ -192,22 +252,36 @@ def test_normal_aardvark_solo_without_tunkarri():
 
     aardvark_id = player_ids[4]
 
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 5,
-        "rotation_order": player_ids,
-        "captain_index": 4,  # Aardvark is at index 4
-        "teams": {
-            "type": "solo",
-            "captain": aardvark_id,
-            "opponents": [player_ids[0], player_ids[1], player_ids[2], player_ids[3]]
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 5,
+            "rotation_order": player_ids,
+            "captain_index": 4,  # Aardvark is at index 4
+            "teams": {
+                "type": "solo",
+                "captain": aardvark_id,
+                "opponents": [
+                    player_ids[0],
+                    player_ids[1],
+                    player_ids[2],
+                    player_ids[3],
+                ],
+            },
+            "tunkarri_invoked": False,  # Normal solo
+            "aardvark_solo": True,
+            "final_wager": 2,
+            "winner": "captain",
+            "scores": {
+                player_ids[0]: 5,
+                player_ids[1]: 5,
+                player_ids[2]: 5,
+                player_ids[3]: 5,
+                player_ids[4]: 3,
+            },
+            "hole_par": 4,
         },
-        "tunkarri_invoked": False,  # Normal solo
-        "aardvark_solo": True,
-        "final_wager": 2,
-        "winner": "captain",
-        "scores": {player_ids[0]: 5, player_ids[1]: 5, player_ids[2]: 5, player_ids[3]: 5, player_ids[4]: 3},
-        "hole_par": 4
-    })
+    )
 
     assert response.status_code == 200
     result = response.json()["hole_result"]

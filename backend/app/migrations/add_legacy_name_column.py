@@ -31,7 +31,7 @@ def check_column_exists(db: Session, table: str, column: str) -> bool:
 
 def run_migration(db: Session) -> dict:
     """Add legacy_name column to player_profiles if it doesn't exist."""
-    results = {"migration": "add_legacy_name_column", "changes": [], "errors": []}
+    results: dict = {"migration": "add_legacy_name_column", "changes": [], "errors": []}
 
     try:
         # Check if column already exists
@@ -40,20 +40,16 @@ def run_migration(db: Session) -> dict:
             return results
 
         # Add the column
-        db.execute(
-            text("""
+        db.execute(text("""
             ALTER TABLE player_profiles
             ADD COLUMN legacy_name VARCHAR(255) NULL
-        """)
-        )
+        """))
 
         # Add index for faster lookups
-        db.execute(
-            text("""
+        db.execute(text("""
             CREATE INDEX IF NOT EXISTS ix_player_profiles_legacy_name
             ON player_profiles (legacy_name)
-        """)
-        )
+        """))
 
         db.commit()
         results["changes"].append("Added legacy_name column to player_profiles")
@@ -71,23 +67,23 @@ def run_migration(db: Session) -> dict:
 
 def rollback_migration(db: Session) -> dict:
     """Remove legacy_name column from player_profiles."""
-    results = {"migration": "add_legacy_name_column (rollback)", "changes": [], "errors": []}
+    results: dict = {
+        "migration": "add_legacy_name_column (rollback)",
+        "changes": [],
+        "errors": [],
+    }
 
     try:
         # Drop index first
-        db.execute(
-            text("""
+        db.execute(text("""
             DROP INDEX IF EXISTS ix_player_profiles_legacy_name
-        """)
-        )
+        """))
 
         # Drop column
-        db.execute(
-            text("""
+        db.execute(text("""
             ALTER TABLE player_profiles
             DROP COLUMN IF EXISTS legacy_name
-        """)
-        )
+        """))
 
         db.commit()
         results["changes"].append("Dropped legacy_name column and index")

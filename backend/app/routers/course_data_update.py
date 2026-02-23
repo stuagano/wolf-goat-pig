@@ -1,6 +1,7 @@
 """
 Endpoint to update course data for in-progress games
 """
+
 import logging
 from typing import Any, Dict
 
@@ -16,23 +17,18 @@ logger = logging.getLogger(__name__)
 
 
 @router.patch("/games/{game_id}/update-course-data")
-async def update_game_course_data(
-    game_id: str,
-    db: Session = Depends(get_db)
-) -> Dict[str, Any]:
+async def update_game_course_data(game_id: str, db: Session = Depends(get_db)) -> Dict[str, Any]:
     """
     Update course data (par and handicap) for an in-progress game.
-    
+
     This endpoint updates the hole_par for each hole in the game's hole_history
     based on the latest Wing Point course data.
-    
+
     Use this when course data has been updated and you need to sync in-progress games.
     """
     try:
         # Get the game
-        game = db.query(models.GameStateModel).filter(
-            models.GameStateModel.game_id == game_id
-        ).first()
+        game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
 
         if not game:
             raise HTTPException(status_code=404, detail=f"Game {game_id} not found")
@@ -45,7 +41,7 @@ async def update_game_course_data(
             return {
                 "success": True,
                 "message": "No holes to update - game has no hole history yet",
-                "holes_updated": 0
+                "holes_updated": 0,
             }
 
         # Create mappings of hole number -> par and handicap from Wing Point data
@@ -54,7 +50,7 @@ async def update_game_course_data(
             hole_num = hole_data["hole_number"]
             hole_data_map[hole_num] = {
                 "par": hole_data["par"],
-                "handicap": hole_data["handicap_men"]  # Using men's handicap (stroke index)
+                "handicap": hole_data["handicap_men"],  # Using men's handicap (stroke index)
             }
 
         # Update hole_history (already played holes)
@@ -73,10 +69,7 @@ async def update_game_course_data(
                 if old_par != new_par:
                     hole["hole_par"] = new_par
                     updated = True
-                    logger.info(
-                        f"Updated hole {hole_number} par from {old_par} to {new_par} "
-                        f"in game {game_id}"
-                    )
+                    logger.info(f"Updated hole {hole_number} par from {old_par} to {new_par} " f"in game {game_id}")
 
                 if old_handicap != new_handicap:
                     hole["hole_handicap"] = new_handicap
@@ -94,24 +87,28 @@ async def update_game_course_data(
         for hole_num in range(1, 19):
             if hole_num in hole_data_map:
                 course_data = hole_data_map[hole_num]
-                holes_config.append({
-                    "hole_number": hole_num,
-                    "par": course_data["par"],
-                    "handicap": course_data["handicap"]
-                })
+                holes_config.append(
+                    {
+                        "hole_number": hole_num,
+                        "par": course_data["par"],
+                        "handicap": course_data["handicap"],
+                    }
+                )
 
         game_state["holes_config"] = holes_config
         total_holes_configured = len(holes_config)
 
         # Save updated game state (always save to add holes_config)
-        setattr(game, 'state', game_state)
+        setattr(game, "state", game_state)
 
         # Mark state as modified for SQLAlchemy to detect JSON changes
         from sqlalchemy.orm.attributes import flag_modified
+
         flag_modified(game, "state")
 
         from datetime import datetime, timezone
-        setattr(game, 'updated_at', datetime.now(timezone.utc).isoformat())
+
+        setattr(game, "updated_at", datetime.now(timezone.utc).isoformat())
 
         db.commit()
         db.refresh(game)
@@ -127,7 +124,7 @@ async def update_game_course_data(
             "holes_in_history_updated": holes_updated,
             "total_holes_in_history": len(hole_history),
             "holes_configured": total_holes_configured,
-            "message": f"Updated {holes_updated} played hole(s) and configured all {total_holes_configured} holes with Wing Point data"
+            "message": f"Updated {holes_updated} played hole(s) and configured all {total_holes_configured} holes with Wing Point data",
         }
 
     except HTTPException:
@@ -135,33 +132,26 @@ async def update_game_course_data(
     except Exception as e:
         db.rollback()
         logger.error(f"Error updating course data for game {game_id}: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error updating course data: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error updating course data: {str(e)}")
 
 
 @router.patch("/games/update-all-course-data")
-async def update_all_games_course_data(
-    db: Session = Depends(get_db)
-) -> Dict[str, Any]:
+async def update_all_games_course_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
     """
     Update course data for ALL in-progress games.
-    
+
     Use this to bulk-update all active games after course data changes.
     """
     try:
         # Get all in-progress games
-        games = db.query(models.GameStateModel).filter(
-            models.GameStateModel.game_status == "in_progress"
-        ).all()
+        games = db.query(models.GameStateModel).filter(models.GameStateModel.game_status == "in_progress").all()
 
         if not games:
             return {
                 "success": True,
                 "message": "No in-progress games found",
                 "games_updated": 0,
-                "total_holes_updated": 0
+                "total_holes_updated": 0,
             }
 
         # Create mappings of hole number -> par and handicap from Wing Point data
@@ -170,7 +160,7 @@ async def update_all_games_course_data(
             hole_num = hole_data["hole_number"]
             hole_data_map[hole_num] = {
                 "par": hole_data["par"],
-                "handicap": hole_data["handicap_men"]  # Using men's handicap (stroke index)
+                "handicap": hole_data["handicap_men"],  # Using men's handicap (stroke index)
             }
 
         # Create holes_config for all 18 holes
@@ -178,11 +168,13 @@ async def update_all_games_course_data(
         for hole_num in range(1, 19):
             if hole_num in hole_data_map:
                 course_data = hole_data_map[hole_num]
-                holes_config_template.append({
-                    "hole_number": hole_num,
-                    "par": course_data["par"],
-                    "handicap": course_data["handicap"]
-                })
+                holes_config_template.append(
+                    {
+                        "hole_number": hole_num,
+                        "par": course_data["par"],
+                        "handicap": course_data["handicap"],
+                    }
+                )
 
         games_updated = 0
         total_holes_updated = 0
@@ -221,22 +213,26 @@ async def update_all_games_course_data(
             game_state["holes_config"] = holes_config_template
 
             # Save game state (always save to add holes_config)
-            setattr(game, 'state', game_state)
+            setattr(game, "state", game_state)
 
             from sqlalchemy.orm.attributes import flag_modified
+
             flag_modified(game, "state")
 
             from datetime import datetime, timezone
-            setattr(game, 'updated_at', datetime.now(timezone.utc).isoformat())
+
+            setattr(game, "updated_at", datetime.now(timezone.utc).isoformat())
 
             games_updated += 1
             total_holes_updated += holes_updated_this_game
 
-            game_details.append({
-                "game_id": game.game_id,
-                "holes_in_history_updated": holes_updated_this_game,
-                "holes_configured": len(holes_config_template)
-            })
+            game_details.append(
+                {
+                    "game_id": game.game_id,
+                    "holes_in_history_updated": holes_updated_this_game,
+                    "holes_configured": len(holes_config_template),
+                }
+            )
 
         # Commit all changes
         db.commit()
@@ -253,13 +249,10 @@ async def update_all_games_course_data(
             "total_holes_in_history_updated": total_holes_updated,
             "holes_configured_per_game": 18,
             "game_details": game_details,
-            "message": f"Updated {games_updated} game(s): {total_holes_updated} played holes updated, all games configured with 18 Wing Point holes"
+            "message": f"Updated {games_updated} game(s): {total_holes_updated} played holes updated, all games configured with 18 Wing Point holes",
         }
 
     except Exception as e:
         db.rollback()
         logger.error(f"Error in bulk course data update: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error updating course data: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error updating course data: {str(e)}")

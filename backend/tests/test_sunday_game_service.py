@@ -10,14 +10,16 @@ def _make_players(count: int):
     """Create synthetic signup payloads for testing team formation."""
     players = []
     for idx in range(count):
-        players.append({
-            "id": idx + 1,
-            "player_profile_id": idx + 1,
-            "player_name": f"Player {idx + 1}",
-            "preferred_start_time": None,
-            "notes": None,
-            "signup_time": f"2024-04-{(idx % 9) + 1:02d}T08:00:00"
-        })
+        players.append(
+            {
+                "id": idx + 1,
+                "player_profile_id": idx + 1,
+                "player_name": f"Player {idx + 1}",
+                "preferred_start_time": None,
+                "notes": None,
+                "signup_time": f"2024-04-{(idx % 9) + 1:02d}T08:00:00",
+            }
+        )
     return players
 
 
@@ -47,7 +49,9 @@ def test_sunday_pairings_respect_explicit_seed():
 
     assert first["total_rotations"] == 5
     assert first["selected_rotation"] in first["rotations"]
-    assert _extract_team_signatures(second["selected_rotation"]["teams"]) == _extract_team_signatures(first["selected_rotation"]["teams"])
+    assert _extract_team_signatures(second["selected_rotation"]["teams"]) == _extract_team_signatures(
+        first["selected_rotation"]["teams"]
+    )
 
 
 def test_sunday_pairings_uses_environment_seed(monkeypatch):
@@ -57,7 +61,9 @@ def test_sunday_pairings_uses_environment_seed(monkeypatch):
     first = sunday_game_service.generate_sunday_pairings(players, num_rotations=4)
     second = sunday_game_service.generate_sunday_pairings(copy.deepcopy(players), num_rotations=4)
 
-    assert _extract_team_signatures(first["selected_rotation"]["teams"]) == _extract_team_signatures(second["selected_rotation"]["teams"])
+    assert _extract_team_signatures(first["selected_rotation"]["teams"]) == _extract_team_signatures(
+        second["selected_rotation"]["teams"]
+    )
     assert first["total_rotations"] == 4
 
     monkeypatch.delenv(sunday_game_service.SUNDAY_GAME_SEED_ENV, raising=False)

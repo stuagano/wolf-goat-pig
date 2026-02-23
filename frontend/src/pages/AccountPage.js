@@ -175,12 +175,6 @@ function AccountPage() {
     letterSpacing: '0.5px',
   };
 
-  const valueStyle = {
-    fontSize: '16px',
-    color: theme.colors.textPrimary,
-    fontWeight: 500,
-  };
-
   const inputStyle = {
     ...theme.inputStyle,
     boxSizing: 'border-box',

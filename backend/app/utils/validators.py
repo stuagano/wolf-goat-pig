@@ -5,7 +5,7 @@ Provides a base validator class and common validation methods
 to eliminate duplicate validation logic across the codebase.
 """
 
-from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union
 
 T = TypeVar("T")
 
@@ -24,7 +24,7 @@ class ValidationError(Exception):
         self,
         message: str,
         field: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None
+        details: Optional[Dict[str, Any]] = None,
     ):
         self.message = message
         self.field = field
@@ -33,11 +33,7 @@ class ValidationError(Exception):
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for API responses."""
-        return {
-            "message": self.message,
-            "field": self.field,
-            "details": self.details
-        }
+        return {"message": self.message, "field": self.field, "details": self.details}
 
 
 class BaseValidator:
@@ -64,7 +60,7 @@ class BaseValidator:
         cls,
         message: str,
         field: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None
+        details: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
         Raise a validation error using the configured error class.
@@ -79,7 +75,7 @@ class BaseValidator:
         value: Any,
         expected_type: Union[type, tuple],
         field: str,
-        allow_none: bool = False
+        allow_none: bool = False,
     ) -> None:
         """
         Validate that a value is of the expected type.
@@ -96,22 +92,14 @@ class BaseValidator:
         if value is None:
             if allow_none:
                 return
-            raise ValidationError(
-                f"{field} is required",
-                field=field,
-                details={"value": value}
-            )
+            raise ValidationError(f"{field} is required", field=field, details={"value": value})
 
         if not isinstance(value, expected_type):
-            type_name = (
-                expected_type.__name__
-                if isinstance(expected_type, type)
-                else str(expected_type)
-            )
+            type_name = expected_type.__name__ if isinstance(expected_type, type) else str(expected_type)
             raise ValidationError(
                 f"{field} must be {type_name}",
                 field=field,
-                details={"value": value, "type": type(value).__name__}
+                details={"value": value, "type": type(value).__name__},
             )
 
     @classmethod
@@ -121,7 +109,7 @@ class BaseValidator:
         min_val: Optional[Union[int, float]] = None,
         max_val: Optional[Union[int, float]] = None,
         field: str = "value",
-        inclusive: bool = True
+        inclusive: bool = True,
     ) -> None:
         """
         Validate that a numeric value is within a range.
@@ -144,13 +132,13 @@ class BaseValidator:
                 raise ValidationError(
                     f"{field} must be >= {min_val}",
                     field=field,
-                    details={"value": value, "min": min_val}
+                    details={"value": value, "min": min_val},
                 )
             elif not inclusive and value <= min_val:
                 raise ValidationError(
                     f"{field} must be > {min_val}",
                     field=field,
-                    details={"value": value, "min": min_val}
+                    details={"value": value, "min": min_val},
                 )
 
         if max_val is not None:
@@ -158,22 +146,17 @@ class BaseValidator:
                 raise ValidationError(
                     f"{field} must be <= {max_val}",
                     field=field,
-                    details={"value": value, "max": max_val}
+                    details={"value": value, "max": max_val},
                 )
             elif not inclusive and value >= max_val:
                 raise ValidationError(
                     f"{field} must be < {max_val}",
                     field=field,
-                    details={"value": value, "max": max_val}
+                    details={"value": value, "max": max_val},
                 )
 
     @classmethod
-    def validate_enum(
-        cls,
-        value: Any,
-        allowed_values: List[Any],
-        field: str = "value"
-    ) -> None:
+    def validate_enum(cls, value: Any, allowed_values: List[Any], field: str = "value") -> None:
         """
         Validate that a value is one of the allowed values.
 
@@ -192,15 +175,11 @@ class BaseValidator:
             raise ValidationError(
                 f"{field} must be one of {allowed_values}",
                 field=field,
-                details={"value": value, "allowed": allowed_values}
+                details={"value": value, "allowed": allowed_values},
             )
 
     @classmethod
-    def validate_not_empty(
-        cls,
-        value: Any,
-        field: str = "value"
-    ) -> None:
+    def validate_not_empty(cls, value: Any, field: str = "value") -> None:
         """
         Validate that a value is not empty (None, empty string, empty list).
 
@@ -212,11 +191,7 @@ class BaseValidator:
             ValidationError: If value is empty
         """
         if value is None or value == "" or value == [] or value == {}:
-            raise ValidationError(
-                f"{field} cannot be empty",
-                field=field,
-                details={"value": value}
-            )
+            raise ValidationError(f"{field} cannot be empty", field=field, details={"value": value})
 
     @classmethod
     def validate_length(
@@ -224,7 +199,7 @@ class BaseValidator:
         value: Optional[Union[str, list, dict]],
         min_length: Optional[int] = None,
         max_length: Optional[int] = None,
-        field: str = "value"
+        field: str = "value",
     ) -> None:
         """
         Validate the length of a string, list, or dict.
@@ -247,14 +222,14 @@ class BaseValidator:
             raise ValidationError(
                 f"{field} must be at least {min_length} characters/items",
                 field=field,
-                details={"value": value, "length": length, "min_length": min_length}
+                details={"value": value, "length": length, "min_length": min_length},
             )
 
         if max_length is not None and length > max_length:
             raise ValidationError(
                 f"{field} must be at most {max_length} characters/items",
                 field=field,
-                details={"value": value, "length": length, "max_length": max_length}
+                details={"value": value, "length": length, "max_length": max_length},
             )
 
     @classmethod
@@ -262,7 +237,7 @@ class BaseValidator:
         cls,
         value: Optional[Union[int, float]],
         field: str = "value",
-        allow_zero: bool = False
+        allow_zero: bool = False,
     ) -> None:
         """
         Validate that a number is positive.
@@ -283,15 +258,11 @@ class BaseValidator:
                 raise ValidationError(
                     f"{field} must be non-negative",
                     field=field,
-                    details={"value": value}
+                    details={"value": value},
                 )
         else:
             if value <= 0:
-                raise ValidationError(
-                    f"{field} must be positive",
-                    field=field,
-                    details={"value": value}
-                )
+                raise ValidationError(f"{field} must be positive", field=field, details={"value": value})
 
     @classmethod
     def validate_pattern(
@@ -299,7 +270,7 @@ class BaseValidator:
         value: Optional[str],
         pattern: str,
         field: str = "value",
-        pattern_description: Optional[str] = None
+        pattern_description: Optional[str] = None,
     ) -> None:
         """
         Validate that a string matches a regex pattern.
@@ -323,14 +294,11 @@ class BaseValidator:
             raise ValidationError(
                 f"{field} must match {description}",
                 field=field,
-                details={"value": value, "pattern": pattern}
+                details={"value": value, "pattern": pattern},
             )
 
     @classmethod
-    def validate_all(
-        cls,
-        validations: List[Callable[[], None]]
-    ) -> List[ValidationError]:
+    def validate_all(cls, validations: List[Callable[[], None]]) -> List[ValidationError]:
         """
         Run multiple validations and collect all errors.
 
@@ -350,6 +318,7 @@ class BaseValidator:
 
 
 # Pre-built validators for common game-specific validations
+
 
 class GameValidator(BaseValidator):
     """Validators specific to Wolf Goat Pig game rules."""

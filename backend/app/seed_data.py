@@ -86,7 +86,11 @@ DEFAULT_AI_PERSONALITIES = [
             "double_frequency": 0.4,
             "strategic_thinking": 0.9,
         },
-        "strengths": ["Statistical analysis", "Probability assessment", "Long-term strategy"],
+        "strengths": [
+            "Statistical analysis",
+            "Probability assessment",
+            "Long-term strategy",
+        ],
         "weaknesses": ["Gut decisions", "Adapting to unexpected situations"],
     },
     {
@@ -295,9 +299,11 @@ def verify_seeded_data(db: Session) -> dict:
         verification_results["courses"] = {
             "count": course_count,
             "status": "success" if course_count >= 3 else "warning",
-            "message": f"Found {course_count} courses"
-            if course_count >= 3
-            else f"Only {course_count} courses found, expected at least 3",
+            "message": (
+                f"Found {course_count} courses"
+                if course_count >= 3
+                else f"Only {course_count} courses found, expected at least 3"
+            ),
         }
 
         # Check rules
@@ -305,9 +311,11 @@ def verify_seeded_data(db: Session) -> dict:
         verification_results["rules"] = {
             "count": rule_count,
             "status": "success" if rule_count >= 10 else "warning",
-            "message": f"Found {rule_count} rules"
-            if rule_count >= 10
-            else f"Only {rule_count} rules found, expected at least 10",
+            "message": (
+                f"Found {rule_count} rules"
+                if rule_count >= 10
+                else f"Only {rule_count} rules found, expected at least 10"
+            ),
         }
 
         # Check AI personalities
@@ -315,9 +323,11 @@ def verify_seeded_data(db: Session) -> dict:
         verification_results["ai_personalities"] = {
             "count": ai_player_count,
             "status": "success" if ai_player_count >= 4 else "warning",
-            "message": f"Found {ai_player_count} AI personalities"
-            if ai_player_count >= 4
-            else f"Only {ai_player_count} AI personalities found, expected at least 4",
+            "message": (
+                f"Found {ai_player_count} AI personalities"
+                if ai_player_count >= 4
+                else f"Only {ai_player_count} AI personalities found, expected at least 4"
+            ),
         }
 
         # Check human players
@@ -325,9 +335,11 @@ def verify_seeded_data(db: Session) -> dict:
         verification_results["human_players"] = {
             "count": human_player_count,
             "status": "success" if human_player_count >= 1 else "info",
-            "message": f"Found {human_player_count} human players"
-            if human_player_count >= 1
-            else "No human players found (will use default)",
+            "message": (
+                f"Found {human_player_count} human players"
+                if human_player_count >= 1
+                else "No human players found (will use default)"
+            ),
         }
 
         # Sample games check (disabled)
@@ -346,14 +358,17 @@ def verify_seeded_data(db: Session) -> dict:
 
         verification_results["overall"] = {
             "status": "success" if all_critical_success else "warning",
-            "message": "All critical data seeded successfully"
-            if all_critical_success
-            else "Some critical data may be missing",
+            "message": (
+                "All critical data seeded successfully" if all_critical_success else "Some critical data may be missing"
+            ),
         }
 
     except Exception as e:
         logger.error(f"Error verifying seeded data: {e}")
-        verification_results["overall"] = {"status": "error", "message": f"Verification failed: {str(e)}"}
+        verification_results["overall"] = {
+            "status": "error",
+            "message": f"Verification failed: {str(e)}",
+        }
 
     return verification_results
 
@@ -375,10 +390,17 @@ def seed_all_data(force_reseed: bool = False) -> dict:
         init_db()
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
-        return {"status": "error", "message": f"Database initialization failed: {str(e)}"}
+        return {
+            "status": "error",
+            "message": f"Database initialization failed: {str(e)}",
+        }
 
     db = SessionLocal()
-    seeding_results = {"status": "success", "timestamp": datetime.now().isoformat(), "results": {}}
+    seeding_results = {
+        "status": "success",
+        "timestamp": datetime.now().isoformat(),
+        "results": {},
+    }
 
     try:
         # Verify database connection
@@ -412,12 +434,18 @@ def seed_all_data(force_reseed: bool = False) -> dict:
         # Seed AI personalities
         logger.info("Seeding AI personalities...")
         personalities_added = seed_ai_personalities(db)
-        results_dict["ai_personalities"] = {"added": personalities_added, "status": "success"}
+        results_dict["ai_personalities"] = {
+            "added": personalities_added,
+            "status": "success",
+        }
 
         # Create default human player if needed
         logger.info("Creating default human player if needed...")
         default_human = create_default_human_player(db)
-        results_dict["default_human"] = {"created": default_human is not None, "status": "success"}
+        results_dict["default_human"] = {
+            "created": default_human is not None,
+            "status": "success",
+        }
 
         # Sample games seeding disabled (not needed)
         logger.info("Skipping sample games (disabled - not needed for app)")
@@ -471,11 +499,19 @@ def get_seeding_status() -> dict:
 
         verification_results = verify_seeded_data(db)
 
-        return {"status": "success", "timestamp": datetime.now().isoformat(), "verification": verification_results}
+        return {
+            "status": "success",
+            "timestamp": datetime.now().isoformat(),
+            "verification": verification_results,
+        }
 
     except Exception as e:
         logger.error(f"Error checking seeding status: {e}")
-        return {"status": "error", "message": f"Status check failed: {str(e)}", "timestamp": datetime.now().isoformat()}
+        return {
+            "status": "error",
+            "message": f"Status check failed: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
+        }
 
     finally:
         db.close()
@@ -486,7 +522,10 @@ def main():
     import sys
 
     # Configure logging for command-line usage
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
 
     force_reseed = "--force" in sys.argv
 

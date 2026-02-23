@@ -4,14 +4,15 @@ Unit tests for GHINService
 Tests GHIN (Golf Handicap Information Network) integration.
 """
 
-import pytest
-from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
 from app.models import Base, PlayerProfile
 from app.services.ghin_service import GHINService
-
 
 # Test database setup
 TEST_DATABASE_URL = "sqlite:///./test_ghin.db"
@@ -42,7 +43,7 @@ class TestGHINServiceInitialization:
         assert service.initialized is False
         assert service.jwt_token is None
 
-    @patch.dict('os.environ', {}, clear=True)
+    @patch.dict("os.environ", {}, clear=True)
     def test_no_credentials_configured(self, db):
         """Test service handles missing credentials"""
         service = GHINService(db)
@@ -72,22 +73,15 @@ class TestGHINAuthentication:
     """Test GHIN authentication"""
 
     @pytest.mark.asyncio
-    @patch.dict('os.environ', {
-        'GHIN_USERNAME': 'test_user',
-        'GHIN_PASSWORD': 'test_pass'
-    })
-    @patch('httpx.AsyncClient')
+    @patch.dict("os.environ", {"GHIN_USERNAME": "test_user", "GHIN_PASSWORD": "test_pass"})
+    @patch("httpx.AsyncClient")
     async def test_initialize_success(self, mock_client, db):
         """Test successful GHIN authentication"""
         service = GHINService(db)
 
         # Mock successful authentication response
         mock_response = Mock()
-        mock_response.json.return_value = {
-            'golfer_user': {
-                'golfer_user_token': 'test_jwt_token_123'
-            }
-        }
+        mock_response.json.return_value = {"golfer_user": {"golfer_user_token": "test_jwt_token_123"}}
         mock_response.raise_for_status = Mock()
 
         mock_client_instance = AsyncMock()
@@ -98,10 +92,10 @@ class TestGHINAuthentication:
 
         assert result is True
         assert service.initialized is True
-        assert service.jwt_token == 'test_jwt_token_123'
+        assert service.jwt_token == "test_jwt_token_123"
 
     @pytest.mark.asyncio
-    @patch.dict('os.environ', {}, clear=True)
+    @patch.dict("os.environ", {}, clear=True)
     async def test_initialize_no_credentials(self, db):
         """Test initialization without credentials"""
         service = GHINService(db)
@@ -112,11 +106,8 @@ class TestGHINAuthentication:
         assert service.initialized is False
 
     @pytest.mark.asyncio
-    @patch.dict('os.environ', {
-        'GHIN_USERNAME': 'test_user',
-        'GHIN_PASSWORD': 'wrong_pass'
-    })
-    @patch('httpx.AsyncClient')
+    @patch.dict("os.environ", {"GHIN_USERNAME": "test_user", "GHIN_PASSWORD": "wrong_pass"})
+    @patch("httpx.AsyncClient")
     async def test_initialize_auth_failure(self, mock_client, db):
         """Test failed authentication"""
         service = GHINService(db)
@@ -156,7 +147,7 @@ class TestSyncPlayerHandicap:
             email="test@example.com",
             handicap=15.0,
             ghin_id=None,
-            created_at=datetime.now().isoformat()
+            created_at=datetime.now().isoformat(),
         )
         db.add(player)
         db.commit()
@@ -178,19 +169,19 @@ class TestSyncPlayerHandicap:
             email="test@example.com",
             handicap=15.0,
             ghin_id="1234567",
-            created_at=datetime.now().isoformat()
+            created_at=datetime.now().isoformat(),
         )
         db.add(player)
         db.commit()
 
         # Mock the GHIN API call
-        with patch.object(service, '_fetch_handicap_from_ghin', new_callable=AsyncMock) as mock_fetch:
+        with patch.object(service, "_fetch_handicap_from_ghin", new_callable=AsyncMock) as mock_fetch:
             mock_fetch.return_value = {
-                'handicap_index': 14.2,
-                'last_updated': datetime.now().isoformat()
+                "handicap_index": 14.2,
+                "last_updated": datetime.now().isoformat(),
             }
 
-            result = await service.sync_player_handicap(player_id=player.id)
+            await service.sync_player_handicap(player_id=player.id)
 
             # Should call the fetch method
             mock_fetch.assert_called_once()
@@ -199,16 +190,13 @@ class TestSyncPlayerHandicap:
 class TestGHINConfiguration:
     """Test GHIN configuration"""
 
-    @patch.dict('os.environ', {
-        'GHIN_USERNAME': 'user',
-        'GHIN_PASSWORD': 'pass'
-    })
+    @patch.dict("os.environ", {"GHIN_USERNAME": "user", "GHIN_PASSWORD": "pass"})
     def test_env_var_loading(self, db):
         """Test environment variables are loaded"""
         service = GHINService(db)
 
-        assert service.ghin_username == 'user'
-        assert service.ghin_password == 'pass'
+        assert service.ghin_username == "user"
+        assert service.ghin_password == "pass"
 
     def test_api_base_url(self, db):
         """Test API base URL is set"""

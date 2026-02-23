@@ -5,16 +5,16 @@ Provides strongly-typed response models to replace Dict[str, Any]
 for better IDE support and type checking.
 """
 
-from datetime import datetime
-from typing import Any, Dict, List, Optional, TypedDict, Union
-
+from typing import Any, Dict, List, Optional, TypedDict
 
 # ============================================================================
 # Common Response Types
 # ============================================================================
 
+
 class PaginationMeta(TypedDict):
     """Pagination metadata for list responses."""
+
     page: int
     page_size: int
     total_items: int
@@ -25,6 +25,7 @@ class PaginationMeta(TypedDict):
 
 class SuccessResponse(TypedDict, total=False):
     """Standard success response structure."""
+
     success: bool
     message: str
     data: Any
@@ -34,6 +35,7 @@ class SuccessResponse(TypedDict, total=False):
 
 class ErrorResponse(TypedDict):
     """Standard error response structure."""
+
     success: bool
     message: str
     code: str
@@ -46,8 +48,10 @@ class ErrorResponse(TypedDict):
 # Player Response Types
 # ============================================================================
 
+
 class PlayerInfo(TypedDict, total=False):
     """Basic player information."""
+
     id: str
     name: str
     handicap: float
@@ -57,6 +61,7 @@ class PlayerInfo(TypedDict, total=False):
 
 class PlayerProfileResponse(TypedDict, total=False):
     """Full player profile response."""
+
     id: int
     name: str
     email: Optional[str]
@@ -72,6 +77,7 @@ class PlayerProfileResponse(TypedDict, total=False):
 
 class PlayerStatisticsResponse(TypedDict, total=False):
     """Player statistics response."""
+
     player_id: int
     games_played: int
     wins: int
@@ -90,8 +96,10 @@ class PlayerStatisticsResponse(TypedDict, total=False):
 # Game Response Types
 # ============================================================================
 
+
 class HoleInfo(TypedDict):
     """Golf hole information."""
+
     number: int
     par: int
     yards: int
@@ -100,6 +108,7 @@ class HoleInfo(TypedDict):
 
 class CourseInfo(TypedDict, total=False):
     """Golf course information."""
+
     id: int
     name: str
     par: int
@@ -111,6 +120,7 @@ class CourseInfo(TypedDict, total=False):
 
 class GameLobbyResponse(TypedDict):
     """Game lobby state response."""
+
     game_id: str
     join_code: str
     status: str
@@ -124,6 +134,7 @@ class GameLobbyResponse(TypedDict):
 
 class HoleScores(TypedDict):
     """Scores for a single hole."""
+
     hole_number: int
     scores: Dict[str, int]  # player_id -> gross score
     net_scores: Dict[str, float]  # player_id -> net score
@@ -134,6 +145,7 @@ class HoleScores(TypedDict):
 
 class GameStateResponse(TypedDict, total=False):
     """Current game state response."""
+
     game_id: str
     status: str
     current_hole: int
@@ -149,6 +161,7 @@ class GameStateResponse(TypedDict, total=False):
 
 class HoleResultResponse(TypedDict):
     """Result of completing a hole."""
+
     success: bool
     message: str
     hole_number: int
@@ -160,6 +173,7 @@ class HoleResultResponse(TypedDict):
 
 class GameCompletionResponse(TypedDict):
     """Game completion summary."""
+
     game_id: str
     status: str
     final_standings: List[Dict[str, Any]]
@@ -174,8 +188,10 @@ class GameCompletionResponse(TypedDict):
 # Betting Response Types
 # ============================================================================
 
+
 class BetInfo(TypedDict, total=False):
     """Information about a bet."""
+
     bet_id: str
     bet_type: str
     amount: int
@@ -187,6 +203,7 @@ class BetInfo(TypedDict, total=False):
 
 class BettingStateResponse(TypedDict):
     """Current betting state."""
+
     base_wager: int
     current_multiplier: int
     active_presses: List[BetInfo]
@@ -196,6 +213,7 @@ class BettingStateResponse(TypedDict):
 
 class BettingOddsResponse(TypedDict):
     """Betting odds calculation response."""
+
     hole_number: int
     players: Dict[str, float]  # player_id -> win probability
     recommended_action: str
@@ -206,8 +224,10 @@ class BettingOddsResponse(TypedDict):
 # Analytics Response Types
 # ============================================================================
 
+
 class AnalyticsSummary(TypedDict, total=False):
     """Analytics summary response."""
+
     period_start: str
     period_end: str
     games_analyzed: int
@@ -220,6 +240,7 @@ class AnalyticsSummary(TypedDict, total=False):
 
 class HoleAnalytics(TypedDict):
     """Per-hole analytics."""
+
     hole_number: int
     par: int
     average_score: float
@@ -233,8 +254,10 @@ class HoleAnalytics(TypedDict):
 # Health & Status Response Types
 # ============================================================================
 
+
 class HealthCheckResponse(TypedDict):
     """Health check response."""
+
     status: str
     timestamp: str
     version: str
@@ -245,6 +268,7 @@ class HealthCheckResponse(TypedDict):
 
 class ServiceStatusResponse(TypedDict):
     """Service status response."""
+
     service: str
     status: str
     last_check: str

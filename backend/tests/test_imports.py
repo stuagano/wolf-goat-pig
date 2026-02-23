@@ -3,6 +3,7 @@ Test that all critical modules can be imported successfully.
 
 This prevents ModuleNotFoundError and ImportError from reaching production.
 """
+
 import pytest
 
 
@@ -13,6 +14,7 @@ class TestCriticalImports:
         """Test that the main FastAPI app can be imported."""
         try:
             from app.main import app
+
             assert app is not None, "FastAPI app should be defined"
         except ModuleNotFoundError as e:
             pytest.fail(f"Failed to import main app: {e}")
@@ -26,8 +28,8 @@ class TestCriticalImports:
                 RuleManager,
                 RuleViolationError,
                 ScoringManager,
-                get_scoring_manager,
                 WebSocketManager,
+                get_scoring_manager,
                 manager,
             )
 
@@ -85,9 +87,9 @@ class TestCriticalImports:
             from app import models
 
             assert models is not None
-            assert hasattr(models, 'GameRecord')
-            assert hasattr(models, 'GamePlayer')
-            assert hasattr(models, 'Course')
+            assert hasattr(models, "GameRecord")
+            assert hasattr(models, "GamePlayer")
+            assert hasattr(models, "Course")
         except ModuleNotFoundError as e:
             pytest.fail(f"Failed to import models: {e}")
         except ImportError as e:
@@ -116,8 +118,8 @@ class TestApplicationStartup:
             from app.main import app
 
             # Verify the app has required attributes
-            assert hasattr(app, 'routes'), "App should have routes"
-            assert hasattr(app, 'router'), "App should have router"
+            assert hasattr(app, "routes"), "App should have routes"
+            assert hasattr(app, "router"), "App should have router"
             assert len(app.routes) > 0, "App should have at least one route"
         except Exception as e:
             pytest.fail(f"Failed to create FastAPI app: {e}")
@@ -131,8 +133,8 @@ class TestApplicationStartup:
             route_paths = [route.path for route in app.routes]
 
             # Check for critical routes
-            assert any('/games' in path for path in route_paths), "Games routes should be registered"
-            assert any('/health' in path for path in route_paths), "Health route should be registered"
+            assert any("/games" in path for path in route_paths), "Games routes should be registered"
+            assert any("/health" in path for path in route_paths), "Health route should be registered"
         except Exception as e:
             pytest.fail(f"Failed to verify routes: {e}")
 
@@ -160,18 +162,15 @@ class TestPackageExports:
         from app import managers
 
         # Verify __all__ is defined
-        assert hasattr(managers, '__all__'), "managers package should define __all__"
+        assert hasattr(managers, "__all__"), "managers package should define __all__"
 
         # Verify all listed exports are actually available
         for export_name in managers.__all__:
-            assert hasattr(managers, export_name), \
-                f"managers package should export {export_name}"
+            assert hasattr(managers, export_name), f"managers package should export {export_name}"
 
     def test_managers_websocket_in_all(self):
         """Test that websocket_manager exports are in __all__."""
         from app import managers
 
-        assert 'WebSocketManager' in managers.__all__, \
-            "WebSocketManager should be in managers.__all__"
-        assert 'manager' in managers.__all__, \
-            "manager should be in managers.__all__"
+        assert "WebSocketManager" in managers.__all__, "WebSocketManager should be in managers.__all__"
+        assert "manager" in managers.__all__, "manager should be in managers.__all__"

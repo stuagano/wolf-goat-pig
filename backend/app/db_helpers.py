@@ -28,16 +28,18 @@ def with_db_session(func: Callable) -> Callable:
             # do work with db
             return result
     """
+
     @wraps(func)
     def wrapper(*args, **kwargs):
-        db = kwargs.get('db')
+        db = kwargs.get("db")
         created_session = False
 
         # If db not provided, create one
         if db is None:
             from .database import SessionLocal
+
             db = SessionLocal()
-            kwargs['db'] = db
+            kwargs["db"] = db
             created_session = True
 
         try:
@@ -68,5 +70,6 @@ def get_db_session() -> Generator[Session, None, None]:
             # session automatically closed after with block
     """
     from .database import get_isolated_session
+
     with get_isolated_session() as session:
         yield session

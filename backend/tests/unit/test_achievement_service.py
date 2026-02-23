@@ -15,18 +15,17 @@ Author: Test Suite
 Date: 2025-11-03
 """
 
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, MagicMock, patch, call
-from datetime import datetime
-from typing import List, Dict, Any
 
+from app.models import Badge, BadgeProgress, PlayerAchievement, PlayerBadgeEarned
 from app.services.achievement_service import AchievementService, get_achievement_service
-from app.models import Badge, PlayerBadgeEarned, BadgeProgress, PlayerAchievement
-
 
 # ============================================================================
 # FIXTURES
 # ============================================================================
+
 
 @pytest.fixture
 def mock_db():
@@ -45,7 +44,7 @@ def mock_badge_engine():
 @pytest.fixture
 def achievement_service(mock_db):
     """Create AchievementService instance with mocked dependencies."""
-    with patch('app.services.achievement_service.BadgeEngine') as mock_badge_class:
+    with patch("app.services.achievement_service.BadgeEngine") as mock_badge_class:
         mock_badge_engine = MagicMock()
         mock_badge_class.return_value = mock_badge_engine
         service = AchievementService(mock_db)
@@ -123,6 +122,7 @@ def sample_achievement():
 # AWARD_BADGE TESTS
 # ============================================================================
 
+
 class TestAwardBadge:
     """Test AchievementService.award_badge() method."""
 
@@ -131,16 +131,15 @@ class TestAwardBadge:
         # Setup
         mock_query = mock_db.query.return_value
         mock_filter = mock_query.filter.return_value
-        mock_filter.first.side_effect = [sample_badge, None]  # Badge exists, not earned yet
+        mock_filter.first.side_effect = [
+            sample_badge,
+            None,
+        ]  # Badge exists, not earned yet
 
         achievement_service.badge_engine._award_badge.return_value = sample_earned_badge
 
         # Execute
-        result = achievement_service.award_badge(
-            player_profile_id=100,
-            badge_name="Lone Wolf",
-            game_record_id=200
-        )
+        result = achievement_service.award_badge(player_profile_id=100, badge_name="Lone Wolf", game_record_id=200)
 
         # Assert
         assert result is not None
@@ -149,9 +148,7 @@ class TestAwardBadge:
         assert result["serial_number"] == 47
         assert result["points_value"] == 10
         achievement_service.badge_engine._award_badge.assert_called_once_with(
-            player_profile_id=100,
-            badge_id=1,
-            game_record_id=200
+            player_profile_id=100, badge_id=1, game_record_id=200
         )
 
     def test_award_badge_already_earned(self, achievement_service, mock_db, sample_badge, sample_earned_badge):
@@ -159,13 +156,13 @@ class TestAwardBadge:
         # Setup
         mock_query = mock_db.query.return_value
         mock_filter = mock_query.filter.return_value
-        mock_filter.first.side_effect = [sample_badge, sample_earned_badge]  # Badge exists, already earned
+        mock_filter.first.side_effect = [
+            sample_badge,
+            sample_earned_badge,
+        ]  # Badge exists, already earned
 
         # Execute
-        result = achievement_service.award_badge(
-            player_profile_id=100,
-            badge_name="Lone Wolf"
-        )
+        result = achievement_service.award_badge(player_profile_id=100, badge_name="Lone Wolf")
 
         # Assert
         assert result is None
@@ -179,10 +176,7 @@ class TestAwardBadge:
         mock_filter.first.return_value = None  # Badge not found
 
         # Execute
-        result = achievement_service.award_badge(
-            player_profile_id=100,
-            badge_name="Nonexistent Badge"
-        )
+        result = achievement_service.award_badge(player_profile_id=100, badge_name="Nonexistent Badge")
 
         # Assert
         assert result is None
@@ -197,10 +191,7 @@ class TestAwardBadge:
         mock_filter.first.return_value = None  # Filter includes is_active=True, so returns None
 
         # Execute
-        result = achievement_service.award_badge(
-            player_profile_id=100,
-            badge_name="Lone Wolf"
-        )
+        result = achievement_service.award_badge(player_profile_id=100, badge_name="Lone Wolf")
 
         # Assert
         assert result is None
@@ -214,18 +205,12 @@ class TestAwardBadge:
         achievement_service.badge_engine._award_badge.return_value = sample_earned_badge
 
         # Execute
-        result = achievement_service.award_badge(
-            player_profile_id=100,
-            badge_name="Lone Wolf",
-            game_record_id=None
-        )
+        result = achievement_service.award_badge(player_profile_id=100, badge_name="Lone Wolf", game_record_id=None)
 
         # Assert
         assert result is not None
         achievement_service.badge_engine._award_badge.assert_called_once_with(
-            player_profile_id=100,
-            badge_id=1,
-            game_record_id=None
+            player_profile_id=100, badge_id=1, game_record_id=None
         )
 
     def test_award_badge_engine_returns_none(self, achievement_service, mock_db, sample_badge):
@@ -237,10 +222,7 @@ class TestAwardBadge:
         achievement_service.badge_engine._award_badge.return_value = None
 
         # Execute
-        result = achievement_service.award_badge(
-            player_profile_id=100,
-            badge_name="Lone Wolf"
-        )
+        result = achievement_service.award_badge(player_profile_id=100, badge_name="Lone Wolf")
 
         # Assert
         assert result is None
@@ -252,10 +234,7 @@ class TestAwardBadge:
 
         # Execute & Assert
         with pytest.raises(Exception) as exc_info:
-            achievement_service.award_badge(
-                player_profile_id=100,
-                badge_name="Lone Wolf"
-            )
+            achievement_service.award_badge(player_profile_id=100, badge_name="Lone Wolf")
 
         assert "Database connection error" in str(exc_info.value)
         mock_db.rollback.assert_called_once()
@@ -269,10 +248,7 @@ class TestAwardBadge:
         achievement_service.badge_engine._award_badge.return_value = sample_earned_badge
 
         # Execute
-        result = achievement_service.award_badge(
-            player_profile_id=100,
-            badge_name="Lone Wolf"
-        )
+        result = achievement_service.award_badge(player_profile_id=100, badge_name="Lone Wolf")
 
         # Assert
         assert "badge_id" in result
@@ -289,6 +265,7 @@ class TestAwardBadge:
 # ============================================================================
 # GET_PLAYER_BADGES TESTS
 # ============================================================================
+
 
 class TestGetPlayerBadges:
     """Test AchievementService.get_player_badges() method."""
@@ -389,7 +366,9 @@ class TestGetPlayerBadges:
 
         assert "Database query failed" in str(exc_info.value)
 
-    def test_get_player_badges_all_fields_present(self, achievement_service, mock_db, sample_badge, sample_earned_badge):
+    def test_get_player_badges_all_fields_present(
+        self, achievement_service, mock_db, sample_badge, sample_earned_badge
+    ):
         """Test that all expected fields are present in result."""
         # Setup
         mock_query = mock_db.query.return_value
@@ -420,6 +399,7 @@ class TestGetPlayerBadges:
 # ============================================================================
 # GET_AVAILABLE_BADGES TESTS
 # ============================================================================
+
 
 class TestGetAvailableBadges:
     """Test AchievementService.get_available_badges() method."""
@@ -535,6 +515,7 @@ class TestGetAvailableBadges:
 # CHECK_BADGE_ELIGIBILITY TESTS
 # ============================================================================
 
+
 class TestCheckBadgeEligibility:
     """Test AchievementService.check_badge_eligibility() method."""
 
@@ -547,26 +528,25 @@ class TestCheckBadgeEligibility:
         mock_filter.first.side_effect = [sample_badge, None]  # Badge exists, not earned
 
         # Execute
-        result = achievement_service.check_badge_eligibility(
-            player_profile_id=100,
-            badge_name="Lone Wolf"
-        )
+        result = achievement_service.check_badge_eligibility(player_profile_id=100, badge_name="Lone Wolf")
 
         # Assert
         assert result is True
 
-    def test_check_badge_eligibility_already_earned(self, achievement_service, mock_db, sample_badge, sample_earned_badge):
+    def test_check_badge_eligibility_already_earned(
+        self, achievement_service, mock_db, sample_badge, sample_earned_badge
+    ):
         """Test checking eligibility when badge already earned."""
         # Setup
         mock_query = mock_db.query.return_value
         mock_filter = mock_query.filter.return_value
-        mock_filter.first.side_effect = [sample_badge, sample_earned_badge]  # Badge exists, already earned
+        mock_filter.first.side_effect = [
+            sample_badge,
+            sample_earned_badge,
+        ]  # Badge exists, already earned
 
         # Execute
-        result = achievement_service.check_badge_eligibility(
-            player_profile_id=100,
-            badge_name="Lone Wolf"
-        )
+        result = achievement_service.check_badge_eligibility(player_profile_id=100, badge_name="Lone Wolf")
 
         # Assert
         assert result is False
@@ -579,10 +559,7 @@ class TestCheckBadgeEligibility:
         mock_filter.first.return_value = None
 
         # Execute
-        result = achievement_service.check_badge_eligibility(
-            player_profile_id=100,
-            badge_name="Nonexistent Badge"
-        )
+        result = achievement_service.check_badge_eligibility(player_profile_id=100, badge_name="Nonexistent Badge")
 
         # Assert
         assert result is False
@@ -597,10 +574,7 @@ class TestCheckBadgeEligibility:
         mock_filter.first.side_effect = [sample_badge, None]
 
         # Execute
-        result = achievement_service.check_badge_eligibility(
-            player_profile_id=100,
-            badge_name="Lone Wolf"
-        )
+        result = achievement_service.check_badge_eligibility(player_profile_id=100, badge_name="Lone Wolf")
 
         # Assert
         assert result is False
@@ -615,10 +589,7 @@ class TestCheckBadgeEligibility:
         mock_filter.first.side_effect = [sample_badge, None]
 
         # Execute
-        result = achievement_service.check_badge_eligibility(
-            player_profile_id=100,
-            badge_name="Lone Wolf"
-        )
+        result = achievement_service.check_badge_eligibility(player_profile_id=100, badge_name="Lone Wolf")
 
         # Assert
         assert result is True
@@ -631,14 +602,11 @@ class TestCheckBadgeEligibility:
         mock_filter = mock_query.filter.return_value
         mock_filter.first.side_effect = [sample_badge, None]
 
-        with patch.object(achievement_service, 'calculate_badge_progress') as mock_progress:
+        with patch.object(achievement_service, "calculate_badge_progress") as mock_progress:
             mock_progress.return_value = {"progress_percentage": 100.0}
 
             # Execute
-            result = achievement_service.check_badge_eligibility(
-                player_profile_id=100,
-                badge_name="Veteran"
-            )
+            result = achievement_service.check_badge_eligibility(player_profile_id=100, badge_name="Veteran")
 
             # Assert
             assert result is True
@@ -651,14 +619,11 @@ class TestCheckBadgeEligibility:
         mock_filter = mock_query.filter.return_value
         mock_filter.first.side_effect = [sample_badge, None]
 
-        with patch.object(achievement_service, 'calculate_badge_progress') as mock_progress:
+        with patch.object(achievement_service, "calculate_badge_progress") as mock_progress:
             mock_progress.return_value = {"progress_percentage": 75.0}
 
             # Execute
-            result = achievement_service.check_badge_eligibility(
-                player_profile_id=100,
-                badge_name="Veteran"
-            )
+            result = achievement_service.check_badge_eligibility(player_profile_id=100, badge_name="Veteran")
 
             # Assert
             assert result is False
@@ -670,10 +635,7 @@ class TestCheckBadgeEligibility:
 
         # Execute & Assert
         with pytest.raises(Exception) as exc_info:
-            achievement_service.check_badge_eligibility(
-                player_profile_id=100,
-                badge_name="Lone Wolf"
-            )
+            achievement_service.check_badge_eligibility(player_profile_id=100, badge_name="Lone Wolf")
 
         assert "Database error" in str(exc_info.value)
 
@@ -682,10 +644,13 @@ class TestCheckBadgeEligibility:
 # CALCULATE_BADGE_PROGRESS TESTS
 # ============================================================================
 
+
 class TestCalculateBadgeProgress:
     """Test AchievementService.calculate_badge_progress() method."""
 
-    def test_calculate_badge_progress_in_progress(self, achievement_service, mock_db, sample_badge, sample_badge_progress):
+    def test_calculate_badge_progress_in_progress(
+        self, achievement_service, mock_db, sample_badge, sample_badge_progress
+    ):
         """Test calculating progress for badge in progress."""
         # Setup
         mock_query = mock_db.query.return_value
@@ -694,10 +659,7 @@ class TestCalculateBadgeProgress:
         achievement_service.badge_engine._get_or_create_progress.return_value = sample_badge_progress
 
         # Execute
-        result = achievement_service.calculate_badge_progress(
-            player_profile_id=100,
-            badge_name="Lone Wolf"
-        )
+        result = achievement_service.calculate_badge_progress(player_profile_id=100, badge_name="Lone Wolf")
 
         # Assert
         assert result["badge_id"] == 1
@@ -707,7 +669,9 @@ class TestCalculateBadgeProgress:
         assert result["target_progress"] == 10
         assert result["progress_percentage"] == 70.0
 
-    def test_calculate_badge_progress_already_earned(self, achievement_service, mock_db, sample_badge, sample_earned_badge):
+    def test_calculate_badge_progress_already_earned(
+        self, achievement_service, mock_db, sample_badge, sample_earned_badge
+    ):
         """Test calculating progress for already earned badge."""
         # Setup
         mock_query = mock_db.query.return_value
@@ -715,10 +679,7 @@ class TestCalculateBadgeProgress:
         mock_filter.first.side_effect = [sample_badge, sample_earned_badge]
 
         # Execute
-        result = achievement_service.calculate_badge_progress(
-            player_profile_id=100,
-            badge_name="Lone Wolf"
-        )
+        result = achievement_service.calculate_badge_progress(player_profile_id=100, badge_name="Lone Wolf")
 
         # Assert
         assert result["badge_id"] == 1
@@ -735,10 +696,7 @@ class TestCalculateBadgeProgress:
         mock_filter.first.return_value = None
 
         # Execute
-        result = achievement_service.calculate_badge_progress(
-            player_profile_id=100,
-            badge_name="Nonexistent Badge"
-        )
+        result = achievement_service.calculate_badge_progress(player_profile_id=100, badge_name="Nonexistent Badge")
 
         # Assert
         assert "error" in result
@@ -759,10 +717,7 @@ class TestCalculateBadgeProgress:
         achievement_service.badge_engine._get_or_create_progress.return_value = progress
 
         # Execute
-        result = achievement_service.calculate_badge_progress(
-            player_profile_id=100,
-            badge_name="Lone Wolf"
-        )
+        result = achievement_service.calculate_badge_progress(player_profile_id=100, badge_name="Lone Wolf")
 
         # Assert
         assert result["current_progress"] == 0
@@ -782,16 +737,15 @@ class TestCalculateBadgeProgress:
         achievement_service.badge_engine._get_or_create_progress.return_value = progress
 
         # Execute
-        result = achievement_service.calculate_badge_progress(
-            player_profile_id=100,
-            badge_name="Lone Wolf"
-        )
+        result = achievement_service.calculate_badge_progress(player_profile_id=100, badge_name="Lone Wolf")
 
         # Assert
         assert result["earned"] is False
         assert result["progress_percentage"] == 100.0
 
-    def test_calculate_badge_progress_all_fields(self, achievement_service, mock_db, sample_badge, sample_badge_progress):
+    def test_calculate_badge_progress_all_fields(
+        self, achievement_service, mock_db, sample_badge, sample_badge_progress
+    ):
         """Test that all expected fields are present in result."""
         # Setup
         mock_query = mock_db.query.return_value
@@ -800,10 +754,7 @@ class TestCalculateBadgeProgress:
         achievement_service.badge_engine._get_or_create_progress.return_value = sample_badge_progress
 
         # Execute
-        result = achievement_service.calculate_badge_progress(
-            player_profile_id=100,
-            badge_name="Lone Wolf"
-        )
+        result = achievement_service.calculate_badge_progress(player_profile_id=100, badge_name="Lone Wolf")
 
         # Assert
         assert "badge_id" in result
@@ -825,10 +776,7 @@ class TestCalculateBadgeProgress:
 
         # Execute & Assert
         with pytest.raises(Exception) as exc_info:
-            achievement_service.calculate_badge_progress(
-                player_profile_id=100,
-                badge_name="Lone Wolf"
-            )
+            achievement_service.calculate_badge_progress(player_profile_id=100, badge_name="Lone Wolf")
 
         assert "Database error" in str(exc_info.value)
 
@@ -836,6 +784,7 @@ class TestCalculateBadgeProgress:
 # ============================================================================
 # GET_PLAYER_ACHIEVEMENTS TESTS
 # ============================================================================
+
 
 class TestGetPlayerAchievements:
     """Test AchievementService.get_player_achievements() method (legacy)."""
@@ -937,6 +886,7 @@ class TestGetPlayerAchievements:
 # CREATE_ACHIEVEMENT TESTS
 # ============================================================================
 
+
 class TestCreateAchievement:
     """Test AchievementService.create_achievement() method (legacy)."""
 
@@ -953,9 +903,9 @@ class TestCreateAchievement:
         new_achievement.game_record_id = 200
         new_achievement.achievement_data = {"score": 100}
 
-        mock_db.refresh.side_effect = lambda obj: setattr(obj, 'id', 1)
+        mock_db.refresh.side_effect = lambda obj: setattr(obj, "id", 1)
 
-        with patch('app.services.achievement_service.PlayerAchievement') as mock_achievement_class:
+        with patch("app.services.achievement_service.PlayerAchievement") as mock_achievement_class:
             mock_achievement_class.return_value = new_achievement
 
             # Execute
@@ -965,7 +915,7 @@ class TestCreateAchievement:
                 description="Won your first game",
                 achievement_name="First Win",
                 game_record_id=200,
-                achievement_data={"score": 100}
+                achievement_data={"score": 100},
             )
 
             # Assert
@@ -988,14 +938,14 @@ class TestCreateAchievement:
         new_achievement.game_record_id = None
         new_achievement.achievement_data = {}
 
-        with patch('app.services.achievement_service.PlayerAchievement') as mock_achievement_class:
+        with patch("app.services.achievement_service.PlayerAchievement") as mock_achievement_class:
             mock_achievement_class.return_value = new_achievement
 
             # Execute
             result = achievement_service.create_achievement(
                 player_profile_id=100,
                 achievement_type="custom_achievement",
-                description="Custom description"
+                description="Custom description",
             )
 
             # Assert
@@ -1016,14 +966,14 @@ class TestCreateAchievement:
         new_achievement.game_record_id = None
         new_achievement.achievement_data = {}
 
-        with patch('app.services.achievement_service.PlayerAchievement') as mock_achievement_class:
+        with patch("app.services.achievement_service.PlayerAchievement") as mock_achievement_class:
             mock_achievement_class.return_value = new_achievement
 
             # Execute
-            result = achievement_service.create_achievement(
+            achievement_service.create_achievement(
                 player_profile_id=100,
                 achievement_type="first_win",
-                description="Description"
+                description="Description",
             )
 
             # Assert
@@ -1035,13 +985,13 @@ class TestCreateAchievement:
         # Setup
         mock_db.add.side_effect = Exception("Database error")
 
-        with patch('app.services.achievement_service.PlayerAchievement'):
+        with patch("app.services.achievement_service.PlayerAchievement"):
             # Execute & Assert
             with pytest.raises(Exception) as exc_info:
                 achievement_service.create_achievement(
                     player_profile_id=100,
                     achievement_type="first_win",
-                    description="Description"
+                    description="Description",
                 )
 
             assert "Database error" in str(exc_info.value)
@@ -1060,7 +1010,7 @@ class TestCreateAchievement:
         new_achievement.game_record_id = 200
         new_achievement.achievement_data = {"key": "value"}
 
-        with patch('app.services.achievement_service.PlayerAchievement') as mock_achievement_class:
+        with patch("app.services.achievement_service.PlayerAchievement") as mock_achievement_class:
             mock_achievement_class.return_value = new_achievement
 
             # Execute
@@ -1070,7 +1020,7 @@ class TestCreateAchievement:
                 description="Description",
                 achievement_name="First Win",
                 game_record_id=200,
-                achievement_data={"key": "value"}
+                achievement_data={"key": "value"},
             )
 
             # Assert
@@ -1086,6 +1036,7 @@ class TestCreateAchievement:
 # ============================================================================
 # SYNC_ACHIEVEMENTS_TO_BADGES TESTS
 # ============================================================================
+
 
 class TestSyncAchievementsToBadges:
     """Test AchievementService.sync_achievements_to_badges() method (migration)."""
@@ -1106,7 +1057,7 @@ class TestSyncAchievementsToBadges:
         mock_filter = mock_query.filter.return_value
         mock_filter.all.return_value = achievements
 
-        with patch.object(achievement_service, 'award_badge') as mock_award:
+        with patch.object(achievement_service, "award_badge") as mock_award:
             mock_award.return_value = {"badge_id": 1, "badge_name": "Lone Wolf"}
 
             # Execute
@@ -1134,15 +1085,23 @@ class TestSyncAchievementsToBadges:
         # Setup
         achievements = [
             Mock(spec=PlayerAchievement, achievement_type="first_win", game_record_id=200),
-            Mock(spec=PlayerAchievement, achievement_type="unmapped_type", game_record_id=201),
-            Mock(spec=PlayerAchievement, achievement_type="big_earner", game_record_id=202)
+            Mock(
+                spec=PlayerAchievement,
+                achievement_type="unmapped_type",
+                game_record_id=201,
+            ),
+            Mock(
+                spec=PlayerAchievement,
+                achievement_type="big_earner",
+                game_record_id=202,
+            ),
         ]
 
         mock_query = mock_db.query.return_value
         mock_filter = mock_query.filter.return_value
         mock_filter.all.return_value = achievements
 
-        with patch.object(achievement_service, 'award_badge') as mock_award:
+        with patch.object(achievement_service, "award_badge") as mock_award:
             mock_award.return_value = {"badge_id": 1, "badge_name": "Badge"}
 
             # Execute
@@ -1163,7 +1122,7 @@ class TestSyncAchievementsToBadges:
         mock_filter = mock_query.filter.return_value
         mock_filter.all.return_value = [achievement]
 
-        with patch.object(achievement_service, 'award_badge') as mock_award:
+        with patch.object(achievement_service, "award_badge") as mock_award:
             mock_award.return_value = None  # Badge already earned
 
             # Execute
@@ -1182,7 +1141,7 @@ class TestSyncAchievementsToBadges:
             ("solo_warrior", "Wolf Pack Leader"),
             ("betting_expert", "High Roller"),
             ("veteran", "Veteran"),
-            ("consistent_winner", "Pestilence")
+            ("consistent_winner", "Pestilence"),
         ]
 
         for achievement_type, expected_badge in test_mappings:
@@ -1194,18 +1153,14 @@ class TestSyncAchievementsToBadges:
             mock_filter = mock_query.filter.return_value
             mock_filter.all.return_value = [achievement]
 
-            with patch.object(achievement_service, 'award_badge') as mock_award:
+            with patch.object(achievement_service, "award_badge") as mock_award:
                 mock_award.return_value = {"badge_id": 1, "badge_name": expected_badge}
 
                 # Execute
                 achievement_service.sync_achievements_to_badges(player_profile_id=100)
 
                 # Assert
-                mock_award.assert_called_with(
-                    player_profile_id=100,
-                    badge_name=expected_badge,
-                    game_record_id=200
-                )
+                mock_award.assert_called_with(player_profile_id=100, badge_name=expected_badge, game_record_id=200)
 
     def test_sync_achievements_to_badges_database_error(self, achievement_service, mock_db):
         """Test sync_achievements_to_badges handles database errors."""
@@ -1229,23 +1184,20 @@ class TestSyncAchievementsToBadges:
         mock_filter = mock_query.filter.return_value
         mock_filter.all.return_value = [achievement]
 
-        with patch.object(achievement_service, 'award_badge') as mock_award:
+        with patch.object(achievement_service, "award_badge") as mock_award:
             mock_award.return_value = {"badge_id": 1}
 
             # Execute
             achievement_service.sync_achievements_to_badges(player_profile_id=100)
 
             # Assert
-            mock_award.assert_called_with(
-                player_profile_id=100,
-                badge_name="Lone Wolf",
-                game_record_id=999
-            )
+            mock_award.assert_called_with(player_profile_id=100, badge_name="Lone Wolf", game_record_id=999)
 
 
 # ============================================================================
 # GET_ACHIEVEMENT_SERVICE SINGLETON TESTS
 # ============================================================================
+
 
 class TestGetAchievementService:
     """Test get_achievement_service() singleton function."""
@@ -1254,9 +1206,10 @@ class TestGetAchievementService:
         """Test that get_achievement_service creates new instance."""
         # Reset global instance
         import app.services.achievement_service as service_module
+
         service_module._achievement_service_instance = None
 
-        with patch('app.services.achievement_service.BadgeEngine'):
+        with patch("app.services.achievement_service.BadgeEngine"):
             # Execute
             service = get_achievement_service(mock_db)
 
@@ -1268,9 +1221,10 @@ class TestGetAchievementService:
         """Test that get_achievement_service returns same instance."""
         # Reset global instance
         import app.services.achievement_service as service_module
+
         service_module._achievement_service_instance = None
 
-        with patch('app.services.achievement_service.BadgeEngine'):
+        with patch("app.services.achievement_service.BadgeEngine"):
             # Execute
             service1 = get_achievement_service(mock_db)
             service2 = get_achievement_service(mock_db)
@@ -1282,12 +1236,13 @@ class TestGetAchievementService:
         """Test that get_achievement_service updates database session."""
         # Reset global instance
         import app.services.achievement_service as service_module
+
         service_module._achievement_service_instance = None
 
         mock_db1 = MagicMock()
         mock_db2 = MagicMock()
 
-        with patch('app.services.achievement_service.BadgeEngine'):
+        with patch("app.services.achievement_service.BadgeEngine"):
             # Execute
             service1 = get_achievement_service(mock_db1)
             service2 = get_achievement_service(mock_db2)
@@ -1301,6 +1256,7 @@ class TestGetAchievementService:
 # INTEGRATION TESTS
 # ============================================================================
 
+
 class TestAchievementServiceIntegration:
     """Test AchievementService methods working together."""
 
@@ -1313,10 +1269,7 @@ class TestAchievementServiceIntegration:
         achievement_service.badge_engine._award_badge.return_value = sample_earned_badge
 
         # Award badge
-        award_result = achievement_service.award_badge(
-            player_profile_id=100,
-            badge_name="Lone Wolf"
-        )
+        award_result = achievement_service.award_badge(player_profile_id=100, badge_name="Lone Wolf")
         assert award_result is not None
 
         # Setup retrieval
@@ -1330,7 +1283,9 @@ class TestAchievementServiceIntegration:
         assert len(badges) == 1
         assert badges[0]["badge_name"] == "Lone Wolf"
 
-    def test_check_eligibility_then_award_workflow(self, achievement_service, mock_db, sample_badge, sample_earned_badge):
+    def test_check_eligibility_then_award_workflow(
+        self, achievement_service, mock_db, sample_badge, sample_earned_badge
+    ):
         """Test workflow: check eligibility then award badge."""
         # Check eligibility
         sample_badge.trigger_type = "one_time"
@@ -1338,18 +1293,12 @@ class TestAchievementServiceIntegration:
         mock_filter = mock_query.filter.return_value
         mock_filter.first.side_effect = [sample_badge, None, sample_badge, None]
 
-        eligible = achievement_service.check_badge_eligibility(
-            player_profile_id=100,
-            badge_name="Lone Wolf"
-        )
+        eligible = achievement_service.check_badge_eligibility(player_profile_id=100, badge_name="Lone Wolf")
         assert eligible is True
 
         # Award badge
         achievement_service.badge_engine._award_badge.return_value = sample_earned_badge
-        result = achievement_service.award_badge(
-            player_profile_id=100,
-            badge_name="Lone Wolf"
-        )
+        result = achievement_service.award_badge(player_profile_id=100, badge_name="Lone Wolf")
         assert result is not None
 
     def test_track_progress_to_completion_workflow(self, achievement_service, mock_db, sample_badge):
@@ -1365,10 +1314,7 @@ class TestAchievementServiceIntegration:
         mock_filter.first.side_effect = [sample_badge, None]
         achievement_service.badge_engine._get_or_create_progress.return_value = progress_50
 
-        result = achievement_service.calculate_badge_progress(
-            player_profile_id=100,
-            badge_name="Veteran"
-        )
+        result = achievement_service.calculate_badge_progress(player_profile_id=100, badge_name="Veteran")
         assert result["progress_percentage"] == 50.0
         assert result["earned"] is False
 
@@ -1385,13 +1331,13 @@ class TestAchievementServiceIntegration:
         new_achievement.game_record_id = 200
         new_achievement.achievement_data = {}
 
-        with patch('app.services.achievement_service.PlayerAchievement') as mock_achievement_class:
+        with patch("app.services.achievement_service.PlayerAchievement") as mock_achievement_class:
             mock_achievement_class.return_value = new_achievement
 
             legacy_result = achievement_service.create_achievement(
                 player_profile_id=100,
                 achievement_type="first_win",
-                description="Description"
+                description="Description",
             )
             assert legacy_result["achievement_type"] == "first_win"
 
@@ -1400,7 +1346,7 @@ class TestAchievementServiceIntegration:
         mock_filter = mock_query.filter.return_value
         mock_filter.all.return_value = [new_achievement]
 
-        with patch.object(achievement_service, 'award_badge') as mock_award:
+        with patch.object(achievement_service, "award_badge") as mock_award:
             mock_award.return_value = {"badge_id": 1, "badge_name": "Lone Wolf"}
 
             migrated_count = achievement_service.sync_achievements_to_badges(player_profile_id=100)
@@ -1410,6 +1356,7 @@ class TestAchievementServiceIntegration:
 # ============================================================================
 # ERROR HANDLING TESTS
 # ============================================================================
+
 
 class TestAchievementServiceErrorHandling:
     """Test error handling across all methods."""
@@ -1425,7 +1372,7 @@ class TestAchievementServiceErrorHandling:
 
     def test_create_achievement_rollback_on_error(self, achievement_service, mock_db):
         """Test that database rollback is called on error."""
-        with patch('app.services.achievement_service.PlayerAchievement'):
+        with patch("app.services.achievement_service.PlayerAchievement"):
             mock_db.add.side_effect = Exception("Add failed")
 
             with pytest.raises(Exception):

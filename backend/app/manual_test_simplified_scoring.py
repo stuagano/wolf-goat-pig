@@ -19,7 +19,7 @@ def test_simplified_scoring():
         {"id": "p1", "name": "Alice"},
         {"id": "p2", "name": "Bob"},
         {"id": "p3", "name": "Charlie"},
-        {"id": "p4", "name": "Diana"}
+        {"id": "p4", "name": "Diana"},
     ]
 
     # Initialize simplified scoring
@@ -38,7 +38,11 @@ def test_simplified_scoring():
     # Test Hole 2: Partners play
     print("\n--- Hole 2: Partners Play ---")
     scores = {"p1": 5, "p2": 4, "p3": 4, "p4": 6}  # Team 2 (Charlie+Diana) wins
-    teams: Dict[str, Any] = {"type": "partners", "team1": ["p1", "p2"], "team2": ["p3", "p4"]}
+    teams: Dict[str, Any] = {
+        "type": "partners",
+        "team1": ["p1", "p2"],
+        "team2": ["p3", "p4"],
+    }
     wager = 1
 
     result = game.enter_hole_scores(2, scores, teams, wager)
@@ -47,7 +51,11 @@ def test_simplified_scoring():
     # Test Hole 3: Tied hole
     print("\n--- Hole 3: Tied Hole ---")
     scores = {"p1": 4, "p2": 5, "p3": 4, "p4": 5}  # Teams tied
-    teams: Dict[str, Any] = {"type": "partners", "team1": ["p1", "p2"], "team2": ["p3", "p4"]}
+    teams: Dict[str, Any] = {
+        "type": "partners",
+        "team1": ["p1", "p2"],
+        "team2": ["p3", "p4"],
+    }
     wager = 1
 
     result = game.enter_hole_scores(3, scores, teams, wager)
@@ -65,6 +73,7 @@ def test_simplified_scoring():
         print(f"Hole {hole['hole']}: {hole['team_type']} | Winners: {hole['winners']} | Wager: {hole['wager']}")
 
     return True
+
 
 def test_complexity_comparison():
     """Show the complexity difference between old and new systems"""
@@ -88,24 +97,22 @@ def test_complexity_comparison():
     print("- Easy to understand and maintain")
 
     # Show example JSON size difference
-    game = SimplifiedScoring([
-        {"id": "p1", "name": "Alice"},
-        {"id": "p2", "name": "Bob"}
-    ])
+    game = SimplifiedScoring([{"id": "p1", "name": "Alice"}, {"id": "p2", "name": "Bob"}])
 
     # Add a few holes
     game.enter_hole_scores(1, {"p1": 4, "p2": 5}, {"type": "solo", "solo_player": "p1"}, 1)
     game.enter_hole_scores(2, {"p1": 5, "p2": 4}, {"type": "solo", "solo_player": "p2"}, 1)
 
-    simplified_json = json.dumps({
-        "players": game.players,
-        "results": list(game.hole_results.values())
-    }, default=str)
+    simplified_json = json.dumps(
+        {"players": game.players, "results": list(game.hole_results.values())},
+        default=str,
+    )
 
     print(f"\nSimplified JSON size for 2 holes: {len(simplified_json)} characters")
     print("Original system would be 10-50x larger due to complex nested structures")
 
     return True
+
 
 if __name__ == "__main__":
     test_simplified_scoring()

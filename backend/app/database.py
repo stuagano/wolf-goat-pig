@@ -4,8 +4,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import declarative_base
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 logger = logging.getLogger(__name__)
 
@@ -23,17 +22,17 @@ if is_postgresql and DATABASE_URL:
 
     engine = create_engine(
         DATABASE_URL,
-        pool_pre_ping=True,       # Verify connections before use
-        pool_recycle=300,         # Recycle connections every 5 minutes
-        pool_size=5,              # Maximum pool size (Render free tier limit)
-        max_overflow=10,          # Allow up to 10 additional connections
-        pool_timeout=30,          # Wait up to 30s for a connection
-        pool_reset_on_return='rollback',  # Always rollback on connection return to reset transaction state
+        pool_pre_ping=True,  # Verify connections before use
+        pool_recycle=300,  # Recycle connections every 5 minutes
+        pool_size=5,  # Maximum pool size (Render free tier limit)
+        max_overflow=10,  # Allow up to 10 additional connections
+        pool_timeout=30,  # Wait up to 30s for a connection
+        pool_reset_on_return="rollback",  # Always rollback on connection return to reset transaction state
         connect_args={
             "connect_timeout": 10,  # Connection timeout in seconds
-            "options": "-c statement_timeout=30000"  # Query timeout (30s)
+            "options": "-c statement_timeout=30000",  # Query timeout (30s)
         },
-        echo=os.getenv("ENVIRONMENT") == "development"
+        echo=os.getenv("ENVIRONMENT") == "development",
     )
 else:
     # Development/local database (SQLite)
@@ -46,11 +45,12 @@ else:
     engine = create_engine(
         SQLITE_DATABASE_URL,
         connect_args={"check_same_thread": False},
-        echo=os.getenv("ENVIRONMENT") == "development"
+        echo=os.getenv("ENVIRONMENT") == "development",
     )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
 
 def get_db():
     """
@@ -66,6 +66,7 @@ def get_db():
         raise
     finally:
         db.close()
+
 
 @contextmanager
 def get_isolated_session() -> Generator[Session, None, None]:
@@ -100,6 +101,7 @@ def get_isolated_session() -> Generator[Session, None, None]:
     finally:
         session.close()
         logger.debug("Closed isolated database session")
+
 
 def init_db():
     """Initialize database tables"""

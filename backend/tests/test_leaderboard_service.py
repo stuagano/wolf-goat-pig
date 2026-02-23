@@ -9,21 +9,16 @@ Tests the leaderboard functionality including:
 - Error handling
 """
 
-import pytest
 import time
-from datetime import datetime, timedelta
-from unittest.mock import Mock, MagicMock, patch
+from datetime import datetime
+
+import pytest
+from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.services.leaderboard_service import (
-    LeaderboardService,
-    LeaderboardCache,
-    get_leaderboard_service,
-)
 from app.models import Base, PlayerProfile, PlayerStatistics
-from fastapi import HTTPException
-
+from app.services.leaderboard_service import LeaderboardCache, LeaderboardService, get_leaderboard_service
 
 # Test database setup
 TEST_DATABASE_URL = "sqlite:///./test_leaderboard.db"
@@ -54,7 +49,7 @@ def test_players(db):
             handicap=18.0 - i,
             is_active=1,
             is_ai=0,
-            created_at=datetime.now().isoformat()
+            created_at=datetime.now().isoformat(),
         )
         db.add(player)
         db.flush()
@@ -70,7 +65,7 @@ def test_players(db):
             partnership_success_rate=0.4 + i * 0.1,
             partnerships_formed=5 + i,
             partnerships_won=2 + i,
-            last_updated=datetime.now().isoformat()
+            last_updated=datetime.now().isoformat(),
         )
         db.add(stats)
         players.append(player)
@@ -146,13 +141,13 @@ class TestLeaderboardService:
         service = LeaderboardService(db)
 
         expected_types = [
-            'total_earnings',
-            'win_rate',
-            'games_played',
-            'average_score',
-            'partnerships_won',
-            'achievements_earned',
-            'handicap_improvement'
+            "total_earnings",
+            "win_rate",
+            "games_played",
+            "average_score",
+            "partnerships_won",
+            "achievements_earned",
+            "handicap_improvement",
         ]
 
         assert service.LEADERBOARD_TYPES == expected_types
@@ -368,7 +363,7 @@ class TestLeaderboardExclusions:
             handicap=10.0,
             is_active=1,
             is_ai=1,  # AI player
-            created_at=datetime.now().isoformat()
+            created_at=datetime.now().isoformat(),
         )
         db.add(ai_player)
         db.flush()
@@ -380,7 +375,7 @@ class TestLeaderboardExclusions:
             games_won=90,
             total_earnings=10000.0,  # Very high
             avg_earnings_per_hole=100.0,
-            last_updated=datetime.now().isoformat()
+            last_updated=datetime.now().isoformat(),
         )
         db.add(stats)
         db.commit()
@@ -389,9 +384,7 @@ class TestLeaderboardExclusions:
         leaderboard = service.get_leaderboard("total_earnings", db, limit=10)
 
         # AI player should not be in leaderboard
-        ai_in_leaderboard = any(
-            entry.get("player_id") == ai_player.id for entry in leaderboard
-        )
+        ai_in_leaderboard = any(entry.get("player_id") == ai_player.id for entry in leaderboard)
         assert not ai_in_leaderboard
 
     def test_excludes_inactive_players(self, db):
@@ -403,7 +396,7 @@ class TestLeaderboardExclusions:
             handicap=10.0,
             is_active=0,  # Inactive
             is_ai=0,
-            created_at=datetime.now().isoformat()
+            created_at=datetime.now().isoformat(),
         )
         db.add(inactive_player)
         db.flush()
@@ -414,7 +407,7 @@ class TestLeaderboardExclusions:
             games_won=90,
             total_earnings=10000.0,
             avg_earnings_per_hole=100.0,
-            last_updated=datetime.now().isoformat()
+            last_updated=datetime.now().isoformat(),
         )
         db.add(stats)
         db.commit()
@@ -423,9 +416,7 @@ class TestLeaderboardExclusions:
         leaderboard = service.get_leaderboard("total_earnings", db, limit=10)
 
         # Inactive player should not be in leaderboard
-        inactive_in_leaderboard = any(
-            entry.get("player_id") == inactive_player.id for entry in leaderboard
-        )
+        inactive_in_leaderboard = any(entry.get("player_id") == inactive_player.id for entry in leaderboard)
         assert not inactive_in_leaderboard
 
 
@@ -435,10 +426,11 @@ class TestLeaderboardErrorHandling:
     def test_handles_database_error(self, db):
         """Test graceful handling of database errors."""
         from unittest.mock import patch
+
         service = LeaderboardService(db)
 
         # Mock _generate_leaderboard to raise an exception
-        with patch.object(service, '_generate_leaderboard', side_effect=Exception("Database error")):
+        with patch.object(service, "_generate_leaderboard", side_effect=Exception("Database error")):
             with pytest.raises(HTTPException) as exc_info:
                 service.get_leaderboard("total_earnings", db)
 

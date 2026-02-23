@@ -2,4 +2,4 @@
 
 from .persistence_mixin import PersistenceMixin
 
-__all__ = ['PersistenceMixin']
+__all__ = ["PersistenceMixin"]

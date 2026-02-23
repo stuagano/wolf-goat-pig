@@ -111,14 +111,17 @@ def _get_access_token() -> Optional[str]:
                     access_token = result.get("access_token")
                     if access_token:
                         logger.info("Got access token from GOOGLE_OAUTH_CREDENTIALS")
-                        return access_token
+                        return access_token  # type: ignore[no-any-return]
         except Exception as e:
             logger.error(f"Failed to get token from GOOGLE_OAUTH_CREDENTIALS: {e}")
 
     # Fall back to gcloud CLI (local development)
     try:
         result = subprocess.run(
-            ["gcloud", "auth", "application-default", "print-access-token"], capture_output=True, text=True, timeout=10
+            ["gcloud", "auth", "application-default", "print-access-token"],
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         if result.returncode == 0:
             return result.stdout.strip()
@@ -147,7 +150,7 @@ def _sheets_api_get(sheet_id: str, range_spec: str) -> Optional[Dict[str, Any]]:
 
     try:
         with urllib.request.urlopen(req, timeout=30) as response:
-            return json.loads(response.read())
+            return json.loads(response.read())  # type: ignore[no-any-return]
     except Exception as e:
         logger.error(f"Sheets API GET failed: {e}")
         return None
@@ -177,7 +180,7 @@ def _sheets_api_append(sheet_id: str, range_spec: str, values: List[List[Any]]) 
 
     try:
         with urllib.request.urlopen(req, timeout=30) as response:
-            result = json.loads(response.read())
+            json.loads(response.read())
             logger.info(f"Appended {len(values)} rows to {range_spec}")
             return True
     except Exception as e:
@@ -447,7 +450,12 @@ class ReconciliationService:
                 "status": "dry_run",
                 "message": f"Would copy {len(result.primary_only)} rounds from primary to writable",
                 "rounds_to_copy": [
-                    {"date": r.date, "group": r.group, "member": r.member, "score": r.score}
+                    {
+                        "date": r.date,
+                        "group": r.group,
+                        "member": r.member,
+                        "score": r.score,
+                    }
                     for r in result.primary_only
                 ],
             }
@@ -492,7 +500,12 @@ class ReconciliationService:
                 "status": "dry_run",
                 "message": f"Would copy {len(result.writable_only)} rounds from writable to primary",
                 "rounds_to_copy": [
-                    {"date": r.date, "group": r.group, "member": r.member, "score": r.score}
+                    {
+                        "date": r.date,
+                        "group": r.group,
+                        "member": r.member,
+                        "score": r.score,
+                    }
                     for r in result.writable_only
                 ],
             }

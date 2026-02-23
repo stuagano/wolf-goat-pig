@@ -14,6 +14,7 @@ logger.warning(
     "Please update your code to use the unified `get_email_service()`."
 )
 
+
 # For backwards compatibility, provide the service, but it's now the unified one.
 # This avoids breaking existing imports immediately.
 def get_oauth2_email_service():

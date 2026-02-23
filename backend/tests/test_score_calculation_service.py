@@ -11,11 +11,12 @@ Tests the core scoring logic for Wolf Goat Pig game including:
 """
 
 import pytest
+
 from app.services.score_calculation_service import (
-    ScoreCalculationService,
-    TeamType,
-    TeamConfig,
     HoleResult,
+    ScoreCalculationService,
+    TeamConfig,
+    TeamType,
     get_score_calculation_service,
 )
 
@@ -102,11 +103,7 @@ class TestPartnersScoring:
     def test_partners_team1_wins(self):
         """Test partners scoring when team 1 wins."""
         scores = {"p1": 4, "p2": 5, "p3": 5, "p4": 6}
-        team_config = TeamConfig(
-            team_type=TeamType.PARTNERS,
-            team1=["p1", "p2"],
-            team2=["p3", "p4"]
-        )
+        team_config = TeamConfig(team_type=TeamType.PARTNERS, team1=["p1", "p2"], team2=["p3", "p4"])
         result = self.service.calculate_hole_points(scores, team_config, wager=2)
 
         assert result.winners == ["p1", "p2"]
@@ -122,11 +119,7 @@ class TestPartnersScoring:
     def test_partners_team2_wins(self):
         """Test partners scoring when team 2 wins."""
         scores = {"p1": 5, "p2": 6, "p3": 4, "p4": 5}
-        team_config = TeamConfig(
-            team_type=TeamType.PARTNERS,
-            team1=["p1", "p2"],
-            team2=["p3", "p4"]
-        )
+        team_config = TeamConfig(team_type=TeamType.PARTNERS, team1=["p1", "p2"], team2=["p3", "p4"])
         result = self.service.calculate_hole_points(scores, team_config, wager=2)
 
         assert result.winners == ["p3", "p4"]
@@ -140,11 +133,7 @@ class TestPartnersScoring:
     def test_partners_halved(self):
         """Test partners scoring when hole is halved."""
         scores = {"p1": 4, "p2": 5, "p3": 4, "p4": 6}
-        team_config = TeamConfig(
-            team_type=TeamType.PARTNERS,
-            team1=["p1", "p2"],
-            team2=["p3", "p4"]
-        )
+        team_config = TeamConfig(team_type=TeamType.PARTNERS, team1=["p1", "p2"], team2=["p3", "p4"])
         result = self.service.calculate_hole_points(scores, team_config, wager=2)
 
         assert result.winners == []
@@ -158,22 +147,14 @@ class TestPartnersScoring:
     def test_partners_empty_team_raises(self):
         """Test that empty team raises error."""
         scores = {"p1": 4, "p2": 5}
-        team_config = TeamConfig(
-            team_type=TeamType.PARTNERS,
-            team1=["p1", "p2"],
-            team2=[]
-        )
+        team_config = TeamConfig(team_type=TeamType.PARTNERS, team1=["p1", "p2"], team2=[])
         with pytest.raises(ValueError, match="Both teams must have players"):
             self.service.calculate_hole_points(scores, team_config, wager=2)
 
     def test_partners_to_dict(self):
         """Test HoleResult.to_dict() method."""
         scores = {"p1": 4, "p2": 5, "p3": 5, "p4": 6}
-        team_config = TeamConfig(
-            team_type=TeamType.PARTNERS,
-            team1=["p1", "p2"],
-            team2=["p3", "p4"]
-        )
+        team_config = TeamConfig(team_type=TeamType.PARTNERS, team1=["p1", "p2"], team2=["p3", "p4"])
         result = self.service.calculate_hole_points(scores, team_config, wager=2)
         result_dict = result.to_dict()
 
@@ -194,11 +175,7 @@ class TestSoloScoring:
     def test_solo_player_wins(self):
         """Test solo scoring when solo player wins."""
         scores = {"wolf": 3, "p2": 4, "p3": 5, "p4": 4}
-        team_config = TeamConfig(
-            team_type=TeamType.SOLO,
-            solo_player="wolf",
-            opponents=["p2", "p3", "p4"]
-        )
+        team_config = TeamConfig(team_type=TeamType.SOLO, solo_player="wolf", opponents=["p2", "p3", "p4"])
         result = self.service.calculate_hole_points(scores, team_config, wager=2)
 
         assert result.winners == ["wolf"]
@@ -214,11 +191,7 @@ class TestSoloScoring:
     def test_solo_player_loses(self):
         """Test solo scoring when solo player loses."""
         scores = {"wolf": 5, "p2": 4, "p3": 5, "p4": 6}
-        team_config = TeamConfig(
-            team_type=TeamType.SOLO,
-            solo_player="wolf",
-            opponents=["p2", "p3", "p4"]
-        )
+        team_config = TeamConfig(team_type=TeamType.SOLO, solo_player="wolf", opponents=["p2", "p3", "p4"])
         result = self.service.calculate_hole_points(scores, team_config, wager=2)
 
         assert result.winners == ["p2", "p3", "p4"]
@@ -233,11 +206,7 @@ class TestSoloScoring:
     def test_solo_halved(self):
         """Test solo scoring when hole is halved."""
         scores = {"wolf": 4, "p2": 4, "p3": 5, "p4": 6}
-        team_config = TeamConfig(
-            team_type=TeamType.SOLO,
-            solo_player="wolf",
-            opponents=["p2", "p3", "p4"]
-        )
+        team_config = TeamConfig(team_type=TeamType.SOLO, solo_player="wolf", opponents=["p2", "p3", "p4"])
         result = self.service.calculate_hole_points(scores, team_config, wager=2)
 
         assert result.winners == []
@@ -248,22 +217,14 @@ class TestSoloScoring:
     def test_solo_no_player_raises(self):
         """Test that missing solo player raises error."""
         scores = {"p1": 4, "p2": 5}
-        team_config = TeamConfig(
-            team_type=TeamType.SOLO,
-            solo_player=None,
-            opponents=["p1", "p2"]
-        )
+        team_config = TeamConfig(team_type=TeamType.SOLO, solo_player=None, opponents=["p1", "p2"])
         with pytest.raises(ValueError, match="solo_player required"):
             self.service.calculate_hole_points(scores, team_config, wager=2)
 
     def test_solo_no_opponents_raises(self):
         """Test that missing opponents raises error."""
         scores = {"wolf": 4}
-        team_config = TeamConfig(
-            team_type=TeamType.SOLO,
-            solo_player="wolf",
-            opponents=[]
-        )
+        team_config = TeamConfig(team_type=TeamType.SOLO, solo_player="wolf", opponents=[])
         with pytest.raises(ValueError, match="Solo player must have opponents"):
             self.service.calculate_hole_points(scores, team_config, wager=2)
 
@@ -320,15 +281,13 @@ class TestSpecialRules:
     def test_duncan_rule_multiplier(self):
         """Test Duncan rule applies 1.5x multiplier."""
         scores = {"p1": 3, "p2": 5, "p3": 5, "p4": 5}
-        team_config = TeamConfig(
-            team_type=TeamType.SOLO,
-            solo_player="p1",
-            opponents=["p2", "p3", "p4"]
-        )
+        team_config = TeamConfig(team_type=TeamType.SOLO, solo_player="p1", opponents=["p2", "p3", "p4"])
         result = self.service.calculate_hole_points(
-            scores, team_config, wager=2,
+            scores,
+            team_config,
+            wager=2,
             apply_special_rules=True,
-            special_rules={"duncan": True}
+            special_rules={"duncan": True},
         )
 
         # Base: 2 * 3 = 6, with 1.5x = 9
@@ -337,15 +296,13 @@ class TestSpecialRules:
     def test_tunkarri_rule_multiplier(self):
         """Test Tunkarri rule applies same 1.5x multiplier."""
         scores = {"p1": 3, "p2": 5, "p3": 5, "p4": 5}
-        team_config = TeamConfig(
-            team_type=TeamType.SOLO,
-            solo_player="p1",
-            opponents=["p2", "p3", "p4"]
-        )
+        team_config = TeamConfig(team_type=TeamType.SOLO, solo_player="p1", opponents=["p2", "p3", "p4"])
         result = self.service.calculate_hole_points(
-            scores, team_config, wager=2,
+            scores,
+            team_config,
+            wager=2,
             apply_special_rules=True,
-            special_rules={"tunkarri": True}
+            special_rules={"tunkarri": True},
         )
 
         # Base: 2 * 3 = 6, with 1.5x = 9
@@ -354,15 +311,13 @@ class TestSpecialRules:
     def test_double_down_multiplier(self):
         """Test double down rule doubles all points."""
         scores = {"p1": 3, "p2": 5, "p3": 5, "p4": 5}
-        team_config = TeamConfig(
-            team_type=TeamType.SOLO,
-            solo_player="p1",
-            opponents=["p2", "p3", "p4"]
-        )
+        team_config = TeamConfig(team_type=TeamType.SOLO, solo_player="p1", opponents=["p2", "p3", "p4"])
         result = self.service.calculate_hole_points(
-            scores, team_config, wager=2,
+            scores,
+            team_config,
+            wager=2,
             apply_special_rules=True,
-            special_rules={"double_down": True}
+            special_rules={"double_down": True},
         )
 
         # Base: 2 * 3 = 6, with 2x = 12
@@ -373,15 +328,13 @@ class TestSpecialRules:
     def test_no_special_rules_on_halved(self):
         """Test special rules don't apply when hole is halved."""
         scores = {"p1": 4, "p2": 4, "p3": 4, "p4": 4}
-        team_config = TeamConfig(
-            team_type=TeamType.SOLO,
-            solo_player="p1",
-            opponents=["p2", "p3", "p4"]
-        )
+        team_config = TeamConfig(team_type=TeamType.SOLO, solo_player="p1", opponents=["p2", "p3", "p4"])
         result = self.service.calculate_hole_points(
-            scores, team_config, wager=2,
+            scores,
+            team_config,
+            wager=2,
             apply_special_rules=True,
-            special_rules={"duncan": True}
+            special_rules={"duncan": True},
         )
 
         # Should be halved, no multipliers applied
@@ -402,12 +355,7 @@ class TestKarlMarxRule:
         losers = ["p3", "p4"]
         standings = {"p1": -5, "p2": 0, "p3": 5, "p4": 10}  # p1 is down, p4 is up
 
-        result = self.service.apply_karl_marx_rule(
-            winners=winners,
-            losers=losers,
-            wager=4,
-            current_standings=standings
-        )
+        result = self.service.apply_karl_marx_rule(winners=winners, losers=losers, wager=4, current_standings=standings)
 
         # Higher standing loser (p4) should pay more
         # Lower standing winner (p1) should receive more
@@ -420,7 +368,7 @@ class TestKarlMarxRule:
             winners=[],
             losers=["p1", "p2"],
             wager=2,
-            current_standings={"p1": 0, "p2": 0}
+            current_standings={"p1": 0, "p2": 0},
         )
         assert all(v == 0 for v in result.values())
 
@@ -477,15 +425,21 @@ class TestUtilityMethods:
         results = [
             HoleResult(
                 points_changes={"p1": 2, "p2": -2},
-                winners=["p1"], losers=["p2"],
-                message="", halved=False,
-                team_type=TeamType.ALL_VS_ALL, wager=2
+                winners=["p1"],
+                losers=["p2"],
+                message="",
+                halved=False,
+                team_type=TeamType.ALL_VS_ALL,
+                wager=2,
             ),
             HoleResult(
                 points_changes={"p1": -1, "p2": 1},
-                winners=["p2"], losers=["p1"],
-                message="", halved=False,
-                team_type=TeamType.ALL_VS_ALL, wager=1
+                winners=["p2"],
+                losers=["p1"],
+                message="",
+                halved=False,
+                team_type=TeamType.ALL_VS_ALL,
+                wager=1,
             ),
         ]
 
@@ -522,11 +476,7 @@ class TestTeamConfigDataclass:
 
     def test_with_values(self):
         """Test TeamConfig with provided values."""
-        config = TeamConfig(
-            team_type=TeamType.PARTNERS,
-            team1=["p1", "p2"],
-            team2=["p3", "p4"]
-        )
+        config = TeamConfig(team_type=TeamType.PARTNERS, team1=["p1", "p2"], team2=["p3", "p4"])
         assert config.team1 == ["p1", "p2"]
         assert config.team2 == ["p3", "p4"]
 
@@ -542,6 +492,7 @@ class TestInvalidTeamType:
         """Test that invalid team type raises error."""
         # Create a mock config with invalid team type
         from unittest.mock import Mock
+
         config = Mock()
         config.team_type = "invalid"
 

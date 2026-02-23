@@ -19,6 +19,7 @@ from .pairing_scheduler_service import PairingSchedulerService
 
 logger = logging.getLogger(__name__)
 
+
 class EmailScheduler:
     """Service for scheduling and sending automated emails"""
 
@@ -61,16 +62,19 @@ class EmailScheduler:
 
         try:
             # Get all players with daily reminders enabled
-            players_with_prefs = db.query(
-                PlayerProfile, EmailPreferences
-            ).join(
-                EmailPreferences,
-                PlayerProfile.id == EmailPreferences.player_profile_id
-            ).filter(
-                EmailPreferences.daily_signups_enabled == 1,
-                EmailPreferences.email_frequency != 'never',
-                PlayerProfile.email.isnot(None)
-            ).all()
+            players_with_prefs = (
+                db.query(PlayerProfile, EmailPreferences)
+                .join(
+                    EmailPreferences,
+                    PlayerProfile.id == EmailPreferences.player_profile_id,
+                )
+                .filter(
+                    EmailPreferences.daily_signups_enabled == 1,
+                    EmailPreferences.email_frequency != "never",
+                    PlayerProfile.email.isnot(None),
+                )
+                .all()
+            )
 
             logger.info(f"Found {len(players_with_prefs)} players for daily reminders")
 
@@ -84,7 +88,7 @@ class EmailScheduler:
                         success = get_email_service().send_daily_signup_reminder(  # type: ignore[attr-defined]
                             to_email=player.email,
                             player_name=player.name,
-                            available_dates=available_dates
+                            available_dates=available_dates,
                         )
 
                         if success:
@@ -109,17 +113,20 @@ class EmailScheduler:
 
         try:
             # Get all players with email preferences for this time slot
-            players_with_prefs = db.query(
-                PlayerProfile, EmailPreferences
-            ).join(
-                EmailPreferences,
-                PlayerProfile.id == EmailPreferences.player_profile_id
-            ).filter(
-                EmailPreferences.daily_signups_enabled == 1,
-                EmailPreferences.preferred_notification_time == time_slot,
-                EmailPreferences.email_frequency != 'never',
-                PlayerProfile.email.isnot(None)
-            ).all()
+            players_with_prefs = (
+                db.query(PlayerProfile, EmailPreferences)
+                .join(
+                    EmailPreferences,
+                    PlayerProfile.id == EmailPreferences.player_profile_id,
+                )
+                .filter(
+                    EmailPreferences.daily_signups_enabled == 1,
+                    EmailPreferences.preferred_notification_time == time_slot,
+                    EmailPreferences.email_frequency != "never",
+                    PlayerProfile.email.isnot(None),
+                )
+                .all()
+            )
 
             logger.info(f"Found {len(players_with_prefs)} players for {time_slot} daily reminder")
 
@@ -132,7 +139,7 @@ class EmailScheduler:
                         success = get_email_service().send_daily_signup_reminder(  # type: ignore[attr-defined]
                             to_email=player.email,
                             player_name=player.name,
-                            available_dates=available_dates
+                            available_dates=available_dates,
                         )
 
                         if success:
@@ -154,16 +161,19 @@ class EmailScheduler:
 
         try:
             # Get all players with weekly summaries enabled
-            players_with_prefs = db.query(
-                PlayerProfile, EmailPreferences
-            ).join(
-                EmailPreferences,
-                PlayerProfile.id == EmailPreferences.player_profile_id
-            ).filter(
-                EmailPreferences.weekly_summary_enabled == 1,
-                EmailPreferences.email_frequency.in_(['daily', 'weekly']),
-                PlayerProfile.email.isnot(None)
-            ).all()
+            players_with_prefs = (
+                db.query(PlayerProfile, EmailPreferences)
+                .join(
+                    EmailPreferences,
+                    PlayerProfile.id == EmailPreferences.player_profile_id,
+                )
+                .filter(
+                    EmailPreferences.weekly_summary_enabled == 1,
+                    EmailPreferences.email_frequency.in_(["daily", "weekly"]),
+                    PlayerProfile.email.isnot(None),
+                )
+                .all()
+            )
 
             logger.info(f"Found {len(players_with_prefs)} players for weekly summary")
 
@@ -176,7 +186,7 @@ class EmailScheduler:
                         success = get_email_service().send_weekly_summary(  # type: ignore[attr-defined]
                             to_email=player.email,
                             player_name=player.name,
-                            summary_data=summary_data
+                            summary_data=summary_data,
                         )
 
                         if success:
@@ -208,11 +218,11 @@ class EmailScheduler:
         """Get weekly summary data for a player"""
         # Mock implementation - replace with actual stats from database
         return {
-            'games_played': 3,
-            'total_earnings': 12,
-            'current_rank': 5,
-            'best_hole': 4,
-            'worst_hole': 15
+            "games_played": 3,
+            "total_earnings": 12,
+            "current_rank": 5,
+            "best_hole": 4,
+            "worst_hole": 15,
         }
 
     def _run_scheduler(self):
@@ -242,9 +252,7 @@ class EmailScheduler:
         """Send an immediate signup confirmation email"""
         try:
             return get_email_service().send_signup_confirmation(
-                to_email=player_email,
-                player_name=player_name,
-                signup_date=signup_date
+                to_email=player_email, player_name=player_name, signup_date=signup_date
             )
         except Exception as e:
             logger.error(f"Error sending signup confirmation: {str(e)}")
@@ -257,7 +265,7 @@ class EmailScheduler:
                 to_email=to_email,
                 player_name=player_name,
                 inviter_name=inviter_name,
-                game_date=game_date
+                game_date=game_date,
             )
             return bool(result)
         except Exception as e:
@@ -329,7 +337,9 @@ class EmailScheduler:
 
         Additionally, the original code had the wrong port (10000 instead of 8000).
         """
-        logger.warning("_sync_google_sheets is disabled - use external scheduler to call /sheet-integration/sync-wgp-sheet")
+        logger.warning(
+            "_sync_google_sheets is disabled - use external scheduler to call /sheet-integration/sync-wgp-sheet"
+        )
         return
 
         # COMMENTED OUT - CAUSES DEADLOCK AND HAD WRONG PORT
@@ -366,8 +376,10 @@ class EmailScheduler:
         # except Exception as e:
         #     logger.error(f"❌ Error running scheduled Google Sheets sync: {str(e)}")
 
+
 # Global email scheduler instance
 email_scheduler = EmailScheduler()
+
 
 def get_email_scheduler() -> EmailScheduler:
     """Get the global email scheduler instance"""

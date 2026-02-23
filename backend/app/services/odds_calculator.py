@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 class TeamConfiguration(Enum):
     """Team configuration types in Wolf Goat Pig"""
+
     PENDING = "pending"
     SOLO = "solo"
     PARTNERS = "partners"
@@ -20,6 +21,7 @@ class TeamConfiguration(Enum):
 
 class ShotDifficulty(Enum):
     """Shot difficulty levels"""
+
     VERY_EASY = "very_easy"
     EASY = "easy"
     MODERATE = "moderate"
@@ -30,6 +32,7 @@ class ShotDifficulty(Enum):
 @dataclass
 class PlayerState:
     """Current state of a player for odds calculation"""
+
     id: str
     name: str
     handicap: float
@@ -45,6 +48,7 @@ class PlayerState:
 @dataclass
 class HoleState:
     """Current hole state for odds calculation"""
+
     hole_number: int
     par: int
     difficulty_rating: float = 3.0  # 1-5 scale
@@ -60,6 +64,7 @@ class HoleState:
 @dataclass
 class BettingScenario:
     """A specific betting scenario with calculated odds"""
+
     scenario_type: str  # 'offer_double', 'accept_partnership', etc.
     win_probability: float
     expected_value: float
@@ -73,6 +78,7 @@ class BettingScenario:
 @dataclass
 class OddsResult:
     """Complete odds calculation result"""
+
     timestamp: float
     calculation_time_ms: float
     player_probabilities: Dict[str, Any]
@@ -134,7 +140,7 @@ class OddsCalculator:
             "deep_rough": 0.6,
             "bunker": 0.5,
             "water": 0.0,
-            "trees": 0.3
+            "trees": 0.3,
         }
 
     def _precompute_handicap_multipliers(self) -> Dict[int, float]:
@@ -161,7 +167,8 @@ class OddsCalculator:
         if current_time - self._last_cache_cleanup > 300:  # Every 5 minutes
             # Clear old probability cache entries
             expired_keys = [
-                k for k, (timestamp, _) in self._probability_cache.items()
+                k
+                for k, (timestamp, _) in self._probability_cache.items()
                 if current_time - timestamp > self.cache_expiry
             ]
             for key in expired_keys:
@@ -173,18 +180,19 @@ class OddsCalculator:
             self._last_cache_cleanup = current_time
 
     def _calculate_shot_success_probability(
-        self,
-        handicap: float,
-        distance: float,
-        lie_type: str,
-        hole_difficulty: float
+        self, handicap: float, distance: float, lie_type: str, hole_difficulty: float
     ) -> float:
         """
         Calculate probability of a successful shot based on player skill and conditions.
         Optimized for performance with caching and pre-computed values.
         """
         # Create cache key for this calculation
-        cache_key = (round(handicap, 1), round(distance, 1), lie_type, round(hole_difficulty, 1))
+        cache_key = (
+            round(handicap, 1),
+            round(distance, 1),
+            lie_type,
+            round(hole_difficulty, 1),
+        )
 
         # Check cache first
         current_time = time.time()
@@ -227,15 +235,16 @@ class OddsCalculator:
 
         return result
 
-    def _calculate_hole_completion_probability(
-        self,
-        player: PlayerState,
-        hole: HoleState
-    ) -> Dict[str, float]:
+    def _calculate_hole_completion_probability(self, player: PlayerState, hole: HoleState) -> Dict[str, float]:
         """Calculate probability distribution for hole completion scores - optimized"""
         # Create cache key for team calculations
-        player_key = (player.id, player.handicap, player.shots_taken,
-                     round(player.distance_to_pin, 1), player.lie_type)
+        player_key = (
+            player.id,
+            player.handicap,
+            player.shots_taken,
+            round(player.distance_to_pin, 1),
+            player.lie_type,
+        )
         hole_key = (hole.hole_number, hole.par, hole.difficulty_rating)
         cache_key = (player_key, hole_key)
 
@@ -277,7 +286,7 @@ class OddsCalculator:
                     player.handicap,
                     player.distance_to_pin,
                     player.lie_type,
-                    hole.difficulty_rating
+                    hole.difficulty_rating,
                 )
             elif remaining_shots <= 3:
                 # Simplified calculation for multiple shots
@@ -285,7 +294,7 @@ class OddsCalculator:
                     player.handicap,
                     player.distance_to_pin,
                     player.lie_type,
-                    hole.difficulty_rating
+                    hole.difficulty_rating,
                 )
                 # Optimized power calculation
                 prob = shot_success_rate * (0.7 ** (remaining_shots - 1))
@@ -313,7 +322,7 @@ class OddsCalculator:
     def _calculate_tee_shot_probabilities(self, player: PlayerState, hole: HoleState) -> Dict[str, float]:
         """Fast calculation for tee shot scenarios"""
         par = hole.par
-        hcp_strokes = player.handicap / 18.0
+        player.handicap / 18.0
 
         # Simplified probability distribution based on par and handicap
         if par == 3:
@@ -332,11 +341,7 @@ class OddsCalculator:
             else:
                 return {"5": 0.15, "6": 0.35, "7": 0.35, "8": 0.1, "9": 0.05}
 
-    def _calculate_team_win_probability(
-        self,
-        players: List[PlayerState],
-        hole: HoleState
-    ) -> Dict[str, float]:
+    def _calculate_team_win_probability(self, players: List[PlayerState], hole: HoleState) -> Dict[str, float]:
         """Calculate win probabilities for different team configurations"""
         if hole.teams == TeamConfiguration.PENDING:
             return {"pending": 1.0}
@@ -359,10 +364,7 @@ class OddsCalculator:
                     prob_all_worse = 1.0
                     for opp in opponents:
                         opp_scores = self._calculate_hole_completion_probability(opp, hole)
-                        prob_this_worse = sum(
-                            prob for s, prob in opp_scores.items()
-                            if int(s) >= int(score)
-                        )
+                        prob_this_worse = sum(prob for s, prob in opp_scores.items() if int(s) >= int(score))
                         prob_all_worse *= prob_this_worse
 
                     opponent_best_scores[score] = 1.0 - prob_all_worse
@@ -372,8 +374,7 @@ class OddsCalculator:
                 for score, prob in captain_scores.items():
                     # Probability captain gets this score AND opponents don't beat it
                     prob_opponents_worse = sum(
-                        opp_prob for opp_score, opp_prob in opponent_best_scores.items()
-                        if int(opp_score) > int(score)
+                        opp_prob for opp_score, opp_prob in opponent_best_scores.items() if int(opp_score) > int(score)
                     )
                     captain_win_prob += prob * prob_opponents_worse
 
@@ -397,10 +398,7 @@ class OddsCalculator:
                     team1_prob = 1.0
                     for player in team1_players:
                         player_scores = self._calculate_hole_completion_probability(player, hole)
-                        player_prob_worse = sum(
-                            prob for s, prob in player_scores.items()
-                            if int(s) > score_val
-                        )
+                        player_prob_worse = sum(prob for s, prob in player_scores.items() if int(s) > score_val)
                         team1_prob *= player_prob_worse
                     team1_scores[score_val] = 1.0 - team1_prob
 
@@ -408,10 +406,7 @@ class OddsCalculator:
                     team2_prob = 1.0
                     for player in team2_players:
                         player_scores = self._calculate_hole_completion_probability(player, hole)
-                        player_prob_worse = sum(
-                            prob for s, prob in player_scores.items()
-                            if int(s) > score_val
-                        )
+                        player_prob_worse = sum(prob for s, prob in player_scores.items() if int(s) > score_val)
                         team2_prob *= player_prob_worse
                     team2_scores[score_val] = 1.0 - team2_prob
 
@@ -419,9 +414,7 @@ class OddsCalculator:
                 team1_win_prob = 0.0
                 for score_val in score_range:
                     team1_score_prob = team1_scores[score_val]
-                    team2_worse_prob = sum(
-                        team2_scores[s_val] for s_val in score_range if s_val > score_val
-                    )
+                    team2_worse_prob = sum(team2_scores[s_val] for s_val in score_range if s_val > score_val)
                     team1_win_prob += team1_score_prob * team2_worse_prob
 
                 team_probs["team1"] = team1_win_prob
@@ -434,7 +427,7 @@ class OddsCalculator:
         scenario: str,
         win_prob: float,
         current_wager: int,
-        players: List[PlayerState]
+        players: List[PlayerState],
     ) -> float:
         """Calculate expected value for a betting scenario"""
         if scenario == "offer_double":
@@ -474,7 +467,7 @@ class OddsCalculator:
         self,
         players: List[PlayerState],
         hole: HoleState,
-        scenarios: List[BettingScenario]
+        scenarios: List[BettingScenario],
     ) -> List[str]:
         """Generate educational insights about the current betting situation"""
         insights = []
@@ -521,9 +514,7 @@ class OddsCalculator:
         # Betting scenario insights
         for scenario in scenarios:
             if scenario.scenario_type == "offer_double" and scenario.risk_level == "low":
-                insights.append(
-                    f"Favorable doubling opportunity detected. {scenario.reasoning}"
-                )
+                insights.append(f"Favorable doubling opportunity detected. {scenario.reasoning}")
 
         return insights
 
@@ -531,7 +522,7 @@ class OddsCalculator:
         self,
         players: List[PlayerState],
         hole: HoleState,
-        game_context: Optional[Dict[str, Any]] = None
+        game_context: Optional[Dict[str, Any]] = None,
     ) -> OddsResult:
         """
         Main method to calculate comprehensive real-time odds.
@@ -549,7 +540,7 @@ class OddsCalculator:
                 player_probs[player.id] = {
                     "win_probability": self._calculate_player_win_vs_field(player, players, hole),
                     "expected_score": avg_score,
-                    "score_distribution": completion_probs
+                    "score_distribution": completion_probs,
                 }
 
             # Calculate team probabilities
@@ -565,7 +556,7 @@ class OddsCalculator:
             risk_assessment = {
                 "overall_uncertainty": self._calculate_uncertainty_level(player_probs),
                 "volatility_factors": self._identify_volatility_factors(players, hole),
-                "recommendation_confidence": self._calculate_recommendation_confidence(scenarios)
+                "recommendation_confidence": self._calculate_recommendation_confidence(scenarios),
             }
 
             # Educational insights
@@ -585,7 +576,7 @@ class OddsCalculator:
                 optimal_strategy=optimal_strategy,
                 risk_assessment=risk_assessment,
                 educational_insights=insights,
-                confidence_level=confidence
+                confidence_level=confidence,
             )
 
         except Exception:
@@ -597,7 +588,7 @@ class OddsCalculator:
         self,
         target_player: PlayerState,
         all_players: List[PlayerState],
-        hole: HoleState
+        hole: HoleState,
     ) -> float:
         """Calculate probability of a player winning vs the field"""
         target_scores = self._calculate_hole_completion_probability(target_player, hole)
@@ -609,10 +600,7 @@ class OddsCalculator:
             for other_player in all_players:
                 if other_player.id != target_player.id:
                     other_scores = self._calculate_hole_completion_probability(other_player, hole)
-                    prob_this_worse = sum(
-                        prob for s, prob in other_scores.items()
-                        if int(s) > int(score)
-                    )
+                    prob_this_worse = sum(prob for s, prob in other_scores.items() if int(s) > int(score))
                     prob_others_worse *= prob_this_worse
 
             win_prob += score_prob * prob_others_worse
@@ -620,10 +608,7 @@ class OddsCalculator:
         return win_prob
 
     def _generate_betting_scenarios(
-        self,
-        players: List[PlayerState],
-        hole: HoleState,
-        team_probs: Dict[str, float]
+        self, players: List[PlayerState], hole: HoleState, team_probs: Dict[str, float]
     ) -> List[BettingScenario]:
         """Generate all relevant betting scenarios with analysis"""
         scenarios = []
@@ -636,20 +621,22 @@ class OddsCalculator:
             ev = self._calculate_expected_value("offer_double", win_prob, hole.current_wager, players)
             risk = self._assess_risk_level(win_prob, ev)
 
-            scenarios.append(BettingScenario(
-                scenario_type="offer_double",
-                win_probability=win_prob,
-                expected_value=ev,
-                risk_level=risk,
-                confidence_interval=(win_prob - 0.1, win_prob + 0.1),
-                recommendation="offer" if ev > 0.5 else "pass",
-                reasoning=f"Win probability {win_prob:.1%} with EV of {ev:.2f} quarters",
-                payout_matrix={
-                    "win": hole.current_wager * 2,
-                    "lose": -hole.current_wager * 2,
-                    "declined": hole.current_wager
-                }
-            ))
+            scenarios.append(
+                BettingScenario(
+                    scenario_type="offer_double",
+                    win_probability=win_prob,
+                    expected_value=ev,
+                    risk_level=risk,
+                    confidence_interval=(win_prob - 0.1, win_prob + 0.1),
+                    recommendation="offer" if ev > 0.5 else "pass",
+                    reasoning=f"Win probability {win_prob:.1%} with EV of {ev:.2f} quarters",
+                    payout_matrix={
+                        "win": hole.current_wager * 2,
+                        "lose": -hole.current_wager * 2,
+                        "declined": hole.current_wager,
+                    },
+                )
+            )
 
         # Accept partnership scenario (if pending)
         if hole.teams == TeamConfiguration.PENDING:
@@ -659,19 +646,21 @@ class OddsCalculator:
                     # Simulate both scenarios
                     accept_ev = self._calculate_expected_value("accept_partnership", 0.5, hole.current_wager, players)
 
-                    scenarios.append(BettingScenario(
-                        scenario_type="accept_partnership",
-                        win_probability=0.5,  # Simplified for now
-                        expected_value=accept_ev,
-                        risk_level="medium",
-                        confidence_interval=(0.4, 0.6),
-                        recommendation="accept" if accept_ev > 0 else "decline",
-                        reasoning=f"Partnership EV: {accept_ev:.2f} quarters",
-                        payout_matrix={
-                            "win": hole.current_wager,
-                            "lose": -hole.current_wager
-                        }
-                    ))
+                    scenarios.append(
+                        BettingScenario(
+                            scenario_type="accept_partnership",
+                            win_probability=0.5,  # Simplified for now
+                            expected_value=accept_ev,
+                            risk_level="medium",
+                            confidence_interval=(0.4, 0.6),
+                            recommendation="accept" if accept_ev > 0 else "decline",
+                            reasoning=f"Partnership EV: {accept_ev:.2f} quarters",
+                            payout_matrix={
+                                "win": hole.current_wager,
+                                "lose": -hole.current_wager,
+                            },
+                        )
+                    )
                     break
 
         # Go solo scenario
@@ -681,27 +670,28 @@ class OddsCalculator:
                 solo_win_prob = self._calculate_player_win_vs_field(captain, players, hole)
                 solo_ev = self._calculate_expected_value("go_solo", solo_win_prob, hole.current_wager, players)
 
-                scenarios.append(BettingScenario(
-                    scenario_type="go_solo",
-                    win_probability=solo_win_prob,
-                    expected_value=solo_ev,
-                    risk_level=self._assess_risk_level(solo_win_prob, solo_ev),
-                    confidence_interval=(solo_win_prob - 0.15, solo_win_prob + 0.15),
-                    recommendation="go_solo" if solo_ev > 1.0 else "find_partner",
-                    reasoning=f"Solo odds: {solo_win_prob:.1%}, high risk/reward scenario",
-                    payout_matrix={
-                        "win": hole.current_wager * 2 * 3,
-                        "lose": -hole.current_wager * 2
-                    }
-                ))
+                scenarios.append(
+                    BettingScenario(
+                        scenario_type="go_solo",
+                        win_probability=solo_win_prob,
+                        expected_value=solo_ev,
+                        risk_level=self._assess_risk_level(solo_win_prob, solo_ev),
+                        confidence_interval=(
+                            solo_win_prob - 0.15,
+                            solo_win_prob + 0.15,
+                        ),
+                        recommendation="go_solo" if solo_ev > 1.0 else "find_partner",
+                        reasoning=f"Solo odds: {solo_win_prob:.1%}, high risk/reward scenario",
+                        payout_matrix={
+                            "win": hole.current_wager * 2 * 3,
+                            "lose": -hole.current_wager * 2,
+                        },
+                    )
+                )
 
         return scenarios
 
-    def _determine_optimal_strategy(
-        self,
-        scenarios: List[BettingScenario],
-        team_probs: Dict[str, float]
-    ) -> str:
+    def _determine_optimal_strategy(self, scenarios: List[BettingScenario], team_probs: Dict[str, float]) -> str:
         """Determine the optimal betting strategy based on scenarios"""
         if not scenarios:
             return "continue_play"
@@ -726,11 +716,7 @@ class OddsCalculator:
         prob_variance = statistics.variance(win_probs) if len(win_probs) > 1 else 0
         return 1.0 - prob_variance  # Invert so high variance = high uncertainty
 
-    def _identify_volatility_factors(
-        self,
-        players: List[PlayerState],
-        hole: HoleState
-    ) -> List[str]:
+    def _identify_volatility_factors(self, players: List[PlayerState], hole: HoleState) -> List[str]:
         """Identify factors that increase outcome volatility"""
         factors = []
 
@@ -774,7 +760,7 @@ class OddsCalculator:
         self,
         player_probs: Dict[str, Any],
         team_probs: Dict[str, float],
-        hole: HoleState
+        hole: HoleState,
     ) -> float:
         """Calculate overall confidence in the odds calculation"""
         factors = []
@@ -799,10 +785,7 @@ class OddsCalculator:
         return statistics.mean(factors)
 
     def _simple_fallback_calculation(
-        self,
-        players: List[PlayerState],
-        hole: HoleState,
-        calculation_time: float
+        self, players: List[PlayerState], hole: HoleState, calculation_time: float
     ) -> OddsResult:
         """Simplified fallback calculation for error cases"""
         # Equal probabilities as fallback
@@ -811,12 +794,20 @@ class OddsCalculator:
             p.id: {
                 "win_probability": equal_prob,
                 "expected_score": hole.par + p.handicap / 18.0,
-                "score_distribution": {str(hole.par): 0.5, str(hole.par + 1): 0.3, str(hole.par + 2): 0.2}
+                "score_distribution": {
+                    str(hole.par): 0.5,
+                    str(hole.par + 1): 0.3,
+                    str(hole.par + 2): 0.2,
+                },
             }
             for p in players
         }
 
-        team_probs = {"team1": 0.5, "team2": 0.5} if hole.teams == TeamConfiguration.PARTNERS else {"captain": 0.3, "opponents": 0.7}
+        team_probs = (
+            {"team1": 0.5, "team2": 0.5}
+            if hole.teams == TeamConfiguration.PARTNERS
+            else {"captain": 0.3, "opponents": 0.7}
+        )
 
         return OddsResult(
             timestamp=time.time(),
@@ -827,7 +818,7 @@ class OddsCalculator:
             optimal_strategy="insufficient_data",
             risk_assessment={"error": True},
             educational_insights=["Calculation error - using simplified model"],
-            confidence_level=0.3
+            confidence_level=0.3,
         )
 
 
@@ -844,7 +835,7 @@ def create_player_state_from_game_data(player_data: Dict[str, Any]) -> PlayerSta
         lie_type=player_data.get("lie_type", "fairway"),
         is_captain=player_data.get("is_captain", False),
         team_id=player_data.get("team_id"),
-        confidence_factor=player_data.get("confidence_factor", 1.0)
+        confidence_factor=player_data.get("confidence_factor", 1.0),
     )
 
 
@@ -853,7 +844,7 @@ def create_hole_state_from_game_data(hole_data: Dict[str, Any]) -> HoleState:
     teams_map = {
         "pending": TeamConfiguration.PENDING,
         "solo": TeamConfiguration.SOLO,
-        "partners": TeamConfiguration.PARTNERS
+        "partners": TeamConfiguration.PARTNERS,
     }
 
     return HoleState(
@@ -866,7 +857,5 @@ def create_hole_state_from_game_data(hole_data: Dict[str, Any]) -> HoleState:
         teams=teams_map.get(hole_data.get("teams", "pending"), TeamConfiguration.PENDING),
         current_wager=hole_data.get("current_wager", 1),
         is_doubled=hole_data.get("is_doubled", False),
-        line_of_scrimmage_passed=hole_data.get("line_of_scrimmage_passed", False)
+        line_of_scrimmage_passed=hole_data.get("line_of_scrimmage_passed", False),
     )
-
-

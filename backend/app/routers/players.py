@@ -50,7 +50,8 @@ def create_player_profile(
 @router.get("", response_model=List[schemas.PlayerProfileResponse])
 @handle_api_errors(operation_name="get player profiles")
 def get_all_player_profiles(
-    active_only: bool = Query(True, description="Return only active profiles"), db: Session = Depends(get_db)
+    active_only: bool = Query(True, description="Return only active profiles"),
+    db: Session = Depends(get_db),
 ) -> List[schemas.PlayerProfileResponse]:
     """Get all player profiles."""
     player_service = PlayerService(db)
@@ -67,7 +68,8 @@ def get_all_player_profiles(
 @router.get("/all", response_model=List[schemas.PlayerProfileResponse])
 @handle_api_errors(operation_name="get all players")
 def get_all_players(
-    active_only: bool = Query(True, description="Only return active players"), db: Session = Depends(get_db)
+    active_only: bool = Query(True, description="Only return active players"),
+    db: Session = Depends(get_db),
 ) -> List[schemas.PlayerProfileResponse]:
     """Get all player profiles."""
     player_service = PlayerService(db)
@@ -144,7 +146,7 @@ async def update_my_legacy_name(
 
     The legacy_name must match a player in the thousand-cranes.com tee sheet system.
     """
-    from ..services.legacy_player_service import get_canonical_name, is_valid_legacy_player
+    from ..services.legacy_player_service import get_canonical_name
 
     legacy_name = legacy_name_update.get("legacy_name")
 
@@ -173,7 +175,8 @@ async def update_my_legacy_name(
 @router.get("/me/availability", response_model=List[schemas.PlayerAvailabilityResponse])
 @handle_api_errors(operation_name="get my availability")
 async def get_my_availability(
-    current_user: models.PlayerProfile = Depends(get_current_user), db: Session = Depends(get_db)
+    current_user: models.PlayerProfile = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ) -> List[schemas.PlayerAvailabilityResponse]:
     """Get current user's weekly availability."""
     availability = (
@@ -237,7 +240,8 @@ async def set_my_availability(
 @router.get("/me/email-preferences", response_model=schemas.EmailPreferencesResponse)
 @handle_api_errors(operation_name="get my email preferences")
 async def get_my_email_preferences(
-    current_user: models.PlayerProfile = Depends(get_current_user), db: Session = Depends(get_db)
+    current_user: models.PlayerProfile = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ) -> schemas.EmailPreferencesResponse:
     """Get current user's email preferences."""
     now = datetime.now(timezone.utc).isoformat()
@@ -331,7 +335,9 @@ def get_player_profile(player_id: int, db: Session = Depends(get_db)) -> schemas
 @router.put("/{player_id}", response_model=schemas.PlayerProfileResponse)
 @handle_api_errors(operation_name="update player profile")
 def update_player_profile(
-    player_id: int, profile_update: schemas.PlayerProfileUpdate, db: Session = Depends(get_db)
+    player_id: int,
+    profile_update: schemas.PlayerProfileUpdate,
+    db: Session = Depends(get_db),
 ) -> schemas.PlayerProfileResponse:
     """Update a player profile."""
     player_service = PlayerService(db)
@@ -432,7 +438,10 @@ def get_player_advanced_metrics(player_id: int, db: Session = Depends(get_db)) -
     stats_service = StatisticsService(db)
     metrics = stats_service.get_advanced_player_metrics(player_id)
 
-    return ApiResponse.success(data={"player_id": player_id, "metrics": metrics}, message="Advanced metrics retrieved")
+    return ApiResponse.success(
+        data={"player_id": player_id, "metrics": metrics},
+        message="Advanced metrics retrieved",
+    )
 
 
 @router.get("/{player_id}/trends")
@@ -449,7 +458,8 @@ def get_player_trends(
     trends = stats_service.get_performance_trends(player_id, days=days)
 
     return ApiResponse.success(
-        data={"player_id": player_id, "period_days": days, "trends": trends}, message="Trends retrieved"
+        data={"player_id": player_id, "period_days": days, "trends": trends},
+        message="Trends retrieved",
     )
 
 
@@ -463,7 +473,10 @@ def get_player_insights(player_id: int, db: Session = Depends(get_db)) -> Dict[s
     insights = stats_service.get_player_insights(player_id)
 
     return ApiResponse.success(
-        data={"player_id": player_id, "insights": [insight.__dict__ for insight in insights]},
+        data={
+            "player_id": player_id,
+            "insights": [insight.__dict__ for insight in insights],
+        },
         message="Insights generated",
     )
 
@@ -477,7 +490,10 @@ def get_player_skill_rating(player_id: int, db: Session = Depends(get_db)) -> Di
     stats_service = StatisticsService(db)
     rating = stats_service.calculate_skill_rating(player_id)
 
-    return ApiResponse.success(data={"player_id": player_id, "skill_rating": rating}, message="Skill rating calculated")
+    return ApiResponse.success(
+        data={"player_id": player_id, "skill_rating": rating},
+        message="Skill rating calculated",
+    )
 
 
 @router.get("/{player_id}/head-to-head/{opponent_id}")
@@ -505,7 +521,8 @@ def get_all_head_to_head(player_id: int, db: Session = Depends(get_db)) -> Dict[
     h2h_records = stats_service.get_all_head_to_head(player_id)
 
     return ApiResponse.success(
-        data={"player_id": player_id, "opponents": h2h_records}, message="All head-to-head records retrieved"
+        data={"player_id": player_id, "opponents": h2h_records},
+        message="All head-to-head records retrieved",
     )
 
 
@@ -518,7 +535,10 @@ def get_streak_analysis(player_id: int, db: Session = Depends(get_db)) -> Dict[s
     stats_service = StatisticsService(db)
     streaks = stats_service.get_streak_analysis(player_id)
 
-    return ApiResponse.success(data={"player_id": player_id, "streaks": streaks}, message="Streak analysis retrieved")
+    return ApiResponse.success(
+        data={"player_id": player_id, "streaks": streaks},
+        message="Streak analysis retrieved",
+    )
 
 
 @router.get("/{player_id}/special-events")
@@ -531,7 +551,8 @@ def get_special_event_analytics(player_id: int, db: Session = Depends(get_db)) -
     special_events = stats_service.get_special_event_analytics(player_id)
 
     return ApiResponse.success(
-        data={"player_id": player_id, "special_events": special_events}, message="Special event analytics retrieved"
+        data={"player_id": player_id, "special_events": special_events},
+        message="Special event analytics retrieved",
     )
 
 
@@ -571,7 +592,9 @@ def get_player_availability(player_id: int, db: Session = Depends(get_db)) -> Li
 @router.post("/{player_id}/availability", response_model=schemas.PlayerAvailabilityResponse)
 @handle_api_errors(operation_name="set player availability")
 def set_player_availability(
-    player_id: int, availability: schemas.PlayerAvailabilityCreate, db: Session = Depends(get_db)
+    player_id: int,
+    availability: schemas.PlayerAvailabilityCreate,
+    db: Session = Depends(get_db),
 ) -> schemas.PlayerAvailabilityResponse:
     """Set or update a player's availability for a specific day."""
     existing = (
@@ -642,7 +665,9 @@ def get_email_preferences(player_id: int, db: Session = Depends(get_db)) -> sche
 @router.put("/{player_id}/email-preferences", response_model=schemas.EmailPreferencesResponse)
 @handle_api_errors(operation_name="update email preferences")
 def update_email_preferences(
-    player_id: int, preferences_update: schemas.EmailPreferencesUpdate, db: Session = Depends(get_db)
+    player_id: int,
+    preferences_update: schemas.EmailPreferencesUpdate,
+    db: Session = Depends(get_db),
 ) -> schemas.EmailPreferencesResponse:
     """Update a player's email preferences."""
     preferences_result = (

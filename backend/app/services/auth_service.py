@@ -40,7 +40,9 @@ class AuthService:
             db.close()
 
     @staticmethod
-    def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any]:
+    def verify_token(
+        credentials: HTTPAuthorizationCredentials = Depends(security),
+    ) -> Dict[str, Any]:
         """Verify Auth0 JWT token"""
         token = credentials.credentials
 
@@ -191,7 +193,8 @@ auth_service = AuthService()
 
 
 def get_current_user(
-    token: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)
+    token: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
 ) -> PlayerProfile:
     """Dependency to get the current authenticated user"""
 

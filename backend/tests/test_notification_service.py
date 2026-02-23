@@ -10,16 +10,15 @@ Tests the core functionality of the NotificationService including:
 - Unread counts
 """
 
-import pytest
 from datetime import datetime, timezone
+
+import pytest
+from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from fastapi import HTTPException
 
-from app.services.notification_service import get_notification_service, Notification
-from app.models import Base, PlayerProfile, GamePlayer
-from app.database import get_db
-
+from app.models import Base, GamePlayer, PlayerProfile
+from app.services.notification_service import Notification, get_notification_service
 
 # Test database setup
 TEST_DATABASE_URL = "sqlite:///./test_notifications.db"
@@ -46,7 +45,7 @@ def test_player(db):
         name="Test Player",
         email="test@example.com",
         handicap=18.0,
-        created_at=datetime.now(timezone.utc).isoformat()
+        created_at=datetime.now(timezone.utc).isoformat(),
     )
     db.add(player)
     db.commit()
@@ -66,7 +65,7 @@ def test_game_players(db, test_player):
             name=f"Player {i+2}",
             email=f"player{i+2}@example.com",
             handicap=18.0,
-            created_at=datetime.now(timezone.utc).isoformat()
+            created_at=datetime.now(timezone.utc).isoformat(),
         )
         db.add(player)
         players.append(player)
@@ -85,7 +84,7 @@ def test_game_players(db, test_player):
             player_name=player.name,
             handicap=player.handicap,
             join_status="joined",
-            created_at=datetime.now(timezone.utc).isoformat()
+            created_at=datetime.now(timezone.utc).isoformat(),
         )
         db.add(game_player)
 
@@ -106,7 +105,7 @@ class TestNotificationService:
             notification_type="game_start",
             message="Test notification",
             db=db,
-            data={"test_key": "test_value"}
+            data={"test_key": "test_value"},
         )
 
         assert notification["player_profile_id"] == test_player.id
@@ -126,14 +125,11 @@ class TestNotificationService:
                 player_id=test_player.id,
                 notification_type="game_start",
                 message=f"Notification {i+1}",
-                db=db
+                db=db,
             )
 
         # Get all notifications
-        notifications = service.get_player_notifications(
-            player_id=test_player.id,
-            db=db
-        )
+        notifications = service.get_player_notifications(player_id=test_player.id, db=db)
 
         assert len(notifications) == 3
         # Should be ordered newest first
@@ -148,25 +144,21 @@ class TestNotificationService:
             player_id=test_player.id,
             notification_type="game_start",
             message="Unread notification",
-            db=db
+            db=db,
         )
 
         notif2 = service.send_notification(
             player_id=test_player.id,
             notification_type="game_end",
             message="Another notification",
-            db=db
+            db=db,
         )
 
         # Mark one as read
         service.mark_as_read(notif1["id"], db)
 
         # Get only unread
-        unread = service.get_player_notifications(
-            player_id=test_player.id,
-            db=db,
-            unread_only=True
-        )
+        unread = service.get_player_notifications(player_id=test_player.id, db=db, unread_only=True)
 
         assert len(unread) == 1
         assert unread[0]["id"] == notif2["id"]
@@ -180,7 +172,7 @@ class TestNotificationService:
             player_id=test_player.id,
             notification_type="game_start",
             message="Test notification",
-            db=db
+            db=db,
         )
 
         assert notification["is_read"] is False
@@ -201,7 +193,7 @@ class TestNotificationService:
                 player_id=test_player.id,
                 notification_type="game_start",
                 message=f"Notification {i+1}",
-                db=db
+                db=db,
             )
 
         # Mark all as read
@@ -222,7 +214,7 @@ class TestNotificationService:
             player_id=test_player.id,
             notification_type="game_start",
             message="Test notification",
-            db=db
+            db=db,
         )
 
         # Delete it
@@ -231,10 +223,7 @@ class TestNotificationService:
         assert "deleted successfully" in result["message"]
 
         # Verify it's gone
-        notifications = service.get_player_notifications(
-            player_id=test_player.id,
-            db=db
-        )
+        notifications = service.get_player_notifications(player_id=test_player.id, db=db)
         assert len(notifications) == 0
 
     def test_get_unread_count(self, db, test_player):
@@ -250,14 +239,14 @@ class TestNotificationService:
             player_id=test_player.id,
             notification_type="game_start",
             message="Notification 1",
-            db=db
+            db=db,
         )
 
         service.send_notification(
             player_id=test_player.id,
             notification_type="game_end",
             message="Notification 2",
-            db=db
+            db=db,
         )
 
         # Should be 2
@@ -282,17 +271,14 @@ class TestNotificationService:
             notification_type="hole_complete",
             message="Hole 1 is complete!",
             db=db,
-            data={"hole_number": 1}
+            data={"hole_number": 1},
         )
 
         assert count == len(players)
 
         # Verify each player received notification
         for player in players:
-            notifications = service.get_player_notifications(
-                player_id=player.id,
-                db=db
-            )
+            notifications = service.get_player_notifications(player_id=player.id, db=db)
             assert len(notifications) == 1
             assert "Hole 1 is complete!" in notifications[0]["message"]
             assert notifications[0]["data"]["hole_number"] == 1
@@ -307,15 +293,11 @@ class TestNotificationService:
                 player_id=test_player.id,
                 notification_type="game_start",
                 message=f"Notification {i+1}",
-                db=db
+                db=db,
             )
 
         # Get only 5
-        notifications = service.get_player_notifications(
-            player_id=test_player.id,
-            db=db,
-            limit=5
-        )
+        notifications = service.get_player_notifications(player_id=test_player.id, db=db, limit=5)
 
         assert len(notifications) == 5
 
@@ -338,16 +320,15 @@ class TestNotificationService:
                 player_id=test_player.id,
                 notification_type="game_start",
                 message=f"Notification {i+1}",
-                db=db
+                db=db,
             )
 
         # Manually set some as old (modify created_at)
         from datetime import timedelta
+
         old_date = (datetime.now(timezone.utc) - timedelta(days=60)).isoformat()
 
-        notifications = db.query(Notification).filter(
-            Notification.player_profile_id == test_player.id
-        ).limit(3).all()
+        notifications = db.query(Notification).filter(Notification.player_profile_id == test_player.id).limit(3).all()
 
         for notif in notifications:
             notif.created_at = old_date
@@ -355,19 +336,12 @@ class TestNotificationService:
         db.commit()
 
         # Delete notifications older than 30 days
-        count = service.delete_old_notifications(
-            player_id=test_player.id,
-            db=db,
-            days_old=30
-        )
+        count = service.delete_old_notifications(player_id=test_player.id, db=db, days_old=30)
 
         assert count == 3
 
         # Verify remaining notifications
-        remaining = service.get_player_notifications(
-            player_id=test_player.id,
-            db=db
-        )
+        remaining = service.get_player_notifications(player_id=test_player.id, db=db)
         assert len(remaining) == 2
 
     def test_notification_types(self, db, test_player):
@@ -381,7 +355,7 @@ class TestNotificationService:
             "betting_update",
             "achievement_earned",
             "partnership_formed",
-            "hole_complete"
+            "hole_complete",
         ]
 
         for notif_type in notification_types:
@@ -389,7 +363,7 @@ class TestNotificationService:
                 player_id=test_player.id,
                 notification_type=notif_type,
                 message=f"Test {notif_type}",
-                db=db
+                db=db,
             )
             assert notification["notification_type"] == notif_type
 
@@ -408,7 +382,7 @@ class TestNotificationService:
             player_id=test_player.id,
             notification_type="game_start",
             message="Test notification",
-            db=db
+            db=db,
         )
 
         assert notification["data"] == {}
@@ -422,14 +396,11 @@ class TestNotificationService:
             player_id=test_player.id,
             notification_type="game_start",
             message="Test notification",
-            db=db
+            db=db,
         )
 
         # Get by ID
-        retrieved = service.get_notification_by_id(
-            notification_id=sent_notification["id"],
-            db=db
-        )
+        retrieved = service.get_notification_by_id(notification_id=sent_notification["id"], db=db)
 
         assert retrieved is not None
         assert retrieved["id"] == sent_notification["id"]
@@ -439,10 +410,7 @@ class TestNotificationService:
         """Test getting notification that doesn't exist returns None."""
         service = get_notification_service()
 
-        retrieved = service.get_notification_by_id(
-            notification_id=99999,
-            db=db
-        )
+        retrieved = service.get_notification_by_id(notification_id=99999, db=db)
 
         assert retrieved is None
 

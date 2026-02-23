@@ -1,6 +1,7 @@
 """Test Ping Ponging the Aardvark - Phase 5 Advanced Rule"""
-import pytest
+
 from fastapi.testclient import TestClient
+
 from app.main import app
 
 client = TestClient(app)
@@ -15,23 +16,36 @@ def test_ping_pong_quadruples_risk():
 
     # Aardvark requests team1, team1 tosses, team2 ALSO tosses (ping-pong)
     # Aardvark ends up back on team1 (originally requested team)
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 5,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "teams": {
-            "type": "partners",
-            "team1": [player_ids[0], player_ids[1], player_ids[4]],  # Captain, Partner, Aardvark
-            "team2": [player_ids[2], player_ids[3]]
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 5,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "teams": {
+                "type": "partners",
+                "team1": [
+                    player_ids[0],
+                    player_ids[1],
+                    player_ids[4],
+                ],  # Captain, Partner, Aardvark
+                "team2": [player_ids[2], player_ids[3]],
+            },
+            "aardvark_requested_team": "team1",  # Requested team1
+            "aardvark_tossed": True,  # Team1 tossed
+            "aardvark_ping_ponged": True,  # Team2 ALSO tossed (ping-pong)
+            "final_wager": 2,
+            "winner": "team1",
+            "scores": {
+                player_ids[0]: 4,
+                player_ids[1]: 4,
+                player_ids[2]: 5,
+                player_ids[3]: 5,
+                player_ids[4]: 4,
+            },
+            "hole_par": 4,
         },
-        "aardvark_requested_team": "team1",  # Requested team1
-        "aardvark_tossed": True,  # Team1 tossed
-        "aardvark_ping_ponged": True,  # Team2 ALSO tossed (ping-pong)
-        "final_wager": 2,
-        "winner": "team1",
-        "scores": {player_ids[0]: 4, player_ids[1]: 4, player_ids[2]: 5, player_ids[3]: 5, player_ids[4]: 4},
-        "hole_par": 4
-    })
+    )
 
     assert response.status_code == 200
     result = response.json()["hole_result"]
@@ -68,23 +82,32 @@ def test_ping_pong_validation_requires_toss():
     player_ids = [p["id"] for p in players]
 
     # Try to ping-pong without initial toss (should fail)
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 5,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "teams": {
-            "type": "partners",
-            "team1": [player_ids[0], player_ids[1], player_ids[4]],
-            "team2": [player_ids[2], player_ids[3]]
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 5,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "teams": {
+                "type": "partners",
+                "team1": [player_ids[0], player_ids[1], player_ids[4]],
+                "team2": [player_ids[2], player_ids[3]],
+            },
+            "aardvark_requested_team": "team1",
+            "aardvark_tossed": False,  # NOT tossed
+            "aardvark_ping_ponged": True,  # But trying to ping-pong (INVALID)
+            "final_wager": 2,
+            "winner": "team1",
+            "scores": {
+                player_ids[0]: 4,
+                player_ids[1]: 4,
+                player_ids[2]: 5,
+                player_ids[3]: 5,
+                player_ids[4]: 4,
+            },
+            "hole_par": 4,
         },
-        "aardvark_requested_team": "team1",
-        "aardvark_tossed": False,  # NOT tossed
-        "aardvark_ping_ponged": True,  # But trying to ping-pong (INVALID)
-        "final_wager": 2,
-        "winner": "team1",
-        "scores": {player_ids[0]: 4, player_ids[1]: 4, player_ids[2]: 5, player_ids[3]: 5, player_ids[4]: 4},
-        "hole_par": 4
-    })
+    )
 
     assert response.status_code == 400
     assert "ping-ponged unless initially tossed" in response.json()["detail"].lower()
@@ -98,23 +121,36 @@ def test_toss_without_ping_pong_doubles():
     player_ids = [p["id"] for p in players]
 
     # Aardvark tossed but NOT ping-ponged (regular 2x doubling)
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 5,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "teams": {
-            "type": "partners",
-            "team1": [player_ids[0], player_ids[1]],  # Tossed Aardvark
-            "team2": [player_ids[2], player_ids[3], player_ids[4]]  # Aardvark auto-joins
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 5,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "teams": {
+                "type": "partners",
+                "team1": [player_ids[0], player_ids[1]],  # Tossed Aardvark
+                "team2": [
+                    player_ids[2],
+                    player_ids[3],
+                    player_ids[4],
+                ],  # Aardvark auto-joins
+            },
+            "aardvark_requested_team": "team1",
+            "aardvark_tossed": True,
+            "aardvark_ping_ponged": False,  # NOT ping-ponged
+            "final_wager": 2,
+            "winner": "team2",
+            "scores": {
+                player_ids[0]: 5,
+                player_ids[1]: 5,
+                player_ids[2]: 4,
+                player_ids[3]: 4,
+                player_ids[4]: 4,
+            },
+            "hole_par": 4,
         },
-        "aardvark_requested_team": "team1",
-        "aardvark_tossed": True,
-        "aardvark_ping_ponged": False,  # NOT ping-ponged
-        "final_wager": 2,
-        "winner": "team2",
-        "scores": {player_ids[0]: 5, player_ids[1]: 5, player_ids[2]: 4, player_ids[3]: 4, player_ids[4]: 4},
-        "hole_par": 4
-    })
+    )
 
     assert response.status_code == 200
     result = response.json()["hole_result"]
@@ -141,21 +177,29 @@ def test_ping_pong_only_5man():
     players = game_response.json()["players"]
     player_ids = [p["id"] for p in players]
 
-    response = client.post(f"/games/{game_id}/holes/complete", json={
-        "hole_number": 5,
-        "rotation_order": player_ids,
-        "captain_index": 0,
-        "teams": {
-            "type": "partners",
-            "team1": [player_ids[0], player_ids[1]],
-            "team2": [player_ids[2], player_ids[3]]
+    response = client.post(
+        f"/games/{game_id}/holes/complete",
+        json={
+            "hole_number": 5,
+            "rotation_order": player_ids,
+            "captain_index": 0,
+            "teams": {
+                "type": "partners",
+                "team1": [player_ids[0], player_ids[1]],
+                "team2": [player_ids[2], player_ids[3]],
+            },
+            "aardvark_ping_ponged": True,  # Should be ignored in 4-man
+            "final_wager": 2,
+            "winner": "team1",
+            "scores": {
+                player_ids[0]: 4,
+                player_ids[1]: 4,
+                player_ids[2]: 5,
+                player_ids[3]: 5,
+            },
+            "hole_par": 4,
         },
-        "aardvark_ping_ponged": True,  # Should be ignored in 4-man
-        "final_wager": 2,
-        "winner": "team1",
-        "scores": {player_ids[0]: 4, player_ids[1]: 4, player_ids[2]: 5, player_ids[3]: 5},
-        "hole_par": 4
-    })
+    )
 
     assert response.status_code == 200
     result = response.json()["hole_result"]

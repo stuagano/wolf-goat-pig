@@ -10,7 +10,7 @@ import logging
 import os
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Union, cast
+from typing import Any, Dict, List, Optional, Union
 
 import httpx
 
@@ -21,9 +21,11 @@ from .models import Course
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class CourseImportData:
     """Data structure for imported course information"""
+
     name: str
     description: Optional[str] = None
     total_par: int = 72
@@ -36,6 +38,7 @@ class CourseImportData:
     location: Optional[str] = None
     website: Optional[str] = None
     phone: Optional[str] = None
+
 
 class CourseImporter:
     """Main class for importing course data from external sources"""
@@ -50,18 +53,20 @@ class CourseImporter:
             "usga_api_key": os.getenv("USGA_API_KEY", ""),
             "ghin_api_key": os.getenv("GHIN_API_KEY", ""),
             "golf_now_api_key": os.getenv("GOLF_NOW_API_KEY", ""),
-            "thegrint_api_key": os.getenv("THEGRINT_API_KEY", "")
+            "thegrint_api_key": os.getenv("THEGRINT_API_KEY", ""),
         }
 
-    async def import_course_by_name(self, course_name: str, state: Optional[str] = None, city: Optional[str] = None) -> Optional[CourseImportData]:
+    async def import_course_by_name(
+        self, course_name: str, state: Optional[str] = None, city: Optional[str] = None
+    ) -> Optional[CourseImportData]:
         """
         Import course data by name, trying multiple sources
-        
+
         Args:
             course_name: Name of the course to import
             state: State abbreviation (optional, helps with search)
             city: City name (optional, helps with search)
-            
+
         Returns:
             CourseImportData object if found, None otherwise
         """
@@ -72,7 +77,7 @@ class CourseImporter:
             self._try_usga_search,
             self._try_ghin_search,
             self._try_golf_now_search,
-            self._try_thegrint_search
+            self._try_thegrint_search,
         ]
 
         for source_func in sources:
@@ -88,7 +93,9 @@ class CourseImporter:
         logger.error(f"Failed to import course {course_name} from any source")
         return None
 
-    async def _try_usga_search(self, course_name: str, state: Optional[str] = None, city: Optional[str] = None) -> Optional[CourseImportData]:
+    async def _try_usga_search(
+        self, course_name: str, state: Optional[str] = None, city: Optional[str] = None
+    ) -> Optional[CourseImportData]:
         """Search USGA course database"""
         if not self.api_keys["usga_api_key"]:
             logger.warning("USGA API key not configured")
@@ -99,7 +106,7 @@ class CourseImporter:
             url = "https://api.usga.org/v1/courses/search"
             params: Dict[str, Union[str, int, float, bool, None]] = {
                 "name": course_name,
-                "api_key": self.api_keys["usga_api_key"]
+                "api_key": self.api_keys["usga_api_key"],
             }
             if state:
                 params["state"] = state
@@ -119,14 +126,16 @@ class CourseImporter:
 
         return None
 
-    async def _try_ghin_search(self, course_name: str, state: Optional[str] = None, city: Optional[str] = None) -> Optional[CourseImportData]:
+    async def _try_ghin_search(
+        self, course_name: str, state: Optional[str] = None, city: Optional[str] = None
+    ) -> Optional[CourseImportData]:
         """Search GHIN course database"""
         try:
             # GHIN course search endpoint
             url = "https://api2.ghin.com/api/v1/courses/search.json"
             params: Dict[str, Union[str, int, float, bool, None]] = {
                 "name": course_name,
-                "limit": 10
+                "limit": 10,
             }
             if state:
                 params["state"] = state
@@ -146,7 +155,9 @@ class CourseImporter:
 
         return None
 
-    async def _try_golf_now_search(self, course_name: str, state: Optional[str] = None, city: Optional[str] = None) -> Optional[CourseImportData]:
+    async def _try_golf_now_search(
+        self, course_name: str, state: Optional[str] = None, city: Optional[str] = None
+    ) -> Optional[CourseImportData]:
         """Search GolfNow course database"""
         if not self.api_keys["golf_now_api_key"]:
             logger.warning("GolfNow API key not configured")
@@ -157,11 +168,11 @@ class CourseImporter:
             url = "https://api.golfnow.com/v1/courses/search"
             headers = {
                 "Authorization": f"Bearer {self.api_keys['golf_now_api_key']}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
             params: Dict[str, Union[str, int, float, bool, None]] = {
                 "name": course_name,
-                "limit": 10
+                "limit": 10,
             }
             if state:
                 params["state"] = state
@@ -181,7 +192,9 @@ class CourseImporter:
 
         return None
 
-    async def _try_thegrint_search(self, course_name: str, state: Optional[str] = None, city: Optional[str] = None) -> Optional[CourseImportData]:
+    async def _try_thegrint_search(
+        self, course_name: str, state: Optional[str] = None, city: Optional[str] = None
+    ) -> Optional[CourseImportData]:
         """Search TheGrint course database"""
         if not self.api_keys["thegrint_api_key"]:
             logger.warning("TheGrint API key not configured")
@@ -192,11 +205,11 @@ class CourseImporter:
             url = "https://api.thegrint.com/v1/courses/search"
             headers = {
                 "Authorization": f"Bearer {self.api_keys['thegrint_api_key']}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
             params: Dict[str, Union[str, int, float, bool, None]] = {
                 "name": course_name,
-                "limit": 10
+                "limit": 10,
             }
             if state:
                 params["state"] = state
@@ -229,7 +242,7 @@ class CourseImporter:
                 "yards": hole.get("yards"),
                 "handicap": hole.get("stroke_index"),
                 "description": hole.get("description", ""),
-                "tee_box": "regular"
+                "tee_box": "regular",
             }
             holes_data.append(hole_info)
             total_yards += hole.get("yards", 0)
@@ -246,7 +259,7 @@ class CourseImporter:
             last_updated=course_data.get("last_updated"),
             location=course_data.get("location"),
             website=course_data.get("website"),
-            phone=course_data.get("phone")
+            phone=course_data.get("phone"),
         )
 
     def _parse_ghin_course(self, course_data: Dict[str, Any]) -> CourseImportData:
@@ -262,7 +275,7 @@ class CourseImporter:
                 "yards": hole.get("yards"),
                 "handicap": hole.get("stroke_index"),
                 "description": hole.get("description", ""),
-                "tee_box": "regular"
+                "tee_box": "regular",
             }
             holes_data.append(hole_info)
             total_yards += hole.get("yards", 0)
@@ -279,7 +292,7 @@ class CourseImporter:
             last_updated=course_data.get("last_updated"),
             location=course_data.get("location"),
             website=course_data.get("website"),
-            phone=course_data.get("phone")
+            phone=course_data.get("phone"),
         )
 
     def _parse_golf_now_course(self, course_data: Dict[str, Any]) -> CourseImportData:
@@ -295,7 +308,7 @@ class CourseImporter:
                 "yards": hole.get("yards"),
                 "handicap": hole.get("stroke_index"),
                 "description": hole.get("description", ""),
-                "tee_box": "regular"
+                "tee_box": "regular",
             }
             holes_data.append(hole_info)
             total_yards += hole.get("yards", 0)
@@ -312,7 +325,7 @@ class CourseImporter:
             last_updated=course_data.get("last_updated"),
             location=course_data.get("location"),
             website=course_data.get("website"),
-            phone=course_data.get("phone")
+            phone=course_data.get("phone"),
         )
 
     def _parse_thegrint_course(self, course_data: Dict[str, Any]) -> CourseImportData:
@@ -328,7 +341,7 @@ class CourseImporter:
                 "yards": hole.get("yards"),
                 "handicap": hole.get("stroke_index"),
                 "description": hole.get("description", ""),
-                "tee_box": "regular"
+                "tee_box": "regular",
             }
             holes_data.append(hole_info)
             total_yards += hole.get("yards", 0)
@@ -345,7 +358,7 @@ class CourseImporter:
             last_updated=course_data.get("last_updated"),
             location=course_data.get("location"),
             website=course_data.get("website"),
-            phone=course_data.get("phone")
+            phone=course_data.get("phone"),
         )
 
     async def import_from_json_file(self, file_path: str) -> Optional[CourseImportData]:
@@ -381,7 +394,7 @@ class CourseImporter:
                 last_updated=datetime.now().isoformat(),
                 location=course_data.get("location"),
                 website=course_data.get("website"),
-                phone=course_data.get("phone")
+                phone=course_data.get("phone"),
             )
 
         except Exception as e:
@@ -399,15 +412,15 @@ class CourseImporter:
                 logger.info(f"Course {course_data.name} already exists, updating...")
                 # Update existing course - use setattr to avoid Column type errors
                 if course_data.description is not None:
-                    setattr(existing_course, 'description', course_data.description)
-                setattr(existing_course, 'total_par', course_data.total_par)
-                setattr(existing_course, 'total_yards', course_data.total_yards)
+                    setattr(existing_course, "description", course_data.description)
+                setattr(existing_course, "total_par", course_data.total_par)
+                setattr(existing_course, "total_yards", course_data.total_yards)
                 if course_data.course_rating is not None:
-                    setattr(existing_course, 'course_rating', course_data.course_rating)
+                    setattr(existing_course, "course_rating", course_data.course_rating)
                 if course_data.slope_rating is not None:
-                    setattr(existing_course, 'slope_rating', course_data.slope_rating)
-                setattr(existing_course, 'holes_data', course_data.holes_data)
-                setattr(existing_course, 'updated_at', datetime.now().isoformat())
+                    setattr(existing_course, "slope_rating", course_data.slope_rating)
+                setattr(existing_course, "holes_data", course_data.holes_data)
+                setattr(existing_course, "updated_at", datetime.now().isoformat())
             else:
                 # Create new course
                 new_course = Course(
@@ -419,7 +432,7 @@ class CourseImporter:
                     slope_rating=course_data.slope_rating,
                     holes_data=course_data.holes_data,
                     created_at=datetime.now().isoformat(),
-                    updated_at=datetime.now().isoformat()
+                    updated_at=datetime.now().isoformat(),
                 )
                 db.add(new_course)
 
@@ -439,14 +452,18 @@ class CourseImporter:
         """Close the HTTP session"""
         await self.session.aclose()
 
+
 # Convenience functions for easy use
-async def import_course_by_name(course_name: str, state: Optional[str] = None, city: Optional[str] = None) -> Optional[CourseImportData]:
+async def import_course_by_name(
+    course_name: str, state: Optional[str] = None, city: Optional[str] = None
+) -> Optional[CourseImportData]:
     """Import a course by name from external sources"""
     importer = CourseImporter()
     try:
         return await importer.import_course_by_name(course_name, state, city)
     finally:
         await importer.close()
+
 
 async def import_course_from_json(file_path: str) -> Optional[CourseImportData]:
     """Import a course from a JSON file"""
@@ -455,6 +472,7 @@ async def import_course_from_json(file_path: str) -> Optional[CourseImportData]:
         return await importer.import_from_json_file(file_path)
     finally:
         await importer.close()
+
 
 def save_course_to_database(course_data: CourseImportData) -> bool:
     """Save imported course data to the database"""

@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional
 
 class ShotType(Enum):
     """Shot types with associated risk profiles"""
+
     # Conservative plays (tight range)
     LAY_UP = "lay_up"  # Safe shot, low risk/low reward
     SAFE_APPROACH = "safe_approach"  # Center of green target
@@ -29,16 +30,20 @@ class ShotType(Enum):
     HERO_SHOT = "hero_shot"  # Low percentage, high reward
     RECOVERY_GAMBLE = "recovery_gamble"  # Aggressive recovery from trouble
 
+
 class RiskProfile(Enum):
     """Risk profiles matching poker player types"""
+
     NIT = "nit"  # Ultra conservative (10% VPIP)
     TAG = "tag"  # Tight aggressive (20% VPIP)
     LAG = "lag"  # Loose aggressive (35% VPIP)
     MANIAC = "maniac"  # Ultra aggressive (50%+ VPIP)
 
+
 @dataclass
 class ShotRange:
     """Represents a range of possible shots with probabilities"""
+
     shot_type: ShotType
     success_probability: float  # 0.0 to 1.0
     risk_factor: float  # 0.0 (safe) to 1.0 (risky)
@@ -60,9 +65,11 @@ class ShotRange:
 
         return min(1.0, total_equity)
 
+
 @dataclass
 class ShotRangeMatrix:
     """Matrix of shot ranges for different situations"""
+
     lie_type: str
     distance_to_pin: float
     player_handicap: float
@@ -100,144 +107,166 @@ class ShotRangeMatrix:
     def _add_short_game_ranges(self):
         """Add short game shot ranges (wedges/chips)"""
         # Conservative: Aim for center of green
-        self.ranges.append(ShotRange(
-            shot_type=ShotType.SAFE_APPROACH,
-            success_probability=0.85 - (self.player_handicap * 0.01),
-            risk_factor=0.2,
-            expected_value=-0.1,  # Slightly worse than average
-            variance=0.3,
-            fold_equity=0.0,
-            bluff_frequency=0.0,
-            pot_odds_required=0.2
-        ))
+        self.ranges.append(
+            ShotRange(
+                shot_type=ShotType.SAFE_APPROACH,
+                success_probability=0.85 - (self.player_handicap * 0.01),
+                risk_factor=0.2,
+                expected_value=-0.1,  # Slightly worse than average
+                variance=0.3,
+                fold_equity=0.0,
+                bluff_frequency=0.0,
+                pot_odds_required=0.2,
+            )
+        )
 
         # Standard: Aim at pin with some margin
-        self.ranges.append(ShotRange(
-            shot_type=ShotType.STANDARD_APPROACH,
-            success_probability=0.65 - (self.player_handicap * 0.015),
-            risk_factor=0.5,
-            expected_value=0.2,  # Positive EV
-            variance=0.6,
-            fold_equity=0.1,
-            bluff_frequency=0.15,
-            pot_odds_required=0.4
-        ))
+        self.ranges.append(
+            ShotRange(
+                shot_type=ShotType.STANDARD_APPROACH,
+                success_probability=0.65 - (self.player_handicap * 0.015),
+                risk_factor=0.5,
+                expected_value=0.2,  # Positive EV
+                variance=0.6,
+                fold_equity=0.1,
+                bluff_frequency=0.15,
+                pot_odds_required=0.4,
+            )
+        )
 
         # Aggressive: Attack tucked pin
         if self._is_pin_accessible():
-            self.ranges.append(ShotRange(
-                shot_type=ShotType.PIN_SEEKER,
-                success_probability=0.35 - (self.player_handicap * 0.02),
-                risk_factor=0.8,
-                expected_value=0.4,  # High reward if successful
-                variance=1.2,
-                fold_equity=0.25,  # Puts pressure on opponents
-                bluff_frequency=0.3,
-                pot_odds_required=0.65
-            ))
+            self.ranges.append(
+                ShotRange(
+                    shot_type=ShotType.PIN_SEEKER,
+                    success_probability=0.35 - (self.player_handicap * 0.02),
+                    risk_factor=0.8,
+                    expected_value=0.4,  # High reward if successful
+                    variance=1.2,
+                    fold_equity=0.25,  # Puts pressure on opponents
+                    bluff_frequency=0.3,
+                    pot_odds_required=0.65,
+                )
+            )
 
     def _add_approach_ranges(self):
         """Add mid-range approach shot ranges"""
         # Lay up option (if hazards present)
         if self._has_hazards():
-            self.ranges.append(ShotRange(
-                shot_type=ShotType.LAY_UP,
-                success_probability=0.9,
-                risk_factor=0.1,
-                expected_value=-0.3,  # Costs strokes but safe
-                variance=0.2,
-                fold_equity=0.0,
-                bluff_frequency=0.0,
-                pot_odds_required=0.1
-            ))
+            self.ranges.append(
+                ShotRange(
+                    shot_type=ShotType.LAY_UP,
+                    success_probability=0.9,
+                    risk_factor=0.1,
+                    expected_value=-0.3,  # Costs strokes but safe
+                    variance=0.2,
+                    fold_equity=0.0,
+                    bluff_frequency=0.0,
+                    pot_odds_required=0.1,
+                )
+            )
 
         # Standard approach
-        self.ranges.append(ShotRange(
-            shot_type=ShotType.STANDARD_APPROACH,
-            success_probability=0.6 - (self.player_handicap * 0.015),
-            risk_factor=0.4,
-            expected_value=0.1,
-            variance=0.7,
-            fold_equity=0.05,
-            bluff_frequency=0.1,
-            pot_odds_required=0.35
-        ))
+        self.ranges.append(
+            ShotRange(
+                shot_type=ShotType.STANDARD_APPROACH,
+                success_probability=0.6 - (self.player_handicap * 0.015),
+                risk_factor=0.4,
+                expected_value=0.1,
+                variance=0.7,
+                fold_equity=0.05,
+                bluff_frequency=0.1,
+                pot_odds_required=0.35,
+            )
+        )
 
         # Risk/reward play
-        self.ranges.append(ShotRange(
-            shot_type=ShotType.RISK_REWARD,
-            success_probability=0.4 - (self.player_handicap * 0.02),
-            risk_factor=0.7,
-            expected_value=0.3,
-            variance=1.0,
-            fold_equity=0.2,
-            bluff_frequency=0.25,
-            pot_odds_required=0.6
-        ))
+        self.ranges.append(
+            ShotRange(
+                shot_type=ShotType.RISK_REWARD,
+                success_probability=0.4 - (self.player_handicap * 0.02),
+                risk_factor=0.7,
+                expected_value=0.3,
+                variance=1.0,
+                fold_equity=0.2,
+                bluff_frequency=0.25,
+                pot_odds_required=0.6,
+            )
+        )
 
     def _add_long_approach_ranges(self):
         """Add long approach shot ranges"""
-        self.ranges.append(ShotRange(
-            shot_type=ShotType.SAFE_APPROACH,
-            success_probability=0.7 - (self.player_handicap * 0.01),
-            risk_factor=0.3,
-            expected_value=0.0,
-            variance=0.5,
-            fold_equity=0.0,
-            bluff_frequency=0.05,
-            pot_odds_required=0.25
-        ))
+        self.ranges.append(
+            ShotRange(
+                shot_type=ShotType.SAFE_APPROACH,
+                success_probability=0.7 - (self.player_handicap * 0.01),
+                risk_factor=0.3,
+                expected_value=0.0,
+                variance=0.5,
+                fold_equity=0.0,
+                bluff_frequency=0.05,
+                pot_odds_required=0.25,
+            )
+        )
 
-        self.ranges.append(ShotRange(
-            shot_type=ShotType.STANDARD_APPROACH,
-            success_probability=0.5 - (self.player_handicap * 0.015),
-            risk_factor=0.5,
-            expected_value=0.15,
-            variance=0.8,
-            fold_equity=0.1,
-            bluff_frequency=0.15,
-            pot_odds_required=0.45
-        ))
+        self.ranges.append(
+            ShotRange(
+                shot_type=ShotType.STANDARD_APPROACH,
+                success_probability=0.5 - (self.player_handicap * 0.015),
+                risk_factor=0.5,
+                expected_value=0.15,
+                variance=0.8,
+                fold_equity=0.1,
+                bluff_frequency=0.15,
+                pot_odds_required=0.45,
+            )
+        )
 
     def _add_tee_shot_ranges(self):
         """Add tee shot ranges"""
         # Fairway finder
-        self.ranges.append(ShotRange(
-            shot_type=ShotType.FAIRWAY_FINDER,
-            success_probability=0.75 - (self.player_handicap * 0.01),
-            risk_factor=0.2,
-            expected_value=0.0,
-            variance=0.4,
-            fold_equity=0.0,
-            bluff_frequency=0.0,
-            pot_odds_required=0.2
-        ))
+        self.ranges.append(
+            ShotRange(
+                shot_type=ShotType.FAIRWAY_FINDER,
+                success_probability=0.75 - (self.player_handicap * 0.01),
+                risk_factor=0.2,
+                expected_value=0.0,
+                variance=0.4,
+                fold_equity=0.0,
+                bluff_frequency=0.0,
+                pot_odds_required=0.2,
+            )
+        )
 
         # Risk/reward (cut corner, carry hazard)
         if self._has_risk_reward_opportunity():
-            self.ranges.append(ShotRange(
-                shot_type=ShotType.RISK_REWARD,
-                success_probability=0.45 - (self.player_handicap * 0.02),
-                risk_factor=0.75,
-                expected_value=0.5,  # Big advantage if successful
-                variance=1.5,
-                fold_equity=0.3,  # Intimidation factor
-                bluff_frequency=0.35,
-                pot_odds_required=0.7
-            ))
+            self.ranges.append(
+                ShotRange(
+                    shot_type=ShotType.RISK_REWARD,
+                    success_probability=0.45 - (self.player_handicap * 0.02),
+                    risk_factor=0.75,
+                    expected_value=0.5,  # Big advantage if successful
+                    variance=1.5,
+                    fold_equity=0.3,  # Intimidation factor
+                    bluff_frequency=0.35,
+                    pot_odds_required=0.7,
+                )
+            )
 
         # Hero shot (very aggressive line)
         if self._allows_hero_shot():
-            self.ranges.append(ShotRange(
-                shot_type=ShotType.HERO_SHOT,
-                success_probability=0.2 - (self.player_handicap * 0.02),
-                risk_factor=0.95,
-                expected_value=1.0,  # Huge reward
-                variance=2.0,
-                fold_equity=0.4,  # Maximum pressure
-                bluff_frequency=0.5,
-                pot_odds_required=0.85
-            ))
+            self.ranges.append(
+                ShotRange(
+                    shot_type=ShotType.HERO_SHOT,
+                    success_probability=0.2 - (self.player_handicap * 0.02),
+                    risk_factor=0.95,
+                    expected_value=1.0,  # Huge reward
+                    variance=2.0,
+                    fold_equity=0.4,  # Maximum pressure
+                    bluff_frequency=0.5,
+                    pot_odds_required=0.85,
+                )
+            )
 
     def _calculate_gto_range(self):
         """Calculate game theory optimal shot selection"""
@@ -248,8 +277,7 @@ class ShotRangeMatrix:
         best_ev = max(r.expected_value for r in self.ranges)
 
         # Find ranges within 20% of best EV
-        viable_ranges = [r for r in self.ranges
-                        if r.expected_value >= best_ev * 0.8]
+        viable_ranges = [r for r in self.ranges if r.expected_value >= best_ev * 0.8]
 
         # Mix between viable ranges based on game situation
         if self._is_pressure_situation():
@@ -272,19 +300,15 @@ class ShotRangeMatrix:
         # Adjust based on opponent tendencies
         if self._opponents_play_scared():
             # Increase aggression against scared opponents
-            aggressive_ranges = [r for r in self.ranges
-                               if r.risk_factor > 0.6]
+            aggressive_ranges = [r for r in self.ranges if r.risk_factor > 0.6]
             if aggressive_ranges:
-                self.exploitative_range = max(aggressive_ranges,
-                                            key=lambda r: r.fold_equity)
+                self.exploitative_range = max(aggressive_ranges, key=lambda r: r.fold_equity)
 
         elif self._opponents_are_aggressive():
             # Play tighter against aggressive opponents
-            conservative_ranges = [r for r in self.ranges
-                                 if r.risk_factor < 0.4]
+            conservative_ranges = [r for r in self.ranges if r.risk_factor < 0.4]
             if conservative_ranges:
-                self.exploitative_range = max(conservative_ranges,
-                                            key=lambda r: r.success_probability)
+                self.exploitative_range = max(conservative_ranges, key=lambda r: r.success_probability)
 
     def get_recommended_range(self, player_style: RiskProfile) -> Optional[ShotRange]:
         """Get recommended shot range based on player style"""
@@ -328,12 +352,9 @@ class ShotRangeMatrix:
     def calculate_3bet_range(self) -> List[ShotRange]:
         """Calculate '3-bet' range (ultra-aggressive counter shots)"""
         # Only include high risk/high reward shots
-        three_bet_ranges = [r for r in self.ranges
-                           if r.risk_factor >= 0.7 and r.fold_equity >= 0.2]
+        three_bet_ranges = [r for r in self.ranges if r.risk_factor >= 0.7 and r.fold_equity >= 0.2]
 
-        return sorted(three_bet_ranges,
-                     key=lambda r: r.expected_value,
-                     reverse=True)
+        return sorted(three_bet_ranges, key=lambda r: r.expected_value, reverse=True)
 
     # Helper methods
     def _is_pin_accessible(self) -> bool:
@@ -350,13 +371,13 @@ class ShotRangeMatrix:
 
     def _allows_hero_shot(self) -> bool:
         """Check if hero shot is possible"""
-        return (self.player_handicap <= 10 and
-                bool(self.game_situation.get("hero_shot_possible", False)))
+        return self.player_handicap <= 10 and bool(self.game_situation.get("hero_shot_possible", False))
 
     def _is_pressure_situation(self) -> bool:
         """Check if this is a high-pressure situation"""
-        return (bool(self.game_situation.get("hole_number", 1) >= 16) or
-                bool(self.game_situation.get("match_critical", False)))
+        return bool(self.game_situation.get("hole_number", 1) >= 16) or bool(
+            self.game_situation.get("match_critical", False)
+        )
 
     def _opponents_play_scared(self) -> bool:
         """Check if opponents tend to play conservatively"""
@@ -376,7 +397,7 @@ class ShotRangeAnalyzer:
         distance_to_pin: float,
         player_handicap: float,
         game_situation: Dict[str, Any],
-        player_style: Optional[RiskProfile] = None
+        player_style: Optional[RiskProfile] = None,
     ) -> Dict[str, Any]:
         """Perform complete shot range analysis"""
 
@@ -385,14 +406,12 @@ class ShotRangeAnalyzer:
             lie_type=lie_type,
             distance_to_pin=distance_to_pin,
             player_handicap=player_handicap,
-            game_situation=game_situation
+            game_situation=game_situation,
         )
 
         # Determine player style if not provided
         if not player_style:
-            player_style = ShotRangeAnalyzer._determine_player_style(
-                player_handicap, game_situation
-            )
+            player_style = ShotRangeAnalyzer._determine_player_style(player_handicap, game_situation)
 
         # Get recommended range
         recommended = matrix.get_recommended_range(player_style)
@@ -401,18 +420,18 @@ class ShotRangeAnalyzer:
         analysis = {
             "recommended_shot": {
                 "type": recommended.shot_type.value if recommended else None,
-                "success_rate": f"{recommended.success_probability * 100:.1f}%" if recommended else "0%",
-                "risk_level": f"{recommended.risk_factor * 100:.0f}%" if recommended else "0%",
+                "success_rate": (f"{recommended.success_probability * 100:.1f}%" if recommended else "0%"),
+                "risk_level": (f"{recommended.risk_factor * 100:.0f}%" if recommended else "0%"),
                 "expected_value": recommended.expected_value if recommended else 0,
-                "equity_vs_field": f"{recommended.get_equity_vs_field() * 100:.1f}%" if recommended else "0%"
+                "equity_vs_field": (f"{recommended.get_equity_vs_field() * 100:.1f}%" if recommended else "0%"),
             },
             "gto_recommendation": {
                 "type": matrix.gto_range.shot_type.value if matrix.gto_range else None,
-                "reasoning": "Game theory optimal play based on EV maximization"
+                "reasoning": "Game theory optimal play based on EV maximization",
             },
             "exploitative_play": {
-                "type": matrix.exploitative_range.shot_type.value if matrix.exploitative_range else None,
-                "reasoning": "Adjusted for opponent tendencies"
+                "type": (matrix.exploitative_range.shot_type.value if matrix.exploitative_range else None),
+                "reasoning": "Adjusted for opponent tendencies",
             },
             "range_distribution": matrix.get_range_distribution(),
             "all_ranges": [
@@ -422,27 +441,25 @@ class ShotRangeAnalyzer:
                     "risk": f"{r.risk_factor * 100:.0f}%",
                     "ev": f"{r.expected_value:+.2f}",
                     "equity": f"{r.get_equity_vs_field() * 100:.1f}%",
-                    "pot_odds_needed": f"{r.pot_odds_required * 100:.0f}%"
+                    "pot_odds_needed": f"{r.pot_odds_required * 100:.0f}%",
                 }
-                for r in sorted(matrix.ranges,
-                              key=lambda x: x.expected_value,
-                              reverse=True)
+                for r in sorted(matrix.ranges, key=lambda x: x.expected_value, reverse=True)
             ],
             "3bet_ranges": [
                 {
                     "type": r.shot_type.value,
                     "fold_equity": f"{r.fold_equity * 100:.0f}%",
-                    "bluff_frequency": f"{r.bluff_frequency * 100:.0f}%"
+                    "bluff_frequency": f"{r.bluff_frequency * 100:.0f}%",
                 }
                 for r in matrix.calculate_3bet_range()
             ],
             "player_style": {
                 "profile": player_style.value,
-                "description": ShotRangeAnalyzer._get_style_description(player_style)
+                "description": ShotRangeAnalyzer._get_style_description(player_style),
             },
             "strategic_advice": ShotRangeAnalyzer._generate_strategic_advice(
                 matrix, recommended, player_style, game_situation
-            )
+            ),
         }
 
         return analysis
@@ -479,7 +496,7 @@ class ShotRangeAnalyzer:
             RiskProfile.NIT: "Ultra-conservative, only plays premium positions",
             RiskProfile.TAG: "Selective aggression, balanced risk/reward",
             RiskProfile.LAG: "Wide range with aggressive tendencies",
-            RiskProfile.MANIAC: "Maximum aggression, any position is playable"
+            RiskProfile.MANIAC: "Maximum aggression, any position is playable",
         }
         return descriptions.get(style, "Unknown style")
 
@@ -488,7 +505,7 @@ class ShotRangeAnalyzer:
         matrix: ShotRangeMatrix,
         recommended: Optional[ShotRange],
         player_style: RiskProfile,
-        game_situation: Dict
+        game_situation: Dict,
     ) -> List[str]:
         """Generate strategic advice for shot selection"""
         advice = []
@@ -531,7 +548,7 @@ def analyze_shot_decision(
     hole_number: int,
     team_situation: str = "solo",
     score_differential: int = 0,
-    opponent_styles: Optional[List[str]] = None
+    opponent_styles: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Main entry point for shot range analysis"""
 
@@ -544,7 +561,7 @@ def analyze_shot_decision(
         "hazards_present": distance > 150,  # Simplified assumption
         "risk_reward_available": True,
         "hero_shot_possible": distance > 200,
-        "opponent_style": opponent_styles[0] if opponent_styles else "balanced"
+        "opponent_style": opponent_styles[0] if opponent_styles else "balanced",
     }
 
     # Perform analysis
@@ -552,5 +569,5 @@ def analyze_shot_decision(
         lie_type=current_lie,
         distance_to_pin=distance,
         player_handicap=player_handicap,
-        game_situation=game_situation
+        game_situation=game_situation,
     )

@@ -16,4 +16,3 @@ def _ensure_repo_root_on_path() -> None:
 
 
 _ensure_repo_root_on_path()
-

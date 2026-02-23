@@ -14,16 +14,24 @@ import emails
 from jinja2 import Template
 
 # Import the Gmail OAuth2 provider
-from .providers.gmail_oauth2_provider import create_gmail_oauth2_provider, GmailOAuth2Provider
+from .providers.gmail_oauth2_provider import create_gmail_oauth2_provider
 
 logger = logging.getLogger(__name__)
 
 # --- Provider Abstract Base Class ---
 
+
 class EmailProvider(ABC):
     """Abstract base class for an email provider."""
+
     @abstractmethod
-    def send_email(self, to_email: str, subject: str, html_body: str, text_body: Optional[str] = None) -> bool:
+    def send_email(
+        self,
+        to_email: str,
+        subject: str,
+        html_body: str,
+        text_body: Optional[str] = None,
+    ) -> bool:
         pass
 
     @abstractmethod
@@ -33,10 +41,13 @@ class EmailProvider(ABC):
     def get_configuration_status(self) -> Dict[str, Any]:
         return {"provider": self.__class__.__name__, "configured": self.is_configured()}
 
+
 # --- SMTP Provider Implementation ---
+
 
 class SMTPEmailProvider(EmailProvider):
     """Email provider for sending emails via SMTP."""
+
     def __init__(self):
         self.smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
         self.smtp_port = int(os.getenv("SMTP_PORT", "587"))
@@ -48,7 +59,13 @@ class SMTPEmailProvider(EmailProvider):
     def is_configured(self) -> bool:
         return bool(self.smtp_user and self.smtp_password and self.smtp_host)
 
-    def send_email(self, to_email: str, subject: str, html_body: str, text_body: Optional[str] = None) -> bool:
+    def send_email(
+        self,
+        to_email: str,
+        subject: str,
+        html_body: str,
+        text_body: Optional[str] = None,
+    ) -> bool:
         if not self.is_configured():
             logger.error("SMTP provider is not configured. Cannot send email.")
             return False
@@ -57,17 +74,17 @@ class SMTPEmailProvider(EmailProvider):
                 html=html_body,
                 text=text_body or self._html_to_text(html_body),
                 subject=subject,
-                mail_from=(self.from_name, self.from_email)
+                mail_from=(self.from_name, self.from_email),
             )
             response = message.send(
                 to=to_email,
                 smtp={
-                    'host': self.smtp_host,
-                    'port': self.smtp_port,
-                    'tls': True,
-                    'user': self.smtp_user,
-                    'password': self.smtp_password
-                }
+                    "host": self.smtp_host,
+                    "port": self.smtp_port,
+                    "tls": True,
+                    "user": self.smtp_user,
+                    "password": self.smtp_password,
+                },
             )
             if response.status_code in [250, 251, 252]:
                 logger.info(f"Email sent successfully to {to_email} via SMTP.")
@@ -80,11 +97,13 @@ class SMTPEmailProvider(EmailProvider):
             return False
 
     def _html_to_text(self, html: str) -> str:
-        text = re.sub('<[^<]+?>', '', html)
-        text = re.sub(r'\s+', ' ', text).strip()
+        text = re.sub("<[^<]+?>", "", html)
+        text = re.sub(r"\s+", " ", text).strip()
         return text
 
+
 # --- Unified Email Service ---
+
 
 class EmailService:
     """A unified service for sending emails using a configured provider."""
@@ -110,7 +129,13 @@ class EmailService:
     def is_configured(self) -> bool:
         return self.provider is not None and self.provider.is_configured()
 
-    def _send_email(self, to_email: str, subject: str, html_body: str, text_body: Optional[str] = None) -> bool:
+    def _send_email(
+        self,
+        to_email: str,
+        subject: str,
+        html_body: str,
+        text_body: Optional[str] = None,
+    ) -> bool:
         if not self.is_configured():
             logger.error("Email service is not configured. Cannot send email.")
             return False
@@ -166,7 +191,7 @@ class EmailService:
         return self._send_email(
             to_email=to_email,
             subject=f"You're signed up for Wolf Goat Pig - {signup_date}",
-            html_body=html_body
+            html_body=html_body,
         )
 
     def send_pairing_notification(
@@ -175,7 +200,7 @@ class EmailService:
         player_name: str,
         game_date: str,
         teams: list,
-        player_team_number: int | None = None
+        player_team_number: int | None = None,
     ) -> bool:
         """Sends the RNG pairing results to a player.
 
@@ -200,10 +225,10 @@ class EmailService:
         for i, team in enumerate(teams, 1):
             team_players = team.get("players", [])
             player_names = [p.get("player_name", "Unknown") for p in team_players]
-            is_player_team = (i == player_team_number)
+            is_player_team = i == player_team_number
 
             team_style = "background: #e8f5e9; border: 2px solid #28a745;" if is_player_team else "background: #f8f9fa;"
-            team_label = f" (Your Team!)" if is_player_team else ""
+            team_label = " (Your Team!)" if is_player_team else ""
 
             teams_html += f"""
             <div style="margin: 10px 0; padding: 15px; border-radius: 8px; {team_style}">
@@ -241,7 +266,7 @@ class EmailService:
         return self._send_email(
             to_email=to_email,
             subject=f"🎲 Your Sunday Golf Pairings - {formatted_date}",
-            html_body=html_body
+            html_body=html_body,
         )
 
     def send_tee_time_request(
@@ -250,7 +275,7 @@ class EmailService:
         game_date: str,
         teams: list,
         player_count: int,
-        remaining_players: int = 0
+        remaining_players: int = 0,
     ) -> bool:
         """Sends a tee time reservation request to the golf course.
 
@@ -290,7 +315,9 @@ class EmailService:
         # Summary info
         alternates_note = ""
         if remaining_players > 0:
-            alternates_note = f"<p style='color: #856404;'><em>Plus {remaining_players} alternate(s) if space allows.</em></p>"
+            alternates_note = (
+                f"<p style='color: #856404;'><em>Plus {remaining_players} alternate(s) if space allows.</em></p>"
+            )
 
         content = f"""
         <h2>Tee Time Request - {day_of_week} Wolf Goat Pig</h2>
@@ -320,7 +347,7 @@ class EmailService:
         return self._send_email(
             to_email=to_email,
             subject=f"Tee Time Request: {len(teams)} groups for {formatted_date}",
-            html_body=html_body
+            html_body=html_body,
         )
 
     def get_provider_status(self) -> Dict[str, Any]:
@@ -333,6 +360,7 @@ class EmailService:
 # --- Global Service Instance ---
 
 _email_service_instance: Optional[EmailService] = None
+
 
 def get_email_service() -> EmailService:
     """Provides a singleton instance of the EmailService."""

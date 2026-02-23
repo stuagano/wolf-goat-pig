@@ -21,9 +21,10 @@ from googleapiclient.errors import HttpError
 
 logger = logging.getLogger(__name__)
 
-SCOPES = ['https://www.googleapis.com/auth/gmail.send']
-TOKEN_FILE = 'gmail_token.pickle'
-CREDENTIALS_FILE = 'gmail_credentials.json'
+SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
+TOKEN_FILE = "gmail_token.pickle"
+CREDENTIALS_FILE = "gmail_credentials.json"
+
 
 class GmailOAuth2Provider:
     """Provider for sending emails using Gmail API with OAuth2 authentication."""
@@ -44,7 +45,7 @@ class GmailOAuth2Provider:
         """Load or refresh OAuth2 credentials."""
         try:
             if self.token_path.exists():
-                with open(self.token_path, 'rb') as token:
+                with open(self.token_path, "rb") as token:
                     self.creds = pickle.load(token)
 
             if not self.creds or not self.creds.valid:
@@ -69,7 +70,7 @@ class GmailOAuth2Provider:
         if not self.creds:
             return
         try:
-            with open(self.token_path, 'wb') as token:
+            with open(self.token_path, "wb") as token:
                 pickle.dump(self.creds, token)
             logger.info("OAuth2 credentials saved.")
         except Exception as e:
@@ -81,7 +82,7 @@ class GmailOAuth2Provider:
             logger.error("Cannot initialize Gmail service without credentials.")
             return
         try:
-            self.service = build('gmail', 'v1', credentials=self.creds)
+            self.service = build("gmail", "v1", credentials=self.creds)
             logger.info("Gmail API service initialized.")
         except Exception as e:
             logger.error(f"Error initializing Gmail service: {e}")
@@ -93,16 +94,8 @@ class GmailOAuth2Provider:
             logger.error(f"Gmail credentials file not found at {self.credentials_path}.")
             return None
         try:
-            flow = Flow.from_client_secrets_file(
-                str(self.credentials_path),
-                scopes=SCOPES,
-                redirect_uri=redirect_uri
-            )
-            auth_url, _ = flow.authorization_url(
-                access_type='offline',
-                include_granted_scopes='true',
-                prompt='consent'
-            )
+            flow = Flow.from_client_secrets_file(str(self.credentials_path), scopes=SCOPES, redirect_uri=redirect_uri)
+            auth_url, _ = flow.authorization_url(access_type="offline", include_granted_scopes="true", prompt="consent")
             return str(auth_url)
         except Exception as e:
             logger.error(f"Error generating auth URL: {e}")
@@ -114,11 +107,7 @@ class GmailOAuth2Provider:
             logger.error(f"Gmail credentials file not found at {self.credentials_path}.")
             return False
         try:
-            flow = Flow.from_client_secrets_file(
-                str(self.credentials_path),
-                scopes=SCOPES,
-                redirect_uri=redirect_uri
-            )
+            flow = Flow.from_client_secrets_file(str(self.credentials_path), scopes=SCOPES, redirect_uri=redirect_uri)
             flow.fetch_token(code=authorization_code)
             self.creds = flow.credentials
             self.save_credentials()
@@ -132,11 +121,15 @@ class GmailOAuth2Provider:
     @property
     def is_configured(self) -> bool:
         """Check if the provider is fully configured and ready to send emails."""
-        return (self.service is not None and
-                self.creds is not None and
-                self.creds.valid)  # type: ignore[unreachable]
+        return self.service is not None and self.creds is not None and self.creds.valid  # type: ignore[unreachable]
 
-    def send_email(self, to_email: str, subject: str, html_body: str, text_body: Optional[str] = None) -> bool:
+    def send_email(
+        self,
+        to_email: str,
+        subject: str,
+        html_body: str,
+        text_body: Optional[str] = None,
+    ) -> bool:
         """Send an email using the Gmail API."""
         if not self.is_configured:
             logger.error("Gmail OAuth2 provider is not configured. Cannot send email.")
@@ -145,7 +138,7 @@ class GmailOAuth2Provider:
         try:
             message = self._create_message(to_email, subject, html_body, text_body)
             # At this point, is_configured is True, so service is not None
-            self.service.users().messages().send(userId='me', body=message).execute()  # type: ignore
+            self.service.users().messages().send(userId="me", body=message).execute()  # type: ignore
             logger.info(f"Email sent successfully to {to_email} via Gmail.")
             return True
         except HttpError as error:
@@ -157,17 +150,17 @@ class GmailOAuth2Provider:
 
     def _create_message(self, to: str, subject: str, body_html: str, body_text: Optional[str]) -> Dict[str, Any]:
         """Create a MIME message for the Gmail API."""
-        message = MIMEMultipart('alternative')
-        message['to'] = to
-        message['from'] = f"{self.from_name} <{self.from_email}>"
-        message['subject'] = subject
+        message = MIMEMultipart("alternative")
+        message["to"] = to
+        message["from"] = f"{self.from_name} <{self.from_email}>"
+        message["subject"] = subject
 
         if body_text:
-            message.attach(MIMEText(body_text, 'plain'))
-        message.attach(MIMEText(body_html, 'html'))
+            message.attach(MIMEText(body_text, "plain"))
+        message.attach(MIMEText(body_html, "html"))
 
         raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
-        return {'raw': raw_message}
+        return {"raw": raw_message}
 
     def get_configuration_status(self) -> Dict[str, Any]:
         """Get the current configuration status of the provider."""
@@ -181,6 +174,7 @@ class GmailOAuth2Provider:
             "credentials_valid": self.creds.valid if self.creds else False,
         }
 
+
 def create_gmail_oauth2_provider() -> Optional[GmailOAuth2Provider]:
     """Factory function to create a GmailOAuth2Provider instance."""
     from_email = os.getenv("FROM_EMAIL")
@@ -191,10 +185,6 @@ def create_gmail_oauth2_provider() -> Optional[GmailOAuth2Provider]:
         return None
 
     # Use a common data directory for all services
-    data_dir = Path(__file__).parent.parent.parent.parent / 'data'
+    data_dir = Path(__file__).parent.parent.parent.parent / "data"
 
-    return GmailOAuth2Provider(
-        from_email=from_email,
-        from_name=from_name,
-        data_dir=data_dir
-    )
+    return GmailOAuth2Provider(from_email=from_email, from_name=from_name, data_dir=data_dir)

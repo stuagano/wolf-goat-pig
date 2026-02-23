@@ -10,20 +10,14 @@ Tests advanced statistical analysis including:
 - Special event analytics
 """
 
-import pytest
 from datetime import datetime, timedelta
-from unittest.mock import Mock, MagicMock, patch
+
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.services.statistics_service import (
-    StatisticsService,
-    TrendPoint,
-    PerformanceMetric,
-    InsightRecommendation,
-)
-from app.models import Base, PlayerProfile, PlayerStatistics, GamePlayerResult, GameRecord
-
+from app.models import Base, GamePlayerResult, GameRecord, PlayerProfile, PlayerStatistics
+from app.services.statistics_service import StatisticsService
 
 # Test database setup
 TEST_DATABASE_URL = "sqlite:///./test_statistics.db"
@@ -52,7 +46,7 @@ def test_player_with_stats(db):
         handicap=15.0,
         is_active=1,
         is_ai=0,
-        created_at=datetime.now().isoformat()
+        created_at=datetime.now().isoformat(),
     )
     db.add(player)
     db.flush()
@@ -89,7 +83,7 @@ def test_player_with_stats(db):
         bogeys=150,
         double_bogeys=60,
         worse_than_double=28,
-        last_updated=datetime.now().isoformat()
+        last_updated=datetime.now().isoformat(),
     )
     db.add(stats)
     db.commit()
@@ -111,7 +105,7 @@ def test_game_results(db, test_player_with_stats):
             total_holes_played=18,
             course_name="Test Course",
             created_at=(datetime.now() - timedelta(days=10 - i)).isoformat(),
-            completed_at=datetime.now().isoformat()
+            completed_at=datetime.now().isoformat(),
         )
         db.add(game_record)
         db.flush()
@@ -129,7 +123,7 @@ def test_game_results(db, test_player_with_stats):
             partnerships_won=1 if i % 2 == 0 else 0,
             solo_attempts=1 if i % 3 == 0 else 0,
             solo_wins=1 if i % 6 == 0 else 0,
-            created_at=(datetime.now() - timedelta(days=10 - i)).isoformat()
+            created_at=(datetime.now() - timedelta(days=10 - i)).isoformat(),
         )
         db.add(result)
         results.append(result)
@@ -149,7 +143,7 @@ def multiple_players(db):
             handicap=10.0 + i * 2,
             is_active=1,
             is_ai=0,
-            created_at=datetime.now().isoformat()
+            created_at=datetime.now().isoformat(),
         )
         db.add(player)
         db.flush()
@@ -168,7 +162,7 @@ def multiple_players(db):
             partnerships_won=3 + i,
             solo_attempts=5,
             solo_wins=1,
-            last_updated=datetime.now().isoformat()
+            last_updated=datetime.now().isoformat(),
         )
         db.add(stats)
         players.append(player)
@@ -192,7 +186,7 @@ class TestPerformanceMetrics:
             "earnings_efficiency",
             "betting_accuracy",
             "partnership_synergy",
-            "consistency"
+            "consistency",
         ]
 
         for key in expected_keys:
@@ -206,12 +200,12 @@ class TestPerformanceMetrics:
         metrics = service.get_advanced_player_metrics(player.id)
 
         for key, metric in metrics.items():
-            assert hasattr(metric, 'name')
-            assert hasattr(metric, 'value')
-            assert hasattr(metric, 'percentile')
-            assert hasattr(metric, 'trend')
-            assert hasattr(metric, 'confidence')
-            assert hasattr(metric, 'description')
+            assert hasattr(metric, "name")
+            assert hasattr(metric, "value")
+            assert hasattr(metric, "percentile")
+            assert hasattr(metric, "trend")
+            assert hasattr(metric, "confidence")
+            assert hasattr(metric, "description")
 
     def test_win_rate_calculation(self, db, test_player_with_stats):
         """Test win rate metric calculation."""
@@ -256,8 +250,8 @@ class TestPerformanceTrends:
 
         if trends["earnings"]:
             point = trends["earnings"][0]
-            assert hasattr(point, 'timestamp') or 'timestamp' in dir(point)
-            assert hasattr(point, 'value') or 'value' in dir(point)
+            assert hasattr(point, "timestamp") or "timestamp" in dir(point)
+            assert hasattr(point, "value") or "value" in dir(point)
 
     def test_trends_with_no_data(self, db):
         """Test trends returns empty lists when no data."""
@@ -266,7 +260,7 @@ class TestPerformanceTrends:
             name="New Player",
             email="new@example.com",
             handicap=18.0,
-            created_at=datetime.now().isoformat()
+            created_at=datetime.now().isoformat(),
         )
         db.add(player)
         db.commit()
@@ -288,11 +282,11 @@ class TestPlayerInsights:
         insights = service.get_player_insights(player.id)
 
         for insight in insights:
-            assert hasattr(insight, 'category')
-            assert hasattr(insight, 'priority')
-            assert hasattr(insight, 'title')
-            assert hasattr(insight, 'description')
-            assert hasattr(insight, 'suggested_actions')
+            assert hasattr(insight, "category")
+            assert hasattr(insight, "priority")
+            assert hasattr(insight, "title")
+            assert hasattr(insight, "description")
+            assert hasattr(insight, "suggested_actions")
 
     def test_insights_for_low_betting_accuracy(self, db):
         """Test insights generated for poor betting performance."""
@@ -300,7 +294,7 @@ class TestPlayerInsights:
             name="Poor Bettor",
             email="poor@example.com",
             handicap=18.0,
-            created_at=datetime.now().isoformat()
+            created_at=datetime.now().isoformat(),
         )
         db.add(player)
         db.flush()
@@ -316,7 +310,7 @@ class TestPlayerInsights:
             partnerships_formed=10,
             solo_attempts=5,
             solo_wins=0,
-            last_updated=datetime.now().isoformat()
+            last_updated=datetime.now().isoformat(),
         )
         db.add(stats)
         db.commit()
@@ -334,7 +328,7 @@ class TestPlayerInsights:
             name="New Player",
             email="newbie@example.com",
             handicap=18.0,
-            created_at=datetime.now().isoformat()
+            created_at=datetime.now().isoformat(),
         )
         db.add(player)
         db.flush()
@@ -343,7 +337,7 @@ class TestPlayerInsights:
             player_id=player.id,
             games_played=3,  # Very few games
             games_won=1,
-            last_updated=datetime.now().isoformat()
+            last_updated=datetime.now().isoformat(),
         )
         db.add(stats)
         db.commit()
@@ -405,10 +399,7 @@ class TestHeadToHead:
         """Test head-to-head when players haven't played together."""
         service = StatisticsService(db)
 
-        result = service.get_head_to_head(
-            multiple_players[0].id,
-            multiple_players[1].id
-        )
+        result = service.get_head_to_head(multiple_players[0].id, multiple_players[1].id)
 
         assert result["status"] == "no_games"
         assert result["games_together"] == 0
@@ -422,7 +413,7 @@ class TestHeadToHead:
             name="Opponent",
             email="opponent@example.com",
             handicap=18.0,
-            created_at=datetime.now().isoformat()
+            created_at=datetime.now().isoformat(),
         )
         db.add(opponent)
         db.flush()
@@ -438,7 +429,7 @@ class TestHeadToHead:
                 holes_won=2,
                 successful_bets=2,
                 total_bets=4,
-                created_at=result.created_at
+                created_at=result.created_at,
             )
             db.add(opponent_result)
 
@@ -485,7 +476,7 @@ class TestStreakAnalysis:
             name="No Games Player",
             email="nogames@example.com",
             handicap=18.0,
-            created_at=datetime.now().isoformat()
+            created_at=datetime.now().isoformat(),
         )
         db.add(player)
         db.commit()
@@ -572,10 +563,7 @@ class TestComparativeLeaderboard:
         """Test getting comparative leaderboard."""
         service = StatisticsService(db)
 
-        leaderboard = service.get_comparative_leaderboard(
-            metric="total_earnings",
-            limit=10
-        )
+        leaderboard = service.get_comparative_leaderboard(metric="total_earnings", limit=10)
 
         assert isinstance(leaderboard, list)
         assert len(leaderboard) <= 10
@@ -593,7 +581,7 @@ class TestComparativeLeaderboard:
             name="AI Player",
             is_ai=1,
             is_active=1,
-            created_at=datetime.now().isoformat()
+            created_at=datetime.now().isoformat(),
         )
         db.add(ai_player)
         db.flush()
@@ -602,7 +590,7 @@ class TestComparativeLeaderboard:
             player_id=ai_player.id,
             games_played=100,
             total_earnings=10000.0,
-            last_updated=datetime.now().isoformat()
+            last_updated=datetime.now().isoformat(),
         )
         db.add(stats)
         db.commit()
@@ -610,9 +598,7 @@ class TestComparativeLeaderboard:
         service = StatisticsService(db)
         leaderboard = service.get_comparative_leaderboard()
 
-        ai_in_board = any(
-            entry["player_id"] == ai_player.id for entry in leaderboard
-        )
+        ai_in_board = any(entry["player_id"] == ai_player.id for entry in leaderboard)
         assert not ai_in_board
 
 

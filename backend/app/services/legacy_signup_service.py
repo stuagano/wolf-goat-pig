@@ -198,7 +198,8 @@ class LegacySignupSyncService:
 
         if not payload:
             logger.debug(
-                "Legacy signup sync skipped: empty payload for signup id=%s", getattr(signup, "id", "<unknown>")
+                "Legacy signup sync skipped: empty payload for signup id=%s",
+                getattr(signup, "id", "<unknown>"),
             )
             return False
 
@@ -275,7 +276,11 @@ class LegacySignupSyncService:
                 finally:
                     db.close()
             except Exception as e:
-                logger.warning("Failed to lookup legacy_name for profile %s: %s", player_profile_id, e)
+                logger.warning(
+                    "Failed to lookup legacy_name for profile %s: %s",
+                    player_profile_id,
+                    e,
+                )
 
         attribute_map = {
             "date": getattr(signup, "date", None),

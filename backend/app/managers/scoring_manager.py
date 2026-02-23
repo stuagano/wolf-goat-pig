@@ -44,6 +44,7 @@ class HoleResult:
         carried_over: Whether this hole was carried over from previous
         carryover_amount: Amount carried over to next hole
     """
+
     hole_number: int
     winning_team: Optional[List[str]] = None
     losing_team: Optional[List[str]] = None
@@ -73,6 +74,7 @@ class GameTotals:
         holes_halved: Total holes halved
         total_carryover: Total amount carried over in game
     """
+
     total_holes_played: int
     player_totals: Dict[str, float] = field(default_factory=dict)
     standings: List[Tuple[str, float]] = field(default_factory=list)
@@ -107,17 +109,13 @@ class ScoringManager:
 
     def __init__(self, game_engine: Optional[WolfGoatPigGame] = None) -> None:
         """Initialize the scoring manager."""
-        if getattr(self, '_initialized', False):
+        if getattr(self, "_initialized", False):
             return
 
         self._initialized: bool = True
         logger.info("ScoringManager initialized")
 
-    def calculate_hole_score(
-        self,
-        gross_score: int,
-        handicap_strokes: int
-    ) -> int:
+    def calculate_hole_score(self, gross_score: int, handicap_strokes: int) -> int:
         """
         Calculate net score for a hole.
 
@@ -145,13 +143,10 @@ class ScoringManager:
             net_score = HandicapValidator.calculate_net_score(
                 gross_score=gross_score,
                 strokes_received=handicap_strokes,
-                validate=True
+                validate=True,
             )
 
-            logger.debug(
-                f"Calculated net score: gross={gross_score}, "
-                f"strokes={handicap_strokes}, net={net_score}"
-            )
+            logger.debug(f"Calculated net score: gross={gross_score}, " f"strokes={handicap_strokes}, net={net_score}")
 
             return int(net_score)
 
@@ -162,11 +157,7 @@ class ScoringManager:
             logger.error(f"Unexpected error calculating hole score: {e}")
             raise ValueError(f"Failed to calculate hole score: {str(e)}")
 
-    def calculate_team_score(
-        self,
-        player1_score: int,
-        player2_score: int
-    ) -> int:
+    def calculate_team_score(self, player1_score: int, player2_score: int) -> int:
         """
         Calculate best ball team score.
 
@@ -193,10 +184,7 @@ class ScoringManager:
 
             team_score = min(player1_score, player2_score)
 
-            logger.debug(
-                f"Calculated team score: p1={player1_score}, "
-                f"p2={player2_score}, team={team_score}"
-            )
+            logger.debug(f"Calculated team score: p1={player1_score}, " f"p2={player2_score}, team={team_score}")
 
             return team_score
 
@@ -208,7 +196,7 @@ class ScoringManager:
         self,
         winning_team: List[str],
         losing_team: List[str],
-        wager_multiplier: float = 1.0
+        wager_multiplier: float = 1.0,
     ) -> Dict[str, int]:
         """
         Calculate match play points for a hole.
@@ -284,9 +272,7 @@ class ScoringManager:
             raise ValueError(f"Failed to calculate match points: {str(e)}")
 
     def calculate_money_distribution(
-        self,
-        hole_results: List[HoleResult],
-        base_wager: float = 0.25
+        self, hole_results: List[HoleResult], base_wager: float = 0.25
     ) -> Dict[str, float]:
         """
         Calculate total money won/lost per player across multiple holes.
@@ -324,10 +310,7 @@ class ScoringManager:
                     money_distribution[player_id] += points * base_wager
 
             # Round to 2 decimal places (cents)
-            money_distribution = {
-                player_id: round(amount, 2)
-                for player_id, amount in money_distribution.items()
-            }
+            money_distribution = {player_id: round(amount, 2) for player_id, amount in money_distribution.items()}
 
             logger.debug(
                 f"Calculated money distribution: base_wager={base_wager}, "
@@ -345,7 +328,7 @@ class ScoringManager:
         winners: List[str],
         losers: List[str],
         wager: int,
-        current_points: Dict[str, int]
+        current_points: Dict[str, int],
     ) -> Dict[str, int]:
         """
         Apply Karl Marx rule for point distribution.
@@ -393,10 +376,7 @@ class ScoringManager:
                 remainder = total_won % len(winners)
 
                 # Sort winners by current points (ascending - furthest down gets priority)
-                sorted_winners = sorted(
-                    winners,
-                    key=lambda pid: current_points.get(pid, 0)
-                )
+                sorted_winners = sorted(winners, key=lambda pid: current_points.get(pid, 0))
 
                 for i, winner in enumerate(sorted_winners):
                     points_changes[winner] = points_per_winner
@@ -413,10 +393,7 @@ class ScoringManager:
                 remainder = total_owed % len(losers)
 
                 # Sort losers by current points (ascending - furthest down pays less)
-                sorted_losers = sorted(
-                    losers,
-                    key=lambda pid: current_points.get(pid, 0)
-                )
+                sorted_losers = sorted(losers, key=lambda pid: current_points.get(pid, 0))
 
                 for i, loser in enumerate(sorted_losers):
                     points_changes[loser] = -points_per_loser
@@ -435,11 +412,7 @@ class ScoringManager:
             logger.error(f"Error applying Karl Marx rule: {e}")
             raise ValueError(f"Failed to apply Karl Marx distribution: {str(e)}")
 
-    def calculate_carryover(
-        self,
-        hole_results: List[HoleResult],
-        current_carryover: float = 0.0
-    ) -> float:
+    def calculate_carryover(self, hole_results: List[HoleResult], current_carryover: float = 0.0) -> float:
         """
         Calculate carryover amount to next hole.
 
@@ -469,16 +442,12 @@ class ScoringManager:
                 if result.halved:
                     carryover += result.wager
                     logger.debug(
-                        f"Hole {result.hole_number} halved, "
-                        f"adding {result.wager} to carryover (total: {carryover})"
+                        f"Hole {result.hole_number} halved, " f"adding {result.wager} to carryover (total: {carryover})"
                     )
                 else:
                     # Carryover is resolved, reset to 0
                     if carryover > 0:
-                        logger.debug(
-                            f"Hole {result.hole_number} won, "
-                            f"carryover of {carryover} resolved"
-                        )
+                        logger.debug(f"Hole {result.hole_number} won, " f"carryover of {carryover} resolved")
                     carryover = 0.0
 
             return carryover
@@ -487,10 +456,7 @@ class ScoringManager:
             logger.error(f"Error calculating carryover: {e}")
             raise ValueError(f"Failed to calculate carryover: {str(e)}")
 
-    def calculate_game_totals(
-        self,
-        all_hole_results: List[HoleResult]
-    ) -> GameTotals:
+    def calculate_game_totals(self, all_hole_results: List[HoleResult]) -> GameTotals:
         """
         Calculate final game totals from all hole results.
 
@@ -544,11 +510,7 @@ class ScoringManager:
                     player_totals[player_id] += float(points)
 
             # Create standings (sorted by total, descending)
-            standings: List[Tuple[str, float]] = sorted(
-                player_totals.items(),
-                key=lambda x: x[1],
-                reverse=True
-            )
+            standings: List[Tuple[str, float]] = sorted(player_totals.items(), key=lambda x: x[1], reverse=True)
 
             # Determine winner (or tie)
             winner = None
@@ -563,12 +525,11 @@ class ScoringManager:
                 winner=winner,
                 holes_won=holes_won,
                 holes_halved=holes_halved,
-                total_carryover=total_carryover
+                total_carryover=total_carryover,
             )
 
             logger.info(
-                f"Calculated game totals: holes={len(all_hole_results)}, "
-                f"winner={winner}, halved={holes_halved}"
+                f"Calculated game totals: holes={len(all_hole_results)}, " f"winner={winner}, halved={holes_halved}"
             )
 
             return game_totals
@@ -582,7 +543,7 @@ class ScoringManager:
         gross_scores: Dict[str, int],
         handicaps: Dict[str, float],
         stroke_indexes: Dict[str, int],
-        hole_stroke_index: int
+        hole_stroke_index: int,
     ) -> Dict[str, int]:
         """
         Calculate handicap-adjusted scores for all players on a hole.
@@ -636,14 +597,11 @@ class ScoringManager:
                 strokes_received = HandicapValidator.calculate_strokes_received_with_creecher(
                     course_handicap=net_handicap,
                     stroke_index=hole_stroke_index,
-                    validate=True
+                    validate=True,
                 )
 
                 # Calculate net score
-                net_score = self.calculate_hole_score(
-                    gross_score=gross_score,
-                    handicap_strokes=int(strokes_received)
-                )
+                net_score = self.calculate_hole_score(gross_score=gross_score, handicap_strokes=int(strokes_received))
 
                 net_scores[player_id] = net_score
 
@@ -667,7 +625,7 @@ class ScoringManager:
         game_state: Any,
         conceding_player: Optional[str],
         conceding_team: Optional[int],
-        hole_number: int
+        hole_number: int,
     ) -> Dict[str, int]:
         """
         Award points to winning team(s) based on hole concession.
@@ -698,7 +656,9 @@ class ScoringManager:
         """
         try:
             # Get hole state
-            hole_states = game_state.hole_states if hasattr(game_state, 'hole_states') else game_state.get('hole_states', {})
+            hole_states = (
+                game_state.hole_states if hasattr(game_state, "hole_states") else game_state.get("hole_states", {})
+            )
             if hole_number not in hole_states:
                 raise ValueError(f"Hole {hole_number} not found in game state")
 
@@ -716,7 +676,7 @@ class ScoringManager:
             points_awarded = {}
 
             # Get player manager
-            player_manager = game_state.player_manager if hasattr(game_state, 'player_manager') else None
+            player_manager = game_state.player_manager if hasattr(game_state, "player_manager") else None
             if not player_manager:
                 raise ValueError("Player manager not found in game state")
 
@@ -774,11 +734,7 @@ class ScoringManager:
             logger.error(f"Error awarding concession points: {e}")
             raise ValueError(f"Failed to award concession points: {str(e)}")
 
-    def get_hole_summary(
-        self,
-        hole_number: int,
-        game_state: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def get_hole_summary(self, hole_number: int, game_state: Dict[str, Any]) -> Dict[str, Any]:
         """
         Get comprehensive summary for a single hole.
 
@@ -802,43 +758,43 @@ class ScoringManager:
                 raise ValueError("Hole number must be between 1 and 18")
 
             # Extract hole state from game state
-            hole_states = game_state.get('hole_states', {})
+            hole_states = game_state.get("hole_states", {})
             if hole_number not in hole_states:
                 raise ValueError(f"Hole {hole_number} not found in game state")
 
             hole_state = hole_states[hole_number]
 
             summary = {
-                'hole_number': hole_number,
-                'teams': {
-                    'type': hole_state.get('teams', {}).get('type'),
-                    'team1': hole_state.get('teams', {}).get('team1', []),
-                    'team2': hole_state.get('teams', {}).get('team2', []),
-                    'solo_player': hole_state.get('teams', {}).get('solo_player')
+                "hole_number": hole_number,
+                "teams": {
+                    "type": hole_state.get("teams", {}).get("type"),
+                    "team1": hole_state.get("teams", {}).get("team1", []),
+                    "team2": hole_state.get("teams", {}).get("team2", []),
+                    "solo_player": hole_state.get("teams", {}).get("solo_player"),
                 },
-                'scores': {
-                    'gross': hole_state.get('scores', {}),
-                    'net': hole_state.get('net_scores', {}),
-                    'team1_score': hole_state.get('team1_score'),
-                    'team2_score': hole_state.get('team2_score')
+                "scores": {
+                    "gross": hole_state.get("scores", {}),
+                    "net": hole_state.get("net_scores", {}),
+                    "team1_score": hole_state.get("team1_score"),
+                    "team2_score": hole_state.get("team2_score"),
                 },
-                'betting': {
-                    'base_wager': hole_state.get('betting', {}).get('base_wager', 1),
-                    'current_wager': hole_state.get('betting', {}).get('current_wager', 1),
-                    'doubled': hole_state.get('betting', {}).get('doubled', False),
-                    'carry_over': hole_state.get('betting', {}).get('carry_over', False),
-                    'special_rules': {
-                        'duncan': hole_state.get('betting', {}).get('duncan_invoked', False),
-                        'tunkarri': hole_state.get('betting', {}).get('tunkarri_invoked', False),
-                        'float': hole_state.get('betting', {}).get('float_invoked', False)
-                    }
+                "betting": {
+                    "base_wager": hole_state.get("betting", {}).get("base_wager", 1),
+                    "current_wager": hole_state.get("betting", {}).get("current_wager", 1),
+                    "doubled": hole_state.get("betting", {}).get("doubled", False),
+                    "carry_over": hole_state.get("betting", {}).get("carry_over", False),
+                    "special_rules": {
+                        "duncan": hole_state.get("betting", {}).get("duncan_invoked", False),
+                        "tunkarri": hole_state.get("betting", {}).get("tunkarri_invoked", False),
+                        "float": hole_state.get("betting", {}).get("float_invoked", False),
+                    },
                 },
-                'result': {
-                    'complete': hole_state.get('hole_complete', False),
-                    'halved': hole_state.get('halved', False),
-                    'winning_team': hole_state.get('winning_team'),
-                    'points_changes': hole_state.get('points_changes', {})
-                }
+                "result": {
+                    "complete": hole_state.get("hole_complete", False),
+                    "halved": hole_state.get("halved", False),
+                    "winning_team": hole_state.get("winning_team"),
+                    "points_changes": hole_state.get("points_changes", {}),
+                },
             }
 
             logger.debug(f"Generated summary for hole {hole_number}")
@@ -849,10 +805,7 @@ class ScoringManager:
             logger.error(f"Error getting hole summary: {e}")
             raise ValueError(f"Failed to get hole summary: {str(e)}")
 
-    def get_game_summary(
-        self,
-        game_state: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def get_game_summary(self, game_state: Dict[str, Any]) -> Dict[str, Any]:
         """
         Get comprehensive summary for entire game.
 
@@ -872,21 +825,21 @@ class ScoringManager:
                        'standings', 'hole_results'])
         """
         try:
-            players = game_state.get('players', [])
-            hole_states = game_state.get('hole_states', {})
-            current_hole = game_state.get('current_hole', 1)
+            players = game_state.get("players", [])
+            hole_states = game_state.get("hole_states", {})
+            current_hole = game_state.get("current_hole", 1)
 
             # Aggregate player totals
             player_totals = {}
             for player in players:
-                player_id = player.get('id')
+                player_id = player.get("id")
                 player_totals[player_id] = {
-                    'name': player.get('name'),
-                    'handicap': player.get('handicap'),
-                    'points': player.get('points', 0),
-                    'holes_won': 0,
-                    'holes_lost': 0,
-                    'holes_halved': 0
+                    "name": player.get("name"),
+                    "handicap": player.get("handicap"),
+                    "points": player.get("points", 0),
+                    "holes_won": 0,
+                    "holes_lost": 0,
+                    "holes_halved": 0,
                 }
 
             # Process each completed hole
@@ -896,60 +849,53 @@ class ScoringManager:
                     continue
 
                 hole_state = hole_states[hole_num]
-                if not hole_state.get('hole_complete', False):
+                if not hole_state.get("hole_complete", False):
                     continue
 
                 hole_summary = self.get_hole_summary(hole_num, game_state)
                 hole_results.append(hole_summary)
 
                 # Update player stats
-                result = hole_summary.get('result', {})
-                if result.get('halved'):
+                result = hole_summary.get("result", {})
+                if result.get("halved"):
                     for player_id in player_totals:
-                        player_totals[player_id]['holes_halved'] += 1
-                elif result.get('winning_team'):
-                    for player_id in result['winning_team']:
+                        player_totals[player_id]["holes_halved"] += 1
+                elif result.get("winning_team"):
+                    for player_id in result["winning_team"]:
                         if player_id in player_totals:
-                            player_totals[player_id]['holes_won'] += 1
+                            player_totals[player_id]["holes_won"] += 1
 
                     # Infer losing team
                     all_player_ids = set(player_totals.keys())
-                    winning_ids = set(result['winning_team'])
+                    winning_ids = set(result["winning_team"])
                     losing_ids = all_player_ids - winning_ids
                     for player_id in losing_ids:
-                        player_totals[player_id]['holes_lost'] += 1
+                        player_totals[player_id]["holes_lost"] += 1
 
             # Create standings
-            standings = sorted(
-                player_totals.items(),
-                key=lambda x: x[1]['points'],
-                reverse=True
-            )
+            standings = sorted(player_totals.items(), key=lambda x: x[1]["points"], reverse=True)
 
             summary = {
-                'game_id': game_state.get('game_id'),
-                'total_holes': len(hole_results),
-                'current_hole': current_hole,
-                'players': player_totals,
-                'standings': [
+                "game_id": game_state.get("game_id"),
+                "total_holes": len(hole_results),
+                "current_hole": current_hole,
+                "players": player_totals,
+                "standings": [
                     {
-                        'player_id': player_id,
-                        'player_name': data['name'],
-                        'total_points': data['points'],
-                        'holes_won': data['holes_won'],
-                        'holes_lost': data['holes_lost'],
-                        'holes_halved': data['holes_halved']
+                        "player_id": player_id,
+                        "player_name": data["name"],
+                        "total_points": data["points"],
+                        "holes_won": data["holes_won"],
+                        "holes_lost": data["holes_lost"],
+                        "holes_halved": data["holes_halved"],
                     }
                     for player_id, data in standings
                 ],
-                'hole_results': hole_results,
-                'game_status': game_state.get('game_status', 'unknown')
+                "hole_results": hole_results,
+                "game_status": game_state.get("game_status", "unknown"),
             }
 
-            logger.info(
-                f"Generated game summary: {len(hole_results)} holes completed, "
-                f"{len(players)} players"
-            )
+            logger.info(f"Generated game summary: {len(hole_results)} holes completed, " f"{len(players)} players")
 
             return summary
 

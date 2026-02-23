@@ -13,7 +13,7 @@ import json
 import logging
 import traceback
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Union, cast
+from typing import Any, Dict, cast
 
 from fastapi import APIRouter, Depends, File, HTTPException, Path, UploadFile
 from sqlalchemy.orm import Session
@@ -22,14 +22,11 @@ from .. import models, schemas
 from ..course_import import import_course_by_name, import_course_from_json
 from ..database import get_db
 from ..state.course_manager import CourseManager
-from ..utils.api_helpers import handle_api_errors, ApiResponse
+from ..utils.api_helpers import ApiResponse, handle_api_errors
 
 logger = logging.getLogger("app.routers.courses")
 
-router = APIRouter(
-    prefix="/courses",
-    tags=["courses"]
-)
+router = APIRouter(prefix="/courses", tags=["courses"])
 
 # Initialize course manager
 course_manager = CourseManager()
@@ -44,50 +41,159 @@ def get_fallback_courses() -> Dict[str, Any]:
             "holes": [
                 {
                     "hole_number": i,
-                    "par": 4 if i not in [4, 8, 12, 17] else 3 if i in [4, 8, 17] else 5,
-                    "yards": 400 if i not in [4, 8, 12, 17] else 160 if i in [4, 8, 17] else 520,
+                    "par": (4 if i not in [4, 8, 12, 17] else 3 if i in [4, 8, 17] else 5),
+                    "yards": (400 if i not in [4, 8, 12, 17] else 160 if i in [4, 8, 17] else 520),
                     "handicap": ((i - 1) % 18) + 1,
-                    "description": f"Emergency hole {i} - Par {4 if i not in [4, 8, 12, 17] else 3 if i in [4, 8, 17] else 5}"
+                    "description": f"Emergency hole {i} - Par {4 if i not in [4, 8, 12, 17] else 3 if i in [4, 8, 17] else 5}",
                 }
                 for i in range(1, 19)
             ],
             "total_par": 72,
             "total_yards": 6800,
-            "hole_count": 18
+            "hole_count": 18,
         },
         "Wing Point Golf & Country Club": {
             "name": "Wing Point Golf & Country Club",
             "description": "Classic parkland course on Bainbridge Island, WA (Est. 1903)",
             "holes": [
-                {"hole_number": 1, "par": 5, "yards": 476, "handicap": 5, "description": "Opening Drive - gentle starting hole, slight dogleg right"},
-                {"hole_number": 2, "par": 3, "yards": 175, "handicap": 13, "description": "Short Iron - downhill par 3 with bunkers"},
-                {"hole_number": 3, "par": 4, "yards": 401, "handicap": 1, "description": "The Challenge - handicap 1, tough dogleg left"},
-                {"hole_number": 4, "par": 3, "yards": 133, "handicap": 17, "description": "Precision - short but tricky par 3"},
-                {"hole_number": 5, "par": 5, "yards": 498, "handicap": 7, "description": "The Long One - reachable par 5"},
-                {"hole_number": 6, "par": 4, "yards": 351, "handicap": 11, "description": "Mid Iron - strategic placement required"},
-                {"hole_number": 7, "par": 4, "yards": 316, "handicap": 15, "description": "Risk Reward - short par 4"},
-                {"hole_number": 8, "par": 4, "yards": 294, "handicap": 3, "description": "The Turn - another short par 4"},
-                {"hole_number": 9, "par": 4, "yards": 340, "handicap": 9, "description": "Home Bound - tough finishing hole for front nine"},
-                {"hole_number": 10, "par": 3, "yards": 239, "handicap": 2, "description": "Back Nine Starter - long par 3"},
-                {"hole_number": 11, "par": 4, "yards": 401, "handicap": 16, "description": "The Beast - second toughest hole"},
-                {"hole_number": 12, "par": 3, "yards": 204, "handicap": 8, "description": "Over Water - beautiful par 3"},
-                {"hole_number": 13, "par": 4, "yards": 310, "handicap": 14, "description": "Breathing Room - easiest hole"},
-                {"hole_number": 14, "par": 4, "yards": 317, "handicap": 4, "description": "Deceptive - looks easy but plays tough"},
-                {"hole_number": 15, "par": 4, "yards": 396, "handicap": 18, "description": "The Stretch - start of tough finish"},
-                {"hole_number": 16, "par": 4, "yards": 358, "handicap": 10, "description": "Penultimate - tough as you near finish"},
-                {"hole_number": 17, "par": 5, "yards": 490, "handicap": 12, "description": "The Penultimate - par 5 start of Hoepfinger"},
-                {"hole_number": 18, "par": 4, "yards": 394, "handicap": 6, "description": "The Finale - strong finishing par 4"}
+                {
+                    "hole_number": 1,
+                    "par": 5,
+                    "yards": 476,
+                    "handicap": 5,
+                    "description": "Opening Drive - gentle starting hole, slight dogleg right",
+                },
+                {
+                    "hole_number": 2,
+                    "par": 3,
+                    "yards": 175,
+                    "handicap": 13,
+                    "description": "Short Iron - downhill par 3 with bunkers",
+                },
+                {
+                    "hole_number": 3,
+                    "par": 4,
+                    "yards": 401,
+                    "handicap": 1,
+                    "description": "The Challenge - handicap 1, tough dogleg left",
+                },
+                {
+                    "hole_number": 4,
+                    "par": 3,
+                    "yards": 133,
+                    "handicap": 17,
+                    "description": "Precision - short but tricky par 3",
+                },
+                {
+                    "hole_number": 5,
+                    "par": 5,
+                    "yards": 498,
+                    "handicap": 7,
+                    "description": "The Long One - reachable par 5",
+                },
+                {
+                    "hole_number": 6,
+                    "par": 4,
+                    "yards": 351,
+                    "handicap": 11,
+                    "description": "Mid Iron - strategic placement required",
+                },
+                {
+                    "hole_number": 7,
+                    "par": 4,
+                    "yards": 316,
+                    "handicap": 15,
+                    "description": "Risk Reward - short par 4",
+                },
+                {
+                    "hole_number": 8,
+                    "par": 4,
+                    "yards": 294,
+                    "handicap": 3,
+                    "description": "The Turn - another short par 4",
+                },
+                {
+                    "hole_number": 9,
+                    "par": 4,
+                    "yards": 340,
+                    "handicap": 9,
+                    "description": "Home Bound - tough finishing hole for front nine",
+                },
+                {
+                    "hole_number": 10,
+                    "par": 3,
+                    "yards": 239,
+                    "handicap": 2,
+                    "description": "Back Nine Starter - long par 3",
+                },
+                {
+                    "hole_number": 11,
+                    "par": 4,
+                    "yards": 401,
+                    "handicap": 16,
+                    "description": "The Beast - second toughest hole",
+                },
+                {
+                    "hole_number": 12,
+                    "par": 3,
+                    "yards": 204,
+                    "handicap": 8,
+                    "description": "Over Water - beautiful par 3",
+                },
+                {
+                    "hole_number": 13,
+                    "par": 4,
+                    "yards": 310,
+                    "handicap": 14,
+                    "description": "Breathing Room - easiest hole",
+                },
+                {
+                    "hole_number": 14,
+                    "par": 4,
+                    "yards": 317,
+                    "handicap": 4,
+                    "description": "Deceptive - looks easy but plays tough",
+                },
+                {
+                    "hole_number": 15,
+                    "par": 4,
+                    "yards": 396,
+                    "handicap": 18,
+                    "description": "The Stretch - start of tough finish",
+                },
+                {
+                    "hole_number": 16,
+                    "par": 4,
+                    "yards": 358,
+                    "handicap": 10,
+                    "description": "Penultimate - tough as you near finish",
+                },
+                {
+                    "hole_number": 17,
+                    "par": 5,
+                    "yards": 490,
+                    "handicap": 12,
+                    "description": "The Penultimate - par 5 start of Hoepfinger",
+                },
+                {
+                    "hole_number": 18,
+                    "par": 4,
+                    "yards": 394,
+                    "handicap": 6,
+                    "description": "The Finale - strong finishing par 4",
+                },
             ],
             "total_par": 71,
             "total_yards": 6093,
-            "hole_count": 18
-        }
+            "hole_count": 18,
+        },
     }
 
 
 # ============================================================================
 # Course Management Endpoints
 # ============================================================================
+
 
 @router.get("")
 def get_courses() -> Any:
@@ -106,6 +212,7 @@ def get_courses() -> Any:
 
             try:
                 from ..seed_data import get_seeding_status
+
                 seeding_status = get_seeding_status()
 
                 if seeding_status["status"] == "success":
@@ -137,7 +244,9 @@ def get_courses() -> Any:
                     # Fall back to summary data if details not available
                     courses_with_holes[course_name] = courses_summary[course_name]
 
-            logger.info(f"Retrieved {len(courses_with_holes)} courses with holes data: {list(courses_with_holes.keys())}")
+            logger.info(
+                f"Retrieved {len(courses_with_holes)} courses with holes data: {list(courses_with_holes.keys())}"
+            )
             return courses_with_holes
 
         return courses_summary
@@ -169,10 +278,7 @@ def get_course_by_id(course_id: int) -> Dict[str, Any]:
 
 @router.post("", response_model=dict)
 @handle_api_errors(operation_name="add course")
-def add_course(
-    course: schemas.CourseCreate,
-    db: Session = Depends(get_db)
-) -> Dict[str, Any]:
+def add_course(course: schemas.CourseCreate, db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Add a new course - persists to database with Hole records"""
     course_dict = course.dict()
 
@@ -195,7 +301,7 @@ def add_course(
         total_yards=total_yards,
         holes_data=holes,
         created_at=now,
-        updated_at=now
+        updated_at=now,
     )
 
     db.add(db_course)
@@ -210,7 +316,7 @@ def add_course(
             yards=hole_data.get("yards"),
             handicap=hole_data.get("handicap"),
             description=hole_data.get("description"),
-            tee_box=hole_data.get("tee_box", "regular")
+            tee_box=hole_data.get("tee_box", "regular"),
         )
         db.add(db_hole)
 
@@ -228,18 +334,16 @@ def add_course(
             "name": db_course.name,
             "total_par": total_par,
             "total_yards": total_yards,
-            "hole_count": len(holes)
+            "hole_count": len(holes),
         },
-        message=f"Course '{course.name}' added successfully"
+        message=f"Course '{course.name}' added successfully",
     )
 
 
 @router.put("/{course_name}")
 @handle_api_errors(operation_name="update course")
 def update_course(
-    course_name: str,
-    course_update: schemas.CourseUpdate,
-    db: Session = Depends(get_db)
+    course_name: str, course_update: schemas.CourseUpdate, db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """Update an existing course - persists to database and updates Hole records"""
     db_course = db.query(models.Course).filter(models.Course.name == course_name).first()
@@ -286,7 +390,7 @@ def update_course(
                     yards=hole_data.get("yards"),
                     handicap=hole_data.get("handicap"),
                     description=hole_data.get("description"),
-                    tee_box=hole_data.get("tee_box", "regular")
+                    tee_box=hole_data.get("tee_box", "regular"),
                 )
                 db.add(db_hole)
 
@@ -314,18 +418,15 @@ def update_course(
             "id": db_course.id,
             "name": db_course.name,
             "total_par": db_course.total_par,
-            "total_yards": db_course.total_yards
+            "total_yards": db_course.total_yards,
         },
-        message=f"Course '{course_name}' updated successfully"
+        message=f"Course '{course_name}' updated successfully",
     )
 
 
 @router.delete("/{course_name}")
 @handle_api_errors(operation_name="delete course")
-def delete_course(
-    course_name: str = Path(...),
-    db: Session = Depends(get_db)
-) -> Dict[str, str]:
+def delete_course(course_name: str = Path(...), db: Session = Depends(get_db)) -> Dict[str, str]:
     """Delete a course - removes from database"""
     db_course = db.query(models.Course).filter(models.Course.name == course_name).first()
     if not db_course:
@@ -346,9 +447,12 @@ def delete_course(
 # Course Import Endpoints
 # ============================================================================
 
+
 @router.post("/import/search")
 @handle_api_errors(operation_name="import course by search")
-async def import_course_by_search(request: schemas.CourseImportRequest) -> Dict[str, Any]:
+async def import_course_by_search(
+    request: schemas.CourseImportRequest,
+) -> Dict[str, Any]:
     """Search and import a course by name"""
     result = await import_course_by_name(request.course_name, request.state, request.city)
     return cast(Dict[str, Any], result if result else {})
@@ -359,11 +463,11 @@ async def import_course_by_search(request: schemas.CourseImportRequest) -> Dict[
 async def import_course_from_file(file: UploadFile = File(...)) -> Dict[str, Any]:
     """Import a course from uploaded JSON file"""
     filename = file.filename or ""
-    if not filename.endswith('.json'):
+    if not filename.endswith(".json"):
         raise ValueError("File must be a JSON file")
 
     content = await file.read()
-    course_data = json.loads(content.decode('utf-8'))
+    course_data = json.loads(content.decode("utf-8"))
 
     result = await import_course_from_json(course_data)
     return cast(Dict[str, Any], result if result else {})
@@ -378,13 +482,13 @@ def get_import_sources() -> Dict[str, Any]:
             {
                 "name": "USGA Course Database",
                 "description": "Official USGA course database with ratings and slopes",
-                "endpoint": "/courses/import/search"
+                "endpoint": "/courses/import/search",
             },
             {
                 "name": "JSON File Upload",
                 "description": "Upload custom course data in JSON format",
-                "endpoint": "/courses/import/file"
-            }
+                "endpoint": "/courses/import/file",
+            },
         ]
     }
 
@@ -402,7 +506,7 @@ async def preview_course_import(request: schemas.CourseImportRequest) -> Dict[st
             "slope": 135,
             "sample_holes": [
                 {"hole": 1, "par": 4, "yards": 400, "handicap": 7},
-                {"hole": 2, "par": 3, "yards": 175, "handicap": 15}
-            ]
-        }
+                {"hole": 2, "par": 3, "yards": 175, "handicap": 15},
+            ],
+        },
     }

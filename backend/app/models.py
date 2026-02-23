@@ -39,7 +39,12 @@ class Course(Base):
     updated_at = Column(String)
 
     # Relationship to holes
-    holes = relationship("Hole", back_populates="course", cascade="all, delete-orphan", order_by="Hole.hole_number")
+    holes = relationship(
+        "Hole",
+        back_populates="course",
+        cascade="all, delete-orphan",
+        order_by="Hole.hole_number",
+    )
 
     def get_hole(self, hole_number: int):
         """Get a specific hole by its number (1-18)"""

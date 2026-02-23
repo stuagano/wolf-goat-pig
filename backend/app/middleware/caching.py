@@ -58,10 +58,7 @@ class SimpleCache:
 
         self.hits += 1
         remaining_ttl = self.default_ttl - age
-        logger.debug(
-            f"Cache HIT for key: {key} "
-            f"(age: {age.seconds}s, remaining TTL: {remaining_ttl.seconds}s)"
-        )
+        logger.debug(f"Cache HIT for key: {key} " f"(age: {age.seconds}s, remaining TTL: {remaining_ttl.seconds}s)")
         return value
 
     def set(self, key: str, value: Any) -> None:
@@ -97,10 +94,7 @@ class SimpleCache:
     def cleanup_expired(self):
         """Remove all expired entries from cache."""
         now = datetime.now()
-        expired_keys = [
-            key for key, (_, timestamp) in self.cache.items()
-            if now - timestamp >= self.default_ttl
-        ]
+        expired_keys = [key for key, (_, timestamp) in self.cache.items() if now - timestamp >= self.default_ttl]
 
         for key in expired_keys:
             del self.cache[key]
@@ -119,11 +113,11 @@ class SimpleCache:
             "misses": self.misses,
             "hit_rate_percent": round(hit_rate, 2),
             "ttl_seconds": self.default_ttl.seconds,
-            "entries": list(self.cache.keys())
+            "entries": list(self.cache.keys()),
         }
 
 
 # Global cache instances for different use cases
 sheet_sync_cache = SimpleCache(default_ttl_seconds=3600)  # 1 hour for sheet sync
-analytics_cache = SimpleCache(default_ttl_seconds=300)    # 5 minutes for analytics
+analytics_cache = SimpleCache(default_ttl_seconds=300)  # 5 minutes for analytics
 leaderboard_cache = SimpleCache(default_ttl_seconds=600)  # 10 minutes for leaderboards

@@ -1,6 +1,7 @@
 """Test Vinnie's Variation for 4-player games"""
-import pytest
+
 from fastapi.testclient import TestClient
+
 from app.main import app
 
 client = TestClient(app)

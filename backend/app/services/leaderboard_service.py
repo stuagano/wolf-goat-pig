@@ -23,7 +23,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import HTTPException
-from sqlalchemy import and_, case, cast, desc, func, Float
+from sqlalchemy import Float, and_, case, cast, desc, func
 from sqlalchemy.orm import Session
 
 from ..models import GamePlayerResult, PlayerAchievement, PlayerBadgeEarned, PlayerProfile, PlayerStatistics
@@ -99,10 +99,7 @@ class LeaderboardCache:
         if now - self._last_cleanup < 60:  # Cleanup at most once per minute
             return
 
-        expired_keys = [
-            k for k, (ts, _) in self.cache.items()
-            if now - ts > self.ttl_seconds
-        ]
+        expired_keys = [k for k, (ts, _) in self.cache.items() if now - ts > self.ttl_seconds]
         for key in expired_keys:
             del self.cache[key]
 
@@ -121,13 +118,13 @@ class LeaderboardService:
 
     # Supported leaderboard types
     LEADERBOARD_TYPES = [
-        'total_earnings',
-        'win_rate',
-        'games_played',
-        'average_score',
-        'partnerships_won',
-        'achievements_earned',
-        'handicap_improvement'
+        "total_earnings",
+        "win_rate",
+        "games_played",
+        "average_score",
+        "partnerships_won",
+        "achievements_earned",
+        "handicap_improvement",
     ]
 
     def __init__(self, db: Session):
@@ -141,11 +138,7 @@ class LeaderboardService:
         self.cache = LeaderboardCache(ttl_seconds=300)  # 5-minute cache
 
     def get_leaderboard(
-        self,
-        leaderboard_type: str,
-        db: Session,
-        limit: int = 10,
-        offset: int = 0
+        self, leaderboard_type: str, db: Session, limit: int = 10, offset: int = 0
     ) -> List[Dict[str, Any]]:
         """
         Get leaderboard by type.
@@ -167,7 +160,7 @@ class LeaderboardService:
             if leaderboard_type not in self.LEADERBOARD_TYPES:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Invalid leaderboard type. Must be one of: {', '.join(self.LEADERBOARD_TYPES)}"
+                    detail=f"Invalid leaderboard type. Must be one of: {', '.join(self.LEADERBOARD_TYPES)}",
                 )
 
             # Check cache
@@ -178,16 +171,12 @@ class LeaderboardService:
                 return cached_data
 
             # Generate leaderboard based on type
-            leaderboard_data = self._generate_leaderboard(
-                leaderboard_type, db, limit, offset
-            )
+            leaderboard_data = self._generate_leaderboard(leaderboard_type, db, limit, offset)
 
             # Cache the result
             self.cache.set(cache_key, leaderboard_data)
 
-            logger.info(
-                f"Generated {leaderboard_type} leaderboard with {len(leaderboard_data)} entries"
-            )
+            logger.info(f"Generated {leaderboard_type} leaderboard with {len(leaderboard_data)} entries")
 
             return leaderboard_data
 
@@ -195,17 +184,9 @@ class LeaderboardService:
             raise
         except Exception as e:
             logger.error(f"Error getting leaderboard '{leaderboard_type}': {e}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to retrieve leaderboard: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"Failed to retrieve leaderboard: {str(e)}")
 
-    def get_player_rank(
-        self,
-        player_id: int,
-        leaderboard_type: str,
-        db: Session
-    ) -> Optional[Dict[str, Any]]:
+    def get_player_rank(self, player_id: int, leaderboard_type: str, db: Session) -> Optional[Dict[str, Any]]:
         """
         Get player's rank in a specific leaderboard.
 
@@ -225,43 +206,28 @@ class LeaderboardService:
             if leaderboard_type not in self.LEADERBOARD_TYPES:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Invalid leaderboard type. Must be one of: {', '.join(self.LEADERBOARD_TYPES)}"
+                    detail=f"Invalid leaderboard type. Must be one of: {', '.join(self.LEADERBOARD_TYPES)}",
                 )
 
             # Get full leaderboard (without limit to find player's rank)
-            full_leaderboard = self._generate_leaderboard(
-                leaderboard_type, db, limit=10000, offset=0
-            )
+            full_leaderboard = self._generate_leaderboard(leaderboard_type, db, limit=10000, offset=0)
 
             # Find player in leaderboard
             for entry in full_leaderboard:
-                if entry['player_id'] == player_id:
-                    logger.info(
-                        f"Player {player_id} rank in {leaderboard_type}: {entry['rank']}"
-                    )
+                if entry["player_id"] == player_id:
+                    logger.info(f"Player {player_id} rank in {leaderboard_type}: {entry['rank']}")
                     return entry
 
-            logger.warning(
-                f"Player {player_id} not found in {leaderboard_type} leaderboard"
-            )
+            logger.warning(f"Player {player_id} not found in {leaderboard_type} leaderboard")
             return None
 
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(
-                f"Error getting player {player_id} rank for '{leaderboard_type}': {e}"
-            )
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to retrieve player rank: {str(e)}"
-            )
+            logger.error(f"Error getting player {player_id} rank for '{leaderboard_type}': {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to retrieve player rank: {str(e)}")
 
-    def get_all_leaderboards(
-        self,
-        db: Session,
-        limit: int = 10
-    ) -> Dict[str, List[Dict[str, Any]]]:
+    def get_all_leaderboards(self, db: Session, limit: int = 10) -> Dict[str, List[Dict[str, Any]]]:
         """
         Get all leaderboards at once.
 
@@ -277,10 +243,7 @@ class LeaderboardService:
 
             for leaderboard_type in self.LEADERBOARD_TYPES:
                 all_leaderboards[leaderboard_type] = self.get_leaderboard(
-                    leaderboard_type=leaderboard_type,
-                    db=db,
-                    limit=limit,
-                    offset=0
+                    leaderboard_type=leaderboard_type, db=db, limit=limit, offset=0
                 )
 
             logger.info(f"Retrieved all {len(self.LEADERBOARD_TYPES)} leaderboards")
@@ -288,17 +251,9 @@ class LeaderboardService:
 
         except Exception as e:
             logger.error(f"Error getting all leaderboards: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to retrieve all leaderboards: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"Failed to retrieve all leaderboards: {str(e)}")
 
-    def get_weekly_leaderboard(
-        self,
-        leaderboard_type: str,
-        db: Session,
-        limit: int = 10
-    ) -> List[Dict[str, Any]]:
+    def get_weekly_leaderboard(self, leaderboard_type: str, db: Session, limit: int = 10) -> List[Dict[str, Any]]:
         """
         Get weekly leaderboard (last 7 days).
 
@@ -318,7 +273,7 @@ class LeaderboardService:
             if leaderboard_type not in self.LEADERBOARD_TYPES:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Invalid leaderboard type. Must be one of: {', '.join(self.LEADERBOARD_TYPES)}"
+                    detail=f"Invalid leaderboard type. Must be one of: {', '.join(self.LEADERBOARD_TYPES)}",
                 )
 
             # Calculate date range
@@ -331,12 +286,10 @@ class LeaderboardService:
                 db=db,
                 start_date=start_date,
                 end_date=end_date,
-                limit=limit
+                limit=limit,
             )
 
-            logger.info(
-                f"Generated weekly {leaderboard_type} leaderboard with {len(leaderboard_data)} entries"
-            )
+            logger.info(f"Generated weekly {leaderboard_type} leaderboard with {len(leaderboard_data)} entries")
 
             return leaderboard_data
 
@@ -346,15 +299,10 @@ class LeaderboardService:
             logger.error(f"Error getting weekly leaderboard '{leaderboard_type}': {e}")
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to retrieve weekly leaderboard: {str(e)}"
+                detail=f"Failed to retrieve weekly leaderboard: {str(e)}",
             )
 
-    def get_monthly_leaderboard(
-        self,
-        leaderboard_type: str,
-        db: Session,
-        limit: int = 10
-    ) -> List[Dict[str, Any]]:
+    def get_monthly_leaderboard(self, leaderboard_type: str, db: Session, limit: int = 10) -> List[Dict[str, Any]]:
         """
         Get monthly leaderboard (last 30 days).
 
@@ -374,7 +322,7 @@ class LeaderboardService:
             if leaderboard_type not in self.LEADERBOARD_TYPES:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Invalid leaderboard type. Must be one of: {', '.join(self.LEADERBOARD_TYPES)}"
+                    detail=f"Invalid leaderboard type. Must be one of: {', '.join(self.LEADERBOARD_TYPES)}",
                 )
 
             # Calculate date range
@@ -387,12 +335,10 @@ class LeaderboardService:
                 db=db,
                 start_date=start_date,
                 end_date=end_date,
-                limit=limit
+                limit=limit,
             )
 
-            logger.info(
-                f"Generated monthly {leaderboard_type} leaderboard with {len(leaderboard_data)} entries"
-            )
+            logger.info(f"Generated monthly {leaderboard_type} leaderboard with {len(leaderboard_data)} entries")
 
             return leaderboard_data
 
@@ -402,7 +348,7 @@ class LeaderboardService:
             logger.error(f"Error getting monthly leaderboard '{leaderboard_type}': {e}")
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to retrieve monthly leaderboard: {str(e)}"
+                detail=f"Failed to retrieve monthly leaderboard: {str(e)}",
             )
 
     def refresh_leaderboard_cache(self) -> Dict[str, Any]:
@@ -418,26 +364,16 @@ class LeaderboardService:
 
             logger.info(f"Refreshed leaderboard cache ({cache_size_before} entries cleared)")
 
-            return {
-                "entries_cleared": cache_size_before,
-                "status": "success"
-            }
+            return {"entries_cleared": cache_size_before, "status": "success"}
 
         except Exception as e:
             logger.error(f"Error refreshing leaderboard cache: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to refresh cache: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"Failed to refresh cache: {str(e)}")
 
     # Private helper methods
 
     def _generate_leaderboard(
-        self,
-        leaderboard_type: str,
-        db: Session,
-        limit: int,
-        offset: int
+        self, leaderboard_type: str, db: Session, limit: int, offset: int
     ) -> List[Dict[str, Any]]:
         """
         Generate leaderboard data based on type.
@@ -453,13 +389,13 @@ class LeaderboardService:
         """
         # Map leaderboard type to query method
         query_methods = {
-            'total_earnings': self._query_total_earnings,
-            'win_rate': self._query_win_rate,
-            'games_played': self._query_games_played,
-            'average_score': self._query_average_score,
-            'partnerships_won': self._query_partnerships_won,
-            'achievements_earned': self._query_achievements_earned,
-            'handicap_improvement': self._query_handicap_improvement
+            "total_earnings": self._query_total_earnings,
+            "win_rate": self._query_win_rate,
+            "games_played": self._query_games_played,
+            "average_score": self._query_average_score,
+            "partnerships_won": self._query_partnerships_won,
+            "achievements_earned": self._query_achievements_earned,
+            "handicap_improvement": self._query_handicap_improvement,
         }
 
         query_method = query_methods.get(leaderboard_type)
@@ -474,7 +410,7 @@ class LeaderboardService:
         db: Session,
         start_date: datetime,
         end_date: datetime,
-        limit: int
+        limit: int,
     ) -> List[Dict[str, Any]]:
         """
         Generate time-filtered leaderboard data.
@@ -496,45 +432,50 @@ class LeaderboardService:
         end_iso = end_date.isoformat()
 
         # Query game results in date range
-        results_query = db.query(
-            GamePlayerResult.player_profile_id,
-            PlayerProfile.name.label('player_name'),
-            func.sum(GamePlayerResult.total_earnings).label('total_earnings'),
-            func.count(GamePlayerResult.id).label('games_played'),
-            func.sum(case((GamePlayerResult.final_position == 1, 1), else_=0)).label('wins'),
-            func.sum(GamePlayerResult.partnerships_won).label('partnerships_won'),
-            func.avg(GamePlayerResult.final_position).label('avg_position')
-        ).join(
-            PlayerProfile, PlayerProfile.id == GamePlayerResult.player_profile_id
-        ).filter(
-            and_(
-                PlayerProfile.is_active == 1,
-                PlayerProfile.is_ai == 0,
-                GamePlayerResult.created_at >= start_iso,
-                GamePlayerResult.created_at <= end_iso
+        results_query = (
+            db.query(
+                GamePlayerResult.player_profile_id,
+                PlayerProfile.name.label("player_name"),
+                func.sum(GamePlayerResult.total_earnings).label("total_earnings"),
+                func.count(GamePlayerResult.id).label("games_played"),
+                func.sum(case((GamePlayerResult.final_position == 1, 1), else_=0)).label("wins"),
+                func.sum(GamePlayerResult.partnerships_won).label("partnerships_won"),
+                func.avg(GamePlayerResult.final_position).label("avg_position"),
             )
-        ).group_by(
-            GamePlayerResult.player_profile_id,
-            PlayerProfile.name
+            .join(PlayerProfile, PlayerProfile.id == GamePlayerResult.player_profile_id)
+            .filter(
+                and_(
+                    PlayerProfile.is_active == 1,
+                    PlayerProfile.is_ai == 0,
+                    GamePlayerResult.created_at >= start_iso,
+                    GamePlayerResult.created_at <= end_iso,
+                )
+            )
+            .group_by(GamePlayerResult.player_profile_id, PlayerProfile.name)
         )
 
         # Apply ordering based on leaderboard type
-        if leaderboard_type == 'total_earnings':
-            results_query = results_query.order_by(desc('total_earnings'))
-        elif leaderboard_type == 'win_rate':
+        if leaderboard_type == "total_earnings":
+            results_query = results_query.order_by(desc("total_earnings"))
+        elif leaderboard_type == "win_rate":
             results_query = results_query.order_by(
-                desc(cast(func.sum(case((GamePlayerResult.final_position == 1, 1), else_=0)), Float) /
-                     cast(func.count(GamePlayerResult.id), Float))
+                desc(
+                    cast(
+                        func.sum(case((GamePlayerResult.final_position == 1, 1), else_=0)),
+                        Float,
+                    )
+                    / cast(func.count(GamePlayerResult.id), Float)
+                )
             )
-        elif leaderboard_type == 'games_played':
-            results_query = results_query.order_by(desc('games_played'))
-        elif leaderboard_type == 'partnerships_won':
-            results_query = results_query.order_by(desc('partnerships_won'))
-        elif leaderboard_type == 'average_score':
-            results_query = results_query.order_by('avg_position')
+        elif leaderboard_type == "games_played":
+            results_query = results_query.order_by(desc("games_played"))
+        elif leaderboard_type == "partnerships_won":
+            results_query = results_query.order_by(desc("partnerships_won"))
+        elif leaderboard_type == "average_score":
+            results_query = results_query.order_by("avg_position")
         else:
             # Default to total earnings
-            results_query = results_query.order_by(desc('total_earnings'))
+            results_query = results_query.order_by(desc("total_earnings"))
 
         results = results_query.limit(limit).all()
 
@@ -546,262 +487,242 @@ class LeaderboardService:
             win_rate = (wins / games_played) * 100 if games_played > 0 else 0.0
 
             # Determine value based on leaderboard type
-            if leaderboard_type == 'total_earnings':
+            if leaderboard_type == "total_earnings":
                 value = float(result.total_earnings or 0)
-            elif leaderboard_type == 'win_rate':
+            elif leaderboard_type == "win_rate":
                 value = round(win_rate, 1)
-            elif leaderboard_type == 'games_played':
+            elif leaderboard_type == "games_played":
                 value = int(games_played)
-            elif leaderboard_type == 'partnerships_won':
+            elif leaderboard_type == "partnerships_won":
                 value = int(result.partnerships_won or 0)
-            elif leaderboard_type == 'average_score':
+            elif leaderboard_type == "average_score":
                 value = round(float(result.avg_position or 0), 2)
             else:
                 value = float(result.total_earnings or 0)
 
-            leaderboard.append({
-                'rank': rank,
-                'player_id': result.player_profile_id,
-                'player_name': result.player_name,
-                'value': value
-            })
+            leaderboard.append(
+                {
+                    "rank": rank,
+                    "player_id": result.player_profile_id,
+                    "player_name": result.player_name,
+                    "value": value,
+                }
+            )
 
         return leaderboard
 
-    def _query_total_earnings(
-        self,
-        db: Session,
-        limit: int,
-        offset: int
-    ) -> List[Dict[str, Any]]:
+    def _query_total_earnings(self, db: Session, limit: int, offset: int) -> List[Dict[str, Any]]:
         """Query total earnings leaderboard."""
-        query = db.query(
-            PlayerProfile.id,
-            PlayerProfile.name,
-            PlayerStatistics.total_earnings
-        ).join(
-            PlayerStatistics, PlayerProfile.id == PlayerStatistics.player_id
-        ).filter(
-            and_(
-                PlayerProfile.is_active == 1,
-                PlayerProfile.is_ai == 0,
-                PlayerStatistics.games_played >= 1
+        query = (
+            db.query(PlayerProfile.id, PlayerProfile.name, PlayerStatistics.total_earnings)
+            .join(PlayerStatistics, PlayerProfile.id == PlayerStatistics.player_id)
+            .filter(
+                and_(
+                    PlayerProfile.is_active == 1,
+                    PlayerProfile.is_ai == 0,
+                    PlayerStatistics.games_played >= 1,
+                )
             )
-        ).order_by(
-            desc(PlayerStatistics.total_earnings)
-        ).limit(limit).offset(offset)
+            .order_by(desc(PlayerStatistics.total_earnings))
+            .limit(limit)
+            .offset(offset)
+        )
 
         results = query.all()
 
         leaderboard = []
         for rank, result in enumerate(results, start=offset + 1):
-            leaderboard.append({
-                'rank': rank,
-                'player_id': result.id,
-                'player_name': result.name,
-                'value': round(float(result.total_earnings), 2)
-            })
+            leaderboard.append(
+                {
+                    "rank": rank,
+                    "player_id": result.id,
+                    "player_name": result.name,
+                    "value": round(float(result.total_earnings), 2),
+                }
+            )
 
         return leaderboard
 
-    def _query_win_rate(
-        self,
-        db: Session,
-        limit: int,
-        offset: int
-    ) -> List[Dict[str, Any]]:
+    def _query_win_rate(self, db: Session, limit: int, offset: int) -> List[Dict[str, Any]]:
         """Query win rate leaderboard."""
-        query = db.query(
-            PlayerProfile.id,
-            PlayerProfile.name,
-            PlayerStatistics.games_played,
-            PlayerStatistics.games_won
-        ).join(
-            PlayerStatistics, PlayerProfile.id == PlayerStatistics.player_id
-        ).filter(
-            and_(
-                PlayerProfile.is_active == 1,
-                PlayerProfile.is_ai == 0,
-                PlayerStatistics.games_played >= 5  # Minimum games for win rate
+        query = (
+            db.query(
+                PlayerProfile.id,
+                PlayerProfile.name,
+                PlayerStatistics.games_played,
+                PlayerStatistics.games_won,
             )
-        ).order_by(
-            desc(cast(PlayerStatistics.games_won, Float) /
-                 cast(PlayerStatistics.games_played, Float))
-        ).limit(limit).offset(offset)
+            .join(PlayerStatistics, PlayerProfile.id == PlayerStatistics.player_id)
+            .filter(
+                and_(
+                    PlayerProfile.is_active == 1,
+                    PlayerProfile.is_ai == 0,
+                    PlayerStatistics.games_played >= 5,  # Minimum games for win rate
+                )
+            )
+            .order_by(desc(cast(PlayerStatistics.games_won, Float) / cast(PlayerStatistics.games_played, Float)))
+            .limit(limit)
+            .offset(offset)
+        )
 
         results = query.all()
 
         leaderboard = []
         for rank, result in enumerate(results, start=offset + 1):
             win_rate = (result.games_won / result.games_played) * 100
-            leaderboard.append({
-                'rank': rank,
-                'player_id': result.id,
-                'player_name': result.name,
-                'value': round(win_rate, 1)
-            })
+            leaderboard.append(
+                {
+                    "rank": rank,
+                    "player_id": result.id,
+                    "player_name": result.name,
+                    "value": round(win_rate, 1),
+                }
+            )
 
         return leaderboard
 
-    def _query_games_played(
-        self,
-        db: Session,
-        limit: int,
-        offset: int
-    ) -> List[Dict[str, Any]]:
+    def _query_games_played(self, db: Session, limit: int, offset: int) -> List[Dict[str, Any]]:
         """Query games played leaderboard."""
-        query = db.query(
-            PlayerProfile.id,
-            PlayerProfile.name,
-            PlayerStatistics.games_played
-        ).join(
-            PlayerStatistics, PlayerProfile.id == PlayerStatistics.player_id
-        ).filter(
-            and_(
-                PlayerProfile.is_active == 1,
-                PlayerProfile.is_ai == 0,
-                PlayerStatistics.games_played >= 1
+        query = (
+            db.query(PlayerProfile.id, PlayerProfile.name, PlayerStatistics.games_played)
+            .join(PlayerStatistics, PlayerProfile.id == PlayerStatistics.player_id)
+            .filter(
+                and_(
+                    PlayerProfile.is_active == 1,
+                    PlayerProfile.is_ai == 0,
+                    PlayerStatistics.games_played >= 1,
+                )
             )
-        ).order_by(
-            desc(PlayerStatistics.games_played)
-        ).limit(limit).offset(offset)
+            .order_by(desc(PlayerStatistics.games_played))
+            .limit(limit)
+            .offset(offset)
+        )
 
         results = query.all()
 
         leaderboard = []
         for rank, result in enumerate(results, start=offset + 1):
-            leaderboard.append({
-                'rank': rank,
-                'player_id': result.id,
-                'player_name': result.name,
-                'value': int(result.games_played)
-            })
+            leaderboard.append(
+                {
+                    "rank": rank,
+                    "player_id": result.id,
+                    "player_name": result.name,
+                    "value": int(result.games_played),
+                }
+            )
 
         return leaderboard
 
-    def _query_average_score(
-        self,
-        db: Session,
-        limit: int,
-        offset: int
-    ) -> List[Dict[str, Any]]:
+    def _query_average_score(self, db: Session, limit: int, offset: int) -> List[Dict[str, Any]]:
         """Query average score (position) leaderboard."""
         # Calculate average finishing position from game results
-        query = db.query(
-            GamePlayerResult.player_profile_id,
-            PlayerProfile.name,
-            func.avg(GamePlayerResult.final_position).label('avg_position'),
-            func.count(GamePlayerResult.id).label('games_count')
-        ).join(
-            PlayerProfile, PlayerProfile.id == GamePlayerResult.player_profile_id
-        ).filter(
-            and_(
-                PlayerProfile.is_active == 1,
-                PlayerProfile.is_ai == 0
+        query = (
+            db.query(
+                GamePlayerResult.player_profile_id,
+                PlayerProfile.name,
+                func.avg(GamePlayerResult.final_position).label("avg_position"),
+                func.count(GamePlayerResult.id).label("games_count"),
             )
-        ).group_by(
-            GamePlayerResult.player_profile_id,
-            PlayerProfile.name
-        ).having(
-            func.count(GamePlayerResult.id) >= 5  # Minimum games
-        ).order_by(
-            'avg_position'  # Lower is better
-        ).limit(limit).offset(offset)
+            .join(PlayerProfile, PlayerProfile.id == GamePlayerResult.player_profile_id)
+            .filter(and_(PlayerProfile.is_active == 1, PlayerProfile.is_ai == 0))
+            .group_by(GamePlayerResult.player_profile_id, PlayerProfile.name)
+            .having(func.count(GamePlayerResult.id) >= 5)  # Minimum games
+            .order_by("avg_position")  # Lower is better
+            .limit(limit)
+            .offset(offset)
+        )
 
         results = query.all()
 
         leaderboard = []
         for rank, result in enumerate(results, start=offset + 1):
-            leaderboard.append({
-                'rank': rank,
-                'player_id': result.player_profile_id,
-                'player_name': result.name,
-                'value': round(float(result.avg_position), 2)
-            })
+            leaderboard.append(
+                {
+                    "rank": rank,
+                    "player_id": result.player_profile_id,
+                    "player_name": result.name,
+                    "value": round(float(result.avg_position), 2),
+                }
+            )
 
         return leaderboard
 
-    def _query_partnerships_won(
-        self,
-        db: Session,
-        limit: int,
-        offset: int
-    ) -> List[Dict[str, Any]]:
+    def _query_partnerships_won(self, db: Session, limit: int, offset: int) -> List[Dict[str, Any]]:
         """Query partnerships won leaderboard."""
-        query = db.query(
-            PlayerProfile.id,
-            PlayerProfile.name,
-            PlayerStatistics.partnerships_won
-        ).join(
-            PlayerStatistics, PlayerProfile.id == PlayerStatistics.player_id
-        ).filter(
-            and_(
-                PlayerProfile.is_active == 1,
-                PlayerProfile.is_ai == 0,
-                PlayerStatistics.partnerships_formed >= 1
+        query = (
+            db.query(PlayerProfile.id, PlayerProfile.name, PlayerStatistics.partnerships_won)
+            .join(PlayerStatistics, PlayerProfile.id == PlayerStatistics.player_id)
+            .filter(
+                and_(
+                    PlayerProfile.is_active == 1,
+                    PlayerProfile.is_ai == 0,
+                    PlayerStatistics.partnerships_formed >= 1,
+                )
             )
-        ).order_by(
-            desc(PlayerStatistics.partnerships_won)
-        ).limit(limit).offset(offset)
+            .order_by(desc(PlayerStatistics.partnerships_won))
+            .limit(limit)
+            .offset(offset)
+        )
 
         results = query.all()
 
         leaderboard = []
         for rank, result in enumerate(results, start=offset + 1):
-            leaderboard.append({
-                'rank': rank,
-                'player_id': result.id,
-                'player_name': result.name,
-                'value': int(result.partnerships_won)
-            })
+            leaderboard.append(
+                {
+                    "rank": rank,
+                    "player_id": result.id,
+                    "player_name": result.name,
+                    "value": int(result.partnerships_won),
+                }
+            )
 
         return leaderboard
 
-    def _query_achievements_earned(
-        self,
-        db: Session,
-        limit: int,
-        offset: int
-    ) -> List[Dict[str, Any]]:
+    def _query_achievements_earned(self, db: Session, limit: int, offset: int) -> List[Dict[str, Any]]:
         """Query achievements/badges earned leaderboard."""
         # Count both legacy achievements and new badges
-        achievements_query = db.query(
-            PlayerAchievement.player_profile_id,
-            func.count(PlayerAchievement.id).label('achievement_count')
-        ).group_by(
-            PlayerAchievement.player_profile_id
-        ).subquery()
+        achievements_query = (
+            db.query(
+                PlayerAchievement.player_profile_id,
+                func.count(PlayerAchievement.id).label("achievement_count"),
+            )
+            .group_by(PlayerAchievement.player_profile_id)
+            .subquery()
+        )
 
-        badges_query = db.query(
-            PlayerBadgeEarned.player_profile_id,
-            func.count(PlayerBadgeEarned.id).label('badge_count')
-        ).group_by(
-            PlayerBadgeEarned.player_profile_id
-        ).subquery()
+        badges_query = (
+            db.query(
+                PlayerBadgeEarned.player_profile_id,
+                func.count(PlayerBadgeEarned.id).label("badge_count"),
+            )
+            .group_by(PlayerBadgeEarned.player_profile_id)
+            .subquery()
+        )
 
         # Combine both sources
-        query = db.query(
-            PlayerProfile.id,
-            PlayerProfile.name,
-            func.coalesce(achievements_query.c.achievement_count, 0).label('achievements'),
-            func.coalesce(badges_query.c.badge_count, 0).label('badges')
-        ).outerjoin(
-            achievements_query,
-            PlayerProfile.id == achievements_query.c.player_profile_id
-        ).outerjoin(
-            badges_query,
-            PlayerProfile.id == badges_query.c.player_profile_id
-        ).filter(
-            and_(
-                PlayerProfile.is_active == 1,
-                PlayerProfile.is_ai == 0
+        query = (
+            db.query(
+                PlayerProfile.id,
+                PlayerProfile.name,
+                func.coalesce(achievements_query.c.achievement_count, 0).label("achievements"),
+                func.coalesce(badges_query.c.badge_count, 0).label("badges"),
             )
-        ).order_by(
-            desc(
-                func.coalesce(achievements_query.c.achievement_count, 0) +
-                func.coalesce(badges_query.c.badge_count, 0)
+            .outerjoin(
+                achievements_query,
+                PlayerProfile.id == achievements_query.c.player_profile_id,
             )
-        ).limit(limit).offset(offset)
+            .outerjoin(badges_query, PlayerProfile.id == badges_query.c.player_profile_id)
+            .filter(and_(PlayerProfile.is_active == 1, PlayerProfile.is_ai == 0))
+            .order_by(
+                desc(
+                    func.coalesce(achievements_query.c.achievement_count, 0)
+                    + func.coalesce(badges_query.c.badge_count, 0)
+                )
+            )
+            .limit(limit)
+            .offset(offset)
+        )
 
         results = query.all()
 
@@ -809,54 +730,52 @@ class LeaderboardService:
         for rank, result in enumerate(results, start=offset + 1):
             total_achievements = (result.achievements or 0) + (result.badges or 0)
             if total_achievements > 0:  # Only include players with achievements
-                leaderboard.append({
-                    'rank': rank,
-                    'player_id': result.id,
-                    'player_name': result.name,
-                    'value': int(total_achievements)
-                })
+                leaderboard.append(
+                    {
+                        "rank": rank,
+                        "player_id": result.id,
+                        "player_name": result.name,
+                        "value": int(total_achievements),
+                    }
+                )
 
         return leaderboard
 
-    def _query_handicap_improvement(
-        self,
-        db: Session,
-        limit: int,
-        offset: int
-    ) -> List[Dict[str, Any]]:
+    def _query_handicap_improvement(self, db: Session, limit: int, offset: int) -> List[Dict[str, Any]]:
         """Query handicap improvement leaderboard."""
         # Get players with GHIN handicap history to calculate improvement
         from ..models import GHINHandicapHistory
 
         # Subquery to get earliest handicap
-        earliest_handicap = db.query(
-            GHINHandicapHistory.player_profile_id,
-            func.min(GHINHandicapHistory.handicap_index).label('min_handicap'),
-            func.max(GHINHandicapHistory.handicap_index).label('max_handicap')
-        ).group_by(
-            GHINHandicapHistory.player_profile_id
-        ).having(
-            func.count(GHINHandicapHistory.id) >= 2  # At least 2 records
-        ).subquery()
+        earliest_handicap = (
+            db.query(
+                GHINHandicapHistory.player_profile_id,
+                func.min(GHINHandicapHistory.handicap_index).label("min_handicap"),
+                func.max(GHINHandicapHistory.handicap_index).label("max_handicap"),
+            )
+            .group_by(GHINHandicapHistory.player_profile_id)
+            .having(func.count(GHINHandicapHistory.id) >= 2)  # At least 2 records
+            .subquery()
+        )
 
         # Calculate improvement (reduction is positive improvement)
-        query = db.query(
-            PlayerProfile.id,
-            PlayerProfile.name,
-            PlayerProfile.handicap.label('current_handicap'),
-            earliest_handicap.c.max_handicap,
-            (earliest_handicap.c.max_handicap - PlayerProfile.handicap).label('improvement')
-        ).join(
-            earliest_handicap,
-            PlayerProfile.id == earliest_handicap.c.player_profile_id
-        ).filter(
-            and_(
-                PlayerProfile.is_active == 1,
-                PlayerProfile.is_ai == 0
+        query = (
+            db.query(
+                PlayerProfile.id,
+                PlayerProfile.name,
+                PlayerProfile.handicap.label("current_handicap"),
+                earliest_handicap.c.max_handicap,
+                (earliest_handicap.c.max_handicap - PlayerProfile.handicap).label("improvement"),
             )
-        ).order_by(
-            desc('improvement')
-        ).limit(limit).offset(offset)
+            .join(
+                earliest_handicap,
+                PlayerProfile.id == earliest_handicap.c.player_profile_id,
+            )
+            .filter(and_(PlayerProfile.is_active == 1, PlayerProfile.is_ai == 0))
+            .order_by(desc("improvement"))
+            .limit(limit)
+            .offset(offset)
+        )
 
         results = query.all()
 
@@ -864,12 +783,14 @@ class LeaderboardService:
         for rank, result in enumerate(results, start=offset + 1):
             improvement = float(result.improvement or 0)
             if improvement > 0:  # Only include players who improved
-                leaderboard.append({
-                    'rank': rank,
-                    'player_id': result.id,
-                    'player_name': result.name,
-                    'value': round(improvement, 1)
-                })
+                leaderboard.append(
+                    {
+                        "rank": rank,
+                        "player_id": result.id,
+                        "player_name": result.name,
+                        "value": round(improvement, 1),
+                    }
+                )
 
         return leaderboard
 

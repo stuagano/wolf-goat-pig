@@ -9,19 +9,15 @@ Tests player profile management including:
 - Performance analytics
 """
 
-import pytest
 from datetime import datetime
+
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from app.models import Base, GamePlayerResult, PlayerAchievement, PlayerProfile, PlayerStatistics
+from app.schemas import GamePlayerResultCreate, PlayerProfileCreate, PlayerProfileUpdate
 from app.services.player_service import PlayerService
-from app.models import Base, PlayerProfile, PlayerStatistics, GamePlayerResult, PlayerAchievement
-from app.schemas import (
-    PlayerProfileCreate,
-    PlayerProfileUpdate,
-    GamePlayerResultCreate,
-)
-
 
 # Test database setup
 TEST_DATABASE_URL = "sqlite:///./test_player_service.db"
@@ -56,7 +52,7 @@ def test_player(db):
         handicap=18.0,
         is_active=1,
         is_ai=0,
-        created_at=datetime.now().isoformat()
+        created_at=datetime.now().isoformat(),
     )
     db.add(player)
     db.flush()
@@ -77,7 +73,7 @@ def test_player(db):
         solo_wins=1,
         holes_played=180,
         holes_won=40,
-        last_updated=datetime.now().isoformat()
+        last_updated=datetime.now().isoformat(),
     )
     db.add(stats)
     db.commit()
@@ -93,7 +89,7 @@ class TestProfileCreation:
         profile_data = PlayerProfileCreate(
             name="New Player",
             handicap=15.0,
-            avatar_url="https://example.com/avatar.jpg"
+            avatar_url="https://example.com/avatar.jpg",
         )
 
         result = player_service.create_player_profile(profile_data)
@@ -104,10 +100,7 @@ class TestProfileCreation:
 
     def test_create_player_with_default_preferences(self, db, player_service):
         """Test that default preferences are set on creation."""
-        profile_data = PlayerProfileCreate(
-            name="Player With Defaults",
-            handicap=20.0
-        )
+        profile_data = PlayerProfileCreate(name="Player With Defaults", handicap=20.0)
 
         result = player_service.create_player_profile(profile_data)
 
@@ -118,27 +111,19 @@ class TestProfileCreation:
 
     def test_create_player_creates_statistics(self, db, player_service):
         """Test that creating a player also creates statistics record."""
-        profile_data = PlayerProfileCreate(
-            name="Stats Player",
-            handicap=10.0
-        )
+        profile_data = PlayerProfileCreate(name="Stats Player", handicap=10.0)
 
         result = player_service.create_player_profile(profile_data)
 
         # Verify statistics were created
-        stats = db.query(PlayerStatistics).filter(
-            PlayerStatistics.player_id == result.id
-        ).first()
+        stats = db.query(PlayerStatistics).filter(PlayerStatistics.player_id == result.id).first()
 
         assert stats is not None
         assert stats.games_played == 0
 
     def test_create_duplicate_name_raises(self, db, player_service, test_player):
         """Test that creating player with duplicate name raises error."""
-        profile_data = PlayerProfileCreate(
-            name="Test Player",  # Same as test_player
-            handicap=20.0
-        )
+        profile_data = PlayerProfileCreate(name="Test Player", handicap=20.0)  # Same as test_player
 
         with pytest.raises(ValueError, match="already exists"):
             player_service.create_player_profile(profile_data)
@@ -183,7 +168,7 @@ class TestProfileRetrieval:
             name="Player 2",
             handicap=15.0,
             is_active=1,
-            created_at=datetime.now().isoformat()
+            created_at=datetime.now().isoformat(),
         )
         db.add(player2)
         db.commit()
@@ -199,7 +184,7 @@ class TestProfileRetrieval:
             name="Inactive Player",
             handicap=20.0,
             is_active=0,
-            created_at=datetime.now().isoformat()
+            created_at=datetime.now().isoformat(),
         )
         db.add(inactive)
         db.commit()
@@ -257,7 +242,7 @@ class TestProfileUpdate:
             name="Player 2",
             handicap=15.0,
             is_active=1,
-            created_at=datetime.now().isoformat()
+            created_at=datetime.now().isoformat(),
         )
         db.add(player2)
         db.commit()
@@ -341,7 +326,7 @@ class TestGameResultRecording:
             partnerships_formed=1,
             partnerships_won=1,
             solo_attempts=1,
-            solo_wins=1
+            solo_wins=1,
         )
 
         result = player_service.record_game_result(game_result)
@@ -366,14 +351,12 @@ class TestGameResultRecording:
             partnerships_won=1,
             solo_attempts=0,
             solo_wins=0,
-            hole_scores={"1": 4, "2": 5, "3": 4}
+            hole_scores={"1": 4, "2": 5, "3": 4},
         )
 
         player_service.record_game_result(game_result)
 
-        stats = db.query(PlayerStatistics).filter(
-            PlayerStatistics.player_id == test_player.id
-        ).first()
+        stats = db.query(PlayerStatistics).filter(PlayerStatistics.player_id == test_player.id).first()
 
         assert stats.games_played == original_games + 1
         assert stats.total_earnings == original_earnings + 50.0
@@ -392,7 +375,7 @@ class TestGameResultRecording:
             partnerships_formed=0,
             partnerships_won=0,
             solo_attempts=0,
-            solo_wins=0
+            solo_wins=0,
         )
 
         player_service.record_game_result(game_result)
@@ -420,14 +403,12 @@ class TestGameResultRecording:
             invisible_aardvark_holes=1,
             invisible_aardvark_holes_won=0,
             duncan_attempts=1,
-            duncan_wins=0
+            duncan_wins=0,
         )
 
         player_service.record_game_result(game_result)
 
-        stats = db.query(PlayerStatistics).filter(
-            PlayerStatistics.player_id == test_player.id
-        ).first()
+        db.query(PlayerStatistics).filter(PlayerStatistics.player_id == test_player.id).first()
 
         # Original had ping_pong_count, should be incremented
         # Note: Actual behavior depends on implementation
@@ -442,7 +423,7 @@ class TestPerformanceAnalytics:
 
         assert result is not None
         assert result.player_id == test_player.id
-        assert "performance_summary" in dir(result) or hasattr(result, 'performance_summary')
+        assert "performance_summary" in dir(result) or hasattr(result, "performance_summary")
 
     def test_analytics_nonexistent_player(self, db, player_service):
         """Test analytics for non-existent player returns None."""
@@ -470,7 +451,7 @@ class TestLeaderboard:
                 handicap=15.0,
                 is_active=1,
                 is_ai=0,
-                created_at=datetime.now().isoformat()
+                created_at=datetime.now().isoformat(),
             )
             db.add(player)
             db.flush()
@@ -482,7 +463,7 @@ class TestLeaderboard:
                 total_earnings=50.0 * (i + 1),
                 avg_earnings_per_hole=2.0,
                 partnership_success_rate=0.5,
-                last_updated=datetime.now().isoformat()
+                last_updated=datetime.now().isoformat(),
             )
             db.add(stats)
 
@@ -500,7 +481,7 @@ class TestLeaderboard:
             handicap=0.0,
             is_active=1,
             is_ai=1,  # AI player
-            created_at=datetime.now().isoformat()
+            created_at=datetime.now().isoformat(),
         )
         db.add(ai_player)
         db.flush()
@@ -512,16 +493,14 @@ class TestLeaderboard:
             total_earnings=10000.0,
             avg_earnings_per_hole=100.0,
             partnership_success_rate=1.0,
-            last_updated=datetime.now().isoformat()
+            last_updated=datetime.now().isoformat(),
         )
         db.add(stats)
         db.commit()
 
         leaderboard = player_service.get_leaderboard(limit=10)
 
-        ai_in_leaderboard = any(
-            entry.player_name == "AI Player" for entry in leaderboard
-        )
+        ai_in_leaderboard = any(entry.player_name == "AI Player" for entry in leaderboard)
         assert not ai_in_leaderboard
 
 
@@ -535,7 +514,7 @@ class TestAchievementSystem:
             name="New Winner",
             handicap=20.0,
             is_active=1,
-            created_at=datetime.now().isoformat()
+            created_at=datetime.now().isoformat(),
         )
         db.add(player)
         db.flush()
@@ -544,7 +523,7 @@ class TestAchievementSystem:
             player_id=player.id,
             games_played=0,
             games_won=0,
-            last_updated=datetime.now().isoformat()
+            last_updated=datetime.now().isoformat(),
         )
         db.add(stats)
         db.commit()
@@ -562,7 +541,7 @@ class TestAchievementSystem:
             partnerships_formed=0,
             partnerships_won=0,
             solo_attempts=0,
-            solo_wins=0
+            solo_wins=0,
         )
 
         # Record result (this updates games_won to 1)
@@ -582,7 +561,7 @@ class TestAchievementSystem:
             achievement_type="first_win",
             achievement_name="First Victory",
             description="Won your first game",
-            earned_date=datetime.now().isoformat()
+            earned_date=datetime.now().isoformat(),
         )
         db.add(achievement)
         db.commit()
@@ -600,13 +579,11 @@ class TestAchievementSystem:
             partnerships_formed=0,
             partnerships_won=0,
             solo_attempts=0,
-            solo_wins=0
+            solo_wins=0,
         )
 
         # Check achievements - should not get first_win again
-        achievements = player_service.check_and_award_achievements(
-            test_player.id, game_result
-        )
+        achievements = player_service.check_and_award_achievements(test_player.id, game_result)
 
         assert "First Victory" not in achievements
 
@@ -624,7 +601,7 @@ class TestHelperMethods:
                 player_name=test_player.name,
                 final_position=(i % 4) + 1,  # Positions 1-4
                 total_earnings=10.0,
-                created_at=datetime.now().isoformat()
+                created_at=datetime.now().isoformat(),
             )
             db.add(result)
         db.commit()
@@ -644,7 +621,7 @@ class TestHelperMethods:
                 player_name=test_player.name,
                 final_position=1,  # All wins
                 total_earnings=20.0,
-                created_at=datetime.now().isoformat()
+                created_at=datetime.now().isoformat(),
             )
             db.add(result)
         db.commit()
@@ -656,11 +633,7 @@ class TestHelperMethods:
     def test_recent_form_no_games(self, db, player_service):
         """Test recent form with no games."""
         # Create player without games
-        player = PlayerProfile(
-            name="No Games",
-            handicap=20.0,
-            created_at=datetime.now().isoformat()
-        )
+        player = PlayerProfile(name="No Games", handicap=20.0, created_at=datetime.now().isoformat())
         db.add(player)
         db.commit()
 

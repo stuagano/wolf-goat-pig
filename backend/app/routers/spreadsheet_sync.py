@@ -16,7 +16,6 @@ from pydantic import BaseModel, Field
 from ..services.spreadsheet_sync_service import (
     PRIMARY_SHEET_ID,
     WRITABLE_SHEET_ID,
-    RoundResult,
     _get_access_token,
     get_reconciliation_service,
     get_spreadsheet_sync_service,
@@ -84,7 +83,7 @@ def get_spreadsheet_leaderboard():
 @router.get("/rounds", response_model=List[RoundResultResponse])
 def get_all_rounds(
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of results"),
-):
+) -> Any:
     """Get all round results from the spreadsheet."""
     try:
         service = get_spreadsheet_sync_service()
@@ -108,7 +107,7 @@ def get_all_rounds(
 
 
 @router.get("/rounds/by-date/{date}", response_model=List[Dict[str, Any]])
-def get_rounds_by_date(date: str):
+def get_rounds_by_date(date: str) -> Any:
     """Get all rounds for a specific date.
 
     Date format: DD-Mon (e.g., "21-Jul") to match spreadsheet format.
@@ -135,7 +134,7 @@ def get_rounds_by_date(date: str):
 
 
 @router.get("/player/{member_name}", response_model=List[RoundResultResponse])
-def get_player_history(member_name: str):
+def get_player_history(member_name: str) -> Any:
     """Get all rounds for a specific player."""
     try:
         service = get_spreadsheet_sync_service()
@@ -158,7 +157,7 @@ def get_player_history(member_name: str):
 
 
 @router.post("/sync-round")
-def sync_round_to_spreadsheet(request: SyncRoundRequest):
+def sync_round_to_spreadsheet(request: SyncRoundRequest) -> Any:
     """Sync a completed round to the Google Sheet.
 
     This adds the round results to the Details sheet. The Dashboard
@@ -281,7 +280,7 @@ def get_reconciliation_status():
 
 
 @router.post("/reconcile/primary-to-writable")
-def sync_primary_to_writable(dry_run: bool = Query(True, description="Preview changes without applying")):
+def sync_primary_to_writable(dry_run: bool = Query(True, description="Preview changes without applying")) -> Any:
     """Copy missing rounds from primary sheet to writable sheet.
 
     Use this to pull in rounds that were entered directly in the primary
@@ -300,7 +299,7 @@ def sync_primary_to_writable(dry_run: bool = Query(True, description="Preview ch
 
 
 @router.post("/reconcile/writable-to-primary")
-def sync_writable_to_primary(dry_run: bool = Query(True, description="Preview changes without applying")):
+def sync_writable_to_primary(dry_run: bool = Query(True, description="Preview changes without applying")) -> Any:
     """Copy missing rounds from writable sheet to primary sheet.
 
     Use this to push rounds entered via the app to the primary spreadsheet.
