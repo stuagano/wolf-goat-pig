@@ -7066,6 +7066,38 @@ def cancel_signup(signup_id: int):  # type: ignore
         db.close()
 
 
+@app.post("/signups/{signup_id}/replicate-legacy")
+def replicate_signup_to_legacy(signup_id: int):  # type: ignore
+    """Manually replicate a signup to the legacy CGI tee sheet for testing."""
+    try:
+        db = database.SessionLocal()
+
+        db_signup = db.query(models.DailySignup).filter(models.DailySignup.id == signup_id).first()
+        if not db_signup:
+            raise HTTPException(status_code=404, detail="Sign-up not found")
+
+        legacy_service = get_legacy_signup_service()
+        success = legacy_service.sync_signup_created(db_signup)
+
+        if success:
+            return {"message": "Successfully replicated to legacy signup page", "success": True}
+        else:
+            config = legacy_service.config
+            if not config.enabled:
+                return {"message": "Legacy sync is not enabled. Set LEGACY_SIGNUP_SYNC_ENABLED=true in environment.", "success": False}
+            if not config.create_url:
+                return {"message": "No legacy URL configured. Set LEGACY_SIGNUP_CREATE_URL in environment.", "success": False}
+            return {"message": "Legacy replication attempted but was not successful. Check server logs.", "success": False}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error replicating signup {signup_id} to legacy: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to replicate to legacy: {str(e)}")
+    finally:
+        db.close()
+
+
 # Daily Message Board Endpoints
 
 
