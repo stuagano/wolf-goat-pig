@@ -14,6 +14,9 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
   const [teeTimesText, setTeeTimesText] = useState('');
   const [generatedPairings, setGeneratedPairings] = useState(null);
   const [pairingsLoading, setPairingsLoading] = useState(false);
+  const [confirmingSignup, setConfirmingSignup] = useState(false);
+  const [legacyReplicating, setLegacyReplicating] = useState(false);
+  const [legacyResult, setLegacyResult] = useState(null);
 
   // Compute the Sunday that starts the week containing a given date
   const getSundayOfWeek = useCallback((dateStr) => {
@@ -83,6 +86,8 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
     if (selectedDate) {
       loadGeneratedPairings(selectedDate);
     }
+    setConfirmingSignup(false);
+    setLegacyResult(null);
   }, [selectedDate, loadGeneratedPairings]);
 
   // Get data for the currently selected day
@@ -142,7 +147,15 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
     setSelectedDate(newDate.toISOString().split('T')[0]);
   };
 
-  // Handle signup
+  // Handle signup with confirmation step
+  const handleSignupClick = () => {
+    if (confirmingSignup) {
+      handleSignup();
+    } else {
+      setConfirmingSignup(true);
+    }
+  };
+
   const handleSignup = async () => {
     if (!isAuthenticated || !user) {
       setError('Please log in to sign up');
@@ -164,6 +177,7 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
       if (response.ok) {
         loadWeeklyData(currentWeekStart);
         setError(null);
+        setConfirmingSignup(false);
       } else {
         const errData = await response.json();
         throw new Error(errData.detail || 'Failed to sign up');
@@ -171,6 +185,34 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
     } catch (err) {
       console.error('Signup error:', err);
       setError(err.message || 'Failed to sign up. Please try again.');
+      setConfirmingSignup(false);
+    }
+  };
+
+  // Replicate signup to legacy page
+  const handleLegacyReplicate = async () => {
+    if (!isAuthenticated || !user || !userSignup) {
+      setError('You must be signed up first to replicate to legacy');
+      return;
+    }
+    try {
+      setLegacyReplicating(true);
+      setLegacyResult(null);
+      const response = await fetch(`${API_URL}/signups/${userSignup.id}/replicate-legacy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setLegacyResult({ success: true, message: data.message || 'Replicated to legacy signup page' });
+      } else {
+        setLegacyResult({ success: false, message: data.detail || 'Failed to replicate' });
+      }
+    } catch (err) {
+      console.error('Legacy replicate error:', err);
+      setLegacyResult({ success: false, message: 'Failed to replicate to legacy signup page' });
+    } finally {
+      setLegacyReplicating(false);
     }
   };
 
@@ -346,6 +388,27 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
         </div>
       )}
 
+      {legacyResult && (
+        <div style={{
+          background: legacyResult.success ? '#f0fdf4' : '#fef2f2',
+          color: legacyResult.success ? '#166534' : '#dc2626',
+          padding: '10px 16px',
+          fontSize: '14px',
+          borderBottom: `1px solid ${legacyResult.success ? '#bbf7d0' : '#fecaca'}`,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          {legacyResult.message}
+          <button
+            onClick={() => setLegacyResult(null)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: legacyResult.success ? '#166534' : '#dc2626' }}
+          >
+            x
+          </button>
+        </div>
+      )}
+
       {/* Day Content */}
       <div style={{ padding: '16px' }}>
         {/* Day Header with Sign Up button */}
@@ -367,40 +430,79 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
           </h2>
 
           {isAuthenticated && !userIsSignedUp && (
-            <button
-              onClick={handleSignup}
-              style={{
-                background: '#2d5016',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                padding: '10px 24px',
-                fontSize: '15px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              Sign Up
-            </button>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <button
+                onClick={handleSignupClick}
+                style={{
+                  background: confirmingSignup ? '#b45309' : '#2d5016',
+                  color: 'white',
+                  border: confirmingSignup ? '2px solid #92400e' : 'none',
+                  borderRadius: '6px',
+                  padding: '10px 24px',
+                  fontSize: '15px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {confirmingSignup ? 'Confirm Sign Up' : 'Sign Up'}
+              </button>
+              {confirmingSignup && (
+                <button
+                  onClick={() => setConfirmingSignup(false)}
+                  style={{
+                    background: '#6b7280',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '10px 16px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
           )}
           {isAuthenticated && userIsSignedUp && userSignup && (
-            <button
-              onClick={() => handleCancelSignup(userSignup.id)}
-              style={{
-                background: '#dc2626',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                padding: '10px 24px',
-                fontSize: '15px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              Cancel My Signup
-            </button>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => handleCancelSignup(userSignup.id)}
+                style={{
+                  background: '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '10px 24px',
+                  fontSize: '15px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                Cancel My Signup
+              </button>
+              <button
+                onClick={handleLegacyReplicate}
+                disabled={legacyReplicating}
+                style={{
+                  background: legacyReplicating ? '#9ca3af' : '#1d4ed8',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '10px 16px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: legacyReplicating ? 'not-allowed' : 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {legacyReplicating ? 'Replicating...' : 'Replicate to Legacy Signup Page'}
+              </button>
+            </div>
           )}
         </div>
 
@@ -492,22 +594,42 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
               }}>
                 <div style={{ fontSize: '28px', marginBottom: '8px' }}>No one signed up yet</div>
                 {isAuthenticated && (
-                  <button
-                    onClick={handleSignup}
-                    style={{
-                      marginTop: '12px',
-                      background: '#2d5016',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '6px',
-                      padding: '12px 28px',
-                      fontSize: '15px',
-                      fontWeight: '700',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Be the first to sign up!
-                  </button>
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
+                    <button
+                      onClick={handleSignupClick}
+                      style={{
+                        marginTop: '12px',
+                        background: confirmingSignup ? '#b45309' : '#2d5016',
+                        color: 'white',
+                        border: confirmingSignup ? '2px solid #92400e' : 'none',
+                        borderRadius: '6px',
+                        padding: '12px 28px',
+                        fontSize: '15px',
+                        fontWeight: '700',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {confirmingSignup ? 'Confirm Sign Up' : 'Be the first to sign up!'}
+                    </button>
+                    {confirmingSignup && (
+                      <button
+                        onClick={() => setConfirmingSignup(false)}
+                        style={{
+                          marginTop: '12px',
+                          background: '#6b7280',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          padding: '12px 16px',
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             )}
