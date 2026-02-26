@@ -31,7 +31,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import and_, text
 from sqlalchemy.orm import Session
 
-from . import crud, database, models, schemas
+from . import database, models, schemas
 from .badge_routes import router as badge_router
 from .domain.shot_range_analysis import analyze_shot_decision
 from .managers.rule_manager import RuleManager, RuleViolationError
@@ -445,7 +445,7 @@ def get_rules():
     """Get Wolf Goat Pig rules"""
     try:
         db = database.SessionLocal()
-        rules = crud.get_rules(db)
+        rules = db.query(models.Rule).all()
         return rules
     except Exception as e:
         logger.error(f"Error getting rules: {e}")
