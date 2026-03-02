@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
-import PerformanceAnalytics from '../PerformanceAnalytics';
+import PerformanceAnalytics from '../analytics/PerformanceAnalytics';
 
 global.fetch = jest.fn();
 

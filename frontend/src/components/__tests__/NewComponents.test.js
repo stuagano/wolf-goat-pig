@@ -2,9 +2,9 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { ThemeProvider } from '../../theme/Provider';
-import EnhancedBettingWidget from '../EnhancedBettingWidget';
+import EnhancedBettingWidget from '../betting/EnhancedBettingWidget';
 import EnhancedScoringWidget from '../EnhancedScoringWidget';
-import InteractivePlayerCard from '../InteractivePlayerCard';
+import InteractivePlayerCard from '../player/InteractivePlayerCard';
 
 // Mock data for testing
 const mockGameState = {

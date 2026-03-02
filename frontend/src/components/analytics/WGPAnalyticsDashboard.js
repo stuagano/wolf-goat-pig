@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import ghinService, { initializeGHIN } from '../services/ghinService';
+import ghinService, { initializeGHIN } from '../../services/ghinService';
 
 const WGPAnalyticsDashboard = () => {
   const [leaderboardData, setLeaderboardData] = useState([]);

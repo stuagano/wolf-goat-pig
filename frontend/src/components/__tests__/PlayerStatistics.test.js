@@ -1,7 +1,7 @@
 // frontend/src/components/__tests__/PlayerStatistics.test.js
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import PlayerStatistics from '../PlayerStatistics';
+import PlayerStatistics from '../player/PlayerStatistics';
 import { apiGet } from '../../utils';
 
 // Mock the Card component

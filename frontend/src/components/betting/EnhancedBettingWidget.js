@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useTheme } from '../theme/Provider';
+import { useTheme } from '../../theme/Provider';
 import {
   getRiskColor,
   getRiskIcon,
   getActionIcon,
   getActionDescription,
   calculateExpectedValue
-} from '../utils';
+} from '../../utils';
 
 const EnhancedBettingWidget = ({ gameState, bettingOpportunity, onBettingAction }) => {
   const theme = useTheme();

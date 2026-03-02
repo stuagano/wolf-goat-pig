@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { ThemeProvider } from '../../theme/Provider';
-import ShotVisualizationOverlay from '../ShotVisualizationOverlay';
+import ShotVisualizationOverlay from '../visualization/ShotVisualizationOverlay';
 
 const mockAnalysis = {
   recommended_shot: {

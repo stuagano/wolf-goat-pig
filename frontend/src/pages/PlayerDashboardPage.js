@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
-import PlayerProfileManager from '../components/PlayerProfileManager';
-import PlayerStatistics from '../components/PlayerStatistics';
+import PlayerProfileManager from '../components/player/PlayerProfileManager';
+import PlayerStatistics from '../components/player/PlayerStatistics';
 import { Card } from '../components/ui';
 
 /**

@@ -10,7 +10,7 @@
 
 import React from 'react';
 import PropTypes from 'prop-types';
-import { getRiskColor, getRiskIcon, formatProbability } from '../utils/bettingHelpers';
+import { getRiskColor, getRiskIcon, formatProbability } from '../../utils/bettingHelpers';
 
 const BettingOpportunityWidget = ({
   opportunities = [],

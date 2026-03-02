@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from './ui';
-import { apiGet, apiPost, apiPut, apiDelete } from '../utils';
+import { apiGet, apiPost, apiPut, apiDelete } from '../../utils';
 // UI_COLORS available from '../constants/colors' if needed
 
 /**

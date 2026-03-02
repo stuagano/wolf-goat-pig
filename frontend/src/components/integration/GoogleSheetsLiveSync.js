@@ -1,5 +1,5 @@
 import React from 'react';
-import { useSheetSync } from '../context';
+import { useSheetSync } from '../../context';
 import { Card } from './ui';
 
 const GoogleSheetsLiveSync = () => {
