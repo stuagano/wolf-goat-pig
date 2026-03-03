@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card } from './ui';
+import { Card } from '../ui';
 
 /**
  * SheetIntegrationDashboard - Manages Google Sheets integration for metrics and leaderboards

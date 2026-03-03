@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Card } from './ui';
+import { Card } from '../ui';
 
 const API_URL = process.env.REACT_APP_API_URL || '';
 
