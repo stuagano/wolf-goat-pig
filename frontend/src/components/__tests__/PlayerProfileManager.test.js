@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 
 import { ThemeProvider } from '../../theme/Provider';
-import PlayerProfileManager from '../PlayerProfileManager';
+import PlayerProfileManager from '../player/PlayerProfileManager';
 import { apiGet, apiPost, apiPut, apiDelete } from '../../utils';
 
 // Mock the API utilities

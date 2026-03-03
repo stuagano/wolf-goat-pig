@@ -1,5 +1,5 @@
 import React from 'react';
-import { useTheme } from '../theme/Provider';
+import { useTheme } from '../../theme/Provider';
 
 /**
  * Shot Visualization Overlay Component

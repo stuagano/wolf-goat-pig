@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui';
-import SheetIntegrationDashboard from '../components/SheetIntegrationDashboard';
-import WGPAnalyticsDashboard from '../components/WGPAnalyticsDashboard';
-import GHINIntegration from '../components/GHINIntegration';
+import SheetIntegrationDashboard from '../components/integration/SheetIntegrationDashboard';
+import WGPAnalyticsDashboard from '../components/analytics/WGPAnalyticsDashboard';
+import GHINIntegration from '../components/integration/GHINIntegration';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 

@@ -27,7 +27,7 @@ import {
 } from '../../test-utils/mockFactories';
 
 // Component under test
-import BettingOddsPanel from '../BettingOddsPanel';
+import BettingOddsPanel from '../betting/BettingOddsPanel';
 
 // Mock fetch globally
 global.fetch = jest.fn();

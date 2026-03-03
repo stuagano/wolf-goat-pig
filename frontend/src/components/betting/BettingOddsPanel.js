@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
-import { Card } from './ui';
-import ProbabilityVisualization from './ProbabilityVisualization';
-import EducationalTooltip, { BettingConcepts, generateStrategicInsight, ContextualHelp } from './EducationalTooltip';
-import { UI_COLORS, BETTING_COLORS, getRiskColor, getRiskIcon } from '../constants/colors';
-import { formatProbability, formatValue } from '../utils/bettingHelpers';
+import { Card } from '../ui';
+import ProbabilityVisualization from '../visualization/ProbabilityVisualization';
+import EducationalTooltip, { BettingConcepts, generateStrategicInsight, ContextualHelp } from '../EducationalTooltip';
+import { UI_COLORS, BETTING_COLORS, getRiskColor, getRiskIcon } from '../../constants/colors';
+import { formatProbability, formatValue } from '../../utils/bettingHelpers';
 
 const API_URL = process.env.REACT_APP_API_URL || '';
 

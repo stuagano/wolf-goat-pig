@@ -14,7 +14,7 @@ import { Input } from "../ui";
 import GameCompletionView from "./GameCompletionView";
 import Scorecard from "./Scorecard";
 import ShotAnalysisWidget from "./ShotAnalysisWidget";
-import BettingOddsPanel from "../BettingOddsPanel";
+import BettingOddsPanel from "../betting/BettingOddsPanel";
 import CommissionerChat from "../CommissionerChat";
 import EditPlayerNameModal from "./EditPlayerNameModal";
 import { triggerBadgeNotification } from "../BadgeNotification";

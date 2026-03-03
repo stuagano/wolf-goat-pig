@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import AnalyticsDashboard from './AnalyticsDashboard';
+import AnalyticsDashboard from './analytics/AnalyticsDashboard';
 import HoleStrategyDisplay from './HoleStrategyDisplay';
 
 const COLORS = {

@@ -1,6 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { UI_COLORS, GOLF_COLORS, getLieColor } from '../constants/colors';
+import { UI_COLORS, GOLF_COLORS, getLieColor } from '../../constants/colors';
 
 const HoleVisualization = ({ holeState, players, gameState }) => {
   if (!holeState || !players) return null;
