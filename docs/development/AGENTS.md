@@ -21,7 +21,7 @@ Welcome to the project! Please follow these conventions whenever you modify file
 Before requesting review, validate your work locally:
 1. For full regression coverage run `./scripts/diagnostics/run_simulation_tests.sh`. This orchestrates backend pytest suites, frontend unit coverage, and simulation functional checks.
 2. For backend-only iterations, at minimum run:
-   - `python start_simulation.py` to confirm dependencies, environment variables, and import checks still succeed (stop the server with `Ctrl+C` once logs show the startup banner).
+   - `cd backend && python -c "from app.main import app"` to confirm dependencies and import checks still succeed.
    - `cd backend && pytest` (targeted modules are fine, e.g., `pytest tests/test_simulation_unit.py`).
 3. For frontend changes limited to `frontend/src`, run `cd frontend && npm test -- --watchAll=false` and, when visuals are affected, `npm run build` to ensure the bundle compiles cleanly.
 4. Document any skipped checks (with justification) in your PR summary.
@@ -30,17 +30,17 @@ Before requesting review, validate your work locally:
 Before deploying to production (Render/Vercel):
 1. **Run deployment checklist**: `.husky/deployment-checklist` - comprehensive pre-deployment validation
 2. **Test production builds locally**:
-   - Backend (Render-like): `./scripts/test-prod-backend.sh`
-   - Frontend (Vercel-like): `./scripts/test-prod-frontend.sh`
-   - Full stack: `./scripts/test-prod-all.sh` (interactive menu)
-3. **Verify deployment health**: `python scripts/verify-deployments.py`
+   - Backend (Render-like): `./scripts/deployment/test-prod-backend.sh`
+   - Frontend (Vercel-like): `./scripts/deployment/test-prod-frontend.sh`
+   - Full stack: `./scripts/deployment/test-prod-all.sh` (interactive menu)
+3. **Verify deployment health**: `python scripts/deployment/verify-deployments.py`
 4. **Docker production simulation**: `docker-compose -f docker-compose.prod.yml up`
 
 Git hooks are configured to run automatic checks:
 - **Pre-push**: Runs tests and build verification before pushing to remote
 - **Pre-commit**: Basic syntax and security checks (if configured)
 
-Additional tooling documentation is available in `docs/guides/local-development.md`, `docs/guides/local-deployment-testing.md`, `docs/guides/project-structure.md`, and `docs/guides/simulation-fixes.md`. Reference these when in doubt.
+Additional tooling documentation is available in `docs/guides/local-development.md`, `docs/guides/local-deployment-testing.md`, `docs/guides/project-structure.md`, Reference these when in doubt.
 
 ## Area-Specific Notes
 - **Backend (`backend/app`)**

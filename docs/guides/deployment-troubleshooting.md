@@ -9,10 +9,10 @@ This guide helps you diagnose and fix common deployment issues with the Wolf-Goa
 .husky/deployment-checklist
 
 # Test production builds locally
-./scripts/test-prod-all.sh
+./scripts/deployment/test-prod-all.sh
 
 # Verify deployment health
-python scripts/verify-deployments.py --production
+python scripts/deployment/verify-deployments.py --production
 ```
 
 ## Common Issues and Solutions
@@ -34,7 +34,7 @@ pip freeze > requirements_check.txt
 diff requirements.txt requirements_check.txt
 
 # Test with production server locally
-./scripts/test-prod-backend.sh
+./scripts/deployment/test-prod-backend.sh
 
 # Check for missing dependencies
 python -c "from app.main import app"
@@ -223,7 +223,7 @@ docker-compose -f docker-compose.prod.yml exec backend \
 ### Before Deployment
 
 - [ ] Run `.husky/deployment-checklist`
-- [ ] Test with `./scripts/test-prod-all.sh`
+- [ ] Test with `./scripts/deployment/test-prod-all.sh`
 - [ ] Build succeeds locally
 - [ ] No console.log statements in production code
 - [ ] Environment variables configured
@@ -242,7 +242,7 @@ docker-compose -f docker-compose.prod.yml exec backend \
 
 ```bash
 # Full verification
-python scripts/verify-deployments.py \
+python scripts/deployment/verify-deployments.py \
   --backend https://your-app.onrender.com \
   --frontend https://your-app.vercel.app
 
@@ -287,7 +287,7 @@ Collect this information when seeking help:
 1. **Error messages** (exact text)
 2. **Deployment logs** (last 100 lines)
 3. **Environment configuration** (variable names, not values)
-4. **Local test results** (`./scripts/test-prod-all.sh` output)
+4. **Local test results** (`./scripts/deployment/test-prod-all.sh` output)
 5. **Verification output** (`verify-deployments.py` results)
 
 ### Common Error Patterns
@@ -306,7 +306,7 @@ Collect this information when seeking help:
 1. **Always test locally first:**
    ```bash
    npm run deploy:check
-   ./scripts/test-prod-all.sh
+   ./scripts/deployment/test-prod-all.sh
    ```
 
 2. **Use environment templates:**

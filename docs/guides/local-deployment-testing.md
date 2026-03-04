@@ -6,19 +6,19 @@ This guide helps you test your Render (backend) and Vercel (frontend) deployment
 
 ### 1. Test Backend (Render-like)
 ```bash
-./scripts/test-prod-backend.sh
+./scripts/deployment/test-prod-backend.sh
 ```
 This simulates Render's production environment with gunicorn.
 
 ### 2. Test Frontend (Vercel-like)
 ```bash
-./scripts/test-prod-frontend.sh
+./scripts/deployment/test-prod-frontend.sh
 ```
 This builds and serves the production frontend build.
 
 ### 3. Verify Both Deployments
 ```bash
-python scripts/verify-deployments.py
+python scripts/deployment/verify-deployments.py
 ```
 This runs comprehensive tests on both services.
 
@@ -26,7 +26,7 @@ This runs comprehensive tests on both services.
 
 ### Backend Production Testing
 
-The backend test script (`scripts/test-prod-backend.sh`) does the following:
+The backend test script (`scripts/deployment/test-prod-backend.sh`) does the following:
 1. Creates a production virtual environment
 2. Installs all dependencies including gunicorn
 3. Sets production environment variables
@@ -50,12 +50,12 @@ docker run -d \
 DATABASE_URL=postgresql://postgres:testpass@localhost/wgp_prod
 
 # Run the test
-./scripts/test-prod-backend.sh
+./scripts/deployment/test-prod-backend.sh
 ```
 
 ### Frontend Production Testing
 
-The frontend test script (`scripts/test-prod-frontend.sh`) performs:
+The frontend test script (`scripts/deployment/test-prod-frontend.sh`) performs:
 1. Clean install of dependencies (`npm ci`)
 2. Production build with optimizations
 3. Build size and content analysis
@@ -93,7 +93,7 @@ This creates:
 
 ### Deployment Verification
 
-The verification script (`scripts/verify-deployments.py`) tests:
+The verification script (`scripts/deployment/verify-deployments.py`) tests:
 
 #### Backend Tests
 - Health endpoints
@@ -117,15 +117,15 @@ The verification script (`scripts/verify-deployments.py`) tests:
 
 ```bash
 # Test local development
-python scripts/verify-deployments.py
+python scripts/deployment/verify-deployments.py
 
 # Test local production builds
-python scripts/verify-deployments.py \
+python scripts/deployment/verify-deployments.py \
   --backend http://localhost:8000 \
   --frontend http://localhost:3000
 
 # Test actual production (configure URLs first)
-python scripts/verify-deployments.py --production
+python scripts/deployment/verify-deployments.py --production
 ```
 
 ## Pre-Deployment Checklist
@@ -238,7 +238,7 @@ After deployment, monitor:
 
 3. **Use the verification script:**
    ```bash
-   python scripts/verify-deployments.py \
+   python scripts/deployment/verify-deployments.py \
      --backend https://your-app.onrender.com \
      --frontend https://your-app.vercel.app
    ```

@@ -17,7 +17,7 @@ cp .env.example .env
 # Edit .env with your values
 
 # 2. Start all services
-./docker-dev.sh
+./scripts/development/docker-dev.sh
 
 # Or manually:
 docker-compose up --build
@@ -57,7 +57,7 @@ docker-compose up --build
 
 3. **Start services**:
    ```bash
-   ./docker-dev.sh
+   ./scripts/development/docker-dev.sh
    ```
 
 ## Services
@@ -210,7 +210,7 @@ This Docker setup helps you:
 
 ## Next Steps
 
-1. **Start services**: `./docker-dev.sh`
+1. **Start services**: `./scripts/development/docker-dev.sh`
 2. **Verify everything works**: Check http://localhost:3000
 3. **Make code changes**: Edit files locally
 4. **Test in containers**: Ensure changes work in Docker

@@ -138,9 +138,9 @@ The project follows the BMad Method for agile AI-driven development:
 ## Resources & Support
 
 ### Documentation
-- Product Requirements: `docs/prd.md`
-- Architecture: `docs/architecture.md`
-- Deployment Guide: `DEPLOYMENT_BEST_PRACTICES.md`
+- Product Requirements: `docs/development/prd.md`
+- Architecture: `docs/architecture/architecture.md`
+- Deployment Guide: `docs/guides/DEPLOYMENT_BEST_PRACTICES.md`
 - User Stories: `docs/stories/`
 
 ### Development Team

@@ -78,7 +78,7 @@ case $choice in
 
         # Run verification
         echo -e "${BLUE}Running verification tests...${NC}"
-        python scripts/verify-deployments.py
+        python scripts/deployment/verify-deployments.py
 
         # Cleanup
         kill $BACKEND_PID $FRONTEND_PID 2>/dev/null || true
@@ -108,7 +108,7 @@ case $choice in
 
         # Run verification
         echo -e "${BLUE}Running verification tests...${NC}"
-        python scripts/verify-deployments.py
+        python scripts/deployment/verify-deployments.py
 
         # Show logs
         echo -e "\n${BLUE}Container logs:${NC}"
@@ -141,7 +141,7 @@ case $choice in
         read -p "Frontend URL [http://localhost:3000]: " FRONTEND_URL
         FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
 
-        python scripts/verify-deployments.py \
+        python scripts/deployment/verify-deployments.py \
             --backend "$BACKEND_URL" \
             --frontend "$FRONTEND_URL"
         ;;
@@ -162,7 +162,7 @@ case $choice in
             echo -e "\n${BLUE}Test 3/4: Docker Compose Test${NC}"
             docker-compose -f docker-compose.prod.yml up --build -d
             sleep 20
-            python scripts/verify-deployments.py
+            python scripts/deployment/verify-deployments.py
             docker-compose -f docker-compose.prod.yml down
         else
             echo -e "\n${YELLOW}Test 3/4: Docker test skipped (Docker not installed)${NC}"

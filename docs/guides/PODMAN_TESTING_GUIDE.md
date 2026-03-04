@@ -56,7 +56,7 @@ podman machine list  # Should show a running machine
 ### 1. Start All Services
 
 ```bash
-./podman-test.sh start
+./scripts/testing/podman-test.sh start
 ```
 
 This will:
@@ -75,18 +75,18 @@ This will:
 
 ```bash
 # All services
-./podman-test.sh logs
+./scripts/testing/podman-test.sh logs
 
 # Specific service
-./podman-test.sh logs backend
-./podman-test.sh logs frontend
-./podman-test.sh logs postgres
+./scripts/testing/podman-test.sh logs backend
+./scripts/testing/podman-test.sh logs frontend
+./scripts/testing/podman-test.sh logs postgres
 ```
 
 ### 4. Stop Services
 
 ```bash
-./podman-test.sh stop
+./scripts/testing/podman-test.sh stop
 ```
 
 ## Architecture
@@ -141,7 +141,7 @@ The local Podman setup simulates your production architecture:
 ### Available Commands
 
 ```bash
-./podman-test.sh [command]
+./scripts/testing/podman-test.sh [command]
 ```
 
 | Command | Description |
@@ -164,20 +164,20 @@ The local Podman setup simulates your production architecture:
 
 ```bash
 # Start services
-./podman-test.sh start
+./scripts/testing/podman-test.sh start
 
 # Check status
-./podman-test.sh status
+./scripts/testing/podman-test.sh status
 
 # Watch backend logs
-./podman-test.sh logs backend
+./scripts/testing/podman-test.sh logs backend
 ```
 
 #### Debug Backend Issues
 
 ```bash
 # Open shell in backend
-./podman-test.sh shell
+./scripts/testing/podman-test.sh shell
 
 # Inside container, you can:
 # - Check database connection: python -c "from app.database import engine; print(engine)"
@@ -190,11 +190,11 @@ The local Podman setup simulates your production architecture:
 
 ```bash
 # Clean rebuild (useful after code changes)
-./podman-test.sh rebuild
+./scripts/testing/podman-test.sh rebuild
 
 # Nuclear option - clean everything
-./podman-test.sh clean
-./podman-test.sh start
+./scripts/testing/podman-test.sh clean
+./scripts/testing/podman-test.sh start
 ```
 
 ### Environment Configuration
@@ -222,9 +222,9 @@ You can modify `.env.local` to test different configurations.
 ### 1. Test Production Build
 
 ```bash
-./podman-test.sh start
+./scripts/testing/podman-test.sh start
 # Verify both services are running
-./podman-test.sh status
+./scripts/testing/podman-test.sh status
 # Test API
 curl http://localhost:8000/health
 # Open browser to http://localhost:3000
@@ -233,7 +233,7 @@ curl http://localhost:8000/health
 ### 2. Test Database Migrations
 
 ```bash
-./podman-test.sh shell
+./scripts/testing/podman-test.sh shell
 # Inside container:
 alembic upgrade head
 # Check migrations applied
@@ -271,7 +271,7 @@ open http://localhost:3000/profile
 
 ```bash
 # Start services
-./podman-test.sh start
+./scripts/testing/podman-test.sh start
 
 # In another terminal, run integration tests
 pytest tests/integration/ -v
@@ -284,14 +284,14 @@ pytest tests/functional/ -v
 
 ```bash
 # Start services and create data
-./podman-test.sh start
+./scripts/testing/podman-test.sh start
 # Use the app to create games, players, etc.
 
 # Stop services
-./podman-test.sh stop
+./scripts/testing/podman-test.sh stop
 
 # Start again - data should persist
-./podman-test.sh start
+./scripts/testing/podman-test.sh start
 # Verify data is still there
 ```
 
@@ -299,13 +299,13 @@ pytest tests/functional/ -v
 
 ```bash
 # Start services
-./podman-test.sh start
+./scripts/testing/podman-test.sh start
 
 # Use Apache Bench or similar
 ab -n 1000 -c 10 http://localhost:8000/health
 
 # Monitor logs during load
-./podman-test.sh logs backend
+./scripts/testing/podman-test.sh logs backend
 ```
 
 ## Troubleshooting
@@ -334,17 +334,17 @@ lsof -i :8000
 lsof -i :3000
 
 # Kill the process or change ports in .env.local
-PORT=8001 ./podman-test.sh start
+PORT=8001 ./scripts/testing/podman-test.sh start
 ```
 
 ### Services Won't Start
 
 ```bash
 # Check logs
-./podman-test.sh logs
+./scripts/testing/podman-test.sh logs
 
 # Try rebuilding
-./podman-test.sh rebuild
+./scripts/testing/podman-test.sh rebuild
 
 # Check Podman system
 podman system info
@@ -355,10 +355,10 @@ podman system df
 
 ```bash
 # Check postgres is running
-./podman-test.sh status
+./scripts/testing/podman-test.sh status
 
 # Check logs
-./podman-test.sh logs postgres
+./scripts/testing/podman-test.sh logs postgres
 
 # Connect to database directly
 podman exec -it <postgres-container-id> psql -U wgp_user -d wolf_goat_pig
@@ -375,14 +375,14 @@ cd frontend
 npm run build
 
 # Check logs
-./podman-test.sh logs frontend
+./scripts/testing/podman-test.sh logs frontend
 ```
 
 ### Image Build Fails
 
 ```bash
 # Clean everything and retry
-./podman-test.sh clean
+./scripts/testing/podman-test.sh clean
 podman system prune -af
 
 # Build with verbose output
@@ -456,8 +456,8 @@ Whenever production environment variables change, update `.env.local`.
 
 ```bash
 # Always test locally first
-./podman-test.sh start
-./podman-test.sh test
+./scripts/testing/podman-test.sh start
+./scripts/testing/podman-test.sh test
 # Then deploy
 ```
 
@@ -465,14 +465,14 @@ Whenever production environment variables change, update `.env.local`.
 
 ```bash
 # After major code changes
-./podman-test.sh rebuild
+./scripts/testing/podman-test.sh rebuild
 ```
 
 ### 4. Monitor Logs
 
 ```bash
 # Keep logs running in a separate terminal
-./podman-test.sh logs
+./scripts/testing/podman-test.sh logs
 ```
 
 ### 5. Preserve Database During Development
@@ -480,8 +480,8 @@ Whenever production environment variables change, update `.env.local`.
 The database volume persists between runs. To reset:
 
 ```bash
-./podman-test.sh clean  # Removes volumes
-./podman-test.sh start  # Fresh database
+./scripts/testing/podman-test.sh clean  # Removes volumes
+./scripts/testing/podman-test.sh start  # Fresh database
 ```
 
 ### 6. Test with Production Data

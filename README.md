@@ -29,11 +29,11 @@ Wolf Goat Pig is a golf wagering simulation that pairs a FastAPI backend with a 
 ├── config/                  # Infrastructure and environment configuration
 ├── docs/                    # Product, engineering, and archived reference docs
 ├── reports/                 # Generated analytics artifacts
+├── scripts/deployment/      # Production deployment and verification scripts
+├── scripts/development/     # Local development helpers (dev.sh, install.py)
 ├── scripts/diagnostics/     # Ad-hoc health checks and simulation exercisers
+├── scripts/testing/         # Test runners (BDD, Podman, unit tests)
 ├── tests/                   # Automated test suites (backend, frontend, BDD)
-├── install.py               # Convenience installer for local tooling
-├── start_simulation.py      # Quick-start script for simulation checks
-├── dev.sh                   # Combined backend/frontend development runner
 └── README.md                # You are here
 ```
 
@@ -67,7 +67,7 @@ Start the API locally:
 uvicorn app.main:app --reload
 ```
 
-A convenience runner is available via `./scripts/development/dev.sh` (starts both services) or `python start_simulation.py`. The startup script will:
+A convenience runner is available via `./scripts/development/dev.sh` (starts both services). The startup script will:
 
 - Install any missing backend dependencies from `backend/requirements.txt`.
 - Load environment variables from `.env` (falling back to `.env.example` for defaults) without overriding values already exported in your shell.

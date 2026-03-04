@@ -11,7 +11,6 @@ Day-to-day engineering workflow, troubleshooting, and deployment:
 - [Production setup](./guides/production-setup.md) - Complete production deployment guide
 - [Deployment troubleshooting](./guides/deployment-troubleshooting.md) - Common deployment issues and solutions
 - [Project structure](./guides/project-structure.md) - Codebase organization
-- [Simulation fixes](./guides/simulation-fixes.md) - Simulation component fixes
 - [Browser testing](./guides/browser-testing.md) - Browser automation testing
 - [Legacy signup bridge](./guides/legacy-signup-bridge.md) - Legacy system integration
 
@@ -32,8 +31,8 @@ Game design, user journeys, and integration notes:
 ## Additional references
 
 - [Architecture diagrams and specs](./architecture/)
-- [Product requirements & story backlog](./prd.md), [`./stories/`](./stories/)
-- [Action API contract](./UNIFIED_ACTION_API.md)
+- [Product requirements & story backlog](./development/prd.md), [`./stories/`](./stories/)
+- [Action API contract](./architecture/UNIFIED_ACTION_API.md)
 
 ## Quick Testing Commands
 
@@ -55,7 +54,7 @@ npm run docker:prod        # Full Docker production stack
 
 ## Archive
 
-Legacy artifacts (BMad methodology, AI-agent prompts, and previous automation docs) are preserved under [`./archive/`](./archive/). These files are not actively maintained but provide historical context.
+Additional development artifacts (AI-agent prompts, automation docs, and planning documents) are available under [`./development/`](./development/).
 
 ---
 *Last updated: 2025-10-12*

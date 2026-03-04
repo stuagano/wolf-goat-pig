@@ -4,7 +4,7 @@
 
 ```bash
 # Start both servers
-./dev.sh  # or use npm run start:dev
+./scripts/development/dev.sh  # or use npm run start:dev
 
 # In another terminal, test the setup
 ./scripts/diagnostics/test-local.sh
@@ -20,7 +20,7 @@
 ### 1. Start Local Servers
 ```bash
 cd path/to/wolf-goat-pig
-./dev.sh  # Starts both backend and frontend
+./scripts/development/dev.sh  # Starts both backend and frontend
 # OR use npm scripts:
 npm run start:dev
 ```
@@ -117,18 +117,18 @@ Git hooks will run automatically when you push:
 2. **Test production builds locally**:
    ```bash
    # Test backend (Render-like)
-   ./scripts/test-prod-backend.sh
+   ./scripts/deployment/test-prod-backend.sh
 
    # Test frontend (Vercel-like)
-   ./scripts/test-prod-frontend.sh
+   ./scripts/deployment/test-prod-frontend.sh
 
    # Test both interactively
-   ./scripts/test-prod-all.sh
+   ./scripts/deployment/test-prod-all.sh
    ```
 
 3. **Verify deployment health**:
    ```bash
-   python scripts/verify-deployments.py
+   python scripts/deployment/verify-deployments.py
    ```
 
 4. **Full production simulation with Docker**:
@@ -156,7 +156,7 @@ Git hooks will run automatically when you push:
 ### Development
 ```bash
 # Start development
-./dev.sh  # or npm run start:dev
+./scripts/development/dev.sh  # or npm run start:dev
 
 # Test endpoints
 ./scripts/diagnostics/test-local.sh
@@ -207,7 +207,7 @@ npm run docker:prod
 
 - [`local-deployment-testing.md`](./local-deployment-testing.md) - Comprehensive deployment testing guide
 - [`production-setup.md`](./production-setup.md) - Production deployment guide
-- [`../../AGENTS.md`](../../AGENTS.md) - Contributor guidelines with testing requirements
+- [`../../docs/development/AGENTS.md`](../development/AGENTS.md) - Contributor guidelines with testing requirements
 - [`../../README.md`](../../README.md) - Main documentation with all commands
 
 ---

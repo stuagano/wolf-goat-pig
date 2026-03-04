@@ -206,7 +206,7 @@ https://dashboard.render.com
 ## Support
 
 **Need help?** Check:
-1. `docs/GHIN_INTEGRATION_GUIDE.md` - Comprehensive guide
+1. `docs/guides/GHIN_INTEGRATION_GUIDE.md` - Comprehensive guide
 2. Backend logs on Render.com
 3. Browser console (F12) for frontend errors
 

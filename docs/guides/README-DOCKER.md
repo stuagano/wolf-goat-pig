@@ -6,7 +6,7 @@ This Docker setup mirrors your Render and Vercel cloud deployments exactly, ensu
 
 ```bash
 # Start all services (matches cloud deployments)
-./docker-dev.sh
+./scripts/development/docker-dev.sh
 
 # Or manually:
 docker-compose up --build
@@ -146,7 +146,7 @@ docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
 
 ### Typical Development Workflow
 
-1. **Start services**: `./docker-dev.sh` (production mode) or use dev override
+1. **Start services**: `./scripts/development/docker-dev.sh` (production mode) or use dev override
 2. **Backend changes**: Edit Python files - changes are reflected automatically in dev mode
 3. **Frontend changes**: Rebuild frontend container: `docker-compose build frontend && docker-compose up`
 4. **View logs**: `docker-compose logs -f [service]`
