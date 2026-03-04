@@ -67,7 +67,7 @@ Start the API locally:
 uvicorn app.main:app --reload
 ```
 
-A convenience runner is available via `./dev.sh` (starts both services) or `python start_simulation.py`. The startup script will:
+A convenience runner is available via `./scripts/development/dev.sh` (starts both services) or `python start_simulation.py`. The startup script will:
 
 - Install any missing backend dependencies from `backend/requirements.txt`.
 - Load environment variables from `.env` (falling back to `.env.example` for defaults) without overriding values already exported in your shell.
@@ -105,16 +105,16 @@ The frontend expects `REACT_APP_API_URL` to be defined. When running everything 
 
 See [`docs/guides/bdd-workflow.md`](./docs/guides/bdd-workflow.md) for authoring guidance and collaboration tips with the AI agent.
 
-> **Pre-commit hooks** now run `npm test`, `./scripts/test-prod-backend.sh`, and `./scripts/test-prod-frontend.sh` automatically to keep Render and Vercel deployments compliant. Configure `.env.production` and `frontend/.env.production` with the values from your Render (service `srv-d0pa0vje5dus73djl050`) and Vercel dashboards—at minimum `DATABASE_URL`, `REACT_APP_API_URL`, Auth0 credentials, and SMTP settings—before committing to avoid false failures.
+> **Pre-commit hooks** now run `npm test`, `./scripts/deployment/test-prod-backend.sh`, and `./scripts/deployment/test-prod-frontend.sh` automatically to keep Render and Vercel deployments compliant. Configure `.env.production` and `frontend/.env.production` with the values from your Render (service `srv-d0pa0vje5dus73djl050`) and Vercel dashboards—at minimum `DATABASE_URL`, `REACT_APP_API_URL`, Auth0 credentials, and SMTP settings—before committing to avoid false failures.
 
 ### Deployment Testing
 
 | Command | Purpose |
 | ------- | ------- |
-| `./scripts/test-prod-all.sh` | Interactive menu for comprehensive deployment testing |
-| `./scripts/test-prod-backend.sh` | Test backend in Render-like production environment |
-| `./scripts/test-prod-frontend.sh` | Test frontend production build (Vercel-like) |
-| `python scripts/verify-deployments.py` | Verify deployment health and integration |
+| `./scripts/deployment/test-prod-all.sh` | Interactive menu for comprehensive deployment testing |
+| `./scripts/deployment/test-prod-backend.sh` | Test backend in Render-like production environment |
+| `./scripts/deployment/test-prod-frontend.sh` | Test frontend production build (Vercel-like) |
+| `python scripts/deployment/verify-deployments.py` | Verify deployment health and integration |
 | `docker-compose -f docker-compose.prod.yml up` | Full production stack simulation with PostgreSQL |
 
 See [`docs/guides/local-deployment-testing.md`](./docs/guides/local-deployment-testing.md) for detailed deployment testing instructions.

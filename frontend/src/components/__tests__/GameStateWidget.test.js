@@ -17,7 +17,7 @@ import { render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 // Component under test
-import GameStateWidget from '../GameStateWidget';
+import GameStateWidget from '../game/GameStateWidget';
 
 // Test data fixtures
 const createMockPlayers = () => [

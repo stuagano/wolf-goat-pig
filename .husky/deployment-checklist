@@ -142,7 +142,7 @@ echo -e "${BLUE}6. Local Deployment Test${NC}"
 echo "------------------------"
 
 echo "Run deployment verification:"
-echo -e "${YELLOW}  python scripts/verify-deployments.py${NC}"
+echo -e "${YELLOW}  python scripts/deployment/verify-deployments.py${NC}"
 echo ""
 echo "Test with Docker:"
 echo -e "${YELLOW}  docker-compose -f docker-compose.prod.yml up${NC}"
@@ -168,7 +168,7 @@ fi
 echo ""
 echo "Next steps:"
 if [ "$READY_TO_DEPLOY" = true ]; then
-    echo "1. Run: ./scripts/test-prod-all.sh"
+    echo "1. Run: ./scripts/deployment/test-prod-all.sh"
     echo "2. Push to main branch"
     echo "3. Deploy via Render/Vercel dashboards"
 else

@@ -7,13 +7,13 @@ import {
   useLocation,
 } from "react-router-dom";
 import { useAuth0 } from "@auth0/auth0-react";
-import ShotRangeAnalyzer from "./components/ShotRangeAnalyzer";
-import ColdStartHandler from "./components/ColdStartHandler";
+import ShotRangeAnalyzer from "./components/game/ShotRangeAnalyzer";
+import ColdStartHandler from "./components/ui/ColdStartHandler";
 import TutorialSystem from "./components/tutorial/TutorialSystem";
 import WGPAnalyticsDashboard from "./components/analytics/WGPAnalyticsDashboard";
 import SheetIntegrationDashboard from "./components/integration/SheetIntegrationDashboard";
 import GoogleSheetsLiveSync from "./components/integration/GoogleSheetsLiveSync";
-import Leaderboard from "./components/Leaderboard";
+import Leaderboard from "./components/game/Leaderboard";
 import { ThemeProvider, useTheme } from "./theme/Provider";
 import { SheetSyncProvider } from "./context";
 import { AuthProvider } from "./context/AuthContext";
@@ -35,11 +35,11 @@ import GameLobbyPage from "./pages/GameLobbyPage";
 import ActiveGamesPage from "./pages/ActiveGamesPage";
 import CompletedGamesPage from "./pages/CompletedGamesPage";
 import AccountPage from "./pages/AccountPage";
-import Navigation from "./components/Navigation";
-import AppFooter from "./components/AppFooter";
-import { BadgeNotificationManager } from "./components/BadgeNotification";
-import UpdateNotification from "./components/UpdateNotification";
-import OfflineIndicator from "./components/OfflineIndicator";
+import Navigation from "./components/ui/Navigation";
+import AppFooter from "./components/ui/AppFooter";
+import { BadgeNotificationManager } from "./components/game/BadgeNotification";
+import UpdateNotification from "./components/ui/UpdateNotification";
+import OfflineIndicator from "./components/ui/OfflineIndicator";
 import { initCacheManager } from "./services/cacheManager";
 import syncManager from "./services/syncManager";
 import "./styles/mobile-touch.css"; // Import mobile touch optimization styles

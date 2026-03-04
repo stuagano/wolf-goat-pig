@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTheme } from '../theme/Provider';
 import { useSheetSync } from '../context';
-import CommissionerChat from '../components/CommissionerChat';
+import CommissionerChat from '../components/game/CommissionerChat';
 import TeeTossModal from '../components/game/TeeTossModal';
 
 const API_URL = process.env.REACT_APP_API_URL || "";

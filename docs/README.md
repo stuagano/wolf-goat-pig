@@ -39,7 +39,7 @@ Game design, user journeys, and integration notes:
 
 ### Development
 ```bash
-./dev.sh                    # Start both servers
+./scripts/development/dev.sh  # Start both servers
 npm run test:all           # Run all tests
 npm run test:backend       # Backend tests only
 npm run test:frontend      # Frontend tests only

@@ -41,7 +41,7 @@ export PORT=${PORT:-8000}
 if command -v lsof >/dev/null 2>&1; then
     if lsof -i TCP:${PORT} -sTCP:LISTEN -t >/dev/null 2>&1; then
         echo -e "${RED}Error: Port ${PORT} is already in use.${NC}"
-        echo "Hint: stop the other process or rerun with PORT=<free-port> ./scripts/test-prod-backend.sh"
+        echo "Hint: stop the other process or rerun with PORT=<free-port> ./scripts/deployment/test-prod-backend.sh"
         exit 1
     fi
 else

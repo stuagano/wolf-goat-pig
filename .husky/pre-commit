@@ -15,7 +15,7 @@ echo "🔍 Running simulation diagnostics (npm test)"
 npm test
 
 echo "🚀 Verifying Render-style backend deployment"
-./scripts/test-prod-backend.sh
+./scripts/deployment/test-prod-backend.sh
 
 echo "🌐 Verifying Vercel-style frontend deployment"
-./scripts/test-prod-frontend.sh
+./scripts/deployment/test-prod-frontend.sh

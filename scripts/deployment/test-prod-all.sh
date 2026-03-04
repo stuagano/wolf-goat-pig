@@ -66,13 +66,13 @@ case $choice in
 
         # Start backend in background
         echo -e "${BLUE}Starting backend...${NC}"
-        ./scripts/test-prod-backend.sh &
+        ./scripts/deployment/test-prod-backend.sh &
         BACKEND_PID=$!
         sleep 10  # Wait for backend to start
 
         # Start frontend in background
         echo -e "${BLUE}Starting frontend...${NC}"
-        ./scripts/test-prod-frontend.sh &
+        ./scripts/deployment/test-prod-frontend.sh &
         FRONTEND_PID=$!
         sleep 10  # Wait for frontend to build and start
 
@@ -123,12 +123,12 @@ case $choice in
 
     3)
         echo -e "\n${GREEN}Running Backend Test Only...${NC}"
-        ./scripts/test-prod-backend.sh
+        ./scripts/deployment/test-prod-backend.sh
         ;;
 
     4)
         echo -e "\n${GREEN}Running Frontend Test Only...${NC}"
-        ./scripts/test-prod-frontend.sh
+        ./scripts/deployment/test-prod-frontend.sh
         ;;
 
     5)
@@ -151,11 +151,11 @@ case $choice in
 
         # Test 1: Backend standalone
         echo -e "\n${BLUE}Test 1/4: Backend Production Build${NC}"
-        timeout 30 ./scripts/test-prod-backend.sh || true
+        timeout 30 ./scripts/deployment/test-prod-backend.sh || true
 
         # Test 2: Frontend standalone
         echo -e "\n${BLUE}Test 2/4: Frontend Production Build${NC}"
-        timeout 30 ./scripts/test-prod-frontend.sh || true
+        timeout 30 ./scripts/deployment/test-prod-frontend.sh || true
 
         # Test 3: Docker if available
         if [ "$SKIP_DOCKER" = false ]; then
