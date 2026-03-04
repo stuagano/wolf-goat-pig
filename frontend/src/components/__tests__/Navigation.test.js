@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import Navigation from '../Navigation';
+import Navigation from '../ui/Navigation';
 
 // Mock Auth0
 jest.mock('@auth0/auth0-react', () => ({

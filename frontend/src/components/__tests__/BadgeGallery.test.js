@@ -1,7 +1,7 @@
 // frontend/src/components/__tests__/BadgeGallery.test.js
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import BadgeGallery from '../BadgeGallery';
+import BadgeGallery from '../game/BadgeGallery';
 
 // Mock fetch
 global.fetch = jest.fn();

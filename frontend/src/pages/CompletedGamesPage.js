@@ -3,7 +3,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui';
 import { useTheme } from '../theme/Provider';
-import CommissionerChat from '../components/CommissionerChat';
+import CommissionerChat from '../components/game/CommissionerChat';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 

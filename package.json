@@ -19,11 +19,11 @@
     "typecheck:frontend": "cd frontend && npm run typecheck",
     "build:frontend": "cd frontend && npm run build",
     "deploy:check": ".husky/deployment-checklist",
-    "deploy:test": "./scripts/test-prod-all.sh",
-    "deploy:verify": "python scripts/verify-deployments.py",
+    "deploy:test": "./scripts/deployment/test-prod-all.sh",
+    "deploy:verify": "python scripts/deployment/verify-deployments.py",
     "docker:prod": "docker-compose -f docker-compose.prod.yml up --build",
     "docker:prod:down": "docker-compose -f docker-compose.prod.yml down",
-    "start:dev": "./dev.sh",
+    "start:dev": "./scripts/development/dev.sh",
     "start:simulation": "python start_simulation.py"
   },
   "repository": {
