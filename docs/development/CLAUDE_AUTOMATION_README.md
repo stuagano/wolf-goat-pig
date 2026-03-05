@@ -12,7 +12,7 @@ This setup allows you to create GitHub issues from your phone and automatically 
 
 1. Run the setup script:
    ```bash
-   ./setup-claude-automation.sh
+   ./scripts/development/setup-claude-automation.sh
    ```
 
 2. Push to GitHub:
@@ -22,7 +22,7 @@ This setup allows you to create GitHub issues from your phone and automatically 
 
 3. Start the monitor:
    ```bash
-   ./claude-issue-monitor.py
+   ./scripts/development/claude-issue-monitor.py
    ```
 
 4. Create a GitHub issue from your phone - Claude will automatically start!

@@ -372,12 +372,12 @@ from origin 'https://wolf-goat-pig.vercel.app' has been blocked by CORS policy
 
 #### Production Deployment
 ```bash
-./scripts/verify-deployment.sh
+./scripts/deployment/verify-deployment.sh
 
 # With custom URLs
 BACKEND_URL=https://your-backend.onrender.com \
 FRONTEND_URL=https://your-frontend.vercel.app \
-./scripts/verify-deployment.sh
+./scripts/deployment/verify-deployment.sh
 ```
 
 **Tests:**
@@ -388,7 +388,7 @@ FRONTEND_URL=https://your-frontend.vercel.app \
 
 #### Local Development
 ```bash
-./scripts/test-local-connectivity.sh
+./scripts/diagnostics/test-local-connectivity.sh
 ```
 
 **Tests:**
@@ -458,7 +458,7 @@ In browser DevTools → Network tab:
 
 ### Post-Deployment
 
-- [ ] Run `./scripts/verify-deployment.sh`
+- [ ] Run `./scripts/deployment/verify-deployment.sh`
 - [ ] Test login flow
 - [ ] Test API calls from frontend
 - [ ] Check browser console for errors

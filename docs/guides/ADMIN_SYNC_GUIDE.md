@@ -236,7 +236,7 @@ curl -X POST https://wolf-goat-pig.onrender.com/sheet-integration/sync-wgp-sheet
 
 ### 3. Automated Script
 ```bash
-./scripts/test-production-sync.sh
+./scripts/deployment/test-production-sync.sh
 ```
 
 ---
@@ -286,9 +286,9 @@ Your sync is working correctly when you see:
 2. Review browser console (F12) for errors
 3. Check backend logs on Render.com
 4. Refer to main docs:
-   - `docs/PRODUCTION_SYNC_VERIFICATION.md`
-   - `docs/FRONTEND_SYNC_TESTING.md`
-   - `docs/QUICK_SYNC_REFERENCE.md`
+   - `docs/guides/PRODUCTION_SYNC_VERIFICATION.md`
+   - `docs/guides/FRONTEND_SYNC_TESTING.md`
+   - `docs/guides/QUICK_SYNC_REFERENCE.md`
 
 **Common Links:**
 - Admin Page: `/admin`

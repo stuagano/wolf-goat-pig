@@ -202,7 +202,7 @@ The application includes automatic database migrations that run on startup. If m
 1. **Development:** App continues in fallback mode (games work in memory)
 2. **Production:** App fails fast and logs the error (prevents data corruption)
 
-See [MIGRATION_GUIDE.md](backend/MIGRATION_GUIDE.md) for details.
+See [MIGRATION_GUIDE.md](../backend/MIGRATION_GUIDE.md) for details.
 
 ## Testing Resilience
 
@@ -320,7 +320,7 @@ RESILIENCE_LOG_LEVEL=DEBUG
 
 **Solution:**
 1. Verify backend is running: `curl http://localhost:8000/health`
-2. Check database schema: see [MIGRATION_GUIDE.md](backend/MIGRATION_GUIDE.md)
+2. Check database schema: see [MIGRATION_GUIDE.md](../backend/MIGRATION_GUIDE.md)
 3. Game still works offline - users can continue playing
 
 ### "localStorage quota exceeded"

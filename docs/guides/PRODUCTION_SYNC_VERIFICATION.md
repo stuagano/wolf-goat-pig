@@ -18,7 +18,7 @@ This guide helps you verify that Google Sheets data is syncing correctly in your
 Run the provided test script:
 
 ```bash
-./scripts/test-production-sync.sh
+./scripts/deployment/test-production-sync.sh
 ```
 
 This script will:
@@ -327,7 +327,7 @@ After successful sync, you should see:
 **Manual verification (weekly):**
 ```bash
 # Run the test script
-./scripts/test-production-sync.sh
+./scripts/deployment/test-production-sync.sh
 
 # Or quick check:
 curl https://wolf-goat-pig.onrender.com/leaderboard/total_earnings | \
@@ -353,7 +353,7 @@ INFO: Sheet sync completed: {'players_processed': 10, 'players_created': 0, 'pla
 ## Support & Additional Resources
 
 **Documentation:**
-- [GOOGLE_SHEETS_LEADERBOARD_SETUP.md](../GOOGLE_SHEETS_LEADERBOARD_SETUP.md) - Setup guide
+- [GOOGLE_SHEETS_LEADERBOARD_SETUP.md](./GOOGLE_SHEETS_LEADERBOARD_SETUP.md) - Setup guide
 - [Backend API Docs](https://wolf-goat-pig.onrender.com/docs) - Interactive API documentation
 
 **Quick Links:**
@@ -363,7 +363,7 @@ INFO: Sheet sync completed: {'players_processed': 10, 'players_created': 0, 'pla
 
 **Test Script:**
 ```bash
-./scripts/test-production-sync.sh
+./scripts/deployment/test-production-sync.sh
 ```
 
 ---

@@ -11,7 +11,7 @@
 
 ### 1. Start the Development Servers
 ```bash
-./dev-local.sh
+./scripts/development/dev-local.sh
 ```
 
 ### 2. Open Browser

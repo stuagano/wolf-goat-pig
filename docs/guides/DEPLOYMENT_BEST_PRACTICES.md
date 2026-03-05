@@ -49,10 +49,10 @@
 Run this before every deployment:
 ```bash
 # Quick check
-./deployment_check.py
+python scripts/deployment/deployment_check.py
 
 # Comprehensive check  
-./validate_deployment.py
+python scripts/deployment/validate_deployment.py
 ```
 
 ### Manual Validation Steps
@@ -80,7 +80,7 @@ cat vercel.json | grep REACT_APP_API_URL
 ```bash
 # 1. Establish baseline
 git status
-python deployment_check.py
+python scripts/deployment/deployment_check.py
 
 # 2. Run existing tests
 cd backend && source venv/bin/activate
@@ -96,7 +96,7 @@ cd frontend && npm run build
 # [run specific tests for changed code]
 
 # 2. Validate deployment readiness
-python deployment_check.py
+python scripts/deployment/deployment_check.py
 
 # 3. Check for new issues
 git diff --name-only | xargs grep -l "import\|require" | head -5
@@ -110,7 +110,7 @@ cd frontend && npm run build 2>&1 | grep "no-unused-vars"
 # Fix any unused variable warnings
 
 # 2. Final validation
-python deployment_check.py
+python scripts/deployment/deployment_check.py
 
 # 3. Commit with descriptive message
 git add . && git commit -m "🔧 Fix [specific issue]"
@@ -196,7 +196,7 @@ git push origin main
 # [make minimal change]
 
 # 2. Fast validation
-./deployment_check.py
+python scripts/deployment/deployment_check.py
 
 # 3. Deploy immediately
 git add . && git commit -m "🚨 Hotfix: [issue]" && git push
@@ -253,7 +253,7 @@ git push
 
 ## 💡 Pro Tips for Agents
 
-1. **Test Locally First**: Always run `./deploy.sh dev` to test changes
+1. **Test Locally First**: Always run `./scripts/deployment/deploy.sh dev` to test changes
 2. **Small Commits**: Deploy small, focused changes
 3. **Monitor Logs**: Check deployment logs after pushing
 4. **Use Health Checks**: Verify services after deployment

@@ -133,7 +133,7 @@ Complete containerization support:
 
 **Scripts:**
 - `docker-startup.sh`: Container startup logic
-- `deploy.sh`: Multi-target deployment
+- `scripts/deployment/deploy.sh`: Multi-target deployment
 
 ### 7. Deployment Support
 

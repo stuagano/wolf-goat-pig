@@ -67,9 +67,9 @@ REACT_APP_AUTH0_AUDIENCE=https://<your-api-domain>
 
 ### Pre-Deployment Testing
 - [ ] Run deployment checklist: `.husky/deployment-checklist`
-- [ ] Test backend production build: `./scripts/test-prod-backend.sh`
-- [ ] Test frontend production build: `./scripts/test-prod-frontend.sh`
-- [ ] Run full deployment test suite: `./scripts/test-prod-all.sh`
+- [ ] Test backend production build: `./scripts/deployment/test-prod-backend.sh`
+- [ ] Test frontend production build: `./scripts/deployment/test-prod-frontend.sh`
+- [ ] Run full deployment test suite: `./scripts/deployment/test-prod-all.sh`
 - [ ] Verify with Docker: `docker-compose -f docker-compose.prod.yml up`
 
 ### Backend Deployment
@@ -88,7 +88,7 @@ REACT_APP_AUTH0_AUDIENCE=https://<your-api-domain>
 - [ ] Update CORS origins in backend with deployed frontend URL
 
 ### Post-Deployment Verification
-- [ ] Run deployment verification: `python scripts/verify-deployments.py --production`
+- [ ] Run deployment verification: `python scripts/deployment/verify-deployments.py --production`
 - [ ] Verify CORS only allows your domains
 - [ ] Test Auth0 JWT verification works
 - [ ] Ensure no localhost references in production
@@ -170,7 +170,7 @@ Even with Auth0 “stood up,” production misconfigurations frequently stem fro
 2. **CORS + Origins** – add the same URLs to Auth0’s “Allowed Web Origins” and ensure the FastAPI `ALLOWED_ORIGINS` list matches Render’s public hostname and Vercel’s domain.
 3. **API Audience** – in Auth0’s API settings, set the Identifier to your production API audience (`https://your-api.com`) and verify both the backend `.env` and frontend `.env.production` use the identical value. Tokens issued against another audience will fail Render-side validation.
 4. **Client Secrets** – store `AUTH0_CLIENT_SECRET` (for backend-only flows) in your `.env.production` vault and load it into Render as an environment variable; never commit it or paste it into source files.
-5. **End-to-end test** – run the functional suite with `./run_tests.sh` or manually authenticate through the Vercel frontend while tailing Render logs (`render logs <service>`). You should see successful JWT verification and non-401 responses from protected endpoints.
+5. **End-to-end test** – run the functional suite with `./scripts/testing/run_tests.sh` or manually authenticate through the Vercel frontend while tailing Render logs (`render logs <service>`). You should see successful JWT verification and non-401 responses from protected endpoints.
 
 If authentication still fails, capture the exact error message in Render’s logs or the browser console—the most common issues are incorrect `audience` or an unregistered callback URL.
 
@@ -200,7 +200,7 @@ Verify these work in production:
 - [ ] Complete a hole of play
 - [ ] Betting and partnership decisions
 - [ ] Email notifications (if enabled)
-- [ ] Run production verification: `python scripts/verify-deployments.py --backend https://your-app.onrender.com --frontend https://your-app.vercel.app`
+- [ ] Run production verification: `python scripts/deployment/verify-deployments.py --backend https://your-app.onrender.com --frontend https://your-app.vercel.app`
 
 The application should now be at **90-95% functionality** for production use!
 
@@ -208,6 +208,6 @@ The application should now be at **90-95% functionality** for production use!
 
 For detailed deployment testing instructions, see:
 - [`docs/guides/local-deployment-testing.md`](./local-deployment-testing.md) - Complete guide for testing deployments locally
-- [`AGENTS.md`](../../AGENTS.md) - Deployment testing section with quick commands
+- [`AGENTS.md`](../development/AGENTS.md) - Deployment testing section with quick commands
 - [`README.md`](../../README.md) - Deployment testing commands in main documentation
 

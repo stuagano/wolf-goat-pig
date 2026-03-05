@@ -74,7 +74,7 @@ curl https://wolf-goat-pig.onrender.com/health
 curl https://wolf-goat-pig.onrender.com/leaderboard/total_earnings
 
 # Run full test
-./scripts/test-production-sync.sh
+./scripts/deployment/test-production-sync.sh
 ```
 
 ### Expected Output
@@ -146,7 +146,7 @@ https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/export?format=csv&gid=0
 ### No Data in Leaderboard
 **Fix:** Run manual sync
 ```bash
-./scripts/test-production-sync.sh
+./scripts/deployment/test-production-sync.sh
 ```
 
 ### Rate Limit Error
@@ -161,13 +161,13 @@ https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/export?format=csv&gid=0
 ## 📖 Documentation
 
 **Detailed Guides:**
-- `docs/PRODUCTION_SYNC_VERIFICATION.md` - Production testing
-- `docs/FRONTEND_SYNC_TESTING.md` - Frontend testing
-- `GOOGLE_SHEETS_LEADERBOARD_SETUP.md` - Initial setup
+- `docs/guides/PRODUCTION_SYNC_VERIFICATION.md` - Production testing
+- `docs/guides/FRONTEND_SYNC_TESTING.md` - Frontend testing
+- `docs/guides/GOOGLE_SHEETS_LEADERBOARD_SETUP.md` - Initial setup
 
 **Test Script:**
 ```bash
-./scripts/test-production-sync.sh
+./scripts/deployment/test-production-sync.sh
 ```
 
 ---
@@ -236,7 +236,7 @@ Is backend responding?
 
 **Can't find what you need?**
 
-1. Run test script: `./scripts/test-production-sync.sh`
+1. Run test script: `./scripts/deployment/test-production-sync.sh`
 2. Check backend logs on Render.com dashboard
 3. Check browser console for frontend errors
 4. Review detailed docs in `docs/` folder

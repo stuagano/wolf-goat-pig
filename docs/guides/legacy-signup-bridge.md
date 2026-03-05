@@ -80,14 +80,14 @@ provider's template system or a reverse-proxy HTML rewriter.
 ## 4. Manually probe the legacy CGI
 
 If you want to double-check the remote CGI accepts posts before flipping the
-feature flag in production, use the `scripts/legacy_sync_probe.py` helper. The
+feature flag in production, use the `scripts/diagnostics/legacy_sync_probe.py` helper. The
 script reuses the same configuration described above, keeping things DRY:
 
 ```bash
 LEGACY_SIGNUP_SYNC_ENABLED=true \
 LEGACY_SIGNUP_CREATE_URL=https://thousand-cranes.com/WolfGoatPig/wgp_tee_sheet.cgi \
 LEGACY_SIGNUP_FIELD_MAP='{"player_name": "player"}' \
-python scripts/legacy_sync_probe.py \
+python scripts/diagnostics/legacy_sync_probe.py \
   --date 2024-05-01 \
   --player-name "Preview Golfer" \
   --preferred-start-time "07:30" \
