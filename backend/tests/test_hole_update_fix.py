@@ -4,15 +4,10 @@ This test verifies the fix for the bug: "When I update a hole in the past all fu
 """
 import pytest
 from fastapi.testclient import TestClient
-import sys
-import os
 
-# Add backend to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
-
-from backend.app.main import app
-from backend.app.database import get_db, Base, engine
-from backend.app import models
+from app.main import app
+from app.database import get_db, Base, engine
+from app import models
 
 # Create test client
 client = TestClient(app)

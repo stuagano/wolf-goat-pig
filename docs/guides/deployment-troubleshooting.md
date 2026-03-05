@@ -12,7 +12,7 @@ This guide helps you diagnose and fix common deployment issues with the Wolf-Goa
 ./scripts/deployment/test-prod-all.sh
 
 # Verify deployment health
-python scripts/deployment/verify-deployments.py --production
+python scripts/deployment/verify_live_deployments.py --production
 ```
 
 ## Common Issues and Solutions
@@ -242,7 +242,7 @@ docker-compose -f docker-compose.prod.yml exec backend \
 
 ```bash
 # Full verification
-python scripts/deployment/verify-deployments.py \
+python scripts/deployment/verify_live_deployments.py \
   --backend https://your-app.onrender.com \
   --frontend https://your-app.vercel.app
 
@@ -288,7 +288,7 @@ Collect this information when seeking help:
 2. **Deployment logs** (last 100 lines)
 3. **Environment configuration** (variable names, not values)
 4. **Local test results** (`./scripts/deployment/test-prod-all.sh` output)
-5. **Verification output** (`verify-deployments.py` results)
+5. **Verification output** (`verify_live_deployments.py` results)
 
 ### Common Error Patterns
 

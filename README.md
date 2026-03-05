@@ -114,7 +114,7 @@ See [`docs/guides/bdd-workflow.md`](./docs/guides/bdd-workflow.md) for authoring
 | `./scripts/deployment/test-prod-all.sh` | Interactive menu for comprehensive deployment testing |
 | `./scripts/deployment/test-prod-backend.sh` | Test backend in Render-like production environment |
 | `./scripts/deployment/test-prod-frontend.sh` | Test frontend production build (Vercel-like) |
-| `python scripts/deployment/verify-deployments.py` | Verify deployment health and integration |
+| `python scripts/deployment/verify_live_deployments.py` | Verify deployment health and integration |
 | `docker-compose -f docker-compose.prod.yml up` | Full production stack simulation with PostgreSQL |
 
 See [`docs/guides/local-deployment-testing.md`](./docs/guides/local-deployment-testing.md) for detailed deployment testing instructions.

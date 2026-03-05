@@ -18,7 +18,7 @@ This builds and serves the production frontend build.
 
 ### 3. Verify Both Deployments
 ```bash
-python scripts/deployment/verify-deployments.py
+python scripts/deployment/verify_live_deployments.py
 ```
 This runs comprehensive tests on both services.
 
@@ -93,7 +93,7 @@ This creates:
 
 ### Deployment Verification
 
-The verification script (`scripts/deployment/verify-deployments.py`) tests:
+The verification script (`scripts/deployment/verify_live_deployments.py`) tests:
 
 #### Backend Tests
 - Health endpoints
@@ -117,15 +117,15 @@ The verification script (`scripts/deployment/verify-deployments.py`) tests:
 
 ```bash
 # Test local development
-python scripts/deployment/verify-deployments.py
+python scripts/deployment/verify_live_deployments.py
 
 # Test local production builds
-python scripts/deployment/verify-deployments.py \
+python scripts/deployment/verify_live_deployments.py \
   --backend http://localhost:8000 \
   --frontend http://localhost:3000
 
 # Test actual production (configure URLs first)
-python scripts/deployment/verify-deployments.py --production
+python scripts/deployment/verify_live_deployments.py --production
 ```
 
 ## Pre-Deployment Checklist
@@ -238,7 +238,7 @@ After deployment, monitor:
 
 3. **Use the verification script:**
    ```bash
-   python scripts/deployment/verify-deployments.py \
+   python scripts/deployment/verify_live_deployments.py \
      --backend https://your-app.onrender.com \
      --frontend https://your-app.vercel.app
    ```
