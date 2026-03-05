@@ -197,7 +197,7 @@ Instead of maintaining brittle integration tests that break on every API change,
 
 ### Protocol Definitions Created
 
-**Location:** `api-contracts/`
+**Location:** `backend/api_contracts/`
 
 1. **Service Contracts** (`service_contracts.py`)
    - GameLifecycleServiceProtocol
@@ -281,7 +281,7 @@ pytest tests/ -v
 pytest tests/ --cov=app --cov-report=html
 
 # Type check
-mypy app/ api-contracts/
+mypy app/ backend/api_contracts/
 
 # Lint
 ruff check app/
@@ -451,10 +451,10 @@ tests/test_models_schemas.py
 
 ### Added Files (4 total)
 ```
-api-contracts/__init__.py
-api-contracts/service_contracts.py
-api-contracts/manager_contracts.py
-api-contracts/validator_contracts.py
+backend/api_contracts/__init__.py
+backend/api_contracts/service_contracts.py
+backend/api_contracts/manager_contracts.py
+backend/api_contracts/validator_contracts.py
 ```
 
 ### Retained Tests (320 passing)
