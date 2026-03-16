@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { useTheme } from '../theme/Provider';
+import { useTheme } from '../../theme/Provider';
 
 const EnhancedScoringWidget = ({ gameState, holeState, onScoreUpdate, onAction }) => {
   const theme = useTheme();

@@ -33,7 +33,7 @@ import BettingOddsPanel from '../betting/BettingOddsPanel';
 global.fetch = jest.fn();
 
 // Mock components
-jest.mock('../ProbabilityVisualization', () => {
+jest.mock('../visualization/ProbabilityVisualization', () => {
   return function MockProbabilityVisualization({ data, currentOdds }) {
     return (
       <div data-testid="probability-visualization">
@@ -45,7 +45,7 @@ jest.mock('../ProbabilityVisualization', () => {
   };
 });
 
-jest.mock('../EducationalTooltip', () => ({
+jest.mock('../ui/EducationalTooltip', () => ({
   __esModule: true,
   default: function MockEducationalTooltip({ children, title, content }) {
     return (

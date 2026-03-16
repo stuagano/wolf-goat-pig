@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useTheme } from '../theme/Provider';
+import { useTheme } from '../../theme/Provider';
 import { Button, Card, Input, Select } from './ui';
 
 const ShotRangeAnalyzer = () => {

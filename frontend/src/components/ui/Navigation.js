@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
-import { useTheme } from '../theme/Provider';
+import { useTheme } from '../../theme/Provider';
 
 const Navigation = () => {
   const navigate = useNavigate();

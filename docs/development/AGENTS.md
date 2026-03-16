@@ -33,7 +33,7 @@ Before deploying to production (Render/Vercel):
    - Backend (Render-like): `./scripts/deployment/test-prod-backend.sh`
    - Frontend (Vercel-like): `./scripts/deployment/test-prod-frontend.sh`
    - Full stack: `./scripts/deployment/test-prod-all.sh` (interactive menu)
-3. **Verify deployment health**: `python scripts/deployment/verify-deployments.py`
+3. **Verify deployment health**: `python scripts/deployment/verify_live_deployments.py`
 4. **Docker production simulation**: `docker-compose -f docker-compose.prod.yml up`
 
 Git hooks are configured to run automatic checks:

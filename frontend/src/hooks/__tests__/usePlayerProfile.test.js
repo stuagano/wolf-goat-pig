@@ -1,140 +1,117 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import usePlayerProfile from '../usePlayerProfile';
-import useFetchAsync from '../useFetchAsync';
-import { storage } from '../../utils/storage';
 
-// Create simple mock profiles without using factory (to match API response format)
-const mockProfiles = [
-  { id: '1', name: 'Alice', handicap: 10 },
-  { id: '2', name: 'Bob', handicap: 15 }
-];
-
-const mockStatistics = { rounds: 5 };
-
-// Define mock functions that will be used by the mock implementation
-const mockGet = jest.fn();
-const mockPost = jest.fn();
-const mockPut = jest.fn();
-const mockDel = jest.fn();
-const mockClearError = jest.fn();
-
-// Mock useFetchAsync - the default export must be jest.fn() to allow mockReturnValue
-jest.mock('../useFetchAsync', () => ({
-  __esModule: true,
-  default: jest.fn()
+// Mock Auth0
+const mockGetAccessTokenSilently = jest.fn();
+jest.mock('@auth0/auth0-react', () => ({
+  useAuth0: () => ({
+    isAuthenticated: true,
+    getAccessTokenSilently: mockGetAccessTokenSilently
+  })
 }));
 
-// Mock the storage utility
-jest.mock('../../utils/storage', () => ({
-  storage: {
-    get: jest.fn(() => null),
-    set: jest.fn(),
-    remove: jest.fn(),
-    has: jest.fn(() => false),
-    getKeys: jest.fn(() => []),
-    clear: jest.fn()
-  }
-}));
+const mockProfile = {
+  id: '1',
+  name: 'Alice',
+  legacy_name: null
+};
 
 describe('usePlayerProfile', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetAccessTokenSilently.mockResolvedValue('mock-token');
+  });
 
-    // Configure mock implementations for each test
-    mockGet.mockResolvedValue(mockProfiles);
-    mockPost.mockResolvedValue({ id: '3', name: 'Carol', handicap: 20 });
-    mockPut.mockResolvedValue({});
-    mockDel.mockResolvedValue({});
-
-    // Override the useFetchAsync mock to use our test-specific mocks
-    useFetchAsync.mockReturnValue({
-      loading: false,
-      error: null,
-      get: mockGet,
-      post: mockPost,
-      put: mockPut,
-      del: mockDel,
-      clearError: mockClearError
+  test('hook initializes with null profile and loading state', () => {
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(mockProfile)
     });
 
-    storage.get.mockReturnValue(null);
+    const { result } = renderHook(() => usePlayerProfile());
+
+    expect(result.current.profile).toBeNull();
+    expect(result.current.loading).toBe(true);
+    expect(result.current.error).toBeNull();
+    expect(typeof result.current.updateLegacyName).toBe('function');
+    expect(typeof result.current.skipLegacyName).toBe('function');
+    expect(typeof result.current.refetch).toBe('function');
   });
 
-  const renderProfileHook = () => renderHook(() => usePlayerProfile());
-
-  test('hook initializes with empty profiles', () => {
-    const { result } = renderProfileHook();
-
-    expect(result.current).toBeDefined();
-    expect(result.current.profiles).toBeDefined();
-    expect(Array.isArray(result.current.profiles)).toBe(true);
-    expect(typeof result.current.selectProfile).toBe('function');
-    expect(typeof result.current.createProfile).toBe('function');
-  });
-
-  test('loads profiles on mount', async () => {
-    const { result } = renderProfileHook();
-
-    // Wait for the effect to run and profiles to load
-    await waitFor(() => {
-      expect(result.current.profiles.length).toBe(2);
+  test('fetches profile on mount', async () => {
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(mockProfile)
     });
 
-    expect(mockGet).toHaveBeenCalledWith('/api/players', expect.any(String));
-  });
-
-  test('selectProfile updates selected profile and saves to localStorage', async () => {
-    const { result } = renderProfileHook();
+    const { result } = renderHook(() => usePlayerProfile());
 
     await waitFor(() => {
-      expect(result.current.profiles.length).toBe(2);
+      expect(result.current.loading).toBe(false);
     });
 
-    await act(async () => {
-      await result.current.selectProfile(mockProfiles[0]);
-    });
-
-    expect(result.current.selectedProfile).toEqual(mockProfiles[0]);
-    expect(storage.set).toHaveBeenCalled();
-  });
-
-  test('createProfile posts to API and returns new profile', async () => {
-    const { result } = renderProfileHook();
-
-    await waitFor(() => {
-      expect(result.current.profiles.length).toBe(2);
-    });
-
-    let created;
-    await act(async () => {
-      created = await result.current.createProfile({ name: 'Carol', handicap: 20 });
-    });
-
-    expect(created).toEqual({ id: '3', name: 'Carol', handicap: 20 });
-    expect(mockPost).toHaveBeenCalledWith(
-      '/api/players',
-      { name: 'Carol', handicap: 20 },
-      expect.any(String)
+    expect(result.current.profile).toEqual(mockProfile);
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/players/me'),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer mock-token'
+        })
+      })
     );
   });
 
-  test('loadProfileStatistics caches results', async () => {
-    mockGet
-      .mockResolvedValueOnce(mockProfiles) // First call: profiles
-      .mockResolvedValueOnce(mockStatistics); // Second call: statistics
+  test('sets needsLegacyName when profile has no legacy_name', async () => {
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ ...mockProfile, legacy_name: null })
+    });
 
-    const { result } = renderProfileHook();
+    const { result } = renderHook(() => usePlayerProfile());
 
     await waitFor(() => {
-      expect(result.current.profiles.length).toBe(2);
+      expect(result.current.loading).toBe(false);
     });
 
-    let stats;
-    await act(async () => {
-      stats = await result.current.loadProfileStatistics('1');
+    expect(result.current.needsLegacyName).toBe(true);
+  });
+
+  test('skipLegacyName sets flag in localStorage', async () => {
+    const setItemSpy = jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {});
+
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(mockProfile)
     });
 
-    expect(stats).toEqual(mockStatistics);
-    expect(mockGet).toHaveBeenCalledWith('/api/players/1/statistics', expect.any(String));
+    const { result } = renderHook(() => usePlayerProfile());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    act(() => {
+      result.current.skipLegacyName();
+    });
+
+    expect(result.current.needsLegacyName).toBe(false);
+    expect(setItemSpy).toHaveBeenCalledWith('legacy_name_skipped', 'true');
+    setItemSpy.mockRestore();
+  });
+
+  test('handles fetch error gracefully', async () => {
+    global.fetch.mockResolvedValue({
+      ok: false,
+      status: 500
+    });
+
+    const { result } = renderHook(() => usePlayerProfile());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.error).toBeTruthy();
+    expect(result.current.profile).toBeNull();
   });
 });

@@ -39,7 +39,7 @@ This document captures the real-world status of the Wolf Goat Pig stack so contr
 | `./scripts/deployment/test-prod-all.sh` | ✅ NEW: Interactive deployment testing menu for production simulation |
 | `./scripts/deployment/test-prod-backend.sh` | ✅ NEW: Tests backend with gunicorn (Render-like environment) |
 | `./scripts/deployment/test-prod-frontend.sh` | ✅ NEW: Tests frontend production build (Vercel-like) |
-| `python scripts/deployment/verify-deployments.py` | ✅ NEW: Comprehensive deployment health verification |
+| `python scripts/deployment/verify_live_deployments.py` | ✅ NEW: Comprehensive deployment health verification |
 | `docker-compose -f docker-compose.prod.yml up` | ✅ NEW: Full production stack with PostgreSQL |
 
 ## Deployment Infrastructure

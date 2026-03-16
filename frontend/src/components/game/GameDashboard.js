@@ -1,5 +1,5 @@
 import React from 'react';
-import { useTheme } from '../theme/Provider';
+import { useTheme } from '../../theme/Provider';
 import { Card } from './ui';
 import {
   UI_COLORS,

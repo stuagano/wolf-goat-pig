@@ -52,7 +52,7 @@ Run this before every deployment:
 python scripts/deployment/deployment_check.py
 
 # Comprehensive check  
-python scripts/deployment/validate_deployment.py
+python scripts/deployment/validate_pre_deploy.py
 ```
 
 ### Manual Validation Steps

@@ -128,7 +128,7 @@ Git hooks will run automatically when you push:
 
 3. **Verify deployment health**:
    ```bash
-   python scripts/deployment/verify-deployments.py
+   python scripts/deployment/verify_live_deployments.py
    ```
 
 4. **Full production simulation with Docker**:

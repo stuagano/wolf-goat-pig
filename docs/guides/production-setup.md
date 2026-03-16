@@ -88,7 +88,7 @@ REACT_APP_AUTH0_AUDIENCE=https://<your-api-domain>
 - [ ] Update CORS origins in backend with deployed frontend URL
 
 ### Post-Deployment Verification
-- [ ] Run deployment verification: `python scripts/deployment/verify-deployments.py --production`
+- [ ] Run deployment verification: `python scripts/deployment/verify_live_deployments.py --production`
 - [ ] Verify CORS only allows your domains
 - [ ] Test Auth0 JWT verification works
 - [ ] Ensure no localhost references in production
@@ -200,7 +200,7 @@ Verify these work in production:
 - [ ] Complete a hole of play
 - [ ] Betting and partnership decisions
 - [ ] Email notifications (if enabled)
-- [ ] Run production verification: `python scripts/deployment/verify-deployments.py --backend https://your-app.onrender.com --frontend https://your-app.vercel.app`
+- [ ] Run production verification: `python scripts/deployment/verify_live_deployments.py --backend https://your-app.onrender.com --frontend https://your-app.vercel.app`
 
 The application should now be at **90-95% functionality** for production use!
 
