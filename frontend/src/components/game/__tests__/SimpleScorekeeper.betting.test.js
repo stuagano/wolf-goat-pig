@@ -72,7 +72,7 @@ jest.mock('../GameCompletionView', () => {
 });
 
 // Mock BadgeNotification
-jest.mock('../../BadgeNotification', () => ({
+jest.mock('../BadgeNotification', () => ({
   triggerBadgeNotification: jest.fn()
 }));
 
