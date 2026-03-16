@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card } from './ui';
-import { useSheetSync } from '../context';
+import { Card } from '../ui';
+import { useSheetSync } from '../../context';
 
 const Leaderboard = () => {
   const { syncData: liveLeaderboardData, syncStatus, error: syncError, performLiveSync } = useSheetSync();

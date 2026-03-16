@@ -12,7 +12,7 @@ import {
   forceRefresh,
   dismissUpdate,
   isUpdateDismissed,
-} from '../services/cacheManager';
+} from '../../services/cacheManager';
 
 const styles = {
   container: {

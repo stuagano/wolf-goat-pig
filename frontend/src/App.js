@@ -30,8 +30,6 @@ import DatabaseMigrations from "./components/admin/DatabaseMigrations";
 import CreateGamePage from "./pages/CreateGamePage";
 import JoinGamePage from "./pages/JoinGamePage";
 import GameLobbyPage from "./pages/GameLobbyPage";
-// Demo pages removed from build - kept in repo for reference only
-// import TestMultiplayerPage from "./pages/demo/TestMultiplayerPage";
 import ActiveGamesPage from "./pages/ActiveGamesPage";
 import CompletedGamesPage from "./pages/CompletedGamesPage";
 import AccountPage from "./pages/AccountPage";
@@ -45,8 +43,6 @@ import syncManager from "./services/syncManager";
 import "./styles/mobile-touch.css"; // Import mobile touch optimization styles
 
 const API_URL = process.env.REACT_APP_API_URL || "";
-
-// Navigation component has been moved to its own file
 
 function App() {
   const theme = useTheme();
@@ -336,10 +332,6 @@ function App() {
               <Route path="/game" element={<CreateGamePage />} />
               <Route path="/game/:gameId" element={<SimpleScorekeeperPage />} />
               <Route path="/game-scorer" element={<GameScorerPage />} />
-              {/* Temporarily disabled - will revisit simulation mode later */}
-              {/* <Route path="/simulation" element={<SimulationMode />} /> */}
-              {/* <Route path="/scorer" element={<ScorerMode />} /> */}
-              {/* Simulation routes removed - see commit: refactor: Remove simulation mode and all related code */}
               <Route
                 path="/analytics"
                 element={
@@ -414,8 +406,6 @@ function App() {
               <Route path="/games/active" element={<ActiveGamesPage />} />
               <Route path="/games/completed" element={<CompletedGamesPage />} />
               <Route path="/account" element={<AccountPage />} />
-              {/* Demo route removed from build */}
-              {/* <Route path="/test-multiplayer" element={<TestMultiplayerPage />} /> */}
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           </div>

@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { useTheme } from '../theme/Provider';
+import { useTheme } from '../../theme/Provider';
 import {
   APP_VERSION,
   BUILD_TIMESTAMP,
@@ -14,7 +14,7 @@ import {
   forceRefresh,
   clearAllCaches,
   getCacheStats,
-} from '../services/cacheManager';
+} from '../../services/cacheManager';
 
 const AppFooter = () => {
   const theme = useTheme();

@@ -11,15 +11,9 @@
 export { default as useScoreValidation, SCORE_CONSTRAINTS } from './useScoreValidation';
 export { default as useScoreInput } from './useScoreInput';
 export { default as useCourseData } from './useCourseData';
-export { default as useZeroSumValidation } from './useZeroSumValidation';
 
 // Game API hooks
 export { default as useGamePersistence } from './useGamePersistence';
-export { default as useSimulationApi } from './useSimulationApi';
-
-// Analytics hooks
-export { default as useOddsCalculation } from './useOddsCalculation';
-export { default as usePostHoleAnalytics } from './usePostHoleAnalytics';
 
 // Player and auth hooks
 export { default as useAuth } from './useAuth';

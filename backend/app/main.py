@@ -43,9 +43,6 @@ from .post_hole_analytics import PostHoleAnalyzer
 # Import routers
 from .routers import courses, health, players, sheet_integration
 
-# betting_events router removed - events now sent inline with hole completion
-# Email scheduler will be initialized on-demand to prevent startup blocking
-# from .services.email_scheduler import email_scheduler
 from .services.email_service import SMTPEmailProvider, get_email_service
 from .services.game_lifecycle_service import get_game_lifecycle_service
 from .services.leaderboard_service import get_leaderboard_service

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { setupConnectivityListeners, isOffline } from '../serviceWorkerRegistration';
+import { setupConnectivityListeners, isOffline } from '../../serviceWorkerRegistration';
 
 /**
  * Offline Indicator Component
