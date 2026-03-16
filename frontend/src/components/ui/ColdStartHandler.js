@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useTheme } from '../theme/Provider';
+import { useTheme } from '../../theme/Provider';
 
 const ColdStartHandler = ({ children, onReady }) => {
   const theme = useTheme();

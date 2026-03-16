@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useTheme } from '../theme/Provider';
+import { useTheme } from '../../theme/Provider';
 import { Card } from './ui';
 
 const GameHistory = ({ gameData = null, timelineEvents = [] }) => {

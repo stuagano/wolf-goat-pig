@@ -7,8 +7,8 @@
 
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
-import { useSyncStatus } from '../hooks/useSyncStatus';
-import { useTheme } from '../theme/Provider';
+import { useSyncStatus } from '../../hooks/useSyncStatus';
+import { useTheme } from '../../theme/Provider';
 
 /**
  * Compact indicator for header/nav bar

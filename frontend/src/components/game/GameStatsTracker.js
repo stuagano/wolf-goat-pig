@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback } from 'react';
-import usePlayerProfile from '../hooks/usePlayerProfile';
+import usePlayerProfile from '../../hooks/usePlayerProfile';
 
 /**
  * GameStatsTracker - Component for tracking and recording game statistics
