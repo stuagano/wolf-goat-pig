@@ -36,24 +36,19 @@ def run_migrations():
     db_type = get_database_type()
     print(f"📊 Database type: {db_type}")
 
-    # Determine which migration files to run
+    # Auto-discover migration files by database type.
+    # PostgreSQL migrations end with _postgres.sql; SQLite uses the rest.
+    all_sql = sorted(f.name for f in migrations_dir.glob("*.sql"))
+
     if db_type == "postgresql":
-        migration_files = [
-            "enable_uuid_extension_postgres.sql",
-            "add_game_id_to_game_state_postgres.sql",
-            "add_join_codes_postgres.sql",
-            "add_legacy_name_postgres.sql",
-            "add_foretees_credentials_postgres.sql",
-        ]
+        migration_files = [f for f in all_sql if f.endswith("_postgres.sql")]
     elif db_type == "sqlite":
-        migration_files = [
-            "add_game_id_to_game_state.sql",
-            "add_join_codes_and_player_linking.sql",
-            "add_foretees_credentials.sql",
-        ]
+        migration_files = [f for f in all_sql if not f.endswith("_postgres.sql")]
     else:
         print(f"❌ Unknown database type: {db_type}")
         return False
+
+    print(f"📋 Found {len(migration_files)} migration(s) to run")
 
     # Run each migration
     connection = engine.connect()
