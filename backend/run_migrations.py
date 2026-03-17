@@ -43,9 +43,14 @@ def run_migrations():
             "add_game_id_to_game_state_postgres.sql",
             "add_join_codes_postgres.sql",
             "add_legacy_name_postgres.sql",
+            "add_foretees_credentials_postgres.sql",
         ]
     elif db_type == "sqlite":
-        migration_files = ["add_game_id_to_game_state.sql", "add_join_codes_and_player_linking.sql"]
+        migration_files = [
+            "add_game_id_to_game_state.sql",
+            "add_join_codes_and_player_linking.sql",
+            "add_foretees_credentials.sql",
+        ]
     else:
         print(f"❌ Unknown database type: {db_type}")
         return False
