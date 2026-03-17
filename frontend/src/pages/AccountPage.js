@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useTheme } from '../theme/Provider';
+import useTeeTimes from '../hooks/useTeeTimes';
 
 const STORAGE_KEY = 'wgp_account_settings';
 
@@ -568,6 +569,11 @@ function AccountPage() {
         )}
       </div>
 
+      {/* ForeTees Integration */}
+      {isAuthenticated && (
+        <ForeteesSection cardStyle={cardStyle} sectionTitle={sectionTitle} inputStyle={inputStyle} labelStyle={labelStyle} theme={theme} />
+      )}
+
       {/* Auth Info */}
       {isAuthenticated && (
         <div style={cardStyle}>
@@ -607,6 +613,155 @@ function AccountPage() {
           Log Out
         </button>
       )}
+    </div>
+  );
+}
+
+function ForeteesSection({ cardStyle, sectionTitle, inputStyle, labelStyle, theme }) {
+  const {
+    credentialsStatus,
+    fetchCredentialsStatus,
+    saveCredentials,
+    removeCredentials,
+  } = useTeeTimes();
+
+  const [ftUsername, setFtUsername] = useState('');
+  const [ftPassword, setFtPassword] = useState('');
+  const [ftSaving, setFtSaving] = useState(false);
+  const [ftMessage, setFtMessage] = useState(null);
+
+  useEffect(() => {
+    fetchCredentialsStatus();
+  }, [fetchCredentialsStatus]);
+
+  const handleSaveCredentials = async () => {
+    if (!ftUsername.trim() || !ftPassword.trim()) {
+      setFtMessage({ type: 'error', text: 'Username and password are required.' });
+      return;
+    }
+    setFtSaving(true);
+    setFtMessage(null);
+    try {
+      await saveCredentials(ftUsername.trim(), ftPassword);
+      setFtPassword('');
+      setFtMessage({ type: 'success', text: 'Credentials saved and verified.' });
+    } catch (err) {
+      setFtMessage({ type: 'error', text: err.message || 'Failed to save credentials.' });
+    } finally {
+      setFtSaving(false);
+    }
+  };
+
+  const handleRemoveCredentials = async () => {
+    setFtSaving(true);
+    setFtMessage(null);
+    try {
+      await removeCredentials();
+      setFtUsername('');
+      setFtPassword('');
+      setFtMessage({ type: 'success', text: 'Credentials removed.' });
+    } catch (err) {
+      setFtMessage({ type: 'error', text: err.message || 'Failed to remove credentials.' });
+    } finally {
+      setFtSaving(false);
+    }
+  };
+
+  const isConfigured = credentialsStatus?.configured;
+
+  return (
+    <div style={cardStyle}>
+      <h3 style={sectionTitle}>ForeTees Integration</h3>
+
+      {/* Status */}
+      <div style={{
+        padding: '10px 16px',
+        background: isConfigured
+          ? (theme.isDark ? 'rgba(16, 185, 129, 0.15)' : '#ecfdf5')
+          : (theme.isDark ? theme.colors.gray200 : '#f9fafb'),
+        color: isConfigured ? theme.colors.success : theme.colors.textSecondary,
+        borderRadius: '8px',
+        fontSize: '14px',
+        fontWeight: 500,
+        marginBottom: '16px',
+      }}>
+        {isConfigured
+          ? `Connected as ${credentialsStatus.username}`
+          : 'Not configured — enter your ForeTees login to book under your own account.'}
+      </div>
+
+      {/* Feedback message */}
+      {ftMessage && (
+        <div style={{
+          padding: '10px 16px',
+          background: ftMessage.type === 'success'
+            ? (theme.isDark ? 'rgba(16, 185, 129, 0.15)' : '#ecfdf5')
+            : (theme.isDark ? 'rgba(239, 68, 68, 0.15)' : '#fef2f2'),
+          color: ftMessage.type === 'success' ? theme.colors.success : theme.colors.error,
+          borderRadius: '8px',
+          fontSize: '14px',
+          fontWeight: 500,
+          marginBottom: '16px',
+        }}>
+          {ftMessage.text}
+        </div>
+      )}
+
+      {/* Form */}
+      <div>
+        <label style={labelStyle}>ForeTees Username</label>
+        <input
+          type="text"
+          value={ftUsername}
+          onChange={(e) => setFtUsername(e.target.value)}
+          placeholder={isConfigured ? credentialsStatus.username : 'e.g., 1453-smith'}
+          style={inputStyle}
+          disabled={ftSaving}
+        />
+
+        <label style={labelStyle}>ForeTees Password</label>
+        <input
+          type="password"
+          value={ftPassword}
+          onChange={(e) => setFtPassword(e.target.value)}
+          placeholder={isConfigured ? '(unchanged)' : 'Your ForeTees password'}
+          style={inputStyle}
+          disabled={ftSaving}
+        />
+
+        <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+          <button
+            onClick={handleSaveCredentials}
+            disabled={ftSaving}
+            style={{
+              ...theme.buttonStyle,
+              padding: '10px 20px',
+              fontSize: '14px',
+              opacity: ftSaving ? 0.6 : 1,
+            }}
+          >
+            {ftSaving ? 'Saving...' : 'Save Credentials'}
+          </button>
+
+          {isConfigured && (
+            <button
+              onClick={handleRemoveCredentials}
+              disabled={ftSaving}
+              style={{
+                ...theme.buttonStyle,
+                padding: '10px 20px',
+                fontSize: '14px',
+                background: 'transparent',
+                color: theme.colors.error,
+                border: `1px solid ${theme.colors.error}`,
+                opacity: ftSaving ? 0.6 : 1,
+              }}
+            >
+              Remove
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

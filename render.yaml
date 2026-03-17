@@ -62,6 +62,14 @@ services:
         value: "type"
       - key: LEGACY_SIGNUP_CANCEL_ACTION_VALUE
         value: "cancel"
+      - key: FORETEES_ENABLED
+        value: "false"
+      - key: FORETEES_USERNAME
+        value: ""
+      - key: FORETEES_PASSWORD
+        value: ""
+      - key: FORETEES_ENCRYPTION_KEY
+        value: ""
       - key: WEB_CONCURRENCY
         value: "1"
       - key: FORWARDED_ALLOW_IPS

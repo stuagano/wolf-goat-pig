@@ -22,6 +22,7 @@ import ProtectedRoute from "./components/auth/ProtectedRoute";
 import LoginButton from "./components/auth/LoginButton";
 import { OnboardingWrapper } from "./components/auth";
 import { HomePage, GameScorerPage, SimpleScorekeeperPage } from "./pages";
+import TeeTimesPage from "./pages/TeeTimesPage";
 import SignupPage from "./pages/SignupPage";
 import AboutPage from "./pages/AboutPage";
 import RulesPage from "./pages/RulesPage";
@@ -406,6 +407,14 @@ function App() {
               <Route path="/games/active" element={<ActiveGamesPage />} />
               <Route path="/games/completed" element={<CompletedGamesPage />} />
               <Route path="/account" element={<AccountPage />} />
+              <Route
+                path="/tee-times"
+                element={
+                  <ProtectedRoute>
+                    <TeeTimesPage />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           </div>

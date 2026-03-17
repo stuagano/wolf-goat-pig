@@ -41,7 +41,7 @@ from .migrations_routes import router as migrations_router
 from .post_hole_analytics import PostHoleAnalyzer
 
 # Import routers
-from .routers import courses, health, players, sheet_integration
+from .routers import courses, foretees, health, players, sheet_integration
 
 from .services.email_service import SMTPEmailProvider, get_email_service
 from .services.game_lifecycle_service import get_game_lifecycle_service
@@ -379,6 +379,7 @@ app.include_router(courses.router)
 from .routers import course_data_update
 
 app.include_router(course_data_update.router)
+app.include_router(foretees.router)
 
 logger.info("✅ All routers registered")
 
