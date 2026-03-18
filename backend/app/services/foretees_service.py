@@ -6,8 +6,8 @@ endpoint, which embeds structured JSON in data-ftjson attributes.
 
 Authentication flow:
 1. POST login to wingpointgolf.com → session cookies
-2. GET tee time page → parse ForeTees iframe URL with SSO params
-3. GET ForeTees SSO endpoint → JSESSIONID cookie
+2. GET tee time page → extract ftSSOKey/ftSSOIV from inline JS
+3. GET ForeTees Member_select with SSO params → JSESSIONID cookie
 4. Use JSESSIONID for all ForeTees API requests
 
 All configuration via environment variables. Best-effort, non-blocking.
@@ -24,6 +24,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+from urllib.parse import quote
 
 import httpx
 
@@ -128,31 +129,27 @@ class ForeteesService:
             )
             login_post_resp.raise_for_status()
 
-            # Step 2: Get the tee time page to find ForeTees iframe SSO URL
+            # Step 2: Get the tee time page and extract SSO parameters
+            # The iframe src is empty; JS constructs the URL from inline variables.
             tee_page_resp = await client.get(f"{WINGPOINT_BASE}{TEE_TIME_PAGE}")
             tee_page_resp.raise_for_status()
 
-            # Parse the iframe src containing SSO params
-            iframe_match = re.search(
-                r'src="(https://ftapp\.wingpointgolf\.com/[^"]+)"',
-                tee_page_resp.text,
-            )
-            if not iframe_match:
-                # Try alternate pattern - the JS might construct the URL
-                iframe_match = re.search(
-                    r"(https://ftapp\.wingpointgolf\.com/v5/[^'\"]+Member_select[^'\"]*)",
-                    tee_page_resp.text,
-                )
+            sso_key_match = re.search(r"ftSSOKey\s*=\s*'([^']+)'", tee_page_resp.text)
+            sso_iv_match = re.search(r"ftSSOIV\s*=\s*'([^']+)'", tee_page_resp.text)
 
-            if not iframe_match:
-                logger.error("Could not find ForeTees iframe URL in tee time page")
+            if not sso_key_match or not sso_iv_match:
+                logger.error("Could not find ftSSOKey/ftSSOIV in tee time page")
                 return False
 
-            iframe_url = html.unescape(iframe_match.group(1))
-            logger.debug("Found ForeTees iframe URL")
+            sso_key = sso_key_match.group(1)
+            sso_iv = sso_iv_match.group(1)
 
-            # Step 3: Hit the ForeTees SSO endpoint (loads Member_select, sets JSESSIONID)
-            sso_resp = await client.get(iframe_url)
+            # Step 3: Hit ForeTees SSO endpoint to establish JSESSIONID
+            sso_url = (
+                f"{self.config.base_url}/Member_select"
+                f"?sso_uid={quote(sso_key)}&sso_iv={quote(sso_iv)}"
+            )
+            sso_resp = await client.get(sso_url)
             sso_resp.raise_for_status()
 
             # Verify we got a JSESSIONID cookie
@@ -448,6 +445,10 @@ class ForeteesService:
             try:
                 data = json.loads(html.unescape(raw_json))
             except (json.JSONDecodeError, ValueError):
+                continue
+
+            # Skip non-tee-time entries (events, headers, etc.)
+            if data.get("type") != "Member_slot":
                 continue
 
             players = []
