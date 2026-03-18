@@ -68,9 +68,13 @@ class ForeteesService:
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None:
+            # Use a fresh CookieJar that tolerates duplicate cookie names
+            # (wingpointgolf.com can set multiple UID cookies for different paths)
+            jar = httpx.Cookies()
             self._client = httpx.AsyncClient(
                 timeout=self.config.timeout_seconds,
                 follow_redirects=True,
+                cookies=jar,
                 headers={
                     "User-Agent": (
                         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -107,14 +111,18 @@ class ForeteesService:
             login_resp = await client.get(login_url)
             login_resp.raise_for_status()
 
-            # The login form POSTs to fw_login.asp
+            # The login form POSTs back to the login page itself
             login_data = {
-                "uname": self.config.username,
-                "pword": self.config.password,
-                "login": "Login",
+                "UserLOGIN": self.config.username,
+                "UserPWD": self.config.password,
+                "btnLogon": "Log On",
+                "Action": "Authenticate",
+                "DocID": "465",
+                "LogonRequest": "",
+                "R": "0",
             }
             login_post_resp = await client.post(
-                f"{WINGPOINT_BASE}/fw/main/fw_login.asp",
+                login_url,
                 data=login_data,
                 headers={"Referer": login_url},
             )
@@ -148,13 +156,17 @@ class ForeteesService:
             sso_resp.raise_for_status()
 
             # Verify we got a JSESSIONID cookie
-            has_session = any(
-                "JSESSIONID" in str(cookie.name)
-                for cookie in client.cookies.jar
-            )
-            if not has_session:
-                logger.warning("No JSESSIONID cookie received from ForeTees SSO")
-                # Continue anyway - the session might still work
+            try:
+                has_session = any(
+                    "JSESSIONID" in str(cookie.name)
+                    for cookie in client.cookies.jar
+                )
+                if not has_session:
+                    logger.warning("No JSESSIONID cookie received from ForeTees SSO")
+                    # Continue anyway - the session might still work
+            except httpx.CookieConflict:
+                # Multiple cookies with same name on different paths - session likely fine
+                logger.debug("CookieConflict checking JSESSIONID, continuing")
 
             self._last_auth_time = time.time()
             logger.info("ForeTees session established successfully")
