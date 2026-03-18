@@ -246,6 +246,25 @@ def readiness_check():
     return {"status": "ready", "timestamp": datetime.now().isoformat()}
 
 
+@router.post("/admin/ensure-schema")
+@handle_api_errors(operation_name="ensure schema")
+def ensure_schema_endpoint() -> Dict[str, Any]:
+    """Run schema sync on demand."""
+    from sqlalchemy import text as sa_text
+
+    results = []
+    try:
+        with managed_session() as db:
+            db.execute(sa_text("ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS foretees_username VARCHAR(255)"))
+            db.execute(sa_text("ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS foretees_password_encrypted TEXT"))
+            db.commit()
+            results.append("foretees columns ensured")
+    except Exception as e:
+        results.append(f"error: {e}")
+
+    return {"results": results}
+
+
 @router.post("/admin/seed-course-holes")
 @handle_api_errors(operation_name="seed course holes")
 def seed_course_holes() -> Dict[str, Any]:
