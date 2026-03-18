@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """
-Database Migration Runner
-Automatically runs SQL migrations on the database.
+Database Schema Sync
+
+Ensures all schema definitions are applied on startup.
+Each .sql file is idempotent (uses IF NOT EXISTS / safely skips duplicates).
+Auto-discovers files from backend/schema/ by database type.
 Supports both PostgreSQL (production) and SQLite (development).
 """
 
-import os
 import sys
 from pathlib import Path
 
@@ -25,50 +27,47 @@ def get_database_type():
         return "unknown"
 
 
-def run_migrations():
-    """Run all pending migrations."""
-    migrations_dir = Path(__file__).parent / "migrations"
+def ensure_schema():
+    """Apply all schema definitions. Idempotent — safe to run on every startup."""
+    schema_dir = Path(__file__).parent / "schema"
 
-    if not migrations_dir.exists():
-        print("✅ No migrations directory found - skipping")
+    if not schema_dir.exists():
+        print("No schema directory found - skipping")
         return True
 
     db_type = get_database_type()
-    print(f"📊 Database type: {db_type}")
+    print(f"Database type: {db_type}")
 
-    # Auto-discover migration files by database type.
-    # PostgreSQL migrations end with _postgres.sql; SQLite uses the rest.
-    all_sql = sorted(f.name for f in migrations_dir.glob("*.sql"))
+    # Auto-discover schema files by database type.
+    # PostgreSQL files end with _postgres.sql; SQLite uses the rest.
+    all_sql = sorted(f.name for f in schema_dir.glob("*.sql"))
 
     if db_type == "postgresql":
-        migration_files = [f for f in all_sql if f.endswith("_postgres.sql")]
+        schema_files = [f for f in all_sql if f.endswith("_postgres.sql")]
     elif db_type == "sqlite":
-        migration_files = [f for f in all_sql if not f.endswith("_postgres.sql")]
+        schema_files = [f for f in all_sql if not f.endswith("_postgres.sql")]
     else:
-        print(f"❌ Unknown database type: {db_type}")
+        print(f"Unknown database type: {db_type}")
         return False
 
-    print(f"📋 Found {len(migration_files)} migration(s) to run")
+    print(f"Found {len(schema_files)} schema file(s) to apply")
 
-    # Run each migration
     connection = engine.connect()
     trans = connection.begin()
 
     try:
-        for filename in migration_files:
-            filepath = migrations_dir / filename
+        for filename in schema_files:
+            filepath = schema_dir / filename
 
             if not filepath.exists():
-                print(f"⚠️  Migration file not found: {filename} - skipping")
+                print(f"  Schema file not found: {filename} - skipping")
                 continue
 
-            print(f"🔄 Running migration: {filename}")
+            print(f"  Applying: {filename}")
 
-            # Read and execute migration
             with open(filepath, "r") as f:
                 sql = f.read()
 
-                # Split on semicolons and execute each statement
                 statements = [s.strip() for s in sql.split(";") if s.strip() and not s.strip().startswith("--")]
 
                 for statement in statements:
@@ -76,7 +75,6 @@ def run_migrations():
                         try:
                             connection.execute(text(statement))
                         except Exception as e:
-                            # Check if error is "already exists" which we can safely ignore
                             error_msg = str(e).lower()
                             if any(
                                 phrase in error_msg
@@ -85,24 +83,24 @@ def run_migrations():
                                     "duplicate column",
                                     "duplicate key",
                                     "column already exists",
-                                    'near "exists"',  # SQLite doesn't support IF NOT EXISTS with ALTER TABLE ADD COLUMN
+                                    'near "exists"',
                                 ]
                             ):
-                                print(f"   ℹ️  Skipping (already applied): {statement[:50]}...")
+                                print(f"    Skipping (already applied): {statement[:50]}...")
                             else:
-                                print(f"   ❌ Error: {e}")
-                                print(f"   Statement: {statement[:100]}...")
+                                print(f"    Error: {e}")
+                                print(f"    Statement: {statement[:100]}...")
                                 raise
 
-            print(f"   ✅ Completed: {filename}")
+            print(f"    Done: {filename}")
 
         trans.commit()
-        print("✅ All migrations completed successfully")
+        print("Schema sync complete")
         return True
 
     except Exception as e:
         trans.rollback()
-        print(f"❌ Migration failed: {e}")
+        print(f"Schema sync failed: {e}")
         return False
 
     finally:
@@ -110,6 +108,6 @@ def run_migrations():
 
 
 if __name__ == "__main__":
-    print("🚀 Running database migrations...")
-    success = run_migrations()
+    print("Ensuring database schema...")
+    success = ensure_schema()
     sys.exit(0 if success else 1)
