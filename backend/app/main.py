@@ -231,6 +231,27 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.error(f"Failed to initialize database: {e}")
         raise
 
+    # Ensure foretees credential columns exist (safe to re-run)
+    try:
+        from sqlalchemy import text as sa_text
+
+        with database.get_isolated_session() as db:
+            if database.is_postgresql:
+                db.execute(sa_text("ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS foretees_username VARCHAR(255)"))
+                db.execute(sa_text("ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS foretees_password_encrypted TEXT"))
+            else:
+                # SQLite: check if columns exist first
+                result = db.execute(sa_text("PRAGMA table_info(player_profiles)"))
+                cols = {row[1] for row in result}
+                if "foretees_username" not in cols:
+                    db.execute(sa_text("ALTER TABLE player_profiles ADD COLUMN foretees_username TEXT"))
+                if "foretees_password_encrypted" not in cols:
+                    db.execute(sa_text("ALTER TABLE player_profiles ADD COLUMN foretees_password_encrypted TEXT"))
+            db.commit()
+            logger.info("ForeTees credential columns verified")
+    except Exception as e:
+        logger.warning(f"ForeTees column migration check: {e}")
+
     # Initialize email scheduler if enabled
     if os.getenv("ENABLE_EMAIL_NOTIFICATIONS", "true").lower() == "true":
         try:
