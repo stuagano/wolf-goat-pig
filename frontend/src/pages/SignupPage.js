@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useSearchParams } from 'react-router-dom';
-import DailySignupView from '../components/signup/DailySignupView';
+import ForeTeesTeeSheet from '../components/foretees/ForeTeesTeeSheet';
 import PlayerAvailability from '../components/signup/PlayerAvailability';
 import AllPlayersAvailability from '../components/signup/AllPlayersAvailability';
 import MatchmakingSuggestions from '../components/signup/MatchmakingSuggestions';
@@ -146,7 +146,7 @@ const SignupPage = () => {
       {/* Tab Content */}
       <div style={{ minHeight: '500px' }}>
         {activeTab === 'calendar' && (
-          <DailySignupView />
+          <ForeTeesTeeSheet />
         )}
 
         {activeTab === 'availability' && (

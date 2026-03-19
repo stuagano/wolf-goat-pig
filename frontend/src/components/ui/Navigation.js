@@ -34,7 +34,6 @@ const Navigation = () => {
 
   // "More" sheet items
   const moreItems = [
-    { path: '/tee-times', label: 'Tee Times', icon: '⛳' },
     { path: '/games/active', label: 'Active Games', icon: '🎮' },
     { path: '/games/completed', label: 'Game History', icon: '🏆' },
     { path: '/leaderboard', label: 'Leaderboard', icon: '📊' },
@@ -51,7 +50,6 @@ const Navigation = () => {
     { path: '/', label: '🏠 Home', primary: true },
     { path: '/signup', label: '📅 Sign Up', primary: true },
     { path: '/game', label: '⚔️ Game', primary: true },
-    { path: '/tee-times', label: '⛳ Tee Times', primary: true },
     { path: '/games/active', label: '🎮 Active', primary: true },
     { path: '/games/completed', label: '🏆 History', primary: false },
     { path: '/leaderboard', label: '📊 Leaderboard', primary: false },
