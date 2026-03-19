@@ -321,7 +321,13 @@ class ForeteesService:
 
             result = submit_resp.json()
             success = result.get("successful", False)
-            messages = result.get("message_list", [])
+
+            # ForeTees spreads messages across three lists
+            messages = (
+                result.get("message_list", [])
+                + result.get("notice_list", [])
+                + result.get("warning_list", [])
+            )
             title = result.get("title", "")
 
             if success:

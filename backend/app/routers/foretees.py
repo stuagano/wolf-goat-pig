@@ -238,7 +238,12 @@ async def book_tee_time(
             message=result["messages"][0] if result.get("messages") else "Booking confirmed",
         )
 
-    error_msg = result.get("message") or (
-        result["messages"][0] if result.get("messages") else "Booking failed"
-    )
+    # Build a clear error from title + all messages ForeTees returned
+    parts = []
+    if result.get("title"):
+        parts.append(result["title"])
+    for msg in result.get("messages", []):
+        if msg and msg != result.get("title"):
+            parts.append(msg)
+    error_msg = result.get("message") or ". ".join(parts) or "Booking failed"
     raise ValueError(error_msg)
