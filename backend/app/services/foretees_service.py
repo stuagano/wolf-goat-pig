@@ -268,7 +268,11 @@ class ForeteesService:
         try:
             # Step 1: Load the slot booking form
             slot_url = f"{self.config.base_url}/Member_slot"
-            form_resp = await client.get(slot_url, params={"ttdata": ttdata})
+            form_resp = await client.get(
+                slot_url,
+                params={"ttdata": ttdata},
+                headers={"Referer": f"{self.config.base_url}/Member_sheet"},
+            )
             form_resp.raise_for_status()
 
             fields = self._parse_slot_form(form_resp.text)
@@ -315,9 +319,29 @@ class ForeteesService:
                 headers={
                     "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
                     "X-Requested-With": "XMLHttpRequest",
+                    "Referer": f"{self.config.base_url}/Member_slot?ttdata={ttdata}",
+                    "Origin": self.config.base_url.rsplit("/", 1)[0]
+                        if "/" in self.config.base_url
+                        else self.config.base_url,
                 },
             )
             submit_resp.raise_for_status()
+
+            # ForeTees may return HTML instead of JSON on session issues
+            content_type = submit_resp.headers.get("content-type", "")
+            if "json" not in content_type:
+                body_preview = submit_resp.text[:300]
+                logger.warning(
+                    "ForeTees booking returned non-JSON response (%s): %s",
+                    content_type,
+                    body_preview,
+                )
+                # Session probably expired mid-booking
+                self._last_auth_time = 0
+                return {
+                    "success": False,
+                    "message": "ForeTees session expired during booking. Please try again.",
+                }
 
             result = submit_resp.json()
             success = result.get("successful", False)
@@ -361,12 +385,22 @@ class ForeteesService:
     def _parse_slot_form(html_content: str) -> Dict[str, str]:
         """Parse Member_slot HTML to extract hidden and visible form field values."""
         fields: Dict[str, str] = {}
-        pattern = re.compile(
-            r'<input[^>]*name="([^"]+)"[^>]*value="([^"]*)"',
+
+        # Match <input> tags regardless of attribute order (name before value
+        # OR value before name).
+        name_first = re.compile(
+            r'<input[^>]*\bname="([^"]+)"[^>]*\bvalue="([^"]*)"',
             re.IGNORECASE,
         )
-        for name, value in pattern.findall(html_content):
+        value_first = re.compile(
+            r'<input[^>]*\bvalue="([^"]*)"[^>]*\bname="([^"]+)"',
+            re.IGNORECASE,
+        )
+        for name, value in name_first.findall(html_content):
             fields[name] = html.unescape(value)
+        for value, name in value_first.findall(html_content):
+            if name not in fields:
+                fields[name] = html.unescape(value)
 
         # Also extract select/combobox values (transport modes)
         select_pattern = re.compile(
