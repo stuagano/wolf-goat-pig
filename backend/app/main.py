@@ -8080,22 +8080,7 @@ async def get_email_service_status():
     """Check if email service is properly configured"""
     try:
         email_service = get_email_service()
-
-        # Check if provider is SMTP-based
-        smtp_info = {}
-        if isinstance(email_service.provider, SMTPEmailProvider):
-            smtp_info = {
-                "smtp_host": email_service.provider.smtp_host or "Not set",
-                "smtp_port": email_service.provider.smtp_port or "Not set",
-                "from_email": email_service.provider.from_email or "Not set",
-                "from_name": email_service.provider.from_name or "Not set",
-            }
-
-        return {
-            "configured": email_service.is_configured(),
-            **smtp_info,
-            "missing_config": [key for key in ["SMTP_USER", "SMTP_PASSWORD", "SMTP_HOST"] if not os.getenv(key)],
-        }
+        return email_service.get_provider_status()
 
     except Exception as e:
         logger.error(f"Error checking email service status: {e}")

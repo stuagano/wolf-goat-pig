@@ -13,8 +13,9 @@ from typing import Any, Dict, Optional
 import emails
 from jinja2 import Template
 
-# Import the Gmail OAuth2 provider
+# Import email providers
 from .providers.gmail_oauth2_provider import create_gmail_oauth2_provider
+from .providers.resend_provider import create_resend_provider
 
 logger = logging.getLogger(__name__)
 
@@ -120,8 +121,12 @@ class EmailService:
         if email_provider_type == "gmail_oauth2":
             logger.info("Using Gmail OAuth2 email provider.")
             gmail_provider = create_gmail_oauth2_provider()
-            # GmailOAuth2Provider is a subtype of EmailProvider
             return gmail_provider  # type: ignore
+
+        if email_provider_type == "resend":
+            logger.info("Using Resend email provider.")
+            resend_provider = create_resend_provider()
+            return resend_provider  # type: ignore
 
         logger.info("Using SMTP email provider.")
         return SMTPEmailProvider()
