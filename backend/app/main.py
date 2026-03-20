@@ -41,7 +41,7 @@ from .migrations_routes import router as migrations_router
 from .post_hole_analytics import PostHoleAnalyzer
 
 # Import routers
-from .routers import courses, foretees, health, players, sheet_integration
+from .routers import courses, foretees, health, matchmaking, players, sheet_integration
 
 from .services.email_service import SMTPEmailProvider, get_email_service
 from .services.game_lifecycle_service import get_game_lifecycle_service
@@ -380,6 +380,7 @@ from .routers import course_data_update
 
 app.include_router(course_data_update.router)
 app.include_router(foretees.router)
+app.include_router(matchmaking.router)
 
 logger.info("✅ All routers registered")
 
@@ -8943,6 +8944,20 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):  # type: ignor
     except WebSocketDisconnect:
         websocket_manager.disconnect(websocket, game_id)
         await websocket_manager.broadcast(f"A client disconnected from game {game_id}", game_id)
+
+
+@app.websocket("/ws/user/{player_id}")
+async def user_websocket_endpoint(websocket: WebSocket, player_id: int):  # type: ignore
+    """WebSocket endpoint for per-user notifications (match updates, etc.)."""
+    await websocket_manager.connect_user(websocket, player_id)
+    try:
+        while True:
+            # Keep connection alive; client can send pings
+            data = await websocket.receive_text()
+            # Echo back acknowledgment
+            await websocket.send_text(json.dumps({"type": "pong", "data": data}))
+    except WebSocketDisconnect:
+        websocket_manager.disconnect_user(websocket, player_id)
 
 
 @app.head("/")

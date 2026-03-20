@@ -3,6 +3,8 @@ import { useAuth0 } from '@auth0/auth0-react';
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
+const dayNamesFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
 const PlayerAvailability = () => {
   const { getAccessTokenSilently, isAuthenticated } = useAuth0();
   const [availability, setAvailability] = useState([]);
@@ -10,9 +12,9 @@ const PlayerAvailability = () => {
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(null);
+  const [matchResult, setMatchResult] = useState(null);
 
   const dayNames = useMemo(() => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], []);
-  const dayNamesFull = useMemo(() => ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], []);
 
   const timeOptions = [
     '', '6:00 AM', '6:30 AM', '7:00 AM', '7:30 AM', '8:00 AM', '8:30 AM',
@@ -29,7 +31,7 @@ const PlayerAvailability = () => {
       available_to_time: '',
       notes: ''
     }));
-  }, [dayNamesFull]);
+  }, []);
 
   const loadAvailability = useCallback(async () => {
     if (!isAuthenticated) {
@@ -70,7 +72,6 @@ const PlayerAvailability = () => {
       }
       setError(null);
     } catch (err) {
-      console.error('Error loading availability:', err);
       setError(err.message);
       setAvailability(initializeAvailability());
     } finally {
@@ -81,6 +82,14 @@ const PlayerAvailability = () => {
   useEffect(() => {
     loadAvailability();
   }, [loadAvailability]);
+
+  // Auto-dismiss match result after 8 seconds
+  useEffect(() => {
+    if (matchResult) {
+      const t = setTimeout(() => setMatchResult(null), 8000);
+      return () => clearTimeout(t);
+    }
+  }, [matchResult]);
 
   const updateDayAvailability = (dayIndex, field, value) => {
     setAvailability(prev => prev.map((day, index) =>
@@ -94,6 +103,7 @@ const PlayerAvailability = () => {
 
     try {
       setSaving(true);
+      setMatchResult(null);
       let token;
       try {
         token = await getAccessTokenSilently();
@@ -122,15 +132,27 @@ const PlayerAvailability = () => {
         throw new Error(errorData.detail || 'Failed to save');
       }
 
-      const updatedDay = await response.json();
+      const result = await response.json();
+
+      // The response now includes availability + match results
+      const updatedAvail = result.availability || result;
       setAvailability(prev => prev.map((day, index) =>
-        index === dayIndex ? { ...day, id: updatedDay.id } : day
+        index === dayIndex ? { ...day, id: updatedAvail.id } : day
       ));
       setSaveSuccess(dayIndex);
       setError(null);
+
+      // Show match results if any new matches were found
+      if (result.new_matches && result.new_matches.length > 0) {
+        setMatchResult({
+          count: result.new_matches.length,
+          notified: result.matches_notified,
+          matches: result.new_matches,
+        });
+      }
+
       setTimeout(() => setSaveSuccess(null), 2000);
     } catch (err) {
-      console.error('Save error:', err);
       setError(`Failed to save ${dayNamesFull[dayIndex]}: ${err.message}`);
     } finally {
       setSaving(false);
@@ -180,6 +202,77 @@ const PlayerAvailability = () => {
         }}>
           {error}
           <button onClick={() => setError(null)} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
+        </div>
+      )}
+
+      {/* Match Result Banner */}
+      {matchResult && (
+        <div
+          style={{
+            background: '#ecfdf5',
+            border: '1px solid #10b981',
+            borderRadius: '12px',
+            padding: '16px',
+            marginBottom: '16px',
+            position: 'relative',
+          }}
+        >
+          <button
+            onClick={() => setMatchResult(null)}
+            style={{
+              position: 'absolute', top: 8, right: 12,
+              background: 'none', border: 'none',
+              fontSize: '18px', cursor: 'pointer', color: '#6b7280',
+            }}
+          >
+            ×
+          </button>
+          <div style={{ fontSize: '15px', fontWeight: '700', color: '#047857', marginBottom: '8px' }}>
+            Match{matchResult.count > 1 ? 'es' : ''} Found!
+          </div>
+          <div style={{ fontSize: '13px', color: '#065f46', marginBottom: '12px' }}>
+            {matchResult.count} new group{matchResult.count > 1 ? 's' : ''} matched.
+            {matchResult.notified > 0 && ` ${matchResult.notified} players notified.`}
+          </div>
+          {matchResult.matches.map((match, idx) => (
+            <div
+              key={idx}
+              style={{
+                background: '#fff',
+                border: '1px solid #bbf7d0',
+                borderRadius: '8px',
+                padding: '12px',
+                marginBottom: idx < matchResult.matches.length - 1 ? '8px' : 0,
+              }}
+            >
+              <div style={{ fontSize: '14px', fontWeight: '600', color: '#1f2937', marginBottom: '4px' }}>
+                {dayNamesFull[match.day_of_week]}
+              </div>
+              <div style={{ fontSize: '13px', color: '#4b5563', marginBottom: '6px' }}>
+                {match.overlap_start} - {match.overlap_end} · Tee time: {match.suggested_tee_time}
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                {match.players.map((p, pidx) => (
+                  <span
+                    key={pidx}
+                    style={{
+                      background: '#d1fae5',
+                      padding: '3px 8px',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      fontWeight: '500',
+                      color: '#065f46',
+                    }}
+                  >
+                    {p.player_name}
+                  </span>
+                ))}
+              </div>
+              <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '6px' }}>
+                Check the Matchmaking tab to accept and book a tee time
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

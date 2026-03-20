@@ -350,6 +350,205 @@ class EmailService:
             html_body=html_body,
         )
 
+    # ========================================================================
+    # Match / Availability Flow Emails
+    # ========================================================================
+
+    def send_match_found(
+        self,
+        to_email: str,
+        player_name: str,
+        match_day: str,
+        overlap_start: str,
+        overlap_end: str,
+        suggested_tee_time: str,
+        group_players: list[str],
+        match_id: int,
+        app_url: str = "",
+    ) -> bool:
+        """Sends an email when a new match group is found.
+
+        Args:
+            to_email: Recipient email
+            player_name: Recipient's display name
+            match_day: Day name (e.g. "Saturday")
+            overlap_start: Start of availability overlap (e.g. "9:00 AM")
+            overlap_end: End of availability overlap (e.g. "1:00 PM")
+            suggested_tee_time: Suggested tee time (e.g. "9:00 AM")
+            group_players: List of all player names in the group
+            match_id: Database ID for the match suggestion
+            app_url: Base URL of the app for deep links
+        """
+        other_players = [n for n in group_players if n != player_name]
+        others_str = ", ".join(other_players[:-1]) + f" and {other_players[-1]}" if len(other_players) > 1 else other_players[0] if other_players else ""
+
+        match_url = f"{app_url}/signup?tab=my-matches" if app_url else ""
+        cta_html = f'<a href="{match_url}" style="display:inline-block;padding:12px 24px;background:#047857;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;margin-top:10px;">View Match &amp; Respond</a>' if match_url else ""
+
+        players_html = "".join(
+            f'<li style="margin:5px 0;font-size:15px;">{name}</li>'
+            for name in group_players
+        )
+
+        content = f"""
+        <h2>⛳ Golf Match Found!</h2>
+        <p>Hi {player_name},</p>
+        <p>Great news — we found a group that works for <strong>{match_day}</strong>! You've been matched with {others_str}.</p>
+
+        <div style="margin:20px 0;padding:20px;background:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0;">
+            <div style="margin-bottom:12px;">
+                <strong style="font-size:16px;color:#047857;">📅 {match_day}</strong>
+            </div>
+            <div style="margin-bottom:8px;color:#4b5563;">
+                ⏰ <strong>Available window:</strong> {overlap_start} – {overlap_end}
+            </div>
+            <div style="margin-bottom:16px;color:#4b5563;">
+                🎯 <strong>Suggested tee time:</strong> {suggested_tee_time}
+            </div>
+            <div>
+                <strong style="color:#374151;">🏌️ Your group:</strong>
+                <ul style="margin:8px 0 0 0;padding-left:20px;">
+                    {players_html}
+                </ul>
+            </div>
+        </div>
+
+        <p>Everyone in this group is available during this window. Accept the match in the app and once everyone confirms, you'll be able to book a tee time together.</p>
+
+        <div style="text-align:center;margin:25px 0;">
+            {cta_html}
+        </div>
+
+        <p style="font-size:13px;color:#9ca3af;margin-top:20px;">
+            This match will expire in 7 days if not accepted.
+        </p>
+        """
+        template = Template(self._get_base_template())
+        html_body = template.render(subject="Golf Match Found", content=content)
+
+        return self._send_email(
+            to_email=to_email,
+            subject=f"⛳ Golf match found for {match_day} — {others_str}",
+            html_body=html_body,
+        )
+
+    def send_match_confirmed(
+        self,
+        to_email: str,
+        player_name: str,
+        match_day: str,
+        overlap_start: str,
+        overlap_end: str,
+        suggested_tee_time: str,
+        group_players: list[str],
+        app_url: str = "",
+    ) -> bool:
+        """Sends an email when all players have accepted a match."""
+        others = [n for n in group_players if n != player_name]
+        others_str = ", ".join(others[:-1]) + f" and {others[-1]}" if len(others) > 1 else others[0] if others else ""
+
+        match_url = f"{app_url}/signup?tab=my-matches" if app_url else ""
+        cta_html = f'<a href="{match_url}" style="display:inline-block;padding:12px 24px;background:#10b981;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;margin-top:10px;">Book Your Tee Time</a>' if match_url else ""
+
+        content = f"""
+        <h2>🎉 Everyone's In!</h2>
+        <p>Hi {player_name},</p>
+        <p>All players have confirmed the <strong>{match_day}</strong> match. Your group with {others_str} is locked in!</p>
+
+        <div style="margin:20px 0;padding:20px;background:#ecfdf5;border-radius:10px;border:2px solid #10b981;">
+            <div style="font-size:16px;font-weight:700;color:#047857;margin-bottom:12px;">
+                Match Confirmed ✓
+            </div>
+            <div style="color:#4b5563;margin-bottom:6px;">
+                📅 <strong>{match_day}</strong> · {overlap_start} – {overlap_end}
+            </div>
+            <div style="color:#4b5563;">
+                🎯 Suggested tee time: <strong>{suggested_tee_time}</strong>
+            </div>
+        </div>
+
+        <p><strong>Next step:</strong> Head to the app to book your tee time on ForeTees. The booking page will show available slots within your group's time window.</p>
+
+        <div style="text-align:center;margin:25px 0;">
+            {cta_html}
+        </div>
+        """
+        template = Template(self._get_base_template())
+        html_body = template.render(subject="Match Confirmed", content=content)
+
+        return self._send_email(
+            to_email=to_email,
+            subject=f"🎉 {match_day} golf match confirmed — time to book!",
+            html_body=html_body,
+        )
+
+    def send_match_declined(
+        self,
+        to_email: str,
+        player_name: str,
+        decliner_name: str,
+        match_day: str,
+        app_url: str = "",
+    ) -> bool:
+        """Sends an email when someone declines a match."""
+        match_url = f"{app_url}/signup?tab=my-matches" if app_url else ""
+        cta_html = f'<a href="{match_url}" style="display:inline-block;padding:12px 24px;background:#047857;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;margin-top:10px;">Check for New Matches</a>' if match_url else ""
+
+        content = f"""
+        <h2>Match Update</h2>
+        <p>Hi {player_name},</p>
+        <p>{decliner_name} can't make the <strong>{match_day}</strong> match. No worries — we'll keep looking for new groups that work for your schedule.</p>
+
+        <div style="text-align:center;margin:25px 0;">
+            {cta_html}
+        </div>
+
+        <p style="font-size:13px;color:#9ca3af;">
+            New matches are automatically found when players update their availability.
+        </p>
+        """
+        template = Template(self._get_base_template())
+        html_body = template.render(subject="Match Update", content=content)
+
+        return self._send_email(
+            to_email=to_email,
+            subject=f"📋 {match_day} match update — {decliner_name} can't make it",
+            html_body=html_body,
+        )
+
+    def send_match_player_accepted(
+        self,
+        to_email: str,
+        player_name: str,
+        accepter_name: str,
+        match_day: str,
+        accepted_count: int,
+        total_count: int,
+        app_url: str = "",
+    ) -> bool:
+        """Sends a nudge email when another player accepts (but not all yet)."""
+        match_url = f"{app_url}/signup?tab=my-matches" if app_url else ""
+        cta_html = f'<a href="{match_url}" style="display:inline-block;padding:12px 24px;background:#047857;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;margin-top:10px;">Accept Match</a>' if match_url else ""
+
+        content = f"""
+        <h2>⏳ Your {match_day} Match Needs You!</h2>
+        <p>Hi {player_name},</p>
+        <p>{accepter_name} just accepted the <strong>{match_day}</strong> match — that's {accepted_count} of {total_count} players confirmed.</p>
+        <p>We're waiting on your response to lock in the group.</p>
+
+        <div style="text-align:center;margin:25px 0;">
+            {cta_html}
+        </div>
+        """
+        template = Template(self._get_base_template())
+        html_body = template.render(subject="Match Waiting", content=content)
+
+        return self._send_email(
+            to_email=to_email,
+            subject=f"⏳ {accepter_name} accepted — your {match_day} match needs you!",
+            html_body=html_body,
+        )
+
     def get_provider_status(self) -> Dict[str, Any]:
         """Returns the configuration status of the current provider."""
         if not self.provider:

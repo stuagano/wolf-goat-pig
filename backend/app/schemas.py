@@ -526,6 +526,57 @@ class PlayerAvailabilityResponse(BaseModel):
     updated_at: str
 
 
+class PlayerAvailabilityWithMatchesResponse(BaseModel):
+    """Response for availability save that includes any new matches found."""
+    availability: PlayerAvailabilityResponse
+    new_matches: List[Dict[str, Any]] = []
+    matches_notified: int = 0
+
+
+# Match Suggestion Schemas
+class MatchPlayerResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    match_suggestion_id: int
+    player_profile_id: int
+    player_name: str
+    player_email: str
+    response: Optional[str] = None
+    responded_at: Optional[str] = None
+    created_at: str
+
+
+class MatchSuggestionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    day_of_week: int
+    suggested_date: Optional[str] = None
+    overlap_start: str
+    overlap_end: str
+    suggested_tee_time: str
+    match_quality_score: float
+    status: str
+    notification_sent: bool = False
+    created_at: str
+    expires_at: str
+    players: List[MatchPlayerResponse] = []
+
+
+class MatchResponseRequest(BaseModel):
+    """Request body for accepting/declining a match suggestion."""
+    response: str  # "accepted" or "declined"
+
+    @field_validator("response")
+    @classmethod
+    def validate_response(cls, v):
+        allowed = ["accepted", "declined"]
+        if v not in allowed:
+            raise ValueError(f"Response must be one of: {', '.join(allowed)}")
+        return v
+
+
 class EmailPreferencesCreate(BaseModel):
     player_profile_id: int
     daily_signups_enabled: bool = True

@@ -5,6 +5,7 @@ import ForeTeesTeeSheet from '../components/foretees/ForeTeesTeeSheet';
 import PlayerAvailability from '../components/signup/PlayerAvailability';
 import AllPlayersAvailability from '../components/signup/AllPlayersAvailability';
 import MatchmakingSuggestions from '../components/signup/MatchmakingSuggestions';
+import MyMatches from '../components/signup/MyMatches';
 import EmailPreferences from '../components/signup/EmailPreferences';
 import '../styles/mobile-touch.css';
 
@@ -42,6 +43,7 @@ const SignupPage = () => {
     { id: 'calendar', label: '📅 Tee Sheet', icon: '📅' },
     { id: 'availability', label: '🕒 My Availability', icon: '🕒' },
     { id: 'all-availability', label: '👥 All Players', icon: '👥' },
+    { id: 'my-matches', label: '🤝 My Matches', icon: '🤝' },
     { id: 'matchmaking', label: '⛳ Matchmaking', icon: '⛳' },
     { id: 'preferences', label: '📧 Email Settings', icon: '📧' }
   ];
@@ -166,6 +168,20 @@ const SignupPage = () => {
         {activeTab === 'all-availability' && (
           <div>
             <AllPlayersAvailability />
+          </div>
+        )}
+
+        {activeTab === 'my-matches' && (
+          <div>
+            <div style={{ marginBottom: '20px' }}>
+              <h2 style={{ color: '#333', marginBottom: '10px' }}>
+                🤝 My Matches
+              </h2>
+              <p style={{ color: '#6c757d', fontSize: '14px' }}>
+                Accept or decline match suggestions. Once everyone confirms, book a tee time together.
+              </p>
+            </div>
+            <MyMatches />
           </div>
         )}
 

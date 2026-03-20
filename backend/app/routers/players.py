@@ -185,14 +185,20 @@ async def get_my_availability(
     return [schemas.PlayerAvailabilityResponse.from_orm(a) for a in availability]
 
 
-@router.post("/me/availability", response_model=schemas.PlayerAvailabilityResponse)
+@router.post("/me/availability", response_model=schemas.PlayerAvailabilityWithMatchesResponse)
 @handle_api_errors(operation_name="set my availability")
 async def set_my_availability(
     availability: schemas.PlayerAvailabilityCreate,
     current_user: models.PlayerProfile = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> schemas.PlayerAvailabilityResponse:
-    """Set or update current user's availability for a specific day."""
+) -> schemas.PlayerAvailabilityWithMatchesResponse:
+    """Set or update current user's availability for a specific day.
+
+    After saving, automatically runs matchmaking to find compatible groups
+    and notifies matched players.
+    """
+    from .matchmaking import run_matchmaking_for_player
+
     # Override the player_profile_id with the current user's ID
     availability.player_profile_id = cast(int, current_user.id)
 
@@ -216,25 +222,50 @@ async def set_my_availability(
         db.commit()
         db.refresh(existing)
         logger.info(f"Updated availability for user {current_user.id}, day {availability.day_of_week}")
-        return schemas.PlayerAvailabilityResponse.from_orm(existing)
+        avail_response = schemas.PlayerAvailabilityResponse.from_orm(existing)
+    else:
+        # Create new
+        db_availability = models.PlayerAvailability(
+            player_profile_id=current_user.id,
+            day_of_week=availability.day_of_week,
+            available_from_time=availability.available_from_time,
+            available_to_time=availability.available_to_time,
+            is_available=availability.is_available,
+            notes=availability.notes,
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(db_availability)
+        db.commit()
+        db.refresh(db_availability)
+        logger.info(f"Created availability for user {current_user.id}, day {availability.day_of_week}")
+        avail_response = schemas.PlayerAvailabilityResponse.from_orm(db_availability)
 
-    # Create new
-    db_availability = models.PlayerAvailability(
-        player_profile_id=current_user.id,
-        day_of_week=availability.day_of_week,
-        available_from_time=availability.available_from_time,
-        available_to_time=availability.available_to_time,
-        is_available=availability.is_available,
-        notes=availability.notes,
-        created_at=now,
-        updated_at=now,
+    # Auto-trigger matchmaking if user is marking themselves available
+    new_matches: List[Dict] = []
+    matches_notified = 0
+    if availability.is_available:
+        try:
+            new_matches = run_matchmaking_for_player(
+                player_id=cast(int, current_user.id),
+                db=db,
+            )
+            matches_notified = sum(m.get("notifications_sent", 0) for m in new_matches)
+            if new_matches:
+                logger.info(
+                    f"Auto-matchmaking for user {current_user.id}: "
+                    f"found {len(new_matches)} new matches, "
+                    f"notified {matches_notified} players"
+                )
+        except Exception as e:
+            # Don't fail the availability save if matchmaking has an error
+            logger.error(f"Auto-matchmaking error for user {current_user.id}: {e}")
+
+    return schemas.PlayerAvailabilityWithMatchesResponse(
+        availability=avail_response,
+        new_matches=new_matches,
+        matches_notified=matches_notified,
     )
-    db.add(db_availability)
-    db.commit()
-    db.refresh(db_availability)
-
-    logger.info(f"Created availability for user {current_user.id}, day {availability.day_of_week}")
-    return schemas.PlayerAvailabilityResponse.from_orm(db_availability)
 
 
 @router.get("/me/email-preferences", response_model=schemas.EmailPreferencesResponse)
