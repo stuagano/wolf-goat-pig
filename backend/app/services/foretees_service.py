@@ -302,16 +302,35 @@ class ForeteesService:
                     len(fields),
                     list(fields.keys()),
                 )
+                # Search full HTML for key patterns to diagnose
+                import re as _re
+                diag = {
+                    "input_tags": len(_re.findall(r"<input", form_html, _re.I)),
+                    "teecurr_mentions": len(_re.findall(r"teecurr", form_html, _re.I)),
+                    "id_hash_mentions": len(_re.findall(r"id_hash", form_html, _re.I)),
+                    "script_tags": len(_re.findall(r"<script", form_html, _re.I)),
+                    "json_data_matches": len(_re.findall(r"ftjson|slotData|slot_data", form_html, _re.I)),
+                    "form_tags": len(_re.findall(r"<form", form_html, _re.I)),
+                }
+                # Extract script content snippets that mention slot/booking/teecurr
+                script_snippets = []
+                for m in _re.finditer(r"<script[^>]*>(.*?)</script>", form_html, _re.I | _re.DOTALL):
+                    body = m.group(1).strip()
+                    if any(kw in body.lower() for kw in ["teecurr", "slot", "booking", "id_hash", "submitform"]):
+                        script_snippets.append(body[:500])
                 return {
                     "success": False,
                     "message": "Could not load booking form",
                     "debug": {
                         "response_bytes": len(form_html),
                         "status_code": form_resp.status_code,
-                        "html_preview": form_html[:1500],
+                        "html_head": form_html[:800],
+                        "html_tail": form_html[-800:],
                         "parsed_fields": list(fields.keys()),
                         "has_teecurr_id1": bool(teecurr_id),
                         "has_id_hash": bool(id_hash),
+                        "diagnostics": diag,
+                        "relevant_scripts": script_snippets[:3],
                     },
                 }
 
