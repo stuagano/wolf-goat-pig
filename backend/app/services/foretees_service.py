@@ -264,6 +264,12 @@ class ForeteesService:
             return {"success": False, "message": "Could not establish ForeTees session"}
 
         client = await self._get_client()
+        logger.info(
+            "Booking tee time: ttdata=%s..., transport=%s, session_age=%.0fs",
+            ttdata[:40] if len(ttdata) > 40 else ttdata,
+            transport_mode,
+            time.time() - self._last_auth_time,
+        )
 
         try:
             # Step 1: Load the slot booking form
@@ -275,12 +281,27 @@ class ForeteesService:
             )
             form_resp.raise_for_status()
 
-            fields = self._parse_slot_form(form_resp.text)
+            form_html = form_resp.text
+            fields = self._parse_slot_form(form_html)
 
             teecurr_id = fields.get("teecurr_id1", "")
             id_hash = fields.get("id_hash", "")
             if not teecurr_id or not id_hash:
-                logger.warning("Missing required booking form fields: teecurr_id1=%s, id_hash=%s", bool(teecurr_id), bool(id_hash))
+                logger.warning(
+                    "Missing required booking form fields: teecurr_id1=%s, id_hash=%s",
+                    bool(teecurr_id), bool(id_hash),
+                )
+                logger.warning(
+                    "Member_slot response (%d bytes, status %d): %s",
+                    len(form_html),
+                    form_resp.status_code,
+                    form_html[:1000],
+                )
+                logger.warning(
+                    "Parsed %d form fields: %s",
+                    len(fields),
+                    list(fields.keys()),
+                )
                 return {"success": False, "message": "Could not load booking form"}
 
             # Build form data preserving all pre-populated players
