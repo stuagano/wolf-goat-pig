@@ -442,11 +442,21 @@ class ForeteesService:
 
     @staticmethod
     def _parse_slot_form(html_content: str) -> Dict[str, str]:
-        """Parse Member_slot HTML to extract hidden and visible form field values."""
+        """Parse Member_slot HTML to extract booking form field values.
+
+        ForeTees v5 delivers the booking form as a JS-rendered SPA.
+        Form data can appear in two formats:
+
+        1. Legacy: traditional ``<input name="..." value="...">`` tags
+        2. Modern (v5): a ``<div class="slot_container" data-ftjson="...">``
+           containing a JSON config with ``slot_data`` (field values) and
+           ``slot_submit_map`` (field name mappings).
+
+        This method tries both approaches.
+        """
         fields: Dict[str, str] = {}
 
-        # Match <input> tags regardless of attribute order (name before value
-        # OR value before name).
+        # --- Approach 1: Traditional <input> tags (legacy) ---
         name_first = re.compile(
             r'<input[^>]*\bname="([^"]+)"[^>]*\bvalue="([^"]*)"',
             re.IGNORECASE,
@@ -469,6 +479,68 @@ class ForeteesService:
         for name, value in select_pattern.findall(html_content):
             fields[name] = html.unescape(value)
 
+        # If we found fields via <input> tags, use them (legacy path)
+        if fields:
+            return fields
+
+        # --- Approach 2: data-ftjson on slot_container div (v5 SPA) ---
+        ftjson_match = re.search(
+            r'class="slot_container"[^>]*data-ftjson="([^"]+)"',
+            html_content,
+            re.IGNORECASE,
+        )
+        if not ftjson_match:
+            logger.warning("No slot_container data-ftjson found in Member_slot HTML")
+            return fields
+
+        try:
+            ftjson_raw = html.unescape(ftjson_match.group(1))
+            ftjson = json.loads(ftjson_raw)
+        except (json.JSONDecodeError, ValueError) as exc:
+            logger.warning("Failed to parse slot_container data-ftjson: %s", exc)
+            return fields
+
+        logger.info(
+            "Parsed slot_container ftjson with keys: %s",
+            list(ftjson.keys()),
+        )
+
+        # Extract slot_data — contains the actual field values
+        slot_data = ftjson.get("slot_data", {})
+        if slot_data:
+            # Map slot_data values to form field names
+            if "teecurr_id" in slot_data:
+                fields["teecurr_id1"] = str(slot_data["teecurr_id"])
+            if "id_hash" in slot_data:
+                fields["id_hash"] = str(slot_data["id_hash"])
+
+            # Player fields (1-5)
+            players = slot_data.get("players", [])
+            for i, player in enumerate(players, 1):
+                if isinstance(player, dict):
+                    fields[f"player{i}"] = player.get("name", "")
+                    fields[f"member_id{i}"] = str(player.get("member_id", "0"))
+                    fields[f"user{i}"] = player.get("user", "")
+                    fields[f"player_type_a{i}"] = player.get("player_type", "")
+                    fields[f"guest_id{i}"] = str(player.get("guest_id", "0"))
+                    fields[f"p9{i}"] = str(player.get("p9", "0"))
+                    fields[f"p{i}cw"] = player.get("transport", "")
+
+            # Also check for flat field names (teecurr_id1, id_hash, etc.)
+            for key, value in slot_data.items():
+                if isinstance(value, (str, int, float)):
+                    fields.setdefault(str(key), str(value))
+
+        # If slot_data didn't have what we need, try top-level ftjson keys
+        if "teecurr_id1" not in fields:
+            for key in ("teecurr_id", "teecurr_id1", "id"):
+                if key in ftjson and ftjson[key]:
+                    fields["teecurr_id1"] = str(ftjson[key])
+                    break
+        if "id_hash" not in fields and "id_hash" in ftjson:
+            fields["id_hash"] = str(ftjson["id_hash"])
+
+        logger.info("Extracted %d fields from ftjson: %s", len(fields), list(fields.keys()))
         return fields
 
     @staticmethod
