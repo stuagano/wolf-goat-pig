@@ -238,6 +238,10 @@ async def book_tee_time(
             message=result["messages"][0] if result.get("messages") else "Booking confirmed",
         )
 
+    # If there's debug info from a form parse failure, return it directly
+    if result.get("debug"):
+        return ApiResponse.success(data=result, message=result.get("message", "Booking failed"))
+
     # Build a clear error from title + all messages ForeTees returned
     parts = []
     if result.get("title"):

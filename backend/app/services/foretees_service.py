@@ -302,7 +302,18 @@ class ForeteesService:
                     len(fields),
                     list(fields.keys()),
                 )
-                return {"success": False, "message": "Could not load booking form"}
+                return {
+                    "success": False,
+                    "message": "Could not load booking form",
+                    "debug": {
+                        "response_bytes": len(form_html),
+                        "status_code": form_resp.status_code,
+                        "html_preview": form_html[:1500],
+                        "parsed_fields": list(fields.keys()),
+                        "has_teecurr_id1": bool(teecurr_id),
+                        "has_id_hash": bool(id_hash),
+                    },
+                }
 
             # Build form data preserving all pre-populated players
             form_data: Dict[str, str] = {
