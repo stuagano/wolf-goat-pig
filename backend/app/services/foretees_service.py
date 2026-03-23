@@ -312,12 +312,17 @@ class ForeteesService:
                     "json_data_matches": len(_re.findall(r"ftjson|slotData|slot_data", form_html, _re.I)),
                     "form_tags": len(_re.findall(r"<form", form_html, _re.I)),
                 }
-                # Extract script content snippets that mention slot/booking/teecurr
-                script_snippets = []
-                for m in _re.finditer(r"<script[^>]*>(.*?)</script>", form_html, _re.I | _re.DOTALL):
-                    body = m.group(1).strip()
-                    if any(kw in body.lower() for kw in ["teecurr", "slot", "booking", "id_hash", "submitform"]):
-                        script_snippets.append(body[:500])
+                # Extract context around teecurr and id_hash mentions
+                context_snippets = []
+                for kw in ["teecurr", "id_hash"]:
+                    for m in _re.finditer(kw, form_html, _re.I):
+                        start = max(0, m.start() - 150)
+                        end = min(len(form_html), m.end() + 150)
+                        context_snippets.append(form_html[start:end])
+                # Extract data- attributes on divs
+                data_attr_snippets = []
+                for m in _re.finditer(r'<div[^>]*data-[^>]*>', form_html, _re.I):
+                    data_attr_snippets.append(m.group(0)[:500])
                 return {
                     "success": False,
                     "message": "Could not load booking form",
@@ -330,7 +335,8 @@ class ForeteesService:
                         "has_teecurr_id1": bool(teecurr_id),
                         "has_id_hash": bool(id_hash),
                         "diagnostics": diag,
-                        "relevant_scripts": script_snippets[:3],
+                        "keyword_context": context_snippets[:6],
+                        "data_divs": data_attr_snippets[:5],
                     },
                 }
 
