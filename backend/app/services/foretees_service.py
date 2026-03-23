@@ -323,17 +323,19 @@ class ForeteesService:
                 data_attr_snippets = []
                 for m in _re.finditer(r'<div[^>]*data-[^>]*>', form_html, _re.I):
                     data_attr_snippets.append(m.group(0)[:500])
+                # Strip <script> and <style> blocks to reduce payload, keep structure
+                stripped = _re.sub(r"<script[^>]*>.*?</script>", "[SCRIPT]", form_html, flags=_re.I | _re.DOTALL)
+                stripped = _re.sub(r"<style[^>]*>.*?</style>", "[STYLE]", stripped, flags=_re.I | _re.DOTALL)
+                # Collapse whitespace
+                stripped = _re.sub(r"\s+", " ", stripped)
                 return {
                     "success": False,
                     "message": "Could not load booking form",
                     "debug": {
                         "response_bytes": len(form_html),
                         "status_code": form_resp.status_code,
-                        "html_head": form_html[:800],
-                        "html_tail": form_html[-800:],
+                        "stripped_html": stripped[:8000],
                         "parsed_fields": list(fields.keys()),
-                        "has_teecurr_id1": bool(teecurr_id),
-                        "has_id_hash": bool(id_hash),
                         "diagnostics": diag,
                         "keyword_context": context_snippets[:6],
                         "data_divs": data_attr_snippets[:5],
