@@ -429,13 +429,19 @@ class ForeteesService:
                     json=payload,
                     headers=headers,
                 )
-                result = resp.json()
-                logger.info("Cancel result: success=%s, status=%d", result.get("success"), resp.status_code)
                 if resp.status_code == 401:
                     return {"success": False, "message": "Booking service auth failed — check BOOKING_SERVICE_SECRET"}
+                if resp.status_code == 503:
+                    return {"success": False, "message": "Booking service is starting up — please wait 30 seconds and try again"}
+                ct = resp.headers.get("content-type", "")
+                if "json" not in ct:
+                    logger.warning("Cancel service returned non-JSON: %d %s %s", resp.status_code, ct, resp.text[:200])
+                    return {"success": False, "message": f"Booking service unavailable (HTTP {resp.status_code}). Try again in 30 seconds."}
+                result = resp.json()
+                logger.info("Cancel result: success=%s, status=%d", result.get("success"), resp.status_code)
                 return result
         except httpx.TimeoutException:
-            return {"success": False, "message": "Booking service timed out"}
+            return {"success": False, "message": "Cancel timed out — the service may still be waking up. Wait 30 seconds and try again."}
         except Exception as exc:
             logger.error("Cancel service error: %s", exc)
             return {"success": False, "message": f"Cancel error: {exc}"}
@@ -476,14 +482,20 @@ class ForeteesService:
                     json=payload,
                     headers=headers,
                 )
-                result = resp.json()
-                logger.info("Booking service result: success=%s, status=%d", result.get("success"), resp.status_code)
                 if resp.status_code == 401:
                     return {"success": False, "message": "Booking service auth failed — check BOOKING_SERVICE_SECRET"}
+                if resp.status_code == 503:
+                    return {"success": False, "message": "Booking service is starting up — please wait 30 seconds and try again"}
+                ct = resp.headers.get("content-type", "")
+                if "json" not in ct:
+                    logger.warning("Booking service returned non-JSON: %d %s %s", resp.status_code, ct, resp.text[:200])
+                    return {"success": False, "message": f"Booking service unavailable (HTTP {resp.status_code}). Try again in 30 seconds."}
+                result = resp.json()
+                logger.info("Booking service result: success=%s, status=%d", result.get("success"), resp.status_code)
                 return result
         except httpx.TimeoutException:
             logger.error("Booking service timed out")
-            return {"success": False, "message": "Booking service timed out (ForeTees may be slow)"}
+            return {"success": False, "message": "Booking timed out — the service may still be waking up. Wait 30 seconds and try again."}
         except Exception as exc:
             logger.error("Booking service error: %s", exc)
             return {"success": False, "message": f"Booking service error: {exc}"}
