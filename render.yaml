@@ -19,10 +19,6 @@ services:
     buildCommand: |
       pip install --upgrade pip
       pip install -r requirements.txt
-      # Install Node.js + Playwright for ForeTees v5 headless browser booking
-      # (optional — booking degrades gracefully if unavailable)
-      npm ci --omit=dev || echo "WARN: npm install failed, browser booking disabled"
-      npx playwright install --with-deps --only-shell chromium || echo "WARN: Playwright install failed, browser booking disabled"
     startCommand: python render-startup.py
     envVars:
       - key: DATABASE_URL
@@ -32,8 +28,6 @@ services:
           property: connectionString
       - key: PYTHON_VERSION
         value: "3.12.8"
-      - key: NODE_VERSION
-        value: "22"
       - key: ENVIRONMENT
         value: production
       - key: FRONTEND_URL
