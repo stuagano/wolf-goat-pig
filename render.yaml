@@ -5,8 +5,6 @@ services:
     env: postgresql
     plan: free
     region: oregon
-    databaseName: wolf_goat_pig
-    user: wolf_goat_pig_user
 
   # Backend API service
   - type: web
