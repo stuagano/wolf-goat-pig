@@ -24,6 +24,8 @@ const ForeTeesTeeSheet = () => {
 
   useEffect(() => {
     fetchBookings();
+    // Pre-wake the booking service so it's ready when user clicks Book
+    fetch('https://wolf-goat-pig-booking.onrender.com/health').catch(() => {});
   }, [fetchBookings]);
 
   useEffect(() => {
