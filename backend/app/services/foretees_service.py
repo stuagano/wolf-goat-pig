@@ -272,73 +272,89 @@ class ForeteesService:
         )
 
         try:
-            # Step 1: Load the slot booking form
+            # Step 1: Load the slot data.
+            #
+            # ForeTees v5 is a JS SPA — the Member_slot HTML page contains
+            # only template/default values.  The real slot data (teecurr_id,
+            # id_hash, players) is loaded via an XHR request that returns
+            # JSON.  We try multiple approaches:
+            #
+            #   A) XHR GET with Accept: application/json
+            #   B) POST with json_mode=true (mimics the JS client)
+            #   C) Fall back to HTML <input> parsing (legacy)
+
             slot_url = f"{self.config.base_url}/Member_slot"
+            xhr_headers = {
+                "Referer": f"{self.config.base_url}/Member_sheet",
+                "X-Requested-With": "XMLHttpRequest",
+                "Accept": "application/json, text/javascript, */*; q=0.01",
+            }
+
+            # --- Approach A: XHR GET (returns JSON on v5) ---
             form_resp = await client.get(
                 slot_url,
                 params={"ttdata": ttdata},
-                headers={"Referer": f"{self.config.base_url}/Member_sheet"},
+                headers=xhr_headers,
             )
             form_resp.raise_for_status()
 
-            form_html = form_resp.text
-            fields = self._parse_slot_form(form_html)
+            content_type = form_resp.headers.get("content-type", "")
+            resp_text = form_resp.text
+            fields: Dict[str, str] = {}
+
+            if "json" in content_type:
+                # Server returned JSON directly
+                logger.info("Member_slot returned JSON (%d bytes)", len(resp_text))
+                slot_json = form_resp.json()
+                fields = self._extract_fields_from_json(slot_json)
+            else:
+                # Got HTML — try to extract JSON from data-ftjson, or <input> tags
+                logger.info(
+                    "Member_slot returned HTML (%d bytes), trying JSON extraction",
+                    len(resp_text),
+                )
+                fields = self._parse_slot_form(resp_text)
+
+            # --- Approach B: POST with json_mode if GET didn't yield fields ---
+            if not fields.get("teecurr_id1") or not fields.get("id_hash"):
+                logger.info("Trying POST with json_mode=true for slot data")
+                post_resp = await client.post(
+                    slot_url,
+                    data={"ttdata": ttdata, "json_mode": "true"},
+                    headers={
+                        **xhr_headers,
+                        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                    },
+                )
+                if post_resp.status_code == 200:
+                    post_ct = post_resp.headers.get("content-type", "")
+                    if "json" in post_ct:
+                        logger.info("POST Member_slot returned JSON (%d bytes)", len(post_resp.text))
+                        slot_json = post_resp.json()
+                        fields = self._extract_fields_from_json(slot_json)
+                    else:
+                        logger.info("POST Member_slot returned %s (%d bytes)", post_ct, len(post_resp.text))
+                        # Try parsing HTML from POST response too
+                        post_fields = self._parse_slot_form(post_resp.text)
+                        if post_fields.get("teecurr_id1"):
+                            fields = post_fields
 
             teecurr_id = fields.get("teecurr_id1", "")
             id_hash = fields.get("id_hash", "")
             if not teecurr_id or not id_hash:
                 logger.warning(
-                    "Missing required booking form fields: teecurr_id1=%s, id_hash=%s",
-                    bool(teecurr_id), bool(id_hash),
+                    "All approaches failed. teecurr_id1=%s, id_hash=%s, fields=%s",
+                    bool(teecurr_id), bool(id_hash), list(fields.keys()),
                 )
-                logger.warning(
-                    "Member_slot response (%d bytes, status %d): %s",
-                    len(form_html),
-                    form_resp.status_code,
-                    form_html[:1000],
-                )
-                logger.warning(
-                    "Parsed %d form fields: %s",
-                    len(fields),
-                    list(fields.keys()),
-                )
-                # Search full HTML for key patterns to diagnose
-                import re as _re
-                diag = {
-                    "input_tags": len(_re.findall(r"<input", form_html, _re.I)),
-                    "teecurr_mentions": len(_re.findall(r"teecurr", form_html, _re.I)),
-                    "id_hash_mentions": len(_re.findall(r"id_hash", form_html, _re.I)),
-                    "script_tags": len(_re.findall(r"<script", form_html, _re.I)),
-                    "json_data_matches": len(_re.findall(r"ftjson|slotData|slot_data", form_html, _re.I)),
-                    "form_tags": len(_re.findall(r"<form", form_html, _re.I)),
-                }
-                # Extract context around teecurr and id_hash mentions
-                context_snippets = []
-                for kw in ["teecurr", "id_hash"]:
-                    for m in _re.finditer(kw, form_html, _re.I):
-                        start = max(0, m.start() - 150)
-                        end = min(len(form_html), m.end() + 150)
-                        context_snippets.append(form_html[start:end])
-                # Extract data- attributes on divs
-                data_attr_snippets = []
-                for m in _re.finditer(r'<div[^>]*data-[^>]*>', form_html, _re.I):
-                    data_attr_snippets.append(m.group(0)[:500])
-                # Strip <script> and <style> blocks to reduce payload, keep structure
-                stripped = _re.sub(r"<script[^>]*>.*?</script>", "[SCRIPT]", form_html, flags=_re.I | _re.DOTALL)
-                stripped = _re.sub(r"<style[^>]*>.*?</style>", "[STYLE]", stripped, flags=_re.I | _re.DOTALL)
-                # Collapse whitespace
-                stripped = _re.sub(r"\s+", " ", stripped)
                 return {
                     "success": False,
                     "message": "Could not load booking form",
                     "debug": {
-                        "response_bytes": len(form_html),
-                        "status_code": form_resp.status_code,
-                        "stripped_html": stripped[:8000],
+                        "approach_a_content_type": content_type,
+                        "approach_a_bytes": len(resp_text),
+                        "approach_a_preview": resp_text[:1000],
                         "parsed_fields": list(fields.keys()),
-                        "diagnostics": diag,
-                        "keyword_context": context_snippets[:6],
-                        "data_divs": data_attr_snippets[:5],
+                        "field_values": {k: str(v)[:50] for k, v in fields.items()},
                     },
                 }
 
@@ -435,6 +451,76 @@ class ForeteesService:
         if self._client:
             await self._client.aclose()
             self._client = None
+
+    # ------------------------------------------------------------------
+    # Data Extraction
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _extract_fields_from_json(data: Dict[str, Any]) -> Dict[str, str]:
+        """Extract booking form fields from a ForeTees JSON response.
+
+        ForeTees v5 may return slot data as JSON (via XHR or json_mode).
+        The structure varies but commonly includes teecurr_id, id_hash,
+        and player arrays at the top level or nested under a key.
+        """
+        fields: Dict[str, str] = {}
+
+        # Flatten: the data might be nested under "slot", "data", etc.
+        slot = data
+        for key in ("slot", "data", "slot_data", "tee_time"):
+            if key in data and isinstance(data[key], dict):
+                slot = data[key]
+                break
+
+        # Extract teecurr_id (may be teecurr_id, teecurr_id1, or id)
+        for key in ("teecurr_id1", "teecurr_id", "id"):
+            val = slot.get(key)
+            if val and str(val) != "0":
+                fields["teecurr_id1"] = str(val)
+                break
+
+        # Extract id_hash
+        val = slot.get("id_hash")
+        if val and str(val) not in ("", "0"):
+            fields["id_hash"] = str(val)
+
+        # Extract player data
+        players = slot.get("players", [])
+        if not players:
+            # Try numbered player fields (player1, player2, ...)
+            for i in range(1, 6):
+                pname = slot.get(f"player{i}", "")
+                if pname:
+                    fields[f"player{i}"] = str(pname)
+                    fields[f"member_id{i}"] = str(slot.get(f"member_id{i}", "0"))
+                    fields[f"user{i}"] = str(slot.get(f"user{i}", ""))
+                    fields[f"player_type_a{i}"] = str(slot.get(f"player_type_a{i}", ""))
+                    fields[f"guest_id{i}"] = str(slot.get(f"guest_id{i}", "0"))
+                    fields[f"p9{i}"] = str(slot.get(f"p9{i}", "0"))
+                    fields[f"p{i}cw"] = str(slot.get(f"p{i}cw", ""))
+        else:
+            for i, player in enumerate(players, 1):
+                if isinstance(player, dict):
+                    fields[f"player{i}"] = player.get("name", "")
+                    fields[f"member_id{i}"] = str(player.get("member_id", "0"))
+                    fields[f"user{i}"] = player.get("user", "")
+                    fields[f"player_type_a{i}"] = player.get("player_type", "")
+                    fields[f"guest_id{i}"] = str(player.get("guest_id", "0"))
+                    fields[f"p9{i}"] = str(player.get("p9", "0"))
+                    fields[f"p{i}cw"] = player.get("transport", "")
+
+        # Capture any other flat string/int fields
+        for key, val in slot.items():
+            if isinstance(val, (str, int, float)) and key not in fields:
+                fields[key] = str(val)
+
+        logger.info(
+            "Extracted %d fields from JSON: %s",
+            len(fields),
+            [k for k in fields if fields[k] and fields[k] != "0"],
+        )
+        return fields
 
     # ------------------------------------------------------------------
     # HTML Parsing
