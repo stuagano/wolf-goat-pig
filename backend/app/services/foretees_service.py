@@ -246,7 +246,7 @@ class ForeteesService:
 
     async def book_tee_time(
         self, ttdata: str, transport_mode: str = "WLK",
-        date: Optional[str] = None, time: Optional[str] = None,
+        date: Optional[str] = None, slot_time: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Book the logged-in member into a tee time slot.
 
@@ -337,12 +337,12 @@ class ForeteesService:
                 # We use a Node.js Playwright script to authenticate, render
                 # the page, and submit the booking in a real browser.
                 logger.info("ForeTees v5 detected — using headless browser for booking")
-                if not date or not time:
+                if not date or not slot_time:
                     return {
                         "success": False,
                         "message": "Date and time are required for booking (ForeTees v5)",
                     }
-                return await self._book_via_browser(date, time, transport_mode)
+                return await self._book_via_browser(date, slot_time, transport_mode)
 
             # Legacy path: submit the booking via HTTP POST
             submit_resp = await client.post(

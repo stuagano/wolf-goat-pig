@@ -230,7 +230,7 @@ async def book_tee_time(
             ttdata=request.ttdata,
             transport_mode=request.transport_mode,
             date=request.date,
-            time=request.time,
+            slot_time=request.time,
         )
     finally:
         if service is not get_foretees_service():
