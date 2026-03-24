@@ -331,139 +331,14 @@ class ForeteesService:
                     else:
                         form_data[f"p{i}cw"] = existing_transport
             else:
-                # ForeTees v5 path: submit directly with ttdata
-                # The ttdata token IS the slot identifier — ForeTees
-                # decodes it server-side.  We include the user's info
-                # and transport mode, plus ttdata and json_mode.
-                logger.info("Using v5 direct ttdata submission")
+                # ForeTees v5 path: use headless browser to book
+                # ForeTees v5 populates teecurr_id/id_hash via JS at runtime.
+                # We use a Node.js Playwright script to authenticate, render
+                # the page, and submit the booking in a real browser.
+                logger.info("ForeTees v5 detected — using headless browser for booking")
+                return await self._book_via_browser(ttdata, transport_mode)
 
-                # Extract user info from data-ftjson config
-                ftjson = {}
-                ftjson_match = re.search(r'data-ftjson="([^"]+)"', form_resp.text, re.IGNORECASE)
-                if ftjson_match:
-                    try:
-                        ftjson = json.loads(html.unescape(ftjson_match.group(1)))
-                    except (json.JSONDecodeError, ValueError):
-                        pass
-
-                user = ftjson.get("user", "")
-                user_member_id = ftjson.get("user_member_id", "0")
-                name = ftjson.get("name", "")
-
-                # Step 1b: Try to load slot data via POST with "load" action
-                # ForeTees v5 JS loads slot data via an XHR POST before showing
-                # the form.  Try several action values to trigger data loading.
-                slot_data_json = None
-                for action in ("load", "get", "init", ""):
-                    load_data = {
-                        "ttdata": ttdata,
-                        "json_mode": "true",
-                    }
-                    if action:
-                        load_data["slot_submit_action"] = action
-
-                    load_resp = await client.post(
-                        slot_url,
-                        data=load_data,
-                        headers={
-                            **xhr_headers,
-                            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-                        },
-                    )
-                    load_ct = load_resp.headers.get("content-type", "")
-                    logger.info(
-                        "Slot load attempt (action=%s): %d %s (%d bytes)",
-                        action or "(none)", load_resp.status_code, load_ct, len(load_resp.text),
-                    )
-                    if load_resp.status_code == 200 and "json" in load_ct:
-                        slot_data_json = load_resp.json()
-                        logger.info("Got JSON slot data! Keys: %s", list(slot_data_json.keys())[:15])
-                        break
-                    elif load_resp.status_code == 200 and "<input" in load_resp.text.lower():
-                        # Got HTML with form inputs — legacy response
-                        legacy_fields = self._parse_slot_form(load_resp.text)
-                        if legacy_fields.get("teecurr_id1") and legacy_fields["teecurr_id1"] != "0":
-                            logger.info("POST returned legacy HTML with real fields")
-                            fields = legacy_fields
-                            teecurr_id = fields["teecurr_id1"]
-                            id_hash = fields.get("id_hash", "")
-                            break
-
-                if slot_data_json:
-                    # Extract real teecurr_id and id_hash from the JSON response
-                    fields = self._extract_fields_from_json(slot_data_json)
-                    teecurr_id = fields.get("teecurr_id1", "")
-                    id_hash = fields.get("id_hash", "")
-                    logger.info(
-                        "Extracted from slot data JSON: teecurr_id=%s, id_hash=%s",
-                        teecurr_id, id_hash[:20] if id_hash else "",
-                    )
-
-                # If we still don't have IDs, try direct submission with ttdata
-                if not teecurr_id or teecurr_id == "0":
-                    logger.info("No teecurr_id found, trying direct ttdata submission")
-                    form_data = {
-                        "ttdata": ttdata,
-                        "json_mode": "true",
-                        "slot_submit_action": "update",
-                        "submitForm": "submit",
-                        "hide": "0",
-                        "notes": "",
-                        "looking_for_players": "0",
-                        "show_remove_orig": "true",
-                        "remove_originator": "0",
-                        "player1": name,
-                        "user1": user,
-                        "member_id1": user_member_id,
-                        "player_type_a1": "",
-                        "guest_id1": "0",
-                        "p91": "0",
-                        "p1cw": transport_mode,
-                    }
-                    for i in range(2, 6):
-                        form_data[f"player{i}"] = ""
-                        form_data[f"user{i}"] = ""
-                        form_data[f"member_id{i}"] = "0"
-                        form_data[f"player_type_a{i}"] = ""
-                        form_data[f"guest_id{i}"] = "0"
-                        form_data[f"p9{i}"] = "0"
-                        form_data[f"p{i}cw"] = ""
-                else:
-                    # We have real IDs — build proper form
-                    form_data = {
-                        "teecurr_id1": teecurr_id,
-                        "id_hash": id_hash,
-                        "hide": "0",
-                        "notes": "",
-                        "submitForm": "submit",
-                        "slot_submit_action": "update",
-                        "json_mode": "true",
-                        "looking_for_players": "0",
-                        "show_remove_orig": "true",
-                        "remove_originator": "0",
-                        "player1": name,
-                        "user1": user,
-                        "member_id1": user_member_id,
-                        "player_type_a1": "",
-                        "guest_id1": "0",
-                        "p91": "0",
-                        "p1cw": transport_mode,
-                    }
-                    for i in range(2, 6):
-                        form_data[f"player{i}"] = ""
-                        form_data[f"user{i}"] = ""
-                        form_data[f"member_id{i}"] = "0"
-                        form_data[f"player_type_a{i}"] = ""
-                        form_data[f"guest_id{i}"] = "0"
-                        form_data[f"p9{i}"] = "0"
-                        form_data[f"p{i}cw"] = ""
-
-                logger.info(
-                    "v5 booking form: player=%s, user=%s, member_id=%s, transport=%s",
-                    name, user, user_member_id, transport_mode,
-                )
-
-            # Step 2: Submit the booking
+            # Legacy path: submit the booking via HTTP POST
             submit_resp = await client.post(
                 slot_url,
                 data=form_data,
@@ -481,13 +356,6 @@ class ForeteesService:
             # ForeTees may return HTML instead of JSON on session issues
             content_type = submit_resp.headers.get("content-type", "")
             if "json" not in content_type:
-                body_preview = submit_resp.text[:300]
-                logger.warning(
-                    "ForeTees booking returned non-JSON response (%s): %s",
-                    content_type,
-                    body_preview,
-                )
-                # Session probably expired mid-booking
                 self._last_auth_time = 0
                 return {
                     "success": False,
@@ -496,8 +364,6 @@ class ForeteesService:
 
             result = submit_resp.json()
             success = result.get("successful", False)
-
-            # ForeTees spreads messages across three lists
             messages = (
                 result.get("message_list", [])
                 + result.get("notice_list", [])
@@ -522,6 +388,60 @@ class ForeteesService:
             logger.error("Error booking ForeTees tee time: %s", exc)
 
         return {"success": False, "message": "Booking request failed"}
+
+    async def _book_via_browser(
+        self, ttdata: str, transport_mode: str
+    ) -> Dict[str, Any]:
+        """Book a tee time using a headless browser (ForeTees v5).
+
+        Shells out to a Node.js Playwright script that authenticates
+        with ForeTees, renders the slot page in a real browser, and
+        submits the booking form.
+        """
+        import asyncio
+        import pathlib
+
+        script_path = pathlib.Path(__file__).parent.parent.parent / "scripts" / "foretees_book.js"
+        if not script_path.exists():
+            logger.error("foretees_book.js not found at %s", script_path)
+            return {"success": False, "message": "Browser booking script not found"}
+
+        args_json = json.dumps({
+            "username": self.config.username,
+            "password": self.config.password,
+            "ttdata": ttdata,
+            "transport_mode": transport_mode,
+        })
+
+        logger.info("Launching headless browser for booking...")
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "node", str(script_path), args_json,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=str(script_path.parent),
+            )
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=60)
+
+            if stderr:
+                logger.info("Browser stderr: %s", stderr.decode()[:500])
+
+            if not stdout:
+                return {"success": False, "message": "Browser booking returned no output"}
+
+            result = json.loads(stdout.decode())
+            logger.info("Browser booking result: success=%s", result.get("success"))
+            return result
+
+        except asyncio.TimeoutError:
+            logger.error("Browser booking timed out after 60s")
+            return {"success": False, "message": "Browser booking timed out"}
+        except json.JSONDecodeError:
+            logger.error("Browser returned invalid JSON: %s", stdout.decode()[:200] if stdout else "")
+            return {"success": False, "message": "Browser booking returned invalid response"}
+        except Exception as exc:
+            logger.error("Browser booking failed: %s", exc)
+            return {"success": False, "message": f"Browser booking error: {exc}"}
 
     async def close(self) -> None:
         if self._client:
