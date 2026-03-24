@@ -353,14 +353,39 @@ class ForeteesService:
                     "All approaches failed. teecurr_id1=%s, id_hash=%s, fields=%s",
                     bool(teecurr_id), bool(id_hash), list(fields.keys()),
                 )
+                # Dump the full HTML around data-ftjson for analysis
+                import re as _re
+                ftjson_idx = resp_text.find("data-ftjson")
+                ftjson_section = ""
+                if ftjson_idx >= 0:
+                    start = max(0, ftjson_idx - 100)
+                    # Find the end of the enclosing tag
+                    end_tag = resp_text.find(">", ftjson_idx)
+                    end = min(len(resp_text), (end_tag + 1) if end_tag > 0 else ftjson_idx + 5000)
+                    ftjson_section = resp_text[start:end]
+
+                # Also try to extract the full ftjson value using a different approach
+                ftjson_value = ""
+                if ftjson_idx >= 0:
+                    # Find the opening quote after data-ftjson=
+                    eq_idx = resp_text.find("=", ftjson_idx)
+                    if eq_idx >= 0:
+                        quote_char = resp_text[eq_idx + 1] if eq_idx + 1 < len(resp_text) else ""
+                        if quote_char in ('"', "'"):
+                            end_quote = resp_text.find(quote_char, eq_idx + 2)
+                            if end_quote > 0:
+                                ftjson_value = resp_text[eq_idx + 2:end_quote]
+
                 return {
                     "success": False,
                     "message": "Could not load booking form",
                     "debug": {
                         "approach_a_content_type": content_type,
                         "approach_a_bytes": len(resp_text),
-                        "approach_a_preview": resp_text[:500],
-                        "approach_b_post": post_info,
+                        "ftjson_found_at": ftjson_idx,
+                        "ftjson_section": ftjson_section[:2000],
+                        "ftjson_value_len": len(ftjson_value),
+                        "ftjson_value_preview": ftjson_value[:3000],
                         "parsed_fields": list(fields.keys()),
                         "field_values": {k: str(v)[:80] for k, v in fields.items()},
                     },
