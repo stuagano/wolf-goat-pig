@@ -342,6 +342,13 @@ class ForeteesService:
             teecurr_id = fields.get("teecurr_id1", "")
             id_hash = fields.get("id_hash", "")
             if not teecurr_id or not id_hash:
+                # Collect POST response info for debug
+                post_info = "not attempted"
+                if "post_resp" in dir():
+                    post_info = f"{post_resp.status_code} {post_resp.headers.get('content-type','')} {len(post_resp.text)}b"
+                    if len(post_resp.text) < 2000:
+                        post_info += f" body={post_resp.text[:1000]}"
+
                 logger.warning(
                     "All approaches failed. teecurr_id1=%s, id_hash=%s, fields=%s",
                     bool(teecurr_id), bool(id_hash), list(fields.keys()),
@@ -352,9 +359,10 @@ class ForeteesService:
                     "debug": {
                         "approach_a_content_type": content_type,
                         "approach_a_bytes": len(resp_text),
-                        "approach_a_preview": resp_text[:1000],
+                        "approach_a_preview": resp_text[:500],
+                        "approach_b_post": post_info,
                         "parsed_fields": list(fields.keys()),
-                        "field_values": {k: str(v)[:50] for k, v in fields.items()},
+                        "field_values": {k: str(v)[:80] for k, v in fields.items()},
                     },
                 }
 
@@ -569,14 +577,38 @@ class ForeteesService:
         if fields:
             return fields
 
-        # --- Approach 2: data-ftjson on slot_container div (v5 SPA) ---
-        ftjson_match = re.search(
-            r'class="slot_container"[^>]*data-ftjson="([^"]+)"',
-            html_content,
-            re.IGNORECASE,
-        )
+        # --- Approach 2: data-ftjson on any element (v5 SPA) ---
+        # Try multiple regex patterns — attribute order varies
+        ftjson_match = None
+        for pattern in [
+            r'data-ftjson="([^"]+)"',                          # any element
+            r"data-ftjson='([^']+)'",                          # single quotes
+            r'data-ftjson=([^\s>]+)',                           # unquoted
+        ]:
+            ftjson_match = re.search(pattern, html_content, re.IGNORECASE)
+            if ftjson_match:
+                logger.info("Found data-ftjson via pattern: %s", pattern)
+                break
+
         if not ftjson_match:
-            logger.warning("No slot_container data-ftjson found in Member_slot HTML")
+            logger.warning(
+                "No data-ftjson found in Member_slot HTML (%d bytes). "
+                "Searched for data-ftjson in %d chars",
+                len(html_content), len(html_content),
+            )
+            # Last resort: look for any large JSON object in the HTML
+            # that contains booking-related keys
+            json_match = re.search(
+                r'\{[^{}]*"teecurr_id"[^{}]*\}',
+                html.unescape(html_content),
+            )
+            if json_match:
+                logger.info("Found inline JSON with teecurr_id")
+                try:
+                    inline_json = json.loads(json_match.group(0))
+                    return ForeteesService._extract_fields_from_json(inline_json)
+                except (json.JSONDecodeError, ValueError):
+                    pass
             return fields
 
         try:
