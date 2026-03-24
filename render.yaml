@@ -12,11 +12,14 @@ services:
   # Backend API service
   - type: web
     name: wolf-goat-pig-api
-    env: docker
+    env: python
     plan: free
     region: oregon
     rootDir: backend
-    dockerfilePath: ./Dockerfile
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+    startCommand: python render-startup.py
     envVars:
       - key: DATABASE_URL
         fromService:
