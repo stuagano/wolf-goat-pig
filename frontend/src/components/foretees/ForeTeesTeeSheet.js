@@ -25,7 +25,7 @@ const ForeTeesTeeSheet = () => {
   useEffect(() => {
     fetchBookings();
     // Pre-wake the booking service so it's ready when user clicks Book
-    fetch('https://wolf-goat-pig-booking.onrender.com/health').catch(() => {});
+    fetch('https://wolf-goat-pig-booking.onrender.com/health', { mode: 'no-cors' }).catch(() => {});
   }, [fetchBookings]);
 
   useEffect(() => {
