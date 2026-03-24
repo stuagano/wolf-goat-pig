@@ -304,6 +304,7 @@ class ForeteesService:
             )
             form_resp.raise_for_status()
             resp_text = form_resp.text
+            post_text = ""  # Will hold callback POST response if attempted
 
             # Try legacy HTML parsing first (works for pre-v5 ForeTees)
             fields = self._parse_slot_form(resp_text)
@@ -361,7 +362,8 @@ class ForeteesService:
                     id_hash = fields.get("id_hash", "")
 
             # Final check: do we have what we need?
-            if (not teecurr_id or teecurr_id == "0") and not id_hash:
+            # Both teecurr_id and id_hash are required and must be non-zero/non-empty
+            if not teecurr_id or teecurr_id == "0" or not id_hash:
                 return {
                     "success": False,
                     "message": "Could not load booking form",
@@ -372,7 +374,7 @@ class ForeteesService:
                             k: str(v)[:60] for k, v in fields.items()
                             if str(v) not in ("0", "", "False", "True")
                         },
-                        "callback_post_preview": post_text[:2000] if "post_text" in dir() else "n/a",
+                        "callback_post_preview": post_text[:2000] if post_text else "not attempted",
                     },
                 }
 
