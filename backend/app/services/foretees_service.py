@@ -425,7 +425,9 @@ class ForeteesService:
                     headers=headers,
                 )
                 result = resp.json()
-                logger.info("Cancel result: %s", result.get("success"))
+                logger.info("Cancel result: success=%s, status=%d", result.get("success"), resp.status_code)
+                if resp.status_code == 401:
+                    return {"success": False, "message": "Booking service auth failed — check BOOKING_SERVICE_SECRET"}
                 return result
         except httpx.TimeoutException:
             return {"success": False, "message": "Booking service timed out"}
@@ -457,17 +459,18 @@ class ForeteesService:
         }
 
         logger.info("Calling booking service: POST %s/book date=%s time=%s", booking_url, date, slot_time)
-        client = await self._get_client()
         try:
-            resp = await client.post(
-                f"{booking_url}/book",
-                json=payload,
-                headers=headers,
-                timeout=90.0,
-            )
-            result = resp.json()
-            logger.info("Booking service result: %s", result.get("success"))
-            return result
+            async with httpx.AsyncClient(timeout=90.0) as booking_client:
+                resp = await booking_client.post(
+                    f"{booking_url}/book",
+                    json=payload,
+                    headers=headers,
+                )
+                result = resp.json()
+                logger.info("Booking service result: success=%s, status=%d", result.get("success"), resp.status_code)
+                if resp.status_code == 401:
+                    return {"success": False, "message": "Booking service auth failed — check BOOKING_SERVICE_SECRET"}
+                return result
         except httpx.TimeoutException:
             logger.error("Booking service timed out")
             return {"success": False, "message": "Booking service timed out (ForeTees may be slow)"}
