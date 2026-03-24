@@ -39,6 +39,11 @@ class BookTeeTimeRequest(BaseModel):
     date: Optional[str] = None  # YYYY-MM-DD, used for v5 browser booking
     time: Optional[str] = None  # "12:00 PM", used for v5 browser booking
 
+
+class CancelTeeTimeRequest(BaseModel):
+    date: str   # YYYY-MM-DD
+    time: str   # "12:00 PM"
+
     @field_validator("transport_mode")
     @classmethod
     def validate_transport_mode(cls, v: str) -> str:
@@ -254,4 +259,40 @@ async def book_tee_time(
         if msg and msg != result.get("title"):
             parts.append(msg)
     error_msg = result.get("message") or ". ".join(parts) or "Booking failed"
+    raise ValueError(error_msg)
+
+
+@router.post("/cancel")
+@handle_api_errors(operation_name="cancel tee time")
+async def cancel_tee_time(
+    request: CancelTeeTimeRequest,
+    current_user: models.PlayerProfile = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Cancel the current user's tee time."""
+    service = _get_user_service(current_user)
+    if not service.config.enabled:
+        raise ValueError("ForeTees integration is disabled")
+
+    try:
+        result = await service.cancel_tee_time(
+            date=request.date,
+            slot_time=request.time,
+        )
+    finally:
+        if service is not get_foretees_service():
+            await service.close()
+
+    if result.get("success"):
+        return ApiResponse.success(
+            data=result,
+            message=result["messages"][0] if result.get("messages") else "Tee time cancelled",
+        )
+
+    parts = []
+    if result.get("title"):
+        parts.append(result["title"])
+    for msg in result.get("messages", []):
+        if msg and msg != result.get("title"):
+            parts.append(msg)
+    error_msg = result.get("message") or ". ".join(parts) or "Cancellation failed"
     raise ValueError(error_msg)

@@ -395,6 +395,44 @@ class ForeteesService:
 
         return {"success": False, "message": "Booking request failed"}
 
+    async def cancel_tee_time(
+        self, date: str, slot_time: str,
+    ) -> Dict[str, Any]:
+        """Cancel a tee time via the headless browser microservice."""
+        if not await self._ensure_session():
+            return {"success": False, "message": "Could not establish ForeTees session"}
+
+        booking_url = os.getenv("BOOKING_SERVICE_URL", "http://localhost:3001")
+        booking_secret = os.getenv("BOOKING_SERVICE_SECRET", "")
+
+        headers = {"Content-Type": "application/json"}
+        if booking_secret:
+            headers["Authorization"] = f"Bearer {booking_secret}"
+
+        payload = {
+            "username": self.config.username,
+            "password": self.config.password,
+            "date": date,
+            "time": slot_time,
+        }
+
+        logger.info("Calling booking service: POST %s/cancel date=%s time=%s", booking_url, date, slot_time)
+        try:
+            async with httpx.AsyncClient(timeout=90.0) as client:
+                resp = await client.post(
+                    f"{booking_url}/cancel",
+                    json=payload,
+                    headers=headers,
+                )
+                result = resp.json()
+                logger.info("Cancel result: %s", result.get("success"))
+                return result
+        except httpx.TimeoutException:
+            return {"success": False, "message": "Booking service timed out"}
+        except Exception as exc:
+            logger.error("Cancel service error: %s", exc)
+            return {"success": False, "message": f"Cancel error: {exc}"}
+
     async def _book_via_browser(
         self, date: str, slot_time: str, transport_mode: str
     ) -> Dict[str, Any]:

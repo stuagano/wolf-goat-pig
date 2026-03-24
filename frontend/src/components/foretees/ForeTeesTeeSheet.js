@@ -12,7 +12,7 @@ const ForeTeesTeeSheet = () => {
   const {
     teeTimes, bookings, loading, error,
     fetchTeeTimes, fetchBookings,
-    bookTeeTime, bookingLoading, bookingError, clearBookingError,
+    bookTeeTime, cancelTeeTime, bookingLoading, bookingError, clearBookingError,
   } = useTeeTimes();
   const [selectedDate, setSelectedDate] = useState(formatDate(new Date()));
   const [bookingSlot, setBookingSlot] = useState(null);
@@ -124,7 +124,8 @@ const ForeTeesTeeSheet = () => {
               key={i}
               style={{
                 display: 'flex',
-                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: 12,
                 padding: '8px 0',
                 borderBottom: i < bookings.length - 1 ? '1px solid #dcfce7' : 'none',
                 color: '#1f2937',
@@ -133,7 +134,37 @@ const ForeTeesTeeSheet = () => {
             >
               <span>{b.date}</span>
               <span style={{ fontWeight: 600 }}>{b.time}</span>
-              <span style={{ color: '#6b7280' }}>{b.course}</span>
+              <span style={{ color: '#6b7280', flex: 1 }}>{b.course}</span>
+              <button
+                onClick={async () => {
+                  if (!window.confirm(`Cancel your ${b.time} tee time on ${b.date}?`)) return;
+                  setBookingResult(null);
+                  const result = await cancelTeeTime(b.date, b.time);
+                  if (result?.success || result?.data?.success) {
+                    setBookingResult({ type: 'success', message: result.message || 'Tee time cancelled' });
+                    fetchTeeTimes(selectedDate);
+                    fetchBookings();
+                  } else {
+                    setBookingResult({
+                      type: 'error',
+                      message: result?.detail || result?.message || 'Cancellation failed',
+                    });
+                  }
+                }}
+                disabled={bookingLoading}
+                style={{
+                  background: '#fee2e2',
+                  color: '#991b1b',
+                  border: '1px solid #fca5a5',
+                  borderRadius: 6,
+                  padding: '4px 10px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: bookingLoading ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {bookingLoading ? '...' : 'Cancel'}
+              </button>
             </div>
           ))}
         </div>

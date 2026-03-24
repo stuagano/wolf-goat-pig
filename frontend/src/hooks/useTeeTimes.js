@@ -121,6 +121,28 @@ const useTeeTimes = () => {
     }
   }, [authFetch]);
 
+  const cancelTeeTime = useCallback(async (date, time) => {
+    setBookingLoading(true);
+    setBookingError(null);
+    try {
+      const resp = await authFetch('/api/foretees/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date, time }),
+      });
+      const json = await resp.json();
+      if (!resp.ok) {
+        setBookingError(json?.detail || json?.message || 'Cancellation failed');
+      }
+      return json;
+    } catch (err) {
+      setBookingError(err.message);
+      return null;
+    } finally {
+      setBookingLoading(false);
+    }
+  }, [authFetch]);
+
   return {
     teeTimes,
     bookings,
@@ -130,6 +152,7 @@ const useTeeTimes = () => {
     fetchTeeTimes,
     fetchBookings,
     bookTeeTime,
+    cancelTeeTime,
     bookingLoading,
     bookingError,
     clearBookingError,
