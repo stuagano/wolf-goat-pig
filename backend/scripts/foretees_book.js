@@ -38,7 +38,10 @@ async function book(args) {
     return { success: false, error: 'Missing required arguments (username, password, date, time)' };
   }
 
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({
+    headless: true,
+    channel: 'chromium',  // Uses headless shell if installed via --only-shell
+  });
   const context = await browser.newContext({
     userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36',
   });

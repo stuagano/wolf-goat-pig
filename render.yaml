@@ -21,7 +21,7 @@ services:
       pip install -r requirements.txt
       # Install Node.js + Playwright for ForeTees v5 headless browser booking
       npm ci --omit=dev
-      npx playwright install --with-deps chromium
+      npx playwright install --with-deps --only-shell chromium
     startCommand: python render-startup.py
     envVars:
       - key: DATABASE_URL
