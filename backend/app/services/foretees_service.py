@@ -418,7 +418,12 @@ class ForeteesService:
 
         logger.info("Calling booking service: POST %s/cancel date=%s time=%s", booking_url, date, slot_time)
         try:
-            async with httpx.AsyncClient(timeout=90.0) as client:
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                # Wake up the booking service
+                try:
+                    await client.get(f"{booking_url}/health", timeout=60.0)
+                except Exception:
+                    logger.warning("Booking service health check failed, trying anyway")
                 resp = await client.post(
                     f"{booking_url}/cancel",
                     json=payload,
@@ -460,7 +465,12 @@ class ForeteesService:
 
         logger.info("Calling booking service: POST %s/book date=%s time=%s", booking_url, date, slot_time)
         try:
-            async with httpx.AsyncClient(timeout=90.0) as booking_client:
+            async with httpx.AsyncClient(timeout=120.0) as booking_client:
+                # Wake up the booking service (Render free tier sleeps after inactivity)
+                try:
+                    await booking_client.get(f"{booking_url}/health", timeout=60.0)
+                except Exception:
+                    logger.warning("Booking service health check failed, trying anyway")
                 resp = await booking_client.post(
                     f"{booking_url}/book",
                     json=payload,
