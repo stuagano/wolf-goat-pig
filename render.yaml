@@ -75,7 +75,7 @@ services:
     plan: free
     region: oregon
     rootDir: booking-service
-    buildCommand: npm install && npm run build
+    buildCommand: npm install
     startCommand: node server.js
     envVars:
       - key: BOOKING_SERVICE_SECRET
