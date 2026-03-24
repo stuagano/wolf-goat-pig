@@ -60,8 +60,12 @@ services:
         value: "type"
       - key: LEGACY_SIGNUP_CANCEL_ACTION_VALUE
         value: "cancel"
+      - key: BOOKING_SERVICE_URL
+        value: "https://wolf-goat-pig-booking.onrender.com"
+      - key: BOOKING_SERVICE_SECRET
+        sync: false
       - key: FORETEES_ENABLED
-        value: "false"
+        value: "true"
       - key: FORETEES_USERNAME
         value: ""
       - key: FORETEES_PASSWORD
@@ -80,4 +84,21 @@ services:
       name: wolf-goat-pig-api-disk
       mountPath: /opt/render/project/src/data
       sizeGB: 1
+
+  # ForeTees booking microservice (Node.js + Playwright headless browser)
+  - type: web
+    name: wolf-goat-pig-booking
+    env: node
+    plan: free
+    region: oregon
+    rootDir: booking-service
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: BOOKING_SERVICE_SECRET
+        generateValue: true
+      - key: NODE_VERSION
+        value: "22"
+    healthCheckPath: /health
+    autoDeploy: true
 

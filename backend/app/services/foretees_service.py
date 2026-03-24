@@ -396,59 +396,46 @@ class ForeteesService:
         return {"success": False, "message": "Booking request failed"}
 
     async def _book_via_browser(
-        self, date: str, time: str, transport_mode: str
+        self, date: str, slot_time: str, transport_mode: str
     ) -> Dict[str, Any]:
-        """Book a tee time using a headless browser (ForeTees v5).
+        """Book a tee time via the headless browser microservice.
 
-        Shells out to a Node.js Playwright script that authenticates
-        with ForeTees, renders the slot page in a real browser, and
-        submits the booking form.
+        Calls the separate Node.js booking service which uses Playwright
+        to authenticate with ForeTees and submit the booking.
         """
-        import asyncio
-        import pathlib
+        booking_url = os.getenv("BOOKING_SERVICE_URL", "http://localhost:3001")
+        booking_secret = os.getenv("BOOKING_SERVICE_SECRET", "")
 
-        script_path = pathlib.Path(__file__).parent.parent.parent / "scripts" / "foretees_book.js"
-        if not script_path.exists():
-            logger.error("foretees_book.js not found at %s", script_path)
-            return {"success": False, "message": "Browser booking script not found"}
+        headers = {"Content-Type": "application/json"}
+        if booking_secret:
+            headers["Authorization"] = f"Bearer {booking_secret}"
 
-        args_json = json.dumps({
+        payload = {
             "username": self.config.username,
             "password": self.config.password,
             "date": date,
-            "time": time,
+            "time": slot_time,
             "transport_mode": transport_mode,
-        })
+        }
 
-        logger.info("Launching headless browser for booking...")
+        logger.info("Calling booking service: POST %s/book date=%s time=%s", booking_url, date, slot_time)
+        client = await self._get_client()
         try:
-            proc = await asyncio.create_subprocess_exec(
-                "node", str(script_path), args_json,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=str(script_path.parent),
+            resp = await client.post(
+                f"{booking_url}/book",
+                json=payload,
+                headers=headers,
+                timeout=90.0,
             )
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=60)
-
-            if stderr:
-                logger.info("Browser stderr: %s", stderr.decode()[:500])
-
-            if not stdout:
-                return {"success": False, "message": "Browser booking returned no output"}
-
-            result = json.loads(stdout.decode())
-            logger.info("Browser booking result: success=%s", result.get("success"))
+            result = resp.json()
+            logger.info("Booking service result: %s", result.get("success"))
             return result
-
-        except asyncio.TimeoutError:
-            logger.error("Browser booking timed out after 60s")
-            return {"success": False, "message": "Browser booking timed out"}
-        except json.JSONDecodeError:
-            logger.error("Browser returned invalid JSON: %s", stdout.decode()[:200] if stdout else "")
-            return {"success": False, "message": "Browser booking returned invalid response"}
+        except httpx.TimeoutException:
+            logger.error("Booking service timed out")
+            return {"success": False, "message": "Booking service timed out (ForeTees may be slow)"}
         except Exception as exc:
-            logger.error("Browser booking failed: %s", exc)
-            return {"success": False, "message": f"Browser booking error: {exc}"}
+            logger.error("Booking service error: %s", exc)
+            return {"success": False, "message": f"Booking service error: {exc}"}
 
     async def close(self) -> None:
         if self._client:

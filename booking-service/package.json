@@ -1,0 +1,16 @@
+{
+  "name": "wolf-goat-pig-booking-service",
+  "version": "1.0.0",
+  "description": "Headless browser microservice for ForeTees tee time booking",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "postinstall": "npx playwright install --with-deps --only-shell chromium"
+  },
+  "dependencies": {
+    "playwright": "^1.58.2"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
