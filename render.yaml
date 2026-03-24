@@ -7,7 +7,6 @@ services:
     region: oregon
     databaseName: wolf_goat_pig
     user: wolf_goat_pig_user
-    ipAllowList: []
 
   # Backend API service
   - type: web
