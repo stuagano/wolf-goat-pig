@@ -12,22 +12,17 @@ services:
   # Backend API service
   - type: web
     name: wolf-goat-pig-api
-    env: python
+    env: docker
     plan: free
     region: oregon
     rootDir: backend
-    buildCommand: |
-      pip install --upgrade pip
-      pip install -r requirements.txt
-    startCommand: python render-startup.py
+    dockerfilePath: ./Dockerfile
     envVars:
       - key: DATABASE_URL
         fromService:
           name: wolf-goat-pig-db
           type: pserv
           property: connectionString
-      - key: PYTHON_VERSION
-        value: "3.12.8"
       - key: ENVIRONMENT
         value: production
       - key: FRONTEND_URL

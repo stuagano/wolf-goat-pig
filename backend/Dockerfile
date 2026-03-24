@@ -34,10 +34,13 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Use Python 3.12 to match Render deployment
 FROM python:3.12-slim as production
 
-# Install runtime dependencies
+# Install runtime dependencies + Node.js for Playwright browser booking
 RUN apt-get update && apt-get install -y \
     libpq5 \
     curl \
+    gnupg \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
@@ -50,6 +53,13 @@ WORKDIR /app
 # Copy virtual environment from builder
 COPY --from=builder /venv /venv
 ENV PATH="/venv/bin:$PATH"
+
+# Install Playwright + Chromium headless shell
+COPY package.json package-lock.json ./
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers
+RUN npm ci --omit=dev \
+    && npx playwright install --with-deps --only-shell chromium \
+    && chmod -R 755 /opt/pw-browsers
 
 # Copy application code
 COPY --chown=wgp:wgp . .
