@@ -39,11 +39,6 @@ class BookTeeTimeRequest(BaseModel):
     date: Optional[str] = None  # YYYY-MM-DD, used for v5 browser booking
     time: Optional[str] = None  # "12:00 PM", used for v5 browser booking
 
-
-class CancelTeeTimeRequest(BaseModel):
-    date: str   # YYYY-MM-DD
-    time: str   # "12:00 PM"
-
     @field_validator("transport_mode")
     @classmethod
     def validate_transport_mode(cls, v: str) -> str:
@@ -58,6 +53,11 @@ class CancelTeeTimeRequest(BaseModel):
         if not v or not v.strip():
             raise ValueError("ttdata is required")
         return v.strip()
+
+
+class CancelTeeTimeRequest(BaseModel):
+    date: str   # YYYY-MM-DD
+    time: str   # "12:00 PM"
 
 
 class ForeteesCredentials(BaseModel):
