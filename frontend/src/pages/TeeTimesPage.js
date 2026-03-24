@@ -41,7 +41,7 @@ const TeeTimesPage = () => {
   };
 
   const handleBookConfirm = async ({ transportMode }) => {
-    const result = await bookTeeTime(bookingSlot.ttdata, transportMode);
+    const result = await bookTeeTime(bookingSlot.ttdata, transportMode, bookingSlot.date, bookingSlot.time);
     if (result?.data?.success) {
       setBookingResult({
         type: 'success',

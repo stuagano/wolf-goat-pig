@@ -36,6 +36,8 @@ VALID_TRANSPORT_MODES = {"WLK", "CRT", "PC"}
 class BookTeeTimeRequest(BaseModel):
     ttdata: str
     transport_mode: str = "WLK"
+    date: Optional[str] = None  # YYYY-MM-DD, used for v5 browser booking
+    time: Optional[str] = None  # "12:00 PM", used for v5 browser booking
 
     @field_validator("transport_mode")
     @classmethod
@@ -227,6 +229,8 @@ async def book_tee_time(
         result = await service.book_tee_time(
             ttdata=request.ttdata,
             transport_mode=request.transport_mode,
+            date=request.date,
+            time=request.time,
         )
     finally:
         if service is not get_foretees_service():

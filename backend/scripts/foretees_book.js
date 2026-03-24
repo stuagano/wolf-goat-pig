@@ -17,7 +17,8 @@
  * Args (JSON):
  *   username: ForeTees login username
  *   password: ForeTees login password
- *   ttdata: Encrypted tee time slot identifier
+ *   date: Date in YYYY-MM-DD format
+ *   time: Time string like "12:00 PM"
  *   transport_mode: WLK, CRT, or PC
  *
  * Output: JSON to stdout with {success, title, messages} or {success, error}
@@ -31,10 +32,10 @@ const TEE_TIME_PAGE = '/members/golf/make-a-tee-time-703.html';
 const FORETEES_BASE = 'https://ftapp.wingpointgolf.com/v5/wingpointgcc_flxrez0_m30';
 
 async function book(args) {
-  const { username, password, ttdata, transport_mode } = args;
+  const { username, password, date, time, transport_mode } = args;
 
-  if (!username || !password || !ttdata) {
-    return { success: false, error: 'Missing required arguments' };
+  if (!username || !password || !date || !time) {
+    return { success: false, error: 'Missing required arguments (username, password, date, time)' };
   }
 
   const browser = await chromium.launch({ headless: true });
@@ -86,128 +87,208 @@ async function book(args) {
     const ssoUrl = `${FORETEES_BASE}/Member_select?sso_uid=${encodeURIComponent(ssoKey)}&sso_iv=${encodeURIComponent(ssoIV)}`;
     await page.goto(ssoUrl, { waitUntil: 'networkidle' });
 
-    // Step 4: Navigate to the slot booking page
-    console.error('[foretees_book] Loading slot page...');
-    const slotUrl = `${FORETEES_BASE}/Member_slot?ttdata=${encodeURIComponent(ttdata)}`;
-    await page.goto(slotUrl, { waitUntil: 'networkidle' });
+    // Step 4: Load the tee sheet to establish context, then navigate to slot
+    console.error('[foretees_book] Loading tee sheet...');
 
-    // Wait for the v5 SPA to render the form
-    // The slot_container div gets populated by JS
-    await page.waitForTimeout(3000);
+    // Step 4: Load tee sheet for the target date and click the slot
+    // Parse YYYY-MM-DD into MM/DD/YYYY for ForeTees
+    const [yy, mm, dd] = date.split('-');
+    const ftDate = `${mm}/${dd}/${yy}`;
+    console.error(`[foretees_book] Loading tee sheet for ${ftDate}...`);
 
-    // Step 5: Extract teecurr_id and id_hash from the rendered DOM
-    console.error('[foretees_book] Extracting form data...');
-    const formData = await page.evaluate(() => {
-      const fields = {};
+    const sheetUrl = `${FORETEES_BASE}/Member_sheet?calDate=${encodeURIComponent(ftDate)}&course=&displayOpt=0`;
+    await page.goto(sheetUrl, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(2000);
 
-      // Try getting values from input fields (if they exist after JS render)
-      document.querySelectorAll('input[name]').forEach(input => {
-        fields[input.name] = input.value;
-      });
-
-      // Also try select elements
-      document.querySelectorAll('select[name]').forEach(select => {
-        fields[select.name] = select.value;
-      });
-
+    // Find and click the slot matching the target time
+    console.error(`[foretees_book] Looking for ${time} slot...`);
+    const slotFound = await page.evaluate((targetTime) => {
+      // ForeTees tee sheet has links like <a class="teetime_button">11:20 AM</a>
+      const links = document.querySelectorAll('a.teetime_button, a[data-ftjson], .rwdTr a');
+      for (const link of links) {
+        const linkText = link.textContent.trim();
+        if (linkText === targetTime) {
+          link.click();
+          return { found: true, time: linkText };
+        }
+      }
+      // Try partial match
+      for (const link of links) {
+        if (link.textContent.includes(targetTime)) {
+          link.click();
+          return { found: true, time: link.textContent.trim() };
+        }
+      }
       return {
-        fields,
-        fieldCount: Object.keys(fields).length,
-        teecurr_id1: fields.teecurr_id1 || '',
-        id_hash: fields.id_hash || '',
-        pageTitle: document.title,
-        bodyPreview: document.body?.innerText?.substring(0, 500) || '',
+        found: false,
+        available: Array.from(links).slice(0, 15).map(l => l.textContent.trim()),
       };
-    });
+    }, time);
 
-    console.error(`[foretees_book] Found ${formData.fieldCount} form fields, teecurr_id1=${formData.teecurr_id1 ? 'yes' : 'no'}, id_hash=${formData.id_hash ? 'yes' : 'no'}`);
-
-    if (!formData.teecurr_id1 || formData.teecurr_id1 === '0') {
-      // Return debug info
+    if (!slotFound.found) {
       return {
         success: false,
-        error: 'Could not extract teecurr_id from rendered page',
-        debug: {
-          pageTitle: formData.pageTitle,
-          fieldCount: formData.fieldCount,
-          fieldNames: Object.keys(formData.fields).slice(0, 20),
-          bodyPreview: formData.bodyPreview,
-        },
+        error: `Tee time slot "${time}" not found on ${date}`,
+        debug: { available_times: slotFound.available },
       };
     }
+    console.error(`[foretees_book] Clicked slot: ${slotFound.time}`);
 
-    // Step 6: Set transport mode and submit the form
-    console.error('[foretees_book] Submitting booking...');
-
-    // Set the transport mode for player 1
-    const transportSelect = await page.$('select[name="p1cw"]');
-    if (transportSelect) {
-      await transportSelect.selectOption(transport_mode || 'WLK');
-    }
-
-    // Click the submit/update button
-    // ForeTees v5 uses a button or link to submit
-    const submitResult = await page.evaluate(async (transport) => {
-      // Find and fill the form programmatically
-      const form = document.querySelector('form') ||
-        document.querySelector('[data-ftjson]')?.closest('form');
-
-      // Set transport mode directly
-      const cwSelect = document.querySelector('select[name="p1cw"]');
-      if (cwSelect) cwSelect.value = transport;
-
-      // Find the submit button
-      const submitBtn = document.querySelector('input[name="submitForm"]') ||
-        document.querySelector('button[type="submit"]') ||
-        document.querySelector('[data-action="submit"]') ||
-        document.querySelector('.submit_button') ||
-        document.querySelector('#submitButton');
-
-      if (submitBtn) {
-        submitBtn.click();
-        return { clicked: true, buttonText: submitBtn.textContent || submitBtn.value };
+    // Wait for the booking form to render (v5 SPA uses client-side routing)
+    // The slot_container or booking form appears after JS processes the click
+    try {
+      await page.waitForSelector('.slot_container, .slot_form, [data-ftjson]', { timeout: 10000 });
+      console.error('[foretees_book] Slot container appeared');
+    } catch {
+      // Fallback: wait for "Submit Request" text or "Time remaining" indicator
+      try {
+        await page.waitForFunction(
+          () => document.body?.innerText?.includes('Submit Request') ||
+                document.body?.innerText?.includes('Time remaining') ||
+                document.body?.innerText?.includes('Add players'),
+          { timeout: 10000 }
+        );
+        console.error('[foretees_book] Booking form text detected');
+      } catch {
+        console.error('[foretees_book] Form did not appear, waiting extra...');
+        await page.waitForTimeout(5000);
       }
+    }
+    await page.waitForTimeout(2000);
 
-      // Try clicking any visible "Submit" or "Confirm" button
-      const buttons = document.querySelectorAll('button, input[type="button"], input[type="submit"], a.button');
-      for (const btn of buttons) {
-        const text = (btn.textContent || btn.value || '').toLowerCase();
-        if (text.includes('submit') || text.includes('confirm') || text.includes('book')) {
-          btn.click();
-          return { clicked: true, buttonText: text };
+    // Debug: log page state
+    const formState = await page.evaluate(() => ({
+      title: document.title,
+      url: window.location.href,
+      bodyPreview: document.body?.innerText?.substring(0, 300),
+      hasSlotContainer: !!document.querySelector('.slot_container'),
+      inputCount: document.querySelectorAll('input').length,
+      selectCount: document.querySelectorAll('select').length,
+    }));
+    console.error(`[foretees_book] Form state: ${JSON.stringify(formState)}`);
+
+    // Step 5: The booking form is now rendered with player 1 = current user.
+    // ForeTees v5 auto-populates player 1. We just need to set transport
+    // mode and click "Submit Request".
+    console.error('[foretees_book] Setting transport mode and submitting...');
+
+    // Set transport mode for player 1
+    // ForeTees v5 has selects for transport — try all possible selector patterns
+    const transportSet = await page.evaluate((mode) => {
+      // Try all selects that might be transport mode
+      const selects = document.querySelectorAll('select');
+      for (const sel of selects) {
+        const name = sel.name || '';
+        // Transport selects are named p1cw, p2cw, etc. or similar
+        if (name.match(/p\d*cw|tmode|transport/i) ||
+            Array.from(sel.options).some(o => ['WLK', 'CRT', 'PC'].includes(o.value))) {
+          // This is a transport select — set it for player 1
+          if (name === 'p1cw' || name.includes('1') || !name.match(/p[2-5]cw/)) {
+            sel.value = mode;
+            sel.dispatchEvent(new Event('change', { bubbles: true }));
+            return { set: true, method: 'select', name: sel.name, options: Array.from(sel.options).map(o => o.value) };
+          }
         }
       }
 
-      return { clicked: false, error: 'No submit button found' };
+      // If no named select found, try the first select with WLK/CRT/PC options
+      for (const sel of selects) {
+        const opts = Array.from(sel.options).map(o => o.value);
+        if (opts.includes('WLK') || opts.includes('CRT') || opts.includes('PC')) {
+          sel.value = mode;
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+          return { set: true, method: 'fallback-select', name: sel.name, options: opts };
+        }
+      }
+
+      return {
+        set: false,
+        selectNames: Array.from(selects).map(s => s.name),
+        selectOptions: Array.from(selects).map(s => ({ name: s.name, opts: Array.from(s.options).map(o => o.value).slice(0, 5) })),
+      };
     }, transport_mode || 'WLK');
+    console.error(`[foretees_book] Transport: ${JSON.stringify(transportSet)}`);
 
-    console.error(`[foretees_book] Submit result: ${JSON.stringify(submitResult)}`);
+    // Find and click "Submit Request" button
+    // Listen for navigation or AJAX response
+    const responsePromise = page.waitForResponse(
+      resp => resp.url().includes('Member_slot') && resp.request().method() === 'POST',
+      { timeout: 15000 }
+    ).catch(() => null);
 
-    if (!submitResult.clicked) {
-      return { success: false, error: 'No submit button found on page', debug: submitResult };
+    const submitClicked = await page.evaluate(() => {
+      // Look for submit button by text
+      const allButtons = document.querySelectorAll('button, input[type="button"], input[type="submit"], a, div[role="button"]');
+      for (const btn of allButtons) {
+        const text = (btn.textContent || btn.value || '').trim().toLowerCase();
+        if (text.includes('submit request') || text.includes('submit')) {
+          btn.click();
+          return { clicked: true, text: text.substring(0, 50) };
+        }
+      }
+
+      // Try finding by class/id patterns
+      const submitBtn = document.querySelector('.submitButton, #submitButton, [data-action="submit"], .slot_submit');
+      if (submitBtn) {
+        submitBtn.click();
+        return { clicked: true, text: submitBtn.textContent?.substring(0, 50) || 'class match' };
+      }
+
+      return {
+        clicked: false,
+        buttons: Array.from(allButtons).slice(0, 10).map(b => (b.textContent || b.value || '').trim().substring(0, 40)),
+      };
+    });
+
+    console.error(`[foretees_book] Submit: ${JSON.stringify(submitClicked)}`);
+
+    if (!submitClicked.clicked) {
+      return {
+        success: false,
+        error: 'No submit button found on booking page',
+        debug: submitClicked,
+      };
     }
 
-    // Wait for the response
+    // Wait for the booking response
+    const postResponse = await responsePromise;
+    if (postResponse) {
+      const respText = await postResponse.text();
+      console.error(`[foretees_book] POST response: ${postResponse.status()} ${respText.substring(0, 200)}`);
+
+      // Try to parse JSON response
+      try {
+        const jsonResp = JSON.parse(respText);
+        const success = jsonResp.successful === true;
+        const messages = [
+          ...(jsonResp.message_list || []),
+          ...(jsonResp.notice_list || []),
+          ...(jsonResp.warning_list || []),
+        ];
+        return {
+          success,
+          title: jsonResp.title || '',
+          messages: messages.length > 0 ? messages : [success ? 'Booking confirmed' : 'Booking failed'],
+        };
+      } catch {
+        // Non-JSON response — check page content
+      }
+    }
+
+    // Wait for page to update after submission
     await page.waitForTimeout(3000);
 
-    // Check for success/error messages
+    // Check the page for success/error messages
     const result = await page.evaluate(() => {
       const bodyText = document.body?.innerText || '';
       const title = document.title || '';
 
-      // Look for success indicators
-      if (bodyText.includes('confirmed') || bodyText.includes('Confirmed') ||
+      if (bodyText.includes('Confirmation') || bodyText.includes('confirmed') ||
           bodyText.includes('successfully') || bodyText.includes('booked')) {
         return { success: true, title: 'Booking Confirmed', messages: [bodyText.substring(0, 500)] };
       }
 
-      // Look for error indicators
-      if (bodyText.includes('Error') || bodyText.includes('error') ||
-          bodyText.includes('Unable') || bodyText.includes('Sorry')) {
-        return { success: false, title: title, messages: [bodyText.substring(0, 500)] };
-      }
-
-      return { success: false, title: title, messages: ['Unknown result: ' + bodyText.substring(0, 500)] };
+      return { success: false, title, messages: [bodyText.substring(0, 500)] };
     });
 
     return result;

@@ -41,7 +41,7 @@ const formatDateDisplay = (dateStr) => {
 const MyMatches = () => {
   const navigate = useNavigate();
   const { getAccessTokenSilently } = useAuth0();
-  const { fetchTeeTimes, bookTeeTime, bookingLoading, clearBookingError } = useTeeTimes();
+  const { fetchTeeTimes, bookTeeTime, bookingLoading, bookingError, clearBookingError } = useTeeTimes();
 
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -67,11 +67,12 @@ const MyMatches = () => {
     });
   }, [getAccessTokenSilently]);
 
-  const fetchMatches = useCallback(async () => {
+  const fetchMatches = useCallback(async (overrideStatus) => {
     setLoading(true);
     setError(null);
     try {
-      const params = statusFilter ? `?status=${statusFilter}` : '';
+      const filter = overrideStatus !== undefined ? overrideStatus : statusFilter;
+      const params = filter ? `?status=${filter}` : '';
       const resp = await authFetch(`/matchmaking/my-matches${params}`);
       if (resp.ok) {
         setMatches(await resp.json());
@@ -105,6 +106,17 @@ const MyMatches = () => {
       const data = await resp.json();
       if (!resp.ok) {
         setError(data.detail || `Failed to ${response}`);
+      } else if (data.all_accepted) {
+        // All players accepted — switch to "accepted" filter so the user
+        // can see the "Book Tee Time" button that just became available.
+        setStatusFilter('accepted');
+        setBookingResult({
+          type: 'success',
+          message: 'All players confirmed! You can now book a tee time.',
+        });
+        // Fetch with the new filter immediately (state hasn't updated yet)
+        await fetchMatches('accepted');
+        return;
       }
       await fetchMatches();
     } catch (err) {
@@ -162,8 +174,9 @@ const MyMatches = () => {
       setTeeTimeData(prev => { const n = { ...prev }; delete n[expandedMatchId]; return n; });
       setExpandedMatchId(null);
     } else {
-      const msg = result?.message || result?.detail || 'Booking failed';
-      setBookingResult({ type: 'error', message: msg, showAccountLink: /credentials? not configured/i.test(msg) });
+      const msg = result?.message || result?.detail || bookingError || 'Booking failed. Please try again.';
+      const isCredentialError = /credentials? not configured|login failed/i.test(msg);
+      setBookingResult({ type: 'error', message: msg, showAccountLink: isCredentialError });
       setBookingSlot(null);
     }
   };
