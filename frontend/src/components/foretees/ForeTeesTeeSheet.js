@@ -41,16 +41,24 @@ const ForeTeesTeeSheet = () => {
 
   const handleBookConfirm = async ({ transportMode }) => {
     const result = await bookTeeTime(bookingSlot.ttdata, transportMode, bookingSlot.date, bookingSlot.time);
-    if (result?.data?.success) {
-      setBookingResult({
-        type: 'success',
-        message: result.message || 'Tee time booked!',
-      });
+    // Check all possible success indicators
+    const success = result?.data?.success || result?.success;
+    if (success) {
+      const msg = result?.data?.messages?.[0] || result?.message || 'Tee time booked!';
+      setBookingResult({ type: 'success', message: msg });
       setBookingSlot(null);
       fetchTeeTimes(selectedDate);
       fetchBookings();
     } else {
-      const msg = result?.message || result?.detail || bookingError || 'Booking failed. Please try again.';
+      // Extract error message from all possible response shapes
+      const msg = result?.detail
+        || result?.data?.messages?.join('. ')
+        || result?.data?.message
+        || result?.data?.error
+        || result?.message
+        || result?.error
+        || bookingError
+        || 'Booking failed. Please try again.';
       const isCredentialError = /credentials? not configured|login failed/i.test(msg);
       setBookingResult({
         type: 'error',
