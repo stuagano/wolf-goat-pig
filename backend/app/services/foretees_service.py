@@ -660,47 +660,73 @@ class ForeteesService:
             logger.warning("Failed to parse slot_container data-ftjson: %s", exc)
             return fields
 
+        # Log ALL top-level keys and identify nested structures
+        nested_keys = {}
+        for k, v in ftjson.items():
+            if isinstance(v, dict):
+                nested_keys[k] = f"dict({len(v)})"
+            elif isinstance(v, list) and v:
+                nested_keys[k] = f"list({len(v)})"
         logger.info(
-            "Parsed slot_container ftjson with keys: %s",
-            list(ftjson.keys()),
+            "Parsed ftjson: %d total keys, nested: %s",
+            len(ftjson), nested_keys,
         )
 
-        # Extract slot_data — contains the actual field values
-        slot_data = ftjson.get("slot_data", {})
-        if slot_data:
-            # Map slot_data values to form field names
-            if "teecurr_id" in slot_data:
-                fields["teecurr_id1"] = str(slot_data["teecurr_id"])
-            if "id_hash" in slot_data:
-                fields["id_hash"] = str(slot_data["id_hash"])
+        # Search the entire JSON tree for teecurr_id and id_hash values
+        # that are NOT 0 or empty — the real values may be deeply nested
+        def find_in_json(obj, target_keys, path=""):
+            """Recursively search JSON for non-empty values of target keys."""
+            results = {}
+            if isinstance(obj, dict):
+                for k, v in obj.items():
+                    if k in target_keys and v and str(v) != "0":
+                        results[f"{path}.{k}" if path else k] = v
+                    if isinstance(v, (dict, list)):
+                        results.update(find_in_json(v, target_keys, f"{path}.{k}" if path else k))
+            elif isinstance(obj, list):
+                for i, item in enumerate(obj):
+                    if isinstance(item, (dict, list)):
+                        results.update(find_in_json(item, target_keys, f"{path}[{i}]"))
+            return results
 
-            # Player fields (1-5)
-            players = slot_data.get("players", [])
-            for i, player in enumerate(players, 1):
-                if isinstance(player, dict):
-                    fields[f"player{i}"] = player.get("name", "")
-                    fields[f"member_id{i}"] = str(player.get("member_id", "0"))
-                    fields[f"user{i}"] = player.get("user", "")
-                    fields[f"player_type_a{i}"] = player.get("player_type", "")
-                    fields[f"guest_id{i}"] = str(player.get("guest_id", "0"))
-                    fields[f"p9{i}"] = str(player.get("p9", "0"))
-                    fields[f"p{i}cw"] = player.get("transport", "")
+        real_values = find_in_json(
+            ftjson,
+            {"teecurr_id", "teecurr_id1", "id_hash", "player1", "player_name", "member_name"},
+        )
+        logger.info("Deep search for real values: %s", real_values)
 
-            # Also check for flat field names (teecurr_id1, id_hash, etc.)
-            for key, value in slot_data.items():
-                if isinstance(value, (str, int, float)):
-                    fields.setdefault(str(key), str(value))
+        # Extract ALL flat key-value pairs from the JSON
+        # (even template defaults — useful for building the form submission)
+        for key, value in ftjson.items():
+            if isinstance(value, (str, int, float, bool)):
+                fields[str(key)] = str(value)
 
-        # If slot_data didn't have what we need, try top-level ftjson keys
-        if "teecurr_id1" not in fields:
-            for key in ("teecurr_id", "teecurr_id1", "id"):
-                if key in ftjson and ftjson[key]:
-                    fields["teecurr_id1"] = str(ftjson[key])
-                    break
-        if "id_hash" not in fields and "id_hash" in ftjson:
-            fields["id_hash"] = str(ftjson["id_hash"])
+        # Also extract from any nested dicts that look like slot data
+        for key in ("slot_data", "data", "tee_data", "slot", "players_data"):
+            nested = ftjson.get(key, {})
+            if isinstance(nested, dict):
+                for k, v in nested.items():
+                    if isinstance(v, (str, int, float)):
+                        fields.setdefault(str(k), str(v))
 
-        logger.info("Extracted %d fields from ftjson: %s", len(fields), list(fields.keys()))
+        # Map teecurr_id → teecurr_id1 (field name the booking POST expects)
+        if "teecurr_id1" not in fields and "teecurr_id" in fields:
+            fields["teecurr_id1"] = fields["teecurr_id"]
+
+        # Use real values from deep search if available
+        for path, value in real_values.items():
+            key = path.split(".")[-1]
+            if key == "teecurr_id":
+                fields["teecurr_id1"] = str(value)
+            elif key in ("id_hash", "player1", "player_name", "member_name"):
+                fields.setdefault(key, str(value))
+
+        logger.info(
+            "Extracted %d fields, teecurr_id1=%s, id_hash=%s",
+            len(fields),
+            repr(fields.get("teecurr_id1", "")),
+            repr(fields.get("id_hash", ""))[:50],
+        )
         return fields
 
     @staticmethod
