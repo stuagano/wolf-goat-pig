@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "postinstall": "npx playwright install --with-deps --only-shell chromium"
+    "build": "npx playwright install --only-shell chromium || echo 'Playwright install failed, will retry at startup'"
   },
   "dependencies": {
     "playwright": "^1.58.2"
