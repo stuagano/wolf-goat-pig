@@ -272,16 +272,21 @@ class ForeteesService:
         )
 
         try:
-            # Step 1: Load the slot data.
+            # ForeTees v5 booking flow:
             #
-            # ForeTees v5 is a JS SPA — the Member_slot HTML page contains
-            # only template/default values.  The real slot data (teecurr_id,
-            # id_hash, players) is loaded via an XHR request that returns
-            # JSON.  We try multiple approaches:
+            # The Member_slot HTML is a JS SPA shell — form fields
+            # (teecurr_id, id_hash, players) are populated by JavaScript
+            # at runtime.  Rather than trying to reverse-engineer the JS
+            # data-loading call, we use the slot_submit_map from the
+            # data-ftjson config to build a direct booking POST.
             #
-            #   A) XHR GET with Accept: application/json
-            #   B) POST with json_mode=true (mimics the JS client)
-            #   C) Fall back to HTML <input> parsing (legacy)
+            # The slot_submit_map tells us the field names ForeTees expects:
+            #   ttdata → identifies the slot (from tee sheet)
+            #   json_mode → "true" for JSON response
+            #   slot_submit_action → "update" to book
+            #
+            # We first GET Member_slot to establish the page session context,
+            # then POST the booking using the callback_map + user info.
 
             slot_url = f"{self.config.base_url}/Member_slot"
             xhr_headers = {
@@ -290,50 +295,43 @@ class ForeteesService:
                 "Accept": "application/json, text/javascript, */*; q=0.01",
             }
 
-            # --- Approach A: XHR GET (returns JSON on v5) ---
+            # Step 1: GET Member_slot to establish session context and
+            # extract callback_map + slot_submit_map from data-ftjson
             form_resp = await client.get(
                 slot_url,
                 params={"ttdata": ttdata},
-                headers=xhr_headers,
+                headers={"Referer": f"{self.config.base_url}/Member_sheet"},
             )
             form_resp.raise_for_status()
-
-            content_type = form_resp.headers.get("content-type", "")
             resp_text = form_resp.text
-            fields: Dict[str, str] = {}
 
-            if "json" in content_type:
-                # Server returned JSON directly
-                logger.info("Member_slot returned JSON (%d bytes)", len(resp_text))
-                slot_json = form_resp.json()
-                fields = self._extract_fields_from_json(slot_json)
+            # Try legacy HTML parsing first (works for pre-v5 ForeTees)
+            fields = self._parse_slot_form(resp_text)
+            teecurr_id = fields.get("teecurr_id1", "")
+            id_hash = fields.get("id_hash", "")
+
+            if teecurr_id and teecurr_id != "0" and id_hash:
+                logger.info("Legacy HTML parsing found real fields")
             else:
-                # Got HTML — try to extract JSON from data-ftjson, or <input> tags
-                logger.info(
-                    "Member_slot returned HTML (%d bytes), trying JSON extraction",
-                    len(resp_text),
-                )
-                fields = self._parse_slot_form(resp_text)
-
-            # --- Approach B: Use callback_map from data-ftjson for data POST ---
-            # ForeTees v5 SPA flow: the data-ftjson contains a callback_map
-            # with parameters (ttdata, json_mode, etc.) that JS sends back
-            # to Member_slot to load the actual slot data.
-            if not fields.get("teecurr_id1") or not fields.get("id_hash"):
-                # Extract callback_map from the data-ftjson we already parsed
-                callback_data = {"ttdata": ttdata, "json_mode": "true"}
+                # ForeTees v5 path: extract config from data-ftjson
+                logger.info("Legacy parsing found no real values, trying v5 approach")
+                ftjson = {}
                 ftjson_match = re.search(r'data-ftjson="([^"]+)"', resp_text, re.IGNORECASE)
                 if ftjson_match:
                     try:
                         ftjson = json.loads(html.unescape(ftjson_match.group(1)))
-                        callback_map = ftjson.get("callback_map", {})
-                        if callback_map:
-                            callback_data.update(callback_map)
-                            logger.info("Using callback_map params: %s", list(callback_map.keys()))
-                    except (json.JSONDecodeError, ValueError):
-                        pass
+                    except (json.JSONDecodeError, ValueError) as exc:
+                        logger.warning("Failed to parse data-ftjson: %s", exc)
 
-                logger.info("POST Member_slot with callback data: %s", list(callback_data.keys()))
+                # Use callback_map to POST for slot data (this is what the JS does)
+                callback_map = ftjson.get("callback_map", {})
+                callback_data = {
+                    "ttdata": ttdata,
+                    "json_mode": "true",
+                    **{k: str(v) for k, v in callback_map.items()},
+                }
+                logger.info("POST Member_slot with callback params: %s", list(callback_data.keys()))
+
                 post_resp = await client.post(
                     slot_url,
                     data=callback_data,
@@ -342,85 +340,39 @@ class ForeteesService:
                         "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
                     },
                 )
-                if post_resp.status_code == 200:
-                    post_ct = post_resp.headers.get("content-type", "")
-                    logger.info("POST response: %s, %d bytes", post_ct, len(post_resp.text))
-                    if "json" in post_ct:
-                        slot_json = post_resp.json()
-                        logger.info("POST returned JSON keys: %s", list(slot_json.keys())[:20])
-                        fields = self._extract_fields_from_json(slot_json)
-                    else:
-                        # HTML response — try parsing it
-                        post_fields = self._parse_slot_form(post_resp.text)
-                        if post_fields.get("teecurr_id1"):
-                            fields = post_fields
 
-            teecurr_id = fields.get("teecurr_id1", "")
-            id_hash = fields.get("id_hash", "")
-            if not teecurr_id or not id_hash:
-                # Collect POST response info for debug
-                post_info = "not attempted"
-                try:
-                    post_info = f"{post_resp.status_code} {post_resp.headers.get('content-type','')} {len(post_resp.text)}b"
-                    post_info += f" preview={post_resp.text[:1500]}"
-                except NameError:
-                    pass
-
-                logger.warning(
-                    "All approaches failed. teecurr_id1=%s, id_hash=%s, fields=%s",
-                    bool(teecurr_id), bool(id_hash), list(fields.keys()),
+                post_ct = post_resp.headers.get("content-type", "")
+                post_text = post_resp.text
+                logger.info(
+                    "Callback POST response: %d %s (%d bytes) preview=%s",
+                    post_resp.status_code, post_ct, len(post_text), post_text[:500],
                 )
-                # Dump the full HTML around data-ftjson for analysis
-                import re as _re
-                ftjson_idx = resp_text.find("data-ftjson")
-                ftjson_section = ""
-                if ftjson_idx >= 0:
-                    start = max(0, ftjson_idx - 100)
-                    # Find the end of the enclosing tag
-                    end_tag = resp_text.find(">", ftjson_idx)
-                    end = min(len(resp_text), (end_tag + 1) if end_tag > 0 else ftjson_idx + 5000)
-                    ftjson_section = resp_text[start:end]
 
-                # Also try to extract the full ftjson value using a different approach
-                ftjson_value = ""
-                if ftjson_idx >= 0:
-                    # Find the opening quote after data-ftjson=
-                    eq_idx = resp_text.find("=", ftjson_idx)
-                    if eq_idx >= 0:
-                        quote_char = resp_text[eq_idx + 1] if eq_idx + 1 < len(resp_text) else ""
-                        if quote_char in ('"', "'"):
-                            end_quote = resp_text.find(quote_char, eq_idx + 2)
-                            if end_quote > 0:
-                                ftjson_value = resp_text[eq_idx + 2:end_quote]
+                if post_resp.status_code == 200 and "json" in post_ct:
+                    # ForeTees returned JSON — extract slot data
+                    slot_json = post_resp.json()
+                    fields = self._extract_fields_from_json(slot_json)
+                    teecurr_id = fields.get("teecurr_id1", "")
+                    id_hash = fields.get("id_hash", "")
+                elif post_resp.status_code == 200:
+                    # ForeTees returned HTML — try parsing
+                    fields = self._parse_slot_form(post_text)
+                    teecurr_id = fields.get("teecurr_id1", "")
+                    id_hash = fields.get("id_hash", "")
 
-                # Parse the full ftjson to see its structure
-                ftjson_keys = {}
-                if ftjson_value:
-                    try:
-                        full_json = json.loads(html.unescape(ftjson_value))
-                        # Get keys and types at top level
-                        for k, v in full_json.items():
-                            if isinstance(v, dict):
-                                ftjson_keys[k] = f"dict({len(v)} keys: {list(v.keys())[:10]})"
-                            elif isinstance(v, list):
-                                ftjson_keys[k] = f"list({len(v)} items)"
-                                if v and isinstance(v[0], dict):
-                                    ftjson_keys[k] += f" first_keys={list(v[0].keys())[:8]}"
-                            elif isinstance(v, str) and len(v) > 50:
-                                ftjson_keys[k] = f"str({len(v)}): {v[:50]}..."
-                            else:
-                                ftjson_keys[k] = repr(v)
-                    except Exception as exc:
-                        ftjson_keys = {"_parse_error": str(exc)}
-
+            # Final check: do we have what we need?
+            if (not teecurr_id or teecurr_id == "0") and not id_hash:
                 return {
                     "success": False,
                     "message": "Could not load booking form",
                     "debug": {
-                        "approach_b_post": post_info,
-                        "parsed_fields": list(fields.keys())[:30],
-                        "field_values": {k: str(v)[:80] for k, v in fields.items()
-                                         if str(v) not in ("0", "", "False", "True")},
+                        "teecurr_id": teecurr_id,
+                        "id_hash": id_hash,
+                        "fields_with_values": {
+                            k: str(v)[:60] for k, v in fields.items()
+                            if str(v) not in ("0", "", "False", "True")
+                        },
+                        "callback_post_preview": post_text[:2000] if "post_text" in dir() else "n/a",
                     },
                 }
 
