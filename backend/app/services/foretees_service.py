@@ -315,12 +315,28 @@ class ForeteesService:
                 )
                 fields = self._parse_slot_form(resp_text)
 
-            # --- Approach B: POST with json_mode if GET didn't yield fields ---
+            # --- Approach B: Use callback_map from data-ftjson for data POST ---
+            # ForeTees v5 SPA flow: the data-ftjson contains a callback_map
+            # with parameters (ttdata, json_mode, etc.) that JS sends back
+            # to Member_slot to load the actual slot data.
             if not fields.get("teecurr_id1") or not fields.get("id_hash"):
-                logger.info("Trying POST with json_mode=true for slot data")
+                # Extract callback_map from the data-ftjson we already parsed
+                callback_data = {"ttdata": ttdata, "json_mode": "true"}
+                ftjson_match = re.search(r'data-ftjson="([^"]+)"', resp_text, re.IGNORECASE)
+                if ftjson_match:
+                    try:
+                        ftjson = json.loads(html.unescape(ftjson_match.group(1)))
+                        callback_map = ftjson.get("callback_map", {})
+                        if callback_map:
+                            callback_data.update(callback_map)
+                            logger.info("Using callback_map params: %s", list(callback_map.keys()))
+                    except (json.JSONDecodeError, ValueError):
+                        pass
+
+                logger.info("POST Member_slot with callback data: %s", list(callback_data.keys()))
                 post_resp = await client.post(
                     slot_url,
-                    data={"ttdata": ttdata, "json_mode": "true"},
+                    data=callback_data,
                     headers={
                         **xhr_headers,
                         "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
@@ -328,13 +344,13 @@ class ForeteesService:
                 )
                 if post_resp.status_code == 200:
                     post_ct = post_resp.headers.get("content-type", "")
+                    logger.info("POST response: %s, %d bytes", post_ct, len(post_resp.text))
                     if "json" in post_ct:
-                        logger.info("POST Member_slot returned JSON (%d bytes)", len(post_resp.text))
                         slot_json = post_resp.json()
+                        logger.info("POST returned JSON keys: %s", list(slot_json.keys())[:20])
                         fields = self._extract_fields_from_json(slot_json)
                     else:
-                        logger.info("POST Member_slot returned %s (%d bytes)", post_ct, len(post_resp.text))
-                        # Try parsing HTML from POST response too
+                        # HTML response — try parsing it
                         post_fields = self._parse_slot_form(post_resp.text)
                         if post_fields.get("teecurr_id1"):
                             fields = post_fields
@@ -344,10 +360,11 @@ class ForeteesService:
             if not teecurr_id or not id_hash:
                 # Collect POST response info for debug
                 post_info = "not attempted"
-                if "post_resp" in dir():
+                try:
                     post_info = f"{post_resp.status_code} {post_resp.headers.get('content-type','')} {len(post_resp.text)}b"
-                    if len(post_resp.text) < 2000:
-                        post_info += f" body={post_resp.text[:1000]}"
+                    post_info += f" preview={post_resp.text[:1500]}"
+                except NameError:
+                    pass
 
                 logger.warning(
                     "All approaches failed. teecurr_id1=%s, id_hash=%s, fields=%s",
@@ -400,11 +417,10 @@ class ForeteesService:
                     "success": False,
                     "message": "Could not load booking form",
                     "debug": {
-                        "ftjson_found_at": ftjson_idx,
-                        "ftjson_value_len": len(ftjson_value),
-                        "ftjson_structure": ftjson_keys,
-                        "parsed_fields": list(fields.keys()),
-                        "field_values": {k: str(v)[:80] for k, v in fields.items()},
+                        "approach_b_post": post_info,
+                        "parsed_fields": list(fields.keys())[:30],
+                        "field_values": {k: str(v)[:80] for k, v in fields.items()
+                                         if str(v) not in ("0", "", "False", "True")},
                     },
                 }
 
