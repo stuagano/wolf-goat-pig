@@ -284,6 +284,11 @@ class ForeteesService:
             #    it generated the token.
 
             slot_url = f"{self.config.base_url}/Member_slot"
+            xhr_headers = {
+                "Referer": f"{self.config.base_url}/Member_sheet",
+                "X-Requested-With": "XMLHttpRequest",
+                "Accept": "application/json, text/javascript, */*; q=0.01",
+            }
 
             # Step 1: GET to establish session context
             form_resp = await client.get(
@@ -345,34 +350,113 @@ class ForeteesService:
                 user_member_id = ftjson.get("user_member_id", "0")
                 name = ftjson.get("name", "")
 
-                form_data = {
-                    "ttdata": ttdata,
-                    "json_mode": "true",
-                    "slot_submit_action": "update",
-                    "submitForm": "submit",
-                    "hide": "0",
-                    "notes": "",
-                    "looking_for_players": "0",
-                    "show_remove_orig": "true",
-                    "remove_originator": "0",
-                    # Player 1 = the booking user
-                    "player1": name,
-                    "user1": user,
-                    "member_id1": user_member_id,
-                    "player_type_a1": "",
-                    "guest_id1": "0",
-                    "p91": "0",
-                    "p1cw": transport_mode,
-                }
-                # Empty remaining player slots
-                for i in range(2, 6):
-                    form_data[f"player{i}"] = ""
-                    form_data[f"user{i}"] = ""
-                    form_data[f"member_id{i}"] = "0"
-                    form_data[f"player_type_a{i}"] = ""
-                    form_data[f"guest_id{i}"] = "0"
-                    form_data[f"p9{i}"] = "0"
-                    form_data[f"p{i}cw"] = ""
+                # Step 1b: Try to load slot data via POST with "load" action
+                # ForeTees v5 JS loads slot data via an XHR POST before showing
+                # the form.  Try several action values to trigger data loading.
+                slot_data_json = None
+                for action in ("load", "get", "init", ""):
+                    load_data = {
+                        "ttdata": ttdata,
+                        "json_mode": "true",
+                    }
+                    if action:
+                        load_data["slot_submit_action"] = action
+
+                    load_resp = await client.post(
+                        slot_url,
+                        data=load_data,
+                        headers={
+                            **xhr_headers,
+                            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                        },
+                    )
+                    load_ct = load_resp.headers.get("content-type", "")
+                    logger.info(
+                        "Slot load attempt (action=%s): %d %s (%d bytes)",
+                        action or "(none)", load_resp.status_code, load_ct, len(load_resp.text),
+                    )
+                    if load_resp.status_code == 200 and "json" in load_ct:
+                        slot_data_json = load_resp.json()
+                        logger.info("Got JSON slot data! Keys: %s", list(slot_data_json.keys())[:15])
+                        break
+                    elif load_resp.status_code == 200 and "<input" in load_resp.text.lower():
+                        # Got HTML with form inputs — legacy response
+                        legacy_fields = self._parse_slot_form(load_resp.text)
+                        if legacy_fields.get("teecurr_id1") and legacy_fields["teecurr_id1"] != "0":
+                            logger.info("POST returned legacy HTML with real fields")
+                            fields = legacy_fields
+                            teecurr_id = fields["teecurr_id1"]
+                            id_hash = fields.get("id_hash", "")
+                            break
+
+                if slot_data_json:
+                    # Extract real teecurr_id and id_hash from the JSON response
+                    fields = self._extract_fields_from_json(slot_data_json)
+                    teecurr_id = fields.get("teecurr_id1", "")
+                    id_hash = fields.get("id_hash", "")
+                    logger.info(
+                        "Extracted from slot data JSON: teecurr_id=%s, id_hash=%s",
+                        teecurr_id, id_hash[:20] if id_hash else "",
+                    )
+
+                # If we still don't have IDs, try direct submission with ttdata
+                if not teecurr_id or teecurr_id == "0":
+                    logger.info("No teecurr_id found, trying direct ttdata submission")
+                    form_data = {
+                        "ttdata": ttdata,
+                        "json_mode": "true",
+                        "slot_submit_action": "update",
+                        "submitForm": "submit",
+                        "hide": "0",
+                        "notes": "",
+                        "looking_for_players": "0",
+                        "show_remove_orig": "true",
+                        "remove_originator": "0",
+                        "player1": name,
+                        "user1": user,
+                        "member_id1": user_member_id,
+                        "player_type_a1": "",
+                        "guest_id1": "0",
+                        "p91": "0",
+                        "p1cw": transport_mode,
+                    }
+                    for i in range(2, 6):
+                        form_data[f"player{i}"] = ""
+                        form_data[f"user{i}"] = ""
+                        form_data[f"member_id{i}"] = "0"
+                        form_data[f"player_type_a{i}"] = ""
+                        form_data[f"guest_id{i}"] = "0"
+                        form_data[f"p9{i}"] = "0"
+                        form_data[f"p{i}cw"] = ""
+                else:
+                    # We have real IDs — build proper form
+                    form_data = {
+                        "teecurr_id1": teecurr_id,
+                        "id_hash": id_hash,
+                        "hide": "0",
+                        "notes": "",
+                        "submitForm": "submit",
+                        "slot_submit_action": "update",
+                        "json_mode": "true",
+                        "looking_for_players": "0",
+                        "show_remove_orig": "true",
+                        "remove_originator": "0",
+                        "player1": name,
+                        "user1": user,
+                        "member_id1": user_member_id,
+                        "player_type_a1": "",
+                        "guest_id1": "0",
+                        "p91": "0",
+                        "p1cw": transport_mode,
+                    }
+                    for i in range(2, 6):
+                        form_data[f"player{i}"] = ""
+                        form_data[f"user{i}"] = ""
+                        form_data[f"member_id{i}"] = "0"
+                        form_data[f"player_type_a{i}"] = ""
+                        form_data[f"guest_id{i}"] = "0"
+                        form_data[f"p9{i}"] = "0"
+                        form_data[f"p{i}cw"] = ""
 
                 logger.info(
                     "v5 booking form: player=%s, user=%s, member_id=%s, transport=%s",
