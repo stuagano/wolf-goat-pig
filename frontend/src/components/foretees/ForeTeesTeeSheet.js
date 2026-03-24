@@ -43,7 +43,16 @@ const ForeTeesTeeSheet = () => {
 
   const handleBookConfirm = async ({ transportMode }) => {
     const result = await bookTeeTime(bookingSlot.ttdata, transportMode, bookingSlot.date, bookingSlot.time);
-    // Check all possible success indicators
+
+    if (!result) {
+      setBookingResult({
+        type: 'error',
+        message: 'Booking request failed — the service may be starting up. Wait 30 seconds and try again.',
+      });
+      setBookingSlot(null);
+      return;
+    }
+
     const success = result?.data?.success || result?.success;
     if (success) {
       const msg = result?.data?.messages?.[0] || result?.message || 'Tee time booked!';
@@ -52,21 +61,14 @@ const ForeTeesTeeSheet = () => {
       fetchTeeTimes(selectedDate);
       fetchBookings();
     } else {
-      // Extract error message from all possible response shapes
       const msg = result?.detail
         || result?.data?.messages?.join('. ')
         || result?.data?.message
         || result?.data?.error
         || result?.message
         || result?.error
-        || bookingError
         || 'Booking failed. Please try again.';
-      const isCredentialError = /credentials? not configured|login failed/i.test(msg);
-      setBookingResult({
-        type: 'error',
-        message: msg,
-        showAccountLink: isCredentialError,
-      });
+      setBookingResult({ type: 'error', message: msg });
       setBookingSlot(null);
     }
   };
