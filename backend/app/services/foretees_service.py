@@ -274,138 +274,110 @@ class ForeteesService:
         try:
             # ForeTees v5 booking flow:
             #
-            # The Member_slot HTML is a JS SPA shell — form fields
-            # (teecurr_id, id_hash, players) are populated by JavaScript
-            # at runtime.  Rather than trying to reverse-engineer the JS
-            # data-loading call, we use the slot_submit_map from the
-            # data-ftjson config to build a direct booking POST.
+            # ForeTees v5 is a JS SPA — the Member_slot HTML page does not
+            # contain form fields.  Instead, we:
             #
-            # The slot_submit_map tells us the field names ForeTees expects:
-            #   ttdata → identifies the slot (from tee sheet)
-            #   json_mode → "true" for JSON response
-            #   slot_submit_action → "update" to book
-            #
-            # We first GET Member_slot to establish the page session context,
-            # then POST the booking using the callback_map + user info.
+            # 1. GET Member_slot?ttdata=... to establish page session context
+            # 2. Try legacy <input> parsing (works for older ForeTees)
+            # 3. If legacy fails, submit directly with ttdata as the slot
+            #    identifier — ForeTees can decode ttdata server-side since
+            #    it generated the token.
 
             slot_url = f"{self.config.base_url}/Member_slot"
-            xhr_headers = {
-                "Referer": f"{self.config.base_url}/Member_sheet",
-                "X-Requested-With": "XMLHttpRequest",
-                "Accept": "application/json, text/javascript, */*; q=0.01",
-            }
 
-            # Step 1: GET Member_slot to establish session context and
-            # extract callback_map + slot_submit_map from data-ftjson
+            # Step 1: GET to establish session context
             form_resp = await client.get(
                 slot_url,
                 params={"ttdata": ttdata},
                 headers={"Referer": f"{self.config.base_url}/Member_sheet"},
             )
             form_resp.raise_for_status()
-            resp_text = form_resp.text
-            post_text = ""  # Will hold callback POST response if attempted
 
-            # Try legacy HTML parsing first (works for pre-v5 ForeTees)
-            fields = self._parse_slot_form(resp_text)
+            # Try legacy HTML parsing (pre-v5 ForeTees has <input> tags)
+            fields = self._parse_slot_form(form_resp.text)
             teecurr_id = fields.get("teecurr_id1", "")
             id_hash = fields.get("id_hash", "")
 
-            if teecurr_id and teecurr_id != "0" and id_hash:
+            if teecurr_id and teecurr_id != "0" and id_hash and id_hash != "id_hash":
+                # Legacy path: build form from parsed fields
                 logger.info("Legacy HTML parsing found real fields")
+                form_data: Dict[str, str] = {
+                    "teecurr_id1": teecurr_id,
+                    "id_hash": id_hash,
+                    "hide": "0",
+                    "notes": "",
+                    "submitForm": "submit",
+                    "slot_submit_action": "update",
+                    "json_mode": "true",
+                    "looking_for_players": "0",
+                    "show_remove_orig": "true",
+                    "remove_originator": "0",
+                }
+                for i in range(1, 6):
+                    form_data[f"player{i}"] = fields.get(f"player{i}", "")
+                    form_data[f"member_id{i}"] = fields.get(f"member_id{i}", "0")
+                    form_data[f"user{i}"] = fields.get(f"user{i}", "")
+                    form_data[f"player_type_a{i}"] = fields.get(f"player_type_a{i}", "")
+                    form_data[f"guest_id{i}"] = fields.get(f"guest_id{i}", "0")
+                    form_data[f"p9{i}"] = fields.get(f"p9{i}", "0")
+                    existing_transport = fields.get(f"p{i}cw", "")
+                    if form_data[f"player{i}"] and not existing_transport:
+                        form_data[f"p{i}cw"] = transport_mode
+                    else:
+                        form_data[f"p{i}cw"] = existing_transport
             else:
-                # ForeTees v5 path: extract config from data-ftjson
-                logger.info("Legacy parsing found no real values, trying v5 approach")
+                # ForeTees v5 path: submit directly with ttdata
+                # The ttdata token IS the slot identifier — ForeTees
+                # decodes it server-side.  We include the user's info
+                # and transport mode, plus ttdata and json_mode.
+                logger.info("Using v5 direct ttdata submission")
+
+                # Extract user info from data-ftjson config
                 ftjson = {}
-                ftjson_match = re.search(r'data-ftjson="([^"]+)"', resp_text, re.IGNORECASE)
+                ftjson_match = re.search(r'data-ftjson="([^"]+)"', form_resp.text, re.IGNORECASE)
                 if ftjson_match:
                     try:
                         ftjson = json.loads(html.unescape(ftjson_match.group(1)))
-                    except (json.JSONDecodeError, ValueError) as exc:
-                        logger.warning("Failed to parse data-ftjson: %s", exc)
+                    except (json.JSONDecodeError, ValueError):
+                        pass
 
-                # Use callback_map to POST for slot data (this is what the JS does)
-                callback_map = ftjson.get("callback_map", {})
-                callback_data = {
+                user = ftjson.get("user", "")
+                user_member_id = ftjson.get("user_member_id", "0")
+                name = ftjson.get("name", "")
+
+                form_data = {
                     "ttdata": ttdata,
                     "json_mode": "true",
-                    **{k: str(v) for k, v in callback_map.items()},
+                    "slot_submit_action": "update",
+                    "submitForm": "submit",
+                    "hide": "0",
+                    "notes": "",
+                    "looking_for_players": "0",
+                    "show_remove_orig": "true",
+                    "remove_originator": "0",
+                    # Player 1 = the booking user
+                    "player1": name,
+                    "user1": user,
+                    "member_id1": user_member_id,
+                    "player_type_a1": "",
+                    "guest_id1": "0",
+                    "p91": "0",
+                    "p1cw": transport_mode,
                 }
-                logger.info("POST Member_slot with callback params: %s", list(callback_data.keys()))
+                # Empty remaining player slots
+                for i in range(2, 6):
+                    form_data[f"player{i}"] = ""
+                    form_data[f"user{i}"] = ""
+                    form_data[f"member_id{i}"] = "0"
+                    form_data[f"player_type_a{i}"] = ""
+                    form_data[f"guest_id{i}"] = "0"
+                    form_data[f"p9{i}"] = "0"
+                    form_data[f"p{i}cw"] = ""
 
-                post_resp = await client.post(
-                    slot_url,
-                    data=callback_data,
-                    headers={
-                        **xhr_headers,
-                        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-                    },
-                )
-
-                post_ct = post_resp.headers.get("content-type", "")
-                post_text = post_resp.text
                 logger.info(
-                    "Callback POST response: %d %s (%d bytes) preview=%s",
-                    post_resp.status_code, post_ct, len(post_text), post_text[:500],
+                    "v5 booking form: player=%s, user=%s, member_id=%s, transport=%s",
+                    name, user, user_member_id, transport_mode,
                 )
-
-                if post_resp.status_code == 200 and "json" in post_ct:
-                    # ForeTees returned JSON — extract slot data
-                    slot_json = post_resp.json()
-                    fields = self._extract_fields_from_json(slot_json)
-                    teecurr_id = fields.get("teecurr_id1", "")
-                    id_hash = fields.get("id_hash", "")
-                elif post_resp.status_code == 200:
-                    # ForeTees returned HTML — try parsing
-                    fields = self._parse_slot_form(post_text)
-                    teecurr_id = fields.get("teecurr_id1", "")
-                    id_hash = fields.get("id_hash", "")
-
-            # Final check: do we have what we need?
-            # Both teecurr_id and id_hash are required and must be non-zero/non-empty
-            if not teecurr_id or teecurr_id == "0" or not id_hash:
-                return {
-                    "success": False,
-                    "message": "Could not load booking form",
-                    "debug": {
-                        "teecurr_id": teecurr_id,
-                        "id_hash": id_hash,
-                        "fields_with_values": {
-                            k: str(v)[:60] for k, v in fields.items()
-                            if str(v) not in ("0", "", "False", "True")
-                        },
-                        "callback_post_preview": post_text[:2000] if post_text else "not attempted",
-                    },
-                }
-
-            # Build form data preserving all pre-populated players
-            form_data: Dict[str, str] = {
-                "teecurr_id1": teecurr_id,
-                "id_hash": id_hash,
-                "hide": "0",
-                "notes": "",
-                "submitForm": "submit",
-                "slot_submit_action": "update",
-                "json_mode": "true",
-                "looking_for_players": "0",
-                "show_remove_orig": "true",
-                "remove_originator": "0",
-            }
-
-            for i in range(1, 6):
-                form_data[f"player{i}"] = fields.get(f"player{i}", "")
-                form_data[f"member_id{i}"] = fields.get(f"member_id{i}", "0")
-                form_data[f"user{i}"] = fields.get(f"user{i}", "")
-                form_data[f"player_type_a{i}"] = fields.get(f"player_type_a{i}", "")
-                form_data[f"guest_id{i}"] = fields.get(f"guest_id{i}", "0")
-                form_data[f"p9{i}"] = fields.get(f"p9{i}", "0")
-
-                # Set transport mode for populated players, preserve existing
-                existing_transport = fields.get(f"p{i}cw", "")
-                if form_data[f"player{i}"] and not existing_transport:
-                    form_data[f"p{i}cw"] = transport_mode
-                else:
-                    form_data[f"p{i}cw"] = existing_transport
 
             # Step 2: Submit the booking
             submit_resp = await client.post(
