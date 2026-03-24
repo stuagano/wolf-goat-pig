@@ -1,11 +1,4 @@
 services:
-  # PostgreSQL database (must be first for connection string to be available)
-  - type: pserv
-    name: wolf-goat-pig-db
-    env: postgresql
-    plan: free
-    region: oregon
-
   # Backend API service
   - type: web
     name: wolf-goat-pig-api
@@ -19,10 +12,7 @@ services:
     startCommand: python render-startup.py
     envVars:
       - key: DATABASE_URL
-        fromService:
-          name: wolf-goat-pig-db
-          type: pserv
-          property: connectionString
+        sync: false
       - key: ENVIRONMENT
         value: production
       - key: FRONTEND_URL
@@ -77,10 +67,6 @@ services:
         value: "75"
     healthCheckPath: /ready
     autoDeploy: true
-    disk:
-      name: wolf-goat-pig-api-disk
-      mountPath: /opt/render/project/src/data
-      sizeGB: 1
 
   # ForeTees booking microservice (Node.js + Playwright headless browser)
   - type: web
@@ -98,4 +84,3 @@ services:
         value: "22"
     healthCheckPath: /health
     autoDeploy: true
-
