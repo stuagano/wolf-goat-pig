@@ -157,6 +157,21 @@ const BookingModal = ({ isOpen, onClose, onConfirm, slot, loading }) => {
             {loading ? 'Booking...' : 'Confirm Booking'}
           </button>
         </div>
+
+        {loading && (
+          <div style={{
+            marginTop: 12,
+            padding: 10,
+            background: '#eff6ff',
+            border: '1px solid #bfdbfe',
+            borderRadius: 8,
+            fontSize: 13,
+            color: '#1e40af',
+            textAlign: 'center',
+          }}>
+            This may take 30-60 seconds while the booking service processes your request.
+          </div>
+        )}
       </div>
     </>
   );
