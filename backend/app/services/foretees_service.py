@@ -376,16 +376,33 @@ class ForeteesService:
                             if end_quote > 0:
                                 ftjson_value = resp_text[eq_idx + 2:end_quote]
 
+                # Parse the full ftjson to see its structure
+                ftjson_keys = {}
+                if ftjson_value:
+                    try:
+                        full_json = json.loads(html.unescape(ftjson_value))
+                        # Get keys and types at top level
+                        for k, v in full_json.items():
+                            if isinstance(v, dict):
+                                ftjson_keys[k] = f"dict({len(v)} keys: {list(v.keys())[:10]})"
+                            elif isinstance(v, list):
+                                ftjson_keys[k] = f"list({len(v)} items)"
+                                if v and isinstance(v[0], dict):
+                                    ftjson_keys[k] += f" first_keys={list(v[0].keys())[:8]}"
+                            elif isinstance(v, str) and len(v) > 50:
+                                ftjson_keys[k] = f"str({len(v)}): {v[:50]}..."
+                            else:
+                                ftjson_keys[k] = repr(v)
+                    except Exception as exc:
+                        ftjson_keys = {"_parse_error": str(exc)}
+
                 return {
                     "success": False,
                     "message": "Could not load booking form",
                     "debug": {
-                        "approach_a_content_type": content_type,
-                        "approach_a_bytes": len(resp_text),
                         "ftjson_found_at": ftjson_idx,
-                        "ftjson_section": ftjson_section[:2000],
                         "ftjson_value_len": len(ftjson_value),
-                        "ftjson_value_preview": ftjson_value[:3000],
+                        "ftjson_structure": ftjson_keys,
                         "parsed_fields": list(fields.keys()),
                         "field_values": {k: str(v)[:80] for k, v in fields.items()},
                     },
