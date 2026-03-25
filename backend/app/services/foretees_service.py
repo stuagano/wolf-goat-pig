@@ -402,6 +402,10 @@ class ForeteesService:
         if not await self._ensure_session():
             return {"success": False, "message": "Could not establish ForeTees session"}
 
+        if not self.config.username or not self.config.password:
+            logger.error("Cancel: no ForeTees credentials configured (username_set=%s)", bool(self.config.username))
+            return {"success": False, "message": "ForeTees credentials not configured — please add them in Account settings"}
+
         booking_url = os.getenv("BOOKING_SERVICE_URL", "http://localhost:3001")
         booking_secret = os.getenv("BOOKING_SERVICE_SECRET", "")
 
@@ -416,7 +420,8 @@ class ForeteesService:
             "time": slot_time,
         }
 
-        logger.info("Calling booking service: POST %s/cancel date=%s time=%s", booking_url, date, slot_time)
+        logger.info("Calling booking service: POST %s/cancel date=%s time=%s username_set=%s",
+                    booking_url, date, slot_time, bool(self.config.username))
         try:
             async with httpx.AsyncClient(timeout=120.0) as client:
                 # Wake up the booking service
@@ -454,6 +459,10 @@ class ForeteesService:
         Calls the separate Node.js booking service which uses Playwright
         to authenticate with ForeTees and submit the booking.
         """
+        if not self.config.username or not self.config.password:
+            logger.error("Book: no ForeTees credentials configured (username_set=%s)", bool(self.config.username))
+            return {"success": False, "message": "ForeTees credentials not configured — please add them in Account settings"}
+
         booking_url = os.getenv("BOOKING_SERVICE_URL", "http://localhost:3001")
         booking_secret = os.getenv("BOOKING_SERVICE_SECRET", "")
 
@@ -469,7 +478,8 @@ class ForeteesService:
             "transport_mode": transport_mode,
         }
 
-        logger.info("Calling booking service: POST %s/book date=%s time=%s", booking_url, date, slot_time)
+        logger.info("Calling booking service: POST %s/book date=%s time=%s username_set=%s",
+                    booking_url, date, slot_time, bool(self.config.username))
         try:
             async with httpx.AsyncClient(timeout=120.0) as booking_client:
                 # Wake up the booking service (Render free tier sleeps after inactivity)
