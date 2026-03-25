@@ -902,6 +902,7 @@ class ForeteesService:
                 "time": time_val,
                 "course": data.get("course", ""),
                 "type": data.get("type", ""),
+                "ttdata": data.get("ttdata", ""),
                 "raw": data,
             })
 
