@@ -180,15 +180,29 @@ async function book(args) {
 
 // ── Cancel ───────────────────────────────────────────────────
 async function cancel(args) {
-  const { username, password, date, time } = args;
-  if (!username || !password || !date || !time)
+  const { username, password, date, time, ttdata } = args;
+  if (!username || !password || (!ttdata && (!date || !time)))
     return { success: false, error: 'Missing required fields' };
 
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
   try {
     await loginAndSSO(page, username, password);
-    await navigateToSlot(page, date, time);
+
+    if (ttdata) {
+      // Navigate directly to the slot via ttdata — no need to browse by time
+      await page.goto(
+        `${FORETEES_BASE}/Member_slot?ttdata=${encodeURIComponent(ttdata)}`,
+        { waitUntil: 'networkidle' },
+      );
+      await page.waitForTimeout(2000);
+      const bodyText = await page.evaluate(() => document.body?.innerText || '');
+      if (!bodyText.includes('Cancel Reservation') && !bodyText.includes('cancel_request')) {
+        throw new Error('Cancel button not found — slot may not be booked or already cancelled');
+      }
+    } else {
+      await navigateToSlot(page, date, time);
+    }
 
     const respPromise = page
       .waitForResponse((r) => r.url().includes('Member_slot') && r.request().method() === 'POST', { timeout: 15000 })

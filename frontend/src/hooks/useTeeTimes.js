@@ -121,14 +121,14 @@ const useTeeTimes = () => {
     }
   }, [authFetch]);
 
-  const cancelTeeTime = useCallback(async (date, time) => {
+  const cancelTeeTime = useCallback(async (date, time, ttdata) => {
     setBookingLoading(true);
     setBookingError(null);
     try {
       const resp = await authFetch('/api/foretees/cancel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date, time }),
+        body: JSON.stringify({ date, time, ttdata }),
       });
       const json = await resp.json();
       if (!resp.ok) {

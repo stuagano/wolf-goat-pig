@@ -57,7 +57,8 @@ class BookTeeTimeRequest(BaseModel):
 
 class CancelTeeTimeRequest(BaseModel):
     date: str   # YYYY-MM-DD
-    time: str   # "12:00 PM"
+    time: str = ""  # "12:00 PM" — optional if ttdata is provided
+    ttdata: Optional[str] = None  # encrypted slot identifier (preferred)
 
 
 class ForeteesCredentials(BaseModel):
@@ -281,6 +282,7 @@ async def cancel_tee_time(
         result = await service.cancel_tee_time(
             date=request.date,
             slot_time=request.time,
+            ttdata=request.ttdata,
         )
     finally:
         if service is not get_foretees_service():

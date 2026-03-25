@@ -396,7 +396,7 @@ class ForeteesService:
         return {"success": False, "message": "Booking request failed"}
 
     async def cancel_tee_time(
-        self, date: str, slot_time: str,
+        self, date: str, slot_time: str, ttdata: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Cancel a tee time via the headless browser microservice."""
         if not await self._ensure_session():
@@ -418,10 +418,11 @@ class ForeteesService:
             "password": self.config.password,
             "date": date,
             "time": slot_time,
+            "ttdata": ttdata,
         }
 
-        logger.info("Calling booking service: POST %s/cancel date=%s time=%s username_set=%s",
-                    booking_url, date, slot_time, bool(self.config.username))
+        logger.info("Calling booking service: POST %s/cancel date=%s time=%s ttdata_set=%s username_set=%s",
+                    booking_url, date, slot_time, bool(ttdata), bool(self.config.username))
         try:
             async with httpx.AsyncClient(timeout=120.0) as client:
                 # Wake up the booking service

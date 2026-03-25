@@ -151,7 +151,7 @@ const ForeTeesTeeSheet = () => {
                 onClick={async () => {
                   if (!window.confirm(`Cancel your ${b.time} tee time on ${b.date}?`)) return;
                   setBookingResult(null);
-                  const result = await cancelTeeTime(b.date, b.time);
+                  const result = await cancelTeeTime(b.date, b.time, b.ttdata);
                   if (result?.success || result?.data?.success) {
                     setBookingResult({ type: 'success', message: result.message || 'Tee time cancelled' });
                     fetchTeeTimes(selectedDate);
