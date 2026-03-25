@@ -75,7 +75,7 @@ services:
     plan: free
     region: oregon
     rootDir: booking-service
-    buildCommand: npm install && PLAYWRIGHT_BROWSERS_PATH=/opt/render/project/src/booking-service/.playwright-browsers npx playwright install chromium chromium-headless-shell
+    buildCommand: npm install
     startCommand: node server.js
     envVars:
       - key: BOOKING_SERVICE_SECRET

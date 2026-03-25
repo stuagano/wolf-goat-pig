@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "postinstall": "echo 'Playwright browser install will run in build command'"
+    "postinstall": "PLAYWRIGHT_BROWSERS_PATH=/opt/render/project/src/booking-service/.playwright-browsers npx playwright install chromium-headless-shell"
   },
   "dependencies": {
     "playwright": "^1.58.2"
