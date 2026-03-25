@@ -195,11 +195,25 @@ async function cancel(args) {
         `${FORETEES_BASE}/Member_slot?ttdata=${encodeURIComponent(ttdata)}`,
         { waitUntil: 'networkidle' },
       );
-      await page.waitForTimeout(2000);
-      const bodyText = await page.evaluate(() => document.body?.innerText || '');
-      if (!bodyText.includes('Cancel Reservation') && !bodyText.includes('cancel_request')) {
-        throw new Error('Cancel button not found — slot may not be booked or already cancelled');
-      }
+      // Wait for cancel button, submit button, or error text to appear
+      await page.waitForFunction(
+        () =>
+          document.querySelector('a.cancel_request_button') ||
+          document.body?.innerText?.includes('Cancel Reservation') ||
+          document.body?.innerText?.includes('Submit') ||
+          document.body?.innerText?.includes('Error') ||
+          document.body?.innerText?.includes('not allowed'),
+        { timeout: 15000 },
+      ).catch(() => {});
+      await page.waitForTimeout(1000);
+
+      const pageInfo = await page.evaluate(() => ({
+        url: window.location.href,
+        title: document.title,
+        bodySnippet: (document.body?.innerText || '').slice(0, 400),
+        hasCancelBtn: !!document.querySelector('a.cancel_request_button'),
+      }));
+      console.log('[cancel] page info:', JSON.stringify(pageInfo));
     } else {
       await navigateToSlot(page, date, time);
     }
@@ -208,7 +222,22 @@ async function cancel(args) {
       .waitForResponse((r) => r.url().includes('Member_slot') && r.request().method() === 'POST', { timeout: 15000 })
       .catch(() => null);
 
-    await page.click('a.cancel_request_button');
+    // Try cancel button; fall back to text-based search
+    const clicked = await page.evaluate(() => {
+      const btn = document.querySelector('a.cancel_request_button');
+      if (btn) { btn.click(); return true; }
+      for (const el of document.querySelectorAll('a, button')) {
+        if ((el.textContent || '').toLowerCase().includes('cancel reservation')) {
+          el.click();
+          return true;
+        }
+      }
+      return false;
+    });
+    if (!clicked) {
+      const bodySnippet = await page.evaluate(() => (document.body?.innerText || '').slice(0, 600));
+      throw new Error(`Cancel button not found. Page content: ${bodySnippet}`);
+    }
 
     const resp = await respPromise;
     if (resp) {
