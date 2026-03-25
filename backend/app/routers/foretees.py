@@ -258,7 +258,7 @@ async def book_tee_time(
     for msg in result.get("messages", []):
         if msg and msg != result.get("title"):
             parts.append(msg)
-    error_msg = result.get("message") or ". ".join(parts) or "Booking failed"
+    error_msg = result.get("message") or result.get("error") or ". ".join(parts) or "Booking failed"
     raise ValueError(error_msg)
 
 
@@ -294,5 +294,5 @@ async def cancel_tee_time(
     for msg in result.get("messages", []):
         if msg and msg != result.get("title"):
             parts.append(msg)
-    error_msg = result.get("message") or ". ".join(parts) or "Cancellation failed"
+    error_msg = result.get("message") or result.get("error") or ". ".join(parts) or "Cancellation failed"
     raise ValueError(error_msg)

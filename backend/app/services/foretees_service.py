@@ -491,7 +491,13 @@ class ForeteesService:
                     logger.warning("Booking service returned non-JSON: %d %s %s", resp.status_code, ct, resp.text[:200])
                     return {"success": False, "message": f"Booking service unavailable (HTTP {resp.status_code}). Try again in 30 seconds."}
                 result = resp.json()
-                logger.info("Booking service result: success=%s, status=%d", result.get("success"), resp.status_code)
+                logger.info(
+                    "Booking service result: success=%s, status=%d, error=%s, messages=%s",
+                    result.get("success"),
+                    resp.status_code,
+                    result.get("error"),
+                    result.get("messages"),
+                )
                 return result
         except httpx.TimeoutException:
             logger.error("Booking service timed out")

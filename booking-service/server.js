@@ -16,6 +16,15 @@
  */
 
 const http = require('http');
+const path = require('path');
+
+// Ensure Playwright finds browsers installed into the project dir during build.
+// render.yaml installs to ./.playwright-browsers; set the env var before
+// requiring playwright so it doesn't fall back to ~/.cache/ms-playwright.
+if (!process.env.PLAYWRIGHT_BROWSERS_PATH) {
+  process.env.PLAYWRIGHT_BROWSERS_PATH = path.join(__dirname, '.playwright-browsers');
+}
+
 const { chromium } = require('playwright');
 
 const PORT = process.env.PORT || 3001;
