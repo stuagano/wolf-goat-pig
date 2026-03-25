@@ -872,6 +872,11 @@ class ForeteesService:
             except (json.JSONDecodeError, ValueError):
                 continue
 
+            # Log raw keys on first booking to discover time field name
+            if not bookings:
+                time_keys = {k: v for k, v in data.items() if "time" in k.lower() or "stime" in k.lower()}
+                logger.info("Booking raw time-related keys: %s | all keys: %s", time_keys, list(data.keys())[:20])
+
             # Extract date and time from the data
             ft_date = data.get("date", 0)
             if ft_date:
@@ -883,9 +888,17 @@ class ForeteesService:
             else:
                 formatted_date = ""
 
+            time_val = (
+                data.get("stime")
+                or data.get("time:0")
+                or data.get("time")
+                or data.get("tee_time")
+                or data.get("ft_time")
+                or ""
+            )
             bookings.append({
                 "date": formatted_date,
-                "time": data.get("stime", data.get("time:0", "")),
+                "time": time_val,
                 "course": data.get("course", ""),
                 "type": data.get("type", ""),
                 "raw": data,
