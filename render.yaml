@@ -75,7 +75,7 @@ services:
     plan: free
     region: oregon
     rootDir: booking-service
-    buildCommand: npm install && npx playwright install --with-deps chromium chromium-headless-shell
+    buildCommand: npm install && npx playwright install chromium chromium-headless-shell
     startCommand: node server.js
     envVars:
       - key: BOOKING_SERVICE_SECRET
