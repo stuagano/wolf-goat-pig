@@ -83,9 +83,13 @@ def _get_user_service(player: models.PlayerProfile):
     if player.foretees_username and player.foretees_password_encrypted:
         try:
             password = decrypt(player.foretees_password_encrypted)
+            logger.info("Using per-user ForeTees service for player %s (username=%s)", player.id, player.foretees_username)
             return create_user_foretees_service(player.foretees_username, password)
-        except Exception:
-            logger.warning("Failed to decrypt credentials for player %s, falling back to env", player.id)
+        except Exception as exc:
+            logger.warning("Failed to decrypt credentials for player %s (%s), falling back to env", player.id, exc)
+    else:
+        logger.warning("No per-user credentials for player %s (username_set=%s, password_set=%s) — using env singleton",
+                       player.id, bool(player.foretees_username), bool(player.foretees_password_encrypted))
 
     return get_foretees_service()
 
