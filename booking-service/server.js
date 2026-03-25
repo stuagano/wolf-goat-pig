@@ -237,14 +237,19 @@ const server = http.createServer(async (req, res) => {
 
   const path = req.url.split('?')[0];
   let result;
-  if (path === '/book') {
-    console.log(`[${new Date().toISOString()}] POST /book date=${args.date} time=${args.time}`);
-    result = await book(args);
-  } else if (path === '/cancel') {
-    console.log(`[${new Date().toISOString()}] POST /cancel date=${args.date} time=${args.time}`);
-    result = await cancel(args);
-  } else {
-    return sendJSON(404, { error: 'Not found' });
+  try {
+    if (path === '/book') {
+      console.log(`[${new Date().toISOString()}] POST /book date=${args.date} time=${args.time}`);
+      result = await book(args);
+    } else if (path === '/cancel') {
+      console.log(`[${new Date().toISOString()}] POST /cancel date=${args.date} time=${args.time}`);
+      result = await cancel(args);
+    } else {
+      return sendJSON(404, { error: 'Not found' });
+    }
+  } catch (err) {
+    console.error(`[${new Date().toISOString()}] Unhandled error:`, err.message);
+    result = { success: false, error: err.message };
   }
 
   console.log(`[${new Date().toISOString()}] Result: success=${result.success}`);
