@@ -12,7 +12,7 @@ const ForeTeesTeeSheet = () => {
   const {
     teeTimes, bookings, loading, error,
     fetchTeeTimes, fetchBookings,
-    bookTeeTime, cancelTeeTime, bookingLoading, bookingError, clearBookingError,
+    bookTeeTime, cancelTeeTime, bookingLoading, clearBookingError,
   } = useTeeTimes();
   const [selectedDate, setSelectedDate] = useState(formatDate(new Date()));
   const [bookingSlot, setBookingSlot] = useState(null);
