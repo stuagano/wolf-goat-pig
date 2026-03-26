@@ -190,30 +190,37 @@ async function cancel(args) {
     await loginAndSSO(page, username, password);
 
     if (ttdata) {
-      // Navigate directly to the slot via ttdata — no need to browse by time
-      await page.goto(
-        `${FORETEES_BASE}/Member_slot?ttdata=${encodeURIComponent(ttdata)}`,
-        { waitUntil: 'networkidle' },
-      );
-      // Wait for cancel button, submit button, or error text to appear
+      // Navigate to the member's booking list, find the booking by ttdata, click it
+      await page.goto(`${FORETEES_BASE}/Member_teelist_list`, { waitUntil: 'networkidle' });
+      await page.waitForTimeout(2000);
+
+      const found = await page.evaluate((targetTtdata) => {
+        for (const el of document.querySelectorAll('[data-ftjson]')) {
+          try {
+            const data = JSON.parse(el.getAttribute('data-ftjson'));
+            if (data.ttdata === targetTtdata) {
+              el.click();
+              return true;
+            }
+          } catch (e) {}
+        }
+        return false;
+      }, ttdata);
+
+      if (!found) {
+        const snippet = await page.evaluate(() => (document.body?.innerText || '').slice(0, 400));
+        throw new Error(`Booking not found in tee time list. Page: ${snippet}`);
+      }
+
+      // Wait for the slot detail page (cancel or booking form)
       await page.waitForFunction(
         () =>
           document.querySelector('a.cancel_request_button') ||
           document.body?.innerText?.includes('Cancel Reservation') ||
-          document.body?.innerText?.includes('Submit') ||
-          document.body?.innerText?.includes('Error') ||
-          document.body?.innerText?.includes('not allowed'),
+          document.body?.innerText?.includes('Submit'),
         { timeout: 15000 },
       ).catch(() => {});
       await page.waitForTimeout(1000);
-
-      const pageInfo = await page.evaluate(() => ({
-        url: window.location.href,
-        title: document.title,
-        bodySnippet: (document.body?.innerText || '').slice(0, 400),
-        hasCancelBtn: !!document.querySelector('a.cancel_request_button'),
-      }));
-      console.log('[cancel] page info:', JSON.stringify(pageInfo));
     } else {
       await navigateToSlot(page, date, time);
     }
