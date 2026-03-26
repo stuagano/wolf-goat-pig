@@ -17,6 +17,7 @@ const ForeTeesTeeSheet = () => {
   const [selectedDate, setSelectedDate] = useState(formatDate(new Date()));
   const [bookingSlot, setBookingSlot] = useState(null);
   const [bookingResult, setBookingResult] = useState(null);
+  const [cancellingTtdata, setCancellingTtdata] = useState(null);
 
   useEffect(() => {
     fetchTeeTimes(selectedDate);
@@ -82,6 +83,7 @@ const ForeTeesTeeSheet = () => {
 
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       {/* Booking Result Toast */}
       {bookingResult && (
         <div
@@ -147,36 +149,54 @@ const ForeTeesTeeSheet = () => {
               <span>{b.date}</span>
               <span style={{ fontWeight: 600 }}>{b.time}</span>
               <span style={{ color: '#6b7280', flex: 1 }}>{b.course}</span>
-              <button
-                onClick={async () => {
-                  if (!window.confirm(`Cancel your ${b.time} tee time on ${b.date}?`)) return;
-                  setBookingResult(null);
-                  const result = await cancelTeeTime(b.date, b.time, b.ttdata);
-                  if (result?.success || result?.data?.success) {
-                    setBookingResult({ type: 'success', message: result.message || 'Tee time cancelled' });
-                    fetchTeeTimes(selectedDate);
-                    fetchBookings();
-                  } else {
-                    setBookingResult({
-                      type: 'error',
-                      message: result?.detail || result?.message || 'Cancellation failed',
-                    });
-                  }
-                }}
-                disabled={bookingLoading}
-                style={{
-                  background: '#fee2e2',
-                  color: '#991b1b',
-                  border: '1px solid #fca5a5',
-                  borderRadius: 6,
-                  padding: '4px 10px',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: bookingLoading ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {bookingLoading ? '...' : 'Cancel'}
-              </button>
+              {cancellingTtdata === b.ttdata ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                  <span style={{ color: '#6b7280' }}>Cancelling… this takes ~30s</span>
+                  <span style={{
+                    display: 'inline-block',
+                    width: 14,
+                    height: 14,
+                    border: '2px solid #d1d5db',
+                    borderTopColor: '#991b1b',
+                    borderRadius: '50%',
+                    animation: 'spin 0.8s linear infinite',
+                  }} />
+                </div>
+              ) : (
+                <button
+                  onClick={async () => {
+                    if (!window.confirm(`Cancel your tee time on ${b.date}?`)) return;
+                    setBookingResult(null);
+                    setCancellingTtdata(b.ttdata);
+                    const result = await cancelTeeTime(b.date, b.time, b.ttdata);
+                    setCancellingTtdata(null);
+                    if (result?.success || result?.data?.success) {
+                      setBookingResult({ type: 'success', message: result?.data?.messages?.[1] || result.message || 'Tee time cancelled' });
+                      fetchTeeTimes(selectedDate);
+                      fetchBookings();
+                    } else {
+                      setBookingResult({
+                        type: 'error',
+                        message: result?.detail || result?.data?.error || result?.message || 'Cancellation failed',
+                      });
+                    }
+                  }}
+                  disabled={!!cancellingTtdata}
+                  style={{
+                    background: '#fee2e2',
+                    color: '#991b1b',
+                    border: '1px solid #fca5a5',
+                    borderRadius: 6,
+                    padding: '4px 10px',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: cancellingTtdata ? 'not-allowed' : 'pointer',
+                    opacity: cancellingTtdata ? 0.5 : 1,
+                  }}
+                >
+                  Cancel
+                </button>
+              )}
             </div>
           ))}
         </div>
