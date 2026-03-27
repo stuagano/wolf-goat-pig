@@ -79,14 +79,21 @@ class MatchmakingService:
         all_players_availability: List[Dict],
         min_overlap_hours: float = 2.0,
         preferred_days: Optional[List[int]] = None,
+        min_group_size: int = 2,
+        max_group_size: int = 4,
     ) -> List[Dict]:
         """
-        Find all possible 4-player groups with overlapping availability.
+        Find all possible golf groups with overlapping availability.
+
+        Tries groups from max_group_size down to min_group_size, so larger
+        groups (full foursomes) naturally score higher and appear first.
 
         Args:
             all_players_availability: List of all players with their availability
             min_overlap_hours: Minimum hours of overlap required (default 2 hours)
             preferred_days: List of preferred days of week (0=Monday, 6=Sunday)
+            min_group_size: Smallest group to consider (default 2)
+            max_group_size: Largest group to consider (default 4, standard foursome)
 
         Returns:
             List of match suggestions with player groups and available times
@@ -112,38 +119,36 @@ class MatchmakingService:
                             }
                         )
 
-        # Find 4-player combinations for each day
+        # Find groups of each size for each day (largest first for quality ordering)
         for day, available_players in players_by_day.items():
-            if len(available_players) < 4:
+            if len(available_players) < min_group_size:
                 continue
 
-            # Try all combinations of 4 players
-            for group in combinations(available_players, 4):
-                # Check if these 4 players have overlapping times
-                overlap = MatchmakingService.get_time_overlap(list(group))
+            for group_size in range(min(max_group_size, len(available_players)), min_group_size - 1, -1):
+                for group in combinations(available_players, group_size):
+                    overlap = MatchmakingService.get_time_overlap(list(group))
 
-                if overlap:
-                    start_time, end_time = overlap
-                    duration = MatchmakingService.calculate_overlap_duration(start_time, end_time)
+                    if overlap:
+                        start_time, end_time = overlap
+                        duration = MatchmakingService.calculate_overlap_duration(start_time, end_time)
 
-                    # Only include if overlap is sufficient
-                    if duration >= min_overlap_hours:
-                        matches.append(
-                            {
-                                "day_of_week": day,
-                                "players": list(group),
-                                "overlap_start": start_time.strftime("%I:%M %p"),
-                                "overlap_end": end_time.strftime("%I:%M %p"),
-                                "overlap_duration_hours": duration,
-                                "suggested_tee_time": MatchmakingService.suggest_tee_time(start_time, end_time),
-                                "match_quality": MatchmakingService.calculate_match_quality(list(group), duration),
-                            }
-                        )
+                        if duration >= min_overlap_hours:
+                            matches.append(
+                                {
+                                    "day_of_week": day,
+                                    "players": list(group),
+                                    "overlap_start": start_time.strftime("%I:%M %p"),
+                                    "overlap_end": end_time.strftime("%I:%M %p"),
+                                    "overlap_duration_hours": duration,
+                                    "suggested_tee_time": MatchmakingService.suggest_tee_time(start_time, end_time),
+                                    "match_quality": MatchmakingService.calculate_match_quality(list(group), duration),
+                                }
+                            )
 
         # Sort by match quality (best matches first)
         matches.sort(key=lambda x: x["match_quality"], reverse=True)
 
-        # Remove duplicate player groups (same 4 players on different days)
+        # Deduplicate: keep the best match per unique player set (across all days)
         unique_matches = []
         seen_groups = set()
 
@@ -179,8 +184,12 @@ class MatchmakingService:
         """
         score = 0.0
 
-        # Base score from overlap duration (more overlap = better)
-        score += min(duration / 4, 1.0) * 50  # Max 50 points for 4+ hour overlap
+        # Group size — full foursome is ideal
+        group_size = len(players)
+        score += group_size * 10  # 10 pts per player (foursome = 40, twosome = 20)
+
+        # Overlap duration (more overlap = better)
+        score += min(duration / 4, 1.0) * 30  # Max 30 points for 4+ hour overlap
 
         # Bonus for no time restrictions (all day availability)
         all_day_count = sum(1 for p in players if not p.get("available_from_time") and not p.get("available_to_time"))
@@ -256,12 +265,15 @@ Happy golfing! ⛳
         days_between_matches: int = 3,
     ) -> List[Dict]:
         """
-        Filter out matches that include players who were recently matched.
+        Filter out matches where the exact same group was recently suggested.
+
+        Only filters if the exact player set was matched recently, so individual
+        players can still appear in new group compositions.
 
         Args:
             matches: List of potential matches
             recent_match_history: List of recent matches with timestamps
-            days_between_matches: Minimum days between matches for same players
+            days_between_matches: Minimum days before re-suggesting identical group
 
         Returns:
             Filtered list of matches
@@ -269,8 +281,8 @@ Happy golfing! ⛳
         if not recent_match_history:
             return matches
 
-        # Get players who were recently matched
-        recently_matched = set()
+        # Collect exact player groups that were suggested within the cutoff window
+        recent_groups: set = set()
         cutoff_date = datetime.now() - timedelta(days=days_between_matches)
 
         for past_match in recent_match_history:
@@ -279,14 +291,14 @@ Happy golfing! ⛳
                 match_date = datetime.fromisoformat(match_date)
 
             if match_date is not None and match_date > cutoff_date:
-                for player in past_match.get("players", []):
-                    recently_matched.add(player["player_id"])
+                group_key = tuple(sorted(p["player_id"] for p in past_match.get("players", [])))
+                recent_groups.add(group_key)
 
-        # Filter out matches with recently matched players
+        # Only skip if the identical group was recently suggested
         filtered_matches = []
         for match in matches:
-            player_ids = {p["player_id"] for p in match["players"]}
-            if not player_ids.intersection(recently_matched):
+            group_key = tuple(sorted(p["player_id"] for p in match["players"]))
+            if group_key not in recent_groups:
                 filtered_matches.append(match)
 
         return filtered_matches

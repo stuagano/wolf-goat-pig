@@ -8272,8 +8272,10 @@ def get_match_suggestions(min_overlap_hours: float = 2.0, preferred_days: Option
 
         db = database.SessionLocal()
 
-        # Get all players' availability (reuse existing endpoint logic)
-        players_with_availability = db.query(models.PlayerProfile).all()
+        # Get all active players' availability
+        players_with_availability = db.query(models.PlayerProfile).filter(
+            models.PlayerProfile.is_active == 1
+        ).all()
 
         all_players_data = []
         for player in players_with_availability:
