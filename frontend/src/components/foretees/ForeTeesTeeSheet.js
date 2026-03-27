@@ -81,6 +81,19 @@ const ForeTeesTeeSheet = () => {
     year: 'numeric',
   });
 
+  // Detect same-day booking conflict
+  const bookingOnSelectedDate = bookings.find(b => b.date === selectedDate);
+
+  // Enrich bookings with open slot count from the tee sheet when dates match
+  const enrichedBookings = bookings.map(b => {
+    if (b.date !== selectedDate) return b;
+    // Find the slot in today's tee sheet that has the fewest players (likely the user's)
+    // We match by ttdata if it appears in the tee sheet, otherwise fall back to the first booked slot
+    const matchedSlot = teeTimes.find(s => s.ttdata === b.ttdata)
+      || teeTimes.find(s => s.open_slots < s.max_players && s.date === selectedDate);
+    return matchedSlot ? { ...b, openSlots: matchedSlot.open_slots, maxPlayers: matchedSlot.max_players, time: matchedSlot.time || b.time } : b;
+  });
+
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -133,7 +146,7 @@ const ForeTeesTeeSheet = () => {
           <h3 style={{ color: '#166534', margin: '0 0 12px', fontSize: 15, fontWeight: 700 }}>
             My Upcoming Tee Times
           </h3>
-          {bookings.map((b, i) => (
+          {enrichedBookings.map((b, i) => (
             <div
               key={i}
               style={{
@@ -141,14 +154,27 @@ const ForeTeesTeeSheet = () => {
                 alignItems: 'center',
                 gap: 12,
                 padding: '8px 0',
-                borderBottom: i < bookings.length - 1 ? '1px solid #dcfce7' : 'none',
+                borderBottom: i < enrichedBookings.length - 1 ? '1px solid #dcfce7' : 'none',
                 color: '#1f2937',
                 fontSize: 14,
               }}
             >
               <span>{b.date}</span>
-              <span style={{ fontWeight: 600 }}>{b.time}</span>
-              <span style={{ color: '#6b7280', flex: 1 }}>{b.course}</span>
+              <span style={{ fontWeight: 600 }}>{b.time || '—'}</span>
+              <span style={{ color: '#6b7280' }}>{b.course || 'Wingpoint'}</span>
+              {b.openSlots != null && (
+                <span style={{
+                  fontSize: 11,
+                  color: b.openSlots > 0 ? '#065f46' : '#6b7280',
+                  background: b.openSlots > 0 ? '#d1fae5' : '#f3f4f6',
+                  borderRadius: 4,
+                  padding: '1px 6px',
+                  flex: 1,
+                }}>
+                  {b.openSlots > 0 ? `${b.openSlots} open spot${b.openSlots > 1 ? 's' : ''} — others can join` : 'Full group'}
+                </span>
+              )}
+              {b.openSlots == null && <span style={{ flex: 1 }} />}
               {cancellingTtdata === b.ttdata ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
                   <span style={{ color: '#6b7280' }}>Cancelling… this takes ~30s</span>
@@ -263,6 +289,22 @@ const ForeTeesTeeSheet = () => {
         </button>
       </div>
 
+      {/* Same-day booking conflict banner */}
+      {bookingOnSelectedDate && (
+        <div style={{
+          padding: '10px 16px',
+          marginBottom: 12,
+          background: '#fffbeb',
+          border: '1px solid #fcd34d',
+          borderLeft: '4px solid #f59e0b',
+          borderRadius: 8,
+          fontSize: 13,
+          color: '#92400e',
+        }}>
+          <strong>You already have a tee time on this date.</strong> ForeTees allows one booking per day — you must cancel your existing reservation before booking another.
+        </div>
+      )}
+
       {/* Loading / Error */}
       {loading && (
         <div style={{ textAlign: 'center', padding: 40, color: '#6b7280' }}>
@@ -374,21 +416,24 @@ const ForeTeesTeeSheet = () => {
                     clearBookingError();
                     setBookingSlot(slot);
                   }}
+                  disabled={!!bookingOnSelectedDate}
+                  title={bookingOnSelectedDate ? 'You already have a tee time on this date' : ''}
                   style={{
                     display: 'block',
                     marginTop: 8,
                     padding: '6px 16px',
                     borderRadius: 8,
                     border: 'none',
-                    background: theme.colors.primary,
+                    background: bookingOnSelectedDate ? '#9ca3af' : theme.colors.primary,
                     color: '#fff',
                     fontSize: 13,
                     fontWeight: 600,
-                    cursor: 'pointer',
+                    cursor: bookingOnSelectedDate ? 'not-allowed' : 'pointer',
                     width: '100%',
+                    opacity: bookingOnSelectedDate ? 0.6 : 1,
                   }}
                 >
-                  Book
+                  {bookingOnSelectedDate ? 'Already booked' : 'Book'}
                 </button>
               </>
             ) : (
