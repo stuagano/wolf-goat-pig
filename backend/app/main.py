@@ -8362,12 +8362,12 @@ def admin_delete_all_matches(x_admin_email: str = Header(None)):  # type: ignore
     admin_emails = ["stuagano@gmail.com", "admin@wgp.com"]
     if not x_admin_email or x_admin_email not in admin_emails:
         raise HTTPException(status_code=403, detail="Admin access required")
-    db = SessionLocal()
+    db = database.SessionLocal()
     try:
-        deleted = db.query(models.MatchPlayer).delete()
+        deleted_players = db.query(models.MatchPlayer).delete()
         deleted_matches = db.query(models.MatchSuggestion).delete()
         db.commit()
-        return {"deleted_matches": deleted_matches, "deleted_players": deleted}
+        return {"deleted_matches": deleted_matches, "deleted_players": deleted_players}
     finally:
         db.close()
 
