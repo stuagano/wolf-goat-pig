@@ -495,7 +495,7 @@ class PlayerAvailabilityCreate(BaseModel):
     day_of_week: int  # 0-6
     available_from_time: Optional[str] = None
     available_to_time: Optional[str] = None
-    is_available: bool = True
+    is_available: int = 1  # 1=available, 0=not available
     notes: Optional[str] = None
 
     @field_validator("day_of_week")
@@ -509,7 +509,7 @@ class PlayerAvailabilityCreate(BaseModel):
 class PlayerAvailabilityUpdate(BaseModel):
     available_from_time: Optional[str] = None
     available_to_time: Optional[str] = None
-    is_available: Optional[bool] = None
+    is_available: Optional[int] = None  # 1=available, 0=not available
     notes: Optional[str] = None
 
 
