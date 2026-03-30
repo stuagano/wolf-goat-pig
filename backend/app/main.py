@@ -8418,10 +8418,10 @@ async def create_and_notify_matches():
                 # Send email to all players
                 try:
                     for recipient in notification["recipients"]:
-                        await email_service.send_email(  # type: ignore
+                        email_service._send_email(  # type: ignore
                             to_email=recipient,
                             subject=notification["subject"],
-                            body=notification["body"],
+                            html_body=notification["body"],
                         )
 
                     # Mark as sent
