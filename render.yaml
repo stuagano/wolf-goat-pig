@@ -50,7 +50,7 @@ services:
       - key: EMAIL_PROVIDER
         value: resend
       - key: FROM_EMAIL
-        value: stuagano@gmail.com
+        value: onboarding@resend.dev
       - key: FROM_NAME
         value: Wolf Goat Pig
       - key: RESEND_API_KEY
