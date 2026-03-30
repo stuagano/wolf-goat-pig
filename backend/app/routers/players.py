@@ -642,7 +642,7 @@ def set_player_availability(
     if existing:
         existing.available_from_time = availability.available_from_time  # type: ignore
         existing.available_to_time = availability.available_to_time  # type: ignore
-        existing.is_available = availability.is_available  # type: ignore
+        existing.is_available = int(availability.is_available)  # type: ignore
         existing.notes = availability.notes  # type: ignore
         existing.updated_at = now  # type: ignore
         db.commit()
@@ -656,7 +656,7 @@ def set_player_availability(
         day_of_week=availability.day_of_week,
         available_from_time=availability.available_from_time,
         available_to_time=availability.available_to_time,
-        is_available=availability.is_available,
+        is_available=int(availability.is_available),
         notes=availability.notes,
         created_at=now,
         updated_at=now,
