@@ -8356,6 +8356,22 @@ def get_match_suggestions(min_overlap_hours: float = 2.0, preferred_days: Option
         db.close()
 
 
+@app.delete("/admin/matches")
+def admin_delete_all_matches(x_admin_email: str = Header(None)):  # type: ignore
+    """Delete all match records (admin only, for testing)."""
+    admin_emails = ["stuagano@gmail.com", "admin@wgp.com"]
+    if not x_admin_email or x_admin_email not in admin_emails:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    db = SessionLocal()
+    try:
+        deleted = db.query(models.MatchPlayer).delete()
+        deleted_matches = db.query(models.MatchSuggestion).delete()
+        db.commit()
+        return {"deleted_matches": deleted_matches, "deleted_players": deleted}
+    finally:
+        db.close()
+
+
 @app.post("/matchmaking/create-and-notify")
 async def create_and_notify_matches():
     """
