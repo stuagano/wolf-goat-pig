@@ -32,8 +32,8 @@ class GHINService:
     def __init__(self, db: Session):
         self.db = db
         self.initialized = False
-        self.ghin_username = os.getenv("GHIN_USERNAME")
-        self.ghin_password = os.getenv("GHIN_PASSWORD")
+        self.ghin_username = os.getenv("GHIN_API_USER")
+        self.ghin_password = os.getenv("GHIN_API_PASS")
         self.jwt_token: Optional[str] = None  # Store JWT token
         self.GHIN_API_BASE_URL = "https://api2.ghin.com/api/v1"
 
@@ -274,7 +274,7 @@ class GHINService:
             raise ConnectionError("GHIN service is not initialized or available.")
 
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
-        url = f"{self.GHIN_API_BASE_URL}/golfer_search"
+        url = f"{self.GHIN_API_BASE_URL}/golfer_search.json"
 
         params: Dict[str, Union[str, int, float, bool, None]] = {
             "last_name": last_name,
@@ -488,7 +488,7 @@ class GHINService:
                 return await self._get_mock_handicap_data(ghin_id)
 
             headers = {"Authorization": f"Bearer {self.jwt_token}"}
-            url = f"{self.GHIN_API_BASE_URL}/golfers/{ghin_id}/handicap_index"
+            url = f"{self.GHIN_API_BASE_URL}/golfers/{ghin_id}/handicap_index.json"
 
             async with httpx.AsyncClient() as client:
                 response = await client.get(url, headers=headers, timeout=10.0)
@@ -533,7 +533,7 @@ class GHINService:
         logger.info(f"Fetching scores for GHIN ID {ghin_id} ({days_back} days)")
 
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
-        url = f"{self.GHIN_API_BASE_URL}/golfers/{ghin_id}/scores?days_back={days_back}"
+        url = f"{self.GHIN_API_BASE_URL}/golfers/{ghin_id}/scores.json?days_back={days_back}"
 
         async with httpx.AsyncClient() as client:
             response = await client.get(url, headers=headers)
