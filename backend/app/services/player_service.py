@@ -166,6 +166,9 @@ class PlayerService:
             if update_data.avatar_url is not None:
                 setattr(player, "avatar_url", update_data.avatar_url)
 
+            if update_data.email is not None:
+                setattr(player, "email", update_data.email)
+
             if update_data.preferences is not None:
                 setattr(player, "preferences", update_data.preferences)
 

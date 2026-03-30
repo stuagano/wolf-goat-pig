@@ -190,6 +190,7 @@ class PlayerProfileUpdate(BaseModel):
     legacy_name: Optional[str] = None  # Name in legacy tee sheet system
     handicap: Optional[float] = None
     avatar_url: Optional[str] = None
+    email: Optional[str] = None
     preferences: Optional[Dict[str, Any]] = None
     last_played: Optional[str] = None
 
