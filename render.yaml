@@ -47,6 +47,14 @@ services:
         value: "type"
       - key: LEGACY_SIGNUP_CANCEL_ACTION_VALUE
         value: "cancel"
+      - key: EMAIL_PROVIDER
+        value: resend
+      - key: FROM_EMAIL
+        value: stuagano@gmail.com
+      - key: FROM_NAME
+        value: Wolf Goat Pig
+      - key: RESEND_API_KEY
+        sync: false
       - key: BOOKING_SERVICE_URL
         value: "https://wolf-goat-pig-booking.onrender.com"
       - key: BOOKING_SERVICE_SECRET
