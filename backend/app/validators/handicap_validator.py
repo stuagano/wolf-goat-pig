@@ -100,37 +100,51 @@ class HandicapValidator:
         """
         return max(1, 10 - int(handicap))
 
-    @staticmethod
-    def calculate_net_handicaps(player_handicaps: Dict[str, float]) -> Dict[str, float]:
+    # Wing Point Black Tees defaults
+    WING_POINT_BLACKS_SLOPE = 124
+    WING_POINT_BLACKS_RATING = 70.3
+    WING_POINT_BLACKS_PAR = 71
+
+    @classmethod
+    def calculate_net_handicaps(
+        cls,
+        player_handicaps: Dict[str, float],
+        slope_rating: int = 124,
+        course_rating: float = 70.3,
+        par: int = 71,
+    ) -> Dict[str, float]:
         """
         Calculate net handicaps relative to the lowest handicap player.
 
-        In match play, strokes are given relative to the best player in the group,
-        not based on absolute course handicaps. This makes the game dynamic and fair.
-
-        Example:
-            Players with handicaps {5, 10, 15, 20}:
-            - Player with 5 (lowest) gets 0 net strokes
-            - Player with 10 gets 5 net strokes
-            - Player with 15 gets 10 net strokes
-            - Player with 20 gets 15 net strokes
+        Converts handicap index → course handicap using USGA formula before
+        computing differences. Defaults to Wing Point black tees.
 
         Args:
-            player_handicaps: Dictionary mapping player IDs to their course handicaps
+            player_handicaps: Dictionary mapping player IDs to their handicap index
+            slope_rating: Course slope rating (default: Wing Point blacks 124)
+            course_rating: Course rating (default: Wing Point blacks 70.3)
+            par: Course par (default: Wing Point 71)
 
         Returns:
-            Dictionary mapping player IDs to their net handicaps (relative to lowest)
+            Dictionary mapping player IDs to their net course handicaps (relative to lowest)
         """
         if not player_handicaps:
             return {}
 
-        # Find the lowest handicap in the group
-        lowest_handicap = min(player_handicaps.values())
+        # Convert handicap index → course handicap for each player
+        course_handicaps = {}
+        for player_id, handicap_index in player_handicaps.items():
+            course_handicaps[player_id] = float(
+                cls.calculate_course_handicap(handicap_index, slope_rating, course_rating, par, validate=False)
+            )
+
+        # Find the lowest course handicap in the group
+        lowest_course_handicap = min(course_handicaps.values())
 
         # Calculate net handicaps relative to the lowest
         net_handicaps = {}
-        for player_id, handicap in player_handicaps.items():
-            net_handicaps[player_id] = max(0.0, handicap - lowest_handicap)
+        for player_id, course_hc in course_handicaps.items():
+            net_handicaps[player_id] = max(0.0, course_hc - lowest_course_handicap)
 
         return net_handicaps
 

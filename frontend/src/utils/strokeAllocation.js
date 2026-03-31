@@ -8,6 +8,28 @@
  * duplicated across SimpleScorekeeper.jsx and Scorecard.jsx.
  */
 
+// Wing Point Black Tees course data
+const WING_POINT_BLACKS = {
+  rating: 70.3,
+  slope: 124,
+  par: 71,
+};
+
+/**
+ * Convert handicap index to course handicap using USGA formula.
+ * Formula: (HI × Slope / 113) + (Course Rating - Par)
+ *
+ * @param {number} handicapIndex - Player's handicap index (from GHIN)
+ * @param {object} courseData - { rating, slope, par } defaults to Wing Point blacks
+ * @returns {number} - Course handicap (rounded)
+ */
+export const calculateCourseHandicap = (handicapIndex, courseData = WING_POINT_BLACKS) => {
+  if (handicapIndex == null || handicapIndex <= 0) return 0;
+  const { rating, slope, par } = courseData;
+  const courseHandicap = (handicapIndex * slope / 113) + (rating - par);
+  return Math.round(courseHandicap);
+};
+
 /**
  * Calculate strokes received for a given hole based on net handicap and stroke index
  *
@@ -63,24 +85,26 @@ export const getStrokesForHole = (netHandicap, strokeIndex) => {
 };
 
 /**
- * Calculate net handicaps for all players relative to the lowest handicap player
+ * Calculate net handicaps for all players relative to the lowest handicap player.
+ * Converts handicap index → course handicap (USGA formula) before computing differences.
  *
- * @param {Array} players - Array of player objects with handicap property
- * @returns {Object} - Map of playerId to net handicap
+ * @param {Array} players - Array of player objects with handicap property (handicap index)
+ * @param {object} courseData - { rating, slope, par } defaults to Wing Point blacks
+ * @returns {Object} - Map of playerId to net course handicap
  */
-export const calculateNetHandicaps = (players) => {
+export const calculateNetHandicaps = (players, courseData = WING_POINT_BLACKS) => {
   if (!Array.isArray(players) || players.length === 0) return {};
 
-  const playerHandicaps = players.reduce((acc, player) => {
-    acc[player.id] = player.handicap || 0;
+  const courseHandicaps = players.reduce((acc, player) => {
+    acc[player.id] = calculateCourseHandicap(player.handicap || 0, courseData);
     return acc;
   }, {});
 
-  const lowestHandicap = Math.min(...Object.values(playerHandicaps));
+  const lowestCourseHandicap = Math.min(...Object.values(courseHandicaps));
 
   const netHandicaps = {};
-  Object.entries(playerHandicaps).forEach(([playerId, handicap]) => {
-    netHandicaps[playerId] = Math.max(0, handicap - lowestHandicap);
+  Object.entries(courseHandicaps).forEach(([playerId, courseHC]) => {
+    netHandicaps[playerId] = Math.max(0, courseHC - lowestCourseHandicap);
   });
 
   return netHandicaps;
@@ -156,6 +180,7 @@ export const formatStrokesDisplay = (strokes) => {
 };
 
 const strokeAllocation = {
+  calculateCourseHandicap,
   getStrokesForHole,
   calculateNetHandicaps,
   calculateStrokeAllocation,
