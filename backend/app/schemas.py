@@ -191,6 +191,7 @@ class PlayerProfileUpdate(BaseModel):
     handicap: Optional[float] = None
     avatar_url: Optional[str] = None
     email: Optional[str] = None
+    ghin_id: Optional[str] = None
     preferences: Optional[Dict[str, Any]] = None
     last_played: Optional[str] = None
 

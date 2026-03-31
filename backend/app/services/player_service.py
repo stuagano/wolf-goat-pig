@@ -169,6 +169,9 @@ class PlayerService:
             if update_data.email is not None:
                 setattr(player, "email", update_data.email)
 
+            if update_data.ghin_id is not None:
+                setattr(player, "ghin_id", update_data.ghin_id)
+
             if update_data.preferences is not None:
                 setattr(player, "preferences", update_data.preferences)
 
