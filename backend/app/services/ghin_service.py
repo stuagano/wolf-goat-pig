@@ -501,22 +501,38 @@ class GHINService:
                 return await self._get_mock_handicap_data(ghin_id)
 
             headers = {"Authorization": f"Bearer {self.jwt_token}"}
-            url = f"{self.GHIN_API_BASE_URL}/golfers/{ghin_id}.json"
+            url = f"{self.GHIN_API_BASE_URL}/golfers.json"
+            params = {
+                "golfer_id": ghin_id,
+                "status": "Active",
+                "from_ghin": "true",
+                "per_page": "25",
+                "page": "1",
+                "includeLowHandicapIndex": "true",
+                "source": "GHINcom",
+            }
 
             async with httpx.AsyncClient() as client:
-                response = await client.get(url, headers=headers, timeout=10.0)
+                response = await client.get(url, headers=headers, params=params, timeout=10.0)
                 response.raise_for_status()
                 data = response.json()
 
-                logger.info(f"Successfully fetched GHIN data for {ghin_id}: {data}")
-                # Handle nested golfer response structure from GHIN API
-                golfer = data.get("golfer", data)
-                handicap_index = golfer.get("handicap_index") or golfer.get("HiValue") or data.get("handicap_index", 18.0)
+                logger.info(f"Raw GHIN API response for {ghin_id}: {data}")
+
+                # Response is {"golfers": [...]} array format
+                golfers = data.get("golfers", [])
+                if not golfers:
+                    logger.warning(f"No golfer found in GHIN for ID {ghin_id}")
+                    return None
+
+                golfer = golfers[0]
+                handicap_index = golfer.get("handicap_index") or golfer.get("HiValue") or golfer.get("hi_value")
                 return {
                     "ghin_id": ghin_id,
                     "handicap_index": handicap_index,
-                    "name": golfer.get("display_name") or golfer.get("name", "Unknown"),
-                    "last_updated": golfer.get("last_revised_date") or golfer.get("revision_date"),
+                    "name": golfer.get("display_name") or f"{golfer.get('first_name', '')} {golfer.get('last_name', '')}".strip() or "Unknown",
+                    "last_updated": golfer.get("rev_date") or golfer.get("last_revised_date"),
+                    "low_handicap_index": golfer.get("low_hi"),
                     "status": "active",
                 }
 
