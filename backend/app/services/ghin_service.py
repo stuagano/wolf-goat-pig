@@ -135,8 +135,6 @@ class GHINService:
                     revision_reason=handicap_data.get("revision_reason"),
                     scores_used_count=handicap_data.get("scores_used_count"),
                     synced_at=datetime.now().isoformat(),
-                    created_at=datetime.now().isoformat(),
-                    updated_at=datetime.now().isoformat(),
                 )
 
                 self.db.add(handicap_history)
@@ -503,7 +501,7 @@ class GHINService:
                 return await self._get_mock_handicap_data(ghin_id)
 
             headers = {"Authorization": f"Bearer {self.jwt_token}"}
-            url = f"{self.GHIN_API_BASE_URL}/golfers/{ghin_id}/handicap_index.json"
+            url = f"{self.GHIN_API_BASE_URL}/golfers/{ghin_id}.json"
 
             async with httpx.AsyncClient() as client:
                 response = await client.get(url, headers=headers, timeout=10.0)
