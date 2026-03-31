@@ -46,6 +46,13 @@ class GHINService:
 
             GHIN_AUTH_URL = "https://api2.ghin.com/api/v1/golfer_login.json"
 
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Origin": "https://www.ghin.com",
+                "Referer": "https://www.ghin.com/",
+            }
             async with httpx.AsyncClient() as client:
                 auth_response = await client.post(
                     GHIN_AUTH_URL,
@@ -56,6 +63,7 @@ class GHINService:
                         },
                         "source": "GHINcom",
                     },
+                    headers=headers,
                 )
                 auth_response.raise_for_status()  # Raise an exception for HTTP errors
 
