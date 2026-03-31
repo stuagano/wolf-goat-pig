@@ -301,6 +301,8 @@ class GHINService:
         async with httpx.AsyncClient() as client:
             response = await client.get(url, headers=headers, params=params)
             response.raise_for_status()
+            if response.status_code == 204 or not response.content:
+                return {"golfers": [], "total": 0}
             return cast(Dict[str, Any], response.json())
 
     def get_player_ghin_data(self, player_id: int) -> Optional[Dict[str, Any]]:
