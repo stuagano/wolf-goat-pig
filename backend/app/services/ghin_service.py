@@ -65,7 +65,10 @@ class GHINService:
                     },
                     headers=headers,
                 )
-                auth_response.raise_for_status()  # Raise an exception for HTTP errors
+                if auth_response.status_code != 200:
+                    logger.error(f"GHIN login failed: {auth_response.status_code} - {auth_response.text}")
+                    return False
+                auth_response.raise_for_status()
 
                 auth_data = auth_response.json()
                 self.jwt_token = auth_data["golfer_user"]["golfer_user_token"]
