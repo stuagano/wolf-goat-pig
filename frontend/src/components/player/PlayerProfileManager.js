@@ -23,6 +23,7 @@ const PlayerProfileManager = ({ onProfileSelect, selectedProfile, showSelector =
         name: '',
         handicap: 18.0,
         avatar_url: '',
+        ghin_id: '',
         preferences: {
             ai_difficulty: 'medium',
             preferred_game_modes: ['wolf_goat_pig'],
@@ -117,6 +118,7 @@ const PlayerProfileManager = ({ onProfileSelect, selectedProfile, showSelector =
             name: profile.name,
             handicap: profile.handicap,
             avatar_url: profile.avatar_url || '',
+            ghin_id: profile.ghin_id || '',
             preferences: profile.preferences || formData.preferences
         });
         setShowCreateForm(true);
@@ -127,6 +129,7 @@ const PlayerProfileManager = ({ onProfileSelect, selectedProfile, showSelector =
             name: '',
             handicap: 18.0,
             avatar_url: '',
+            ghin_id: '',
             preferences: {
                 ai_difficulty: 'medium',
                 preferred_game_modes: ['wolf_goat_pig'],
@@ -242,19 +245,34 @@ const PlayerProfileManager = ({ onProfileSelect, selectedProfile, showSelector =
                             </div>
                         </div>
 
-                        {/* Avatar URL */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Avatar URL (optional)
-                            </label>
-                            <input
-                                type="url"
-                                value={formData.avatar_url}
-                                onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                placeholder="https://example.com/avatar.jpg"
-                                disabled={loading}
-                            />
+                        {/* Avatar URL and GHIN ID */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Avatar URL (optional)
+                                </label>
+                                <input
+                                    type="url"
+                                    value={formData.avatar_url}
+                                    onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    placeholder="https://example.com/avatar.jpg"
+                                    disabled={loading}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    GHIN ID (optional)
+                                </label>
+                                <input
+                                    type="text"
+                                    value={formData.ghin_id}
+                                    onChange={(e) => setFormData({ ...formData, ghin_id: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    placeholder="e.g. 11247165"
+                                    disabled={loading}
+                                />
+                            </div>
                         </div>
 
                         {/* Preferences Section */}
@@ -423,6 +441,7 @@ const PlayerProfileManager = ({ onProfileSelect, selectedProfile, showSelector =
                                     <th className="text-left py-2">Name</th>
                                     <th className="text-left py-2">Handicap</th>
                                     <th className="text-left py-2">Category</th>
+                                    <th className="text-left py-2">GHIN</th>
                                     <th className="text-left py-2">Last Played</th>
                                     <th className="text-left py-2">Actions</th>
                                 </tr>
@@ -452,6 +471,9 @@ const PlayerProfileManager = ({ onProfileSelect, selectedProfile, showSelector =
                                                 <span className={`font-medium ${handicapInfo.color}`}>
                                                     {handicapInfo.category}
                                                 </span>
+                                            </td>
+                                            <td className="py-3 text-gray-500 text-sm">
+                                                {profile?.ghin_id || '—'}
                                             </td>
                                             <td className="py-3 text-gray-600">
                                                 {formatDate(profile?.last_played)}

@@ -2,10 +2,35 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '../ui';
 import { useSheetSync } from '../../context';
 
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+
 const Leaderboard = () => {
   const { syncData: liveLeaderboardData, syncStatus, error: syncError, performLiveSync } = useSheetSync();
   const [leaderboard, setLeaderboard] = useState([]);
   const [selectedMetric, setSelectedMetric] = useState('overall');
+  const [handicapMap, setHandicapMap] = useState({});
+
+  // Fetch player handicap data
+  useEffect(() => {
+    const fetchHandicaps = async () => {
+      try {
+        const response = await fetch(`${API_URL}/players`);
+        if (response.ok) {
+          const players = await response.json();
+          const map = {};
+          players.forEach(p => {
+            if (!p.is_ai) {
+              map[p.name] = { handicap: p.handicap, ghin_id: p.ghin_id };
+            }
+          });
+          setHandicapMap(map);
+        }
+      } catch (err) {
+        // Handicap data is supplementary, don't block on failure
+      }
+    };
+    fetchHandicaps();
+  }, []);
 
   useEffect(() => {
     let sortedData = [...liveLeaderboardData];
@@ -119,6 +144,9 @@ const Leaderboard = () => {
                       Player
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Handicap
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Score
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -188,9 +216,26 @@ const Leaderboard = () => {
                           </div>
                         </div>
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {(() => {
+                          const playerName = player.player_name || player.name;
+                          const hData = handicapMap[playerName];
+                          if (hData && hData.handicap != null) {
+                            return (
+                              <div>
+                                <span className="font-medium">{hData.handicap}</span>
+                                {hData.ghin_id && (
+                                  <div className="text-xs text-gray-400">GHIN</div>
+                                )}
+                              </div>
+                            );
+                          }
+                          return '—';
+                        })()}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          {player.total_earnings ? `${player.total_earnings} quarters` : 
+                          {player.total_earnings ? `${player.total_earnings} quarters` :
                            player.score || player.total_points || player.value || 'N/A'}
                         </div>
                       </td>
