@@ -226,6 +226,7 @@ class PlayerProfileResponse(PlayerProfileBase):
     last_played: Optional[str] = None
     is_active: bool = True
     is_ai: bool = False
+    ghin_id: Optional[str] = None
     playing_style: Optional[str] = None
     description: Optional[str] = None
 
