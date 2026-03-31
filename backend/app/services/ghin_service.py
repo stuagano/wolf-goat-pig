@@ -510,12 +510,15 @@ class GHINService:
                 response.raise_for_status()
                 data = response.json()
 
-                logger.info(f"Successfully fetched GHIN data for {ghin_id}")
+                logger.info(f"Successfully fetched GHIN data for {ghin_id}: {data}")
+                # Handle nested golfer response structure from GHIN API
+                golfer = data.get("golfer", data)
+                handicap_index = golfer.get("handicap_index") or golfer.get("HiValue") or data.get("handicap_index", 18.0)
                 return {
                     "ghin_id": ghin_id,
-                    "handicap": data.get("handicap_index", 18.0),
-                    "name": data.get("name", "Unknown"),
-                    "last_updated": data.get("last_revised_date"),
+                    "handicap_index": handicap_index,
+                    "name": golfer.get("display_name") or golfer.get("name", "Unknown"),
+                    "last_updated": golfer.get("last_revised_date") or golfer.get("revision_date"),
                     "status": "active",
                 }
 
