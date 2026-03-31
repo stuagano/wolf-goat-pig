@@ -492,7 +492,7 @@ class GHINService:
 
         try:
             # Use environment-based GHIN integration
-            if not os.getenv("ENABLE_GHIN_INTEGRATION", "false").lower() == "true":
+            if not (os.getenv("ENABLE_GHIN_INTEGRATION") or "false").lower() == "true":
                 logger.info("GHIN integration disabled, using mock data")
                 return await self._get_mock_handicap_data(ghin_id)
 
