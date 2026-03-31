@@ -54,7 +54,7 @@ class GHINService:
                 "Referer": "https://www.ghin.com/",
             }
             async with httpx.AsyncClient() as client:
-                static_token = os.getenv("GHIN_API_STATIC_TOKEN", "ghincom")
+                static_token = os.getenv("GHIN_API_STATIC_TOKEN") or "ghincom"
                 auth_response = await client.post(
                     GHIN_AUTH_URL,
                     json={
