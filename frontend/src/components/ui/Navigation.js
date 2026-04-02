@@ -36,6 +36,7 @@ const Navigation = () => {
   const moreItems = [
     { path: '/games/active', label: 'Active Games', icon: '🎮' },
     { path: '/games/completed', label: 'Game History', icon: '🏆' },
+    { path: '/badges', label: 'Badges', icon: '🏅' },
     { path: '/leaderboard', label: 'Leaderboard', icon: '📊' },
     { path: '/tutorial', label: 'Tutorial', icon: '🎓' },
     { path: '/rules', label: 'Rules', icon: '📋' },
@@ -52,6 +53,7 @@ const Navigation = () => {
     { path: '/game', label: '⚔️ Game', primary: true },
     { path: '/games/active', label: '🎮 Active', primary: true },
     { path: '/games/completed', label: '🏆 History', primary: false },
+    { path: '/badges', label: '🏅 Badges', primary: false },
     { path: '/leaderboard', label: '📊 Leaderboard', primary: false },
     { path: '/tutorial', label: '🎓 Tutorial', primary: false },
     { path: '/about', label: 'ℹ️ About', primary: false },

@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from .badge_engine import BadgeEngine
 from .database import get_db
-from .models import Badge, BadgeProgress, BadgeSeries, PlayerBadgeEarned, PlayerProfile, PlayerSeriesProgress
+from .models import Badge, BadgeProgress, BadgeSeries, GamePlayerResult, PlayerBadgeEarned, PlayerProfile, PlayerSeriesProgress
 
 router = APIRouter(prefix="/api/badges", tags=["badges"])
 
@@ -366,24 +366,49 @@ def get_top_collectors(limit: int = 50, db: Session = Depends(get_db)) -> List[D
 
 
 @router.post("/admin/check-achievements/{player_id}")
-def manually_check_achievements(player_id: int, game_record_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
+def manually_check_achievements(
+    player_id: int, game_record_id: Optional[int] = None, db: Session = Depends(get_db)
+) -> Dict[str, Any]:
     """
-    Manually trigger badge achievement check for a player/game.
-    Useful for testing or retroactive badge awards.
+    Trigger badge achievement check for a player.
+    If game_record_id is not provided, uses the player's most recent game.
     """
+    # If no game_record_id provided, find the most recent game for this player
+    if game_record_id is None:
+        latest_result = (
+            db.query(GamePlayerResult)
+            .filter(GamePlayerResult.player_profile_id == player_id)
+            .order_by(GamePlayerResult.id.desc())
+            .first()
+        )
+        if latest_result:
+            game_record_id = latest_result.game_record_id
+
+    if game_record_id is None:
+        return {
+            "message": "No game records found for player",
+            "badges_earned": [],
+        }
+
     engine = BadgeEngine(db)
     earned_badges = engine.check_post_game_achievements(game_record_id, player_id)
 
+    # Build response with badge names
+    badges_earned = []
+    for b in earned_badges:
+        badge = db.query(Badge).filter_by(id=b.badge_id).first()
+        badges_earned.append({
+            "badge_id": b.badge_id,
+            "name": badge.name if badge else "Unknown",
+            "rarity": badge.rarity if badge else "common",
+            "description": badge.description if badge else "",
+            "serial_number": b.serial_number,
+            "earned_at": b.earned_at,
+        })
+
     return {
-        "message": f"Found {len(earned_badges)} new badges",
-        "badges": [
-            {
-                "badge_id": b.badge_id,
-                "serial_number": b.serial_number,
-                "earned_at": b.earned_at,
-            }
-            for b in earned_badges
-        ],
+        "message": f"Found {len(badges_earned)} new badges",
+        "badges_earned": badges_earned,
     }
 
 
