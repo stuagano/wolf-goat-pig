@@ -70,7 +70,10 @@ The review screen has **two rows per player per hole**: the running total (what'
 - Side-by-side or toggle view of the original photo for reference
 
 ### 5. Save
-- On confirmation, scores are submitted through the existing `POST /games/{gameId}/quarters-only` endpoint
+
+**Each hole is saved as an independent event** — this matches the existing data model and preserves per-hole history. The running-total-to-delta conversion is purely an input/extraction concern; by the time data reaches the backend, it looks identical to manual entry.
+
+- Confirmed per-hole quarters are submitted through the existing `POST /games/{gameId}/quarters-only` endpoint
 - Payload format matches the existing `QuartersOnlyRequest`:
   ```json
   {
@@ -81,7 +84,9 @@ The review screen has **two rows per player per hole**: the running total (what'
     }
   }
   ```
-- Original photo stored for audit/reference
+- No new data model for scores — the photo scan is just an alternative input method that produces the same per-hole quarter records
+- Original photo stored for audit/reference (linked via `scorecard_scans` table)
+- The `scorecard_scans` table stores the raw extraction and photo, but the **source of truth for scores remains the existing per-hole game state**
 
 ---
 
@@ -210,6 +215,9 @@ Response:
 1. Claude Vision extracts raw running totals + circle detection from the image
 2. Backend converts running totals to per-hole deltas: `delta[n] = running_total[n] - running_total[n-1]` (with `running_total[0] = 0`)
 3. Both raw running totals and computed per-hole quarters are returned to the frontend
+4. On user confirmation, per-hole deltas are saved as **independent hole events** through the existing `quarters-only` endpoint — identical to manual entry. The running total is discarded; it was only needed as an intermediate step to derive per-hole values.
+
+**Important:** The photo/OCR pipeline introduces no new scoring data model. It is purely an input method that produces the same `hole_quarters` payload the app already handles. Per-hole independence and historical traceability are fully preserved.
 
 #### Claude Vision API Prompt Strategy
 
