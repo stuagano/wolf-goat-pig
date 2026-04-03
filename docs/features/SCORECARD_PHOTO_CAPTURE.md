@@ -2,9 +2,30 @@
 
 ## Overview
 
-Allow users to photograph a physical scorecard that has **quarters (wagering results) per hole per player** written on it, extract those values via OCR, then confirm/edit before saving to a game. This is the primary data being captured — not strokes.
+Allow users to photograph a physical scorecard that has **quarters (wagering results)** written on it, extract those values via OCR, then confirm/edit before saving to a game. This is the primary data being captured — not strokes.
 
-Golf groups typically track quarters won/lost per hole on the physical card during the round. This feature lets them snap a photo at the end instead of manually re-entering every value.
+### How Quarters Are Tracked on Physical Cards
+
+Players write **running totals** next to each hole — not per-hole values. This avoids mental math during the round. Additionally, **circled numbers mean negative** (quarters lost). There are no minus signs.
+
+Example for one player's row on the card:
+```
+Hole:   1    2    3    4    5    6    7  ...
+Card:   2    4   ③    1    3    5   ④  ...
+```
+Reading this:
+- Hole 1: running total = +2 → per-hole = **+2**
+- Hole 2: running total = +4 → per-hole = **+2**
+- Hole 3: running total = -3 (circled) → per-hole = **-7** (swing from +4 to -3)
+- Hole 4: running total = +1 → per-hole = **+4** (swing from -3 to +1)
+- Hole 5: running total = +3 → per-hole = **+2**
+- Hole 6: running total = +5 → per-hole = **+2**
+- Hole 7: running total = -4 (circled) → per-hole = **-9**
+
+The system must:
+1. **Detect circled numbers** as negative values
+2. **Recognize values as running totals**, not per-hole amounts
+3. **Compute per-hole deltas** by diffing consecutive running totals (hole 1 uses the value itself as the delta, assuming starting from 0)
 
 ---
 
@@ -28,19 +49,24 @@ Golf groups typically track quarters won/lost per hole on the physical card duri
 - Target processing time: < 5 seconds
 
 ### 4. Confirmation & Editing (Critical Step)
+
+The review screen has **two rows per player per hole**: the running total (what's on the card) and the computed per-hole delta (what gets saved).
+
 - Display extracted data in an editable review screen:
   - **Player names** — mapped to existing game players
-  - **Per-hole quarters** — 18 columns, one row per player, pre-filled with extracted values
-  - **Totals** — auto-calculated front 9, back 9, and 18-hole totals per player
-- **Zero-sum validation**: Each hole's quarters across all players must sum to zero. Highlight any hole that doesn't balance.
+  - **Running totals row** (editable) — shows what was extracted from the card, with circled values shown as negative with a visual circle indicator. **This is what users edit** because it matches what they see on the physical card.
+  - **Per-hole quarters row** (computed, read-only) — auto-calculated from running total diffs. Updates live as the user edits running totals.
+  - **Final total** — the last running total value should match the overall quarters result for each player
+- **Zero-sum validation**: Each hole's computed per-hole quarters across all players must sum to zero. Highlight any hole that doesn't balance.
 - Visual indicators:
   - **High-confidence values** shown normally
   - **Low-confidence values** highlighted (yellow/orange border) — user should double-check
   - **Unreadable values** left blank with a red border
-- Users can tap any cell to edit
+  - **Circled (negative) values** displayed with a circle indicator to match card notation
+- Users tap running total cells to edit — per-hole deltas recompute automatically
 - "Confirm Quarters" button is disabled until:
-  - All cells have values
-  - Every hole sums to zero across players
+  - All running total cells have values
+  - Every hole's per-hole deltas sum to zero across players
 - Side-by-side or toggle view of the original photo for reference
 
 ### 5. Save
@@ -85,23 +111,33 @@ Golf groups typically track quarters won/lost per hole on the physical card duri
     players: [
       { extractedName: "John", confidence: 0.95, mappedPlayerId: "player_abc" }
     ],
-    holes: {
-      // playerIndex → quarters per hole
+    // Raw running totals as extracted from the card
+    runningTotals: {
+      // playerIndex → running total per hole
       0: [
-        { hole: 1, quarters: 2, confidence: 0.92 },
-        { hole: 2, quarters: -1, confidence: 0.88 },
-        { hole: 3, quarters: null, confidence: 0.0 },  // unreadable
+        { hole: 1, runningTotal: 2, isCircled: false, confidence: 0.92 },
+        { hole: 2, runningTotal: 4, isCircled: false, confidence: 0.90 },
+        { hole: 3, runningTotal: 3, isCircled: true, confidence: 0.85 }, // circled = -3
+        ...
+      ]
+    },
+    // Computed per-hole deltas (what gets saved)
+    perHoleQuarters: {
+      0: [
+        { hole: 1, quarters: 2 },   // 0 → +2
+        { hole: 2, quarters: 2 },   // +2 → +4
+        { hole: 3, quarters: -7 },  // +4 → -3
         ...
       ]
     }
   },
   edits: {
-    // User overrides, keyed by "playerIndex-holeNumber"
+    // User overrides to running totals, keyed by "playerIndex-holeNumber"
+    // Editing a running total re-computes deltas for that hole AND the next
     "0-3": -2,
-    "1-3": 2,
   },
   validation: {
-    // Per-hole zero-sum check
+    // Per-hole zero-sum check (on computed deltas)
     holesBalanced: { 1: true, 2: true, 3: false, ... }
   }
 }
@@ -122,24 +158,47 @@ Response:
   "players": [
     { "name": "John", "confidence": 0.95 }
   ],
-  "holes": [
+  "running_totals": [
+    // Raw extraction: what was written on the card (running totals)
     {
       "player_index": 0,
       "hole_number": 1,
-      "quarters": 2,
+      "running_total": 2,       // plain "2" on card
+      "is_circled": false,       // not circled = positive
       "confidence": 0.92
     },
     {
-      "player_index": 1,
-      "hole_number": 1,
-      "quarters": -1,
-      "confidence": 0.88
+      "player_index": 0,
+      "hole_number": 2,
+      "running_total": 4,
+      "is_circled": false,
+      "confidence": 0.90
     },
     {
-      "player_index": 2,
+      "player_index": 0,
+      "hole_number": 3,
+      "running_total": -3,       // circled "3" on card → -3
+      "is_circled": true,
+      "confidence": 0.85
+    },
+    ...
+  ],
+  "per_hole_quarters": [
+    // Computed by backend: diff of consecutive running totals
+    {
+      "player_index": 0,
       "hole_number": 1,
-      "quarters": -1,
-      "confidence": 0.90
+      "quarters": 2              // 0 → 2 = +2
+    },
+    {
+      "player_index": 0,
+      "hole_number": 2,
+      "quarters": 2              // 2 → 4 = +2
+    },
+    {
+      "player_index": 0,
+      "hole_number": 3,
+      "quarters": -7             // 4 → -3 = -7
     },
     ...
   ],
@@ -147,19 +206,30 @@ Response:
 }
 ```
 
+**Backend processing pipeline:**
+1. Claude Vision extracts raw running totals + circle detection from the image
+2. Backend converts running totals to per-hole deltas: `delta[n] = running_total[n] - running_total[n-1]` (with `running_total[0] = 0`)
+3. Both raw running totals and computed per-hole quarters are returned to the frontend
+
 #### Claude Vision API Prompt Strategy
 
-The prompt should be tailored for quarters extraction:
+The prompt must account for running totals and circle notation:
 
-> _"This is a golf scorecard photo. The numbers written on it represent **quarters** — a wagering unit — won or lost by each player on each hole. Positive numbers mean quarters won, negative numbers mean quarters lost. Values are typically small integers or half-values (e.g., -2, 0, 1, 0.5, -0.5). Each hole's values across all players should sum to zero._
+> _"This is a golf scorecard photo. The numbers written on it represent a **running total of quarters** — a wagering unit — for each player across the round._
 >
-> _Extract: player names (from leftmost column or top row), and the quarters value for each player on each hole (1–18). Return structured JSON with confidence scores."_
+> _IMPORTANT conventions:_
+> - _**Circled numbers are NEGATIVE.** A circle drawn around a number means that value is negative (the player is down). An uncircled number is positive (the player is up)._
+> - _**Values are running totals, not per-hole amounts.** Each cell shows the player's cumulative quarter balance after that hole._
+> - _Values are typically small integers (range roughly -15 to +15 by end of round), sometimes half-values (0.5 increments)._
+>
+> _Extract: player names (from leftmost column or top row), and the **running total** for each player on each hole (1–18). Mark circled values as negative. Return structured JSON with confidence scores."_
 
 Key extraction hints for the model:
-- Values are small: typically -4 to +4, sometimes fractional (0.5 increments)
-- Negative values may be written with a minus sign, parentheses, or in a different color
-- Some cells may have circles, underlines, or other markings — focus on the number
-- The zero-sum constraint can help disambiguate ambiguous values
+- **Circles = negative**: This is the most critical visual cue. A `③` means -3, a plain `3` means +3.
+- Running totals generally move in small increments between holes (±1 to ±4 per hole is typical)
+- Large jumps between consecutive holes are possible but should get lower confidence
+- Empty/blank cells likely mean the player was at 0 (even) for that hole — or the hole wasn't played yet
+- Some cards may have a separate "total" or "out/in" column for front/back 9 — extract those too if present
 
 #### Image Storage
 - Upload original image to S3/Cloudflare R2
@@ -218,13 +288,16 @@ Each hole's quarters across all players **must** sum to zero. This is already en
 |---|---|
 | Blurry/dark photo | Show retake prompt with tips ("More light", "Hold steady") |
 | Only front 9 visible | Extract what's available, leave back 9 blank for manual entry |
-| Scorecard has strokes AND quarters columns | Vision prompt instructs to extract only the quarters columns |
-| Negative values written as parentheses e.g. `(2)` | Vision prompt covers common notations for negative numbers |
+| Scorecard has strokes AND quarters rows | Vision prompt instructs to identify and extract only the quarters/running total rows |
+| Circle detection ambiguity (smudge vs circle) | Flag as medium confidence; zero-sum check will likely catch errors |
 | Scorecard format varies by course | Vision LLM handles layout variation better than template-based OCR |
 | Player count mismatch (card has 4, game has 3) | PlayerMapper lets user select which rows to import |
 | Handwriting is truly illegible | Flag cells as low-confidence, user fills in manually |
-| Zero-sum doesn't balance after extraction | Highlight the offending holes, user manually corrects |
-| Carry-over / cumulative totals on card | Prompt instructs to extract per-hole values, not running totals |
+| Zero-sum doesn't balance after delta computation | Highlight the offending holes, user corrects the running total |
+| Running total has a gap (blank cell mid-round) | Interpolate if possible, otherwise flag for manual entry |
+| Player was at 0 (even) — cell might be blank or have "E" | Vision prompt covers common "even" notations; treat as 0 |
+| Running total resets at the turn (hole 10) | Vision prompt notes that some groups restart at 0 for the back 9; detect and handle by treating front/back as independent sequences |
+| Editing a running total cascades | Changing hole N's running total recomputes deltas for hole N and hole N+1 |
 
 ---
 
@@ -269,3 +342,5 @@ Each hole's quarters across all players **must** sum to zero. This is already en
 2. **Cost management** — Claude Vision calls have a per-image cost. Any concern at expected volume?
 3. **Multiple scorecards per round** — Some groups keep separate cards. Support merging?
 4. **Fractional quarters** — How common are 0.5 values? This affects what the extraction prompt emphasizes.
+5. **Back 9 reset** — Do your groups restart the running total at 0 on hole 10, or does it carry through all 18?
+6. **"Even" notation** — When a player is at 0, do people write "0", "E", leave it blank, or something else?
