@@ -58,13 +58,12 @@ jobs:
         pip install -r requirements-testing.txt
         pip install pytest-cov
     
-    - name: Run linting
+    - name: Run Ruff linting and format check
       run: |
         cd backend
-        pip install flake8 black isort
-        black --check app/ tests/
-        isort --check-only --profile black app/ tests/
-        flake8 app/ tests/
+        pip install ruff
+        ruff check app/ tests/
+        ruff format --check app/ tests/
     
     - name: Run type checking
       run: |
