@@ -1,0 +1,22 @@
+# CodeRabbit configuration
+# https://docs.coderabbit.ai/guides/configure-coderabbit
+language: en-US
+
+reviews:
+  auto_review:
+    enabled: true
+    drafts: false
+
+  tools:
+    ruff:
+      enabled: true
+
+    # Disable tools that Ruff replaces
+    pylint:
+      enabled: false
+    flake8:
+      enabled: false
+    isort:
+      enabled: false
+    black:
+      enabled: false
