@@ -17,6 +17,7 @@ import ShotAnalysisWidget from "./ShotAnalysisWidget";
 import BettingOddsPanel from "../betting/BettingOddsPanel";
 import CommissionerChat from "./CommissionerChat";
 import EditPlayerNameModal from "./EditPlayerNameModal";
+import ScorecardPhoto from "./ScorecardPhoto";
 import { triggerBadgeNotification } from "./BadgeNotification";
 import { SyncStatusBanner } from "../ui/SyncStatusIndicator";
 import { useHoleSync, useUIState, useBettingState } from "../../hooks";
@@ -378,6 +379,7 @@ const SimpleScorekeeper = ({
   const [courseData, setCourseData] = useState(null); // Course data with hole information
   const [editingOrder, setEditingOrder] = useState(false); // Track if user is editing hitting order
   const [expandedPlayers, setExpandedPlayers] = useState({ 0: true }); // Track which player cards are expanded (first player by default)
+  const [showScorecardPhoto, setShowScorecardPhoto] = useState(false); // Scorecard photo scan flow
 
   // Betting state (bettingHistory, pendingOffer, currentHoleBettingEvents) migrated to useBettingState hook
 
@@ -1696,6 +1698,26 @@ const SimpleScorekeeper = ({
             </button>
           </div>
         )}
+
+        {/* Scan Scorecard Photo button */}
+        <div style={{ marginTop: "8px", textAlign: "center" }}>
+          <button
+            onClick={() => setShowScorecardPhoto(true)}
+            className="touch-optimized"
+            style={{
+              padding: "8px 16px",
+              fontSize: "13px",
+              border: "1px solid #2196F3",
+              borderRadius: "8px",
+              background: "white",
+              color: "#2196F3",
+              cursor: "pointer",
+              fontWeight: "bold",
+            }}
+          >
+            📷 Scan Scorecard Photo
+          </button>
+        </div>
       </div>
 
       {/* Enhanced Hole Title Section - Combines hole info, hitting order, and strokes */}
@@ -3847,6 +3869,45 @@ const SimpleScorekeeper = ({
       </div>
 
       {/* Old scorecard removed - now showing golf-style scorecard at top */}
+
+      {/* Scorecard Photo Scan Overlay */}
+      {showScorecardPhoto && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.6)",
+            zIndex: 1000,
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "center",
+            overflowY: "auto",
+            padding: "16px",
+          }}
+        >
+          <div
+            style={{
+              background: "white",
+              borderRadius: "16px",
+              padding: "20px",
+              width: "100%",
+              maxWidth: "600px",
+              marginTop: "20px",
+            }}
+          >
+            <ScorecardPhoto
+              gameId={gameId}
+              players={players}
+              onSaved={(holeQuarters) => {
+                setShowScorecardPhoto(false);
+                // Reload the page so the saved quarters appear in the scorecard
+                window.location.reload();
+              }}
+              onCancel={() => setShowScorecardPhoto(false)}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Edit Player Name Modal */}
       {editingPlayerName && (
