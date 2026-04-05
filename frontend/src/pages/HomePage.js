@@ -81,6 +81,7 @@ function HomePage() {
   }, []);
   
   const menuItems = [
+    { icon: '📷', label: 'Scan Scorecard', path: '/scorecard-scan' },
     { icon: '📅', label: 'Mark Availability', path: '/signup' },
     { icon: '⚔️', label: 'Start Multiplayer Game', path: '/game' },
     { icon: '🔗', label: 'Join Game with Code', path: '/join' },
@@ -494,6 +495,33 @@ function HomePage() {
           gap: '16px',
           marginBottom: '30px'
         }}>
+          <button
+            onClick={() => navigate('/scorecard-scan')}
+            style={{
+              padding: '20px 16px',
+              background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.9), rgba(3, 105, 161, 0.95))',
+              color: 'white',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 4px 6px rgba(2, 132, 199, 0.3)',
+              textAlign: 'center',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 8px 15px rgba(2, 132, 199, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 6px rgba(2, 132, 199, 0.3)';
+            }}
+          >
+            <div style={{ fontSize: '1.8rem', marginBottom: '8px' }}>📷</div>
+            <div>Scan Scorecard</div>
+          </button>
           <button
             onClick={() => navigate('/game')}
             style={{
