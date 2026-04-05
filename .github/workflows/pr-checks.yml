@@ -67,17 +67,6 @@ jobs:
           chore
           revert
 
-  check-branch-protection:
-    runs-on: ubuntu-latest
-    if: github.base_ref == 'main'
-    
-    steps:
-    - name: Check if PR is from protected branch
-      run: |
-        if [[ "${{ github.head_ref }}" != "develop" && "${{ github.head_ref }}" != "hotfix/"* ]]; then
-          echo "::warning::Direct PRs to main should come from develop or hotfix branches"
-        fi
-
   auto-assign:
     runs-on: ubuntu-latest
     
@@ -86,32 +75,3 @@ jobs:
       with:
         configuration-path: ".github/auto-assign.yml"
 
-  documentation-check:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v5
-    
-    - name: Check for documentation updates
-      run: |
-        if git diff --name-only origin/${{ github.base_ref }}..HEAD | grep -E '\.(py|js|jsx|ts|tsx)$'; then
-          if ! git diff --name-only origin/${{ github.base_ref }}..HEAD | grep -E '\.(md)$'; then
-            echo "::warning::Code changes detected but no documentation updates found"
-          fi
-        fi
-
-  test-coverage-check:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v5
-    
-    - name: Download coverage reports
-      uses: actions/download-artifact@v5
-      with:
-        name: backend-test-results-3.11
-      continue-on-error: true
-    
-    - name: Check coverage threshold
-      run: |
-        echo "::notice::Ensure test coverage meets minimum threshold (80%)"
