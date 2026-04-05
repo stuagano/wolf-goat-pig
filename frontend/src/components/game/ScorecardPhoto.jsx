@@ -14,11 +14,23 @@ const API_URL = process.env.REACT_APP_API_URL || '';
  *   onSaved    — called with saved hole_quarters payload after successful save
  *   onCancel   — called to dismiss without saving
  */
+/** Build a blank extraction so ScorecardReview opens with all cells empty */
+const buildBlankExtraction = (players) => ({
+  players: players.map(p => ({ name: p.name, confidence: 1.0 })),
+  running_totals: [],
+  per_hole_quarters: [],
+});
+
 const ScorecardPhoto = ({ gameId, players, onSaved, onCancel }) => {
   // 'capture' | 'processing' | 'review' | 'saving' | 'error'
   const [stage, setStage] = useState('capture');
   const [extraction, setExtraction] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
+
+  const enterManually = () => {
+    setExtraction(buildBlankExtraction(players));
+    setStage('review');
+  };
 
   const handleCapture = async (file) => {
     setStage('processing');
@@ -78,6 +90,7 @@ const ScorecardPhoto = ({ gameId, players, onSaved, onCancel }) => {
       <ScorecardCapture
         onCapture={handleCapture}
         onCancel={onCancel}
+        onManualEntry={enterManually}
       />
     );
   }
@@ -125,6 +138,12 @@ const ScorecardPhoto = ({ gameId, players, onSaved, onCancel }) => {
             className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
           >
             Try Again
+          </button>
+          <button
+            onClick={enterManually}
+            className="flex-1 py-3 bg-gray-700 text-white rounded-xl font-semibold hover:bg-gray-800 transition-colors"
+          >
+            Enter Manually
           </button>
           <button
             onClick={onCancel}

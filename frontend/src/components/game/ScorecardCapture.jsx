@@ -4,7 +4,7 @@ import React, { useRef, useState } from 'react';
  * ScorecardCapture — camera input with preview and retake flow.
  * Uses <input type="file" capture="environment"> for mobile camera access.
  */
-const ScorecardCapture = ({ onCapture, onCancel }) => {
+const ScorecardCapture = ({ onCapture, onCancel, onManualEntry }) => {
   const inputRef = useRef(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [capturedFile, setCapturedFile] = useState(null);
@@ -61,9 +61,17 @@ const ScorecardCapture = ({ onCapture, onCancel }) => {
           >
             🖼 Choose from Library
           </label>
+          {onManualEntry && (
+            <button
+              onClick={onManualEntry}
+              className="text-sm text-blue-500 hover:text-blue-700 mt-1"
+            >
+              ✏️ Enter manually instead
+            </button>
+          )}
           <button
             onClick={onCancel}
-            className="text-sm text-gray-400 hover:text-gray-600 mt-2"
+            className="text-sm text-gray-400 hover:text-gray-600 mt-1"
           >
             Cancel
           </button>
