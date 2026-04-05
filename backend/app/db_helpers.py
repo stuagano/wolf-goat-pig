@@ -5,9 +5,9 @@ Provides utilities for proper database session lifecycle management in FastAPI.
 """
 
 import logging
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from functools import wraps
-from typing import Callable, Generator
 
 from sqlalchemy.orm import Session
 

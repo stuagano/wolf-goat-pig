@@ -14,7 +14,7 @@ import statistics
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from sqlalchemy import and_, desc, func
 from sqlalchemy.orm import Session
@@ -30,8 +30,8 @@ class TrendPoint:
 
     timestamp: str
     value: float
-    game_id: Optional[str] = None
-    context: Optional[Dict[str, Any]] = None
+    game_id: str | None = None
+    context: dict[str, Any] | None = None
 
 
 @dataclass
@@ -54,8 +54,8 @@ class InsightRecommendation:
     priority: str  # 'high', 'medium', 'low'
     title: str
     description: str
-    data_support: Dict[str, Any]
-    suggested_actions: List[str]
+    data_support: dict[str, Any]
+    suggested_actions: list[str]
 
 
 class StatisticsService:
@@ -64,7 +64,7 @@ class StatisticsService:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_advanced_player_metrics(self, player_id: int) -> Dict[str, PerformanceMetric]:
+    def get_advanced_player_metrics(self, player_id: int) -> dict[str, PerformanceMetric]:
         """Calculate advanced performance metrics for a player."""
         try:
             # Get player data
@@ -158,7 +158,7 @@ class StatisticsService:
             logger.error(f"Error calculating advanced metrics for player {player_id}: {e}")
             return {}
 
-    def get_performance_trends(self, player_id: int, days: int = 30) -> Dict[str, List[TrendPoint]]:
+    def get_performance_trends(self, player_id: int, days: int = 30) -> dict[str, list[TrendPoint]]:
         """Get performance trends over time."""
         try:
             cutoff_date = (datetime.now() - timedelta(days=days)).isoformat()
@@ -176,7 +176,7 @@ class StatisticsService:
                 .all()
             )
 
-            trends: Dict[str, List[TrendPoint]] = {
+            trends: dict[str, list[TrendPoint]] = {
                 "earnings": [],
                 "position": [],
                 "betting_success": [],
@@ -235,10 +235,10 @@ class StatisticsService:
             logger.error(f"Error getting performance trends for player {player_id}: {e}")
             return {}
 
-    def get_player_insights(self, player_id: int) -> List[InsightRecommendation]:
+    def get_player_insights(self, player_id: int) -> list[InsightRecommendation]:
         """Generate personalized insights and recommendations."""
         try:
-            insights: List[InsightRecommendation] = []
+            insights: list[InsightRecommendation] = []
 
             # Get player metrics
             metrics = self.get_advanced_player_metrics(player_id)
@@ -297,7 +297,7 @@ class StatisticsService:
                             category="partnership",
                             priority="medium",
                             title="Partnership Selection",
-                            description=f"Your partnerships succeed only {partnership_rate*100:.1f}% of the time.",
+                            description=f"Your partnerships succeed only {partnership_rate * 100:.1f}% of the time.",
                             data_support={
                                 "success_rate": partnership_rate,
                                 "partnerships_formed": player_stats.partnerships_formed,
@@ -359,7 +359,7 @@ class StatisticsService:
                         category="strategy",
                         priority="high",
                         title="Reduce Solo Play Risk",
-                        description=f"You go solo {solo_rate*100:.1f}% of the time but only win {solo_success*100:.1f}% of those attempts.",
+                        description=f"You go solo {solo_rate * 100:.1f}% of the time but only win {solo_success * 100:.1f}% of those attempts.",
                         data_support={
                             "solo_rate": solo_rate,
                             "solo_success": solo_success,
@@ -379,7 +379,7 @@ class StatisticsService:
             logger.error(f"Error generating insights for player {player_id}: {e}")
             return []
 
-    def get_comparative_leaderboard(self, metric: str = "total_earnings", limit: int = 100) -> List[Dict[str, Any]]:
+    def get_comparative_leaderboard(self, metric: str = "total_earnings", limit: int = 100) -> list[dict[str, Any]]:
         """Get comparative leaderboard for different metrics."""
         try:
             # Define available metrics and their queries
@@ -460,7 +460,7 @@ class StatisticsService:
             logger.error(f"Error generating leaderboard for metric {metric}: {e}")
             return []
 
-    def get_game_mode_analytics(self, player_id: Optional[int] = None) -> Dict[str, Any]:
+    def get_game_mode_analytics(self, player_id: int | None = None) -> dict[str, Any]:
         """Get analytics for different game modes and player counts."""
         try:
             base_query = self.db.query(GamePlayerResult).join(
@@ -473,7 +473,7 @@ class StatisticsService:
             results = base_query.all()
 
             # Group by game mode and player count
-            mode_analytics: Dict[str, Dict[str, Any]] = defaultdict(
+            mode_analytics: dict[str, dict[str, Any]] = defaultdict(
                 lambda: {
                     "games_played": 0,
                     "total_earnings": 0.0,
@@ -508,7 +508,7 @@ class StatisticsService:
             logger.error(f"Error getting game mode analytics: {e}")
             return {}
 
-    def calculate_skill_rating(self, player_id: int) -> Dict[str, float]:
+    def calculate_skill_rating(self, player_id: int) -> dict[str, float]:
         """Calculate skill ratings similar to ELO or Glicko systems."""
         try:
             player_stats = self.db.query(PlayerStatistics).filter(PlayerStatistics.player_id == player_id).first()
@@ -559,7 +559,7 @@ class StatisticsService:
             return {"overall": 1200.0, "confidence": 0.0}
 
     # Helper methods
-    def _calculate_percentile(self, value: float, values: List[float]) -> float:
+    def _calculate_percentile(self, value: float, values: list[float]) -> float:
         """Calculate percentile rank for a value."""
         if not values:
             return 50.0
@@ -591,10 +591,9 @@ class StatisticsService:
         # Lower position is better, so improving means decreasing average position
         if second_half_avg < first_half_avg - 0.3:
             return "improving"
-        elif second_half_avg > first_half_avg + 0.3:
+        if second_half_avg > first_half_avg + 0.3:
             return "declining"
-        else:
-            return "stable"
+        return "stable"
 
     def _analyze_earnings_trend(self, player_id: int) -> str:
         """Analyze earnings trend over recent games."""
@@ -618,10 +617,9 @@ class StatisticsService:
 
         if second_half_avg > first_half_avg * 1.15:
             return "improving"
-        elif second_half_avg < first_half_avg * 0.85:
+        if second_half_avg < first_half_avg * 0.85:
             return "declining"
-        else:
-            return "stable"
+        return "stable"
 
     def _calculate_consistency_score(self, player_id: int) -> float:
         """Calculate consistency score (0-100, higher is more consistent)."""
@@ -647,7 +645,7 @@ class StatisticsService:
 
         return float(min(100, consistency_score))
 
-    def _get_recent_position_variance(self, player_id: int) -> Dict[str, Any]:
+    def _get_recent_position_variance(self, player_id: int) -> dict[str, Any]:
         """Get variance in recent finishing positions."""
         recent_results = (
             self.db.query(GamePlayerResult.final_position)
@@ -675,7 +673,7 @@ class StatisticsService:
             "worst_position": max(positions),
         }
 
-    def get_head_to_head(self, player_id: int, opponent_id: int) -> Dict[str, Any]:
+    def get_head_to_head(self, player_id: int, opponent_id: int) -> dict[str, Any]:
         """Get head-to-head record between two players."""
         try:
             # Find games where both players participated
@@ -735,7 +733,7 @@ class StatisticsService:
             logger.error(f"Error getting head-to-head for players {player_id} vs {opponent_id}: {e}")
             return {"status": "error", "message": str(e)}
 
-    def get_all_head_to_head(self, player_id: int) -> Dict[str, Dict[str, Any]]:
+    def get_all_head_to_head(self, player_id: int) -> dict[str, dict[str, Any]]:
         """Get head-to-head records against all opponents."""
         try:
             # Get all games the player participated in
@@ -762,7 +760,7 @@ class StatisticsService:
             )
 
             # Group opponent results by player
-            opponents_data: Dict[int, Dict[str, Any]] = defaultdict(
+            opponents_data: dict[int, dict[str, Any]] = defaultdict(
                 lambda: {
                     "name": "",
                     "wins": 0,
@@ -811,7 +809,7 @@ class StatisticsService:
             logger.error(f"Error getting all head-to-head for player {player_id}: {e}")
             return {}
 
-    def get_streak_analysis(self, player_id: int) -> Dict[str, Any]:
+    def get_streak_analysis(self, player_id: int) -> dict[str, Any]:
         """Get detailed streak analysis for a player."""
         try:
             # Get recent game results ordered by date
@@ -874,7 +872,7 @@ class StatisticsService:
             logger.error(f"Error getting streak analysis for player {player_id}: {e}")
             return {"status": "error", "message": str(e)}
 
-    def _calculate_recent_form_string(self, results: List[GamePlayerResult]) -> str:
+    def _calculate_recent_form_string(self, results: list[GamePlayerResult]) -> str:
         """Generate a form string like 'WWLWL' for recent games."""
         form = ""
         for result in results:
@@ -888,7 +886,7 @@ class StatisticsService:
                 form += "L"
         return form
 
-    def get_special_event_analytics(self, player_id: int) -> Dict[str, Any]:
+    def get_special_event_analytics(self, player_id: int) -> dict[str, Any]:
         """Get analytics for special events (ping pong, invisible aardvark, etc.)."""
         try:
             stats = self.db.query(PlayerStatistics).filter(PlayerStatistics.player_id == player_id).first()
@@ -959,7 +957,7 @@ class StatisticsService:
             logger.error(f"Error getting special event analytics for player {player_id}: {e}")
             return {"status": "error", "message": str(e)}
 
-    def get_score_performance_analytics(self, player_id: int) -> Dict[str, Any]:
+    def get_score_performance_analytics(self, player_id: int) -> dict[str, Any]:
         """Get detailed score performance analytics."""
         try:
             stats = self.db.query(PlayerStatistics).filter(PlayerStatistics.player_id == player_id).first()

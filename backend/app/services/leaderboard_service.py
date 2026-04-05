@@ -20,7 +20,7 @@ Features:
 import logging
 import time
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from fastapi import HTTPException
 from sqlalchemy import Float, and_, case, cast, desc, func
@@ -42,10 +42,10 @@ class LeaderboardCache:
             ttl_seconds: Time-to-live for cache entries in seconds
         """
         self.ttl_seconds = ttl_seconds
-        self.cache: Dict[str, Tuple[float, List[Dict[str, Any]]]] = {}
+        self.cache: dict[str, tuple[float, list[dict[str, Any]]]] = {}
         self._last_cleanup = time.time()
 
-    def get(self, key: str) -> Optional[List[Dict[str, Any]]]:
+    def get(self, key: str) -> list[dict[str, Any]] | None:
         """
         Get cached data if not expired.
 
@@ -65,7 +65,7 @@ class LeaderboardCache:
 
         return data
 
-    def set(self, key: str, data: List[Dict[str, Any]]) -> None:
+    def set(self, key: str, data: list[dict[str, Any]]) -> None:
         """
         Store data in cache.
 
@@ -76,7 +76,7 @@ class LeaderboardCache:
         self.cache[key] = (time.time(), data)
         self._cleanup_if_needed()
 
-    def invalidate(self, pattern: Optional[str] = None) -> None:
+    def invalidate(self, pattern: str | None = None) -> None:
         """
         Invalidate cache entries.
 
@@ -139,7 +139,7 @@ class LeaderboardService:
 
     def get_leaderboard(
         self, leaderboard_type: str, db: Session, limit: int = 10, offset: int = 0
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get leaderboard by type.
 
@@ -184,9 +184,9 @@ class LeaderboardService:
             raise
         except Exception as e:
             logger.error(f"Error getting leaderboard '{leaderboard_type}': {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to retrieve leaderboard: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to retrieve leaderboard: {e!s}")
 
-    def get_player_rank(self, player_id: int, leaderboard_type: str, db: Session) -> Optional[Dict[str, Any]]:
+    def get_player_rank(self, player_id: int, leaderboard_type: str, db: Session) -> dict[str, Any] | None:
         """
         Get player's rank in a specific leaderboard.
 
@@ -225,9 +225,9 @@ class LeaderboardService:
             raise
         except Exception as e:
             logger.error(f"Error getting player {player_id} rank for '{leaderboard_type}': {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to retrieve player rank: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to retrieve player rank: {e!s}")
 
-    def get_all_leaderboards(self, db: Session, limit: int = 10) -> Dict[str, List[Dict[str, Any]]]:
+    def get_all_leaderboards(self, db: Session, limit: int = 10) -> dict[str, list[dict[str, Any]]]:
         """
         Get all leaderboards at once.
 
@@ -251,9 +251,9 @@ class LeaderboardService:
 
         except Exception as e:
             logger.error(f"Error getting all leaderboards: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to retrieve all leaderboards: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to retrieve all leaderboards: {e!s}")
 
-    def get_weekly_leaderboard(self, leaderboard_type: str, db: Session, limit: int = 10) -> List[Dict[str, Any]]:
+    def get_weekly_leaderboard(self, leaderboard_type: str, db: Session, limit: int = 10) -> list[dict[str, Any]]:
         """
         Get weekly leaderboard (last 7 days).
 
@@ -299,10 +299,10 @@ class LeaderboardService:
             logger.error(f"Error getting weekly leaderboard '{leaderboard_type}': {e}")
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to retrieve weekly leaderboard: {str(e)}",
+                detail=f"Failed to retrieve weekly leaderboard: {e!s}",
             )
 
-    def get_monthly_leaderboard(self, leaderboard_type: str, db: Session, limit: int = 10) -> List[Dict[str, Any]]:
+    def get_monthly_leaderboard(self, leaderboard_type: str, db: Session, limit: int = 10) -> list[dict[str, Any]]:
         """
         Get monthly leaderboard (last 30 days).
 
@@ -348,10 +348,10 @@ class LeaderboardService:
             logger.error(f"Error getting monthly leaderboard '{leaderboard_type}': {e}")
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to retrieve monthly leaderboard: {str(e)}",
+                detail=f"Failed to retrieve monthly leaderboard: {e!s}",
             )
 
-    def refresh_leaderboard_cache(self) -> Dict[str, Any]:
+    def refresh_leaderboard_cache(self) -> dict[str, Any]:
         """
         Refresh the leaderboard cache by clearing all cached data.
 
@@ -368,13 +368,13 @@ class LeaderboardService:
 
         except Exception as e:
             logger.error(f"Error refreshing leaderboard cache: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to refresh cache: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to refresh cache: {e!s}")
 
     # Private helper methods
 
     def _generate_leaderboard(
         self, leaderboard_type: str, db: Session, limit: int, offset: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Generate leaderboard data based on type.
 
@@ -411,7 +411,7 @@ class LeaderboardService:
         start_date: datetime,
         end_date: datetime,
         limit: int,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Generate time-filtered leaderboard data.
 
@@ -511,7 +511,7 @@ class LeaderboardService:
 
         return leaderboard
 
-    def _query_total_earnings(self, db: Session, limit: int, offset: int) -> List[Dict[str, Any]]:
+    def _query_total_earnings(self, db: Session, limit: int, offset: int) -> list[dict[str, Any]]:
         """Query total earnings leaderboard."""
         query = (
             db.query(PlayerProfile.id, PlayerProfile.name, PlayerStatistics.total_earnings)
@@ -543,7 +543,7 @@ class LeaderboardService:
 
         return leaderboard
 
-    def _query_win_rate(self, db: Session, limit: int, offset: int) -> List[Dict[str, Any]]:
+    def _query_win_rate(self, db: Session, limit: int, offset: int) -> list[dict[str, Any]]:
         """Query win rate leaderboard."""
         query = (
             db.query(
@@ -581,7 +581,7 @@ class LeaderboardService:
 
         return leaderboard
 
-    def _query_games_played(self, db: Session, limit: int, offset: int) -> List[Dict[str, Any]]:
+    def _query_games_played(self, db: Session, limit: int, offset: int) -> list[dict[str, Any]]:
         """Query games played leaderboard."""
         query = (
             db.query(PlayerProfile.id, PlayerProfile.name, PlayerStatistics.games_played)
@@ -613,7 +613,7 @@ class LeaderboardService:
 
         return leaderboard
 
-    def _query_average_score(self, db: Session, limit: int, offset: int) -> List[Dict[str, Any]]:
+    def _query_average_score(self, db: Session, limit: int, offset: int) -> list[dict[str, Any]]:
         """Query average score (position) leaderboard."""
         # Calculate average finishing position from game results
         query = (
@@ -647,7 +647,7 @@ class LeaderboardService:
 
         return leaderboard
 
-    def _query_partnerships_won(self, db: Session, limit: int, offset: int) -> List[Dict[str, Any]]:
+    def _query_partnerships_won(self, db: Session, limit: int, offset: int) -> list[dict[str, Any]]:
         """Query partnerships won leaderboard."""
         query = (
             db.query(PlayerProfile.id, PlayerProfile.name, PlayerStatistics.partnerships_won)
@@ -679,7 +679,7 @@ class LeaderboardService:
 
         return leaderboard
 
-    def _query_achievements_earned(self, db: Session, limit: int, offset: int) -> List[Dict[str, Any]]:
+    def _query_achievements_earned(self, db: Session, limit: int, offset: int) -> list[dict[str, Any]]:
         """Query achievements/badges earned leaderboard."""
         # Count both legacy achievements and new badges
         achievements_query = (
@@ -741,7 +741,7 @@ class LeaderboardService:
 
         return leaderboard
 
-    def _query_handicap_improvement(self, db: Session, limit: int, offset: int) -> List[Dict[str, Any]]:
+    def _query_handicap_improvement(self, db: Session, limit: int, offset: int) -> list[dict[str, Any]]:
         """Query handicap improvement leaderboard."""
         # Get players with GHIN handicap history to calculate improvement
         from ..models import GHINHandicapHistory
@@ -799,7 +799,7 @@ class LeaderboardService:
 # SINGLETON PATTERN
 # ====================================================================================
 
-_leaderboard_service_instance: Optional[LeaderboardService] = None
+_leaderboard_service_instance: LeaderboardService | None = None
 
 
 def get_leaderboard_service(db: Session) -> LeaderboardService:

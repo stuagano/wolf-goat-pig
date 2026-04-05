@@ -10,7 +10,7 @@ methods that encapsulate complex game logic.
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from ..validators import (
     BettingValidationError,
@@ -32,7 +32,7 @@ class PlayerAction:
     action_type: str
     description: str
     requires_input: bool = False
-    input_type: Optional[str] = None  # "player_id", "wager_amount", etc.
+    input_type: str | None = None  # "player_id", "wager_amount", etc.
 
 
 class RuleManager:
@@ -111,7 +111,7 @@ class RuleManager:
 
     # Partnership Rules
 
-    def can_form_partnership(self, captain_id: str, partner_id: str, game_state: Dict[str, Any]) -> bool:
+    def can_form_partnership(self, captain_id: str, partner_id: str, game_state: dict[str, Any]) -> bool:
         """
         Check if a partnership can be formed between captain and partner.
 
@@ -187,10 +187,10 @@ class RuleManager:
         except RuleViolationError:
             raise
         except Exception as e:
-            logger.error(f"Unexpected error in can_form_partnership: {str(e)}")
-            raise RuleViolationError(f"Partnership validation failed: {str(e)}", field="partnership")
+            logger.error(f"Unexpected error in can_form_partnership: {e!s}")
+            raise RuleViolationError(f"Partnership validation failed: {e!s}", field="partnership")
 
-    def can_go_lone_wolf(self, player_id: str, game_state: Dict[str, Any]) -> bool:
+    def can_go_lone_wolf(self, player_id: str, game_state: dict[str, Any]) -> bool:
         """
         Check if a player can go lone wolf (play solo against all others).
 
@@ -240,12 +240,12 @@ class RuleManager:
         except RuleViolationError:
             raise
         except Exception as e:
-            logger.error(f"Unexpected error in can_go_lone_wolf: {str(e)}")
-            raise RuleViolationError(f"Lone wolf validation failed: {str(e)}", field="lone_wolf")
+            logger.error(f"Unexpected error in can_go_lone_wolf: {e!s}")
+            raise RuleViolationError(f"Lone wolf validation failed: {e!s}", field="lone_wolf")
 
     def get_available_partners(
-        self, game_state: Dict[str, Any], captain_id: str, hole_number: int
-    ) -> List[Dict[str, Any]]:
+        self, game_state: dict[str, Any], captain_id: str, hole_number: int
+    ) -> list[dict[str, Any]]:
         """
         Get list of available partners for captain based on timing rules.
 
@@ -301,7 +301,7 @@ class RuleManager:
                     continue
 
                 # Check if player has hit their tee shot
-                if player_id in ball_positions and ball_positions[player_id]:
+                if ball_positions.get(player_id):
                     ball = ball_positions[player_id]
 
                     # Validate partnership is allowed with this player
@@ -325,10 +325,10 @@ class RuleManager:
             return available_partners
 
         except Exception as e:
-            logger.error(f"Error getting available partners: {str(e)}")
+            logger.error(f"Error getting available partners: {e!s}")
             return []
 
-    def are_partnerships_formed(self, game_state: Dict[str, Any], hole_number: int) -> bool:
+    def are_partnerships_formed(self, game_state: dict[str, Any], hole_number: int) -> bool:
         """
         Check if partnerships have been formed on the current hole.
 
@@ -369,10 +369,10 @@ class RuleManager:
             return partnerships_formed
 
         except Exception as e:
-            logger.error(f"Error checking partnerships formed: {str(e)}")
+            logger.error(f"Error checking partnerships formed: {e!s}")
             return False
 
-    def validate_can_double(self, player_id: str, game_state: Dict[str, Any]) -> None:
+    def validate_can_double(self, player_id: str, game_state: dict[str, Any]) -> None:
         """
         Validate player can double. Raises exception if not allowed.
 
@@ -402,7 +402,7 @@ class RuleManager:
 
     # Betting Rules
 
-    def can_double(self, player_id: str, game_state: Dict[str, Any]) -> bool:
+    def can_double(self, player_id: str, game_state: dict[str, Any]) -> bool:
         """
         Check if a player can double the wager.
 
@@ -461,10 +461,10 @@ class RuleManager:
         except RuleViolationError:
             raise
         except Exception as e:
-            logger.error(f"Unexpected error in can_double: {str(e)}")
-            raise RuleViolationError(f"Double validation failed: {str(e)}", field="double")
+            logger.error(f"Unexpected error in can_double: {e!s}")
+            raise RuleViolationError(f"Double validation failed: {e!s}", field="double")
 
-    def can_redouble(self, player_id: str, game_state: Dict[str, Any]) -> bool:
+    def can_redouble(self, player_id: str, game_state: dict[str, Any]) -> bool:
         """
         Check if a player can redouble the wager.
 
@@ -518,10 +518,10 @@ class RuleManager:
         except RuleViolationError:
             raise
         except Exception as e:
-            logger.error(f"Unexpected error in can_redouble: {str(e)}")
-            raise RuleViolationError(f"Redouble validation failed: {str(e)}", field="redouble")
+            logger.error(f"Unexpected error in can_redouble: {e!s}")
+            raise RuleViolationError(f"Redouble validation failed: {e!s}", field="redouble")
 
-    def can_duncan(self, player_id: str, game_state: Dict[str, Any]) -> bool:
+    def can_duncan(self, player_id: str, game_state: dict[str, Any]) -> bool:
         """
         Check if The Duncan special rule can be invoked.
 
@@ -572,12 +572,12 @@ class RuleManager:
         except RuleViolationError:
             raise
         except Exception as e:
-            logger.error(f"Unexpected error in can_duncan: {str(e)}")
-            raise RuleViolationError(f"Duncan validation failed: {str(e)}", field="duncan")
+            logger.error(f"Unexpected error in can_duncan: {e!s}")
+            raise RuleViolationError(f"Duncan validation failed: {e!s}", field="duncan")
 
     # Turn Order Rules
 
-    def validate_player_turn(self, player_id: str, game_state: Dict[str, Any]) -> bool:
+    def validate_player_turn(self, player_id: str, game_state: dict[str, Any]) -> bool:
         """
         Validate that it is the specified player's turn.
 
@@ -620,10 +620,10 @@ class RuleManager:
         except RuleViolationError:
             raise
         except Exception as e:
-            logger.error(f"Unexpected error in validate_player_turn: {str(e)}")
-            raise RuleViolationError(f"Turn validation failed: {str(e)}", field="turn_order")
+            logger.error(f"Unexpected error in validate_player_turn: {e!s}")
+            raise RuleViolationError(f"Turn validation failed: {e!s}", field="turn_order")
 
-    def validate_betting_action(self, player_id: str, action_type: str, game_state: Dict[str, Any]) -> bool:
+    def validate_betting_action(self, player_id: str, action_type: str, game_state: dict[str, Any]) -> bool:
         """
         Validate a betting action is allowed.
 
@@ -646,11 +646,11 @@ class RuleManager:
 
             if action_type == "double":
                 return self.can_double(player_id, game_state)
-            elif action_type == "redouble":
+            if action_type == "redouble":
                 return self.can_redouble(player_id, game_state)
-            elif action_type == "duncan":
+            if action_type == "duncan":
                 return self.can_duncan(player_id, game_state)
-            elif action_type == "carry_over":
+            if action_type == "carry_over":
                 hole_state = self._get_current_hole_state(game_state)
                 hole_number = hole_state.get("hole_number", 1)
 
@@ -663,22 +663,21 @@ class RuleManager:
                         details={"hole_number": hole_number},
                     )
                 return True
-            else:
-                raise RuleViolationError(
-                    f"Unknown betting action: {action_type}",
-                    field="action_type",
-                    details={"action_type": action_type},
-                )
+            raise RuleViolationError(
+                f"Unknown betting action: {action_type}",
+                field="action_type",
+                details={"action_type": action_type},
+            )
 
         except RuleViolationError:
             raise
         except Exception as e:
-            logger.error(f"Unexpected error in validate_betting_action: {str(e)}")
-            raise RuleViolationError(f"Betting action validation failed: {str(e)}", field="betting_action")
+            logger.error(f"Unexpected error in validate_betting_action: {e!s}")
+            raise RuleViolationError(f"Betting action validation failed: {e!s}", field="betting_action")
 
     # Action Discovery
 
-    def get_valid_actions(self, player_id: str, game_state: Dict[str, Any]) -> List[str]:
+    def get_valid_actions(self, player_id: str, game_state: dict[str, Any]) -> list[str]:
         """
         Get list of valid actions for a player in current game state.
 
@@ -698,7 +697,7 @@ class RuleManager:
             >>> print(actions)
             ['hit_shot', 'double', 'go_lone_wolf']
         """
-        valid_actions: List[str] = []
+        valid_actions: list[str] = []
 
         try:
             hole_state = self._get_current_hole_state(game_state)
@@ -765,12 +764,12 @@ class RuleManager:
             return valid_actions
 
         except Exception as e:
-            logger.error(f"Error getting valid actions: {str(e)}")
+            logger.error(f"Error getting valid actions: {e!s}")
             return []
 
     # Scoring Rules
 
-    def calculate_hole_winner(self, hole_results: Dict[str, int]) -> Optional[str]:
+    def calculate_hole_winner(self, hole_results: dict[str, int]) -> str | None:
         """
         Determine the winner of a hole based on net scores.
 
@@ -812,15 +811,15 @@ class RuleManager:
             return winner
 
         except Exception as e:
-            logger.error(f"Error calculating hole winner: {str(e)}")
+            logger.error(f"Error calculating hole winner: {e!s}")
             return None
 
     def apply_handicap_strokes(
         self,
         hole_number: int,
-        player_handicaps: Dict[str, float],
+        player_handicaps: dict[str, float],
         hole_stroke_index: int,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Calculate handicap strokes for each player on a specific hole.
 
@@ -854,7 +853,7 @@ class RuleManager:
             # Calculate net handicaps relative to lowest handicap player
             net_handicaps = HandicapValidator.calculate_net_handicaps(player_handicaps)
 
-            strokes_by_player: Dict[str, float] = {}
+            strokes_by_player: dict[str, float] = {}
 
             for player_id, original_handicap in player_handicaps.items():
                 try:
@@ -893,15 +892,15 @@ class RuleManager:
         except RuleViolationError:
             raise
         except Exception as e:
-            logger.error(f"Unexpected error in apply_handicap_strokes: {str(e)}")
+            logger.error(f"Unexpected error in apply_handicap_strokes: {e!s}")
             raise RuleViolationError(
-                f"Handicap stroke calculation failed: {str(e)}",
+                f"Handicap stroke calculation failed: {e!s}",
                 field="handicap_strokes",
             )
 
     # Betting Application Methods
 
-    def apply_joes_special(self, game_state: Dict[str, Any], hole_number: int, selected_value: int) -> None:
+    def apply_joes_special(self, game_state: dict[str, Any], hole_number: int, selected_value: int) -> None:
         """
         Apply Joe's Special wager selection in Hoepfinger variant.
 
@@ -947,15 +946,15 @@ class RuleManager:
         except RuleViolationError:
             raise
         except Exception as e:
-            logger.error(f"Unexpected error in apply_joes_special: {str(e)}")
-            raise RuleViolationError(f"Joe's Special application failed: {str(e)}", field="joes_special")
+            logger.error(f"Unexpected error in apply_joes_special: {e!s}")
+            raise RuleViolationError(f"Joe's Special application failed: {e!s}", field="joes_special")
 
     def check_betting_opportunities(
         self,
-        game_state: Dict[str, Any],
+        game_state: dict[str, Any],
         hole_number: int,
-        last_shot: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        last_shot: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         Check for betting opportunities (doubles/flushes) based on game state.
 
@@ -988,7 +987,7 @@ class RuleManager:
             hole_state = self._get_current_hole_state(game_state)
 
             # Initialize result
-            result: Dict[str, Any] = {
+            result: dict[str, Any] = {
                 "should_offer": False,
                 "context": [],
                 "action": None,
@@ -1110,13 +1109,13 @@ class RuleManager:
         except RuleViolationError:
             raise
         except Exception as e:
-            logger.error(f"Unexpected error in check_betting_opportunities: {str(e)}")
+            logger.error(f"Unexpected error in check_betting_opportunities: {e!s}")
             raise RuleViolationError(
-                f"Betting opportunity check failed: {str(e)}",
+                f"Betting opportunity check failed: {e!s}",
                 field="betting_opportunities",
             )
 
-    def apply_option(self, game_state: Dict[str, Any], captain_id: str, hole_number: int) -> None:
+    def apply_option(self, game_state: dict[str, Any], captain_id: str, hole_number: int) -> None:
         """
         Apply The Option rule (automatically doubles wager when captain is losing).
 
@@ -1252,12 +1251,12 @@ class RuleManager:
         except RuleViolationError:
             raise
         except Exception as e:
-            logger.error(f"Unexpected error in apply_option: {str(e)}")
-            raise RuleViolationError(f"Option application failed: {str(e)}", field="option")
+            logger.error(f"Unexpected error in apply_option: {e!s}")
+            raise RuleViolationError(f"Option application failed: {e!s}", field="option")
 
     # Helper Methods
 
-    def _get_current_hole_state(self, game_state: Dict[str, Any]) -> Dict[str, Any]:
+    def _get_current_hole_state(self, game_state: dict[str, Any]) -> dict[str, Any]:
         """
         Extract current hole state from game state.
 
@@ -1291,7 +1290,7 @@ class RuleManager:
             details={"current_hole_number": current_hole_number},
         )
 
-    def get_rule_summary(self) -> Dict[str, Any]:
+    def get_rule_summary(self) -> dict[str, Any]:
         """
         Get a summary of all game rules.
 

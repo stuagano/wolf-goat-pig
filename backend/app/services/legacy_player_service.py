@@ -14,7 +14,6 @@ import json
 import logging
 from difflib import get_close_matches
 from pathlib import Path
-from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -22,11 +21,11 @@ logger = logging.getLogger(__name__)
 _PLAYERS_FILE = Path(__file__).parent.parent / "data" / "legacy_players.json"
 
 # Cached player data
-_players_cache: Optional[List[str]] = None
-_players_cache_lower: Optional[dict[str, str]] = None  # lowercase -> original mapping
+_players_cache: list[str] | None = None
+_players_cache_lower: dict[str, str] | None = None  # lowercase -> original mapping
 
 
-def _load_players() -> List[str]:
+def _load_players() -> list[str]:
     """Load the player list from the JSON file."""
     global _players_cache, _players_cache_lower
 
@@ -34,7 +33,7 @@ def _load_players() -> List[str]:
         return _players_cache
 
     try:
-        with open(_PLAYERS_FILE, "r") as f:
+        with open(_PLAYERS_FILE) as f:
             data = json.load(f)
             _players_cache = data.get("players", [])
             # Build lowercase lookup for case-insensitive matching
@@ -53,7 +52,7 @@ def _load_players() -> List[str]:
         return []
 
 
-def get_legacy_players() -> List[str]:
+def get_legacy_players() -> list[str]:
     """Return the list of all known legacy players."""
     return _load_players()
 
@@ -64,7 +63,7 @@ def is_valid_legacy_player(name: str) -> bool:
     return name.lower() in _players_cache_lower  # type: ignore[operator]
 
 
-def get_canonical_name(name: str) -> Optional[str]:
+def get_canonical_name(name: str) -> str | None:
     """Get the canonical (correctly cased) name for a player.
 
     Returns None if the player is not found.
@@ -73,7 +72,7 @@ def get_canonical_name(name: str) -> Optional[str]:
     return _players_cache_lower.get(name.lower())  # type: ignore[union-attr]
 
 
-def find_similar_players(name: str, max_results: int = 5) -> List[str]:
+def find_similar_players(name: str, max_results: int = 5) -> list[str]:
     """Find players with names similar to the given name.
 
     Useful for suggesting corrections when a name doesn't match exactly.

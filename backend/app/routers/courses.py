@@ -12,8 +12,8 @@ Uses new utility patterns:
 import json
 import logging
 import traceback
-from datetime import datetime, timezone
-from typing import Any, Dict, cast
+from datetime import UTC, datetime
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, File, HTTPException, Path, UploadFile
 from sqlalchemy.orm import Session
@@ -32,7 +32,7 @@ router = APIRouter(prefix="/courses", tags=["courses"])
 course_manager = CourseManager()
 
 
-def get_fallback_courses() -> Dict[str, Any]:
+def get_fallback_courses() -> dict[str, Any]:
     """Provide fallback course data when database/seeding fails"""
     return {
         "Emergency Course": {
@@ -235,7 +235,7 @@ def get_courses() -> Any:
 
         # Now get detailed course data (with holes) for each course
         if isinstance(courses_summary, dict):
-            courses_with_holes: Dict[str, Any] = {}
+            courses_with_holes: dict[str, Any] = {}
             for course_name in courses_summary.keys():
                 course_details = course_manager.get_course_details(course_name)
                 if course_details:
@@ -261,7 +261,7 @@ def get_courses() -> Any:
 
 @router.get("/{course_id}")
 @handle_api_errors(operation_name="get course by ID")
-def get_course_by_id(course_id: int) -> Dict[str, Any]:
+def get_course_by_id(course_id: int) -> dict[str, Any]:
     """Get a specific course by ID (index in courses list)"""
     courses: Any = course_manager.get_courses()
     if not courses:
@@ -271,14 +271,13 @@ def get_course_by_id(course_id: int) -> Dict[str, Any]:
         course_list = list(courses.values())
         if course_id >= len(course_list) or course_id < 0:
             raise HTTPException(status_code=404, detail="Course not found")
-        return cast(Dict[str, Any], course_list[course_id])
-    else:
-        raise HTTPException(status_code=500, detail="Invalid courses data structure")
+        return cast("dict[str, Any]", course_list[course_id])
+    raise HTTPException(status_code=500, detail="Invalid courses data structure")
 
 
 @router.post("", response_model=dict)
 @handle_api_errors(operation_name="add course")
-def add_course(course: schemas.CourseCreate, db: Session = Depends(get_db)) -> Dict[str, Any]:
+def add_course(course: schemas.CourseCreate, db: Session = Depends(get_db)) -> dict[str, Any]:
     """Add a new course - persists to database with Hole records"""
     course_dict = course.dict()
 
@@ -293,7 +292,7 @@ def add_course(course: schemas.CourseCreate, db: Session = Depends(get_db)) -> D
     total_yards = sum(h.get("yards", 0) for h in holes)
 
     # Create database record
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     db_course = models.Course(
         name=course.name,
         description=course_dict.get("description", ""),
@@ -344,7 +343,7 @@ def add_course(course: schemas.CourseCreate, db: Session = Depends(get_db)) -> D
 @handle_api_errors(operation_name="update course")
 def update_course(
     course_name: str, course_update: schemas.CourseUpdate, db: Session = Depends(get_db)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Update an existing course - persists to database and updates Hole records"""
     db_course = db.query(models.Course).filter(models.Course.name == course_name).first()
     if not db_course:
@@ -402,7 +401,7 @@ def update_course(
                 if hole_number not in update_hole_numbers:
                     db.delete(existing_holes_dict[hole_number])
 
-    db_course.updated_at = datetime.now(timezone.utc).isoformat()
+    db_course.updated_at = datetime.now(UTC).isoformat()
 
     db.commit()
     db.refresh(db_course)
@@ -426,7 +425,7 @@ def update_course(
 
 @router.delete("/{course_name}")
 @handle_api_errors(operation_name="delete course")
-def delete_course(course_name: str = Path(...), db: Session = Depends(get_db)) -> Dict[str, str]:
+def delete_course(course_name: str = Path(...), db: Session = Depends(get_db)) -> dict[str, str]:
     """Delete a course - removes from database"""
     db_course = db.query(models.Course).filter(models.Course.name == course_name).first()
     if not db_course:
@@ -452,15 +451,15 @@ def delete_course(course_name: str = Path(...), db: Session = Depends(get_db)) -
 @handle_api_errors(operation_name="import course by search")
 async def import_course_by_search(
     request: schemas.CourseImportRequest,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Search and import a course by name"""
     result = await import_course_by_name(request.course_name, request.state, request.city)
-    return cast(Dict[str, Any], result if result else {})
+    return cast("dict[str, Any]", result if result else {})
 
 
 @router.post("/import/file")
 @handle_api_errors(operation_name="import course from file")
-async def import_course_from_file(file: UploadFile = File(...)) -> Dict[str, Any]:
+async def import_course_from_file(file: UploadFile = File(...)) -> dict[str, Any]:
     """Import a course from uploaded JSON file"""
     filename = file.filename or ""
     if not filename.endswith(".json"):
@@ -470,12 +469,12 @@ async def import_course_from_file(file: UploadFile = File(...)) -> Dict[str, Any
     course_data = json.loads(content.decode("utf-8"))
 
     result = await import_course_from_json(course_data)
-    return cast(Dict[str, Any], result if result else {})
+    return cast("dict[str, Any]", result if result else {})
 
 
 @router.get("/import/sources")
 @handle_api_errors(operation_name="get import sources")
-def get_import_sources() -> Dict[str, Any]:
+def get_import_sources() -> dict[str, Any]:
     """Get available course import sources"""
     return {
         "sources": [
@@ -495,7 +494,7 @@ def get_import_sources() -> Dict[str, Any]:
 
 @router.post("/import/preview")
 @handle_api_errors(operation_name="preview course import")
-async def preview_course_import(request: schemas.CourseImportRequest) -> Dict[str, Any]:
+async def preview_course_import(request: schemas.CourseImportRequest) -> dict[str, Any]:
     """Preview course data before importing"""
     return {
         "course_name": request.course_name,

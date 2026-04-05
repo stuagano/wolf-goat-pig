@@ -6,8 +6,8 @@ Extracted from GameState to enable persistence in WolfGoatPigGame.
 """
 
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional, cast
+from datetime import UTC, datetime
+from typing import Any, cast
 
 from sqlalchemy.orm import Session
 
@@ -28,7 +28,7 @@ class PersistenceMixin:
     - _deserialize(data: Dict[str, Any]): Restore game state from dict
     """
 
-    def __init_persistence__(self, game_id: Optional[str] = None) -> None:
+    def __init_persistence__(self, game_id: str | None = None) -> None:
         """
         Initialize persistence layer. Call this from your __init__.
 
@@ -37,7 +37,7 @@ class PersistenceMixin:
         """
         self.game_id = game_id or str(uuid.uuid4())
         self._db_session: Session = SessionLocal()
-        self._game_start_time = datetime.now(timezone.utc).isoformat()
+        self._game_start_time = datetime.now(UTC).isoformat()
         self._game_completed = False
 
         # Try to load existing game from DB
@@ -59,12 +59,12 @@ class PersistenceMixin:
             # Find existing game by game_id
             obj = session.query(GameStateModel).filter(GameStateModel.game_id == self.game_id).first()
 
-            current_time = datetime.now(timezone.utc).isoformat()
+            current_time = datetime.now(UTC).isoformat()
 
             if obj:
                 # Update existing - use setattr to avoid Column type errors
-                setattr(obj, "state", state_json)
-                setattr(obj, "updated_at", current_time)
+                obj.state = state_json
+                obj.updated_at = current_time
             else:
                 # Create new
                 obj = GameStateModel(
@@ -103,7 +103,7 @@ class PersistenceMixin:
 
             if obj and obj.state:
                 # Restore state from DB - cast to proper type
-                state_data = cast(Dict[str, Any], obj.state)
+                state_data = cast("dict[str, Any]", obj.state)
                 self._deserialize(state_data)
 
                 # Preserve DB metadata - use str() to convert Column types
@@ -117,7 +117,7 @@ class PersistenceMixin:
             print(f"⚠️ Database load failed for game {self.game_id}: {e}")
             # Fall back to new game state if DB is unavailable
 
-    def _serialize(self) -> Dict[str, Any]:
+    def _serialize(self) -> dict[str, Any]:
         """
         Convert game state to JSON-serializable dictionary.
 
@@ -128,7 +128,7 @@ class PersistenceMixin:
         """
         raise NotImplementedError(f"{self.__class__.__name__} must implement _serialize()")
 
-    def _deserialize(self, data: Dict[str, Any]) -> None:
+    def _deserialize(self, data: dict[str, Any]) -> None:
         """
         Restore game state from dictionary.
 
@@ -154,11 +154,11 @@ class PersistenceMixin:
 
         try:
             session = self._db_session
-            current_time = datetime.now(timezone.utc).isoformat()
+            current_time = datetime.now(UTC).isoformat()
 
             # Calculate game duration
             start_time = datetime.fromisoformat(self._game_start_time)
-            end_time = datetime.now(timezone.utc)
+            end_time = datetime.now(UTC)
             duration_minutes = int((end_time - start_time).total_seconds() / 60)
 
             # Get final scores - subclass must provide this via _get_final_scores()
@@ -205,7 +205,7 @@ class PersistenceMixin:
                     self._db_session.rollback()
                 except Exception as rollback_error:
                     print(f"⚠️ Rollback failed: {rollback_error}")
-            return f"Failed to complete game: {str(e)}"
+            return f"Failed to complete game: {e!s}"
 
     def close_db_session(self):
         """Close the database session. Call this when done with the game."""

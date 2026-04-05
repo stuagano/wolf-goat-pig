@@ -8,7 +8,7 @@ import statistics
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 import numpy as np
 
@@ -31,12 +31,12 @@ class SimulationParams:
 class SimulationResult:
     """Result of Monte Carlo simulation"""
 
-    win_probabilities: Dict[str, float]
-    confidence_intervals: Dict[str, Tuple[float, float]]
+    win_probabilities: dict[str, float]
+    confidence_intervals: dict[str, tuple[float, float]]
     num_simulations_run: int
     simulation_time_ms: float
     convergence_achieved: bool
-    detailed_outcomes: Dict[str, Any]
+    detailed_outcomes: dict[str, Any]
 
 
 class MonteCarloEngine:
@@ -45,9 +45,9 @@ class MonteCarloEngine:
     Uses simulation to handle complex interactions and edge cases.
     """
 
-    def __init__(self, params: Optional[SimulationParams] = None):
+    def __init__(self, params: SimulationParams | None = None):
         self.params = params or SimulationParams()
-        self.random_seed: Optional[int] = None
+        self.random_seed: int | None = None
 
     def set_seed(self, seed: int) -> None:
         """Set random seed for reproducible results"""
@@ -57,9 +57,9 @@ class MonteCarloEngine:
 
     def simulate_hole_outcomes(
         self,
-        players: List[PlayerState],
+        players: list[PlayerState],
         hole: HoleState,
-        params: Optional[SimulationParams] = None,
+        params: SimulationParams | None = None,
     ) -> SimulationResult:
         """
         Run Monte Carlo simulation for hole outcomes.
@@ -70,12 +70,11 @@ class MonteCarloEngine:
 
         if sim_params.use_parallel and sim_params.num_threads > 1:
             return self._run_parallel_simulation(players, hole, sim_params, start_time)
-        else:
-            return self._run_sequential_simulation(players, hole, sim_params, start_time)
+        return self._run_sequential_simulation(players, hole, sim_params, start_time)
 
     def _run_parallel_simulation(
         self,
-        players: List[PlayerState],
+        players: list[PlayerState],
         hole: HoleState,
         params: SimulationParams,
         start_time: float,
@@ -119,7 +118,7 @@ class MonteCarloEngine:
 
     def _run_sequential_simulation(
         self,
-        players: List[PlayerState],
+        players: list[PlayerState],
         hole: HoleState,
         params: SimulationParams,
         start_time: float,
@@ -132,8 +131,8 @@ class MonteCarloEngine:
         return self._process_simulation_results(results, simulation_time, len(results))
 
     def _run_simulation_batch(
-        self, players: List[PlayerState], hole: HoleState, num_sims: int, thread_id: int
-    ) -> List[Dict[str, Any]]:
+        self, players: list[PlayerState], hole: HoleState, num_sims: int, thread_id: int
+    ) -> list[dict[str, Any]]:
         """Run a batch of simulations and return results"""
 
         results = []
@@ -155,7 +154,7 @@ class MonteCarloEngine:
 
         return results
 
-    def _simulate_single_hole(self, players: List[PlayerState], hole: HoleState) -> Dict[str, Any]:
+    def _simulate_single_hole(self, players: list[PlayerState], hole: HoleState) -> dict[str, Any]:
         """Simulate a single hole completion for all players"""
 
         hole_scores = {}
@@ -177,7 +176,7 @@ class MonteCarloEngine:
             "team_results": winner_info["team_results"],
         }
 
-    def _simulate_player_hole(self, player: PlayerState, hole: HoleState) -> Tuple[int, List[Dict[str, Any]]]:
+    def _simulate_player_hole(self, player: PlayerState, hole: HoleState) -> tuple[int, list[dict[str, Any]]]:
         """Simulate a single player completing a hole"""
 
         current_distance = player.distance_to_pin if player.distance_to_pin > 0 else self._get_tee_distance(hole)
@@ -229,7 +228,7 @@ class MonteCarloEngine:
         lie_type: str,
         hole_difficulty: float,
         weather_factor: float,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Simulate a single golf shot with realistic outcomes"""
 
         # Base success probability
@@ -244,18 +243,17 @@ class MonteCarloEngine:
         if roll < success_prob * 0.8:
             # Great shot
             return self._generate_great_shot_outcome(distance, lie_type)
-        elif roll < success_prob:
+        if roll < success_prob:
             # Good shot
             return self._generate_good_shot_outcome(distance, lie_type)
-        elif roll < success_prob + 0.2:
+        if roll < success_prob + 0.2:
             # Average shot
             return self._generate_average_shot_outcome(distance, lie_type)
-        elif roll < success_prob + 0.4:
+        if roll < success_prob + 0.4:
             # Poor shot
             return self._generate_poor_shot_outcome(distance, lie_type)
-        else:
-            # Very poor shot (possible penalty)
-            return self._generate_penalty_shot_outcome(distance, lie_type)
+        # Very poor shot (possible penalty)
+        return self._generate_penalty_shot_outcome(distance, lie_type)
 
     def _calculate_shot_success_probability(
         self, handicap: float, distance: float, lie_type: str, hole_difficulty: float
@@ -303,7 +301,7 @@ class MonteCarloEngine:
         final_prob = base_prob * hcp_factor * lie_factor * difficulty_factor
         return max(0.05, min(0.95, final_prob))
 
-    def _generate_great_shot_outcome(self, distance: float, lie_type: str) -> Dict[str, Any]:
+    def _generate_great_shot_outcome(self, distance: float, lie_type: str) -> dict[str, Any]:
         """Generate outcome for a great shot"""
         if distance <= 5 and lie_type in ["green", "fringe"]:
             # Hole out
@@ -314,19 +312,18 @@ class MonteCarloEngine:
                 "quality": "excellent",
                 "penalty_strokes": 0,
             }
-        else:
-            # Get very close
-            new_distance = max(0, distance * random.uniform(0.1, 0.3))
-            new_lie = "green" if distance > 30 else lie_type
-            return {
-                "holed_out": False,
-                "final_distance": new_distance,
-                "final_lie": new_lie,
-                "quality": "excellent",
-                "penalty_strokes": 0,
-            }
+        # Get very close
+        new_distance = max(0, distance * random.uniform(0.1, 0.3))
+        new_lie = "green" if distance > 30 else lie_type
+        return {
+            "holed_out": False,
+            "final_distance": new_distance,
+            "final_lie": new_lie,
+            "quality": "excellent",
+            "penalty_strokes": 0,
+        }
 
-    def _generate_good_shot_outcome(self, distance: float, lie_type: str) -> Dict[str, Any]:
+    def _generate_good_shot_outcome(self, distance: float, lie_type: str) -> dict[str, Any]:
         """Generate outcome for a good shot"""
         new_distance = max(0, distance * random.uniform(0.2, 0.5))
         new_lie = "green" if distance > 50 and new_distance < 30 else lie_type
@@ -339,7 +336,7 @@ class MonteCarloEngine:
             "penalty_strokes": 0,
         }
 
-    def _generate_average_shot_outcome(self, distance: float, lie_type: str) -> Dict[str, Any]:
+    def _generate_average_shot_outcome(self, distance: float, lie_type: str) -> dict[str, Any]:
         """Generate outcome for an average shot"""
         new_distance = max(0, distance * random.uniform(0.4, 0.7))
 
@@ -357,7 +354,7 @@ class MonteCarloEngine:
             "penalty_strokes": 0,
         }
 
-    def _generate_poor_shot_outcome(self, distance: float, lie_type: str) -> Dict[str, Any]:
+    def _generate_poor_shot_outcome(self, distance: float, lie_type: str) -> dict[str, Any]:
         """Generate outcome for a poor shot"""
         # Poor shots often don't make much progress
         new_distance = max(distance * 0.6, distance * random.uniform(0.7, 1.1))
@@ -374,7 +371,7 @@ class MonteCarloEngine:
             "penalty_strokes": 0,
         }
 
-    def _generate_penalty_shot_outcome(self, distance: float, lie_type: str) -> Dict[str, Any]:
+    def _generate_penalty_shot_outcome(self, distance: float, lie_type: str) -> dict[str, Any]:
         """Generate outcome for a shot that incurs penalty"""
         penalty_prob = 0.1  # 10% chance of penalty
 
@@ -407,8 +404,8 @@ class MonteCarloEngine:
         return par_distances.get(hole.par, 400)
 
     def _determine_hole_winner(
-        self, hole_scores: Dict[str, int], players: List[PlayerState], hole: HoleState
-    ) -> Dict[str, Any]:
+        self, hole_scores: dict[str, int], players: list[PlayerState], hole: HoleState
+    ) -> dict[str, Any]:
         """Determine winner based on team configuration and scores"""
 
         if hole.teams == TeamConfiguration.SOLO:
@@ -417,9 +414,9 @@ class MonteCarloEngine:
             if captain:
                 captain_score = hole_scores[captain.id]
                 opponent_scores = [hole_scores[p.id] for p in players if not p.is_captain]
-                best_opponent_score: Union[int, float] = min(opponent_scores) if opponent_scores else float("inf")
+                best_opponent_score: int | float = min(opponent_scores) if opponent_scores else float("inf")
 
-                winning_score: Union[int, float]
+                winning_score: int | float
                 if captain_score < best_opponent_score:
                     winner = "captain"
                     winning_score = captain_score
@@ -476,7 +473,7 @@ class MonteCarloEngine:
 
     def _process_simulation_results(
         self,
-        results: List[Dict[str, Any]],
+        results: list[dict[str, Any]],
         simulation_time: float,
         num_simulations: int,
     ) -> SimulationResult:
@@ -493,7 +490,7 @@ class MonteCarloEngine:
             )
 
         # Count wins by player/team
-        win_counts: Dict[str, int] = {}
+        win_counts: dict[str, int] = {}
         all_winners = []
 
         for result in results:
@@ -547,7 +544,7 @@ class MonteCarloEngine:
             detailed_outcomes=detailed_outcomes,
         )
 
-    def _check_convergence(self, results: List[Dict[str, Any]], threshold: float) -> bool:
+    def _check_convergence(self, results: list[dict[str, Any]], threshold: float) -> bool:
         """Check if simulation has converged"""
         if len(results) < 100:
             return False
@@ -560,8 +557,8 @@ class MonteCarloEngine:
             return False
 
         # Calculate win rates for both periods
-        recent_counts: Dict[str, int] = {}
-        previous_counts: Dict[str, int] = {}
+        recent_counts: dict[str, int] = {}
+        previous_counts: dict[str, int] = {}
 
         for winner in recent_winners:
             recent_counts[winner] = recent_counts.get(winner, 0) + 1
@@ -581,7 +578,7 @@ class MonteCarloEngine:
 
         return max_difference < threshold
 
-    def _check_convergence_by_ci(self, confidence_intervals: Dict[str, Tuple[float, float]]) -> bool:
+    def _check_convergence_by_ci(self, confidence_intervals: dict[str, tuple[float, float]]) -> bool:
         """Check convergence based on confidence interval width"""
         if not confidence_intervals:
             return False
@@ -594,9 +591,9 @@ class MonteCarloEngine:
 
         return max_ci_width < 0.1  # 10% maximum CI width
 
-    def _calculate_score_distributions(self, results: List[Dict[str, Any]]) -> Dict[str, Dict[str, float]]:
+    def _calculate_score_distributions(self, results: list[dict[str, Any]]) -> dict[str, dict[str, float]]:
         """Calculate score distribution for each player"""
-        player_scores: Dict[str, List[int]] = {}
+        player_scores: dict[str, list[int]] = {}
 
         for result in results:
             for player_id, score in result["scores"].items():
@@ -606,7 +603,7 @@ class MonteCarloEngine:
 
         distributions = {}
         for player_id, scores in player_scores.items():
-            score_counts: Dict[str, int] = {}
+            score_counts: dict[str, int] = {}
             for score in scores:
                 score_counts[str(score)] = score_counts.get(str(score), 0) + 1
 
@@ -615,9 +612,9 @@ class MonteCarloEngine:
 
         return distributions
 
-    def _calculate_average_scores(self, results: List[Dict[str, Any]]) -> Dict[str, float]:
+    def _calculate_average_scores(self, results: list[dict[str, Any]]) -> dict[str, float]:
         """Calculate average scores for each player"""
-        player_scores: Dict[str, List[int]] = {}
+        player_scores: dict[str, list[int]] = {}
 
         for result in results:
             for player_id, score in result["scores"].items():
@@ -630,7 +627,7 @@ class MonteCarloEngine:
 
 # Factory function for easy integration
 def run_monte_carlo_simulation(
-    players: List[PlayerState],
+    players: list[PlayerState],
     hole: HoleState,
     num_simulations: int = 5000,
     max_time_ms: float = 30.0,

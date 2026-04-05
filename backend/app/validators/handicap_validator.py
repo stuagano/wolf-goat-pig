@@ -7,7 +7,7 @@ Player, StrokeAdvantage, and various service classes.
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from .exceptions import HandicapValidationError
 
@@ -34,9 +34,7 @@ class HandicapValidator:
     MAX_STROKE_INDEX = 18
 
     @staticmethod
-    def validate_and_normalize_handicap(
-        handicap: Optional[Union[int, float, str]], player_name: Optional[str] = None
-    ) -> float:
+    def validate_and_normalize_handicap(handicap: int | float | str | None, player_name: str | None = None) -> float:
         """
         Validate and normalize handicap value with fallback to default.
 
@@ -108,11 +106,11 @@ class HandicapValidator:
     @classmethod
     def calculate_net_handicaps(
         cls,
-        player_handicaps: Dict[str, float],
+        player_handicaps: dict[str, float],
         slope_rating: int = 124,
         course_rating: float = 70.3,
         par: int = 71,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Calculate net handicaps relative to the lowest handicap player.
 
@@ -330,8 +328,8 @@ class HandicapValidator:
     @classmethod
     def calculate_net_score(
         cls,
-        gross_score: Union[int, float],
-        strokes_received: Union[int, float],
+        gross_score: int | float,
+        strokes_received: int | float,
         validate: bool = True,
     ) -> float:
         """
@@ -461,7 +459,7 @@ class HandicapValidator:
         return round(course_handicap)
 
     @classmethod
-    def validate_stroke_allocation(cls, players_handicaps: List[float], hole_stroke_indexes: List[int]) -> None:
+    def validate_stroke_allocation(cls, players_handicaps: list[float], hole_stroke_indexes: list[int]) -> None:
         """
         Validate stroke allocation for all players on all holes.
 
@@ -530,22 +528,21 @@ class HandicapValidator:
 
         if handicap <= 5:
             return "SCRATCH"
-        elif handicap <= 12:
+        if handicap <= 12:
             return "LOW"
-        elif handicap <= 20:
+        if handicap <= 20:
             return "MID"
-        elif handicap <= 30:
+        if handicap <= 30:
             return "HIGH"
-        else:
-            return "BEGINNER"
+        return "BEGINNER"
 
     @classmethod
     def validate_team_handicaps(
         cls,
-        team1_handicaps: List[float],
-        team2_handicaps: List[float],
+        team1_handicaps: list[float],
+        team2_handicaps: list[float],
         max_difference: float = 10.0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Validate team handicaps are balanced and fair.
 

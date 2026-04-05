@@ -7,7 +7,7 @@ Useful for manual schema changes during development and deployment.
 
 import logging
 import os
-from typing import Any, Dict, cast
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy import inspect, text
@@ -34,7 +34,7 @@ def verify_admin_key(x_admin_key: str = Header(...)) -> bool:
 
 
 @router.get("/status")
-async def get_migration_status(db: Session = Depends(get_db), _: bool = Depends(verify_admin_key)) -> Dict[str, Any]:
+async def get_migration_status(db: Session = Depends(get_db), _: bool = Depends(verify_admin_key)) -> dict[str, Any]:
     """Get current database schema status.
 
     Returns information about existing tables and columns to help
@@ -44,7 +44,7 @@ async def get_migration_status(db: Session = Depends(get_db), _: bool = Depends(
         X-Admin-Key: Admin key for authentication
     """
     try:
-        inspector = cast(Inspector, inspect(db.bind))
+        inspector = cast("Inspector", inspect(db.bind))
 
         # Get all tables
         tables = inspector.get_table_names()
@@ -78,7 +78,7 @@ async def get_migration_status(db: Session = Depends(get_db), _: bool = Depends(
 
     except Exception as e:
         logger.error(f"Error getting migration status: {e}")
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error: {e!s}")
 
 
 @router.post("/run")
@@ -86,7 +86,7 @@ async def run_migration(
     migration_name: str,
     db: Session = Depends(get_db),
     _: bool = Depends(verify_admin_key),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Run a specific migration by name.
 
     Available migrations:
@@ -132,11 +132,11 @@ async def run_migration(
     except Exception as e:
         db.rollback()
         logger.error(f"Error running migration {migration_name}: {e}")
-        raise HTTPException(status_code=500, detail=f"Migration failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Migration failed: {e!s}")
 
 
 @router.post("/run-all")
-async def run_all_migrations(db: Session = Depends(get_db), _: bool = Depends(verify_admin_key)) -> Dict[str, Any]:
+async def run_all_migrations(db: Session = Depends(get_db), _: bool = Depends(verify_admin_key)) -> dict[str, Any]:
     """Run all migrations that haven't been applied yet.
 
     This is equivalent to the startup.py run_migrations() function but
@@ -158,15 +158,15 @@ async def run_all_migrations(db: Session = Depends(get_db), _: bool = Depends(ve
 
     except Exception as e:
         logger.error(f"Error running all migrations: {e}")
-        raise HTTPException(status_code=500, detail=f"Error running migrations: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error running migrations: {e!s}")
 
 
 # Individual migration functions
 
 
-def _add_tee_order_migration(db: Session) -> Dict[str, Any]:
+def _add_tee_order_migration(db: Session) -> dict[str, Any]:
     """Add tee_order column to game_players table."""
-    inspector = cast(Inspector, inspect(db.bind))
+    inspector = cast("Inspector", inspect(db.bind))
 
     # Check if game_players table exists
     if "game_players" not in inspector.get_table_names():
@@ -195,9 +195,9 @@ def _add_tee_order_migration(db: Session) -> Dict[str, Any]:
     return {"message": "tee_order migration completed", "changes": changes}
 
 
-def _add_game_id_migration(db: Session) -> Dict[str, Any]:
+def _add_game_id_migration(db: Session) -> dict[str, Any]:
     """Add game_id column to game_state table."""
-    inspector = cast(Inspector, inspect(db.bind))
+    inspector = cast("Inspector", inspect(db.bind))
 
     if "game_state" not in inspector.get_table_names():
         return {"message": "game_state table does not exist", "changes": []}
@@ -215,9 +215,9 @@ def _add_game_id_migration(db: Session) -> Dict[str, Any]:
     return {"message": "game_id migration completed", "changes": changes}
 
 
-def _add_timestamps_migration(db: Session) -> Dict[str, Any]:
+def _add_timestamps_migration(db: Session) -> dict[str, Any]:
     """Add created_at and updated_at columns to game_state table."""
-    inspector = cast(Inspector, inspect(db.bind))
+    inspector = cast("Inspector", inspect(db.bind))
 
     if "game_state" not in inspector.get_table_names():
         return {"message": "game_state table does not exist", "changes": []}
@@ -245,9 +245,9 @@ def _add_timestamps_migration(db: Session) -> Dict[str, Any]:
     return {"message": "Timestamps migration completed", "changes": changes}
 
 
-def _add_join_code_migration(db: Session) -> Dict[str, Any]:
+def _add_join_code_migration(db: Session) -> dict[str, Any]:
     """Add join_code column to game_state table."""
-    inspector = cast(Inspector, inspect(db.bind))
+    inspector = cast("Inspector", inspect(db.bind))
 
     if "game_state" not in inspector.get_table_names():
         return {"message": "game_state table does not exist", "changes": []}
@@ -265,9 +265,9 @@ def _add_join_code_migration(db: Session) -> Dict[str, Any]:
     return {"message": "join_code migration completed", "changes": changes}
 
 
-def _add_creator_user_id_migration(db: Session) -> Dict[str, Any]:
+def _add_creator_user_id_migration(db: Session) -> dict[str, Any]:
     """Add creator_user_id column to game_state table."""
-    inspector = cast(Inspector, inspect(db.bind))
+    inspector = cast("Inspector", inspect(db.bind))
 
     if "game_state" not in inspector.get_table_names():
         return {"message": "game_state table does not exist", "changes": []}
@@ -284,9 +284,9 @@ def _add_creator_user_id_migration(db: Session) -> Dict[str, Any]:
     return {"message": "creator_user_id migration completed", "changes": changes}
 
 
-def _add_game_status_migration(db: Session) -> Dict[str, Any]:
+def _add_game_status_migration(db: Session) -> dict[str, Any]:
     """Add game_status column to game_state table."""
-    inspector = cast(Inspector, inspect(db.bind))
+    inspector = cast("Inspector", inspect(db.bind))
 
     if "game_state" not in inspector.get_table_names():
         return {"message": "game_state table does not exist", "changes": []}
@@ -303,12 +303,12 @@ def _add_game_status_migration(db: Session) -> Dict[str, Any]:
     return {"message": "game_status migration completed", "changes": changes}
 
 
-def _add_legacy_name_migration(db: Session) -> Dict[str, Any]:
+def _add_legacy_name_migration(db: Session) -> dict[str, Any]:
     """Add legacy_name column to player_profiles table.
 
     This column stores the player's name in the legacy tee sheet system.
     """
-    inspector = cast(Inspector, inspect(db.bind))
+    inspector = cast("Inspector", inspect(db.bind))
 
     if "player_profiles" not in inspector.get_table_names():
         return {"message": "player_profiles table does not exist", "changes": []}

@@ -7,8 +7,8 @@ Handles match suggestions, accept/decline responses, and the
 
 import logging
 import os
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, cast
+from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
@@ -19,7 +19,7 @@ from ..services.auth_service import get_current_user
 from ..services.email_service import get_email_service
 from ..services.matchmaking_service import MatchmakingService
 from ..services.notification_service import get_notification_service
-from ..utils.api_helpers import ApiResponse, handle_api_errors
+from ..utils.api_helpers import handle_api_errors
 
 logger = logging.getLogger("app.routers.matchmaking")
 
@@ -34,67 +34,59 @@ _APP_URL = os.getenv("FRONTEND_URL", "")
 # ============================================================================
 
 
-def _get_all_players_availability(db: Session) -> List[Dict[str, Any]]:
+def _get_all_players_availability(db: Session) -> list[dict[str, Any]]:
     """Fetch all players with their availability for matchmaking."""
-    players = db.query(models.PlayerProfile).filter(
-        models.PlayerProfile.is_active == 1
-    ).all()
+    players = db.query(models.PlayerProfile).filter(models.PlayerProfile.is_active == 1).all()
 
-    all_players_data: List[Dict[str, Any]] = []
+    all_players_data: list[dict[str, Any]] = []
     for player in players:
-        player_data: Dict[str, Any] = {
+        player_data: dict[str, Any] = {
             "player_id": player.id,
             "player_name": player.name,
             "email": player.email,
             "availability": [],
         }
         availability = (
-            db.query(models.PlayerAvailability)
-            .filter(models.PlayerAvailability.player_profile_id == player.id)
-            .all()
+            db.query(models.PlayerAvailability).filter(models.PlayerAvailability.player_profile_id == player.id).all()
         )
         for avail in availability:
-            player_data["availability"].append({
-                "day_of_week": avail.day_of_week,
-                "is_available": avail.is_available,
-                "available_from_time": avail.available_from_time,
-                "available_to_time": avail.available_to_time,
-                "notes": avail.notes,
-            })
+            player_data["availability"].append(
+                {
+                    "day_of_week": avail.day_of_week,
+                    "is_available": avail.is_available,
+                    "available_from_time": avail.available_from_time,
+                    "available_to_time": avail.available_to_time,
+                    "notes": avail.notes,
+                }
+            )
         all_players_data.append(player_data)
 
     return all_players_data
 
 
-def _get_recent_match_history(db: Session, days: int = 7) -> List[Dict[str, Any]]:
+def _get_recent_match_history(db: Session, days: int = 7) -> list[dict[str, Any]]:
     """Get recent match history for filtering."""
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
-    recent_matches = (
-        db.query(models.MatchSuggestion)
-        .filter(models.MatchSuggestion.created_at >= cutoff)
-        .all()
-    )
-    history: List[Dict[str, Any]] = []
+    cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
+    recent_matches = db.query(models.MatchSuggestion).filter(models.MatchSuggestion.created_at >= cutoff).all()
+    history: list[dict[str, Any]] = []
     for match in recent_matches:
-        match_players = (
-            db.query(models.MatchPlayer)
-            .filter(models.MatchPlayer.match_suggestion_id == match.id)
-            .all()
+        match_players = db.query(models.MatchPlayer).filter(models.MatchPlayer.match_suggestion_id == match.id).all()
+        history.append(
+            {
+                "created_at": match.created_at,
+                "players": [{"player_id": mp.player_profile_id} for mp in match_players],
+            }
         )
-        history.append({
-            "created_at": match.created_at,
-            "players": [{"player_id": mp.player_profile_id} for mp in match_players],
-        })
     return history
 
 
 def _save_match_to_db(
     db: Session,
-    match_data: Dict[str, Any],
+    match_data: dict[str, Any],
 ) -> models.MatchSuggestion:
     """Save a match suggestion and its players to the database."""
-    now = datetime.now(timezone.utc).isoformat()
-    expires = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+    now = datetime.now(UTC).isoformat()
+    expires = (datetime.now(UTC) + timedelta(days=7)).isoformat()
 
     match = models.MatchSuggestion(
         day_of_week=match_data["day_of_week"],
@@ -127,7 +119,7 @@ def _save_match_to_db(
 def _notify_match_players(
     db: Session,
     match: models.MatchSuggestion,
-    match_data: Dict[str, Any],
+    match_data: dict[str, Any],
 ) -> int:
     """Send in-app notifications AND emails to all players in a match."""
     notification_service = get_notification_service()
@@ -178,7 +170,7 @@ def _notify_match_players(
                     overlap_end=match_data["overlap_end"],
                     suggested_tee_time=match_data["suggested_tee_time"],
                     group_players=player_names,
-                    match_id=cast(int, match.id),
+                    match_id=cast("int", match.id),
                     app_url=_APP_URL,
                 )
                 logger.info(f"Sent match-found email to {player_email}")
@@ -197,7 +189,7 @@ def run_matchmaking_for_player(
     player_id: int,
     db: Session,
     min_overlap_hours: float = 2.0,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Run matchmaking for a specific player after they save availability.
 
@@ -215,42 +207,31 @@ def run_matchmaking_for_player(
     )
 
     # Only keep matches that include this player
-    player_matches = [
-        m for m in matches
-        if any(p["player_id"] == player_id for p in m["players"])
-    ]
+    player_matches = [m for m in matches if any(p["player_id"] == player_id for p in m["players"])]
 
     if not player_matches:
         return []
 
     # Filter out recently suggested matches
     recent_history = _get_recent_match_history(db, days=7)
-    filtered = MatchmakingService.filter_recent_matches(
-        player_matches, recent_history, days_between_matches=3
-    )
+    filtered = MatchmakingService.filter_recent_matches(player_matches, recent_history, days_between_matches=3)
 
     # Also check for exact duplicate player groups already in DB
     existing_groups = set()
     recent_db_matches = (
         db.query(models.MatchSuggestion)
         .filter(
-            models.MatchSuggestion.created_at >= (
-                datetime.now(timezone.utc) - timedelta(days=7)
-            ).isoformat(),
+            models.MatchSuggestion.created_at >= (datetime.now(UTC) - timedelta(days=7)).isoformat(),
             models.MatchSuggestion.status.in_(["pending", "accepted"]),
         )
         .all()
     )
     for dbm in recent_db_matches:
-        players = (
-            db.query(models.MatchPlayer)
-            .filter(models.MatchPlayer.match_suggestion_id == dbm.id)
-            .all()
-        )
+        players = db.query(models.MatchPlayer).filter(models.MatchPlayer.match_suggestion_id == dbm.id).all()
         group_key = tuple(sorted(p.player_profile_id for p in players))
         existing_groups.add(group_key)
 
-    new_matches: List[Dict[str, Any]] = []
+    new_matches: list[dict[str, Any]] = []
     for match_data in filtered[:3]:  # limit to top 3 new matches
         group_key = tuple(sorted(p["player_id"] for p in match_data["players"]))
         if group_key in existing_groups:
@@ -275,13 +256,13 @@ def run_matchmaking_for_player(
 # ============================================================================
 
 
-@router.get("/my-matches", response_model=List[schemas.MatchSuggestionResponse])
+@router.get("/my-matches", response_model=list[schemas.MatchSuggestionResponse])
 @handle_api_errors(operation_name="get my matches")
 async def get_my_matches(
-    status: Optional[str] = Query(None, description="Filter by status: pending, accepted, declined, expired"),
+    status: str | None = Query(None, description="Filter by status: pending, accepted, declined, expired"),
     current_user: models.PlayerProfile = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> List[schemas.MatchSuggestionResponse]:
+) -> list[schemas.MatchSuggestionResponse]:
     """Get all match suggestions that include the current user."""
     # Find match IDs where current user is a player
     my_match_ids = (
@@ -290,49 +271,45 @@ async def get_my_matches(
         .subquery()
     )
 
-    query = db.query(models.MatchSuggestion).filter(
-        models.MatchSuggestion.id.in_(my_match_ids)
-    )
+    query = db.query(models.MatchSuggestion).filter(models.MatchSuggestion.id.in_(my_match_ids))
 
     if status:
         query = query.filter(models.MatchSuggestion.status == status)
 
     matches = query.order_by(models.MatchSuggestion.created_at.desc()).all()
 
-    result: List[schemas.MatchSuggestionResponse] = []
+    result: list[schemas.MatchSuggestionResponse] = []
     for match in matches:
-        players = (
-            db.query(models.MatchPlayer)
-            .filter(models.MatchPlayer.match_suggestion_id == match.id)
-            .all()
-        )
+        players = db.query(models.MatchPlayer).filter(models.MatchPlayer.match_suggestion_id == match.id).all()
         player_responses = [
             schemas.MatchPlayerResponse(
-                id=cast(int, p.id),
-                match_suggestion_id=cast(int, p.match_suggestion_id),
-                player_profile_id=cast(int, p.player_profile_id),
-                player_name=cast(str, p.player_name),
-                player_email=cast(str, p.player_email),
+                id=cast("int", p.id),
+                match_suggestion_id=cast("int", p.match_suggestion_id),
+                player_profile_id=cast("int", p.player_profile_id),
+                player_name=cast("str", p.player_name),
+                player_email=cast("str", p.player_email),
                 response=p.response,
                 responded_at=p.responded_at,
-                created_at=cast(str, p.created_at),
+                created_at=cast("str", p.created_at),
             )
             for p in players
         ]
-        result.append(schemas.MatchSuggestionResponse(
-            id=cast(int, match.id),
-            day_of_week=cast(int, match.day_of_week),
-            suggested_date=match.suggested_date,
-            overlap_start=cast(str, match.overlap_start),
-            overlap_end=cast(str, match.overlap_end),
-            suggested_tee_time=cast(str, match.suggested_tee_time),
-            match_quality_score=cast(float, match.match_quality_score),
-            status=cast(str, match.status),
-            notification_sent=bool(match.notification_sent),
-            created_at=cast(str, match.created_at),
-            expires_at=cast(str, match.expires_at),
-            players=player_responses,
-        ))
+        result.append(
+            schemas.MatchSuggestionResponse(
+                id=cast("int", match.id),
+                day_of_week=cast("int", match.day_of_week),
+                suggested_date=match.suggested_date,
+                overlap_start=cast("str", match.overlap_start),
+                overlap_end=cast("str", match.overlap_end),
+                suggested_tee_time=cast("str", match.suggested_tee_time),
+                match_quality_score=cast("float", match.match_quality_score),
+                status=cast("str", match.status),
+                notification_sent=bool(match.notification_sent),
+                created_at=cast("str", match.created_at),
+                expires_at=cast("str", match.expires_at),
+                players=player_responses,
+            )
+        )
 
     return result
 
@@ -349,7 +326,7 @@ async def respond_to_match(
     response_body: schemas.MatchResponseRequest = ...,
     current_user: models.PlayerProfile = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Accept or decline a match suggestion.
 
@@ -357,9 +334,7 @@ async def respond_to_match(
     and players are notified that they can book a tee time together.
     """
     # Verify match exists
-    match = db.query(models.MatchSuggestion).filter(
-        models.MatchSuggestion.id == match_id
-    ).first()
+    match = db.query(models.MatchSuggestion).filter(models.MatchSuggestion.id == match_id).first()
     if not match:
         raise HTTPException(status_code=404, detail=f"Match suggestion {match_id} not found")
 
@@ -387,17 +362,14 @@ async def respond_to_match(
             detail=f"You have already responded with '{match_player.response}'",
         )
 
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     match_player.response = response_body.response  # type: ignore
     match_player.responded_at = now  # type: ignore
     match_player.updated_at = now  # type: ignore
     db.commit()
 
     response_action = response_body.response
-    logger.info(
-        f"Player {current_user.id} ({current_user.name}) "
-        f"{response_action} match {match_id}"
-    )
+    logger.info(f"Player {current_user.id} ({current_user.name}) {response_action} match {match_id}")
 
     # If declined, mark the whole match as declined
     if response_action == "declined":
@@ -405,26 +377,19 @@ async def respond_to_match(
         db.commit()
 
         day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-        day_name = day_names[cast(int, match.day_of_week)]
+        day_name = day_names[cast("int", match.day_of_week)]
 
         # Notify other players (in-app + email)
         notification_service = get_notification_service()
         email_service = get_email_service()
-        all_players = (
-            db.query(models.MatchPlayer)
-            .filter(models.MatchPlayer.match_suggestion_id == match_id)
-            .all()
-        )
+        all_players = db.query(models.MatchPlayer).filter(models.MatchPlayer.match_suggestion_id == match_id).all()
         for p in all_players:
             if p.player_profile_id != current_user.id:
                 try:
                     notification_service.send_notification(
-                        player_id=cast(int, p.player_profile_id),
+                        player_id=cast("int", p.player_profile_id),
                         notification_type="match_declined",
-                        message=(
-                            f"{current_user.name} declined the match. "
-                            f"We'll keep looking for new matches!"
-                        ),
+                        message=(f"{current_user.name} declined the match. We'll keep looking for new matches!"),
                         db=db,
                         data={"match_suggestion_id": match_id},
                     )
@@ -435,9 +400,9 @@ async def respond_to_match(
                 if p.player_email and email_service.is_configured():
                     try:
                         email_service.send_match_declined(
-                            to_email=cast(str, p.player_email),
-                            player_name=cast(str, p.player_name),
-                            decliner_name=cast(str, current_user.name),
+                            to_email=cast("str", p.player_email),
+                            player_name=cast("str", p.player_name),
+                            decliner_name=cast("str", current_user.name),
                             match_day=day_name,
                             app_url=_APP_URL,
                         )
@@ -452,11 +417,7 @@ async def respond_to_match(
         }
 
     # If accepted, check if all players have accepted
-    all_players = (
-        db.query(models.MatchPlayer)
-        .filter(models.MatchPlayer.match_suggestion_id == match_id)
-        .all()
-    )
+    all_players = db.query(models.MatchPlayer).filter(models.MatchPlayer.match_suggestion_id == match_id).all()
 
     all_accepted = all(p.response == "accepted" for p in all_players)
 
@@ -468,13 +429,13 @@ async def respond_to_match(
         notification_service = get_notification_service()
         email_service = get_email_service()
         day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-        day_name = day_names[cast(int, match.day_of_week)]
-        player_names = [cast(str, p.player_name) for p in all_players]
+        day_name = day_names[cast("int", match.day_of_week)]
+        player_names = [cast("str", p.player_name) for p in all_players]
 
         for p in all_players:
             try:
                 notification_service.send_notification(
-                    player_id=cast(int, p.player_profile_id),
+                    player_id=cast("int", p.player_profile_id),
                     notification_type="match_confirmed",
                     message=(
                         f"Everyone's in! Your {day_name} match with "
@@ -499,12 +460,12 @@ async def respond_to_match(
             if p.player_email and email_service.is_configured():
                 try:
                     email_service.send_match_confirmed(
-                        to_email=cast(str, p.player_email),
-                        player_name=cast(str, p.player_name),
+                        to_email=cast("str", p.player_email),
+                        player_name=cast("str", p.player_name),
                         match_day=day_name,
-                        overlap_start=cast(str, match.overlap_start),
-                        overlap_end=cast(str, match.overlap_end),
-                        suggested_tee_time=cast(str, match.suggested_tee_time),
+                        overlap_start=cast("str", match.overlap_start),
+                        overlap_end=cast("str", match.overlap_end),
+                        suggested_tee_time=cast("str", match.suggested_tee_time),
                         group_players=player_names,
                         app_url=_APP_URL,
                     )
@@ -516,10 +477,7 @@ async def respond_to_match(
             "your_response": "accepted",
             "match_status": "accepted",
             "all_accepted": True,
-            "message": (
-                "All players have accepted! "
-                "You can now book a tee time together."
-            ),
+            "message": ("All players have accepted! You can now book a tee time together."),
             "players": [p.player_name for p in all_players],
         }
 
@@ -530,15 +488,20 @@ async def respond_to_match(
     # Notify other players that someone accepted
     notification_service = get_notification_service()
     day_name = [
-        "Monday", "Tuesday", "Wednesday", "Thursday",
-        "Friday", "Saturday", "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
     ][match.day_of_week]
 
     for p in all_players:
         if p.player_profile_id != current_user.id and p.response is None:
             try:
                 notification_service.send_notification(
-                    player_id=cast(int, p.player_profile_id),
+                    player_id=cast("int", p.player_profile_id),
                     notification_type="match_player_accepted",
                     message=(
                         f"{current_user.name} accepted the match! "
@@ -555,9 +518,9 @@ async def respond_to_match(
             if p.player_email and email_service.is_configured():
                 try:
                     email_service.send_match_player_accepted(
-                        to_email=cast(str, p.player_email),
-                        player_name=cast(str, p.player_name),
-                        accepter_name=cast(str, current_user.name),
+                        to_email=cast("str", p.player_email),
+                        player_name=cast("str", p.player_name),
+                        accepter_name=cast("str", current_user.name),
                         match_day=day_name,
                         accepted_count=accepted_count,
                         total_count=len(all_players),
@@ -574,8 +537,7 @@ async def respond_to_match(
         "accepted_count": accepted_count,
         "pending_count": pending_count,
         "message": (
-            f"You've accepted! Waiting for {pending_count} more "
-            f"player{'s' if pending_count != 1 else ''} to respond."
+            f"You've accepted! Waiting for {pending_count} more player{'s' if pending_count != 1 else ''} to respond."
         ),
     }
 
@@ -591,11 +553,9 @@ async def get_match_details(
     match_id: int = Path(description="Match suggestion ID"),
     current_user: models.PlayerProfile = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get full details of a match suggestion including all player responses."""
-    match = db.query(models.MatchSuggestion).filter(
-        models.MatchSuggestion.id == match_id
-    ).first()
+    match = db.query(models.MatchSuggestion).filter(models.MatchSuggestion.id == match_id).first()
     if not match:
         raise HTTPException(status_code=404, detail=f"Match suggestion {match_id} not found")
 
@@ -611,18 +571,14 @@ async def get_match_details(
     if not my_player:
         raise HTTPException(status_code=403, detail="You are not part of this match")
 
-    all_players = (
-        db.query(models.MatchPlayer)
-        .filter(models.MatchPlayer.match_suggestion_id == match_id)
-        .all()
-    )
+    all_players = db.query(models.MatchPlayer).filter(models.MatchPlayer.match_suggestion_id == match_id).all()
 
     day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
     return {
         "id": match.id,
         "day_of_week": match.day_of_week,
-        "day_name": day_names[cast(int, match.day_of_week)],
+        "day_name": day_names[cast("int", match.day_of_week)],
         "suggested_date": match.suggested_date,
         "overlap_start": match.overlap_start,
         "overlap_end": match.overlap_end,
@@ -642,8 +598,5 @@ async def get_match_details(
             for p in all_players
         ],
         "all_accepted": all(p.response == "accepted" for p in all_players),
-        "can_book": (
-            match.status == "accepted"
-            and all(p.response == "accepted" for p in all_players)
-        ),
+        "can_book": (match.status == "accepted" and all(p.response == "accepted" for p in all_players)),
     }

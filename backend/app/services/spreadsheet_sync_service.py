@@ -33,7 +33,7 @@ import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ class RoundResult:
     member: str  # Player name
     score: int  # Quarters (positive = won, negative = lost)
     location: str  # Course name
-    duration: Optional[str] = None  # HH:MM:SS format
+    duration: str | None = None  # HH:MM:SS format
 
 
 @dataclass
@@ -64,8 +64,8 @@ class RoundSummary:
     date: str
     group: str
     location: str
-    duration: Optional[str]
-    players: List[RoundResult]
+    duration: str | None
+    players: list[RoundResult]
 
     @property
     def player_count(self) -> int:
@@ -77,7 +77,7 @@ class RoundSummary:
         return sum(p.score for p in self.players)
 
 
-def _get_access_token() -> Optional[str]:
+def _get_access_token() -> str | None:
     """Get OAuth access token.
 
     Tries in order:
@@ -132,7 +132,7 @@ def _get_access_token() -> Optional[str]:
         return None
 
 
-def _sheets_api_get(sheet_id: str, range_spec: str) -> Optional[Dict[str, Any]]:
+def _sheets_api_get(sheet_id: str, range_spec: str) -> dict[str, Any] | None:
     """Make a GET request to the Sheets API."""
     token = _get_access_token()
     if not token:
@@ -156,7 +156,7 @@ def _sheets_api_get(sheet_id: str, range_spec: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def _sheets_api_append(sheet_id: str, range_spec: str, values: List[List[Any]]) -> bool:
+def _sheets_api_append(sheet_id: str, range_spec: str, values: list[list[Any]]) -> bool:
     """Append rows to a sheet."""
     token = _get_access_token()
     if not token:
@@ -194,7 +194,7 @@ class SpreadsheetSyncService:
     def __init__(self, sheet_id: str = WRITABLE_SHEET_ID):
         self.sheet_id = sheet_id
 
-    def get_all_rounds(self) -> List[RoundResult]:
+    def get_all_rounds(self) -> list[RoundResult]:
         """Fetch all round results from the Details sheet."""
         data = _sheets_api_get(self.sheet_id, "Details!A2:F5000")
         if not data or "values" not in data:
@@ -222,7 +222,7 @@ class SpreadsheetSyncService:
 
         return results
 
-    def get_rounds_by_date(self, date: str) -> List[RoundSummary]:
+    def get_rounds_by_date(self, date: str) -> list[RoundSummary]:
         """Get all rounds for a specific date, grouped by group letter."""
         all_results = self.get_all_rounds()
 
@@ -230,7 +230,7 @@ class SpreadsheetSyncService:
         date_results = [r for r in all_results if r.date == date]
 
         # Group by group letter
-        groups: Dict[str, List[RoundResult]] = {}
+        groups: dict[str, list[RoundResult]] = {}
         for result in date_results:
             if result.group not in groups:
                 groups[result.group] = []
@@ -252,12 +252,12 @@ class SpreadsheetSyncService:
 
         return summaries
 
-    def get_player_history(self, member_name: str) -> List[RoundResult]:
+    def get_player_history(self, member_name: str) -> list[RoundResult]:
         """Get all rounds for a specific player."""
         all_results = self.get_all_rounds()
         return [r for r in all_results if r.member.lower() == member_name.lower()]
 
-    def get_leaderboard(self) -> List[Dict[str, Any]]:
+    def get_leaderboard(self) -> list[dict[str, Any]]:
         """Fetch the current leaderboard from Dashboard sheet."""
         data = _sheets_api_get(self.sheet_id, "Dashboard!B3:F100")
         if not data or "values" not in data:
@@ -288,7 +288,7 @@ class SpreadsheetSyncService:
 
         return leaderboard
 
-    def add_round_results(self, results: List[RoundResult]) -> bool:
+    def add_round_results(self, results: list[RoundResult]) -> bool:
         """Add new round results to the Details sheet.
 
         Args:
@@ -330,8 +330,8 @@ class SpreadsheetSyncService:
         game_date: datetime,
         group: str,
         location: str,
-        player_scores: Dict[str, int],
-        duration: Optional[str] = None,
+        player_scores: dict[str, int],
+        duration: str | None = None,
     ) -> bool:
         """Sync a completed game from the app to the spreadsheet.
 
@@ -363,7 +363,7 @@ class SpreadsheetSyncService:
 
 
 # Singleton instance
-_sync_service: Optional[SpreadsheetSyncService] = None
+_sync_service: SpreadsheetSyncService | None = None
 
 
 def get_spreadsheet_sync_service() -> SpreadsheetSyncService:
@@ -378,8 +378,8 @@ def get_spreadsheet_sync_service() -> SpreadsheetSyncService:
 class ReconciliationResult:
     """Result of comparing two spreadsheets."""
 
-    primary_only: List[RoundResult]  # Rounds only in primary (real) sheet
-    writable_only: List[RoundResult]  # Rounds only in writable (app) sheet
+    primary_only: list[RoundResult]  # Rounds only in primary (real) sheet
+    writable_only: list[RoundResult]  # Rounds only in writable (app) sheet
     matched: int  # Count of matching rounds
     primary_total: int
     writable_total: int
@@ -427,7 +427,7 @@ class ReconciliationService:
             writable_total=len(writable_rounds),
         )
 
-    def sync_primary_to_writable(self, dry_run: bool = True) -> Dict[str, Any]:
+    def sync_primary_to_writable(self, dry_run: bool = True) -> dict[str, Any]:
         """Copy missing rounds from primary to writable sheet.
 
         Args:
@@ -469,13 +469,12 @@ class ReconciliationService:
                 "message": f"Copied {len(result.primary_only)} rounds from primary to writable",
                 "rounds_copied": len(result.primary_only),
             }
-        else:
-            return {
-                "status": "error",
-                "message": "Failed to copy rounds to writable sheet",
-            }
+        return {
+            "status": "error",
+            "message": "Failed to copy rounds to writable sheet",
+        }
 
-    def sync_writable_to_primary(self, dry_run: bool = True) -> Dict[str, Any]:
+    def sync_writable_to_primary(self, dry_run: bool = True) -> dict[str, Any]:
         """Copy missing rounds from writable to primary sheet.
 
         NOTE: This requires write access to the primary sheet.
@@ -519,13 +518,12 @@ class ReconciliationService:
                 "message": f"Copied {len(result.writable_only)} rounds from writable to primary",
                 "rounds_copied": len(result.writable_only),
             }
-        else:
-            return {
-                "status": "error",
-                "message": "Failed to copy rounds to primary sheet (may need write access)",
-            }
+        return {
+            "status": "error",
+            "message": "Failed to copy rounds to primary sheet (may need write access)",
+        }
 
-    def get_sync_status(self) -> Dict[str, Any]:
+    def get_sync_status(self) -> dict[str, Any]:
         """Get a summary of sync status between the two sheets."""
         result = self.compare_sheets()
 
@@ -551,7 +549,7 @@ class ReconciliationService:
         }
 
 
-_reconciliation_service: Optional[ReconciliationService] = None
+_reconciliation_service: ReconciliationService | None = None
 
 
 def get_reconciliation_service() -> ReconciliationService:

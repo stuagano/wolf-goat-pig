@@ -8,7 +8,7 @@ import statistics
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 
 class TeamConfiguration(Enum):
@@ -41,7 +41,7 @@ class PlayerState:
     distance_to_pin: float = 0.0
     lie_type: str = "fairway"
     is_captain: bool = False
-    team_id: Optional[str] = None
+    team_id: str | None = None
     confidence_factor: float = 1.0  # Multiplier based on recent performance
 
 
@@ -69,10 +69,10 @@ class BettingScenario:
     win_probability: float
     expected_value: float
     risk_level: str  # 'low', 'medium', 'high'
-    confidence_interval: Tuple[float, float]
+    confidence_interval: tuple[float, float]
     recommendation: str
     reasoning: str
-    payout_matrix: Dict[str, float]
+    payout_matrix: dict[str, float]
 
 
 @dataclass
@@ -81,12 +81,12 @@ class OddsResult:
 
     timestamp: float
     calculation_time_ms: float
-    player_probabilities: Dict[str, Any]
-    team_probabilities: Dict[str, float]
-    betting_scenarios: List[BettingScenario]
+    player_probabilities: dict[str, Any]
+    team_probabilities: dict[str, float]
+    betting_scenarios: list[BettingScenario]
     optimal_strategy: str
-    risk_assessment: Dict[str, Any]
-    educational_insights: List[str]
+    risk_assessment: dict[str, Any]
+    educational_insights: list[str]
     confidence_level: float
 
 
@@ -110,9 +110,9 @@ class OddsCalculator:
         self._lie_multipliers = self._precompute_lie_multipliers()
         self._handicap_multipliers = self._precompute_handicap_multipliers()
 
-    def _initialize_handicap_adjustments(self) -> Dict[float, float]:
+    def _initialize_handicap_adjustments(self) -> dict[float, float]:
         """Initialize handicap-based probability adjustments"""
-        adjustments: Dict[float, float] = {}
+        adjustments: dict[float, float] = {}
         for hcp in range(0, 37):
             # Convert handicap to skill multiplier (0 = best, 36 = worst)
             if hcp <= 5:
@@ -129,7 +129,7 @@ class OddsCalculator:
                 adjustments[float(hcp)] = 0.7
         return adjustments
 
-    def _precompute_lie_multipliers(self) -> Dict[str, float]:
+    def _precompute_lie_multipliers(self) -> dict[str, float]:
         """Pre-compute lie type multipliers for performance"""
         return {
             "green": 1.1,
@@ -143,7 +143,7 @@ class OddsCalculator:
             "trees": 0.3,
         }
 
-    def _precompute_handicap_multipliers(self) -> Dict[int, float]:
+    def _precompute_handicap_multipliers(self) -> dict[int, float]:
         """Pre-compute handicap multipliers for common handicaps"""
         multipliers = {}
         for hcp in range(0, 37):
@@ -235,7 +235,7 @@ class OddsCalculator:
 
         return result
 
-    def _calculate_hole_completion_probability(self, player: PlayerState, hole: HoleState) -> Dict[str, float]:
+    def _calculate_hole_completion_probability(self, player: PlayerState, hole: HoleState) -> dict[str, float]:
         """Calculate probability distribution for hole completion scores - optimized"""
         # Create cache key for team calculations
         player_key = (
@@ -319,7 +319,7 @@ class OddsCalculator:
 
         return probabilities
 
-    def _calculate_tee_shot_probabilities(self, player: PlayerState, hole: HoleState) -> Dict[str, float]:
+    def _calculate_tee_shot_probabilities(self, player: PlayerState, hole: HoleState) -> dict[str, float]:
         """Fast calculation for tee shot scenarios"""
         par = hole.par
         player.handicap / 18.0
@@ -328,20 +328,17 @@ class OddsCalculator:
         if par == 3:
             if player.handicap <= 10:
                 return {"2": 0.1, "3": 0.6, "4": 0.25, "5": 0.05}
-            else:
-                return {"3": 0.3, "4": 0.5, "5": 0.15, "6": 0.05}
-        elif par == 4:
+            return {"3": 0.3, "4": 0.5, "5": 0.15, "6": 0.05}
+        if par == 4:
             if player.handicap <= 10:
                 return {"3": 0.05, "4": 0.5, "5": 0.35, "6": 0.1}
-            else:
-                return {"4": 0.25, "5": 0.45, "6": 0.25, "7": 0.05}
-        else:  # par 5
-            if player.handicap <= 10:
-                return {"4": 0.03, "5": 0.4, "6": 0.4, "7": 0.15, "8": 0.02}
-            else:
-                return {"5": 0.15, "6": 0.35, "7": 0.35, "8": 0.1, "9": 0.05}
+            return {"4": 0.25, "5": 0.45, "6": 0.25, "7": 0.05}
+        # par 5
+        if player.handicap <= 10:
+            return {"4": 0.03, "5": 0.4, "6": 0.4, "7": 0.15, "8": 0.02}
+        return {"5": 0.15, "6": 0.35, "7": 0.35, "8": 0.1, "9": 0.05}
 
-    def _calculate_team_win_probability(self, players: List[PlayerState], hole: HoleState) -> Dict[str, float]:
+    def _calculate_team_win_probability(self, players: list[PlayerState], hole: HoleState) -> dict[str, float]:
         """Calculate win probabilities for different team configurations"""
         if hole.teams == TeamConfiguration.PENDING:
             return {"pending": 1.0}
@@ -388,10 +385,10 @@ class OddsCalculator:
 
             if team1_players and team2_players:
                 # Calculate best ball probabilities for each team
-                score_range: List[int] = list(range(hole.par - 2, hole.par + 4))
+                score_range: list[int] = list(range(hole.par - 2, hole.par + 4))
 
-                team1_scores: Dict[int, float] = {}
-                team2_scores: Dict[int, float] = {}
+                team1_scores: dict[int, float] = {}
+                team2_scores: dict[int, float] = {}
 
                 for score_val in score_range:
                     # Team 1 probability of making this score or better
@@ -427,7 +424,7 @@ class OddsCalculator:
         scenario: str,
         win_prob: float,
         current_wager: int,
-        players: List[PlayerState],
+        players: list[PlayerState],
     ) -> float:
         """Calculate expected value for a betting scenario"""
         if scenario == "offer_double":
@@ -437,18 +434,17 @@ class OddsCalculator:
                 ev_if_accepted = win_prob * (current_wager * 2) - (1 - win_prob) * (current_wager * 2)
                 ev_if_declined = current_wager  # Win at current stakes
                 return prob_accept * ev_if_accepted + (1 - prob_accept) * ev_if_declined
-            else:
-                return current_wager
+            return current_wager
 
-        elif scenario == "accept_double":
+        if scenario == "accept_double":
             # EV of accepting double
             return win_prob * (current_wager * 2) - (1 - win_prob) * (current_wager * 2)
 
-        elif scenario == "go_solo":
+        if scenario == "go_solo":
             # EV of going solo (wager doubles automatically)
             return win_prob * (current_wager * 2 * 3) - (1 - win_prob) * (current_wager * 2)
 
-        elif scenario == "accept_partnership":
+        if scenario == "accept_partnership":
             # EV of accepting partnership vs staying in opponents group
             return win_prob * current_wager - (1 - win_prob) * current_wager
 
@@ -458,17 +454,16 @@ class OddsCalculator:
         """Assess risk level of a betting scenario"""
         if win_prob >= 0.6 and expected_value > 0:
             return "low"
-        elif win_prob >= 0.4 and expected_value >= -0.5:
+        if win_prob >= 0.4 and expected_value >= -0.5:
             return "medium"
-        else:
-            return "high"
+        return "high"
 
     def _generate_educational_insights(
         self,
-        players: List[PlayerState],
+        players: list[PlayerState],
         hole: HoleState,
-        scenarios: List[BettingScenario],
-    ) -> List[str]:
+        scenarios: list[BettingScenario],
+    ) -> list[str]:
         """Generate educational insights about the current betting situation"""
         insights = []
 
@@ -520,9 +515,9 @@ class OddsCalculator:
 
     def calculate_real_time_odds(
         self,
-        players: List[PlayerState],
+        players: list[PlayerState],
         hole: HoleState,
-        game_context: Optional[Dict[str, Any]] = None,
+        game_context: dict[str, Any] | None = None,
     ) -> OddsResult:
         """
         Main method to calculate comprehensive real-time odds.
@@ -587,7 +582,7 @@ class OddsCalculator:
     def _calculate_player_win_vs_field(
         self,
         target_player: PlayerState,
-        all_players: List[PlayerState],
+        all_players: list[PlayerState],
         hole: HoleState,
     ) -> float:
         """Calculate probability of a player winning vs the field"""
@@ -608,8 +603,8 @@ class OddsCalculator:
         return win_prob
 
     def _generate_betting_scenarios(
-        self, players: List[PlayerState], hole: HoleState, team_probs: Dict[str, float]
-    ) -> List[BettingScenario]:
+        self, players: list[PlayerState], hole: HoleState, team_probs: dict[str, float]
+    ) -> list[BettingScenario]:
         """Generate all relevant betting scenarios with analysis"""
         scenarios = []
 
@@ -691,7 +686,7 @@ class OddsCalculator:
 
         return scenarios
 
-    def _determine_optimal_strategy(self, scenarios: List[BettingScenario], team_probs: Dict[str, float]) -> str:
+    def _determine_optimal_strategy(self, scenarios: list[BettingScenario], team_probs: dict[str, float]) -> str:
         """Determine the optimal betting strategy based on scenarios"""
         if not scenarios:
             return "continue_play"
@@ -701,12 +696,11 @@ class OddsCalculator:
 
         if best_scenario.expected_value > 0.5:
             return f"recommend_{best_scenario.scenario_type}"
-        elif best_scenario.risk_level == "low":
+        if best_scenario.risk_level == "low":
             return f"consider_{best_scenario.scenario_type}"
-        else:
-            return "play_conservatively"
+        return "play_conservatively"
 
-    def _calculate_uncertainty_level(self, player_probs: Dict[str, Any]) -> float:
+    def _calculate_uncertainty_level(self, player_probs: dict[str, Any]) -> float:
         """Calculate overall uncertainty in the current situation"""
         win_probs = [data["win_probability"] for data in player_probs.values()]
         if not win_probs:
@@ -716,7 +710,7 @@ class OddsCalculator:
         prob_variance = statistics.variance(win_probs) if len(win_probs) > 1 else 0
         return 1.0 - prob_variance  # Invert so high variance = high uncertainty
 
-    def _identify_volatility_factors(self, players: List[PlayerState], hole: HoleState) -> List[str]:
+    def _identify_volatility_factors(self, players: list[PlayerState], hole: HoleState) -> list[str]:
         """Identify factors that increase outcome volatility"""
         factors = []
 
@@ -739,7 +733,7 @@ class OddsCalculator:
 
         return factors
 
-    def _calculate_recommendation_confidence(self, scenarios: List[BettingScenario]) -> float:
+    def _calculate_recommendation_confidence(self, scenarios: list[BettingScenario]) -> float:
         """Calculate confidence in recommendations"""
         if not scenarios:
             return 0.5
@@ -758,8 +752,8 @@ class OddsCalculator:
 
     def _calculate_overall_confidence(
         self,
-        player_probs: Dict[str, Any],
-        team_probs: Dict[str, float],
+        player_probs: dict[str, Any],
+        team_probs: dict[str, float],
         hole: HoleState,
     ) -> float:
         """Calculate overall confidence in the odds calculation"""
@@ -785,7 +779,7 @@ class OddsCalculator:
         return statistics.mean(factors)
 
     def _simple_fallback_calculation(
-        self, players: List[PlayerState], hole: HoleState, calculation_time: float
+        self, players: list[PlayerState], hole: HoleState, calculation_time: float
     ) -> OddsResult:
         """Simplified fallback calculation for error cases"""
         # Equal probabilities as fallback
@@ -823,7 +817,7 @@ class OddsCalculator:
 
 
 # Utility functions for API integration
-def create_player_state_from_game_data(player_data: Dict[str, Any]) -> PlayerState:
+def create_player_state_from_game_data(player_data: dict[str, Any]) -> PlayerState:
     """Convert game state player data to PlayerState object"""
     return PlayerState(
         id=player_data.get("id", ""),
@@ -839,7 +833,7 @@ def create_player_state_from_game_data(player_data: Dict[str, Any]) -> PlayerSta
     )
 
 
-def create_hole_state_from_game_data(hole_data: Dict[str, Any]) -> HoleState:
+def create_hole_state_from_game_data(hole_data: dict[str, Any]) -> HoleState:
     """Convert game state hole data to HoleState object"""
     teams_map = {
         "pending": TeamConfiguration.PENDING,

@@ -14,7 +14,7 @@ Features:
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -31,16 +31,16 @@ class SheetColumnMapping:
     sheet_column: str
     db_field: str
     data_type: str  # 'text', 'number', 'percentage', 'currency', 'date'
-    transformation: Optional[str] = None  # Optional transformation function name
+    transformation: str | None = None  # Optional transformation function name
 
 
 @dataclass
 class SheetDataRow:
     """Represents a row of data from the Google Sheet."""
 
-    raw_data: Dict[str, Any]
-    mapped_data: Dict[str, Any]
-    validation_errors: List[str] = field(default_factory=list)
+    raw_data: dict[str, Any]
+    mapped_data: dict[str, Any]
+    validation_errors: list[str] = field(default_factory=list)
 
 
 class SheetIntegrationService:
@@ -82,7 +82,7 @@ class SheetIntegrationService:
             SheetColumnMapping("Solo Wins", "solo_wins", "number"),
         ]
 
-    def create_column_mappings(self, sheet_headers: List[str]) -> List[SheetColumnMapping]:
+    def create_column_mappings(self, sheet_headers: list[str]) -> list[SheetColumnMapping]:
         """Create column mappings based on sheet headers."""
         mappings = []
 
@@ -173,7 +173,7 @@ class SheetIntegrationService:
 
         return mappings
 
-    def transform_data_value(self, value: Any, transformation: Optional[str]) -> Any:
+    def transform_data_value(self, value: Any, transformation: str | None) -> Any:
         """Apply data transformation based on transformation type."""
         if value is None or value == "":
             return None
@@ -186,29 +186,28 @@ class SheetIntegrationService:
                     return float(value) / 100 if float(value) > 1 else float(value)
                 return float(value) / 100 if value > 1 else float(value)
 
-            elif transformation == "currency_to_float":
+            if transformation == "currency_to_float":
                 # Handle currency strings like "$123.45" or "123.45"
                 if isinstance(value, str):
                     value = value.strip().replace("$", "").replace(",", "")
                 return float(value)
 
-            elif transformation == "string_to_date":
+            if transformation == "string_to_date":
                 # Handle date strings
                 if isinstance(value, str):
                     return datetime.strptime(value, "%Y-%m-%d").isoformat()
                 return value
 
-            elif transformation == "number":
+            if transformation == "number":
                 return int(float(value))
 
-            else:
-                return value
+            return value
 
         except (ValueError, TypeError) as e:
             logger.warning(f"Failed to transform value {value} with {transformation}: {e}")
             return value
 
-    def validate_sheet_row(self, row_data: Dict[str, Any], mappings: List[SheetColumnMapping]) -> SheetDataRow:
+    def validate_sheet_row(self, row_data: dict[str, Any], mappings: list[SheetColumnMapping]) -> SheetDataRow:
         """Validate and transform a row of sheet data."""
         errors = []
         mapped_data = {}
@@ -233,8 +232,8 @@ class SheetIntegrationService:
         )
 
     def create_leaderboard_from_sheet_data(
-        self, sheet_data: List[Dict[str, Any]], mappings: List[SheetColumnMapping]
-    ) -> List[Dict[str, Any]]:
+        self, sheet_data: list[dict[str, Any]], mappings: list[SheetColumnMapping]
+    ) -> list[dict[str, Any]]:
         """Create a leaderboard from sheet data."""
         validated_rows = []
 
@@ -256,10 +255,10 @@ class SheetIntegrationService:
         return validated_rows
 
     def sync_sheet_data_to_database(
-        self, sheet_data: List[Dict[str, Any]], mappings: List[SheetColumnMapping]
-    ) -> Dict[str, Any]:
+        self, sheet_data: list[dict[str, Any]], mappings: list[SheetColumnMapping]
+    ) -> dict[str, Any]:
         """Sync sheet data to the database (create/update player profiles and statistics)."""
-        results: Dict[str, Any] = {
+        results: dict[str, Any] = {
             "players_processed": 0,
             "players_created": 0,
             "players_updated": 0,
@@ -315,7 +314,7 @@ class SheetIntegrationService:
                         if field_name != "player_name" and hasattr(stats, field_name) and value is not None:
                             setattr(stats, field_name, value)
 
-                    setattr(stats, "last_updated", datetime.now().isoformat())
+                    stats.last_updated = datetime.now().isoformat()
                     results["players_updated"] += 1
                     results["players_processed"] += 1
 
@@ -326,7 +325,7 @@ class SheetIntegrationService:
                     # Rollback just this player's changes and continue with others
                     savepoint.rollback()
                     logger.error(f"Error processing player from row {row}: {e}")
-                    results["errors"].append({"row": row, "errors": [f"Database error: {str(e)}"]})
+                    results["errors"].append({"row": row, "errors": [f"Database error: {e!s}"]})
                     continue
 
             # Final commit for the entire transaction
@@ -340,7 +339,7 @@ class SheetIntegrationService:
 
         return results
 
-    def export_current_data_to_sheet_format(self, mappings: List[SheetColumnMapping]) -> List[Dict[str, Any]]:
+    def export_current_data_to_sheet_format(self, mappings: list[SheetColumnMapping]) -> list[dict[str, Any]]:
         """Export current database data in sheet format for comparison."""
         try:
             # Get all active players with statistics
@@ -389,12 +388,12 @@ class SheetIntegrationService:
 
     def generate_sheet_comparison_report(
         self,
-        current_data: List[Dict[str, Any]],
-        sheet_data: List[Dict[str, Any]],
-        mappings: List[SheetColumnMapping],
-    ) -> Dict[str, Any]:
+        current_data: list[dict[str, Any]],
+        sheet_data: list[dict[str, Any]],
+        mappings: list[SheetColumnMapping],
+    ) -> dict[str, Any]:
         """Generate a comparison report between current database and sheet data."""
-        report: Dict[str, Any] = {
+        report: dict[str, Any] = {
             "summary": {
                 "database_players": len(current_data),
                 "sheet_players": len(sheet_data),

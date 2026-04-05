@@ -11,7 +11,7 @@ This service handles all player profile operations including:
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from sqlalchemy import and_, desc
 from sqlalchemy.orm import Session
@@ -81,7 +81,7 @@ class PlayerService:
             logger.error(f"Error creating player profile: {e}")
             raise
 
-    def get_player_profile(self, player_id: int) -> Optional[PlayerProfileResponse]:
+    def get_player_profile(self, player_id: int) -> PlayerProfileResponse | None:
         """Get a player profile by ID."""
         try:
             player = (
@@ -98,7 +98,7 @@ class PlayerService:
             logger.error(f"Error getting player profile {player_id}: {e}")
             raise
 
-    def get_player_profile_by_name(self, name: str) -> Optional[PlayerProfileResponse]:
+    def get_player_profile_by_name(self, name: str) -> PlayerProfileResponse | None:
         """Get a player profile by name."""
         try:
             player = (
@@ -115,7 +115,7 @@ class PlayerService:
             logger.error(f"Error getting player profile by name {name}: {e}")
             raise
 
-    def get_all_player_profiles(self, active_only: bool = True) -> List[PlayerProfileResponse]:
+    def get_all_player_profiles(self, active_only: bool = True) -> list[PlayerProfileResponse]:
         """Get all player profiles."""
         try:
             query = self.db.query(PlayerProfile)
@@ -129,9 +129,7 @@ class PlayerService:
             logger.error(f"Error getting all player profiles: {e}")
             raise
 
-    def update_player_profile(
-        self, player_id: int, update_data: PlayerProfileUpdate
-    ) -> Optional[PlayerProfileResponse]:
+    def update_player_profile(self, player_id: int, update_data: PlayerProfileUpdate) -> PlayerProfileResponse | None:
         """Update a player profile."""
         try:
             player = (
@@ -158,25 +156,25 @@ class PlayerService:
                 )
                 if existing_player:
                     raise ValueError(f"Player with name '{update_data.name}' already exists")
-                setattr(player, "name", update_data.name)
+                player.name = update_data.name
 
             if update_data.handicap is not None:
-                setattr(player, "handicap", update_data.handicap)
+                player.handicap = update_data.handicap
 
             if update_data.avatar_url is not None:
-                setattr(player, "avatar_url", update_data.avatar_url)
+                player.avatar_url = update_data.avatar_url
 
             if update_data.email is not None:
-                setattr(player, "email", update_data.email)
+                player.email = update_data.email
 
             if update_data.ghin_id is not None:
-                setattr(player, "ghin_id", update_data.ghin_id)
+                player.ghin_id = update_data.ghin_id
 
             if update_data.preferences is not None:
-                setattr(player, "preferences", update_data.preferences)
+                player.preferences = update_data.preferences
 
             if update_data.last_played is not None:
-                setattr(player, "last_played", update_data.last_played)
+                player.last_played = update_data.last_played
 
             self.db.commit()
             self.db.refresh(player)
@@ -196,7 +194,7 @@ class PlayerService:
             if not player:
                 return False
 
-            setattr(player, "is_active", 0)
+            player.is_active = 0
             self.db.commit()
 
             logger.info(f"Deleted (deactivated) player profile {player_id}")
@@ -208,7 +206,7 @@ class PlayerService:
             raise
 
     # Statistics Management
-    def get_player_statistics(self, player_id: int) -> Optional[PlayerStatisticsResponse]:
+    def get_player_statistics(self, player_id: int) -> PlayerStatisticsResponse | None:
         """Get player statistics."""
         try:
             stats = self.db.query(PlayerStatistics).filter(PlayerStatistics.player_id == player_id).first()
@@ -226,7 +224,7 @@ class PlayerService:
         try:
             player = self.db.query(PlayerProfile).filter(PlayerProfile.id == player_id).first()
             if player:
-                setattr(player, "last_played", datetime.now().isoformat())
+                player.last_played = datetime.now().isoformat()
                 self.db.commit()
 
         except Exception as e:
@@ -239,7 +237,7 @@ class PlayerService:
         try:
             # Create game player result record
             result_record = GamePlayerResult(**game_result.model_dump())
-            setattr(result_record, "created_at", datetime.now().isoformat())
+            result_record.created_at = datetime.now().isoformat()
             self.db.add(result_record)
 
             # Update player statistics
@@ -270,111 +268,63 @@ class PlayerService:
             self.db.flush()
 
         # Update game counts
-        setattr(stats, "games_played", int(stats.games_played) + 1)
+        stats.games_played = int(stats.games_played) + 1
         if game_result.final_position == 1:
-            setattr(stats, "games_won", int(stats.games_won) + 1)
+            stats.games_won = int(stats.games_won) + 1
 
         # Update earnings
-        setattr(
-            stats,
-            "total_earnings",
-            float(stats.total_earnings) + game_result.total_earnings,
-        )
-        setattr(
-            stats,
-            "holes_played",
-            int(stats.holes_played) + len(game_result.hole_scores or {}),
-        )
-        setattr(stats, "holes_won", int(stats.holes_won) + game_result.holes_won)
+        stats.total_earnings = float(stats.total_earnings) + game_result.total_earnings
+        stats.holes_played = int(stats.holes_played) + len(game_result.hole_scores or {})
+        stats.holes_won = int(stats.holes_won) + game_result.holes_won
 
         # Calculate average earnings per hole
         if int(stats.holes_played) > 0:
-            setattr(
-                stats,
-                "avg_earnings_per_hole",
-                float(stats.total_earnings) / int(stats.holes_played),
-            )
+            stats.avg_earnings_per_hole = float(stats.total_earnings) / int(stats.holes_played)
 
         # Update betting statistics
-        setattr(
-            stats,
-            "successful_bets",
-            int(stats.successful_bets) + game_result.successful_bets,
-        )
-        setattr(stats, "total_bets", int(stats.total_bets) + game_result.total_bets)
+        stats.successful_bets = int(stats.successful_bets) + game_result.successful_bets
+        stats.total_bets = int(stats.total_bets) + game_result.total_bets
         if int(stats.total_bets) > 0:
-            setattr(
-                stats,
-                "betting_success_rate",
-                float(stats.successful_bets) / int(stats.total_bets),
-            )
+            stats.betting_success_rate = float(stats.successful_bets) / int(stats.total_bets)
 
         # Update partnership statistics
-        setattr(
-            stats,
-            "partnerships_formed",
-            int(stats.partnerships_formed) + game_result.partnerships_formed,
-        )
-        setattr(
-            stats,
-            "partnerships_won",
-            int(stats.partnerships_won) + game_result.partnerships_won,
-        )
+        stats.partnerships_formed = int(stats.partnerships_formed) + game_result.partnerships_formed
+        stats.partnerships_won = int(stats.partnerships_won) + game_result.partnerships_won
         if int(stats.partnerships_formed) > 0:
-            setattr(
-                stats,
-                "partnership_success_rate",
-                float(stats.partnerships_won) / int(stats.partnerships_formed),
-            )
+            stats.partnership_success_rate = float(stats.partnerships_won) / int(stats.partnerships_formed)
 
         # Update solo statistics
-        setattr(stats, "solo_attempts", int(stats.solo_attempts) + game_result.solo_attempts)
-        setattr(stats, "solo_wins", int(stats.solo_wins) + game_result.solo_wins)
+        stats.solo_attempts = int(stats.solo_attempts) + game_result.solo_attempts
+        stats.solo_wins = int(stats.solo_wins) + game_result.solo_wins
 
         # Update special event statistics
         # Ping pong tracking
         ping_pongs = getattr(game_result, "ping_pongs", 0) or 0
         ping_pongs_won = getattr(game_result, "ping_pongs_won", 0) or 0
-        setattr(stats, "ping_pong_count", int(stats.ping_pong_count or 0) + ping_pongs)
-        setattr(stats, "ping_pong_wins", int(stats.ping_pong_wins or 0) + ping_pongs_won)
+        stats.ping_pong_count = int(stats.ping_pong_count or 0) + ping_pongs
+        stats.ping_pong_wins = int(stats.ping_pong_wins or 0) + ping_pongs_won
 
         # Invisible aardvark tracking
         invisible_holes = getattr(game_result, "invisible_aardvark_holes", 0) or 0
         invisible_wins = getattr(game_result, "invisible_aardvark_holes_won", 0) or 0
-        setattr(
-            stats,
-            "invisible_aardvark_appearances",
-            int(stats.invisible_aardvark_appearances or 0) + invisible_holes,
-        )
-        setattr(
-            stats,
-            "invisible_aardvark_wins",
-            int(stats.invisible_aardvark_wins or 0) + invisible_wins,
-        )
+        stats.invisible_aardvark_appearances = int(stats.invisible_aardvark_appearances or 0) + invisible_holes
+        stats.invisible_aardvark_wins = int(stats.invisible_aardvark_wins or 0) + invisible_wins
 
         # Specific solo type tracking (The Duncan, The Tunkarri, Big Dick)
         duncan_attempts = getattr(game_result, "duncan_attempts", 0) or 0
         duncan_wins = getattr(game_result, "duncan_wins", 0) or 0
-        setattr(stats, "duncan_attempts", int(stats.duncan_attempts or 0) + duncan_attempts)
-        setattr(stats, "duncan_wins", int(stats.duncan_wins or 0) + duncan_wins)
+        stats.duncan_attempts = int(stats.duncan_attempts or 0) + duncan_attempts
+        stats.duncan_wins = int(stats.duncan_wins or 0) + duncan_wins
 
         tunkarri_attempts = getattr(game_result, "tunkarri_attempts", 0) or 0
         tunkarri_wins = getattr(game_result, "tunkarri_wins", 0) or 0
-        setattr(
-            stats,
-            "tunkarri_attempts",
-            int(stats.tunkarri_attempts or 0) + tunkarri_attempts,
-        )
-        setattr(stats, "tunkarri_wins", int(stats.tunkarri_wins or 0) + tunkarri_wins)
+        stats.tunkarri_attempts = int(stats.tunkarri_attempts or 0) + tunkarri_attempts
+        stats.tunkarri_wins = int(stats.tunkarri_wins or 0) + tunkarri_wins
 
         big_dick_attempts = getattr(game_result, "big_dick_attempts", 0) or 0
         big_dick_wins = getattr(game_result, "big_dick_wins", 0) or 0
-        setattr(
-            stats,
-            "big_dick_attempts",
-            int(stats.big_dick_attempts or 0) + big_dick_attempts,
-        )
-        setattr(stats, "big_dick_wins", int(stats.big_dick_wins or 0) + big_dick_wins)
+        stats.big_dick_attempts = int(stats.big_dick_attempts or 0) + big_dick_attempts
+        stats.big_dick_wins = int(stats.big_dick_wins or 0) + big_dick_wins
 
         # Update score performance statistics (eagles, birdies, pars, bogeys, etc.)
         if game_result.performance_metrics:
@@ -391,43 +341,27 @@ class PlayerService:
         if is_win:
             # Won: increment win streak, reset loss streak
             current_win_streak = int(stats.current_win_streak or 0) + 1
-            setattr(stats, "current_win_streak", current_win_streak)
-            setattr(stats, "current_loss_streak", 0)
+            stats.current_win_streak = current_win_streak
+            stats.current_loss_streak = 0
             # Update best win streak if current is higher
             if current_win_streak > int(stats.best_win_streak or 0):
-                setattr(stats, "best_win_streak", current_win_streak)
+                stats.best_win_streak = current_win_streak
         else:
             # Lost: increment loss streak, reset win streak
             current_loss_streak = int(stats.current_loss_streak or 0) + 1
-            setattr(stats, "current_loss_streak", current_loss_streak)
-            setattr(stats, "current_win_streak", 0)
+            stats.current_loss_streak = current_loss_streak
+            stats.current_win_streak = 0
             # Update worst loss streak if current is higher
             if current_loss_streak > int(stats.worst_loss_streak or 0):
-                setattr(stats, "worst_loss_streak", current_loss_streak)
+                stats.worst_loss_streak = current_loss_streak
 
         # Update role tracking from performance_metrics
         if game_result.performance_metrics:
             role_data = game_result.performance_metrics
-            setattr(
-                stats,
-                "times_as_wolf",
-                int(stats.times_as_wolf or 0) + role_data.get("times_as_wolf", 0),
-            )
-            setattr(
-                stats,
-                "times_as_goat",
-                int(stats.times_as_goat or 0) + role_data.get("times_as_goat", 0),
-            )
-            setattr(
-                stats,
-                "times_as_pig",
-                int(stats.times_as_pig or 0) + role_data.get("times_as_pig", 0),
-            )
-            setattr(
-                stats,
-                "times_as_aardvark",
-                int(stats.times_as_aardvark or 0) + role_data.get("times_as_aardvark", 0),
-            )
+            stats.times_as_wolf = int(stats.times_as_wolf or 0) + role_data.get("times_as_wolf", 0)
+            stats.times_as_goat = int(stats.times_as_goat or 0) + role_data.get("times_as_goat", 0)
+            stats.times_as_pig = int(stats.times_as_pig or 0) + role_data.get("times_as_pig", 0)
+            stats.times_as_aardvark = int(stats.times_as_aardvark or 0) + role_data.get("times_as_aardvark", 0)
 
         # Update performance trends
         performance_point = {
@@ -438,18 +372,18 @@ class PlayerService:
             "betting_success": game_result.successful_bets / max(1, game_result.total_bets),
         }
 
-        trends: List[Any] = list(stats.performance_trends) if stats.performance_trends else []
+        trends: list[Any] = list(stats.performance_trends) if stats.performance_trends else []
         trends.append(performance_point)
 
         # Keep only last 50 games for performance
         if len(trends) > 50:
             trends = trends[-50:]
 
-        setattr(stats, "performance_trends", trends)
-        setattr(stats, "last_updated", datetime.now().isoformat())
+        stats.performance_trends = trends
+        stats.last_updated = datetime.now().isoformat()
 
     # Analytics and Insights
-    def get_player_performance_analytics(self, player_id: int) -> Optional[PlayerPerformanceAnalytics]:
+    def get_player_performance_analytics(self, player_id: int) -> PlayerPerformanceAnalytics | None:
         """Get comprehensive performance analytics for a player."""
         try:
             profile = self.get_player_profile(player_id)
@@ -480,12 +414,16 @@ class PlayerService:
                 "betting": (
                     "Strong"
                     if stats.betting_success_rate > 0.6
-                    else "Weak" if stats.betting_success_rate < 0.4 else "Average"
+                    else "Weak"
+                    if stats.betting_success_rate < 0.4
+                    else "Average"
                 ),
                 "partnerships": (
                     "Strong"
                     if stats.partnership_success_rate > 0.6
-                    else "Weak" if stats.partnership_success_rate < 0.4 else "Average"
+                    else "Weak"
+                    if stats.partnership_success_rate < 0.4
+                    else "Average"
                 ),
                 "solo_play": ("Strong" if (stats.solo_wins / max(1, stats.solo_attempts)) > 0.3 else "Risky"),
                 "consistency": self._calculate_consistency_rating(stats.performance_trends or []),
@@ -511,7 +449,7 @@ class PlayerService:
             logger.error(f"Error getting performance analytics for player {player_id}: {e}")
             raise
 
-    def get_leaderboard(self, limit: int = 10) -> List[LeaderboardEntry]:
+    def get_leaderboard(self, limit: int = 10) -> list[LeaderboardEntry]:
         """Get the player leaderboard (real players only, no AI)."""
         try:
             # Query for active real players with statistics (exclude AI players)
@@ -582,14 +520,13 @@ class PlayerService:
 
         if avg_position <= 1.5:
             return "Excellent"
-        elif avg_position <= 2.0:
+        if avg_position <= 2.0:
             return "Good"
-        elif avg_position <= 2.5:
+        if avg_position <= 2.5:
             return "Average"
-        else:
-            return "Poor"
+        return "Poor"
 
-    def _analyze_performance_trends(self, trends: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _analyze_performance_trends(self, trends: list[dict[str, Any]]) -> dict[str, Any]:
         """Analyze performance trends over time."""
         if not trends or len(trends) < 3:
             return {"status": "insufficient_data"}
@@ -612,7 +549,7 @@ class PlayerService:
             "volatility": self._calculate_volatility(earnings),
         }
 
-    def _calculate_consistency_rating(self, trends: List[Dict[str, Any]]) -> str:
+    def _calculate_consistency_rating(self, trends: list[dict[str, Any]]) -> str:
         """Calculate consistency rating based on performance variance."""
         if not trends or len(trends) < 5:
             return "Unknown"
@@ -622,14 +559,13 @@ class PlayerService:
 
         if variance < 0.5:
             return "Very Consistent"
-        elif variance < 1.0:
+        if variance < 1.0:
             return "Consistent"
-        elif variance < 2.0:
+        if variance < 2.0:
             return "Moderate"
-        else:
-            return "Inconsistent"
+        return "Inconsistent"
 
-    def _calculate_volatility(self, values: List[float]) -> str:
+    def _calculate_volatility(self, values: list[float]) -> str:
         """Calculate volatility rating for earnings."""
         if not values or len(values) < 3:
             return "Unknown"
@@ -640,12 +576,11 @@ class PlayerService:
 
         if std_dev < mean_val * 0.3:
             return "Low"
-        elif std_dev < mean_val * 0.6:
+        if std_dev < mean_val * 0.6:
             return "Medium"
-        else:
-            return "High"
+        return "High"
 
-    def _generate_improvement_recommendations(self, stats: PlayerStatisticsResponse) -> List[str]:
+    def _generate_improvement_recommendations(self, stats: PlayerStatisticsResponse) -> list[str]:
         """Generate personalized improvement recommendations."""
         recommendations = []
 
@@ -675,7 +610,7 @@ class PlayerService:
 
         return recommendations
 
-    def _get_comparative_analysis(self, player_id: int, stats: PlayerStatisticsResponse) -> Dict[str, Any]:
+    def _get_comparative_analysis(self, player_id: int, stats: PlayerStatisticsResponse) -> dict[str, Any]:
         """Get comparative analysis against other players."""
         try:
             # Get average stats for all players
@@ -704,7 +639,7 @@ class PlayerService:
             logger.error(f"Error in comparative analysis: {e}")
             return {"status": "error"}
 
-    def _calculate_percentile(self, value: float, sorted_values: List[float]) -> float:
+    def _calculate_percentile(self, value: float, sorted_values: list[float]) -> float:
         """Calculate percentile rank for a value in a sorted list."""
         if not sorted_values:
             return 0.0
@@ -718,20 +653,19 @@ class PlayerService:
 
         if avg_percentile >= 90:
             return "Elite Player"
-        elif avg_percentile >= 75:
+        if avg_percentile >= 75:
             return "Strong Player"
-        elif avg_percentile >= 50:
+        if avg_percentile >= 50:
             return "Average Player"
-        elif avg_percentile >= 25:
+        if avg_percentile >= 25:
             return "Developing Player"
-        else:
-            return "Beginner Player"
+        return "Beginner Player"
 
     # Achievement System
-    def check_and_award_achievements(self, player_id: int, game_result: GamePlayerResultCreate) -> List[str]:
+    def check_and_award_achievements(self, player_id: int, game_result: GamePlayerResultCreate) -> list[str]:
         """Check for new achievements and award them."""
         try:
-            awarded_achievements: List[str] = []
+            awarded_achievements: list[str] = []
 
             # Get current stats
             stats = self.get_player_statistics(player_id)

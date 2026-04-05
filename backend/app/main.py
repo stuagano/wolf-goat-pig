@@ -5,9 +5,10 @@ import random
 import time
 import traceback
 import uuid
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta, timezone
-from typing import Any, AsyncIterator, Dict, List, Optional, Tuple, cast
+from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
 import httpx
 from fastapi import (
@@ -42,8 +43,7 @@ from .post_hole_analytics import PostHoleAnalyzer
 
 # Import routers
 from .routers import courses, foretees, health, matchmaking, players, sheet_integration
-
-from .services.email_service import SMTPEmailProvider, get_email_service
+from .services.email_service import get_email_service
 from .services.game_lifecycle_service import get_game_lifecycle_service
 from .services.leaderboard_service import get_leaderboard_service
 from .services.legacy_player_service import (
@@ -69,8 +69,8 @@ logger = logging.getLogger(__name__)
 
 
 # Lazy initialization - will be created during lifespan startup, not at import time
-post_hole_analyzer: Optional[PostHoleAnalyzer] = None
-course_manager: Optional[CourseManager] = None
+post_hole_analyzer: PostHoleAnalyzer | None = None
+course_manager: CourseManager | None = None
 
 
 # Response model classes for Action API
@@ -79,16 +79,16 @@ class ActionRequest(BaseModel):
 
     model_config = {"extra": "allow"}  # Allow extra fields for backward compatibility
     action_type: str  # INITIALIZE_GAME, PLAY_SHOT, REQUEST_PARTNERSHIP, etc.
-    payload: Optional[Dict[str, Any]] = None
+    payload: dict[str, Any] | None = None
 
 
 class ActionResponse(BaseModel):
     """Standard response structure for all actions"""
 
-    game_state: Dict[str, Any]
+    game_state: dict[str, Any]
     log_message: str
-    available_actions: List[Dict[str, Any]]
-    timeline_event: Optional[Dict[str, Any]] = None
+    available_actions: list[dict[str, Any]]
+    timeline_event: dict[str, Any] | None = None
 
 
 class BallSeed(BaseModel):
@@ -106,34 +106,34 @@ class BallSeed(BaseModel):
 class BettingSeed(BaseModel):
     """Testing helper payload for adjusting betting metadata."""
 
-    base_wager: Optional[int] = Field(None, ge=0)
-    current_wager: Optional[int] = Field(None, ge=0)
-    doubled: Optional[bool] = None
-    redoubled: Optional[bool] = None
-    carry_over: Optional[bool] = None
-    float_invoked: Optional[bool] = None
-    option_invoked: Optional[bool] = None
-    duncan_invoked: Optional[bool] = None
-    tunkarri_invoked: Optional[bool] = None
-    big_dick_invoked: Optional[bool] = None
-    joes_special_value: Optional[int] = None
-    line_of_scrimmage: Optional[str] = None
-    ping_pong_count: Optional[int] = Field(None, ge=0)
+    base_wager: int | None = Field(None, ge=0)
+    current_wager: int | None = Field(None, ge=0)
+    doubled: bool | None = None
+    redoubled: bool | None = None
+    carry_over: bool | None = None
+    float_invoked: bool | None = None
+    option_invoked: bool | None = None
+    duncan_invoked: bool | None = None
+    tunkarri_invoked: bool | None = None
+    big_dick_invoked: bool | None = None
+    joes_special_value: int | None = None
+    line_of_scrimmage: str | None = None
+    ping_pong_count: int | None = Field(None, ge=0)
 
 
 class SimulationSeedRequest(BaseModel):
     """Parameters accepted by the test seeding endpoint."""
 
-    current_hole: Optional[int] = Field(None, description="Hole number to switch the active simulation to")
-    shot_order: Optional[List[str]] = Field(None, description="Explicit hitting order for the active hole")
-    ball_positions: List[BallSeed] = Field(default_factory=list)
+    current_hole: int | None = Field(None, description="Hole number to switch the active simulation to")
+    shot_order: list[str] | None = Field(None, description="Explicit hitting order for the active hole")
+    ball_positions: list[BallSeed] = Field(default_factory=list)
     ball_positions_replace: bool = Field(False, description="Replace all ball positions when True")
-    line_of_scrimmage: Optional[str] = None
-    next_player_to_hit: Optional[str] = None
-    current_order_of_play: Optional[List[str]] = None
-    wagering_closed: Optional[bool] = None
-    betting: Optional[BettingSeed] = None
-    team_formation: Optional[Dict[str, Any]] = Field(None, description="Override the current TeamFormation dataclass")
+    line_of_scrimmage: str | None = None
+    next_player_to_hit: str | None = None
+    current_order_of_play: list[str] | None = None
+    wagering_closed: bool | None = None
+    betting: BettingSeed | None = None
+    team_formation: dict[str, Any] | None = Field(None, description="Override the current TeamFormation dataclass")
     clear_balls_in_hole: bool = Field(False, description="Clear recorded holed balls before applying seed")
     reset_doubles_history: bool = Field(True, description="Clear double-offer history to avoid stale offers")
 
@@ -143,10 +143,10 @@ class HoleTeams(BaseModel):
     """Team configuration for a hole"""
 
     type: str  # 'partners' or 'solo'
-    team1: Optional[List[str]] = None  # Player IDs for team 1 (partners mode)
-    team2: Optional[List[str]] = None  # Player IDs for team 2 (partners mode)
-    captain: Optional[str] = None  # Captain player ID (solo mode)
-    opponents: Optional[List[str]] = None  # Opponent player IDs (solo mode)
+    team1: list[str] | None = None  # Player IDs for team 1 (partners mode)
+    team2: list[str] | None = None  # Player IDs for team 2 (partners mode)
+    captain: str | None = None  # Captain player ID (solo mode)
+    opponents: list[str] | None = None  # Opponent player IDs (solo mode)
 
 
 class ManualPointsOverride(BaseModel):
@@ -160,44 +160,42 @@ class CompleteHoleRequest(BaseModel):
     """Request to complete a hole with all data at once - for scorekeeper mode"""
 
     hole_number: int = Field(..., ge=1, le=18)
-    rotation_order: List[str] = Field(..., description="Hitting order for this hole")
+    rotation_order: list[str] = Field(..., description="Hitting order for this hole")
     captain_index: int = Field(0, ge=0, description="Index in rotation_order who is captain")
-    phase: Optional[str] = Field("normal", description="Game phase: 'normal' or 'hoepfinger'")
-    joes_special_wager: Optional[int] = Field(None, description="Wager set by Goat (2, 4, or 8) during Hoepfinger")
-    option_turned_off: Optional[bool] = Field(False, description="Captain proactively turned off The Option")
-    duncan_invoked: Optional[bool] = Field(False, description="Captain went solo before hitting (3-for-2 payout)")
-    tunkarri_invoked: Optional[bool] = Field(
-        False, description="Aardvark went solo before Captain hit (3-for-2 payout)"
-    )
+    phase: str | None = Field("normal", description="Game phase: 'normal' or 'hoepfinger'")
+    joes_special_wager: int | None = Field(None, description="Wager set by Goat (2, 4, or 8) during Hoepfinger")
+    option_turned_off: bool | None = Field(False, description="Captain proactively turned off The Option")
+    duncan_invoked: bool | None = Field(False, description="Captain went solo before hitting (3-for-2 payout)")
+    tunkarri_invoked: bool | None = Field(False, description="Aardvark went solo before Captain hit (3-for-2 payout)")
     teams: HoleTeams
     final_wager: float = Field(..., gt=0)
     winner: str  # 'team1', 'team2', 'captain', 'opponents', or 'push' for completed holes; 'team1_flush' (Team2 conceded), 'team2_flush' (Team1 conceded), 'captain_flush' (Opponents conceded), 'opponents_flush' (Captain conceded) for folded holes
-    scores: Dict[str, int] = Field(..., description="Player ID to strokes mapping")
-    hole_par: Optional[int] = Field(4, ge=3, le=5)
-    float_invoked_by: Optional[str] = Field(None, description="Player ID who invoked float on this hole")
-    option_invoked_by: Optional[str] = Field(None, description="Player ID who triggered option on this hole")
-    carry_over_applied: Optional[bool] = Field(False, description="Whether carry-over was applied to this hole")
-    doubles_history: Optional[List[Dict]] = Field(None, description="Pre-hole doubles offered and accepted")
-    big_dick_invoked_by: Optional[str] = Field(None, description="Player ID who invoked The Big Dick on hole 18")
+    scores: dict[str, int] = Field(..., description="Player ID to strokes mapping")
+    hole_par: int | None = Field(4, ge=3, le=5)
+    float_invoked_by: str | None = Field(None, description="Player ID who invoked float on this hole")
+    option_invoked_by: str | None = Field(None, description="Player ID who triggered option on this hole")
+    carry_over_applied: bool | None = Field(False, description="Whether carry-over was applied to this hole")
+    doubles_history: list[dict] | None = Field(None, description="Pre-hole doubles offered and accepted")
+    big_dick_invoked_by: str | None = Field(None, description="Player ID who invoked The Big Dick on hole 18")
     # Phase 5: The Aardvark (5-man game mechanics)
-    aardvark_requested_team: Optional[str] = Field(
+    aardvark_requested_team: str | None = Field(
         None, description="Team Aardvark requested to join ('team1' or 'team2')"
     )
-    aardvark_tossed: Optional[bool] = Field(False, description="Whether Aardvark was tossed by requested team")
-    aardvark_ping_ponged: Optional[bool] = Field(
+    aardvark_tossed: bool | None = Field(False, description="Whether Aardvark was tossed by requested team")
+    aardvark_ping_ponged: bool | None = Field(
         False, description="Whether Aardvark was re-tossed (ping-ponged) by second team"
     )
-    aardvark_solo: Optional[bool] = Field(False, description="Whether Aardvark went solo (1v4)")
+    aardvark_solo: bool | None = Field(False, description="Whether Aardvark went solo (1v4)")
     # Manual override controls
-    manual_points_override: Optional[ManualPointsOverride] = Field(
+    manual_points_override: ManualPointsOverride | None = Field(
         None, description="Manual override for a player's quarters"
     )
     # Interactive betting tracking
-    betting_narrative: Optional[str] = Field(
+    betting_narrative: str | None = Field(
         None,
         description="Human-readable narrative of betting actions (e.g., 'Stuart doubles → accepted')",
     )
-    betting_events: Optional[List[Dict]] = Field(None, description="List of betting events for this hole")
+    betting_events: list[dict] | None = Field(None, description="List of betting events for this hole")
 
 
 class RotationSelectionRequest(BaseModel):
@@ -258,7 +256,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             email_scheduler.stop()
             logger.info("📧 Email scheduler stopped successfully")
     except Exception as e:
-        logger.error(f"Failed to stop email scheduler: {str(e)}")
+        logger.error(f"Failed to stop email scheduler: {e!s}")
 
     # Close database connections gracefully
     try:
@@ -266,7 +264,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             database.engine.dispose()
             logger.info("🗄️ Database connections closed successfully")
     except Exception as e:
-        logger.error(f"Failed to close database connections: {str(e)}")
+        logger.error(f"Failed to close database connections: {e!s}")
 
     logger.info("✅ Shutdown complete")
 
@@ -288,7 +286,7 @@ ENABLE_TEST_ENDPOINTS = os.getenv("ENABLE_TEST_ENDPOINTS", "false").lower() in {
 ADMIN_EMAILS = {"stuagano@gmail.com", "admin@wgp.com"}
 
 
-def require_admin(x_admin_email: Optional[str] = Header(None)) -> None:
+def require_admin(x_admin_email: str | None = Header(None)) -> None:
     if not x_admin_email or x_admin_email not in ADMIN_EMAILS:
         raise HTTPException(status_code=403, detail="Admin access required")
 
@@ -455,7 +453,7 @@ def get_rules():
 
 # Scorecard Photo Scan Endpoint
 @app.post("/scorecard/scan")
-async def scan_scorecard_photo(file: UploadFile = File(...)) -> Dict[str, Any]:
+async def scan_scorecard_photo(file: UploadFile = File(...)) -> dict[str, Any]:
     """
     Upload a scorecard photo and extract running quarter totals via Gemini Vision.
     Returns extracted running totals and computed per-hole quarter deltas.
@@ -490,7 +488,7 @@ async def ghin_lookup(
     page: int = Query(1),
     per_page: int = Query(10),
     db: Session = Depends(database.get_db),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Look up golfers by name using GHIN API"""
     try:
         from .services.ghin_service import GHINService
@@ -524,14 +522,14 @@ async def ghin_lookup(
         )
     except Exception as e:
         logger.error(f"Error in GHIN lookup: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to lookup golfer: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to lookup golfer: {e!s}")
 
 
-@app.post("/ghin/sync-player-handicap/{player_id}", response_model=Dict[str, Any])
+@app.post("/ghin/sync-player-handicap/{player_id}", response_model=dict[str, Any])
 async def sync_player_ghin_handicap(
     player_id: int = Path(..., description="The ID of the player to sync"),
     db: Session = Depends(database.get_db),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Sync a specific player's handicap from GHIN."""
     from .services.ghin_service import GHINService
 
@@ -552,16 +550,15 @@ async def sync_player_ghin_handicap(
             "message": "Handicap synced successfully",
             "data": synced_data,
         }
-    else:
-        logger.error(f"Failed to sync handicap for player {player_id}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to sync handicap for player {player_id}. Check if player has a GHIN ID and logs for details.",
-        )
+    logger.error(f"Failed to sync handicap for player {player_id}")
+    raise HTTPException(
+        status_code=500,
+        detail=f"Failed to sync handicap for player {player_id}. Check if player has a GHIN ID and logs for details.",
+    )
 
 
 @app.get("/ghin/diagnostic")
-def ghin_diagnostic() -> Dict[str, Any]:
+def ghin_diagnostic() -> dict[str, Any]:
     """Diagnostic endpoint for GHIN API configuration"""
     email = os.getenv("GHIN_API_USER")
     password = os.getenv("GHIN_API_PASS")
@@ -578,11 +575,11 @@ def ghin_diagnostic() -> Dict[str, Any]:
 
 @app.post("/games/create")
 async def create_game_with_join_code(
-    course_name: Optional[str] = None,
+    course_name: str | None = None,
     player_count: int = 4,
-    user_id: Optional[str] = None,
+    user_id: str | None = None,
     db: Session = Depends(database.get_db),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Create a new game with a join code for authenticated players"""
     try:
         import random
@@ -598,7 +595,7 @@ async def create_game_with_join_code(
 
         # Create game with unique ID
         game_id = str(uuid.uuid4())
-        current_time = datetime.now(timezone.utc).isoformat()
+        current_time = datetime.now(UTC).isoformat()
 
         # Initial game state
         initial_state = {
@@ -650,15 +647,15 @@ async def create_game_with_join_code(
         }
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error creating game: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error creating game: {e!s}")
 
 
 @app.post("/games/create-test")
 async def create_test_game(
-    course_name: Optional[str] = None,
+    course_name: str | None = None,
     player_count: int = 4,
     db: Session = Depends(database.get_db),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Create a test game with mock players and immediately start it - for single-device testing
 
@@ -672,7 +669,7 @@ async def create_test_game(
     # Generate 6-character join code
     join_code = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
     game_id = str(uuid.uuid4())
-    current_time = datetime.now(timezone.utc).isoformat()
+    current_time = datetime.now(UTC).isoformat()
 
     # Create mock players (supports up to 6 players)
     mock_players = [
@@ -838,7 +835,7 @@ async def create_test_game(
             logger.error(f"❌ Both database and fallback mode failed: {fallback_error}")
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to create game. Database error: {str(db_error)}. Fallback error: {str(fallback_error)}",
+                detail=f"Failed to create game. Database error: {db_error!s}. Fallback error: {fallback_error!s}",
             )
 
     # Build response
@@ -926,7 +923,7 @@ async def update_player_name(  # type: ignore
                         break
 
                 game.state = state  # type: ignore
-                game.updated_at = datetime.now(timezone.utc).isoformat()  # type: ignore
+                game.updated_at = datetime.now(UTC).isoformat()  # type: ignore
 
                 # Also update GamePlayer record
                 game_player = (
@@ -964,7 +961,7 @@ async def update_player_name(  # type: ignore
         raise
     except Exception as e:
         logger.error(f"Error updating player name: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to update player name: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to update player name: {e!s}")
 
 
 @app.delete("/games/{game_id}/players/{player_slot_id}")
@@ -1012,7 +1009,7 @@ async def remove_player(game_id: str, player_slot_id: str, db: Session = Depends
         players = state.get("players", [])
         state["players"] = [p for p in players if p.get("id") != player_slot_id]
         game.state = state
-        game.updated_at = datetime.now(timezone.utc).isoformat()
+        game.updated_at = datetime.now(UTC).isoformat()
 
         db.commit()
 
@@ -1031,7 +1028,7 @@ async def remove_player(game_id: str, player_slot_id: str, db: Session = Depends
     except Exception as e:
         logger.error(f"Error removing player: {e}")
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to remove player: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to remove player: {e!s}")
 
 
 @app.patch("/games/{game_id}/players/{player_slot_id}/handicap")
@@ -1097,7 +1094,7 @@ async def update_player_handicap(  # type: ignore
                 break
 
         game.state = state
-        game.updated_at = datetime.now(timezone.utc).isoformat()
+        game.updated_at = datetime.now(UTC).isoformat()
 
         db.commit()
 
@@ -1116,7 +1113,7 @@ async def update_player_handicap(  # type: ignore
     except Exception as e:
         logger.error(f"Error updating player handicap: {e}")
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to update handicap: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to update handicap: {e!s}")
 
 
 @app.post("/games/{game_id}/holes/complete", deprecated=True)
@@ -1560,7 +1557,7 @@ async def complete_hole(  # type: ignore
                 status_code=500,
                 detail=f"Scorekeeping error: points total {points_total} instead of 0. Please report this bug.",
             )
-        elif request.manual_points_override and abs(points_total) > 0.01:
+        if request.manual_points_override and abs(points_total) > 0.01:
             logger.warning(
                 f"Manual override used - points do not balance to zero. "
                 f"Hole {request.hole_number}, Total: {points_total}, Points: {points_delta}"
@@ -1569,7 +1566,7 @@ async def complete_hole(  # type: ignore
         # Calculate per-opponent quarters breakdown for display purposes
         # This helps show individual matchup results in the scorecard
         quarters_breakdown = {}  # type: ignore
-        for player_id in points_delta.keys():
+        for player_id in points_delta:
             quarters_breakdown[player_id] = {}
 
             # For partners mode: quarters are split based on team matchups
@@ -1675,7 +1672,7 @@ async def complete_hole(  # type: ignore
             game_state["players"] = []
 
         # Ensure all players from rotation_order are in game_state["players"]
-        players_list = cast(List[Dict[str, Any]], game_state["players"])
+        players_list = cast("list[dict[str, Any]]", game_state["players"])
         existing_player_ids = {p.get("id") for p in players_list}
         for player_id in request.rotation_order:
             if player_id not in existing_player_ids:
@@ -1701,7 +1698,7 @@ async def complete_hole(  # type: ignore
 
         # Update game state in database
         game.state = game_state
-        game.updated_at = datetime.now(timezone.utc).isoformat()
+        game.updated_at = datetime.now(UTC).isoformat()
 
         # Mark state as modified for SQLAlchemy to detect changes in JSON field
         from sqlalchemy.orm.attributes import flag_modified
@@ -1783,7 +1780,7 @@ async def complete_hole(  # type: ignore
     except Exception as e:
         db.rollback()
         logger.error(f"Error completing hole: {e}")
-        raise HTTPException(status_code=500, detail=f"Error completing hole: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error completing hole: {e!s}")
 
 
 @app.patch("/games/{game_id}/holes/{hole_number}")
@@ -2039,7 +2036,7 @@ async def update_hole(  # type: ignore
 
         # Calculate per-opponent quarters breakdown for display purposes
         quarters_breakdown = {}  # type: ignore
-        for player_id in points_delta.keys():
+        for player_id in points_delta:
             quarters_breakdown[player_id] = {}
 
             # For partners mode: quarters are split based on team matchups
@@ -2127,7 +2124,7 @@ async def update_hole(  # type: ignore
 
         # Update game state in database
         game.state = game_state
-        game.updated_at = datetime.now(timezone.utc).isoformat()
+        game.updated_at = datetime.now(UTC).isoformat()
 
         from sqlalchemy.orm.attributes import flag_modified
 
@@ -2151,7 +2148,7 @@ async def update_hole(  # type: ignore
     except Exception as e:
         db.rollback()
         logger.error(f"Error updating hole: {e}")
-        raise HTTPException(status_code=500, detail=f"Error updating hole: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error updating hole: {e!s}")
 
 
 @app.delete("/games/{game_id}/holes/{hole_number}")
@@ -2208,7 +2205,7 @@ async def delete_hole(game_id: str, hole_number: int, db: Session = Depends(data
 
         # Update game state in database
         game.state = game_state
-        game.updated_at = datetime.now(timezone.utc).isoformat()
+        game.updated_at = datetime.now(UTC).isoformat()
 
         from sqlalchemy.orm.attributes import flag_modified
 
@@ -2232,7 +2229,7 @@ async def delete_hole(game_id: str, hole_number: int, db: Session = Depends(data
     except Exception as e:
         db.rollback()
         logger.error(f"Error deleting hole: {e}")
-        raise HTTPException(status_code=500, detail=f"Error deleting hole: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error deleting hole: {e!s}")
 
 
 @app.get("/games/{game_id}/next-rotation", deprecated=True)
@@ -2289,20 +2286,19 @@ async def get_next_rotation(game_id: str, db: Session = Depends(database.get_db)
                 "current_rotation": last_rotation,
                 "message": "Goat selects hitting position",
             }
+        if is_first_hole:
+            # First hole - use initial tee order without rotation
+            new_rotation = last_rotation
         else:
-            if is_first_hole:
-                # First hole - use initial tee order without rotation
-                new_rotation = last_rotation
-            else:
-                # Normal rotation: shift left by 1 from previous hole
-                new_rotation = last_rotation[1:] + [last_rotation[0]]
+            # Normal rotation: shift left by 1 from previous hole
+            new_rotation = last_rotation[1:] + [last_rotation[0]]
 
-            return {
-                "is_hoepfinger": False,
-                "rotation_order": new_rotation,
-                "captain_index": 0,
-                "captain_id": new_rotation[0],
-            }
+        return {
+            "is_hoepfinger": False,
+            "rotation_order": new_rotation,
+            "captain_index": 0,
+            "captain_id": new_rotation[0],
+        }
 
     except Exception as e:
         logger.error(f"Error calculating next rotation: {e}")
@@ -2312,7 +2308,7 @@ async def get_next_rotation(game_id: str, db: Session = Depends(database.get_db)
 @app.get("/games/{game_id}/next-hole-wager", deprecated=True)
 async def get_next_hole_wager(  # type: ignore
     game_id: str,
-    current_hole: Optional[int] = None,
+    current_hole: int | None = None,
     db: Session = Depends(database.get_db),
 ):
     """
@@ -2348,12 +2344,11 @@ async def get_next_hole_wager(  # type: ignore
                     "carry_over": False,
                     "message": f"Consecutive carry-over blocked. Base wager remains {carry_over_wager}Q from hole {from_hole}",
                 }
-            else:
-                return {
-                    "base_wager": carry_over_wager,
-                    "carry_over": True,
-                    "message": f"Carry-over from hole {from_hole} push",
-                }
+            return {
+                "base_wager": carry_over_wager,
+                "carry_over": True,
+                "message": f"Carry-over from hole {from_hole} push",
+            }
 
         # Check for The Option (Captain is Goat)
         if not game_state.get("carry_over_wager"):  # Option doesn't stack with carry-over
@@ -2561,7 +2556,7 @@ async def join_game_with_code(  # type: ignore
 
         # Assign player slot
         player_slot_id = f"p{len(current_players) + 1}"
-        current_time = datetime.now(timezone.utc).isoformat()
+        current_time = datetime.now(UTC).isoformat()
 
         # Ensure handicap is valid - use default if None
         player_handicap = request.handicap if request.handicap is not None else 18.0
@@ -2608,11 +2603,11 @@ async def join_game_with_code(  # type: ignore
         raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error joining game: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error joining game: {e!s}")
 
 
 @app.get("/games/{game_id}/lobby")
-async def get_game_lobby(game_id: str, db: Session = Depends(database.get_db)) -> Dict[str, Any]:
+async def get_game_lobby(game_id: str, db: Session = Depends(database.get_db)) -> dict[str, Any]:
     """Get game lobby information - who has joined"""
     try:
         game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
@@ -2655,13 +2650,13 @@ async def get_game_lobby(game_id: str, db: Session = Depends(database.get_db)) -
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving game lobby: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving game lobby: {e!s}")
 
 
 @app.patch("/games/{game_id}/tee-order")
 async def set_tee_order(
-    game_id: str, request: Dict[str, Any], db: Session = Depends(database.get_db)
-) -> Dict[str, Any]:
+    game_id: str, request: dict[str, Any], db: Session = Depends(database.get_db)
+) -> dict[str, Any]:
     """Set or update the tee order for the game at any time during gameplay"""
     try:
         game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
@@ -2698,7 +2693,7 @@ async def set_tee_order(
 
         # Mark tee order as set in game state
         game.state["tee_order_set"] = True
-        game.updated_at = datetime.now(timezone.utc)
+        game.updated_at = datetime.now(UTC)
 
         # Tell SQLAlchemy the JSON field has changed
         from sqlalchemy.orm.attributes import flag_modified
@@ -2719,12 +2714,12 @@ async def set_tee_order(
         raise
     except Exception as e:
         db.rollback()
-        logger.error(f"Error setting tee order: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error setting tee order: {str(e)}")
+        logger.error(f"Error setting tee order: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Error setting tee order: {e!s}")
 
 
 @app.post("/games/{game_id}/start")
-async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get_db)) -> Dict[str, Any]:
+async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get_db)) -> dict[str, Any]:
     """Start a game from the lobby - initializes WGP simulation"""
     # MIGRATED: Using GameLifecycleService instead of global active_games
 
@@ -2765,9 +2760,9 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
                 )
 
             wgp_player = Player(
-                id=cast(str, p.player_slot_id),
-                name=cast(str, p.player_name),
-                handicap=cast(float, player_handicap),
+                id=cast("str", p.player_slot_id),
+                name=cast("str", p.player_name),
+                handicap=cast("float", player_handicap),
             )
             wgp_players.append(wgp_player)
 
@@ -2812,7 +2807,7 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
             logger.info(f"Simulation initialized for game {game_id}")
         except Exception as init_error:
             logger.error(f"Failed to initialize simulation: {init_error}")
-            raise HTTPException(status_code=500, detail=f"Failed to initialize game: {str(init_error)}")
+            raise HTTPException(status_code=500, detail=f"Failed to initialize game: {init_error!s}")
 
         # MIGRATED: Store simulation using GameLifecycleService
         # Add to service cache (note: game was already created in DB, just adding to cache)
@@ -2823,7 +2818,7 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
 
         # Update database game state
         game.game_status = "in_progress"  # type: ignore
-        game.updated_at = datetime.now(timezone.utc).isoformat()  # type: ignore
+        game.updated_at = datetime.now(UTC).isoformat()  # type: ignore
         game.state = initial_state  # type: ignore
         game.state["game_status"] = "in_progress"
         game.state["started_at"] = game.updated_at
@@ -2862,13 +2857,13 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
     except Exception as e:
         db.rollback()
         logger.error(f"Error starting game {game_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error starting game: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error starting game: {e!s}")
 
 
 @app.get("/games")
 async def get_games(  # type: ignore
-    status: Optional[str] = Query(None, description="Filter by game status: setup, in_progress, completed"),
-    creator_user_id: Optional[str] = Query(None, description="Filter by creator user ID"),
+    status: str | None = Query(None, description="Filter by game status: setup, in_progress, completed"),
+    creator_user_id: str | None = Query(None, description="Filter by creator user ID"),
     limit: int = Query(20, ge=1, le=100, description="Maximum number of games to return"),
     offset: int = Query(0, ge=0, description="Number of games to skip"),
     db: Session = Depends(database.get_db),
@@ -2930,7 +2925,7 @@ async def get_games(  # type: ignore
 
     except Exception as e:
         logger.error(f"Error retrieving games: {e}")
-        raise HTTPException(status_code=500, detail=f"Error retrieving games: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving games: {e!s}")
 
 
 @app.delete("/games/{game_id}")
@@ -2995,7 +2990,7 @@ async def delete_game(game_id: str, db: Session = Depends(database.get_db)):  # 
         db.rollback()
         logger.error(f"Error deleting game {game_id}: {e}")
         logger.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"Error deleting game: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error deleting game: {e!s}")
 
 
 @app.post("/games/{game_id}/complete")
@@ -3050,15 +3045,15 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
     except Exception as e:
         db.rollback()
         logger.error(f"Error completing game {game_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error completing game: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error completing game: {e!s}")
 
 
 # Quarters-Only Scoring Models
 class QuartersOnlyRequest(BaseModel):
     """Simplified scoring request - just quarters per hole per player"""
 
-    hole_quarters: Dict[str, Dict[str, float]]  # { "1": { "player1": 2, "player2": -2 }, ... }
-    optional_details: Optional[Dict[str, Dict[str, Any]]] = None  # { "1": { "notes": "..." }, ... }
+    hole_quarters: dict[str, dict[str, float]]  # { "1": { "player1": 2, "player2": -2 }, ... }
+    optional_details: dict[str, dict[str, Any]] | None = None  # { "1": { "notes": "..." }, ... }
     current_hole: int = 18
 
 
@@ -3166,11 +3161,11 @@ async def save_quarters_only(game_id: str, request: QuartersOnlyRequest, db: Ses
         db.rollback()
         logger.error(f"Error saving quarters-only data for game {game_id}: {e}")
         logger.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"Error saving data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error saving data: {e!s}")
 
 
 @app.get("/games/{game_id}/state")
-async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_db)) -> Dict[str, Any]:
+async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_db)) -> dict[str, Any]:
     """Get current game state for a specific multiplayer game"""
     # MIGRATED: Using GameLifecycleService instead of global active_games
 
@@ -3273,7 +3268,7 @@ async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_
         raise
     except Exception as e:
         logger.error(f"Error getting game state for {game_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error retrieving game state: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving game state: {e!s}")
 
 
 @app.post("/games/{game_id}/action")
@@ -3317,9 +3312,9 @@ async def perform_game_action_by_id(  # type: ignore
                 player_handicap = p.handicap if p.handicap is not None else 18.0
 
                 wgp_player = Player(
-                    id=cast(str, p.player_slot_id),
-                    name=cast(str, p.player_name),
-                    handicap=cast(float, player_handicap),
+                    id=cast("str", p.player_slot_id),
+                    name=cast("str", p.player_name),
+                    handicap=cast("float", player_handicap),
                 )
                 wgp_players.append(wgp_player)
 
@@ -3406,7 +3401,7 @@ async def perform_game_action_by_id(  # type: ignore
             if game:
                 game.state = simulation.get_game_state()
                 game.state["game_id"] = game_id
-                game.updated_at = datetime.now(timezone.utc).isoformat()
+                game.updated_at = datetime.now(UTC).isoformat()
 
                 # Check if game is completed
                 if simulation.current_hole > 18:
@@ -3430,11 +3425,11 @@ async def perform_game_action_by_id(  # type: ignore
     except Exception as e:
         db.rollback()
         logger.error(f"Error performing action on game {game_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error performing action: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error performing action: {e!s}")
 
 
 @app.get("/games/history")
-async def get_game_history(limit: int = 10, offset: int = 0, db: Session = Depends(database.get_db)) -> Dict[str, Any]:
+async def get_game_history(limit: int = 10, offset: int = 0, db: Session = Depends(database.get_db)) -> dict[str, Any]:
     """Get list of completed games"""
     try:
         games = (
@@ -3464,11 +3459,11 @@ async def get_game_history(limit: int = 10, offset: int = 0, db: Session = Depen
             "limit": limit,
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving game history: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving game history: {e!s}")
 
 
 @app.get("/games/{game_id}/details")
-async def get_game_details(game_id: str, db: Session = Depends(database.get_db)) -> Dict[str, Any]:
+async def get_game_details(game_id: str, db: Session = Depends(database.get_db)) -> dict[str, Any]:
     """Get detailed game results including player performances and hole-by-hole scores"""
     try:
         # Get game record
@@ -3517,10 +3512,10 @@ async def get_game_details(game_id: str, db: Session = Depends(database.get_db))
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving game details: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving game details: {e!s}")
 
 
-def _get_current_captain_id() -> Optional[str]:
+def _get_current_captain_id() -> str | None:
     """Best-effort lookup for the active captain id across legacy and unified state."""
     try:
         simulation_state = game.get_game_state()  # type: ignore
@@ -3604,69 +3599,66 @@ async def unified_action(game_id: str, action: ActionRequest, db: Session = Depe
         # All handlers now receive the game instance instead of using global wgp_simulation
         if action_type == "INITIALIZE_GAME":
             return await handle_initialize_game(game, payload)
-        elif action_type == "PLAY_SHOT":
+        if action_type == "PLAY_SHOT":
             return await handle_play_shot(game, payload)
-        elif action_type == "REQUEST_PARTNERSHIP" or action_type == "REQUEST_PARTNER":
+        if action_type == "REQUEST_PARTNERSHIP" or action_type == "REQUEST_PARTNER":
             return await handle_request_partnership(game, payload)
-        elif (
-            action_type == "RESPOND_PARTNERSHIP" or action_type == "ACCEPT_PARTNER" or action_type == "DECLINE_PARTNER"
-        ):
+        if action_type == "RESPOND_PARTNERSHIP" or action_type == "ACCEPT_PARTNER" or action_type == "DECLINE_PARTNER":
             return await handle_respond_partnership(game, payload)
-        elif action_type == "DECLARE_SOLO" or action_type == "GO_SOLO":
+        if action_type == "DECLARE_SOLO" or action_type == "GO_SOLO":
             return await handle_declare_solo(game)
-        elif action_type == "OFFER_DOUBLE":
+        if action_type == "OFFER_DOUBLE":
             return await handle_offer_double(game, payload)
-        elif action_type == "ACCEPT_DOUBLE":
+        if action_type == "ACCEPT_DOUBLE":
             return await handle_accept_double(game, payload)
-        elif action_type == "INVOKE_FLOAT":
+        if action_type == "INVOKE_FLOAT":
             # Frontend sends captain_id as direct field
             action_dict = action.model_dump() if hasattr(action, "model_dump") else action.dict()
             return await handle_invoke_float(game, action_dict)
-        elif action_type == "TOGGLE_OPTION":
+        if action_type == "TOGGLE_OPTION":
             # Frontend sends captain_id as direct field
             action_dict = action.model_dump() if hasattr(action, "model_dump") else action.dict()
             return await handle_toggle_option(game, action_dict)
-        elif action_type == "FLUSH":
+        if action_type == "FLUSH":
             # Flush = concede/fold the hole
             action_dict = action.model_dump() if hasattr(action, "model_dump") else action.dict()
             return await handle_flush(game, action_dict)
-        elif action_type == "CONCEDE_PUTT":
+        if action_type == "CONCEDE_PUTT":
             return await handle_concede_putt(game, payload)
-        elif action_type == "ADVANCE_HOLE" or action_type == "NEXT_HOLE":
+        if action_type == "ADVANCE_HOLE" or action_type == "NEXT_HOLE":
             return await handle_advance_hole(game)
-        elif action_type == "OFFER_BIG_DICK":
+        if action_type == "OFFER_BIG_DICK":
             return await handle_offer_big_dick(game, payload)
-        elif action_type == "ACCEPT_BIG_DICK":
+        if action_type == "ACCEPT_BIG_DICK":
             return await handle_accept_big_dick(game, payload)
-        elif action_type == "AARDVARK_JOIN_REQUEST":
+        if action_type == "AARDVARK_JOIN_REQUEST":
             return await handle_aardvark_join_request(game, payload)
-        elif action_type == "AARDVARK_TOSS":
+        if action_type == "AARDVARK_TOSS":
             return await handle_aardvark_toss(game, payload)
-        elif action_type == "AARDVARK_GO_SOLO":
+        if action_type == "AARDVARK_GO_SOLO":
             return await handle_aardvark_go_solo(game, payload)
-        elif action_type == "PING_PONG_AARDVARK":
+        if action_type == "PING_PONG_AARDVARK":
             return await handle_ping_pong_aardvark(game, payload)
-        elif action_type == "INVOKE_JOES_SPECIAL":
+        if action_type == "INVOKE_JOES_SPECIAL":
             return await handle_joes_special(game, payload)
-        elif action_type == "GET_POST_HOLE_ANALYSIS":
+        if action_type == "GET_POST_HOLE_ANALYSIS":
             return await handle_get_post_hole_analysis(game, payload)
-        elif action_type == "ENTER_HOLE_SCORES":
+        if action_type == "ENTER_HOLE_SCORES":
             return await handle_enter_hole_scores(game, payload)
-        elif action_type == "GET_ADVANCED_ANALYTICS":
+        if action_type == "GET_ADVANCED_ANALYTICS":
             return await handle_get_advanced_analytics(game, payload)
-        elif action_type == "COMPLETE_GAME":
+        if action_type == "COMPLETE_GAME":
             return await handle_complete_game(game, payload)
-        elif action_type == "RECORD_NET_SCORE":
+        if action_type == "RECORD_NET_SCORE":
             # Handle score recording action from frontend
             # Frontend sends player_id and score as direct fields, not in payload
             action_dict = action.model_dump() if hasattr(action, "model_dump") else action.dict()
             return await handle_record_net_score(game, action_dict)
-        elif action_type == "CALCULATE_HOLE_POINTS":
+        if action_type == "CALCULATE_HOLE_POINTS":
             # Handle calculate points action from frontend
             action_dict = action.model_dump() if hasattr(action, "model_dump") else action.dict()
             return await handle_calculate_hole_points(game, action_dict)  # type: ignore
-        else:
-            raise HTTPException(status_code=400, detail=f"Unknown action type: {action_type}")
+        raise HTTPException(status_code=400, detail=f"Unknown action type: {action_type}")
 
     except HTTPException:
         # Re-raise HTTPExceptions to preserve their status codes
@@ -3674,11 +3666,11 @@ async def unified_action(game_id: str, action: ActionRequest, db: Session = Depe
 
 
 # Global game instance (per-game instances are preferred)
-game: Optional[WolfGoatPigGame] = None
+game: WolfGoatPigGame | None = None
 
 
 # Action Handlers
-async def handle_initialize_game(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_initialize_game(game: WolfGoatPigGame, payload: dict[str, Any]) -> ActionResponse:
     """Handle game initialization with robust error handling and fallbacks"""
     try:
         players = payload.get("players", [])
@@ -3898,7 +3890,7 @@ async def handle_initialize_game(game: WolfGoatPigGame, payload: Dict[str, Any])
 
         return ActionResponse(
             game_state=emergency_state,
-            log_message=f"Game initialization failed: {str(e)}",
+            log_message=f"Game initialization failed: {e!s}",
             available_actions=[{"action_type": "RETRY_INITIALIZATION", "prompt": "Try Again"}],
             timeline_event={
                 "id": "init_error",
@@ -3910,7 +3902,7 @@ async def handle_initialize_game(game: WolfGoatPigGame, payload: Dict[str, Any])
         )
 
 
-async def handle_play_shot(game: WolfGoatPigGame, payload: Dict[str, Any] = None) -> ActionResponse:  # type: ignore
+async def handle_play_shot(game: WolfGoatPigGame, payload: dict[str, Any] = None) -> ActionResponse:  # type: ignore
     """Handle playing a shot"""
     try:
         # Get current game state
@@ -4098,10 +4090,10 @@ async def handle_play_shot(game: WolfGoatPigGame, payload: Dict[str, Any] = None
         )
     except Exception as e:
         logger.error(f"Error playing shot: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to play shot: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to play shot: {e!s}")
 
 
-async def handle_request_partnership(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_request_partnership(game: WolfGoatPigGame, payload: dict[str, Any]) -> ActionResponse:
     """Handle partnership request"""
     try:
         # Accept either partner_id or target_player_name
@@ -4194,10 +4186,10 @@ async def handle_request_partnership(game: WolfGoatPigGame, payload: Dict[str, A
         )
     except Exception as e:
         logger.error(f"Error requesting partnership: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to request partnership: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to request partnership: {e!s}")
 
 
-async def handle_respond_partnership(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_respond_partnership(game: WolfGoatPigGame, payload: dict[str, Any]) -> ActionResponse:
     """Handle partnership response"""
     try:
         accepted = payload.get("accepted", False)
@@ -4247,7 +4239,7 @@ async def handle_respond_partnership(game: WolfGoatPigGame, payload: Dict[str, A
         )
     except Exception as e:
         logger.error(f"Error responding to partnership: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to respond to partnership: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to respond to partnership: {e!s}")
 
 
 async def handle_declare_solo(game: WolfGoatPigGame) -> ActionResponse:
@@ -4293,10 +4285,10 @@ async def handle_declare_solo(game: WolfGoatPigGame) -> ActionResponse:
         )
     except Exception as e:
         logger.error(f"Error declaring solo: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to declare solo: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to declare solo: {e!s}")
 
 
-async def handle_offer_double(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_offer_double(game: WolfGoatPigGame, payload: dict[str, Any]) -> ActionResponse:
     """Handle double offer"""
     try:
         player_id = payload.get("player_id")
@@ -4353,10 +4345,10 @@ async def handle_offer_double(game: WolfGoatPigGame, payload: Dict[str, Any]) ->
         )
     except Exception as e:
         logger.error(f"Error offering double: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to offer double: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to offer double: {e!s}")
 
 
-async def handle_accept_double(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_accept_double(game: WolfGoatPigGame, payload: dict[str, Any]) -> ActionResponse:
     """Handle double acceptance/decline"""
     try:
         accepted = payload.get("accepted", False)
@@ -4399,10 +4391,10 @@ async def handle_accept_double(game: WolfGoatPigGame, payload: Dict[str, Any]) -
         )
     except Exception as e:
         logger.error(f"Error responding to double: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to respond to double: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to respond to double: {e!s}")
 
 
-async def handle_concede_putt(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_concede_putt(game: WolfGoatPigGame, payload: dict[str, Any]) -> ActionResponse:
     """Handle putt concession"""
     try:
         conceding_player = payload.get("conceding_player")
@@ -4435,7 +4427,7 @@ async def handle_concede_putt(game: WolfGoatPigGame, payload: Dict[str, Any]) ->
         )
     except Exception as e:
         logger.error(f"Error conceding putt: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to concede putt: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to concede putt: {e!s}")
 
 
 async def handle_advance_hole(game: WolfGoatPigGame) -> ActionResponse:
@@ -4482,10 +4474,10 @@ async def handle_advance_hole(game: WolfGoatPigGame) -> ActionResponse:
         )
     except Exception as e:
         logger.error(f"Error advancing hole: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to advance hole: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to advance hole: {e!s}")
 
 
-async def handle_offer_big_dick(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_offer_big_dick(game: WolfGoatPigGame, payload: dict[str, Any]) -> ActionResponse:
     """Handle Big Dick challenge on hole 18"""
     try:
         player_id = payload.get("player_id", "default_player")
@@ -4513,10 +4505,10 @@ async def handle_offer_big_dick(game: WolfGoatPigGame, payload: Dict[str, Any]) 
         )
     except Exception as e:
         logger.error(f"Error offering Big Dick: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to offer Big Dick: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to offer Big Dick: {e!s}")
 
 
-async def handle_accept_big_dick(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_accept_big_dick(game: WolfGoatPigGame, payload: dict[str, Any]) -> ActionResponse:
     """Handle Big Dick challenge response"""
     try:
         accepting_players = payload.get("accepting_players", [])
@@ -4538,10 +4530,10 @@ async def handle_accept_big_dick(game: WolfGoatPigGame, payload: Dict[str, Any])
         )
     except Exception as e:
         logger.error(f"Error accepting Big Dick: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to accept Big Dick: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to accept Big Dick: {e!s}")
 
 
-async def handle_ping_pong_aardvark(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_ping_pong_aardvark(game: WolfGoatPigGame, payload: dict[str, Any]) -> ActionResponse:
     """Handle Ping Pong Aardvark"""
     try:
         team_id = payload.get("team_id", "team1")
@@ -4567,10 +4559,10 @@ async def handle_ping_pong_aardvark(game: WolfGoatPigGame, payload: Dict[str, An
         )
     except Exception as e:
         logger.error(f"Error ping ponging Aardvark: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to ping pong Aardvark: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to ping pong Aardvark: {e!s}")
 
 
-async def handle_aardvark_join_request(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_aardvark_join_request(game: WolfGoatPigGame, payload: dict[str, Any]) -> ActionResponse:
     """Handle Aardvark requesting to join a team"""
     try:
         aardvark_id = payload.get("aardvark_id")
@@ -4601,10 +4593,10 @@ async def handle_aardvark_join_request(game: WolfGoatPigGame, payload: Dict[str,
         )
     except Exception as e:
         logger.error(f"Error handling Aardvark join request: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to handle Aardvark join request: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to handle Aardvark join request: {e!s}")
 
 
-async def handle_aardvark_toss(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_aardvark_toss(game: WolfGoatPigGame, payload: dict[str, Any]) -> ActionResponse:
     """Handle team response to Aardvark request (accept or toss)"""
     try:
         team_id = payload.get("team_id", "team1")
@@ -4631,10 +4623,10 @@ async def handle_aardvark_toss(game: WolfGoatPigGame, payload: Dict[str, Any]) -
         )
     except Exception as e:
         logger.error(f"Error handling Aardvark toss: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to handle Aardvark toss: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to handle Aardvark toss: {e!s}")
 
 
-async def handle_aardvark_go_solo(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_aardvark_go_solo(game: WolfGoatPigGame, payload: dict[str, Any]) -> ActionResponse:
     """Handle Aardvark deciding to go solo"""
     try:
         aardvark_id = payload.get("aardvark_id")
@@ -4664,10 +4656,10 @@ async def handle_aardvark_go_solo(game: WolfGoatPigGame, payload: Dict[str, Any]
         )
     except Exception as e:
         logger.error(f"Error handling Aardvark go solo: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to handle Aardvark go solo: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to handle Aardvark go solo: {e!s}")
 
 
-async def handle_joes_special(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_joes_special(game: WolfGoatPigGame, payload: dict[str, Any]) -> ActionResponse:
     """Handle Joe's Special wager selection in Hoepfinger"""
     try:
         selected_value = payload.get("selected_value", 2)
@@ -4696,10 +4688,10 @@ async def handle_joes_special(game: WolfGoatPigGame, payload: Dict[str, Any]) ->
         )
     except Exception as e:
         logger.error(f"Error invoking Joe's Special: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to invoke Joe's Special: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to invoke Joe's Special: {e!s}")
 
 
-async def handle_get_post_hole_analysis(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_get_post_hole_analysis(game: WolfGoatPigGame, payload: dict[str, Any]) -> ActionResponse:
     """Handle post-hole analysis request"""
     try:
         hole_number = payload.get("hole_number", game.current_hole)
@@ -4721,10 +4713,10 @@ async def handle_get_post_hole_analysis(game: WolfGoatPigGame, payload: Dict[str
         )
     except Exception as e:
         logger.error(f"Error getting post-hole analysis: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get post-hole analysis: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get post-hole analysis: {e!s}")
 
 
-async def handle_enter_hole_scores(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_enter_hole_scores(game: WolfGoatPigGame, payload: dict[str, Any]) -> ActionResponse:
     """Handle entering hole scores"""
     try:
         scores = payload.get("scores", {})
@@ -4752,10 +4744,10 @@ async def handle_enter_hole_scores(game: WolfGoatPigGame, payload: Dict[str, Any
         )
     except Exception as e:
         logger.error(f"Error entering hole scores: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to enter hole scores: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to enter hole scores: {e!s}")
 
 
-async def handle_complete_game(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_complete_game(game: WolfGoatPigGame, payload: dict[str, Any]) -> ActionResponse:
     """Handle completing a game and saving results permanently"""
     try:
         # Get the game state instance
@@ -4800,10 +4792,10 @@ async def handle_complete_game(game: WolfGoatPigGame, payload: Dict[str, Any]) -
         )
     except Exception as e:
         logger.error(f"Error completing game: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to complete game: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to complete game: {e!s}")
 
 
-async def handle_get_advanced_analytics(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_get_advanced_analytics(game: WolfGoatPigGame, payload: dict[str, Any]) -> ActionResponse:
     """Handle getting advanced analytics dashboard data"""
     try:
         analytics = game.get_advanced_analytics()
@@ -4832,10 +4824,10 @@ async def handle_get_advanced_analytics(game: WolfGoatPigGame, payload: Dict[str
         )
     except Exception as e:
         logger.error(f"Error getting advanced analytics: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get advanced analytics: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get advanced analytics: {e!s}")
 
 
-async def handle_record_net_score(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_record_net_score(game: WolfGoatPigGame, payload: dict[str, Any]) -> ActionResponse:
     """Handle recording a net score for a player"""
     try:
         # Debug: Log the payload
@@ -4873,10 +4865,10 @@ async def handle_record_net_score(game: WolfGoatPigGame, payload: Dict[str, Any]
         )
     except Exception as e:
         logger.error(f"Error recording net score: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to record net score: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to record net score: {e!s}")
 
 
-async def handle_calculate_hole_points(payload: Dict[str, Any]) -> ActionResponse:
+async def handle_calculate_hole_points(payload: dict[str, Any]) -> ActionResponse:
     """Handle calculating points for the current hole"""
     try:
         # Get the game state instance
@@ -4912,10 +4904,10 @@ async def handle_calculate_hole_points(payload: Dict[str, Any]) -> ActionRespons
         )
     except Exception as e:
         logger.error(f"Error calculating hole points: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to calculate hole points: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to calculate hole points: {e!s}")
 
 
-async def handle_invoke_float(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_invoke_float(game: WolfGoatPigGame, payload: dict[str, Any]) -> ActionResponse:
     """Handle Float invocation by captain"""
     try:
         logger.info(f"handle_invoke_float payload: {payload}")
@@ -4966,10 +4958,10 @@ async def handle_invoke_float(game: WolfGoatPigGame, payload: Dict[str, Any]) ->
         )
     except Exception as e:
         logger.error(f"Error invoking float: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to invoke float: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to invoke float: {e!s}")
 
 
-async def handle_toggle_option(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_toggle_option(game: WolfGoatPigGame, payload: dict[str, Any]) -> ActionResponse:
     """Handle Option toggle by captain"""
     try:
         logger.info(f"handle_toggle_option payload: {payload}")
@@ -5028,10 +5020,10 @@ async def handle_toggle_option(game: WolfGoatPigGame, payload: Dict[str, Any]) -
         )
     except Exception as e:
         logger.error(f"Error toggling option: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to toggle option: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to toggle option: {e!s}")
 
 
-async def handle_flush(game: WolfGoatPigGame, payload: Dict[str, Any]) -> ActionResponse:
+async def handle_flush(game: WolfGoatPigGame, payload: dict[str, Any]) -> ActionResponse:
     """
     Handle Flush action - conceding/folding the hole.
     A player or team gives up on the current hole, awarding the hole to opponents.
@@ -5109,7 +5101,7 @@ async def handle_flush(game: WolfGoatPigGame, payload: Dict[str, Any]) -> Action
         )
     except Exception as e:
         logger.error(f"Error handling flush: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to handle flush: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to handle flush: {e!s}")
 
 
 # Helper function to serialize game state
@@ -5134,11 +5126,11 @@ class ShotRangeAnalysisRequest(BaseModel):
     hole_number: int = Field(..., description="Current hole number")
     team_situation: str = Field(default="solo", description="Team situation (solo, partners)")
     score_differential: int = Field(default=0, description="Current score differential")
-    opponent_styles: List[str] = Field(default=[], description="Opponent playing styles")
+    opponent_styles: list[str] = Field(default=[], description="Opponent playing styles")
 
 
 @app.post("/wgp/shot-range-analysis")
-async def get_shot_range_analysis(request: ShotRangeAnalysisRequest) -> Dict[str, Any]:
+async def get_shot_range_analysis(request: ShotRangeAnalysisRequest) -> dict[str, Any]:
     """Get poker-style shot range analysis for decision making"""
     try:
         # Perform shot range analysis
@@ -5160,17 +5152,17 @@ async def get_shot_range_analysis(request: ShotRangeAnalysisRequest) -> Dict[str
 
     except Exception as e:
         logger.error(f"Error in shot range analysis: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to analyze shot range: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to analyze shot range: {e!s}")
 
 
 # Real-Time Betting Odds Endpoints
 class OddsCalculationRequest(BaseModel):
     """Request model for odds calculation"""
 
-    players: List[Dict[str, Any]] = Field(..., description="Current player states")
-    hole_state: Dict[str, Any] = Field(..., description="Current hole state")
+    players: list[dict[str, Any]] = Field(..., description="Current player states")
+    hole_state: dict[str, Any] = Field(..., description="Current hole state")
     use_monte_carlo: bool = Field(default=False, description="Use Monte Carlo simulation for higher accuracy")
-    simulation_params: Optional[Dict[str, Any]] = Field(default=None, description="Monte Carlo simulation parameters")
+    simulation_params: dict[str, Any] | None = Field(default=None, description="Monte Carlo simulation parameters")
 
 
 class BettingScenarioResponse(BaseModel):
@@ -5180,10 +5172,10 @@ class BettingScenarioResponse(BaseModel):
     win_probability: float
     expected_value: float
     risk_level: str
-    confidence_interval: Tuple[float, float]
+    confidence_interval: tuple[float, float]
     recommendation: str
     reasoning: str
-    payout_matrix: Dict[str, float]
+    payout_matrix: dict[str, float]
 
 
 class OddsCalculationResponse(BaseModel):
@@ -5191,19 +5183,19 @@ class OddsCalculationResponse(BaseModel):
 
     timestamp: float
     calculation_time_ms: float
-    player_probabilities: Dict[str, Dict[str, Any]]
-    team_probabilities: Dict[str, float]
-    betting_scenarios: List[Dict[str, Any]]
+    player_probabilities: dict[str, dict[str, Any]]
+    team_probabilities: dict[str, float]
+    betting_scenarios: list[dict[str, Any]]
     optimal_strategy: str
-    risk_assessment: Dict[str, Any]
-    educational_insights: List[str]
+    risk_assessment: dict[str, Any]
+    educational_insights: list[str]
     confidence_level: float
     monte_carlo_used: bool = False
-    simulation_details: Optional[Dict[str, Any]] = None
+    simulation_details: dict[str, Any] | None = None
 
 
 @app.post("/wgp/calculate-odds", response_model=OddsCalculationResponse)
-async def calculate_real_time_odds(request: OddsCalculationRequest) -> Dict[str, Any]:
+async def calculate_real_time_odds(request: OddsCalculationRequest) -> dict[str, Any]:
     """
     Calculate real-time betting odds and probabilities.
     Provides comprehensive analysis for strategic decision making.
@@ -5303,7 +5295,7 @@ async def calculate_real_time_odds(request: OddsCalculationRequest) -> Dict[str,
     except Exception as e:
         logger.error(f"Error calculating odds: {e}")
         logger.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"Failed to calculate odds: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to calculate odds: {e!s}")
 
 
 @app.get("/wgp/betting-opportunities")
@@ -5394,13 +5386,13 @@ async def get_current_betting_opportunities():
 
     except Exception as e:
         logger.error(f"Error getting betting opportunities: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get betting opportunities: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get betting opportunities: {e!s}")
 
 
 @app.post("/wgp/quick-odds")
 async def calculate_quick_odds(
-    players_data: List[Dict[str, Any]] = Body(...),
-) -> Dict[str, Any]:
+    players_data: list[dict[str, Any]] = Body(...),
+) -> dict[str, Any]:
     """
     Quick odds calculation for immediate feedback.
     Optimized for sub-50ms response time.
@@ -5454,11 +5446,11 @@ async def calculate_quick_odds(
 
     except Exception as e:
         logger.error(f"Error in quick odds calculation: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to calculate quick odds: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to calculate quick odds: {e!s}")
 
 
 @app.get("/wgp/odds-history/{game_id}")
-async def get_odds_history(game_id: str, hole_number: Optional[int] = None) -> Dict[str, Any]:
+async def get_odds_history(game_id: str, hole_number: int | None = None) -> dict[str, Any]:
     """
     Get historical odds data for analysis and trends.
     """
@@ -5489,11 +5481,11 @@ async def get_odds_history(game_id: str, hole_number: Optional[int] = None) -> D
 
     except Exception as e:
         logger.error(f"Error getting odds history: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get odds history: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get odds history: {e!s}")
 
 
 # Leaderboard and Comparative Analytics
-@app.get("/leaderboard", response_model=List[schemas.LeaderboardEntry])
+@app.get("/leaderboard", response_model=list[schemas.LeaderboardEntry])
 def get_leaderboard(  # type: ignore
     limit: int = Query(100, ge=1, le=100),  # Default to 100 to show all players
     sort: str = Query("desc", pattern="^(asc|desc)$"),  # Add sort parameter
@@ -5541,7 +5533,7 @@ def get_leaderboard(  # type: ignore
 
     except Exception as e:
         logger.error(f"Error getting leaderboard: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get leaderboard: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get leaderboard: {e!s}")
     finally:
         db.close()
 
@@ -5575,7 +5567,7 @@ def get_leaderboard_by_metric(metric: str, limit: int = Query(10, ge=1, le=100))
 
     except Exception as e:
         logger.error(f"Error getting leaderboard by metric {metric}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get leaderboard: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get leaderboard: {e!s}")
     finally:
         db.close()
 
@@ -5606,7 +5598,7 @@ def get_game_stats():
 
     except Exception as e:
         logger.error(f"Error getting game stats: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get game stats: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get game stats: {e!s}")
     finally:
         db.close()
 
@@ -5640,7 +5632,7 @@ def get_player_performance():
 
     except Exception as e:
         logger.error(f"Error getting player performance: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get player performance: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get player performance: {e!s}")
     finally:
         db.close()
 
@@ -5669,7 +5661,7 @@ async def get_ghin_enhanced_leaderboard(  # type: ignore
 
     except Exception as e:
         logger.error(f"Error getting GHIN enhanced leaderboard: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get GHIN enhanced leaderboard: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get GHIN enhanced leaderboard: {e!s}")
     finally:
         db.close()
 
@@ -5698,7 +5690,7 @@ async def sync_ghin_handicaps():
 
     except Exception as e:
         logger.error(f"Error syncing GHIN handicaps: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to sync GHIN handicaps: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to sync GHIN handicaps: {e!s}")
     finally:
         db.close()
 
@@ -5708,7 +5700,7 @@ async def sync_ghin_handicaps():
 
 # Game Result Recording
 @app.post("/game-results")
-def record_game_result(game_result: schemas.GamePlayerResultCreate) -> Dict[str, Any]:
+def record_game_result(game_result: schemas.GamePlayerResultCreate) -> dict[str, Any]:
     """Record a game result for a player."""
     try:
         db = database.SessionLocal()
@@ -5734,7 +5726,7 @@ def record_game_result(game_result: schemas.GamePlayerResultCreate) -> Dict[str,
         raise
     except Exception as e:
         logger.error(f"Error recording game result: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to record game result: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to record game result: {e!s}")
     finally:
         db.close()
 
@@ -5773,14 +5765,14 @@ def get_analytics_overview():
 
     except Exception as e:
         logger.error(f"Error getting analytics overview: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get analytics overview: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get analytics overview: {e!s}")
     finally:
         db.close()
 
 
 # Sheet Integration Endpoints
 @app.post("/sheet-integration/analyze-structure")
-def analyze_sheet_structure(sheet_headers: List[str]):  # type: ignore
+def analyze_sheet_structure(sheet_headers: list[str]):  # type: ignore
     """Analyze Google Sheet headers and create column mappings."""
     try:
         db = database.SessionLocal()
@@ -5806,13 +5798,13 @@ def analyze_sheet_structure(sheet_headers: List[str]):  # type: ignore
 
     except Exception as e:
         logger.error(f"Error analyzing sheet structure: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to analyze sheet structure: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to analyze sheet structure: {e!s}")
     finally:
         db.close()
 
 
 @app.post("/sheet-integration/create-leaderboard")
-def create_leaderboard_from_sheet(sheet_data: List[Dict[str, Any]]):  # type: ignore
+def create_leaderboard_from_sheet(sheet_data: list[dict[str, Any]]):  # type: ignore
     """Create a leaderboard from Google Sheet data without persisting to database."""
     try:
         db = database.SessionLocal()
@@ -5837,13 +5829,13 @@ def create_leaderboard_from_sheet(sheet_data: List[Dict[str, Any]]):  # type: ig
 
     except Exception as e:
         logger.error(f"Error creating leaderboard from sheet: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to create leaderboard: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to create leaderboard: {e!s}")
     finally:
         db.close()
 
 
 @app.post("/sheet-integration/sync-data")
-def sync_sheet_data(sheet_data: List[Dict[str, Any]]):  # type: ignore
+def sync_sheet_data(sheet_data: list[dict[str, Any]]):  # type: ignore
     """Sync Google Sheet data to database (creates/updates player profiles and statistics)."""
     try:
         db = database.SessionLocal()
@@ -5863,13 +5855,13 @@ def sync_sheet_data(sheet_data: List[Dict[str, Any]]):  # type: ignore
 
     except Exception as e:
         logger.error(f"Error syncing sheet data: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to sync sheet data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to sync sheet data: {e!s}")
     finally:
         db.close()
 
 
 @app.get("/sheet-integration/export-current-data")
-def export_current_data_for_sheet(sheet_headers: List[str] = Query(...)):  # type: ignore
+def export_current_data_for_sheet(sheet_headers: list[str] = Query(...)):  # type: ignore
     """Export current database data in Google Sheet format for comparison."""
     try:
         db = database.SessionLocal()
@@ -5888,13 +5880,13 @@ def export_current_data_for_sheet(sheet_headers: List[str] = Query(...)):  # typ
 
     except Exception as e:
         logger.error(f"Error exporting current data: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to export current data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to export current data: {e!s}")
     finally:
         db.close()
 
 
 @app.post("/sheet-integration/sync-wgp-sheet")
-async def sync_wgp_sheet_data(request: Dict[str, str], db: Session = Depends(database.get_db)):  # type: ignore
+async def sync_wgp_sheet_data(request: dict[str, str], db: Session = Depends(database.get_db)):  # type: ignore
     """
     Sync Wolf Goat Pig specific sheet data format.
 
@@ -6090,7 +6082,7 @@ async def sync_wgp_sheet_data(request: Dict[str, str], db: Session = Depends(dat
 
         # Create/update players in database
         player_service = PlayerService(db)
-        sync_results: Dict[str, Any] = {
+        sync_results: dict[str, Any] = {
             "players_processed": 0,
             "players_created": 0,
             "players_updated": 0,
@@ -6118,7 +6110,7 @@ async def sync_wgp_sheet_data(request: Dict[str, str], db: Session = Depends(dat
                     sync_results["players_created"] += 1
                     player_id = new_player.id
                 else:
-                    player_id = cast(int, existing_player.id)
+                    player_id = cast("int", existing_player.id)
                     sync_results["players_updated"] += 1
 
                 # Update or create statistics record
@@ -6192,7 +6184,7 @@ async def sync_wgp_sheet_data(request: Dict[str, str], db: Session = Depends(dat
 
             except Exception as e:
                 db.rollback()  # CRITICAL: Roll back the failed transaction
-                sync_results["errors"].append(f"Error processing {player_name}: {str(e)}")
+                sync_results["errors"].append(f"Error processing {player_name}: {e!s}")
                 logger.error(f"Failed to process {player_name}, rolled back transaction: {e}")
                 continue
 
@@ -6220,10 +6212,10 @@ async def sync_wgp_sheet_data(request: Dict[str, str], db: Session = Depends(dat
 
     except httpx.RequestError as e:
         logger.error(f"Error fetching Google Sheet: {e}")
-        raise HTTPException(status_code=400, detail=f"Failed to fetch sheet: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Failed to fetch sheet: {e!s}")
     except Exception as e:
         logger.error(f"Error syncing WGP sheet data: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to sync data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to sync data: {e!s}")
 
 
 # Admin endpoints for email configuration
@@ -6250,7 +6242,7 @@ def get_email_config(x_admin_email: str = Header(None)):  # type: ignore
 
 
 @app.post("/admin/email-config")
-def update_email_config(config: Dict[str, Any], x_admin_email: str = Header(None)):  # type: ignore
+def update_email_config(config: dict[str, Any], x_admin_email: str = Header(None)):  # type: ignore
     """Update email configuration (admin only)"""
     # Check admin access
     admin_emails = ["stuagano@gmail.com", "admin@wgp.com"]
@@ -6283,7 +6275,7 @@ def update_email_config(config: Dict[str, Any], x_admin_email: str = Header(None
 
 
 @app.post("/admin/test-email")
-async def test_admin_email(request: Dict[str, Any], x_admin_email: str = Header(None)):  # type: ignore
+async def test_admin_email(request: dict[str, Any], x_admin_email: str = Header(None)):  # type: ignore
     """Send a test email with provided configuration (admin only)"""
     # Check admin access
     admin_emails = ["stuagano@gmail.com", "admin@wgp.com"]
@@ -6347,8 +6339,7 @@ async def test_admin_email(request: Dict[str, Any], x_admin_email: str = Header(
 
         if success:
             return {"status": "success", "message": f"Test email sent to {test_email}"}
-        else:
-            raise HTTPException(status_code=500, detail="Failed to send test email")
+        raise HTTPException(status_code=500, detail="Failed to send test email")
 
     except HTTPException:
         raise
@@ -6376,7 +6367,7 @@ def get_oauth2_status(x_admin_email: str = Header(None)):  # type: ignore
 
 
 @app.post("/admin/oauth2-authorize")
-def start_oauth2_authorization(request: Dict[str, Any], x_admin_email: str = Header(None)):  # type: ignore
+def start_oauth2_authorization(request: dict[str, Any], x_admin_email: str = Header(None)):  # type: ignore
     """Start OAuth2 authorization flow (admin only)"""
     # Check admin access
     admin_emails = ["stuagano@gmail.com", "admin@wgp.com"]
@@ -6489,9 +6480,8 @@ def handle_oauth2_callback(code: str = Query(...), state: str = Query(None)):  #
             </html>
             """
             return HTMLResponse(content=html_content, status_code=200)
-        else:
-            # Return error HTML page
-            html_content = """
+        # Return error HTML page
+        html_content = """
             <!DOCTYPE html>
             <html>
             <head>
@@ -6532,7 +6522,7 @@ def handle_oauth2_callback(code: str = Query(...), state: str = Query(None)):  #
             </body>
             </html>
             """
-            return HTMLResponse(content=html_content, status_code=400)
+        return HTMLResponse(content=html_content, status_code=400)
 
     except Exception as e:
         logger.error(f"Error handling OAuth2 callback: {e}")
@@ -6583,7 +6573,7 @@ def handle_oauth2_callback(code: str = Query(...), state: str = Query(None)):  #
             <div class="container">
                 <h1>❌ OAuth2 Error</h1>
                 <p>An error occurred during OAuth2 authorization.</p>
-                <div class="error">{str(e)}</div>
+                <div class="error">{e!s}</div>
                 <p>Please close this window and try again.</p>
             </div>
         </body>
@@ -6593,7 +6583,7 @@ def handle_oauth2_callback(code: str = Query(...), state: str = Query(None)):  #
 
 
 @app.post("/admin/oauth2-test-email")
-async def test_oauth2_email(request: Dict[str, Any], x_admin_email: str = Header(None)):  # type: ignore
+async def test_oauth2_email(request: dict[str, Any], x_admin_email: str = Header(None)):  # type: ignore
     """Send test email using OAuth2 (admin only)"""
     # Check admin access
     admin_emails = ["stuagano@gmail.com", "admin@wgp.com"]
@@ -6620,8 +6610,7 @@ async def test_oauth2_email(request: Dict[str, Any], x_admin_email: str = Header
                 "status": "success",
                 "message": f"Test email sent to {test_email} using OAuth2",
             }
-        else:
-            raise HTTPException(status_code=500, detail="Failed to send test email")
+        raise HTTPException(status_code=500, detail="Failed to send test email")
 
     except HTTPException:
         raise
@@ -6768,8 +6757,8 @@ async def create_or_update_banner(  # type: ignore
             text_color=banner_data.text_color,
             show_icon=banner_data.show_icon,
             dismissible=banner_data.dismissible,
-            created_at=datetime.now(timezone.utc).isoformat(),
-            updated_at=datetime.now(timezone.utc).isoformat(),
+            created_at=datetime.now(UTC).isoformat(),
+            updated_at=datetime.now(UTC).isoformat(),
         )
 
         db.add(new_banner)
@@ -6827,7 +6816,7 @@ async def update_banner(  # type: ignore
         for field, value in update_data.items():
             setattr(banner, field, value)
 
-        banner.updated_at = datetime.now(timezone.utc).isoformat()
+        banner.updated_at = datetime.now(UTC).isoformat()
 
         db.commit()
         db.refresh(banner)
@@ -6888,7 +6877,7 @@ async def delete_banner(  # type: ignore
 
 
 @app.post("/sheet-integration/fetch-google-sheet")
-async def fetch_google_sheet(request: Dict[str, str]):  # type: ignore
+async def fetch_google_sheet(request: dict[str, str]):  # type: ignore
     """Fetch data from a Google Sheets CSV URL."""
     try:
         import httpx
@@ -6929,14 +6918,14 @@ async def fetch_google_sheet(request: Dict[str, str]):  # type: ignore
 
     except httpx.RequestError as e:
         logger.error(f"Error fetching Google Sheet: {e}")
-        raise HTTPException(status_code=400, detail=f"Failed to fetch sheet: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Failed to fetch sheet: {e!s}")
     except Exception as e:
         logger.error(f"Error processing Google Sheet data: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to process sheet data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to process sheet data: {e!s}")
 
 
 @app.post("/sheet-integration/compare-data")
-def compare_sheet_with_database(sheet_data: List[Dict[str, Any]]):  # type: ignore
+def compare_sheet_with_database(sheet_data: list[dict[str, Any]]):  # type: ignore
     """Compare Google Sheet data with current database data."""
     try:
         db = database.SessionLocal()
@@ -6964,7 +6953,7 @@ def compare_sheet_with_database(sheet_data: List[Dict[str, Any]]):  # type: igno
 
     except Exception as e:
         logger.error(f"Error comparing sheet data: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to compare data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to compare data: {e!s}")
     finally:
         db.close()
 
@@ -6977,7 +6966,7 @@ def compare_sheet_with_database(sheet_data: List[Dict[str, Any]]):  # type: igno
 class BettingDecisionRequest(BaseModel):
     """Request model for betting decisions"""
 
-    decision: Dict[str, Any]
+    decision: dict[str, Any]
 
 
 def _get_current_hole_state():
@@ -6987,7 +6976,7 @@ def _get_current_hole_state():
     return wgp_simulation.hole_states.get(wgp_simulation.current_hole)  # type: ignore
 
 
-def _get_default_player_id(preferred_role: str = "captain") -> Optional[str]:
+def _get_default_player_id(preferred_role: str = "captain") -> str | None:
     """
     Provide a sensible default player identifier for legacy API calls that
     don't explicitly include a player context.
@@ -7007,7 +6996,7 @@ def _get_default_player_id(preferred_role: str = "captain") -> Optional[str]:
     return None
 
 
-def _get_opposing_team_id(reference_player_id: Optional[str] = None) -> str:
+def _get_opposing_team_id(reference_player_id: str | None = None) -> str:
     """
     Determine the opposing team identifier for double responses.
     Falls back to generic label when team structure is not yet established.
@@ -7029,7 +7018,7 @@ def _get_opposing_team_id(reference_player_id: Optional[str] = None) -> str:
     return "opponents"
 
 
-def _get_pending_partnership_request() -> Dict[str, Any]:
+def _get_pending_partnership_request() -> dict[str, Any]:
     """Return any pending partnership request details from the current hole."""
     hole_state = _get_current_hole_state()
     if hole_state and getattr(hole_state, "teams", None):
@@ -7037,7 +7026,7 @@ def _get_pending_partnership_request() -> Dict[str, Any]:
     return {}
 
 
-def _normalize_probabilities(probabilities: Dict[str, float]) -> Dict[str, float]:
+def _normalize_probabilities(probabilities: dict[str, float]) -> dict[str, float]:
     """Normalize probability buckets so they sum to ~1.0 and clamp negatives."""
     safe_probs = {k: max(0.0, float(v)) for k, v in probabilities.items()}
     total = sum(safe_probs.values())
@@ -7051,10 +7040,10 @@ def _normalize_probabilities(probabilities: Dict[str, float]) -> Dict[str, float
 
 
 def _compute_shot_probabilities(
-    player_stats: Optional[Dict[str, Any]] = None,
-    hole_info: Optional[Dict[str, Any]] = None,
-    lie_type: Optional[str] = None,
-) -> Dict[str, float]:
+    player_stats: dict[str, Any] | None = None,
+    hole_info: dict[str, Any] | None = None,
+    lie_type: str | None = None,
+) -> dict[str, float]:
     """Generate a balanced shot probability distribution based on context."""
     player_stats = player_stats or {}
     hole_info = hole_info or {}
@@ -7198,10 +7187,10 @@ def get_weekly_signups(week_start: str = Query(description="YYYY-MM-DD format fo
         return schemas.WeeklySignupView(week_start=week_start, daily_summaries=daily_summaries)
 
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid date format: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Invalid date format: {e!s}")
     except Exception as e:
         logger.error(f"Error getting weekly signups: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get weekly signups: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get weekly signups: {e!s}")
     finally:
         db.close()
 
@@ -7241,7 +7230,7 @@ def get_signups(limit: int = Query(50, description="Maximum number of signups to
 
     except Exception as e:
         logger.error(f"Error getting signups: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get signups: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get signups: {e!s}")
     finally:
         db.close()
 
@@ -7299,7 +7288,7 @@ def create_signup(signup: schemas.DailySignupCreate):  # type: ignore
     except Exception as e:
         db.rollback()
         logger.error(f"Error creating signup: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to create signup: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to create signup: {e!s}")
     finally:
         db.close()
 
@@ -7342,7 +7331,7 @@ def update_signup(signup_id: int, signup_update: schemas.DailySignupUpdate):  # 
     except Exception as e:
         db.rollback()
         logger.error(f"Error updating signup {signup_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to update signup: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to update signup: {e!s}")
     finally:
         db.close()
 
@@ -7377,7 +7366,7 @@ def cancel_signup(signup_id: int):  # type: ignore
     except Exception as e:
         db.rollback()
         logger.error(f"Error cancelling signup {signup_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to cancel signup: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to cancel signup: {e!s}")
     finally:
         db.close()
 
@@ -7397,19 +7386,27 @@ def replicate_signup_to_legacy(signup_id: int):  # type: ignore
 
         if success:
             return {"message": "Successfully replicated to legacy signup page", "success": True}
-        else:
-            config = legacy_service.config
-            if not config.enabled:
-                return {"message": "Legacy sync is not enabled. Set LEGACY_SIGNUP_SYNC_ENABLED=true in environment.", "success": False}
-            if not config.create_url:
-                return {"message": "No legacy URL configured. Set LEGACY_SIGNUP_CREATE_URL in environment.", "success": False}
-            return {"message": "Legacy replication attempted but was not successful. Check server logs.", "success": False}
+        config = legacy_service.config
+        if not config.enabled:
+            return {
+                "message": "Legacy sync is not enabled. Set LEGACY_SIGNUP_SYNC_ENABLED=true in environment.",
+                "success": False,
+            }
+        if not config.create_url:
+            return {
+                "message": "No legacy URL configured. Set LEGACY_SIGNUP_CREATE_URL in environment.",
+                "success": False,
+            }
+        return {
+            "message": "Legacy replication attempted but was not successful. Check server logs.",
+            "success": False,
+        }
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error replicating signup {signup_id} to legacy: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to replicate to legacy: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to replicate to legacy: {e!s}")
     finally:
         db.close()
 
@@ -7417,7 +7414,7 @@ def replicate_signup_to_legacy(signup_id: int):  # type: ignore
 # Daily Message Board Endpoints
 
 
-@app.get("/messages/daily", response_model=List[schemas.DailyMessageResponse])
+@app.get("/messages/daily", response_model=list[schemas.DailyMessageResponse])
 def get_daily_messages(date: str = Query(description="YYYY-MM-DD format")):  # type: ignore
     """Get all messages for a specific date."""
     try:
@@ -7434,7 +7431,7 @@ def get_daily_messages(date: str = Query(description="YYYY-MM-DD format")):  # t
 
     except Exception as e:
         logger.error(f"Error getting messages for date {date}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get messages: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get messages: {e!s}")
     finally:
         db.close()
 
@@ -7489,10 +7486,10 @@ def get_weekly_signups_with_messages(week_start: str = Query(description="YYYY-M
         return schemas.WeeklySignupWithMessagesView(week_start=week_start, daily_summaries=daily_summaries)
 
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid date format: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Invalid date format: {e!s}")
     except Exception as e:
         logger.error(f"Error getting weekly data with messages: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get weekly data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get weekly data: {e!s}")
     finally:
         db.close()
 
@@ -7526,7 +7523,7 @@ def create_message(message: schemas.DailyMessageCreate):  # type: ignore
     except Exception as e:
         db.rollback()
         logger.error(f"Error creating message: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to create message: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to create message: {e!s}")
     finally:
         db.close()
 
@@ -7557,7 +7554,7 @@ def update_message(message_id: int, message_update: schemas.DailyMessageUpdate):
     except Exception as e:
         db.rollback()
         logger.error(f"Error updating message {message_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to update message: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to update message: {e!s}")
     finally:
         db.close()
 
@@ -7586,7 +7583,7 @@ def delete_message(message_id: int):  # type: ignore
     except Exception as e:
         db.rollback()
         logger.error(f"Error deleting message {message_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to delete message: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete message: {e!s}")
     finally:
         db.close()
 
@@ -7594,7 +7591,7 @@ def delete_message(message_id: int):  # type: ignore
 # Team Formation Helpers & Endpoints
 
 
-def _get_active_signups_for_date(db: Session, date: str) -> List[models.DailySignup]:
+def _get_active_signups_for_date(db: Session, date: str) -> list[models.DailySignup]:
     """Fetch non-cancelled signups for the requested date."""
     return (
         db.query(models.DailySignup)
@@ -7604,17 +7601,17 @@ def _get_active_signups_for_date(db: Session, date: str) -> List[models.DailySig
 
 
 def _build_player_payload(
-    signups: List[models.DailySignup],
+    signups: list[models.DailySignup],
     *,
     include_handicap: bool = False,
-    db: Optional[Session] = None,
-) -> List[Dict[str, Any]]:
+    db: Session | None = None,
+) -> list[dict[str, Any]]:
     """Convert signup records into the player dictionaries used by formation services."""
     if include_handicap and db is None:
         raise ValueError("Database session is required when include_handicap=True")
 
-    players: List[Dict[str, Any]] = []
-    handicap_lookup: Dict[int, float] = {}
+    players: list[dict[str, Any]] = []
+    handicap_lookup: dict[int, float] = {}
 
     if include_handicap:
         profile_ids = [s.player_profile_id for s in signups if s.player_profile_id is not None]
@@ -7625,7 +7622,7 @@ def _build_player_payload(
             handicap_lookup = {profile.id: profile.handicap for profile in profiles}
 
     for signup in signups:
-        player_data: Dict[str, Any] = {
+        player_data: dict[str, Any] = {
             "id": signup.id,
             "player_profile_id": signup.player_profile_id,
             "player_name": signup.player_name,
@@ -7635,7 +7632,7 @@ def _build_player_payload(
         }
 
         if include_handicap:
-            player_data["handicap"] = handicap_lookup.get(cast(Any, signup.player_profile_id), 18.0)
+            player_data["handicap"] = handicap_lookup.get(cast("Any", signup.player_profile_id), 18.0)
 
         players.append(player_data)
 
@@ -7645,8 +7642,8 @@ def _build_player_payload(
 @app.post("/signups/{date}/team-formation/random")
 def generate_random_teams_for_date(  # type: ignore
     date: str = Path(description="Date in YYYY-MM-DD format"),
-    seed: Optional[int] = Query(None, description="Random seed for reproducible results"),
-    max_teams: Optional[int] = Query(None, description="Maximum number of teams to create"),
+    seed: int | None = Query(None, description="Random seed for reproducible results"),
+    max_teams: int | None = Query(None, description="Maximum number of teams to create"),
 ):
     """Generate random 4-player teams from players signed up for a specific date."""
     try:
@@ -7688,7 +7685,7 @@ def generate_random_teams_for_date(  # type: ignore
         raise
     except Exception as e:
         logger.error(f"Error generating random teams for date {date}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to generate teams: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate teams: {e!s}")
     finally:
         db.close()
 
@@ -7696,7 +7693,7 @@ def generate_random_teams_for_date(  # type: ignore
 @app.post("/signups/{date}/team-formation/balanced")
 def generate_balanced_teams_for_date(  # type: ignore
     date: str = Path(description="Date in YYYY-MM-DD format"),
-    seed: Optional[int] = Query(None, description="Random seed for reproducible results"),
+    seed: int | None = Query(None, description="Random seed for reproducible results"),
 ):
     """Generate skill-balanced 4-player teams from players signed up for a specific date."""
     try:
@@ -7738,7 +7735,7 @@ def generate_balanced_teams_for_date(  # type: ignore
         raise
     except Exception as e:
         logger.error(f"Error generating balanced teams for date {date}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to generate balanced teams: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate balanced teams: {e!s}")
     finally:
         db.close()
 
@@ -7747,7 +7744,7 @@ def generate_balanced_teams_for_date(  # type: ignore
 def generate_team_rotations_for_date(  # type: ignore
     date: str = Path(description="Date in YYYY-MM-DD format"),
     num_rotations: int = Query(3, description="Number of different team rotations to create"),
-    seed: Optional[int] = Query(None, description="Random seed for reproducible results"),
+    seed: int | None = Query(None, description="Random seed for reproducible results"),
 ):
     """Generate multiple team rotation options for variety throughout the day."""
     try:
@@ -7783,7 +7780,7 @@ def generate_team_rotations_for_date(  # type: ignore
         raise
     except Exception as e:
         logger.error(f"Error generating team rotations for date {date}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to generate rotations: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate rotations: {e!s}")
     finally:
         db.close()
 
@@ -7792,7 +7789,7 @@ def generate_team_rotations_for_date(  # type: ignore
 def generate_sunday_game_pairings(  # type: ignore
     date: str = Path(description="Date in YYYY-MM-DD format"),
     num_rotations: int = Query(3, description="Number of Sunday pairing options to generate"),
-    seed: Optional[int] = Query(None, description="Override random seed for reproducible results"),
+    seed: int | None = Query(None, description="Override random seed for reproducible results"),
 ):
     """Generate randomized Sunday game pairings with optional deterministic seeding."""
     try:
@@ -7825,7 +7822,7 @@ def generate_sunday_game_pairings(  # type: ignore
         raise
     except Exception as e:
         logger.error(f"Error generating Sunday game pairings for {date}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to generate Sunday pairings: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate Sunday pairings: {e!s}")
     finally:
         db.close()
 
@@ -7876,7 +7873,7 @@ def get_players_for_date(date: str = Path(description="Date in YYYY-MM-DD format
 
     except Exception as e:
         logger.error(f"Error getting players for date {date}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get players: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get players: {e!s}")
     finally:
         db.close()
 
@@ -7913,7 +7910,7 @@ def get_generated_pairings(date: str = Path(description="Date in YYYY-MM-DD form
 
     except Exception as e:
         logger.error(f"Error getting pairings for date {date}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get pairings: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get pairings: {e!s}")
     finally:
         db.close()
 
@@ -7967,7 +7964,7 @@ def generate_and_save_pairings(  # type: ignore
         raise
     except Exception as e:
         logger.error(f"Error generating pairings for date {date}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to generate pairings: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate pairings: {e!s}")
     finally:
         db.close()
 
@@ -8000,7 +7997,7 @@ def resend_pairing_notifications(date: str = Path(description="Date in YYYY-MM-D
         raise
     except Exception as e:
         logger.error(f"Error sending pairing notifications for {date}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to send notifications: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to send notifications: {e!s}")
     finally:
         db.close()
 
@@ -8027,7 +8024,7 @@ def run_saturday_pairing_job():  # type: ignore
         raise
     except Exception as e:
         logger.error(f"Error running Saturday pairing job: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to run Saturday job: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to run Saturday job: {e!s}")
     finally:
         db.close()
 
@@ -8060,7 +8057,7 @@ def delete_generated_pairings(date: str = Path(description="Date in YYYY-MM-DD f
         raise
     except Exception as e:
         logger.error(f"Error deleting pairings for date {date}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to delete pairings: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete pairings: {e!s}")
     finally:
         db.close()
 
@@ -8094,14 +8091,13 @@ async def send_test_email(email_data: dict):  # type: ignore
 
         if success:
             return {"message": "Test email sent successfully", "to_email": to_email}
-        else:
-            raise HTTPException(status_code=500, detail="Failed to send test email")
+        raise HTTPException(status_code=500, detail="Failed to send test email")
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error sending test email: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to send test email: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to send test email: {e!s}")
 
 
 @app.get("/email/status")
@@ -8113,7 +8109,7 @@ async def get_email_service_status():
 
     except Exception as e:
         logger.error(f"Error checking email service status: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to check email status: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to check email status: {e!s}")
 
 
 @app.post("/email/signup-confirmation")
@@ -8145,14 +8141,13 @@ async def send_signup_confirmation_email(email_data: dict):  # type: ignore
                 "message": "Signup confirmation email sent",
                 "to_email": email_data["to_email"],
             }
-        else:
-            raise HTTPException(status_code=500, detail="Failed to send signup confirmation email")
+        raise HTTPException(status_code=500, detail="Failed to send signup confirmation email")
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error sending signup confirmation email: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to send email: {e!s}")
 
 
 @app.post("/email/daily-reminder")
@@ -8184,14 +8179,13 @@ async def send_daily_reminder_email(email_data: dict):  # type: ignore
                 "message": "Daily reminder email sent",
                 "to_email": email_data["to_email"],
             }
-        else:
-            raise HTTPException(status_code=500, detail="Failed to send daily reminder email")
+        raise HTTPException(status_code=500, detail="Failed to send daily reminder email")
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error sending daily reminder email: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to send email: {e!s}")
 
 
 @app.post("/email/weekly-summary")
@@ -8223,8 +8217,7 @@ async def send_weekly_summary_email(email_data: dict):  # type: ignore
                 "message": "Weekly summary email sent",
                 "to_email": email_data["to_email"],
             }
-        else:
-            raise HTTPException(status_code=500, detail="Failed to send weekly summary email")
+        raise HTTPException(status_code=500, detail="Failed to send weekly summary email")
 
     except HTTPException:
         raise
@@ -8258,8 +8251,8 @@ async def initialize_email_scheduler():
         }
 
     except Exception as e:
-        logger.error(f"Failed to initialize email scheduler: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to initialize email scheduler: {str(e)}")
+        logger.error(f"Failed to initialize email scheduler: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Failed to initialize email scheduler: {e!s}")
 
 
 @app.get("/email/scheduler-status")
@@ -8288,7 +8281,7 @@ STATIC_DIR = Path(__file__).parent.parent.parent / "frontend" / "build"
 
 
 @app.get("/matchmaking/suggestions")
-def get_match_suggestions(min_overlap_hours: float = 2.0, preferred_days: Optional[str] = None):  # type: ignore
+def get_match_suggestions(min_overlap_hours: float = 2.0, preferred_days: str | None = None):  # type: ignore
     """
     Get matchmaking suggestions based on player availability.
 
@@ -8302,13 +8295,11 @@ def get_match_suggestions(min_overlap_hours: float = 2.0, preferred_days: Option
         db = database.SessionLocal()
 
         # Get all active players' availability
-        players_with_availability = db.query(models.PlayerProfile).filter(
-            models.PlayerProfile.is_active == 1
-        ).all()
+        players_with_availability = db.query(models.PlayerProfile).filter(models.PlayerProfile.is_active == 1).all()
 
         all_players_data = []
         for player in players_with_availability:
-            player_data: Dict[str, Any] = {
+            player_data: dict[str, Any] = {
                 "player_id": player.id,
                 "player_name": player.name,
                 "email": player.email,
@@ -8380,7 +8371,7 @@ def get_match_suggestions(min_overlap_hours: float = 2.0, preferred_days: Option
 
     except Exception as e:
         logger.error(f"Error finding match suggestions: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to find matches: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to find matches: {e!s}")
     finally:
         db.close()
 
@@ -8510,7 +8501,7 @@ async def create_and_notify_matches():
 
     except Exception as e:
         logger.error(f"Error in create and notify matches: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to create and notify matches: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to create and notify matches: {e!s}")
     finally:
         if "db" in locals():
             db.close()
@@ -8522,7 +8513,7 @@ async def create_and_notify_matches():
 
 
 @app.get("/admin/db/schemas")
-async def get_db_schemas(x_admin_email: Optional[str] = Header(None), db: Session = Depends(database.get_db)):  # type: ignore
+async def get_db_schemas(x_admin_email: str | None = Header(None), db: Session = Depends(database.get_db)):  # type: ignore
     """Get all database schemas."""
     require_admin(x_admin_email)
     try:
@@ -8532,13 +8523,13 @@ async def get_db_schemas(x_admin_email: Optional[str] = Header(None), db: Sessio
         return {"schemas": schemas}
     except Exception as e:
         logger.error(f"Error getting db schemas: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get db schemas: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get db schemas: {e!s}")
 
 
 @app.get("/admin/db/schemas/{schema_name}/tables")
 async def get_db_tables(
     schema_name: str,
-    x_admin_email: Optional[str] = Header(None),
+    x_admin_email: str | None = Header(None),
     db: Session = Depends(database.get_db),
 ):  # type: ignore
     """Get all tables within a specific schema."""
@@ -8550,14 +8541,14 @@ async def get_db_tables(
         return {"schema": schema_name, "tables": tables}
     except Exception as e:
         logger.error(f"Error getting db tables for schema {schema_name}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get db tables: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get db tables: {e!s}")
 
 
 @app.get("/admin/db/schemas/{schema_name}/tables/{table_name}")
 async def get_table_content(
     schema_name: str,
     table_name: str,
-    x_admin_email: Optional[str] = Header(None),
+    x_admin_email: str | None = Header(None),
     db: Session = Depends(database.get_db),
 ):  # type: ignore
     """Get the content of a specific table."""
@@ -8586,11 +8577,11 @@ async def get_table_content(
         }
     except Exception as e:
         logger.error(f"Error getting content for table {schema_name}.{table_name}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get table content: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get table content: {e!s}")
 
 
 @app.get("/test-deployment")
-async def test_deployment(x_admin_email: Optional[str] = Header(None)):  # type: ignore
+async def test_deployment(x_admin_email: str | None = Header(None)):  # type: ignore
     """Test that new deployments are working."""
     require_admin(x_admin_email)
     return {"message": "Deployment is working", "timestamp": datetime.now().isoformat()}
@@ -8603,14 +8594,14 @@ async def test_deployment(x_admin_email: Optional[str] = Header(None)):  # type:
 
 @app.get("/admin/cleanup/orphaned-games")
 async def get_orphaned_games(
-    x_admin_email: Optional[str] = Header(None),
+    x_admin_email: str | None = Header(None),
     hours_old: int = Query(24, description="Only show games older than this many hours"),
     db: Session = Depends(database.get_db),
 ):  # type: ignore
     """Get a list of orphaned games (setup status, 0 players, older than specified hours)."""
     require_admin(x_admin_email)
     try:
-        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours_old)
+        cutoff_time = datetime.now(UTC) - timedelta(hours=hours_old)
 
         # Query for orphaned games
         orphaned = (
@@ -8645,12 +8636,12 @@ async def get_orphaned_games(
         }
     except Exception as e:
         logger.error(f"Error getting orphaned games: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get orphaned games: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get orphaned games: {e!s}")
 
 
 @app.delete("/admin/cleanup/orphaned-games")
 async def delete_orphaned_games(
-    x_admin_email: Optional[str] = Header(None),
+    x_admin_email: str | None = Header(None),
     hours_old: int = Query(24, description="Only delete games older than this many hours"),
     dry_run: bool = Query(True, description="If true, only show what would be deleted"),
     db: Session = Depends(database.get_db),
@@ -8662,7 +8653,7 @@ async def delete_orphaned_games(
     """
     require_admin(x_admin_email)
     try:
-        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours_old)
+        cutoff_time = datetime.now(UTC) - timedelta(hours=hours_old)
 
         # Find orphaned games
         orphaned = (
@@ -8709,11 +8700,11 @@ async def delete_orphaned_games(
     except Exception as e:
         db.rollback()
         logger.error(f"Error deleting orphaned games: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to delete orphaned games: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete orphaned games: {e!s}")
 
 
 @app.get("/admin/cleanup/database-stats")
-async def get_database_stats(x_admin_email: Optional[str] = Header(None), db: Session = Depends(database.get_db)):  # type: ignore
+async def get_database_stats(x_admin_email: str | None = Header(None), db: Session = Depends(database.get_db)):  # type: ignore
     """Get database statistics for health monitoring."""
     require_admin(x_admin_email)
     try:
@@ -8774,16 +8765,16 @@ async def get_database_stats(x_admin_email: Optional[str] = Header(None), db: Se
             "unread": unread_notifications,
         }
 
-        return {"generated_at": datetime.now(timezone.utc).isoformat(), "stats": stats}
+        return {"generated_at": datetime.now(UTC).isoformat(), "stats": stats}
     except Exception as e:
         logger.error(f"Error getting database stats: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get database stats: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get database stats: {e!s}")
 
 
 @app.post("/admin/run-migration")
 async def run_database_migration(
     migration: str = Query(..., description="Migration to run: 'add_statistics_columns'"),
-    x_admin_email: Optional[str] = Header(None),
+    x_admin_email: str | None = Header(None),
     db: Session = Depends(database.get_db),
 ):  # type: ignore
     """
@@ -8802,7 +8793,7 @@ async def run_database_migration(
             return result
         except Exception as e:
             logger.error(f"Migration failed: {e}")
-            raise HTTPException(status_code=500, detail=f"Migration failed: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Migration failed: {e!s}")
     else:
         raise HTTPException(
             status_code=400,
@@ -8813,7 +8804,7 @@ async def run_database_migration(
 if ENABLE_TEST_ENDPOINTS:
 
     @app.get("/debug/paths")
-    async def debug_paths(x_admin_email: Optional[str] = Header(None)):  # type: ignore
+    async def debug_paths(x_admin_email: str | None = Header(None)):  # type: ignore
         """Debug endpoint to check file paths."""
         require_admin(x_admin_email)
         current_file = Path(__file__).resolve()
@@ -8845,11 +8836,11 @@ else:
 from .simplified_scoring import SimplifiedScoring
 
 # Global simplified scoring instances (keyed by game_id) - DEPRECATED: use database-backed endpoints
-simplified_games: Dict[str, SimplifiedScoring] = {}
+simplified_games: dict[str, SimplifiedScoring] = {}
 
 
 @app.post("/wgp/simplified/start-game", deprecated=True)
-async def start_simplified_game(payload: Dict[str, Any]):  # type: ignore
+async def start_simplified_game(payload: dict[str, Any]):  # type: ignore
     """
     DEPRECATED: Use POST /games/create then POST /games/{game_id}/quarters-only instead.
 
@@ -8875,11 +8866,11 @@ async def start_simplified_game(payload: Dict[str, Any]):  # type: ignore
 
     except Exception as e:
         logger.error(f"Error starting simplified game: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to start game: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to start game: {e!s}")
 
 
 @app.post("/wgp/simplified/score-hole", deprecated=True)
-async def score_hole_simplified(payload: Dict[str, Any]):  # type: ignore
+async def score_hole_simplified(payload: dict[str, Any]):  # type: ignore
     """
     DEPRECATED: Use POST /games/{game_id}/quarters-only instead.
 
@@ -8915,7 +8906,7 @@ async def score_hole_simplified(payload: Dict[str, Any]):  # type: ignore
         raise
     except Exception as e:
         logger.error(f"Error scoring hole: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to score hole: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to score hole: {e!s}")
 
 
 @app.get("/wgp/simplified/{game_id}/status", deprecated=True)
@@ -8941,7 +8932,7 @@ async def get_simplified_game_status(game_id: str):  # type: ignore
         raise
     except Exception as e:
         logger.error(f"Error getting game status: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get status: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get status: {e!s}")
 
 
 @app.get("/wgp/simplified/{game_id}/hole-history", deprecated=True)
@@ -8963,7 +8954,7 @@ async def get_simplified_hole_history(game_id: str):  # type: ignore
         raise
     except Exception as e:
         logger.error(f"Error getting hole history: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get history: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get history: {e!s}")
 
 
 @app.websocket("/ws/{game_id}")
@@ -9079,7 +9070,7 @@ async def serve_homepage():
             <li><a href="{frontend_url}" target="_blank" rel="noopener">Open the production app</a></li>
             {docs_link}
           </ul>
-          <p class="meta">Last checked: {datetime.now(timezone.utc).isoformat()}Z</p>
+          <p class="meta">Last checked: {datetime.now(UTC).isoformat()}Z</p>
         </main>
       </body>
     </html>

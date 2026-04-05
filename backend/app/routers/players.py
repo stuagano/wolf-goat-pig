@@ -13,8 +13,8 @@ To migrate: Replace players.py with this file after testing.
 """
 
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, cast
+from datetime import UTC, datetime
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
@@ -47,12 +47,12 @@ def create_player_profile(
     return result
 
 
-@router.get("", response_model=List[schemas.PlayerProfileResponse])
+@router.get("", response_model=list[schemas.PlayerProfileResponse])
 @handle_api_errors(operation_name="get player profiles")
 def get_all_player_profiles(
     active_only: bool = Query(True, description="Return only active profiles"),
     db: Session = Depends(get_db),
-) -> List[schemas.PlayerProfileResponse]:
+) -> list[schemas.PlayerProfileResponse]:
     """Get all player profiles."""
     player_service = PlayerService(db)
     profiles = player_service.get_all_player_profiles(active_only=active_only)
@@ -65,12 +65,12 @@ def get_all_player_profiles(
 # ============================================================================
 
 
-@router.get("/all", response_model=List[schemas.PlayerProfileResponse])
+@router.get("/all", response_model=list[schemas.PlayerProfileResponse])
 @handle_api_errors(operation_name="get all players")
 def get_all_players(
     active_only: bool = Query(True, description="Only return active players"),
     db: Session = Depends(get_db),
-) -> List[schemas.PlayerProfileResponse]:
+) -> list[schemas.PlayerProfileResponse]:
     """Get all player profiles."""
     player_service = PlayerService(db)
     return player_service.get_all_player_profiles(active_only=active_only)
@@ -85,15 +85,15 @@ def get_player_profile_by_name(player_name: str, db: Session = Depends(get_db)) 
     return require_not_none(profile, "Player", player_name)
 
 
-@router.get("/availability/all", response_model=List[Dict])
+@router.get("/availability/all", response_model=list[dict])
 @handle_api_errors(operation_name="get all players availability")
-def get_all_players_availability(db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
+def get_all_players_availability(db: Session = Depends(get_db)) -> list[dict[str, Any]]:
     """Get all players' weekly availability with their names."""
     players_with_availability = db.query(models.PlayerProfile).all()
 
-    result: List[Dict[str, Any]] = []
+    result: list[dict[str, Any]] = []
     for player in players_with_availability:
-        player_data: Dict[str, Any] = {
+        player_data: dict[str, Any] = {
             "player_id": player.id,
             "player_name": player.name,
             "email": player.email,
@@ -137,7 +137,7 @@ async def get_my_profile(
 @router.put("/me/legacy-name", response_model=schemas.PlayerProfileResponse)
 @handle_api_errors(operation_name="update my legacy name")
 async def update_my_legacy_name(
-    legacy_name_update: Dict[str, Optional[str]],
+    legacy_name_update: dict[str, str | None],
     current_user: models.PlayerProfile = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> schemas.PlayerProfileResponse:
@@ -164,7 +164,7 @@ async def update_my_legacy_name(
 
     # Update the profile
     current_user.legacy_name = legacy_name
-    current_user.updated_at = datetime.now(timezone.utc).isoformat()
+    current_user.updated_at = datetime.now(UTC).isoformat()
     db.commit()
     db.refresh(current_user)
 
@@ -172,12 +172,12 @@ async def update_my_legacy_name(
     return schemas.PlayerProfileResponse.model_validate(current_user)
 
 
-@router.get("/me/availability", response_model=List[schemas.PlayerAvailabilityResponse])
+@router.get("/me/availability", response_model=list[schemas.PlayerAvailabilityResponse])
 @handle_api_errors(operation_name="get my availability")
 async def get_my_availability(
     current_user: models.PlayerProfile = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> List[schemas.PlayerAvailabilityResponse]:
+) -> list[schemas.PlayerAvailabilityResponse]:
     """Get current user's weekly availability."""
     availability = (
         db.query(models.PlayerAvailability).filter(models.PlayerAvailability.player_profile_id == current_user.id).all()
@@ -200,7 +200,7 @@ async def set_my_availability(
     from .matchmaking import run_matchmaking_for_player
 
     # Override the player_profile_id with the current user's ID
-    availability.player_profile_id = cast(int, current_user.id)
+    availability.player_profile_id = cast("int", current_user.id)
 
     existing = (
         db.query(models.PlayerAvailability)
@@ -211,7 +211,7 @@ async def set_my_availability(
         .first()
     )
 
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     if existing:
         existing.available_from_time = availability.available_from_time
@@ -242,12 +242,12 @@ async def set_my_availability(
         avail_response = schemas.PlayerAvailabilityResponse.from_orm(db_availability)
 
     # Auto-trigger matchmaking if user is marking themselves available
-    new_matches: List[Dict] = []
+    new_matches: list[dict] = []
     matches_notified = 0
     if availability.is_available:
         try:
             new_matches = run_matchmaking_for_player(
-                player_id=cast(int, current_user.id),
+                player_id=cast("int", current_user.id),
                 db=db,
             )
             matches_notified = sum(m.get("notifications_sent", 0) for m in new_matches)
@@ -275,7 +275,7 @@ async def get_my_email_preferences(
     db: Session = Depends(get_db),
 ) -> schemas.EmailPreferencesResponse:
     """Get current user's email preferences."""
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     prefs = (
         db.query(models.EmailPreferences).filter(models.EmailPreferences.player_profile_id == current_user.id).first()
@@ -288,17 +288,17 @@ async def get_my_email_preferences(
         db.refresh(prefs)
 
     return schemas.EmailPreferencesResponse(
-        id=cast(int, prefs.id),
-        player_profile_id=cast(int, prefs.player_profile_id),
+        id=cast("int", prefs.id),
+        player_profile_id=cast("int", prefs.player_profile_id),
         daily_signups_enabled=bool(prefs.daily_signups_enabled),
         signup_confirmations_enabled=bool(prefs.signup_confirmations_enabled),
         signup_reminders_enabled=bool(prefs.signup_reminders_enabled),
         game_invitations_enabled=bool(prefs.game_invitations_enabled),
         weekly_summary_enabled=bool(prefs.weekly_summary_enabled),
-        email_frequency=cast(str, prefs.email_frequency),
-        preferred_notification_time=cast(str, prefs.preferred_notification_time),
-        created_at=cast(str, prefs.created_at),
-        updated_at=cast(str, prefs.updated_at),
+        email_frequency=cast("str", prefs.email_frequency),
+        preferred_notification_time=cast("str", prefs.preferred_notification_time),
+        created_at=cast("str", prefs.created_at),
+        updated_at=cast("str", prefs.updated_at),
     )
 
 
@@ -310,7 +310,7 @@ async def update_my_email_preferences(
     db: Session = Depends(get_db),
 ) -> schemas.EmailPreferencesResponse:
     """Update current user's email preferences."""
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     prefs = (
         db.query(models.EmailPreferences).filter(models.EmailPreferences.player_profile_id == current_user.id).first()
@@ -335,17 +335,17 @@ async def update_my_email_preferences(
     logger.info(f"Updated email preferences for user {current_user.id}")
 
     return schemas.EmailPreferencesResponse(
-        id=cast(int, prefs.id),
-        player_profile_id=cast(int, prefs.player_profile_id),
+        id=cast("int", prefs.id),
+        player_profile_id=cast("int", prefs.player_profile_id),
         daily_signups_enabled=bool(prefs.daily_signups_enabled),
         signup_confirmations_enabled=bool(prefs.signup_confirmations_enabled),
         signup_reminders_enabled=bool(prefs.signup_reminders_enabled),
         game_invitations_enabled=bool(prefs.game_invitations_enabled),
         weekly_summary_enabled=bool(prefs.weekly_summary_enabled),
-        email_frequency=cast(str, prefs.email_frequency),
-        preferred_notification_time=cast(str, prefs.preferred_notification_time),
-        created_at=cast(str, prefs.created_at),
-        updated_at=cast(str, prefs.updated_at),
+        email_frequency=cast("str", prefs.email_frequency),
+        preferred_notification_time=cast("str", prefs.preferred_notification_time),
+        created_at=cast("str", prefs.created_at),
+        updated_at=cast("str", prefs.updated_at),
     )
 
 
@@ -380,7 +380,7 @@ def update_player_profile(
 
 @router.delete("/{player_id}")
 @handle_api_errors(operation_name="delete player profile")
-def delete_player_profile(player_id: int, db: Session = Depends(get_db)) -> Dict[str, str]:
+def delete_player_profile(player_id: int, db: Session = Depends(get_db)) -> dict[str, str]:
     """Delete (deactivate) a player profile."""
     player_service = PlayerService(db)
     success = player_service.delete_player_profile(player_id)
@@ -447,10 +447,10 @@ def get_player_profile_with_stats(player_id: int, db: Session = Depends(get_db))
             best_hole_performance=[],
             worst_hole_performance=[],
             performance_trends=[],
-            last_updated=datetime.now(timezone.utc).isoformat(),
+            last_updated=datetime.now(UTC).isoformat(),
         )
 
-    recent_achievements: List[Any] = []  # Placeholder for future implementation
+    recent_achievements: list[Any] = []  # Placeholder for future implementation
 
     return schemas.PlayerProfileWithStats(profile=profile, statistics=stats, recent_achievements=recent_achievements)
 
@@ -462,7 +462,7 @@ def get_player_profile_with_stats(player_id: int, db: Session = Depends(get_db))
 
 @router.get("/{player_id}/advanced-metrics")
 @handle_api_errors(operation_name="get advanced metrics")
-def get_player_advanced_metrics(player_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
+def get_player_advanced_metrics(player_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
     """Get advanced performance metrics for a player."""
     from ..services.statistics_service import StatisticsService
 
@@ -481,7 +481,7 @@ def get_player_trends(
     player_id: int,
     days: int = Query(30, ge=7, le=365, description="Number of days to analyze"),
     db: Session = Depends(get_db),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get performance trends for a player."""
     from ..services.statistics_service import StatisticsService
 
@@ -496,7 +496,7 @@ def get_player_trends(
 
 @router.get("/{player_id}/insights")
 @handle_api_errors(operation_name="get player insights")
-def get_player_insights(player_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
+def get_player_insights(player_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
     """Get personalized insights and recommendations for a player."""
     from ..services.statistics_service import StatisticsService
 
@@ -514,7 +514,7 @@ def get_player_insights(player_id: int, db: Session = Depends(get_db)) -> Dict[s
 
 @router.get("/{player_id}/skill-rating")
 @handle_api_errors(operation_name="get skill rating")
-def get_player_skill_rating(player_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
+def get_player_skill_rating(player_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
     """Get skill rating for a player."""
     from ..services.statistics_service import StatisticsService
 
@@ -529,7 +529,7 @@ def get_player_skill_rating(player_id: int, db: Session = Depends(get_db)) -> Di
 
 @router.get("/{player_id}/head-to-head/{opponent_id}")
 @handle_api_errors(operation_name="get head-to-head")
-def get_head_to_head(player_id: int, opponent_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
+def get_head_to_head(player_id: int, opponent_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
     """Get head-to-head record between two players."""
     from ..services.statistics_service import StatisticsService
 
@@ -544,7 +544,7 @@ def get_head_to_head(player_id: int, opponent_id: int, db: Session = Depends(get
 
 @router.get("/{player_id}/head-to-head")
 @handle_api_errors(operation_name="get all head-to-head records")
-def get_all_head_to_head(player_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
+def get_all_head_to_head(player_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
     """Get head-to-head records against all opponents."""
     from ..services.statistics_service import StatisticsService
 
@@ -559,7 +559,7 @@ def get_all_head_to_head(player_id: int, db: Session = Depends(get_db)) -> Dict[
 
 @router.get("/{player_id}/streaks")
 @handle_api_errors(operation_name="get streak analysis")
-def get_streak_analysis(player_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
+def get_streak_analysis(player_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
     """Get detailed streak analysis for a player."""
     from ..services.statistics_service import StatisticsService
 
@@ -574,7 +574,7 @@ def get_streak_analysis(player_id: int, db: Session = Depends(get_db)) -> Dict[s
 
 @router.get("/{player_id}/special-events")
 @handle_api_errors(operation_name="get special event analytics")
-def get_special_event_analytics(player_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
+def get_special_event_analytics(player_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
     """Get analytics for special events (ping pong, invisible aardvark, etc.)."""
     from ..services.statistics_service import StatisticsService
 
@@ -589,7 +589,7 @@ def get_special_event_analytics(player_id: int, db: Session = Depends(get_db)) -
 
 @router.get("/{player_id}/score-performance")
 @handle_api_errors(operation_name="get score performance analytics")
-def get_score_performance_analytics(player_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
+def get_score_performance_analytics(player_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
     """Get detailed score performance analytics (eagles, birdies, pars, etc.)."""
     from ..services.statistics_service import StatisticsService
 
@@ -607,9 +607,9 @@ def get_score_performance_analytics(player_id: int, db: Session = Depends(get_db
 # ============================================================================
 
 
-@router.get("/{player_id}/availability", response_model=List[schemas.PlayerAvailabilityResponse])
+@router.get("/{player_id}/availability", response_model=list[schemas.PlayerAvailabilityResponse])
 @handle_api_errors(operation_name="get player availability")
-def get_player_availability(player_id: int, db: Session = Depends(get_db)) -> List[schemas.PlayerAvailabilityResponse]:
+def get_player_availability(player_id: int, db: Session = Depends(get_db)) -> list[schemas.PlayerAvailabilityResponse]:
     """Get a player's weekly availability."""
     availability = (
         db.query(models.PlayerAvailability)
@@ -637,7 +637,7 @@ def set_player_availability(
         .first()
     )
 
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     if existing:
         existing.available_from_time = availability.available_from_time  # type: ignore
@@ -678,7 +678,7 @@ def set_player_availability(
 @handle_api_errors(operation_name="get email preferences")
 def get_email_preferences(player_id: int, db: Session = Depends(get_db)) -> schemas.EmailPreferencesResponse:
     """Get a player's email preferences."""
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     preferences = (
         db.query(models.EmailPreferences).filter(models.EmailPreferences.player_profile_id == player_id).first()
@@ -713,7 +713,7 @@ def update_email_preferences(
         if hasattr(preferences, field):
             setattr(preferences, field, value)
 
-    preferences.updated_at = datetime.now(timezone.utc).isoformat()  # type: ignore
+    preferences.updated_at = datetime.now(UTC).isoformat()  # type: ignore
     db.commit()
     db.refresh(preferences)
 

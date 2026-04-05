@@ -11,8 +11,8 @@ This service handles all game lifecycle operations including:
 
 import logging
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple, cast
+from datetime import UTC, datetime
+from typing import Any, Optional, cast
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -50,7 +50,7 @@ class GameLifecycleService:
         if getattr(self, "_initialized", False):
             return
 
-        self._active_games: Dict[str, WolfGoatPigGame] = {}
+        self._active_games: dict[str, WolfGoatPigGame] = {}
         self._initialized: bool = True
         logger.info("GameLifecycleService initialized")
 
@@ -58,12 +58,12 @@ class GameLifecycleService:
         self,
         db: Session,
         player_count: int,
-        players: List[Player],
-        course_name: Optional[str] = None,
-        base_wager: Optional[float] = None,
-        join_code: Optional[str] = None,
-        creator_user_id: Optional[str] = None,
-    ) -> Tuple[str, WolfGoatPigGame]:
+        players: list[Player],
+        course_name: str | None = None,
+        base_wager: float | None = None,
+        join_code: str | None = None,
+        creator_user_id: str | None = None,
+    ) -> tuple[str, WolfGoatPigGame]:
         """
         Create a new Wolf Goat Pig game.
 
@@ -97,7 +97,7 @@ class GameLifecycleService:
 
             # Generate unique game ID
             game_id = str(uuid.uuid4())
-            current_time = datetime.now(timezone.utc).isoformat()
+            current_time = datetime.now(UTC).isoformat()
 
             logger.info(f"Creating new game {game_id} with {player_count} players")
 
@@ -155,7 +155,7 @@ class GameLifecycleService:
         except Exception as e:
             db.rollback()
             logger.error(f"Error creating game: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to create game: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to create game: {e!s}")
 
     def get_game(self, db: Session, game_id: str) -> WolfGoatPigGame:
         """
@@ -209,7 +209,7 @@ class GameLifecycleService:
             raise
         except Exception as e:
             logger.error(f"Error retrieving game {game_id}: {e}")
-            raise HTTPException(status_code=500, detail=f"Error loading game: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error loading game: {e!s}")
 
     def start_game(self, db: Session, game_id: str) -> WolfGoatPigGame:
         """
@@ -247,11 +247,11 @@ class GameLifecycleService:
                 )
 
             # Update status - use setattr to avoid Column type errors
-            setattr(game_record, "game_status", "in_progress")
+            game_record.game_status = "in_progress"
             if game_record.state:
-                state_dict = cast(Dict[str, Any], game_record.state)
+                state_dict = cast("dict[str, Any]", game_record.state)
                 state_dict["game_status"] = "in_progress"
-            setattr(game_record, "updated_at", datetime.now(timezone.utc).isoformat())
+            game_record.updated_at = datetime.now(UTC).isoformat()
 
             db.commit()
 
@@ -263,7 +263,7 @@ class GameLifecycleService:
         except Exception as e:
             db.rollback()
             logger.error(f"Error starting game {game_id}: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to start game: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to start game: {e!s}")
 
     def pause_game(self, db: Session, game_id: str) -> WolfGoatPigGame:
         """
@@ -297,11 +297,11 @@ class GameLifecycleService:
                 raise HTTPException(status_code=400, detail="Can only pause games that are in progress")
 
             # Update status - use setattr to avoid Column type errors
-            setattr(game_record, "game_status", "paused")
+            game_record.game_status = "paused"
             if game_record.state:
-                state_dict = cast(Dict[str, Any], game_record.state)
+                state_dict = cast("dict[str, Any]", game_record.state)
                 state_dict["game_status"] = "paused"
-            setattr(game_record, "updated_at", datetime.now(timezone.utc).isoformat())
+            game_record.updated_at = datetime.now(UTC).isoformat()
 
             db.commit()
 
@@ -313,7 +313,7 @@ class GameLifecycleService:
         except Exception as e:
             db.rollback()
             logger.error(f"Error pausing game {game_id}: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to pause game: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to pause game: {e!s}")
 
     def resume_game(self, db: Session, game_id: str) -> WolfGoatPigGame:
         """
@@ -347,11 +347,11 @@ class GameLifecycleService:
                 raise HTTPException(status_code=400, detail="Can only resume games that are paused")
 
             # Update status - use setattr to avoid Column type errors
-            setattr(game_record, "game_status", "in_progress")
+            game_record.game_status = "in_progress"
             if game_record.state:
-                state_dict = cast(Dict[str, Any], game_record.state)
+                state_dict = cast("dict[str, Any]", game_record.state)
                 state_dict["game_status"] = "in_progress"
-            setattr(game_record, "updated_at", datetime.now(timezone.utc).isoformat())
+            game_record.updated_at = datetime.now(UTC).isoformat()
 
             db.commit()
 
@@ -363,9 +363,9 @@ class GameLifecycleService:
         except Exception as e:
             db.rollback()
             logger.error(f"Error resuming game {game_id}: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to resume game: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to resume game: {e!s}")
 
-    def complete_game(self, db: Session, game_id: str) -> Dict[str, Any]:
+    def complete_game(self, db: Session, game_id: str) -> dict[str, Any]:
         """
         Mark a game as complete and return final statistics.
 
@@ -402,7 +402,7 @@ class GameLifecycleService:
             final_stats = {
                 "game_id": game_id,
                 "status": "completed",
-                "completed_at": datetime.now(timezone.utc).isoformat(),
+                "completed_at": datetime.now(UTC).isoformat(),
                 "final_scores": {},
                 "total_holes_played": (game.current_hole - 1 if hasattr(game, "current_hole") else 0),
                 "course_name": game_record.state.get("course_name"),
@@ -419,12 +419,12 @@ class GameLifecycleService:
                     }
 
             # Update database record - use setattr to avoid Column type errors
-            setattr(game_record, "game_status", "completed")
+            game_record.game_status = "completed"
             if game_record.state:
-                state_dict = cast(Dict[str, Any], game_record.state)
+                state_dict = cast("dict[str, Any]", game_record.state)
                 state_dict["game_status"] = "completed"
                 state_dict["final_stats"] = final_stats
-            setattr(game_record, "updated_at", datetime.now(timezone.utc).isoformat())
+            game_record.updated_at = datetime.now(UTC).isoformat()
 
             db.commit()
 
@@ -436,9 +436,9 @@ class GameLifecycleService:
         except Exception as e:
             db.rollback()
             logger.error(f"Error completing game {game_id}: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to complete game: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to complete game: {e!s}")
 
-    def list_active_games(self) -> List[str]:
+    def list_active_games(self) -> list[str]:
         """
         Get a list of all active game IDs currently in cache.
 

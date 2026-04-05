@@ -8,7 +8,7 @@ Duck-typed provider consumed by the unified EmailService.
 import logging
 import os
 import re
-from typing import Any, Dict, Optional
+from typing import Any
 
 import resend
 
@@ -31,7 +31,7 @@ class ResendEmailProvider:
         to_email: str,
         subject: str,
         html_body: str,
-        text_body: Optional[str] = None,
+        text_body: str | None = None,
     ) -> bool:
         if not self.is_configured():
             logger.error("Resend provider is not configured. Cannot send email.")
@@ -56,7 +56,7 @@ class ResendEmailProvider:
             logger.error(f"Error sending email via Resend to {to_email}: {e}")
             return False
 
-    def get_configuration_status(self) -> Dict[str, Any]:
+    def get_configuration_status(self) -> dict[str, Any]:
         return {
             "provider": "resend",
             "configured": self.is_configured(),
@@ -69,16 +69,14 @@ class ResendEmailProvider:
         return text
 
 
-def create_resend_provider() -> Optional[ResendEmailProvider]:
+def create_resend_provider() -> ResendEmailProvider | None:
     """Factory function to create a ResendEmailProvider instance."""
     api_key = os.getenv("RESEND_API_KEY")
     from_email = os.getenv("FROM_EMAIL")
     from_name = os.getenv("FROM_NAME", "Wolf Goat Pig")
 
     if not api_key or not from_email:
-        logger.warning(
-            "RESEND_API_KEY or FROM_EMAIL not set. Cannot create Resend provider."
-        )
+        logger.warning("RESEND_API_KEY or FROM_EMAIL not set. Cannot create Resend provider.")
         return None
 
     return ResendEmailProvider(api_key=api_key, from_email=from_email, from_name=from_name)

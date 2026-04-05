@@ -11,7 +11,7 @@ Uses new utility patterns:
 import logging
 import os
 from datetime import datetime
-from typing import Any, Dict, List, cast
+from typing import Any, cast
 
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import text
@@ -28,7 +28,7 @@ course_manager = CourseManager()
 router = APIRouter(tags=["health"])
 
 
-def _check_database(health_status: Dict[str, Any]) -> bool:
+def _check_database(health_status: dict[str, Any]) -> bool:
     """Check database connectivity"""
     try:
         with managed_session() as db:
@@ -42,12 +42,12 @@ def _check_database(health_status: Dict[str, Any]) -> bool:
         logger.error(f"Database health check failed: {e}")
         health_status["components"]["database"] = {
             "status": "unhealthy",
-            "message": f"Database connection failed: {str(e)}",
+            "message": f"Database connection failed: {e!s}",
         }
         return False
 
 
-def _check_courses(health_status: Dict[str, Any], is_initial_deployment: bool) -> bool:
+def _check_courses(health_status: dict[str, Any], is_initial_deployment: bool) -> bool:
     """Check course data availability"""
     try:
         courses = course_manager.get_courses()
@@ -60,22 +60,21 @@ def _check_courses(health_status: Dict[str, Any], is_initial_deployment: bool) -
                 "courses": list(courses.keys()) if courses else [],
             }
             return True
-        else:
-            health_status["components"]["courses"] = {
-                "status": "warning" if is_initial_deployment else "unhealthy",
-                "message": "No courses available (may be initializing)",
-            }
-            return is_initial_deployment
+        health_status["components"]["courses"] = {
+            "status": "warning" if is_initial_deployment else "unhealthy",
+            "message": "No courses available (may be initializing)",
+        }
+        return is_initial_deployment
     except Exception as e:
         logger.error(f"Course availability check failed: {e}")
         health_status["components"]["courses"] = {
             "status": "warning" if is_initial_deployment else "unhealthy",
-            "message": f"Course check failed: {str(e)}",
+            "message": f"Course check failed: {e!s}",
         }
         return is_initial_deployment
 
 
-def _check_rules(health_status: Dict[str, Any]) -> bool:
+def _check_rules(health_status: dict[str, Any]) -> bool:
     """Check rules availability"""
     try:
         with managed_session() as db:
@@ -96,12 +95,12 @@ def _check_rules(health_status: Dict[str, Any]) -> bool:
         logger.error(f"Rules availability check failed: {e}")
         health_status["components"]["rules"] = {
             "status": "warning",
-            "message": f"Rules check error: {str(e)}",
+            "message": f"Rules check error: {e!s}",
         }
         return True  # Rules check doesn't fail health
 
 
-def _check_ai_players(health_status: Dict[str, Any], is_initial_deployment: bool) -> bool:
+def _check_ai_players(health_status: dict[str, Any], is_initial_deployment: bool) -> bool:
     """Check AI players availability"""
     try:
         with managed_session() as db:
@@ -118,28 +117,27 @@ def _check_ai_players(health_status: Dict[str, Any], is_initial_deployment: bool
                     "message": f"{ai_player_count} AI players available",
                 }
                 return True
-            elif ai_player_count >= 1:
+            if ai_player_count >= 1:
                 health_status["components"]["ai_players"] = {
                     "status": "warning",
                     "message": f"Only {ai_player_count} AI players available, need at least 4 for full game",
                 }
                 return True
-            else:
-                health_status["components"]["ai_players"] = {
-                    "status": "warning",
-                    "message": "No AI players available (may be initializing)",
-                }
-                return is_initial_deployment
+            health_status["components"]["ai_players"] = {
+                "status": "warning",
+                "message": "No AI players available (may be initializing)",
+            }
+            return is_initial_deployment
     except Exception as e:
         logger.error(f"AI players availability check failed: {e}")
         health_status["components"]["ai_players"] = {
             "status": "warning",
-            "message": f"AI players check failed: {str(e)}",
+            "message": f"AI players check failed: {e!s}",
         }
         return True
 
 
-def _check_simulation(health_status: Dict[str, Any], is_initial_deployment: bool) -> bool:
+def _check_simulation(health_status: dict[str, Any], is_initial_deployment: bool) -> bool:
     """Check simulation engine initialization - deprecated but kept for backwards compatibility"""
     # Simulation mode removed, always return healthy
     health_status["components"]["simulation"] = {
@@ -149,7 +147,7 @@ def _check_simulation(health_status: Dict[str, Any], is_initial_deployment: bool
     return True
 
 
-def _check_data_seeding(health_status: Dict[str, Any]) -> bool:
+def _check_data_seeding(health_status: dict[str, Any]) -> bool:
     """Check data seeding status"""
     try:
         from ..seed_data import get_seeding_status
@@ -177,16 +175,16 @@ def _check_data_seeding(health_status: Dict[str, Any]) -> bool:
         logger.error(f"Data seeding status check failed: {e}")
         health_status["components"]["data_seeding"] = {
             "status": "warning",
-            "message": f"Seeding status check failed: {str(e)}",
+            "message": f"Seeding status check failed: {e!s}",
         }
     return True  # Seeding check doesn't fail health
 
 
 @router.get("/health")
 @handle_api_errors(operation_name="health check")
-def health_check() -> Dict[str, Any]:
+def health_check() -> dict[str, Any]:
     """Comprehensive health check endpoint verifying all critical systems"""
-    health_status: Dict[str, Any] = {
+    health_status: dict[str, Any] = {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "environment": os.getenv("ENVIRONMENT", "unknown"),
@@ -248,7 +246,7 @@ def readiness_check():
 
 @router.post("/admin/ensure-schema")
 @handle_api_errors(operation_name="ensure schema")
-def ensure_schema_endpoint() -> Dict[str, Any]:
+def ensure_schema_endpoint() -> dict[str, Any]:
     """Run schema sync on demand."""
     from sqlalchemy import text as sa_text
 
@@ -267,7 +265,7 @@ def ensure_schema_endpoint() -> Dict[str, Any]:
 
 @router.post("/admin/seed-course-holes")
 @handle_api_errors(operation_name="seed course holes")
-def seed_course_holes() -> Dict[str, Any]:
+def seed_course_holes() -> dict[str, Any]:
     """
     Admin endpoint to seed holes for courses that are missing them.
 
@@ -276,7 +274,7 @@ def seed_course_holes() -> Dict[str, Any]:
     """
     from ..seed_courses import DEFAULT_COURSES
 
-    results: Dict[str, Any] = {
+    results: dict[str, Any] = {
         "status": "success",
         "courses_updated": [],
         "courses_skipped": [],
@@ -312,7 +310,7 @@ def seed_course_holes() -> Dict[str, Any]:
                         continue
 
                     # Add holes
-                    holes_data = cast(List[Dict[str, Any]], course_data.get("holes_data", []))
+                    holes_data = cast("list[dict[str, Any]]", course_data.get("holes_data", []))
                     for hole_detail in holes_data:
                         hole = models.Hole(
                             course_id=existing_course.id,

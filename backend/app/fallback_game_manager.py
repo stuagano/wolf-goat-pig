@@ -9,8 +9,7 @@ or the database is temporarily unavailable.
 import logging
 import random
 import string
-from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +23,8 @@ class FallbackGameManager:
     """
 
     def __init__(self):
-        self.games: Dict[str, dict] = {}
-        self.games_by_join_code: Dict[str, str] = {}  # join_code -> game_id
+        self.games: dict[str, dict] = {}
+        self.games_by_join_code: dict[str, str] = {}  # join_code -> game_id
         self.enabled = False
         logger.info("Fallback Game Manager initialized")
 
@@ -52,10 +51,10 @@ class FallbackGameManager:
     def create_game(
         self,
         game_id: str,
-        join_code: Optional[str] = None,
-        creator_user_id: Optional[str] = None,
+        join_code: str | None = None,
+        creator_user_id: str | None = None,
         game_status: str = "setup",
-        state: Optional[dict] = None,
+        state: dict | None = None,
     ) -> dict:
         """Create a new game in memory."""
         if not self.enabled:
@@ -64,7 +63,7 @@ class FallbackGameManager:
         if not join_code:
             join_code = self.generate_join_code()
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         game = {
             "id": len(self.games) + 1,  # Auto-increment ID
@@ -84,18 +83,18 @@ class FallbackGameManager:
         logger.info(f"Created fallback game: {game_id} (join code: {join_code})")
         return game
 
-    def get_game(self, game_id: str) -> Optional[dict]:
+    def get_game(self, game_id: str) -> dict | None:
         """Get a game by ID."""
         return self.games.get(game_id)
 
-    def get_game_by_join_code(self, join_code: str) -> Optional[dict]:
+    def get_game_by_join_code(self, join_code: str) -> dict | None:
         """Get a game by join code."""
         game_id = self.games_by_join_code.get(join_code)
         if game_id:
             return self.games.get(game_id)
         return None
 
-    def update_game(self, game_id: str, updates: dict) -> Optional[dict]:
+    def update_game(self, game_id: str, updates: dict) -> dict | None:
         """Update a game's state."""
         game = self.games.get(game_id)
         if not game:
@@ -106,7 +105,7 @@ class FallbackGameManager:
             if key != "id" and key != "game_id":  # Don't allow changing these
                 game[key] = value
 
-        game["updated_at"] = datetime.now(timezone.utc).isoformat()
+        game["updated_at"] = datetime.now(UTC).isoformat()
 
         logger.debug(f"Updated fallback game: {game_id}")
         return game
@@ -127,7 +126,7 @@ class FallbackGameManager:
         logger.info(f"Deleted fallback game: {game_id}")
         return True
 
-    def list_games(self, limit: int = 100) -> List[dict]:
+    def list_games(self, limit: int = 100) -> list[dict]:
         """List all games in memory."""
         games = list(self.games.values())
         return games[:limit]

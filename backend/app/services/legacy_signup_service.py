@@ -29,14 +29,14 @@ import json
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any
 
 import httpx
 
 logger = logging.getLogger(__name__)
 
 
-def _load_json_env(var_name: str) -> Dict[str, Any]:
+def _load_json_env(var_name: str) -> dict[str, Any]:
     """Parse a JSON object from an environment variable.
 
     Returns an empty dictionary when the variable is not set or contains invalid
@@ -65,7 +65,7 @@ def _load_json_env(var_name: str) -> Dict[str, Any]:
     return {}
 
 
-def _as_bool(value: Optional[str], default: bool = False) -> bool:
+def _as_bool(value: str | None, default: bool = False) -> bool:
     """Coerce an environment string into a boolean value."""
 
     if value is None:
@@ -74,7 +74,7 @@ def _as_bool(value: Optional[str], default: bool = False) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
-def _as_float(value: Optional[str], default: float) -> float:
+def _as_float(value: str | None, default: float) -> float:
     """Safely parse a floating point configuration value."""
 
     if not value:
@@ -92,20 +92,20 @@ class LegacySignupConfig:
     """Runtime configuration for :class:`LegacySignupSyncService`."""
 
     enabled: bool = False
-    create_url: Optional[str] = None
-    update_url: Optional[str] = None
-    cancel_url: Optional[str] = None
+    create_url: str | None = None
+    update_url: str | None = None
+    cancel_url: str | None = None
     timeout_seconds: float = 10.0
-    api_key: Optional[str] = None
+    api_key: str | None = None
     payload_format: str = "form"  # ``form`` or ``json``
-    field_map: Dict[str, str] = field(default_factory=dict)
-    extra_fields: Dict[str, Any] = field(default_factory=dict)
-    create_action_field: Optional[str] = "action"
-    create_action_value: Optional[str] = "add"
-    update_action_field: Optional[str] = "action"
-    update_action_value: Optional[str] = "update"
-    cancel_action_field: Optional[str] = "action"
-    cancel_action_value: Optional[str] = "cancel"
+    field_map: dict[str, str] = field(default_factory=dict)
+    extra_fields: dict[str, Any] = field(default_factory=dict)
+    create_action_field: str | None = "action"
+    create_action_value: str | None = "add"
+    update_action_field: str | None = "action"
+    update_action_value: str | None = "update"
+    cancel_action_field: str | None = "action"
+    cancel_action_value: str | None = "cancel"
 
     @classmethod
     def from_env(cls) -> LegacySignupConfig:
@@ -183,9 +183,9 @@ class LegacySignupSyncService:
         self,
         signup: Any,
         *,
-        target_url: Optional[str],
-        action_field: Optional[str],
-        action_value: Optional[str],
+        target_url: str | None,
+        action_field: str | None,
+        action_value: str | None,
     ) -> bool:
         if not self.config.enabled:
             return False
@@ -203,7 +203,7 @@ class LegacySignupSyncService:
             )
             return False
 
-        headers: Dict[str, str] = {}
+        headers: dict[str, str] = {}
         if self.config.api_key:
             headers["Authorization"] = f"Bearer {self.config.api_key}"
 
@@ -241,16 +241,16 @@ class LegacySignupSyncService:
     def build_payload(
         self,
         signup: Any,
-        action_field: Optional[str],
-        action_value: Optional[str],
-    ) -> Dict[str, Any]:
+        action_field: str | None,
+        action_value: str | None,
+    ) -> dict[str, Any]:
         """Translate our signup model into the legacy CGI payload schema.
 
         Uses the player's legacy_name from their PlayerProfile if available,
         falling back to player_name if no legacy mapping exists.
         """
 
-        base_payload: Dict[str, Any] = {}
+        base_payload: dict[str, Any] = {}
 
         # Resolve the player name for the legacy system
         # Priority: PlayerProfile.legacy_name > DailySignup.player_name
@@ -311,7 +311,7 @@ class LegacySignupSyncService:
         return base_payload
 
 
-_legacy_signup_service: Optional[LegacySignupSyncService] = None
+_legacy_signup_service: LegacySignupSyncService | None = None
 
 
 def get_legacy_signup_service() -> LegacySignupSyncService:

@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -34,7 +34,7 @@ class UnifiedRound:
     member: str
     score: int  # Quarters (positive = won, negative = lost)
     location: str
-    duration: Optional[str] = None
+    duration: str | None = None
     source: str = "unknown"  # "primary_sheet", "writable_sheet", "database"
 
     def __hash__(self):
@@ -62,7 +62,7 @@ class UnifiedLeaderboardEntry:
     average: float = 0.0  # Average quarters per round
     best_round: int = 0  # Best single round score
     worst_round: int = 0  # Worst single round score
-    sources: Set[str] = field(default_factory=set)  # Which sources contributed data
+    sources: set[str] = field(default_factory=set)  # Which sources contributed data
 
     def recalculate_average(self):
         """Recalculate average based on total and rounds."""
@@ -73,7 +73,7 @@ class UnifiedLeaderboardEntry:
 class UnifiedDataService:
     """Service that merges data from spreadsheets and database."""
 
-    def __init__(self, db: Optional[Session] = None):
+    def __init__(self, db: Session | None = None):
         self.primary_sheet = SpreadsheetSyncService(PRIMARY_SHEET_ID)
         self.writable_sheet = SpreadsheetSyncService(WRITABLE_SHEET_ID)
         self._db = db
@@ -141,7 +141,7 @@ class UnifiedDataService:
             source="database",
         )
 
-    def get_all_rounds(self, include_database: bool = True) -> List[UnifiedRound]:
+    def get_all_rounds(self, include_database: bool = True) -> list[UnifiedRound]:
         """Get all rounds from all sources, deduplicated.
 
         Args:
@@ -150,7 +150,7 @@ class UnifiedDataService:
         Returns:
             List of unified rounds, sorted by date (most recent first)
         """
-        all_rounds: Dict[Tuple, UnifiedRound] = {}
+        all_rounds: dict[tuple, UnifiedRound] = {}
 
         # 1. Get primary spreadsheet data
         try:
@@ -200,7 +200,7 @@ class UnifiedDataService:
         sorted_rounds = sorted(all_rounds.values(), key=lambda r: r.date_sortable, reverse=True)
         return sorted_rounds
 
-    def get_unified_leaderboard(self) -> List[UnifiedLeaderboardEntry]:
+    def get_unified_leaderboard(self) -> list[UnifiedLeaderboardEntry]:
         """Get unified leaderboard aggregating all sources.
 
         Returns:
@@ -209,7 +209,7 @@ class UnifiedDataService:
         all_rounds = self.get_all_rounds()
 
         # Aggregate by player
-        player_stats: Dict[str, UnifiedLeaderboardEntry] = {}
+        player_stats: dict[str, UnifiedLeaderboardEntry] = {}
 
         for round_data in all_rounds:
             member = round_data.member
@@ -235,7 +235,7 @@ class UnifiedDataService:
         sorted_leaderboard = sorted(player_stats.values(), key=lambda e: e.quarters, reverse=True)
         return sorted_leaderboard
 
-    def get_player_history(self, member_name: str) -> List[UnifiedRound]:
+    def get_player_history(self, member_name: str) -> list[UnifiedRound]:
         """Get all rounds for a specific player across all sources.
 
         Args:
@@ -248,7 +248,7 @@ class UnifiedDataService:
         player_rounds = [r for r in all_rounds if r.member.lower() == member_name.lower()]
         return player_rounds
 
-    def get_rounds_by_date(self, date: str) -> List[UnifiedRound]:
+    def get_rounds_by_date(self, date: str) -> list[UnifiedRound]:
         """Get all rounds for a specific date.
 
         Args:
@@ -261,7 +261,7 @@ class UnifiedDataService:
         date_rounds = [r for r in all_rounds if r.date == date]
         return date_rounds
 
-    def get_data_sources_status(self) -> Dict[str, Any]:
+    def get_data_sources_status(self) -> dict[str, Any]:
         """Get status of all data sources.
 
         Returns:
@@ -327,10 +327,10 @@ class UnifiedDataService:
 
 
 # Singleton instance
-_unified_service: Optional[UnifiedDataService] = None
+_unified_service: UnifiedDataService | None = None
 
 
-def get_unified_data_service(db: Optional[Session] = None) -> UnifiedDataService:
+def get_unified_data_service(db: Session | None = None) -> UnifiedDataService:
     """Get the unified data service.
 
     Args:

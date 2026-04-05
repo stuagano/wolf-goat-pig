@@ -11,7 +11,7 @@ This service handles:
 import logging
 import os
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union, cast
+from typing import Any, cast
 
 import httpx  # Added httpx for API calls
 from sqlalchemy import and_, desc
@@ -34,7 +34,7 @@ class GHINService:
         self.initialized = False
         self.ghin_username = os.getenv("GHIN_API_USER")
         self.ghin_password = os.getenv("GHIN_API_PASS")
-        self.jwt_token: Optional[str] = None  # Store JWT token
+        self.jwt_token: str | None = None  # Store JWT token
         self.GHIN_API_BASE_URL = "https://api2.ghin.com/api/v1"
 
     async def initialize(self):
@@ -79,10 +79,9 @@ class GHINService:
                     self.initialized = True
                     logger.info("GHIN service initialized successfully and authenticated")
                     return True
-                else:
-                    logger.error("GHIN authentication failed: No JWT token received.")
-                    self.initialized = False
-                    return False
+                logger.error("GHIN authentication failed: No JWT token received.")
+                self.initialized = False
+                return False
 
         except Exception as e:
             logger.error(f"Failed to initialize GHIN service: {e}")
@@ -93,7 +92,7 @@ class GHINService:
         """Check if GHIN service is available and initialized."""
         return self.initialized
 
-    async def sync_player_handicap(self, player_id: int) -> Optional[Dict[str, Any]]:
+    async def sync_player_handicap(self, player_id: int) -> dict[str, Any] | None:
         """
         Sync a single player's handicap from GHIN.
 
@@ -119,12 +118,8 @@ class GHINService:
 
             if handicap_data:
                 # Update player profile with latest handicap - use setattr to avoid Column type errors
-                setattr(
-                    player,
-                    "handicap",
-                    handicap_data.get("handicap_index", player.handicap),
-                )
-                setattr(player, "ghin_last_updated", datetime.now().isoformat())
+                player.handicap = handicap_data.get("handicap_index", player.handicap)
+                player.ghin_last_updated = datetime.now().isoformat()
 
                 # Store handicap history
                 handicap_history = GHINHandicapHistory(
@@ -151,7 +146,7 @@ class GHINService:
             self.db.rollback()
             return None
 
-    async def sync_player_scores(self, player_id: int, days_back: int = 30) -> List[Dict[str, Any]]:
+    async def sync_player_scores(self, player_id: int, days_back: int = 30) -> list[dict[str, Any]]:
         """
         Sync a player's recent scores from GHIN.
 
@@ -225,7 +220,7 @@ class GHINService:
             self.db.rollback()
             return []
 
-    async def sync_all_players_handicaps(self) -> Dict[str, Any]:
+    async def sync_all_players_handicaps(self) -> dict[str, Any]:
         """
         Sync handicaps for all players who have GHIN IDs.
 
@@ -276,10 +271,10 @@ class GHINService:
     async def search_golfers(
         self,
         last_name: str,
-        first_name: Optional[str] = None,
+        first_name: str | None = None,
         page: int = 1,
         per_page: int = 10,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Search for golfers by name using the GHIN API."""
         if not self.is_available():
             raise ConnectionError("GHIN service is not initialized or available.")
@@ -287,7 +282,7 @@ class GHINService:
         headers = {"Authorization": f"Bearer {self.jwt_token}"}
         url = f"{self.GHIN_API_BASE_URL}/golfer_search.json"
 
-        params: Dict[str, Union[str, int, float, bool, None]] = {
+        params: dict[str, str | int | float | bool | None] = {
             "last_name": last_name,
             "page": page,
             "per_page": per_page,
@@ -301,9 +296,9 @@ class GHINService:
             response.raise_for_status()
             if response.status_code == 204 or not response.content:
                 return {"golfers": [], "total": 0}
-            return cast(Dict[str, Any], response.json())
+            return cast("dict[str, Any]", response.json())
 
-    def get_player_ghin_data(self, player_id: int) -> Optional[Dict[str, Any]]:
+    def get_player_ghin_data(self, player_id: int) -> dict[str, Any] | None:
         """
         Get comprehensive GHIN data for a player from local database.
 
@@ -365,7 +360,7 @@ class GHINService:
             logger.error(f"Failed to get GHIN data for player {player_id}: {e}")
             return None
 
-    def get_leaderboard_with_ghin_data(self, limit: int = 100) -> List[Dict[str, Any]]:
+    def get_leaderboard_with_ghin_data(self, limit: int = 100) -> list[dict[str, Any]]:
         """
         Get leaderboard data enhanced with GHIN information.
         Uses stored handicap data even if GHIN API is unavailable.
@@ -390,7 +385,7 @@ class GHINService:
 
             players_with_stats = query.limit(limit).all()
 
-            enhanced_leaderboard: List[Dict[str, Any]] = []
+            enhanced_leaderboard: list[dict[str, Any]] = []
             for profile, stats in players_with_stats:
                 # Calculate win percentage
                 win_percentage = (stats.games_won / max(1, stats.games_played)) * 100
@@ -461,9 +456,9 @@ class GHINService:
                         profile = self.db.query(PlayerProfile).filter(PlayerProfile.name == player.player_name).first()
                         if profile:
                             # Use setattr to add attributes dynamically to LeaderboardEntry
-                            setattr(player, "handicap", profile.handicap)
-                            setattr(player, "ghin_id", profile.ghin_id)
-                            setattr(player, "ghin_last_updated", profile.ghin_last_updated)
+                            player.handicap = profile.handicap
+                            player.ghin_id = profile.ghin_id
+                            player.ghin_last_updated = profile.ghin_last_updated
                     except Exception as query_error:
                         logger.warning(f"Failed to query profile for player {player.player_name}: {query_error}")
                         # Rollback transaction to clear error state before continuing
@@ -486,13 +481,13 @@ class GHINService:
 
     # GHIN API Integration - Now supports real API calls
 
-    async def _fetch_handicap_from_ghin(self, ghin_id: str) -> Optional[Dict[str, Any]]:
+    async def _fetch_handicap_from_ghin(self, ghin_id: str) -> dict[str, Any] | None:
         """Fetch handicap from GHIN API."""
         logger.info(f"Fetching handicap for GHIN ID {ghin_id}")
 
         try:
             # Use environment-based GHIN integration
-            if not (os.getenv("ENABLE_GHIN_INTEGRATION") or "false").lower() == "true":
+            if (os.getenv("ENABLE_GHIN_INTEGRATION") or "false").lower() != "true":
                 logger.info("GHIN integration disabled, using mock data")
                 return await self._get_mock_handicap_data(ghin_id)
 
@@ -530,7 +525,9 @@ class GHINService:
                 return {
                     "ghin_id": ghin_id,
                     "handicap_index": handicap_index,
-                    "name": golfer.get("display_name") or f"{golfer.get('first_name', '')} {golfer.get('last_name', '')}".strip() or "Unknown",
+                    "name": golfer.get("display_name")
+                    or f"{golfer.get('first_name', '')} {golfer.get('last_name', '')}".strip()
+                    or "Unknown",
                     "last_updated": golfer.get("rev_date") or golfer.get("last_revised_date"),
                     "low_handicap_index": golfer.get("low_hi"),
                     "status": "active",
@@ -540,7 +537,7 @@ class GHINService:
             logger.warning(f"GHIN API call failed for {ghin_id}: {e}")
             return await self._get_mock_handicap_data(ghin_id)
 
-    async def _get_mock_handicap_data(self, ghin_id: str) -> Dict[str, Any]:
+    async def _get_mock_handicap_data(self, ghin_id: str) -> dict[str, Any]:
         """Return mock handicap data for development/fallback"""
         # Generate consistent mock data based on GHIN ID
         mock_handicaps = {
@@ -560,7 +557,7 @@ class GHINService:
             "status": "mock_data",
         }
 
-    async def _fetch_scores_from_ghin(self, ghin_id: str, days_back: int) -> List[Dict[str, Any]]:
+    async def _fetch_scores_from_ghin(self, ghin_id: str, days_back: int) -> list[dict[str, Any]]:
         """Fetch scores from GHIN API."""
         logger.info(f"Fetching scores for GHIN ID {ghin_id} ({days_back} days)")
 
@@ -570,4 +567,4 @@ class GHINService:
         async with httpx.AsyncClient() as client:
             response = await client.get(url, headers=headers)
             response.raise_for_status()
-            return cast(List[Dict[str, Any]], response.json())
+            return cast("list[dict[str, Any]]", response.json())

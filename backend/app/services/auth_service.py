@@ -4,8 +4,9 @@ Authentication Service for linking Auth0 users to PlayerProfile records
 
 import logging
 import os
+from collections.abc import Generator
 from datetime import datetime
-from typing import Any, Dict, Generator
+from typing import Any
 
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -42,7 +43,7 @@ class AuthService:
     @staticmethod
     def verify_token(
         credentials: HTTPAuthorizationCredentials = Depends(security),
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Verify Auth0 JWT token"""
         token = credentials.credentials
 
@@ -66,22 +67,21 @@ class AuthService:
                     issuer=f"https://{AUTH0_DOMAIN}/",
                 )
                 return dict(payload)
-            else:
-                # Development mode - allow mock authentication
-                logger.warning("Using mock authentication - development mode only")
-                return {
-                    "sub": "auth0|123456789",
-                    "email": "test@example.com",
-                    "name": "Test User",
-                    "picture": "https://example.com/avatar.jpg",
-                }
+            # Development mode - allow mock authentication
+            logger.warning("Using mock authentication - development mode only")
+            return {
+                "sub": "auth0|123456789",
+                "email": "test@example.com",
+                "name": "Test User",
+                "picture": "https://example.com/avatar.jpg",
+            }
 
         except JWTError as e:
-            logger.error(f"JWT verification failed: {str(e)}")
+            logger.error(f"JWT verification failed: {e!s}")
             raise HTTPException(status_code=401, detail="Invalid token")
 
     @staticmethod
-    def get_or_create_player_profile(db: Session, auth0_user: Dict[str, Any]) -> PlayerProfile:
+    def get_or_create_player_profile(db: Session, auth0_user: dict[str, Any]) -> PlayerProfile:
         """Get or create a PlayerProfile based on Auth0 user data"""
 
         # Extract user info from Auth0 payload
@@ -151,7 +151,7 @@ class AuthService:
                 update_needed = True
 
             if update_needed:
-                setattr(player, "updated_at", datetime.now().isoformat())
+                player.updated_at = datetime.now().isoformat()
                 db.commit()
                 logger.info(f"Updated player profile for {player.name}")
 
@@ -170,20 +170,20 @@ class AuthService:
 
             # Store Auth0 ID in preferences
             if not player.preferences:
-                setattr(player, "preferences", {})
+                player.preferences = {}
 
             # Create new dict to trigger SQLAlchemy change detection
             updated_prefs = dict(player.preferences) if player.preferences else {}
             updated_prefs["auth0_id"] = auth0_id
             player.preferences = updated_prefs
-            setattr(player, "updated_at", datetime.now().isoformat())
+            player.updated_at = datetime.now().isoformat()
 
             db.commit()
             logger.info(f"Linked Auth0 account {auth0_id} to player {player.name}")
             return True
 
         except Exception as e:
-            logger.error(f"Error linking Auth0 account: {str(e)}")
+            logger.error(f"Error linking Auth0 account: {e!s}")
             db.rollback()
             return False
 

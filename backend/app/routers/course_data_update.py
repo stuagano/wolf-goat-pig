@@ -3,7 +3,8 @@ Endpoint to update course data for in-progress games
 """
 
 import logging
-from typing import Any, Dict
+from datetime import UTC
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 @router.patch("/games/{game_id}/update-course-data")
-async def update_game_course_data(game_id: str, db: Session = Depends(get_db)) -> Dict[str, Any]:
+async def update_game_course_data(game_id: str, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Update course data (par and handicap) for an in-progress game.
 
@@ -33,7 +34,7 @@ async def update_game_course_data(game_id: str, db: Session = Depends(get_db)) -
         if not game:
             raise HTTPException(status_code=404, detail=f"Game {game_id} not found")
 
-        game_state: Dict[str, Any] = dict(game.state) if game.state else {}
+        game_state: dict[str, Any] = dict(game.state) if game.state else {}
 
         # Check if game has hole history
         hole_history = game_state.get("hole_history", [])
@@ -69,14 +70,13 @@ async def update_game_course_data(game_id: str, db: Session = Depends(get_db)) -
                 if old_par != new_par:
                     hole["hole_par"] = new_par
                     updated = True
-                    logger.info(f"Updated hole {hole_number} par from {old_par} to {new_par} " f"in game {game_id}")
+                    logger.info(f"Updated hole {hole_number} par from {old_par} to {new_par} in game {game_id}")
 
                 if old_handicap != new_handicap:
                     hole["hole_handicap"] = new_handicap
                     updated = True
                     logger.info(
-                        f"Updated hole {hole_number} handicap from {old_handicap} to {new_handicap} "
-                        f"in game {game_id}"
+                        f"Updated hole {hole_number} handicap from {old_handicap} to {new_handicap} in game {game_id}"
                     )
 
                 if updated:
@@ -99,16 +99,16 @@ async def update_game_course_data(game_id: str, db: Session = Depends(get_db)) -
         total_holes_configured = len(holes_config)
 
         # Save updated game state (always save to add holes_config)
-        setattr(game, "state", game_state)
+        game.state = game_state
 
         # Mark state as modified for SQLAlchemy to detect JSON changes
         from sqlalchemy.orm.attributes import flag_modified
 
         flag_modified(game, "state")
 
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        setattr(game, "updated_at", datetime.now(timezone.utc).isoformat())
+        game.updated_at = datetime.now(UTC).isoformat()
 
         db.commit()
         db.refresh(game)
@@ -132,11 +132,11 @@ async def update_game_course_data(game_id: str, db: Session = Depends(get_db)) -
     except Exception as e:
         db.rollback()
         logger.error(f"Error updating course data for game {game_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error updating course data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error updating course data: {e!s}")
 
 
 @router.patch("/games/update-all-course-data")
-async def update_all_games_course_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
+async def update_all_games_course_data(db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Update course data for ALL in-progress games.
 
@@ -181,7 +181,7 @@ async def update_all_games_course_data(db: Session = Depends(get_db)) -> Dict[st
         game_details = []
 
         for game in games:
-            game_state: Dict[str, Any] = dict(game.state) if game.state else {}
+            game_state: dict[str, Any] = dict(game.state) if game.state else {}
             hole_history = game_state.get("hole_history", [])
 
             holes_updated_this_game = 0
@@ -213,15 +213,15 @@ async def update_all_games_course_data(db: Session = Depends(get_db)) -> Dict[st
             game_state["holes_config"] = holes_config_template
 
             # Save game state (always save to add holes_config)
-            setattr(game, "state", game_state)
+            game.state = game_state
 
             from sqlalchemy.orm.attributes import flag_modified
 
             flag_modified(game, "state")
 
-            from datetime import datetime, timezone
+            from datetime import datetime
 
-            setattr(game, "updated_at", datetime.now(timezone.utc).isoformat())
+            game.updated_at = datetime.now(UTC).isoformat()
 
             games_updated += 1
             total_holes_updated += holes_updated_this_game
@@ -255,4 +255,4 @@ async def update_all_games_course_data(db: Session = Depends(get_db)) -> Dict[st
     except Exception as e:
         db.rollback()
         logger.error(f"Error in bulk course data update: {e}")
-        raise HTTPException(status_code=500, detail=f"Error updating course data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error updating course data: {e!s}")

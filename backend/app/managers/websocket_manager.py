@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import WebSocket
 
@@ -16,7 +16,7 @@ class WebSocketManager:
     """
 
     def __init__(self) -> None:
-        self.active_connections: Dict[str, List[WebSocket]] = {}
+        self.active_connections: dict[str, list[WebSocket]] = {}
 
     async def connect(self, websocket: WebSocket, channel_id: str) -> None:
         await websocket.accept()
@@ -34,7 +34,7 @@ class WebSocketManager:
 
     async def broadcast(self, message: str, channel_id: str) -> None:
         if channel_id in self.active_connections:
-            dead_connections: List[WebSocket] = []
+            dead_connections: list[WebSocket] = []
             for connection in self.active_connections[channel_id]:
                 try:
                     await connection.send_text(message)
@@ -65,7 +65,7 @@ class WebSocketManager:
         self,
         player_id: int,
         notification_type: str,
-        data: Optional[Dict[str, Any]] = None,
+        data: dict[str, Any] | None = None,
         message: str = "",
     ) -> bool:
         """Send a notification to a specific user via WebSocket.
@@ -76,18 +76,20 @@ class WebSocketManager:
         if channel not in self.active_connections:
             return False
 
-        payload = json.dumps({
-            "type": notification_type,
-            "message": message,
-            "data": data or {},
-        })
+        payload = json.dumps(
+            {
+                "type": notification_type,
+                "message": message,
+                "data": data or {},
+            }
+        )
         await self.broadcast(payload, channel)
         return True
 
     async def notify_match_found(
         self,
-        player_ids: List[int],
-        match_data: Dict[str, Any],
+        player_ids: list[int],
+        match_data: dict[str, Any],
     ) -> int:
         """Notify multiple players about a new match found.
 
@@ -107,7 +109,7 @@ class WebSocketManager:
 
     async def notify_match_update(
         self,
-        player_ids: List[int],
+        player_ids: list[int],
         match_id: int,
         update_type: str,
         detail: str = "",

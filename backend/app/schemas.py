@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
@@ -17,7 +17,7 @@ class HoleInfo(BaseModel):
     par: int
     yards: int
     handicap: int  # Stroke index (1-18)
-    description: Optional[str] = None
+    description: str | None = None
     tee_box: str = "regular"
 
     @field_validator("par")
@@ -46,8 +46,8 @@ class HoleInfo(BaseModel):
 
 class CourseCreate(BaseModel):
     name: str
-    description: Optional[str] = None
-    holes: List[HoleInfo]
+    description: str | None = None
+    holes: list[HoleInfo]
 
     @field_validator("holes")
     @classmethod
@@ -85,20 +85,20 @@ class CourseResponse(BaseModel):
 
     id: int
     name: str
-    description: Optional[str]
+    description: str | None
     total_par: int
     total_yards: int
-    course_rating: Optional[float]
-    slope_rating: Optional[float]
-    holes: List[HoleInfo]
+    course_rating: float | None
+    slope_rating: float | None
+    holes: list[HoleInfo]
     created_at: str
     updated_at: str
 
 
 class CourseUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    holes: Optional[List[HoleInfo]] = None
+    name: str | None = None
+    description: str | None = None
+    holes: list[HoleInfo] | None = None
 
     @field_validator("holes")
     @classmethod
@@ -124,7 +124,7 @@ class CourseUpdate(BaseModel):
 
 
 class CourseList(BaseModel):
-    courses: List[CourseResponse]
+    courses: list[CourseResponse]
 
 
 class CourseStats(BaseModel):
@@ -148,8 +148,8 @@ class CourseComparison(BaseModel):
 
 class CourseImportRequest(BaseModel):
     course_name: str
-    state: Optional[str] = None
-    city: Optional[str] = None
+    state: str | None = None
+    city: str | None = None
 
 
 # SimulationCourseData schema removed - simulation mode deprecated
@@ -158,11 +158,11 @@ class CourseImportRequest(BaseModel):
 # Player Profile Schemas
 class PlayerProfileBase(BaseModel):
     name: str
-    legacy_name: Optional[str] = None  # Name in legacy tee sheet system (thousand-cranes.com)
+    legacy_name: str | None = None  # Name in legacy tee sheet system (thousand-cranes.com)
     handicap: float = 18.0
-    avatar_url: Optional[str] = None
-    email: Optional[str] = None
-    preferences: Optional[Dict[str, Any]] = None
+    avatar_url: str | None = None
+    email: str | None = None
+    preferences: dict[str, Any] | None = None
 
 
 class PlayerProfileCreate(PlayerProfileBase):
@@ -186,14 +186,14 @@ class PlayerProfileCreate(PlayerProfileBase):
 
 
 class PlayerProfileUpdate(BaseModel):
-    name: Optional[str] = None
-    legacy_name: Optional[str] = None  # Name in legacy tee sheet system
-    handicap: Optional[float] = None
-    avatar_url: Optional[str] = None
-    email: Optional[str] = None
-    ghin_id: Optional[str] = None
-    preferences: Optional[Dict[str, Any]] = None
-    last_played: Optional[str] = None
+    name: str | None = None
+    legacy_name: str | None = None  # Name in legacy tee sheet system
+    handicap: float | None = None
+    avatar_url: str | None = None
+    email: str | None = None
+    ghin_id: str | None = None
+    preferences: dict[str, Any] | None = None
+    last_played: str | None = None
 
     @field_validator("name")
     @classmethod
@@ -220,15 +220,15 @@ class PlayerProfileUpdate(BaseModel):
 class PlayerProfileResponse(PlayerProfileBase):
     id: int
     created_at: str
-    updated_at: Optional[str] = None
+    updated_at: str | None = None
     model_config = ConfigDict(from_attributes=True)
 
-    last_played: Optional[str] = None
+    last_played: str | None = None
     is_active: bool = True
     is_ai: bool = False
-    ghin_id: Optional[str] = None
-    playing_style: Optional[str] = None
-    description: Optional[str] = None
+    ghin_id: str | None = None
+    playing_style: str | None = None
+    description: str | None = None
 
 
 # Player Statistics Schemas
@@ -282,10 +282,10 @@ class PlayerStatisticsResponse(BaseModel):
     times_as_aardvark: int = 0
     favorite_game_mode: str
     preferred_player_count: int
-    best_hole_performance: List[Dict[str, Any]]
-    worst_hole_performance: List[Dict[str, Any]]
-    performance_trends: List[Dict[str, Any]]
-    head_to_head_records: Dict[str, Any] = {}
+    best_hole_performance: list[dict[str, Any]]
+    worst_hole_performance: list[dict[str, Any]]
+    performance_trends: list[dict[str, Any]]
+    head_to_head_records: dict[str, Any] = {}
     last_updated: str
 
 
@@ -295,13 +295,13 @@ class GameRecordCreate(BaseModel):
     course_name: str
     game_mode: str = "wolf_goat_pig"
     player_count: int
-    game_settings: Optional[Dict[str, Any]] = None
+    game_settings: dict[str, Any] | None = None
 
 
 class GameRecordUpdate(BaseModel):
-    completed_at: Optional[str] = None
-    game_duration_minutes: Optional[int] = None
-    final_scores: Optional[Dict[str, Any]] = None
+    completed_at: str | None = None
+    game_duration_minutes: int | None = None
+    final_scores: dict[str, Any] | None = None
 
 
 class GameRecordResponse(BaseModel):
@@ -313,11 +313,11 @@ class GameRecordResponse(BaseModel):
     game_mode: str
     player_count: int
     total_holes_played: int
-    game_duration_minutes: Optional[int]
+    game_duration_minutes: int | None
     created_at: str
-    completed_at: Optional[str]
-    game_settings: Dict[str, Any]
-    final_scores: Dict[str, Any]
+    completed_at: str | None
+    game_settings: dict[str, Any]
+    final_scores: dict[str, Any]
 
 
 # Game Player Result Schemas
@@ -346,9 +346,9 @@ class GamePlayerResultCreate(BaseModel):
     tunkarri_wins: int = 0
     big_dick_attempts: int = 0
     big_dick_wins: int = 0
-    hole_scores: Optional[Dict[str, Any]] = None
-    betting_history: Optional[List[Dict[str, Any]]] = None
-    performance_metrics: Optional[Dict[str, Any]] = None
+    hole_scores: dict[str, Any] | None = None
+    betting_history: list[dict[str, Any]] | None = None
+    performance_metrics: dict[str, Any] | None = None
 
 
 class GamePlayerResultResponse(BaseModel):
@@ -379,9 +379,9 @@ class GamePlayerResultResponse(BaseModel):
     tunkarri_wins: int = 0
     big_dick_attempts: int = 0
     big_dick_wins: int = 0
-    hole_scores: Dict[str, Any]
-    betting_history: List[Dict[str, Any]]
-    performance_metrics: Dict[str, Any]
+    hole_scores: dict[str, Any]
+    betting_history: list[dict[str, Any]]
+    performance_metrics: dict[str, Any]
     created_at: str
 
 
@@ -395,25 +395,25 @@ class PlayerAchievementResponse(BaseModel):
     achievement_name: str
     description: str
     earned_date: str
-    game_record_id: Optional[int]
-    achievement_data: Dict[str, Any]
+    game_record_id: int | None
+    achievement_data: dict[str, Any]
 
 
 # Composite Schemas
 class PlayerProfileWithStats(BaseModel):
     profile: PlayerProfileResponse
     statistics: PlayerStatisticsResponse
-    recent_achievements: List[PlayerAchievementResponse] = []
+    recent_achievements: list[PlayerAchievementResponse] = []
 
 
 class PlayerPerformanceAnalytics(BaseModel):
     player_id: int
     player_name: str
-    performance_summary: Dict[str, Any]
-    trend_analysis: Dict[str, Any]
-    strength_analysis: Dict[str, Any]
-    improvement_recommendations: List[str]
-    comparative_analysis: Dict[str, Any]
+    performance_summary: dict[str, Any]
+    trend_analysis: dict[str, Any]
+    strength_analysis: dict[str, Any]
+    improvement_recommendations: list[str]
+    comparative_analysis: dict[str, Any]
 
 
 class LeaderboardEntry(BaseModel):
@@ -429,28 +429,28 @@ class LeaderboardEntry(BaseModel):
 
 # Game Setup and Simulation Schemas
 class GameSetupRequest(BaseModel):
-    players: List[str]
+    players: list[str]
     course_name: str
-    game_settings: Optional[Dict[str, Any]] = None
+    game_settings: dict[str, Any] | None = None
 
 
 class OddsCalculationRequest(BaseModel):
-    players: List[Dict[str, Any]]
-    hole_info: Dict[str, Any]
-    current_state: Optional[Dict[str, Any]] = None
+    players: list[dict[str, Any]]
+    hole_info: dict[str, Any]
+    current_state: dict[str, Any] | None = None
 
 
 class MonteCarloRequest(BaseModel):
-    players: List[Dict[str, Any]]
-    hole_info: Dict[str, Any]
-    simulation_params: Optional[Dict[str, Any]] = None
+    players: list[dict[str, Any]]
+    hole_info: dict[str, Any]
+    simulation_params: dict[str, Any] | None = None
 
 
 class ShotAnalysisRequest(BaseModel):
     player_id: str
     distance_to_pin: float
     lie_type: str
-    club_options: List[str]
+    club_options: list[str]
 
 
 # Daily Sign-up System Schemas
@@ -458,8 +458,8 @@ class DailySignupCreate(BaseModel):
     date: str  # YYYY-MM-DD format
     player_profile_id: int
     player_name: str
-    preferred_start_time: Optional[str] = None
-    notes: Optional[str] = None
+    preferred_start_time: str | None = None
+    notes: str | None = None
 
     @field_validator("date")
     @classmethod
@@ -472,9 +472,9 @@ class DailySignupCreate(BaseModel):
 
 
 class DailySignupUpdate(BaseModel):
-    preferred_start_time: Optional[str] = None
-    notes: Optional[str] = None
-    status: Optional[str] = None
+    preferred_start_time: str | None = None
+    notes: str | None = None
+    status: str | None = None
 
 
 class DailySignupResponse(BaseModel):
@@ -485,8 +485,8 @@ class DailySignupResponse(BaseModel):
     player_profile_id: int
     player_name: str
     signup_time: str
-    preferred_start_time: Optional[str]
-    notes: Optional[str]
+    preferred_start_time: str | None
+    notes: str | None
     status: str
     created_at: str
     updated_at: str
@@ -495,10 +495,10 @@ class DailySignupResponse(BaseModel):
 class PlayerAvailabilityCreate(BaseModel):
     player_profile_id: int
     day_of_week: int  # 0-6
-    available_from_time: Optional[str] = None
-    available_to_time: Optional[str] = None
+    available_from_time: str | None = None
+    available_to_time: str | None = None
     is_available: int = 1  # 1=available, 0=not available
-    notes: Optional[str] = None
+    notes: str | None = None
 
     @field_validator("day_of_week")
     @classmethod
@@ -509,10 +509,10 @@ class PlayerAvailabilityCreate(BaseModel):
 
 
 class PlayerAvailabilityUpdate(BaseModel):
-    available_from_time: Optional[str] = None
-    available_to_time: Optional[str] = None
-    is_available: Optional[int] = None  # 1=available, 0=not available
-    notes: Optional[str] = None
+    available_from_time: str | None = None
+    available_to_time: str | None = None
+    is_available: int | None = None  # 1=available, 0=not available
+    notes: str | None = None
 
 
 class PlayerAvailabilityResponse(BaseModel):
@@ -521,18 +521,19 @@ class PlayerAvailabilityResponse(BaseModel):
     id: int
     player_profile_id: int
     day_of_week: int
-    available_from_time: Optional[str]
-    available_to_time: Optional[str]
+    available_from_time: str | None
+    available_to_time: str | None
     is_available: bool
-    notes: Optional[str]
+    notes: str | None
     created_at: str
     updated_at: str
 
 
 class PlayerAvailabilityWithMatchesResponse(BaseModel):
     """Response for availability save that includes any new matches found."""
+
     availability: PlayerAvailabilityResponse
-    new_matches: List[Dict[str, Any]] = []
+    new_matches: list[dict[str, Any]] = []
     matches_notified: int = 0
 
 
@@ -545,8 +546,8 @@ class MatchPlayerResponse(BaseModel):
     player_profile_id: int
     player_name: str
     player_email: str
-    response: Optional[str] = None
-    responded_at: Optional[str] = None
+    response: str | None = None
+    responded_at: str | None = None
     created_at: str
 
 
@@ -555,7 +556,7 @@ class MatchSuggestionResponse(BaseModel):
 
     id: int
     day_of_week: int
-    suggested_date: Optional[str] = None
+    suggested_date: str | None = None
     overlap_start: str
     overlap_end: str
     suggested_tee_time: str
@@ -564,11 +565,12 @@ class MatchSuggestionResponse(BaseModel):
     notification_sent: bool = False
     created_at: str
     expires_at: str
-    players: List[MatchPlayerResponse] = []
+    players: list[MatchPlayerResponse] = []
 
 
 class MatchResponseRequest(BaseModel):
     """Request body for accepting/declining a match suggestion."""
+
     response: str  # "accepted" or "declined"
 
     @field_validator("response")
@@ -600,13 +602,13 @@ class EmailPreferencesCreate(BaseModel):
 
 
 class EmailPreferencesUpdate(BaseModel):
-    daily_signups_enabled: Optional[bool] = None
-    signup_confirmations_enabled: Optional[bool] = None
-    signup_reminders_enabled: Optional[bool] = None
-    game_invitations_enabled: Optional[bool] = None
-    weekly_summary_enabled: Optional[bool] = None
-    email_frequency: Optional[str] = None
-    preferred_notification_time: Optional[str] = None
+    daily_signups_enabled: bool | None = None
+    signup_confirmations_enabled: bool | None = None
+    signup_reminders_enabled: bool | None = None
+    game_invitations_enabled: bool | None = None
+    weekly_summary_enabled: bool | None = None
+    email_frequency: str | None = None
+    preferred_notification_time: str | None = None
 
     @field_validator("email_frequency")
     @classmethod
@@ -637,31 +639,31 @@ class EmailPreferencesResponse(BaseModel):
 # Composite schemas for frontend
 class DailySignupSummary(BaseModel):
     date: str
-    signups: List[DailySignupResponse]
+    signups: list[DailySignupResponse]
     total_count: int
 
 
 class WeeklySignupView(BaseModel):
     week_start: str  # YYYY-MM-DD for the Monday
-    daily_summaries: List[DailySignupSummary]
+    daily_summaries: list[DailySignupSummary]
 
 
 class PlayerWithAvailability(BaseModel):
     profile: PlayerProfileResponse
-    availability: List[PlayerAvailabilityResponse]
-    email_preferences: Optional[EmailPreferencesResponse] = None
+    availability: list[PlayerAvailabilityResponse]
+    email_preferences: EmailPreferencesResponse | None = None
 
 
 # Daily Message schemas
 class DailyMessageCreate(BaseModel):
     date: str  # YYYY-MM-DD format
     message: str
-    player_profile_id: Optional[int] = None
-    player_name: Optional[str] = None
+    player_profile_id: int | None = None
+    player_name: str | None = None
 
 
 class DailyMessageUpdate(BaseModel):
-    message: Optional[str] = None
+    message: str | None = None
 
 
 class DailyMessageResponse(BaseModel):
@@ -681,20 +683,20 @@ class DailyMessageResponse(BaseModel):
 # Extended daily summary to include messages
 class DailySignupWithMessages(BaseModel):
     date: str
-    signups: List[DailySignupResponse]
+    signups: list[DailySignupResponse]
     total_count: int
-    messages: List[DailyMessageResponse]
+    messages: list[DailyMessageResponse]
     message_count: int
 
 
 class WeeklySignupWithMessagesView(BaseModel):
     week_start: str  # YYYY-MM-DD for the Monday
-    daily_summaries: List[DailySignupWithMessages]
+    daily_summaries: list[DailySignupWithMessages]
 
 
 # Game Banner Schemas
 class GameBannerCreate(BaseModel):
-    title: Optional[str] = None
+    title: str | None = None
     message: str
     banner_type: str = "info"  # info, warning, announcement, rules
     is_active: bool = True
@@ -722,14 +724,14 @@ class GameBannerCreate(BaseModel):
 
 
 class GameBannerUpdate(BaseModel):
-    title: Optional[str] = None
-    message: Optional[str] = None
-    banner_type: Optional[str] = None
-    is_active: Optional[bool] = None
-    background_color: Optional[str] = None
-    text_color: Optional[str] = None
-    show_icon: Optional[bool] = None
-    dismissible: Optional[bool] = None
+    title: str | None = None
+    message: str | None = None
+    banner_type: str | None = None
+    is_active: bool | None = None
+    background_color: str | None = None
+    text_color: str | None = None
+    show_icon: bool | None = None
+    dismissible: bool | None = None
 
     @field_validator("banner_type")
     @classmethod
@@ -756,7 +758,7 @@ class GameBannerResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    title: Optional[str]
+    title: str | None
     message: str
     banner_type: str
     is_active: bool
@@ -765,15 +767,15 @@ class GameBannerResponse(BaseModel):
     show_icon: bool
     dismissible: bool
     created_at: str
-    updated_at: Optional[str]
+    updated_at: str | None
 
 
 # Join Game Schemas
 class JoinGameRequest(BaseModel):
     player_name: str
     handicap: float = 18.0
-    user_id: Optional[str] = None
-    player_profile_id: Optional[int] = None
+    user_id: str | None = None
+    player_profile_id: int | None = None
 
     @field_validator("player_name")
     @classmethod

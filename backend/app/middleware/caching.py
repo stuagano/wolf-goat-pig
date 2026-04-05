@@ -6,7 +6,7 @@ For production, consider using Redis for distributed caching.
 
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
+from typing import Any
 
 logger = logging.getLogger("app.caching")
 
@@ -26,12 +26,12 @@ class SimpleCache:
         Args:
             default_ttl_seconds: Default time-to-live in seconds (default: 1 hour)
         """
-        self.cache: Dict[str, tuple[Any, datetime]] = {}
+        self.cache: dict[str, tuple[Any, datetime]] = {}
         self.default_ttl = timedelta(seconds=default_ttl_seconds)
         self.hits = 0
         self.misses = 0
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         """
         Retrieve value from cache if not expired.
 
@@ -58,7 +58,7 @@ class SimpleCache:
 
         self.hits += 1
         remaining_ttl = self.default_ttl - age
-        logger.debug(f"Cache HIT for key: {key} " f"(age: {age.seconds}s, remaining TTL: {remaining_ttl.seconds}s)")
+        logger.debug(f"Cache HIT for key: {key} (age: {age.seconds}s, remaining TTL: {remaining_ttl.seconds}s)")
         return value
 
     def set(self, key: str, value: Any) -> None:
@@ -102,7 +102,7 @@ class SimpleCache:
         if expired_keys:
             logger.info(f"Cache cleanup: removed {len(expired_keys)} expired entries")
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """Get cache statistics."""
         total_requests = self.hits + self.misses
         hit_rate = (self.hits / total_requests * 100) if total_requests > 0 else 0

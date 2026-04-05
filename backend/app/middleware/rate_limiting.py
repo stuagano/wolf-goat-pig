@@ -6,7 +6,6 @@ Prevents excessive calls to expensive operations like Google Sheets sync.
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, Optional
 
 from fastapi import HTTPException
 
@@ -21,14 +20,14 @@ class RateLimiter:
     """
 
     def __init__(self):
-        self.last_request: Dict[str, datetime] = {}
-        self.request_counts: Dict[str, int] = {}
+        self.last_request: dict[str, datetime] = {}
+        self.request_counts: dict[str, int] = {}
 
     def check_limit(
         self,
         key: str,
         min_interval_seconds: int = 3600,  # 1 hour default
-        client_id: Optional[str] = None,
+        client_id: str | None = None,
     ) -> bool:
         """
         Check if a request should be allowed based on rate limit.
@@ -56,9 +55,7 @@ class RateLimiter:
                 remaining_seconds = int(remaining.total_seconds())
 
                 logger.warning(
-                    f"Rate limit exceeded for {key} "
-                    f"(client: {client_id or 'system'}). "
-                    f"Retry after {remaining_seconds}s"
+                    f"Rate limit exceeded for {key} (client: {client_id or 'system'}). Retry after {remaining_seconds}s"
                 )
 
                 raise HTTPException(
@@ -90,7 +87,7 @@ class RateLimiter:
 
         return True
 
-    def reset(self, key: str, client_id: Optional[str] = None) -> None:
+    def reset(self, key: str, client_id: str | None = None) -> None:
         """Reset rate limit for a specific key."""
         rate_key = f"{key}:{client_id or 'system'}"
         if rate_key in self.last_request:
@@ -99,7 +96,7 @@ class RateLimiter:
             del self.request_counts[rate_key]
         logger.info(f"Rate limit reset for {rate_key}")
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """Get rate limiting statistics."""
         return {
             "active_keys": len(self.last_request),

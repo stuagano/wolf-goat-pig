@@ -9,7 +9,7 @@ Data is automatically deduplicated based on date/group/member/score.
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
@@ -35,7 +35,7 @@ class UnifiedRoundResponse(BaseModel):
     member: str
     score: int
     location: str
-    duration: Optional[str] = None
+    duration: str | None = None
     source: str
 
 
@@ -49,7 +49,7 @@ class UnifiedLeaderboardEntryResponse(BaseModel):
     average: float
     best_round: int
     worst_round: int
-    sources: List[str]
+    sources: list[str]
 
 
 class DataSourceStatus(BaseModel):
@@ -57,8 +57,8 @@ class DataSourceStatus(BaseModel):
 
     available: bool
     record_count: int
-    id: Optional[str] = None
-    error: Optional[str] = None
+    id: str | None = None
+    error: str | None = None
 
 
 class DataStatusResponse(BaseModel):
@@ -71,7 +71,7 @@ class DataStatusResponse(BaseModel):
     deduplicated_total: int
 
 
-@router.get("/leaderboard", response_model=List[UnifiedLeaderboardEntryResponse])
+@router.get("/leaderboard", response_model=list[UnifiedLeaderboardEntryResponse])
 def get_unified_leaderboard(
     limit: int = Query(50, ge=1, le=200, description="Maximum number of players"),
     db: Session = Depends(get_db),
@@ -103,7 +103,7 @@ def get_unified_leaderboard(
     ]
 
 
-@router.get("/rounds", response_model=List[UnifiedRoundResponse])
+@router.get("/rounds", response_model=list[UnifiedRoundResponse])
 def get_unified_rounds(
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of rounds"),
     offset: int = Query(0, ge=0, description="Number of rounds to skip"),
@@ -133,7 +133,7 @@ def get_unified_rounds(
     ]
 
 
-@router.get("/rounds/by-date/{date}", response_model=List[UnifiedRoundResponse])
+@router.get("/rounds/by-date/{date}", response_model=list[UnifiedRoundResponse])
 def get_rounds_by_date(
     date: str,
     db: Session = Depends(get_db),
@@ -161,7 +161,7 @@ def get_rounds_by_date(
     ]
 
 
-@router.get("/player/{member_name}", response_model=List[UnifiedRoundResponse])
+@router.get("/player/{member_name}", response_model=list[UnifiedRoundResponse])
 def get_player_history(
     member_name: str,
     db: Session = Depends(get_db),
@@ -193,7 +193,7 @@ def get_player_history(
 def get_player_stats(
     member_name: str,
     db: Session = Depends(get_db),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get aggregated stats for a specific player.
 
     Args:

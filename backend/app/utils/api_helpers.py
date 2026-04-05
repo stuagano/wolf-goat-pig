@@ -7,10 +7,11 @@ database session management, and response formatting.
 
 import asyncio
 import logging
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from functools import wraps
-from typing import Any, Callable, Dict, Generator, Optional, TypeVar, Union
+from typing import Any, TypeVar
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -48,7 +49,7 @@ def handle_api_errors(
 
     def decorator(
         func: Callable[..., T],
-    ) -> Union[Callable[..., T], Callable[..., Any]]:
+    ) -> Callable[..., T] | Callable[..., Any]:
         @wraps(func)
         def sync_wrapper(*args: Any, **kwargs: Any) -> T:
             try:
@@ -66,7 +67,7 @@ def handle_api_errors(
             except Exception as e:
                 if log_errors:
                     logger.error(f"Error in {operation_name}: {e}", exc_info=True)
-                raise HTTPException(status_code=500, detail=f"Failed to {operation_name}: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to {operation_name}: {e!s}")
 
         @wraps(func)
         async def async_wrapper(*args: Any, **kwargs: Any) -> T:
@@ -86,7 +87,7 @@ def handle_api_errors(
             except Exception as e:
                 if log_errors:
                     logger.error(f"Error in {operation_name}: {e}", exc_info=True)
-                raise HTTPException(status_code=500, detail=f"Failed to {operation_name}: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to {operation_name}: {e!s}")
 
         # Return appropriate wrapper based on function type
         if asyncio.iscoroutinefunction(func):
@@ -171,8 +172,8 @@ class ApiResponse:
     def success(
         data: Any = None,
         message: str = "Success",
-        meta: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        meta: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         Create a success response.
 
@@ -184,11 +185,11 @@ class ApiResponse:
         Returns:
             Standardized success response dict
         """
-        response: Dict[str, Any] = {
+        response: dict[str, Any] = {
             "success": True,
             "message": message,
             "data": data,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
         if meta:
             response["meta"] = meta
@@ -198,9 +199,9 @@ class ApiResponse:
     def error(
         message: str,
         code: str = "ERROR",
-        details: Optional[Dict[str, Any]] = None,
+        details: dict[str, Any] | None = None,
         status_code: int = 500,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Create an error response.
 
@@ -219,7 +220,7 @@ class ApiResponse:
             "code": code,
             "details": details or {},
             "status_code": status_code,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
     @staticmethod
@@ -229,7 +230,7 @@ class ApiResponse:
         page: int = 1,
         page_size: int = 20,
         message: str = "Success",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Create a paginated response.
 
@@ -260,7 +261,7 @@ class ApiResponse:
         )
 
 
-def require_not_none(value: Optional[T], entity_name: str, entity_id: Any) -> T:
+def require_not_none(value: T | None, entity_name: str, entity_id: Any) -> T:
     """
     Utility to check for None and raise 404 if not found.
 

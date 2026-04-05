@@ -8,7 +8,7 @@ Rate limited to prevent excessive API calls.
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
@@ -26,8 +26,8 @@ logger = logging.getLogger("app.routers.sheet_integration")
 def safe_float(
     value: Any,
     default: float = 0.0,
-    min_val: Optional[float] = None,
-    max_val: Optional[float] = None,
+    min_val: float | None = None,
+    max_val: float | None = None,
 ) -> float:
     """
     Safely convert value to float with bounds checking.
@@ -63,8 +63,8 @@ def safe_float(
 def safe_int(
     value: Any,
     default: int = 0,
-    min_val: Optional[int] = None,
-    max_val: Optional[int] = None,
+    min_val: int | None = None,
+    max_val: int | None = None,
 ) -> int:
     """
     Safely convert value to int with bounds checking.
@@ -99,7 +99,7 @@ router = APIRouter(
 
 
 @router.post("/analyze-structure")
-async def analyze_sheet_structure(sheet_headers: List[str], db: Session = Depends(get_db)) -> Dict[str, Any]:
+async def analyze_sheet_structure(sheet_headers: list[str], db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Analyze Google Sheets structure and suggest column mappings.
 
@@ -138,13 +138,13 @@ async def analyze_sheet_structure(sheet_headers: List[str], db: Session = Depend
 
     except Exception as e:
         logger.error(f"Error analyzing sheet structure: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to analyze sheet structure: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to analyze sheet structure: {e!s}")
     finally:
         db.close()
 
 
 @router.post("/create-leaderboard")
-async def create_leaderboard_from_sheet(sheet_data: List[Dict], db: Session = Depends(get_db)) -> Dict[str, Any]:
+async def create_leaderboard_from_sheet(sheet_data: list[dict], db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Transform Google Sheets data into leaderboard format.
 
@@ -164,13 +164,13 @@ async def create_leaderboard_from_sheet(sheet_data: List[Dict], db: Session = De
 
     except Exception as e:
         logger.error(f"Error creating leaderboard from sheet: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to create leaderboard: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to create leaderboard: {e!s}")
     finally:
         db.close()
 
 
 @router.post("/sync-data")
-async def sync_sheet_data(request: Dict, db: Session = Depends(get_db)) -> Dict[str, Any]:
+async def sync_sheet_data(request: dict, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Generic sheet data sync endpoint.
 
@@ -186,15 +186,15 @@ async def sync_sheet_data(request: Dict, db: Session = Depends(get_db)) -> Dict[
 
     except Exception as e:
         logger.error(f"Error syncing sheet data: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to sync sheet data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to sync sheet data: {e!s}")
     finally:
         db.close()
 
 
 @router.get("/export-current-data")
 def export_current_data_for_sheet(
-    sheet_headers: List[str] = Query(...), db: Session = Depends(get_db)
-) -> Dict[str, Any]:
+    sheet_headers: list[str] = Query(...), db: Session = Depends(get_db)
+) -> dict[str, Any]:
     """
     Export current database data in sheet format.
 
@@ -215,17 +215,17 @@ def export_current_data_for_sheet(
 
     except Exception as e:
         logger.error(f"Error exporting current data: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to export current data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to export current data: {e!s}")
     finally:
         db.close()
 
 
 @router.post("/sync-wgp-sheet")
 async def sync_wgp_sheet_data(
-    request: Dict[str, str],
+    request: dict[str, str],
     db: Session = Depends(get_db),
-    x_scheduled_job: Optional[str] = Header(None),
-) -> Dict[str, Any]:
+    x_scheduled_job: str | None = Header(None),
+) -> dict[str, Any]:
     """
     Sync Wolf Goat Pig specific sheet data format.
 
@@ -420,7 +420,7 @@ async def sync_wgp_sheet_data(
 
         # Create/update players in database
         player_service = PlayerService(db)
-        sync_results: Dict[str, Any] = {
+        sync_results: dict[str, Any] = {
             "players_processed": 0,
             "players_created": 0,
             "players_updated": 0,
@@ -465,8 +465,8 @@ async def sync_wgp_sheet_data(
                 total_earnings = safe_float(stats.get("total_earnings"), 0.0)
                 avg_earnings = safe_float(stats.get("average"), 0.0)
 
-                setattr(player_stats_record, "games_played", rounds_played)
-                setattr(player_stats_record, "total_earnings", total_earnings)
+                player_stats_record.games_played = rounds_played
+                player_stats_record.total_earnings = total_earnings
 
                 # Calculate win percentage based on average earnings per game
                 if rounds_played > 0 and avg_earnings > 0:
@@ -474,17 +474,17 @@ async def sync_wgp_sheet_data(
                     # Assuming positive average means winning more often
                     estimated_win_rate = safe_float((avg_earnings + 50) / 100 * 50, 0.0, min_val=0.0, max_val=100.0)
                     estimated_wins = safe_int(rounds_played * estimated_win_rate / 100, 0, min_val=0)
-                    setattr(player_stats_record, "win_percentage", estimated_win_rate)
-                    setattr(player_stats_record, "games_won", estimated_wins)
+                    player_stats_record.win_percentage = estimated_win_rate
+                    player_stats_record.games_won = estimated_wins
                 else:
-                    setattr(player_stats_record, "win_percentage", 0.0)
-                    setattr(player_stats_record, "games_won", 0)
+                    player_stats_record.win_percentage = 0.0
+                    player_stats_record.games_won = 0
 
                 # Store additional metrics
-                setattr(player_stats_record, "avg_earnings_per_game", avg_earnings)
+                player_stats_record.avg_earnings_per_game = avg_earnings
 
                 # Update timestamp
-                setattr(player_stats_record, "last_updated", datetime.now().isoformat())
+                player_stats_record.last_updated = datetime.now().isoformat()
 
                 # Try to fetch GHIN data if player has GHIN ID
                 ghin_data = None
@@ -526,7 +526,7 @@ async def sync_wgp_sheet_data(
 
             except Exception as e:
                 db.rollback()  # CRITICAL: Roll back the failed transaction
-                sync_results["errors"].append(f"Error processing {player_name}: {str(e)}")
+                sync_results["errors"].append(f"Error processing {player_name}: {e!s}")
                 logger.error(f"Failed to process {player_name}, rolled back transaction: {e}")
                 continue
 
@@ -557,14 +557,14 @@ async def sync_wgp_sheet_data(
         raise
     except httpx.RequestError as e:
         logger.error(f"Error fetching Google Sheet: {e}")
-        raise HTTPException(status_code=400, detail=f"Failed to fetch sheet: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Failed to fetch sheet: {e!s}")
     except Exception as e:
         logger.error(f"Error syncing WGP sheet data: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to sync data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to sync data: {e!s}")
 
 
 @router.post("/fetch-google-sheet")
-async def fetch_google_sheet(request: Dict[str, str]) -> Dict[str, Any]:
+async def fetch_google_sheet(request: dict[str, str]) -> dict[str, Any]:
     """
     Fetch raw data from Google Sheets.
 
@@ -610,14 +610,14 @@ async def fetch_google_sheet(request: Dict[str, str]) -> Dict[str, Any]:
 
     except httpx.RequestError as e:
         logger.error(f"Error fetching Google Sheet: {e}")
-        raise HTTPException(status_code=400, detail=f"Failed to fetch sheet: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Failed to fetch sheet: {e!s}")
     except Exception as e:
         logger.error(f"Error processing sheet data: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to process sheet: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to process sheet: {e!s}")
 
 
 @router.post("/compare-data")
-async def compare_sheet_to_db_data(request: Dict, db: Session = Depends(get_db)) -> Dict[str, Any]:
+async def compare_sheet_to_db_data(request: dict, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Compare Google Sheets data with current database data.
 
@@ -641,6 +641,6 @@ async def compare_sheet_to_db_data(request: Dict, db: Session = Depends(get_db))
 
     except Exception as e:
         logger.error(f"Error comparing sheet data: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to compare data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to compare data: {e!s}")
     finally:
         db.close()

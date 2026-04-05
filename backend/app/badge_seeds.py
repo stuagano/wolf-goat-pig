@@ -3,7 +3,7 @@ Badge System Seeds - Initialize all badges in the database
 Run this script to populate the badge system with all available badges.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import cast
 
 from sqlalchemy.orm import Session
@@ -22,7 +22,7 @@ def seed_badges(db: Session) -> None:
     # db.commit()
 
     badge_id_counter = 1
-    created_at = datetime.now(timezone.utc).isoformat()
+    created_at = datetime.now(UTC).isoformat()
 
     # ====================================================================================
     # ACHIEVEMENT BADGES - One-Time Unlocks
@@ -305,7 +305,7 @@ def seed_badges(db: Session) -> None:
             },
             trigger_type="career_milestone",
             max_supply=None,
-            points_value=int(cast(int, tier_data["threshold"]) // 10),
+            points_value=int(cast("int", tier_data["threshold"]) // 10),
             tier=tier_data["tier"],
             is_active=True,
             created_at=created_at,
@@ -343,7 +343,7 @@ def seed_badges(db: Session) -> None:
             },
             trigger_type="career_milestone",
             max_supply=None,
-            points_value=int(cast(int, tier_data["threshold"]) * 2),
+            points_value=int(cast("int", tier_data["threshold"]) * 2),
             tier=tier_data["tier"],
             is_active=True,
             created_at=created_at,
@@ -374,7 +374,7 @@ def seed_badges(db: Session) -> None:
             },
             trigger_type="career_milestone",
             max_supply=None,
-            points_value=int(cast(int, tier_data["threshold"]) // 5),
+            points_value=int(cast("int", tier_data["threshold"]) // 5),
             tier=tier_data["tier"],
             is_active=True,
             created_at=created_at,
@@ -391,14 +391,14 @@ def seed_badges(db: Session) -> None:
     ]
 
     for wr_data in winrate_badges:
-        rate_val = cast(float, wr_data["rate"])
+        rate_val = cast("float", wr_data["rate"])
         badge = Badge(
             badge_id=badge_id_counter,
             name=wr_data["name"],
-            description=f"{int(rate_val*100)}% win rate (minimum 100 holes played)",
+            description=f"{int(rate_val * 100)}% win rate (minimum 100 holes played)",
             category="progression",
             rarity=wr_data["rarity"],
-            image_url=f"/badges/winrate-{int(rate_val*100)}.png",
+            image_url=f"/badges/winrate-{int(rate_val * 100)}.png",
             trigger_condition={"type": "win_rate_badge", "win_rate": wr_data["rate"]},
             trigger_type="career_milestone",
             max_supply=None,

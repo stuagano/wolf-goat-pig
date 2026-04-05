@@ -5,7 +5,8 @@ Provides a base validator class and common validation methods
 to eliminate duplicate validation logic across the codebase.
 """
 
-from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 T = TypeVar("T")
 
@@ -23,15 +24,15 @@ class ValidationError(Exception):
     def __init__(
         self,
         message: str,
-        field: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        field: str | None = None,
+        details: dict[str, Any] | None = None,
     ):
         self.message = message
         self.field = field
         self.details = details or {}
         super().__init__(message)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API responses."""
         return {"message": self.message, "field": self.field, "details": self.details}
 
@@ -53,14 +54,14 @@ class BaseValidator:
     """
 
     # Default error class - can be overridden in subclasses
-    error_class: Type[ValidationError] = ValidationError
+    error_class: type[ValidationError] = ValidationError
 
     @classmethod
     def _raise_error(
         cls,
         message: str,
-        field: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        field: str | None = None,
+        details: dict[str, Any] | None = None,
     ) -> None:
         """
         Raise a validation error using the configured error class.
@@ -73,7 +74,7 @@ class BaseValidator:
     def validate_type(
         cls,
         value: Any,
-        expected_type: Union[type, tuple],
+        expected_type: type | tuple,
         field: str,
         allow_none: bool = False,
     ) -> None:
@@ -105,9 +106,9 @@ class BaseValidator:
     @classmethod
     def validate_range(
         cls,
-        value: Optional[Union[int, float]],
-        min_val: Optional[Union[int, float]] = None,
-        max_val: Optional[Union[int, float]] = None,
+        value: int | float | None,
+        min_val: int | float | None = None,
+        max_val: int | float | None = None,
         field: str = "value",
         inclusive: bool = True,
     ) -> None:
@@ -134,7 +135,7 @@ class BaseValidator:
                     field=field,
                     details={"value": value, "min": min_val},
                 )
-            elif not inclusive and value <= min_val:
+            if not inclusive and value <= min_val:
                 raise ValidationError(
                     f"{field} must be > {min_val}",
                     field=field,
@@ -148,7 +149,7 @@ class BaseValidator:
                     field=field,
                     details={"value": value, "max": max_val},
                 )
-            elif not inclusive and value >= max_val:
+            if not inclusive and value >= max_val:
                 raise ValidationError(
                     f"{field} must be < {max_val}",
                     field=field,
@@ -156,7 +157,7 @@ class BaseValidator:
                 )
 
     @classmethod
-    def validate_enum(cls, value: Any, allowed_values: List[Any], field: str = "value") -> None:
+    def validate_enum(cls, value: Any, allowed_values: list[Any], field: str = "value") -> None:
         """
         Validate that a value is one of the allowed values.
 
@@ -196,9 +197,9 @@ class BaseValidator:
     @classmethod
     def validate_length(
         cls,
-        value: Optional[Union[str, list, dict]],
-        min_length: Optional[int] = None,
-        max_length: Optional[int] = None,
+        value: str | list | dict | None,
+        min_length: int | None = None,
+        max_length: int | None = None,
         field: str = "value",
     ) -> None:
         """
@@ -235,7 +236,7 @@ class BaseValidator:
     @classmethod
     def validate_positive(
         cls,
-        value: Optional[Union[int, float]],
+        value: int | float | None,
         field: str = "value",
         allow_zero: bool = False,
     ) -> None:
@@ -267,10 +268,10 @@ class BaseValidator:
     @classmethod
     def validate_pattern(
         cls,
-        value: Optional[str],
+        value: str | None,
         pattern: str,
         field: str = "value",
-        pattern_description: Optional[str] = None,
+        pattern_description: str | None = None,
     ) -> None:
         """
         Validate that a string matches a regex pattern.
@@ -298,7 +299,7 @@ class BaseValidator:
             )
 
     @classmethod
-    def validate_all(cls, validations: List[Callable[[], None]]) -> List[ValidationError]:
+    def validate_all(cls, validations: list[Callable[[], None]]) -> list[ValidationError]:
         """
         Run multiple validations and collect all errors.
 
@@ -343,7 +344,7 @@ class GameValidator(BaseValidator):
         cls.validate_range(hole, 1, 18, "hole_number")
 
     @classmethod
-    def validate_handicap(cls, handicap: Union[int, float]) -> None:
+    def validate_handicap(cls, handicap: int | float) -> None:
         """Validate handicap is 0-54."""
         cls.validate_type(handicap, (int, float), "handicap")
         cls.validate_range(handicap, cls.MIN_HANDICAP, cls.MAX_HANDICAP, "handicap")

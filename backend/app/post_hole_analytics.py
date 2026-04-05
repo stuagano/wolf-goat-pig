@@ -5,7 +5,7 @@ Provides detailed analysis and learning insights after each hole
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 
 class DecisionQuality(Enum):
@@ -32,7 +32,7 @@ class DecisionPoint:
     decision_type: str  # "partnership_offer", "double_decision", "solo_decision", etc.
     player_id: str
     timestamp: str
-    options_available: List[str]
+    options_available: list[str]
     decision_made: str
     outcome: str  # "won", "lost", "neutral"
     quarters_impact: int  # How many quarters won/lost from this decision
@@ -46,11 +46,11 @@ class PartnershipAnalysis:
 
     partnership_formed: bool
     captain_id: str
-    partner_id: Optional[str]
+    partner_id: str | None
     timing: str  # "after_1st_shot", "after_2nd_shot", etc.
     success: bool
     chemistry_rating: float  # 0-1 score
-    alternative_partners: List[Dict[str, Any]]  # What other options were available
+    alternative_partners: list[dict[str, Any]]  # What other options were available
     optimal_choice: bool
     explanation: str
 
@@ -65,8 +65,8 @@ class BettingAnalysis:
     duncan_used: bool
     timing_quality: str  # "perfect", "good", "poor"
     aggressive_rating: float  # 0-1, how aggressive were the betting decisions
-    missed_opportunities: List[str]
-    costly_mistakes: List[str]
+    missed_opportunities: list[str]
+    costly_mistakes: list[str]
     net_quarter_impact: int
 
 
@@ -75,10 +75,10 @@ class ShotAnalysis:
     """Analysis of shot selection and execution"""
 
     total_shots: int
-    shot_quality_distribution: Dict[str, int]  # excellent: 2, good: 3, etc.
-    clutch_shots: List[Dict[str, Any]]  # Important shots and their outcomes
-    worst_shot: Optional[Dict[str, Any]]
-    best_shot: Optional[Dict[str, Any]]
+    shot_quality_distribution: dict[str, int]  # excellent: 2, good: 3, etc.
+    clutch_shots: list[dict[str, Any]]  # Important shots and their outcomes
+    worst_shot: dict[str, Any] | None
+    best_shot: dict[str, Any] | None
     pressure_performance: float  # 0-1, how well performed under pressure
 
 
@@ -104,19 +104,19 @@ class PostHoleAnalytics:
     # Results
     winner: str  # "team1", "team2", "solo_player", "tie"
     quarters_exchanged: int
-    final_scores: Dict[str, int]  # player_id -> score
+    final_scores: dict[str, int]  # player_id -> score
 
     # Key Decisions
-    decision_points: List[DecisionPoint]
-    partnership_analysis: Optional[PartnershipAnalysis]
+    decision_points: list[DecisionPoint]
+    partnership_analysis: PartnershipAnalysis | None
     betting_analysis: BettingAnalysis
     shot_analysis: ShotAnalysis
 
     # Insights
-    key_moments: List[KeyMoment]
-    biggest_mistake: Optional[str]
-    best_decision: Optional[str]
-    learning_points: List[str]
+    key_moments: list[KeyMoment]
+    biggest_mistake: str | None
+    best_decision: str | None
+    learning_points: list[str]
 
     # Ratings
     overall_performance: float  # 0-100
@@ -124,12 +124,12 @@ class PostHoleAnalytics:
     risk_management_score: float  # 0-100
 
     # Comparisons
-    ai_comparison: Dict[str, Any]  # What would AI have done differently
-    historical_comparison: Dict[str, Any]  # How this compares to past holes
+    ai_comparison: dict[str, Any]  # What would AI have done differently
+    historical_comparison: dict[str, Any]  # How this compares to past holes
 
     # Recommendations
-    tips_for_improvement: List[str]
-    similar_scenarios_to_practice: List[str]
+    tips_for_improvement: list[str]
+    similar_scenarios_to_practice: list[str]
 
 
 class PostHoleAnalyzer:
@@ -139,7 +139,7 @@ class PostHoleAnalyzer:
         self.historical_data = []
         self.player_patterns = {}
 
-    def analyze_hole(self, hole_state: Any, game_state: Any, timeline_events: List[Any]) -> PostHoleAnalytics:
+    def analyze_hole(self, hole_state: Any, game_state: Any, timeline_events: list[Any]) -> PostHoleAnalytics:
         """Generate complete post-hole analytics"""
 
         # Extract basic hole info
@@ -210,7 +210,7 @@ class PostHoleAnalyzer:
             similar_scenarios_to_practice=self._suggest_practice_scenarios(hole_state, decision_points),
         )
 
-    def _determine_winner(self, hole_state: Any) -> Tuple[str, int]:
+    def _determine_winner(self, hole_state: Any) -> tuple[str, int]:
         """Determine who won the hole and how many quarters"""
         # Implementation based on hole_state.teams and scores
         if hole_state.teams.type == "solo":
@@ -221,7 +221,7 @@ class PostHoleAnalyzer:
             if solo_score and all(opponent_scores):
                 if solo_score < min(opponent_scores):
                     return "solo_player", hole_state.betting.current_wager * len(hole_state.teams.opponents)
-                elif solo_score > min(opponent_scores):
+                if solo_score > min(opponent_scores):
                     return "opponents", hole_state.betting.current_wager * len(hole_state.teams.opponents)
 
         elif hole_state.teams.type == "partners":
@@ -235,12 +235,12 @@ class PostHoleAnalyzer:
 
                 if team1_best < team2_best:
                     return "team1", hole_state.betting.current_wager
-                elif team2_best < team1_best:
+                if team2_best < team1_best:
                     return "team2", hole_state.betting.current_wager
 
         return "tie", 0
 
-    def _analyze_decisions(self, hole_state: Any, timeline_events: Any) -> List[DecisionPoint]:
+    def _analyze_decisions(self, hole_state: Any, timeline_events: Any) -> list[DecisionPoint]:
         """Analyze all decision points during the hole"""
         decisions = []
 
@@ -263,7 +263,7 @@ class PostHoleAnalyzer:
 
         return decisions
 
-    def _analyze_partnership(self, hole_state: Any, timeline_events: Any) -> Optional[PartnershipAnalysis]:
+    def _analyze_partnership(self, hole_state: Any, timeline_events: Any) -> PartnershipAnalysis | None:
         """Analyze partnership formation and success"""
         if hole_state.teams.type not in ["partners", "solo"]:
             return None
@@ -293,7 +293,7 @@ class PostHoleAnalyzer:
                 explanation=self._explain_partnership_decision(hole_state, partnership_event),
             )
 
-        elif hole_state.teams.type == "solo":
+        if hole_state.teams.type == "solo":
             return PartnershipAnalysis(
                 partnership_formed=False,
                 captain_id=hole_state.teams.captain,
@@ -315,7 +315,7 @@ class PostHoleAnalyzer:
         doubles_declined = 0
         duncan_used = hole_state.betting.duncan_invoked
         missed_opportunities = []
-        costly_mistakes: List[Any] = []
+        costly_mistakes: list[Any] = []
 
         for event in timeline_events:
             if event.type == "double_offer":
@@ -379,7 +379,7 @@ class PostHoleAnalyzer:
             pressure_performance=self._calculate_pressure_performance(clutch_shots),
         )
 
-    def _identify_key_moments(self, timeline_events: Any, hole_state: Any) -> List[KeyMoment]:
+    def _identify_key_moments(self, timeline_events: Any, hole_state: Any) -> list[KeyMoment]:
         """Identify the most important moments of the hole"""
         key_moments = []
 
@@ -397,12 +397,12 @@ class PostHoleAnalyzer:
         return sorted(key_moments, key=lambda x: abs(x.quarters_swing), reverse=True)[:3]
 
     # Helper methods
-    def _evaluate_decision_quality(self, event: Any, hole_state: Any) -> Tuple[DecisionQuality, str]:
+    def _evaluate_decision_quality(self, event: Any, hole_state: Any) -> tuple[DecisionQuality, str]:
         """Evaluate the quality of a decision"""
         # Simplified logic - would be more complex in practice
         if event.details.get("outcome") == "won":
             return DecisionQuality.GOOD, "Decision led to winning the hole"
-        elif event.details.get("outcome") == "lost":
+        if event.details.get("outcome") == "lost":
             return DecisionQuality.POOR, "Decision contributed to losing the hole"
         return DecisionQuality.NEUTRAL, "Decision had neutral impact"
 
@@ -455,7 +455,7 @@ class PostHoleAnalyzer:
 
         return max(0, min(100, score))
 
-    def _generate_learning_points(self, decisions: Any, partnership: Any, betting: Any, key_moments: Any) -> List[str]:
+    def _generate_learning_points(self, decisions: Any, partnership: Any, betting: Any, key_moments: Any) -> list[str]:
         """Generate key learning points from the hole"""
         points = []
 
@@ -476,7 +476,7 @@ class PostHoleAnalyzer:
 
         return points[:5]  # Limit to top 5 points
 
-    def _generate_tips(self, decisions: Any, partnership: Any, betting: Any, shots: Any) -> List[str]:
+    def _generate_tips(self, decisions: Any, partnership: Any, betting: Any, shots: Any) -> list[str]:
         """Generate improvement tips"""
         tips = []
 
@@ -521,11 +521,11 @@ class PostHoleAnalyzer:
         quarters = abs(event.details.get("quarters_impact", 0))
         if quarters >= 4:
             return "game_changing"
-        elif quarters >= 2:
+        if quarters >= 2:
             return "significant"
         return "minor"
 
-    def _identify_biggest_mistake(self, decisions: Any) -> Optional[str]:
+    def _identify_biggest_mistake(self, decisions: Any) -> str | None:
         """Identify the biggest mistake made"""
         poor_decisions = [d for d in decisions if d.quality in [DecisionQuality.POOR, DecisionQuality.TERRIBLE]]
         if poor_decisions:
@@ -533,7 +533,7 @@ class PostHoleAnalyzer:
             return f"{worst.decision_type}: {worst.explanation}"
         return None
 
-    def _identify_best_decision(self, decisions: Any) -> Optional[str]:
+    def _identify_best_decision(self, decisions: Any) -> str | None:
         """Identify the best decision made"""
         good_decisions = [d for d in decisions if d.quality in [DecisionQuality.EXCELLENT, DecisionQuality.GOOD]]
         if good_decisions:
@@ -541,7 +541,7 @@ class PostHoleAnalyzer:
             return f"{best.decision_type}: {best.explanation}"
         return None
 
-    def _suggest_practice_scenarios(self, hole_state: Any, decisions: Any) -> List[str]:
+    def _suggest_practice_scenarios(self, hole_state: Any, decisions: Any) -> list[str]:
         """Suggest similar scenarios to practice"""
         scenarios = []
 
@@ -553,7 +553,7 @@ class PostHoleAnalyzer:
 
         return scenarios[:2]
 
-    def _generate_ai_comparison(self, hole_state: Any, decisions: Any) -> Dict[str, Any]:
+    def _generate_ai_comparison(self, hole_state: Any, decisions: Any) -> dict[str, Any]:
         """Generate comparison with what AI would have done"""
         return {
             "different_decisions": 2,
@@ -561,7 +561,7 @@ class PostHoleAnalyzer:
             "key_difference": "AI would have partnered after first shot instead of second",
         }
 
-    def _generate_historical_comparison(self, hole_number: Any, performance: Any, decisions: Any) -> Dict[str, Any]:
+    def _generate_historical_comparison(self, hole_number: Any, performance: Any, decisions: Any) -> dict[str, Any]:
         """Compare with historical performance on this hole"""
         return {
             "avg_performance_this_hole": 65.0,
@@ -588,7 +588,7 @@ class PostHoleAnalyzer:
         winner, _ = self._determine_winner(hole_state)
         return winner == "solo_player"
 
-    def _get_alternative_partners(self, hole_state: Any, timeline_events: Any) -> List[Dict[str, Any]]:
+    def _get_alternative_partners(self, hole_state: Any, timeline_events: Any) -> list[dict[str, Any]]:
         """Get list of alternative partnership options"""
         return []  # Simplified
 

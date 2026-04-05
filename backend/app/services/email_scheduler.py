@@ -7,7 +7,7 @@ This module handles scheduling and sending automated emails based on user prefer
 import logging
 import threading
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
+from typing import Any
 
 import schedule
 from sqlalchemy.orm import Session
@@ -98,12 +98,12 @@ class EmailScheduler:
                             logger.error(f"Failed to send daily reminder to {player.name}")
 
                 except Exception as e:
-                    logger.error(f"Error sending daily reminder to {player.name}: {str(e)}")
+                    logger.error(f"Error sending daily reminder to {player.name}: {e!s}")
 
             logger.info(f"Daily reminders completed: {sent_count}/{len(players_with_prefs)} sent successfully")
 
         except Exception as e:
-            logger.error(f"Error in daily reminder job: {str(e)}")
+            logger.error(f"Error in daily reminder job: {e!s}")
         finally:
             db.close()
 
@@ -148,10 +148,10 @@ class EmailScheduler:
                             logger.error(f"Failed to send daily reminder to {player.name}")
 
                 except Exception as e:
-                    logger.error(f"Error sending daily reminder to {player.name}: {str(e)}")
+                    logger.error(f"Error sending daily reminder to {player.name}: {e!s}")
 
         except Exception as e:
-            logger.error(f"Error in daily reminder job: {str(e)}")
+            logger.error(f"Error in daily reminder job: {e!s}")
         finally:
             db.close()
 
@@ -195,14 +195,14 @@ class EmailScheduler:
                             logger.error(f"Failed to send weekly summary to {player.name}")
 
                 except Exception as e:
-                    logger.error(f"Error sending weekly summary to {player.name}: {str(e)}")
+                    logger.error(f"Error sending weekly summary to {player.name}: {e!s}")
 
         except Exception as e:
-            logger.error(f"Error in weekly summary job: {str(e)}")
+            logger.error(f"Error in weekly summary job: {e!s}")
         finally:
             db.close()
 
-    def _get_available_signup_dates(self) -> List[str]:
+    def _get_available_signup_dates(self) -> list[str]:
         """Get available signup dates for the next week"""
         # Mock implementation - replace with actual logic
         dates = []
@@ -214,7 +214,7 @@ class EmailScheduler:
 
         return dates
 
-    def _get_player_weekly_summary(self, player_id: int) -> Dict[str, Any]:
+    def _get_player_weekly_summary(self, player_id: int) -> dict[str, Any]:
         """Get weekly summary data for a player"""
         # Mock implementation - replace with actual stats from database
         return {
@@ -255,7 +255,7 @@ class EmailScheduler:
                 to_email=player_email, player_name=player_name, signup_date=signup_date
             )
         except Exception as e:
-            logger.error(f"Error sending signup confirmation: {str(e)}")
+            logger.error(f"Error sending signup confirmation: {e!s}")
             return False
 
     def send_game_invitation_now(self, to_email: str, player_name: str, inviter_name: str, game_date: str) -> bool:
@@ -269,7 +269,7 @@ class EmailScheduler:
             )
             return bool(result)
         except Exception as e:
-            logger.error(f"Error sending game invitation: {str(e)}")
+            logger.error(f"Error sending game invitation: {e!s}")
             return False
 
     def _run_saturday_pairings(self):
@@ -294,7 +294,7 @@ class EmailScheduler:
                 logger.warning(f"Saturday pairing job did not generate pairings: {result['message']}")
 
         except Exception as e:
-            logger.error(f"Error in Saturday pairing job: {str(e)}")
+            logger.error(f"Error in Saturday pairing job: {e!s}")
         finally:
             db.close()
 

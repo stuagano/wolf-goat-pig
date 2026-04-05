@@ -4,7 +4,7 @@ Game State Validator for Wolf Goat Pig.
 Validates game state transitions, player actions, and game flow.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .exceptions import GameStateValidationError
 
@@ -79,7 +79,7 @@ class GameStateValidator:
             )
 
     @classmethod
-    def validate_game_initialization(cls, players: List[Dict[str, Any]], course: Optional[Dict[str, Any]]) -> None:
+    def validate_game_initialization(cls, players: list[dict[str, Any]], course: dict[str, Any] | None) -> None:
         """
         Validate game initialization parameters.
 
@@ -271,7 +271,7 @@ class GameStateValidator:
             )
 
     @classmethod
-    def validate_hole_completion(cls, players_holed: List[str], total_players: int) -> None:
+    def validate_hole_completion(cls, players_holed: list[str], total_players: int) -> None:
         """
         Validate hole can be completed.
 

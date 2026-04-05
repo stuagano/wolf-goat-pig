@@ -5,7 +5,7 @@ Provides strongly-typed response models to replace Dict[str, Any]
 for better IDE support and type checking.
 """
 
-from typing import Any, Dict, List, Optional, TypedDict
+from typing import Any, TypedDict
 
 # ============================================================================
 # Common Response Types
@@ -30,7 +30,7 @@ class SuccessResponse(TypedDict, total=False):
     message: str
     data: Any
     timestamp: str
-    meta: Dict[str, Any]
+    meta: dict[str, Any]
 
 
 class ErrorResponse(TypedDict):
@@ -39,7 +39,7 @@ class ErrorResponse(TypedDict):
     success: bool
     message: str
     code: str
-    details: Dict[str, Any]
+    details: dict[str, Any]
     status_code: int
     timestamp: str
 
@@ -55,8 +55,8 @@ class PlayerInfo(TypedDict, total=False):
     id: str
     name: str
     handicap: float
-    profile_id: Optional[int]
-    tee_order: Optional[int]
+    profile_id: int | None
+    tee_order: int | None
 
 
 class PlayerProfileResponse(TypedDict, total=False):
@@ -64,15 +64,15 @@ class PlayerProfileResponse(TypedDict, total=False):
 
     id: int
     name: str
-    email: Optional[str]
-    phone: Optional[str]
+    email: str | None
+    phone: str | None
     handicap: float
-    ghin_number: Optional[str]
-    home_course: Optional[str]
+    ghin_number: str | None
+    home_course: str | None
     created_at: str
     updated_at: str
     is_active: bool
-    last_played: Optional[str]
+    last_played: str | None
 
 
 class PlayerStatisticsResponse(TypedDict, total=False):
@@ -112,10 +112,10 @@ class CourseInfo(TypedDict, total=False):
     id: int
     name: str
     par: int
-    holes: List[HoleInfo]
+    holes: list[HoleInfo]
     total_yards: int
-    slope_rating: Optional[float]
-    course_rating: Optional[float]
+    slope_rating: float | None
+    course_rating: float | None
 
 
 class GameLobbyResponse(TypedDict):
@@ -124,10 +124,10 @@ class GameLobbyResponse(TypedDict):
     game_id: str
     join_code: str
     status: str
-    course_name: Optional[str]
+    course_name: str | None
     max_players: int
     players_joined: int
-    players: List[PlayerInfo]
+    players: list[PlayerInfo]
     tee_order_set: bool
     created_at: str
 
@@ -136,11 +136,11 @@ class HoleScores(TypedDict):
     """Scores for a single hole."""
 
     hole_number: int
-    scores: Dict[str, int]  # player_id -> gross score
-    net_scores: Dict[str, float]  # player_id -> net score
-    winner: Optional[str]
+    scores: dict[str, int]  # player_id -> gross score
+    net_scores: dict[str, float]  # player_id -> net score
+    winner: str | None
     wager: int
-    points_changes: Dict[str, int]
+    points_changes: dict[str, int]
 
 
 class GameStateResponse(TypedDict, total=False):
@@ -149,12 +149,12 @@ class GameStateResponse(TypedDict, total=False):
     game_id: str
     status: str
     current_hole: int
-    players: List[PlayerInfo]
-    rotation_order: List[str]
+    players: list[PlayerInfo]
+    rotation_order: list[str]
     current_wolf: str
-    scores: Dict[str, Dict[int, int]]  # player_id -> hole -> score
-    points: Dict[str, int]  # player_id -> points
-    hole_history: List[HoleScores]
+    scores: dict[str, dict[int, int]]  # player_id -> hole -> score
+    points: dict[str, int]  # player_id -> points
+    hole_history: list[HoleScores]
     active: bool
     game_complete: bool
 
@@ -165,10 +165,10 @@ class HoleResultResponse(TypedDict):
     success: bool
     message: str
     hole_number: int
-    winners: List[str]
-    points_changes: Dict[str, int]
-    current_standings: Dict[str, int]
-    next_wolf: Optional[str]
+    winners: list[str]
+    points_changes: dict[str, int]
+    current_standings: dict[str, int]
+    next_wolf: str | None
 
 
 class GameCompletionResponse(TypedDict):
@@ -176,7 +176,7 @@ class GameCompletionResponse(TypedDict):
 
     game_id: str
     status: str
-    final_standings: List[Dict[str, Any]]
+    final_standings: list[dict[str, Any]]
     total_holes: int
     winner: str
     winner_points: int
@@ -206,7 +206,7 @@ class BettingStateResponse(TypedDict):
 
     base_wager: int
     current_multiplier: int
-    active_presses: List[BetInfo]
+    active_presses: list[BetInfo]
     total_at_risk: int
     can_press: bool
 
@@ -215,7 +215,7 @@ class BettingOddsResponse(TypedDict):
     """Betting odds calculation response."""
 
     hole_number: int
-    players: Dict[str, float]  # player_id -> win probability
+    players: dict[str, float]  # player_id -> win probability
     recommended_action: str
     expected_value: float
 
@@ -233,9 +233,9 @@ class AnalyticsSummary(TypedDict, total=False):
     games_analyzed: int
     total_holes: int
     average_score: float
-    scoring_distribution: Dict[str, int]
-    best_performance: Dict[str, Any]
-    trends: Dict[str, Any]
+    scoring_distribution: dict[str, int]
+    best_performance: dict[str, Any]
+    trends: dict[str, Any]
 
 
 class HoleAnalytics(TypedDict):
@@ -272,7 +272,7 @@ class ServiceStatusResponse(TypedDict):
     service: str
     status: str
     last_check: str
-    details: Dict[str, Any]
+    details: dict[str, Any]
 
 
 # ============================================================================
@@ -280,13 +280,13 @@ class ServiceStatusResponse(TypedDict):
 # ============================================================================
 
 # Generic ID to value mapping
-IdValueMap = Dict[str, Any]
+IdValueMap = dict[str, Any]
 
 # Player ID to score mapping
-PlayerScoreMap = Dict[str, int]
+PlayerScoreMap = dict[str, int]
 
 # Hole number to score mapping
-HoleScoreMap = Dict[int, int]
+HoleScoreMap = dict[int, int]
 
 # Full score matrix: player -> hole -> score
-ScoreMatrix = Dict[str, Dict[int, int]]
+ScoreMatrix = dict[str, dict[int, int]]

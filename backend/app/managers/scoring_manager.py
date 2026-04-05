@@ -16,7 +16,7 @@ Integrates with HandicapValidator for handicap calculations.
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from ..validators import HandicapValidationError, HandicapValidator
 from ..wolf_goat_pig import WolfGoatPigGame
@@ -46,16 +46,16 @@ class HoleResult:
     """
 
     hole_number: int
-    winning_team: Optional[List[str]] = None
-    losing_team: Optional[List[str]] = None
+    winning_team: list[str] | None = None
+    losing_team: list[str] | None = None
     halved: bool = False
-    gross_scores: Dict[str, int] = field(default_factory=dict)
-    net_scores: Dict[str, int] = field(default_factory=dict)
-    team1_score: Optional[int] = None
-    team2_score: Optional[int] = None
+    gross_scores: dict[str, int] = field(default_factory=dict)
+    net_scores: dict[str, int] = field(default_factory=dict)
+    team1_score: int | None = None
+    team2_score: int | None = None
     wager: float = 1.0
-    points_changes: Dict[str, int] = field(default_factory=dict)
-    money_changes: Dict[str, float] = field(default_factory=dict)
+    points_changes: dict[str, int] = field(default_factory=dict)
+    money_changes: dict[str, float] = field(default_factory=dict)
     carried_over: bool = False
     carryover_amount: float = 0.0
 
@@ -76,10 +76,10 @@ class GameTotals:
     """
 
     total_holes_played: int
-    player_totals: Dict[str, float] = field(default_factory=dict)
-    standings: List[Tuple[str, float]] = field(default_factory=list)
-    winner: Optional[str] = None
-    holes_won: Dict[str, int] = field(default_factory=dict)
+    player_totals: dict[str, float] = field(default_factory=dict)
+    standings: list[tuple[str, float]] = field(default_factory=list)
+    winner: str | None = None
+    holes_won: dict[str, int] = field(default_factory=dict)
     holes_halved: int = 0
     total_carryover: float = 0.0
 
@@ -107,7 +107,7 @@ class ScoringManager:
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, game_engine: Optional[WolfGoatPigGame] = None) -> None:
+    def __init__(self, game_engine: WolfGoatPigGame | None = None) -> None:
         """Initialize the scoring manager."""
         if getattr(self, "_initialized", False):
             return
@@ -146,7 +146,7 @@ class ScoringManager:
                 validate=True,
             )
 
-            logger.debug(f"Calculated net score: gross={gross_score}, " f"strokes={handicap_strokes}, net={net_score}")
+            logger.debug(f"Calculated net score: gross={gross_score}, strokes={handicap_strokes}, net={net_score}")
 
             return int(net_score)
 
@@ -155,7 +155,7 @@ class ScoringManager:
             raise
         except Exception as e:
             logger.error(f"Unexpected error calculating hole score: {e}")
-            raise ValueError(f"Failed to calculate hole score: {str(e)}")
+            raise ValueError(f"Failed to calculate hole score: {e!s}")
 
     def calculate_team_score(self, player1_score: int, player2_score: int) -> int:
         """
@@ -184,20 +184,20 @@ class ScoringManager:
 
             team_score = min(player1_score, player2_score)
 
-            logger.debug(f"Calculated team score: p1={player1_score}, " f"p2={player2_score}, team={team_score}")
+            logger.debug(f"Calculated team score: p1={player1_score}, p2={player2_score}, team={team_score}")
 
             return team_score
 
         except Exception as e:
             logger.error(f"Error calculating team score: {e}")
-            raise ValueError(f"Failed to calculate team score: {str(e)}")
+            raise ValueError(f"Failed to calculate team score: {e!s}")
 
     def calculate_match_points(
         self,
-        winning_team: List[str],
-        losing_team: List[str],
+        winning_team: list[str],
+        losing_team: list[str],
         wager_multiplier: float = 1.0,
-    ) -> Dict[str, int]:
+    ) -> dict[str, int]:
         """
         Calculate match play points for a hole.
 
@@ -269,11 +269,11 @@ class ScoringManager:
 
         except Exception as e:
             logger.error(f"Error calculating match points: {e}")
-            raise ValueError(f"Failed to calculate match points: {str(e)}")
+            raise ValueError(f"Failed to calculate match points: {e!s}")
 
     def calculate_money_distribution(
-        self, hole_results: List[HoleResult], base_wager: float = 0.25
-    ) -> Dict[str, float]:
+        self, hole_results: list[HoleResult], base_wager: float = 0.25
+    ) -> dict[str, float]:
         """
         Calculate total money won/lost per player across multiple holes.
 
@@ -321,15 +321,15 @@ class ScoringManager:
 
         except Exception as e:
             logger.error(f"Error calculating money distribution: {e}")
-            raise ValueError(f"Failed to calculate money distribution: {str(e)}")
+            raise ValueError(f"Failed to calculate money distribution: {e!s}")
 
     def calculate_karl_marx_distribution(
         self,
-        winners: List[str],
-        losers: List[str],
+        winners: list[str],
+        losers: list[str],
         wager: int,
-        current_points: Dict[str, int],
-    ) -> Dict[str, int]:
+        current_points: dict[str, int],
+    ) -> dict[str, int]:
         """
         Apply Karl Marx rule for point distribution.
 
@@ -410,9 +410,9 @@ class ScoringManager:
 
         except Exception as e:
             logger.error(f"Error applying Karl Marx rule: {e}")
-            raise ValueError(f"Failed to apply Karl Marx distribution: {str(e)}")
+            raise ValueError(f"Failed to apply Karl Marx distribution: {e!s}")
 
-    def calculate_carryover(self, hole_results: List[HoleResult], current_carryover: float = 0.0) -> float:
+    def calculate_carryover(self, hole_results: list[HoleResult], current_carryover: float = 0.0) -> float:
         """
         Calculate carryover amount to next hole.
 
@@ -442,21 +442,21 @@ class ScoringManager:
                 if result.halved:
                     carryover += result.wager
                     logger.debug(
-                        f"Hole {result.hole_number} halved, " f"adding {result.wager} to carryover (total: {carryover})"
+                        f"Hole {result.hole_number} halved, adding {result.wager} to carryover (total: {carryover})"
                     )
                 else:
                     # Carryover is resolved, reset to 0
                     if carryover > 0:
-                        logger.debug(f"Hole {result.hole_number} won, " f"carryover of {carryover} resolved")
+                        logger.debug(f"Hole {result.hole_number} won, carryover of {carryover} resolved")
                     carryover = 0.0
 
             return carryover
 
         except Exception as e:
             logger.error(f"Error calculating carryover: {e}")
-            raise ValueError(f"Failed to calculate carryover: {str(e)}")
+            raise ValueError(f"Failed to calculate carryover: {e!s}")
 
-    def calculate_game_totals(self, all_hole_results: List[HoleResult]) -> GameTotals:
+    def calculate_game_totals(self, all_hole_results: list[HoleResult]) -> GameTotals:
         """
         Calculate final game totals from all hole results.
 
@@ -484,8 +484,8 @@ class ScoringManager:
             {'p1': 2, 'p2': -2}
         """
         try:
-            player_totals: Dict[str, float] = {}
-            holes_won: Dict[str, int] = {}
+            player_totals: dict[str, float] = {}
+            holes_won: dict[str, int] = {}
             holes_halved = 0
             total_carryover = 0.0
 
@@ -510,7 +510,7 @@ class ScoringManager:
                     player_totals[player_id] += float(points)
 
             # Create standings (sorted by total, descending)
-            standings: List[Tuple[str, float]] = sorted(player_totals.items(), key=lambda x: x[1], reverse=True)
+            standings: list[tuple[str, float]] = sorted(player_totals.items(), key=lambda x: x[1], reverse=True)
 
             # Determine winner (or tie)
             winner = None
@@ -529,22 +529,22 @@ class ScoringManager:
             )
 
             logger.info(
-                f"Calculated game totals: holes={len(all_hole_results)}, " f"winner={winner}, halved={holes_halved}"
+                f"Calculated game totals: holes={len(all_hole_results)}, winner={winner}, halved={holes_halved}"
             )
 
             return game_totals
 
         except Exception as e:
             logger.error(f"Error calculating game totals: {e}")
-            raise ValueError(f"Failed to calculate game totals: {str(e)}")
+            raise ValueError(f"Failed to calculate game totals: {e!s}")
 
     def calculate_handicap_adjusted_score(
         self,
-        gross_scores: Dict[str, int],
-        handicaps: Dict[str, float],
-        stroke_indexes: Dict[str, int],
+        gross_scores: dict[str, int],
+        handicaps: dict[str, float],
+        stroke_indexes: dict[str, int],
         hole_stroke_index: int,
-    ) -> Dict[str, int]:
+    ) -> dict[str, int]:
         """
         Calculate handicap-adjusted scores for all players on a hole.
 
@@ -618,15 +618,15 @@ class ScoringManager:
             raise
         except Exception as e:
             logger.error(f"Error calculating handicap-adjusted scores: {e}")
-            raise ValueError(f"Failed to calculate adjusted scores: {str(e)}")
+            raise ValueError(f"Failed to calculate adjusted scores: {e!s}")
 
     def award_concession_points(
         self,
         game_state: Any,
-        conceding_player: Optional[str],
-        conceding_team: Optional[int],
+        conceding_player: str | None,
+        conceding_team: int | None,
         hole_number: int,
-    ) -> Dict[str, int]:
+    ) -> dict[str, int]:
         """
         Award points to winning team(s) based on hole concession.
 
@@ -732,9 +732,9 @@ class ScoringManager:
 
         except Exception as e:
             logger.error(f"Error awarding concession points: {e}")
-            raise ValueError(f"Failed to award concession points: {str(e)}")
+            raise ValueError(f"Failed to award concession points: {e!s}")
 
-    def get_hole_summary(self, hole_number: int, game_state: Dict[str, Any]) -> Dict[str, Any]:
+    def get_hole_summary(self, hole_number: int, game_state: dict[str, Any]) -> dict[str, Any]:
         """
         Get comprehensive summary for a single hole.
 
@@ -803,9 +803,9 @@ class ScoringManager:
 
         except Exception as e:
             logger.error(f"Error getting hole summary: {e}")
-            raise ValueError(f"Failed to get hole summary: {str(e)}")
+            raise ValueError(f"Failed to get hole summary: {e!s}")
 
-    def get_game_summary(self, game_state: Dict[str, Any]) -> Dict[str, Any]:
+    def get_game_summary(self, game_state: dict[str, Any]) -> dict[str, Any]:
         """
         Get comprehensive summary for entire game.
 
@@ -895,13 +895,13 @@ class ScoringManager:
                 "game_status": game_state.get("game_status", "unknown"),
             }
 
-            logger.info(f"Generated game summary: {len(hole_results)} holes completed, " f"{len(players)} players")
+            logger.info(f"Generated game summary: {len(hole_results)} holes completed, {len(players)} players")
 
             return summary
 
         except Exception as e:
             logger.error(f"Error getting game summary: {e}")
-            raise ValueError(f"Failed to get game summary: {str(e)}")
+            raise ValueError(f"Failed to get game summary: {e!s}")
 
 
 # Singleton accessor function

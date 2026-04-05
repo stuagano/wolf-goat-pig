@@ -7,7 +7,6 @@ handicap, scoring, and game state information.
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Optional
 
 
 class HandicapCategory(Enum):
@@ -43,7 +42,7 @@ class Player:
     name: str
     handicap: float
     points: int = 0
-    strength: Optional[str] = None
+    strength: str | None = None
     is_human: bool = False  # Flag to identify human players
 
     # Game state fields
@@ -73,49 +72,45 @@ class Player:
         """Get the handicap category for this player."""
         if self.handicap <= 5:
             return HandicapCategory.SCRATCH
-        elif self.handicap <= 12:
+        if self.handicap <= 12:
             return HandicapCategory.LOW
-        elif self.handicap <= 18:
+        if self.handicap <= 18:
             return HandicapCategory.MID
-        elif self.handicap <= 25:
+        if self.handicap <= 25:
             return HandicapCategory.HIGH
-        else:
-            return HandicapCategory.BEGINNER
+        return HandicapCategory.BEGINNER
 
     def get_strength_level(self) -> StrengthLevel:
         """Get the strength level based on handicap."""
         if self.handicap <= 5:
             return StrengthLevel.EXCELLENT
-        elif self.handicap <= 10:
+        if self.handicap <= 10:
             return StrengthLevel.GOOD
-        elif self.handicap <= 15:
+        if self.handicap <= 15:
             return StrengthLevel.AVERAGE
-        elif self.handicap <= 20:
+        if self.handicap <= 20:
             return StrengthLevel.BELOW_AVERAGE
-        else:
-            return StrengthLevel.POOR
+        return StrengthLevel.POOR
 
     def get_expected_drive_distance(self) -> int:
         """Get expected drive distance based on handicap."""
         if self.handicap <= 5:
             return 265
-        elif self.handicap <= 12:
+        if self.handicap <= 12:
             return 245
-        elif self.handicap <= 20:
+        if self.handicap <= 20:
             return 225
-        else:
-            return 200
+        return 200
 
     def get_shot_quality_weights(self) -> list[float]:
         """Get shot quality probability weights based on handicap."""
         if self.handicap <= 5:
             return [0.15, 0.40, 0.30, 0.12, 0.03]  # More excellent/good
-        elif self.handicap <= 12:
+        if self.handicap <= 12:
             return [0.12, 0.38, 0.32, 0.15, 0.03]  # Standard distribution
-        elif self.handicap <= 20:
+        if self.handicap <= 20:
             return [0.08, 0.30, 0.35, 0.20, 0.07]  # More average/poor
-        else:
-            return [0.05, 0.20, 0.35, 0.25, 0.15]  # More poor/terrible
+        return [0.05, 0.20, 0.35, 0.25, 0.15]  # More poor/terrible
 
     def add_points(self, points: int) -> None:
         """Add points to the player's total."""
@@ -130,7 +125,7 @@ class Player:
         """Record a score for a specific hole."""
         self.hole_scores[hole_number] = score
 
-    def get_hole_score(self, hole_number: int) -> Optional[int]:
+    def get_hole_score(self, hole_number: int) -> int | None:
         """Get the score for a specific hole."""
         return self.hole_scores.get(hole_number)
 
@@ -201,7 +196,7 @@ class Player:
         return hash(self.id)
 
     @staticmethod
-    def get_human_player_id(players: List["Player"]) -> str:
+    def get_human_player_id(players: list["Player"]) -> str:
         """
         Get the human player ID from a list of players.
         This is a centralized utility function for human player identification.

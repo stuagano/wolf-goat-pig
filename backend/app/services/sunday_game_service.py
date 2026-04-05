@@ -3,7 +3,6 @@
 import logging
 import os
 from random import Random, SystemRandom
-from typing import Dict, List, Optional
 
 from .team_formation_service import TeamFormationService
 
@@ -12,7 +11,7 @@ logger = logging.getLogger(__name__)
 SUNDAY_GAME_SEED_ENV = "SUNDAY_GAME_RANDOM_SEED"
 
 
-def _resolve_seed(explicit_seed: Optional[int]) -> Optional[int]:
+def _resolve_seed(explicit_seed: int | None) -> int | None:
     """Determine the random seed from an explicit value or environment variable."""
     if explicit_seed is not None:
         return explicit_seed
@@ -32,7 +31,7 @@ def _resolve_seed(explicit_seed: Optional[int]) -> Optional[int]:
         return None
 
 
-def _build_rng(seed: Optional[int], salt: int = 0) -> Random:
+def _build_rng(seed: int | None, salt: int = 0) -> Random:
     """Create a Random instance using the provided seed and optional salt."""
     if seed is None:
         system_seed = SystemRandom().randrange(0, 2**32)
@@ -41,7 +40,7 @@ def _build_rng(seed: Optional[int], salt: int = 0) -> Random:
     return Random(seed + salt)
 
 
-def generate_sunday_pairings(players: List[Dict], *, num_rotations: int = 3, seed: Optional[int] = None) -> Dict:
+def generate_sunday_pairings(players: list[dict], *, num_rotations: int = 3, seed: int | None = None) -> dict:
     """Generate randomized Sunday pairings and select one rotation when multiple exist."""
     if len(players) < 4:
         logger.info("Sunday pairings requested with insufficient players: %s", len(players))

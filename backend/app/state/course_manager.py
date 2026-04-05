@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from sqlalchemy.orm import Session, joinedload
 
@@ -14,11 +14,11 @@ logger = logging.getLogger(__name__)
 class CourseManager:
     """Manages golf course data by interacting directly with the database."""
 
-    selected_course_name: Optional[str] = None
-    selected_course_id: Optional[int] = None
+    selected_course_name: str | None = None
+    selected_course_id: int | None = None
 
     # In-memory cache for the currently selected course
-    _course_cache: Dict[int, Course] = field(default_factory=dict)
+    _course_cache: dict[int, Course] = field(default_factory=dict)
 
     def load_course(self, course_name: str) -> bool:
         """Loads a course from the database and caches it."""
@@ -37,7 +37,7 @@ class CourseManager:
         finally:
             db.close()
 
-    def get_selected_course(self) -> Optional[Course]:
+    def get_selected_course(self) -> Course | None:
         """Returns the currently selected course from the cache."""
         if self.selected_course_id is None:
             return None
@@ -57,7 +57,7 @@ class CourseManager:
         finally:
             db.close()
 
-    def get_courses(self) -> Dict[str, Dict[str, Any]]:
+    def get_courses(self) -> dict[str, dict[str, Any]]:
         """Returns a dict of all courses from the database, keyed by course name."""
         db: Session = SessionLocal()
         try:
@@ -77,7 +77,7 @@ class CourseManager:
         finally:
             db.close()
 
-    def get_course_details(self, course_name: str) -> Optional[Dict[str, Any]]:
+    def get_course_details(self, course_name: str) -> dict[str, Any] | None:
         """Returns detailed information for a specific course, including all holes."""
         db: Session = SessionLocal()
         try:
@@ -107,7 +107,7 @@ class CourseManager:
         finally:
             db.close()
 
-    def create_course(self, course_data: Dict[str, Any]) -> Course:
+    def create_course(self, course_data: dict[str, Any]) -> Course:
         """Creates a new course and its holes in the database."""
         db: Session = SessionLocal()
         try:
@@ -142,14 +142,14 @@ class CourseManager:
         finally:
             db.close()
 
-    def get_hole_pars(self) -> List[int]:
+    def get_hole_pars(self) -> list[int]:
         """Gets the pars for the currently selected course."""
         course = self.get_selected_course()
         if not course:
             return []
         return [h.par for h in sorted(course.holes, key=lambda x: x.hole_number)]
 
-    def get_hole_handicaps(self) -> List[int]:
+    def get_hole_handicaps(self) -> list[int]:
         """Gets the handicaps for the currently selected course."""
         course = self.get_selected_course()
         if not course:

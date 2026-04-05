@@ -2,7 +2,7 @@
 API Routes for Achievement Badge System
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
@@ -11,7 +11,15 @@ from sqlalchemy.orm import Session
 
 from .badge_engine import BadgeEngine
 from .database import get_db
-from .models import Badge, BadgeProgress, BadgeSeries, GamePlayerResult, PlayerBadgeEarned, PlayerProfile, PlayerSeriesProgress
+from .models import (
+    Badge,
+    BadgeProgress,
+    BadgeSeries,
+    GamePlayerResult,
+    PlayerBadgeEarned,
+    PlayerProfile,
+    PlayerSeriesProgress,
+)
 
 router = APIRouter(prefix="/api/badges", tags=["badges"])
 
@@ -30,12 +38,12 @@ class BadgeResponse(BaseModel):
     description: str
     category: str
     rarity: str
-    image_url: Optional[str]
-    max_supply: Optional[int]
+    image_url: str | None
+    max_supply: int | None
     current_supply: int
     points_value: int
-    tier: Optional[int]
-    series_id: Optional[int]
+    tier: int | None
+    series_id: int | None
 
 
 class EarnedBadgeResponse(BaseModel):
@@ -45,7 +53,7 @@ class EarnedBadgeResponse(BaseModel):
     badge: BadgeResponse
     earned_at: str
     serial_number: int
-    game_record_id: Optional[int]
+    game_record_id: int | None
 
 
 class BadgeProgressResponse(BaseModel):
@@ -55,7 +63,7 @@ class BadgeProgressResponse(BaseModel):
     current_progress: int
     target_progress: int
     progress_percentage: float
-    last_progress_date: Optional[str]
+    last_progress_date: str | None
 
 
 class SeriesResponse(BaseModel):
@@ -67,7 +75,7 @@ class SeriesResponse(BaseModel):
     badge_count: int
     badges_earned: int
     is_completed: bool
-    completion_badge: Optional[BadgeResponse]
+    completion_badge: BadgeResponse | None
 
 
 class BadgeLeaderboardEntry(BaseModel):
@@ -82,12 +90,12 @@ class BadgeLeaderboardEntry(BaseModel):
 # ====================================================================================
 
 
-@router.get("/available", response_model=List[BadgeResponse])
+@router.get("/available", response_model=list[BadgeResponse])
 def get_available_badges(
-    category: Optional[str] = None,
-    rarity: Optional[str] = None,
+    category: str | None = None,
+    rarity: str | None = None,
     db: Session = Depends(get_db),
-) -> List[Badge]:
+) -> list[Badge]:
     """
     Get all available badges with optional filtering.
     Query params:
@@ -117,7 +125,7 @@ def get_available_badges(
     return badges  # type: ignore[no-any-return]
 
 
-@router.get("/player/{player_id}/earned", response_model=List[EarnedBadgeResponse])
+@router.get("/player/{player_id}/earned", response_model=list[EarnedBadgeResponse])
 def get_player_earned_badges(player_id: int, showcase_only: bool = False, db: Session = Depends(get_db)) -> Any:
     """
     Get all badges earned by a player.
@@ -140,10 +148,10 @@ def get_player_earned_badges(player_id: int, showcase_only: bool = False, db: Se
     return result
 
 
-@router.get("/player/{player_id}/progress", response_model=List[BadgeProgressResponse])
+@router.get("/player/{player_id}/progress", response_model=list[BadgeProgressResponse])
 def get_player_badge_progress(
     player_id: int, include_completed: bool = False, db: Session = Depends(get_db)
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Get player's progress toward unearned badges.
     - include_completed: Include badges already earned
@@ -184,7 +192,7 @@ def get_player_badge_progress(
 
 
 @router.get("/player/{player_id}/stats")
-def get_player_badge_stats(player_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
+def get_player_badge_stats(player_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
     """Get summary statistics about player's badge collection"""
     earned_count = db.query(PlayerBadgeEarned).filter(PlayerBadgeEarned.player_profile_id == player_id).count()
 
@@ -223,8 +231,8 @@ def get_player_badge_stats(player_id: int, db: Session = Depends(get_db)) -> Dic
 # ====================================================================================
 
 
-@router.get("/series", response_model=List[SeriesResponse])
-def get_badge_series(db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
+@router.get("/series", response_model=list[SeriesResponse])
+def get_badge_series(db: Session = Depends(get_db)) -> list[dict[str, Any]]:
     """Get all badge series/collections"""
     series_list = db.query(BadgeSeries).filter(BadgeSeries.is_active == True).all()
 
@@ -247,8 +255,8 @@ def get_badge_series(db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
     return result
 
 
-@router.get("/series/player/{player_id}", response_model=List[SeriesResponse])
-def get_player_series_progress(player_id: int, db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
+@router.get("/series/player/{player_id}", response_model=list[SeriesResponse])
+def get_player_series_progress(player_id: int, db: Session = Depends(get_db)) -> list[dict[str, Any]]:
     """Get player's progress on all badge series"""
     series_list = db.query(BadgeSeries).filter(BadgeSeries.is_active == True).all()
 
@@ -288,8 +296,8 @@ def get_player_series_progress(player_id: int, db: Session = Depends(get_db)) ->
 # ====================================================================================
 
 
-@router.get("/leaderboard/badge/{badge_id}", response_model=List[BadgeLeaderboardEntry])
-def get_badge_leaderboard(badge_id: int, limit: int = 100, db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
+@router.get("/leaderboard/badge/{badge_id}", response_model=list[BadgeLeaderboardEntry])
+def get_badge_leaderboard(badge_id: int, limit: int = 100, db: Session = Depends(get_db)) -> list[dict[str, Any]]:
     """
     Get leaderboard for a specific badge (who has it, serial numbers).
     Useful for rare badges to see who the elite owners are.
@@ -322,7 +330,7 @@ def get_badge_leaderboard(badge_id: int, limit: int = 100, db: Session = Depends
 
 
 @router.get("/leaderboard/top-collectors")
-def get_top_collectors(limit: int = 50, db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
+def get_top_collectors(limit: int = 50, db: Session = Depends(get_db)) -> list[dict[str, Any]]:
     """Get players with most badges earned"""
     top_collectors = (
         db.query(
@@ -367,8 +375,8 @@ def get_top_collectors(limit: int = 50, db: Session = Depends(get_db)) -> List[D
 
 @router.post("/admin/check-achievements/{player_id}")
 def manually_check_achievements(
-    player_id: int, game_record_id: Optional[int] = None, db: Session = Depends(get_db)
-) -> Dict[str, Any]:
+    player_id: int, game_record_id: int | None = None, db: Session = Depends(get_db)
+) -> dict[str, Any]:
     """
     Trigger badge achievement check for a player.
     If game_record_id is not provided, uses the player's most recent game.
@@ -397,14 +405,16 @@ def manually_check_achievements(
     badges_earned = []
     for b in earned_badges:
         badge = db.query(Badge).filter_by(id=b.badge_id).first()
-        badges_earned.append({
-            "badge_id": b.badge_id,
-            "name": badge.name if badge else "Unknown",
-            "rarity": badge.rarity if badge else "common",
-            "description": badge.description if badge else "",
-            "serial_number": b.serial_number,
-            "earned_at": b.earned_at,
-        })
+        badges_earned.append(
+            {
+                "badge_id": b.badge_id,
+                "name": badge.name if badge else "Unknown",
+                "rarity": badge.rarity if badge else "common",
+                "description": badge.description if badge else "",
+                "serial_number": b.serial_number,
+                "earned_at": b.earned_at,
+            }
+        )
 
     return {
         "message": f"Found {len(badges_earned)} new badges",
@@ -413,7 +423,7 @@ def manually_check_achievements(
 
 
 @router.get("/admin/badge/{badge_id}/holders")
-def get_badge_holders(badge_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
+def get_badge_holders(badge_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
     """Get detailed information about who holds a specific badge"""
     holders = (
         db.query(PlayerBadgeEarned, PlayerProfile.name, PlayerProfile.email)

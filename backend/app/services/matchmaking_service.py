@@ -7,7 +7,6 @@ import logging
 from collections import defaultdict
 from datetime import datetime, time, timedelta
 from itertools import combinations
-from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +15,7 @@ class MatchmakingService:
     """Service for finding compatible 4-player golf groups based on availability."""
 
     @staticmethod
-    def parse_time_string(time_str: Optional[str]) -> Optional[time]:
+    def parse_time_string(time_str: str | None) -> time | None:
         """Convert time string like '9:00 AM' to time object."""
         if not time_str:
             return None
@@ -28,8 +27,8 @@ class MatchmakingService:
 
     @staticmethod
     def get_time_overlap(
-        players_availability: List[Dict],
-    ) -> Optional[Tuple[time, time]]:
+        players_availability: list[dict],
+    ) -> tuple[time, time] | None:
         """
         Find the overlapping time window for a group of players on a specific day.
 
@@ -76,12 +75,12 @@ class MatchmakingService:
 
     @staticmethod
     def find_matches(
-        all_players_availability: List[Dict],
+        all_players_availability: list[dict],
         min_overlap_hours: float = 2.0,
-        preferred_days: Optional[List[int]] = None,
+        preferred_days: list[int] | None = None,
         min_group_size: int = 2,
         max_group_size: int = 4,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         Find all possible golf groups with overlapping availability.
 
@@ -170,14 +169,13 @@ class MatchmakingService:
         # If overlap includes preferred window
         if start <= preferred_start and end >= preferred_end:
             return "9:00 AM"
-        elif start <= time(10, 0) and end >= time(12, 0):
+        if start <= time(10, 0) and end >= time(12, 0):
             return "10:00 AM"
-        else:
-            # Return start of overlap window
-            return start.strftime("%I:%M %p")
+        # Return start of overlap window
+        return start.strftime("%I:%M %p")
 
     @staticmethod
-    def calculate_match_quality(players: List[Dict], duration: float) -> float:
+    def calculate_match_quality(players: list[dict], duration: float) -> float:
         """
         Calculate a quality score for a match based on various factors.
         Higher score = better match.
@@ -206,7 +204,7 @@ class MatchmakingService:
         return score
 
     @staticmethod
-    def create_match_notification(match: Dict) -> Dict:
+    def create_match_notification(match: dict) -> dict:
         """
         Create email notification content for a matched group.
 
@@ -236,11 +234,11 @@ class MatchmakingService:
 Great news! We've found a perfect golf match for your group.
 
 🏌️ **Matched Players:**
-{chr(10).join([f"  • {p['player_name']}" for p in match['players']])}
+{chr(10).join([f"  • {p['player_name']}" for p in match["players"]])}
 
 📅 **Day:** {day_name}
-⏰ **Available Window:** {match['overlap_start']} - {match['overlap_end']}
-🎯 **Suggested Tee Time:** {match['suggested_tee_time']}
+⏰ **Available Window:** {match["overlap_start"]} - {match["overlap_end"]}
+🎯 **Suggested Tee Time:** {match["suggested_tee_time"]}
 
 Everyone in this group is available during this time window. This would be a great opportunity to get together for a round!
 
@@ -260,10 +258,10 @@ Happy golfing! ⛳
 
     @staticmethod
     def filter_recent_matches(
-        matches: List[Dict],
-        recent_match_history: List[Dict],
+        matches: list[dict],
+        recent_match_history: list[dict],
         days_between_matches: int = 3,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         Filter out matches where the exact same group was recently suggested.
 

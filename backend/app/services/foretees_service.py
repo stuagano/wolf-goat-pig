@@ -23,7 +23,7 @@ import re
 import time
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 from urllib.parse import quote
 
 import httpx
@@ -64,7 +64,7 @@ class ForeteesService:
 
     def __init__(self, config: ForeteesConfig) -> None:
         self.config = config
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: httpx.AsyncClient | None = None
         self._last_auth_time: float = 0
 
     async def _get_client(self) -> httpx.AsyncClient:
@@ -145,19 +145,13 @@ class ForeteesService:
             sso_iv = sso_iv_match.group(1)
 
             # Step 3: Hit ForeTees SSO endpoint to establish JSESSIONID
-            sso_url = (
-                f"{self.config.base_url}/Member_select"
-                f"?sso_uid={quote(sso_key)}&sso_iv={quote(sso_iv)}"
-            )
+            sso_url = f"{self.config.base_url}/Member_select?sso_uid={quote(sso_key)}&sso_iv={quote(sso_iv)}"
             sso_resp = await client.get(sso_url)
             sso_resp.raise_for_status()
 
             # Verify we got a JSESSIONID cookie
             try:
-                has_session = any(
-                    "JSESSIONID" in str(cookie.name)
-                    for cookie in client.cookies.jar
-                )
+                has_session = any("JSESSIONID" in str(cookie.name) for cookie in client.cookies.jar)
                 if not has_session:
                     logger.warning("No JSESSIONID cookie received from ForeTees SSO")
                     # Continue anyway - the session might still work
@@ -182,7 +176,7 @@ class ForeteesService:
 
         return False
 
-    async def get_tee_times(self, date: str) -> List[Dict[str, Any]]:
+    async def get_tee_times(self, date: str) -> list[dict[str, Any]]:
         """Get tee times for a given date.
 
         Args:
@@ -228,7 +222,7 @@ class ForeteesService:
 
         return []
 
-    async def get_my_tee_times(self) -> List[Dict[str, Any]]:
+    async def get_my_tee_times(self) -> list[dict[str, Any]]:
         """Get the current member's upcoming tee times."""
         if not await self._ensure_session():
             return []
@@ -245,9 +239,12 @@ class ForeteesService:
             return []
 
     async def book_tee_time(
-        self, ttdata: str, transport_mode: str = "WLK",
-        date: Optional[str] = None, slot_time: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        self,
+        ttdata: str,
+        transport_mode: str = "WLK",
+        date: str | None = None,
+        slot_time: str | None = None,
+    ) -> dict[str, Any]:
         """Book the logged-in member into a tee time slot.
 
         Two-step flow:
@@ -307,7 +304,7 @@ class ForeteesService:
             if teecurr_id and teecurr_id != "0" and id_hash and id_hash != "id_hash":
                 # Legacy path: build form from parsed fields
                 logger.info("Legacy HTML parsing found real fields")
-                form_data: Dict[str, str] = {
+                form_data: dict[str, str] = {
                     "teecurr_id1": teecurr_id,
                     "id_hash": id_hash,
                     "hide": "0",
@@ -353,8 +350,8 @@ class ForeteesService:
                     "X-Requested-With": "XMLHttpRequest",
                     "Referer": f"{self.config.base_url}/Member_slot?ttdata={ttdata}",
                     "Origin": self.config.base_url.rsplit("/", 1)[0]
-                        if "/" in self.config.base_url
-                        else self.config.base_url,
+                    if "/" in self.config.base_url
+                    else self.config.base_url,
                 },
             )
             submit_resp.raise_for_status()
@@ -370,11 +367,7 @@ class ForeteesService:
 
             result = submit_resp.json()
             success = result.get("successful", False)
-            messages = (
-                result.get("message_list", [])
-                + result.get("notice_list", [])
-                + result.get("warning_list", [])
-            )
+            messages = result.get("message_list", []) + result.get("notice_list", []) + result.get("warning_list", [])
             title = result.get("title", "")
 
             if success:
@@ -396,15 +389,21 @@ class ForeteesService:
         return {"success": False, "message": "Booking request failed"}
 
     async def cancel_tee_time(
-        self, date: str, slot_time: str, ttdata: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        self,
+        date: str,
+        slot_time: str,
+        ttdata: str | None = None,
+    ) -> dict[str, Any]:
         """Cancel a tee time via the headless browser microservice."""
         if not await self._ensure_session():
             return {"success": False, "message": "Could not establish ForeTees session"}
 
         if not self.config.username or not self.config.password:
             logger.error("Cancel: no ForeTees credentials configured (username_set=%s)", bool(self.config.username))
-            return {"success": False, "message": "ForeTees credentials not configured — please add them in Account settings"}
+            return {
+                "success": False,
+                "message": "ForeTees credentials not configured — please add them in Account settings",
+            }
 
         booking_url = os.getenv("BOOKING_SERVICE_URL", "http://localhost:3001")
         booking_secret = os.getenv("BOOKING_SERVICE_SECRET", "")
@@ -421,8 +420,14 @@ class ForeteesService:
             "ttdata": ttdata,
         }
 
-        logger.info("Calling booking service: POST %s/cancel date=%s time=%s ttdata_set=%s username_set=%s",
-                    booking_url, date, slot_time, bool(ttdata), bool(self.config.username))
+        logger.info(
+            "Calling booking service: POST %s/cancel date=%s time=%s ttdata_set=%s username_set=%s",
+            booking_url,
+            date,
+            slot_time,
+            bool(ttdata),
+            bool(self.config.username),
+        )
         try:
             async with httpx.AsyncClient(timeout=120.0) as client:
                 # Wake up the booking service
@@ -438,23 +443,30 @@ class ForeteesService:
                 if resp.status_code == 401:
                     return {"success": False, "message": "Booking service auth failed — check BOOKING_SERVICE_SECRET"}
                 if resp.status_code == 503:
-                    return {"success": False, "message": "Booking service is starting up — please wait 30 seconds and try again"}
+                    return {
+                        "success": False,
+                        "message": "Booking service is starting up — please wait 30 seconds and try again",
+                    }
                 ct = resp.headers.get("content-type", "")
                 if "json" not in ct:
                     logger.warning("Cancel service returned non-JSON: %d %s %s", resp.status_code, ct, resp.text[:200])
-                    return {"success": False, "message": f"Booking service unavailable (HTTP {resp.status_code}). Try again in 30 seconds."}
+                    return {
+                        "success": False,
+                        "message": f"Booking service unavailable (HTTP {resp.status_code}). Try again in 30 seconds.",
+                    }
                 result = resp.json()
                 logger.info("Cancel result: success=%s, status=%d", result.get("success"), resp.status_code)
                 return result
         except httpx.TimeoutException:
-            return {"success": False, "message": "Cancel timed out — the service may still be waking up. Wait 30 seconds and try again."}
+            return {
+                "success": False,
+                "message": "Cancel timed out — the service may still be waking up. Wait 30 seconds and try again.",
+            }
         except Exception as exc:
             logger.error("Cancel service error: %s", exc)
             return {"success": False, "message": f"Cancel error: {exc}"}
 
-    async def _book_via_browser(
-        self, date: str, slot_time: str, transport_mode: str
-    ) -> Dict[str, Any]:
+    async def _book_via_browser(self, date: str, slot_time: str, transport_mode: str) -> dict[str, Any]:
         """Book a tee time via the headless browser microservice.
 
         Calls the separate Node.js booking service which uses Playwright
@@ -462,7 +474,10 @@ class ForeteesService:
         """
         if not self.config.username or not self.config.password:
             logger.error("Book: no ForeTees credentials configured (username_set=%s)", bool(self.config.username))
-            return {"success": False, "message": "ForeTees credentials not configured — please add them in Account settings"}
+            return {
+                "success": False,
+                "message": "ForeTees credentials not configured — please add them in Account settings",
+            }
 
         booking_url = os.getenv("BOOKING_SERVICE_URL", "http://localhost:3001")
         booking_secret = os.getenv("BOOKING_SERVICE_SECRET", "")
@@ -479,8 +494,13 @@ class ForeteesService:
             "transport_mode": transport_mode,
         }
 
-        logger.info("Calling booking service: POST %s/book date=%s time=%s username_set=%s",
-                    booking_url, date, slot_time, bool(self.config.username))
+        logger.info(
+            "Calling booking service: POST %s/book date=%s time=%s username_set=%s",
+            booking_url,
+            date,
+            slot_time,
+            bool(self.config.username),
+        )
         try:
             async with httpx.AsyncClient(timeout=120.0) as booking_client:
                 # Wake up the booking service (Render free tier sleeps after inactivity)
@@ -496,11 +516,17 @@ class ForeteesService:
                 if resp.status_code == 401:
                     return {"success": False, "message": "Booking service auth failed — check BOOKING_SERVICE_SECRET"}
                 if resp.status_code == 503:
-                    return {"success": False, "message": "Booking service is starting up — please wait 30 seconds and try again"}
+                    return {
+                        "success": False,
+                        "message": "Booking service is starting up — please wait 30 seconds and try again",
+                    }
                 ct = resp.headers.get("content-type", "")
                 if "json" not in ct:
                     logger.warning("Booking service returned non-JSON: %d %s %s", resp.status_code, ct, resp.text[:200])
-                    return {"success": False, "message": f"Booking service unavailable (HTTP {resp.status_code}). Try again in 30 seconds."}
+                    return {
+                        "success": False,
+                        "message": f"Booking service unavailable (HTTP {resp.status_code}). Try again in 30 seconds.",
+                    }
                 result = resp.json()
                 logger.info(
                     "Booking service result: success=%s, status=%d, error=%s, messages=%s",
@@ -512,7 +538,10 @@ class ForeteesService:
                 return result
         except httpx.TimeoutException:
             logger.error("Booking service timed out")
-            return {"success": False, "message": "Booking timed out — the service may still be waking up. Wait 30 seconds and try again."}
+            return {
+                "success": False,
+                "message": "Booking timed out — the service may still be waking up. Wait 30 seconds and try again.",
+            }
         except Exception as exc:
             logger.error("Booking service error: %s", exc)
             return {"success": False, "message": f"Booking service error: {exc}"}
@@ -527,14 +556,14 @@ class ForeteesService:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _extract_fields_from_json(data: Dict[str, Any]) -> Dict[str, str]:
+    def _extract_fields_from_json(data: dict[str, Any]) -> dict[str, str]:
         """Extract booking form fields from a ForeTees JSON response.
 
         ForeTees v5 may return slot data as JSON (via XHR or json_mode).
         The structure varies but commonly includes teecurr_id, id_hash,
         and player arrays at the top level or nested under a key.
         """
-        fields: Dict[str, str] = {}
+        fields: dict[str, str] = {}
 
         # Flatten: the data might be nested under "slot", "data", etc.
         slot = data
@@ -597,7 +626,7 @@ class ForeteesService:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _parse_slot_form(html_content: str) -> Dict[str, str]:
+    def _parse_slot_form(html_content: str) -> dict[str, str]:
         """Parse Member_slot HTML to extract booking form field values.
 
         ForeTees v5 delivers the booking form as a JS-rendered SPA.
@@ -610,7 +639,7 @@ class ForeteesService:
 
         This method tries both approaches.
         """
-        fields: Dict[str, str] = {}
+        fields: dict[str, str] = {}
 
         # --- Approach 1: Traditional <input> tags (legacy) ---
         name_first = re.compile(
@@ -643,9 +672,9 @@ class ForeteesService:
         # Try multiple regex patterns — attribute order varies
         ftjson_match = None
         for pattern in [
-            r'data-ftjson="([^"]+)"',                          # any element
-            r"data-ftjson='([^']+)'",                          # single quotes
-            r'data-ftjson=([^\s>]+)',                           # unquoted
+            r'data-ftjson="([^"]+)"',  # any element
+            r"data-ftjson='([^']+)'",  # single quotes
+            r"data-ftjson=([^\s>]+)",  # unquoted
         ]:
             ftjson_match = re.search(pattern, html_content, re.IGNORECASE)
             if ftjson_match:
@@ -654,9 +683,9 @@ class ForeteesService:
 
         if not ftjson_match:
             logger.warning(
-                "No data-ftjson found in Member_slot HTML (%d bytes). "
-                "Searched for data-ftjson in %d chars",
-                len(html_content), len(html_content),
+                "No data-ftjson found in Member_slot HTML (%d bytes). Searched for data-ftjson in %d chars",
+                len(html_content),
+                len(html_content),
             )
             # Last resort: look for any large JSON object in the HTML
             # that contains booking-related keys
@@ -689,7 +718,8 @@ class ForeteesService:
                 nested_keys[k] = f"list({len(v)})"
         logger.info(
             "Parsed ftjson: %d total keys, nested: %s",
-            len(ftjson), nested_keys,
+            len(ftjson),
+            nested_keys,
         )
 
         # Search the entire JSON tree for teecurr_id and id_hash values
@@ -750,7 +780,7 @@ class ForeteesService:
         return fields
 
     @staticmethod
-    def _parse_tee_sheet(html_content: str, date: str) -> List[Dict[str, Any]]:
+    def _parse_tee_sheet(html_content: str, date: str) -> list[dict[str, Any]]:
         """Parse the Member_sheet HTML to extract tee time data.
 
         The key data lives in data-ftjson attributes on time slot links:
@@ -759,7 +789,7 @@ class ForeteesService:
         Player transport modes are in sibling divs:
         <div><span>Player Name</span><span>PC</span></div>
         """
-        slots: List[Dict[str, Any]] = []
+        slots: list[dict[str, Any]] = []
 
         # Extract all data-ftjson attributes
         pattern = re.compile(r'data-ftjson="([^"]+)"')
@@ -774,7 +804,7 @@ class ForeteesService:
         rows = row_pattern.findall(html_content)
 
         # Build a map of jump index → transport modes
-        transport_map: Dict[int, List[str]] = {}
+        transport_map: dict[int, list[str]] = {}
         player_transport_pattern = re.compile(
             r'class="rwdTd pgCol">\s*<div>\s*<span>([^<]+)</span>\s*<span>([^<]*)</span>',
         )
@@ -800,7 +830,7 @@ class ForeteesService:
         open_slots_pattern = re.compile(
             r'class="slotCount[^"]*openSlots(\d+)\s+maxPlayers(\d+)"',
         )
-        open_slots_map: Dict[int, Dict[str, int]] = {}
+        open_slots_map: dict[int, dict[str, int]] = {}
         for row_html in rows:
             ftjson_match = pattern.search(row_html)
             if not ftjson_match:
@@ -843,25 +873,27 @@ class ForeteesService:
             max_players = slot_info.get("max_players", 4)
             open_count = max_players - len(players)
 
-            slots.append({
-                "date": date,
-                "time": data.get("time:0", ""),
-                "front_back": "F",  # Default; could parse from sF div
-                "players": players,
-                "open_slots": open_count,
-                "max_players": max_players,
-                "ttdata": data.get("ttdata", ""),
-                "jump": data.get("jump", 0),
-                "p5_allowed": data.get("p5", "No") == "Yes",
-            })
+            slots.append(
+                {
+                    "date": date,
+                    "time": data.get("time:0", ""),
+                    "front_back": "F",  # Default; could parse from sF div
+                    "players": players,
+                    "open_slots": open_count,
+                    "max_players": max_players,
+                    "ttdata": data.get("ttdata", ""),
+                    "jump": data.get("jump", 0),
+                    "p5_allowed": data.get("p5", "No") == "Yes",
+                }
+            )
 
         logger.info("Parsed %d tee time slots for %s", len(slots), date)
         return slots
 
     @staticmethod
-    def _parse_my_tee_times(html_content: str) -> List[Dict[str, Any]]:
+    def _parse_my_tee_times(html_content: str) -> list[dict[str, Any]]:
         """Parse the Member_teelist_list HTML for the user's bookings."""
-        bookings: List[Dict[str, Any]] = []
+        bookings: list[dict[str, Any]] = []
 
         # The tee time list uses data-ftjson attributes similar to the sheet
         pattern = re.compile(r'data-ftjson="([^"]+)"')
@@ -897,14 +929,16 @@ class ForeteesService:
                 or data.get("ft_time")
                 or ""
             )
-            bookings.append({
-                "date": formatted_date,
-                "time": time_val,
-                "course": data.get("course", ""),
-                "type": data.get("type", ""),
-                "ttdata": data.get("ttdata", ""),
-                "raw": data,
-            })
+            bookings.append(
+                {
+                    "date": formatted_date,
+                    "time": time_val,
+                    "course": data.get("course", ""),
+                    "type": data.get("type", ""),
+                    "ttdata": data.get("ttdata", ""),
+                    "raw": data,
+                }
+            )
 
         return bookings
 
@@ -913,7 +947,7 @@ class ForeteesService:
 # Singleton
 # ------------------------------------------------------------------
 
-_foretees_service: Optional[ForeteesService] = None
+_foretees_service: ForeteesService | None = None
 
 
 def get_foretees_service() -> ForeteesService:

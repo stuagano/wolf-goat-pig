@@ -7,7 +7,7 @@ accuracy, position, and strategic implications.
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any
 
 from .player import Player
 from .shot_range_analysis import ShotRangeAnalyzer
@@ -52,16 +52,16 @@ class ShotResult:
     penalty: int = 0
 
     # Optional fields for enhanced shot analysis
-    hole_number: Optional[int] = None
-    shot_number: Optional[int] = None
-    wind_factor: Optional[float] = None
-    pressure_factor: Optional[float] = None
+    hole_number: int | None = None
+    shot_number: int | None = None
+    wind_factor: float | None = None
+    pressure_factor: float | None = None
 
     # Strategic analysis fields
-    _position_quality: Optional[Dict[str, Any]] = None
-    _scoring_probability: Optional[Dict[str, Any]] = None
-    _partnership_value: Optional[Dict[str, Any]] = None
-    _shot_range_analysis: Optional[Dict[str, Any]] = None
+    _position_quality: dict[str, Any] | None = None
+    _scoring_probability: dict[str, Any] | None = None
+    _partnership_value: dict[str, Any] | None = None
+    _shot_range_analysis: dict[str, Any] | None = None
 
     def __post_init__(self):
         """Validate and set default values after initialization."""
@@ -104,28 +104,28 @@ class ShotResult:
         """Get the lie type as an enum."""
         return LieType(self.lie)
 
-    def get_position_quality(self) -> Dict[str, Any]:
+    def get_position_quality(self) -> dict[str, Any]:
         """Assess the quality of the current position."""
         if self._position_quality is None:
             self._calculate_position_quality()
         assert self._position_quality is not None
         return self._position_quality
 
-    def get_scoring_probability(self) -> Dict[str, Any]:
+    def get_scoring_probability(self) -> dict[str, Any]:
         """Calculate scoring probability from this position."""
         if self._scoring_probability is None:
             self._calculate_scoring_probability()
         assert self._scoring_probability is not None
         return self._scoring_probability
 
-    def get_partnership_value(self) -> Dict[str, Any]:
+    def get_partnership_value(self) -> dict[str, Any]:
         """Calculate the strategic value of partnering with this player."""
         if self._partnership_value is None:
             self._calculate_partnership_value()
         assert self._partnership_value is not None
         return self._partnership_value
 
-    def get_shot_range_analysis(self) -> Dict[str, Any]:
+    def get_shot_range_analysis(self) -> dict[str, Any]:
         """Get poker-style range analysis for next shot."""
         if self._shot_range_analysis is None:
             self._calculate_shot_range_analysis()

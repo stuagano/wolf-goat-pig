@@ -11,7 +11,7 @@ import pickle
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -30,7 +30,7 @@ class GmailOAuth2Provider:
     """Provider for sending emails using Gmail API with OAuth2 authentication."""
 
     def __init__(self, from_email: str, from_name: str, data_dir: Path):
-        self.creds: Optional[Credentials] = None
+        self.creds: Credentials | None = None
         self.service = None
         self.from_email = from_email
         self.from_name = from_name
@@ -88,7 +88,7 @@ class GmailOAuth2Provider:
             logger.error(f"Error initializing Gmail service: {e}")
             self.service = None
 
-    def get_auth_url(self, redirect_uri: str) -> Optional[str]:
+    def get_auth_url(self, redirect_uri: str) -> str | None:
         """Generate the OAuth2 authorization URL."""
         if not self.credentials_path.exists():
             logger.error(f"Gmail credentials file not found at {self.credentials_path}.")
@@ -128,7 +128,7 @@ class GmailOAuth2Provider:
         to_email: str,
         subject: str,
         html_body: str,
-        text_body: Optional[str] = None,
+        text_body: str | None = None,
     ) -> bool:
         """Send an email using the Gmail API."""
         if not self.is_configured:
@@ -148,7 +148,7 @@ class GmailOAuth2Provider:
             logger.error(f"An unexpected error occurred: {e}")
             return False
 
-    def _create_message(self, to: str, subject: str, body_html: str, body_text: Optional[str]) -> Dict[str, Any]:
+    def _create_message(self, to: str, subject: str, body_html: str, body_text: str | None) -> dict[str, Any]:
         """Create a MIME message for the Gmail API."""
         message = MIMEMultipart("alternative")
         message["to"] = to
@@ -162,7 +162,7 @@ class GmailOAuth2Provider:
         raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
         return {"raw": raw_message}
 
-    def get_configuration_status(self) -> Dict[str, Any]:
+    def get_configuration_status(self) -> dict[str, Any]:
         """Get the current configuration status of the provider."""
         self.load_credentials()  # Ensure status is up-to-date
         return {
@@ -175,7 +175,7 @@ class GmailOAuth2Provider:
         }
 
 
-def create_gmail_oauth2_provider() -> Optional[GmailOAuth2Provider]:
+def create_gmail_oauth2_provider() -> GmailOAuth2Provider | None:
     """Factory function to create a GmailOAuth2Provider instance."""
     from_email = os.getenv("FROM_EMAIL")
     from_name = os.getenv("FROM_NAME", "Wolf Goat Pig")

@@ -8,7 +8,7 @@ and expected value (EV) calculations.
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class ShotType(Enum):
@@ -73,16 +73,16 @@ class ShotRangeMatrix:
     lie_type: str
     distance_to_pin: float
     player_handicap: float
-    game_situation: Dict[str, Any]
+    game_situation: dict[str, Any]
 
     # Available shot ranges
-    ranges: List[ShotRange] = field(default_factory=list)
+    ranges: list[ShotRange] = field(default_factory=list)
 
     # Optimal range based on game theory
-    gto_range: Optional[ShotRange] = None
+    gto_range: ShotRange | None = None
 
     # Exploitative adjustments
-    exploitative_range: Optional[ShotRange] = None
+    exploitative_range: ShotRange | None = None
 
     def __post_init__(self):
         """Calculate shot ranges on initialization"""
@@ -310,7 +310,7 @@ class ShotRangeMatrix:
             if conservative_ranges:
                 self.exploitative_range = max(conservative_ranges, key=lambda r: r.success_probability)
 
-    def get_recommended_range(self, player_style: RiskProfile) -> Optional[ShotRange]:
+    def get_recommended_range(self, player_style: RiskProfile) -> ShotRange | None:
         """Get recommended shot range based on player style"""
         if not self.ranges:
             return None
@@ -335,7 +335,7 @@ class ShotRangeMatrix:
         # Choose best from valid ranges
         return max(valid_ranges, key=lambda r: r.get_equity_vs_field())
 
-    def get_range_distribution(self) -> Dict[str, float]:
+    def get_range_distribution(self) -> dict[str, float]:
         """Get percentage distribution of shot types (like VPIP)"""
         if not self.ranges:
             return {}
@@ -349,7 +349,7 @@ class ShotRangeMatrix:
 
         return distribution
 
-    def calculate_3bet_range(self) -> List[ShotRange]:
+    def calculate_3bet_range(self) -> list[ShotRange]:
         """Calculate '3-bet' range (ultra-aggressive counter shots)"""
         # Only include high risk/high reward shots
         three_bet_ranges = [r for r in self.ranges if r.risk_factor >= 0.7 and r.fold_equity >= 0.2]
@@ -396,9 +396,9 @@ class ShotRangeAnalyzer:
         lie_type: str,
         distance_to_pin: float,
         player_handicap: float,
-        game_situation: Dict[str, Any],
-        player_style: Optional[RiskProfile] = None,
-    ) -> Dict[str, Any]:
+        game_situation: dict[str, Any],
+        player_style: RiskProfile | None = None,
+    ) -> dict[str, Any]:
         """Perform complete shot range analysis"""
 
         # Create range matrix
@@ -465,7 +465,7 @@ class ShotRangeAnalyzer:
         return analysis
 
     @staticmethod
-    def _determine_player_style(handicap: float, game_situation: Dict) -> RiskProfile:
+    def _determine_player_style(handicap: float, game_situation: dict) -> RiskProfile:
         """Determine player style based on handicap and situation"""
         # Base style on handicap
         if handicap >= 20:
@@ -482,10 +482,9 @@ class ShotRangeAnalyzer:
             # Need to gamble when behind
             if base_style == RiskProfile.NIT:
                 return RiskProfile.TAG
-            elif base_style == RiskProfile.TAG:
+            if base_style == RiskProfile.TAG:
                 return RiskProfile.LAG
-            else:
-                return RiskProfile.MANIAC
+            return RiskProfile.MANIAC
 
         return base_style
 
@@ -503,10 +502,10 @@ class ShotRangeAnalyzer:
     @staticmethod
     def _generate_strategic_advice(
         matrix: ShotRangeMatrix,
-        recommended: Optional[ShotRange],
+        recommended: ShotRange | None,
         player_style: RiskProfile,
-        game_situation: Dict,
-    ) -> List[str]:
+        game_situation: dict,
+    ) -> list[str]:
         """Generate strategic advice for shot selection"""
         advice = []
 
@@ -548,8 +547,8 @@ def analyze_shot_decision(
     hole_number: int,
     team_situation: str = "solo",
     score_differential: int = 0,
-    opponent_styles: Optional[List[str]] = None,
-) -> Dict[str, Any]:
+    opponent_styles: list[str] | None = None,
+) -> dict[str, Any]:
     """Main entry point for shot range analysis"""
 
     # Build game situation context

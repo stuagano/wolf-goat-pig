@@ -5,7 +5,7 @@ Initializes database with all required data for proper simulation bootstrapping.
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, cast
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -150,7 +150,7 @@ def seed_courses(db: Session) -> int:
             db.flush()  # Flush to get the course ID
 
             # Create Hole records for each hole
-            holes_data = cast(List[Dict[str, Any]], course_data["holes_data"])
+            holes_data = cast("list[dict[str, Any]]", course_data["holes_data"])
             for hole_data in holes_data:
                 # Handle both 'handicap' and 'stroke_index' field names
                 handicap_value = hole_data.get("handicap") or hole_data.get("stroke_index")
@@ -255,7 +255,7 @@ def seed_ai_personalities(db: Session) -> int:
     return personalities_added
 
 
-def create_default_human_player(db: Session) -> Optional[PlayerProfile]:
+def create_default_human_player(db: Session) -> PlayerProfile | None:
     """Create a default human player profile if none exists."""
     try:
         # Check if any human players exist
@@ -367,7 +367,7 @@ def verify_seeded_data(db: Session) -> dict:
         logger.error(f"Error verifying seeded data: {e}")
         verification_results["overall"] = {
             "status": "error",
-            "message": f"Verification failed: {str(e)}",
+            "message": f"Verification failed: {e!s}",
         }
 
     return verification_results
@@ -392,7 +392,7 @@ def seed_all_data(force_reseed: bool = False) -> dict:
         logger.error(f"Failed to initialize database: {e}")
         return {
             "status": "error",
-            "message": f"Database initialization failed: {str(e)}",
+            "message": f"Database initialization failed: {e!s}",
         }
 
     db = SessionLocal()
@@ -412,7 +412,7 @@ def seed_all_data(force_reseed: bool = False) -> dict:
         # Seed courses
         logger.info("Seeding courses...")
         courses_added = seed_courses(db)
-        results_dict = cast(Dict[str, Any], seeding_results["results"])
+        results_dict = cast("dict[str, Any]", seeding_results["results"])
         results_dict["courses"] = {"added": courses_added, "status": "success"}
 
         # Fix Wing Point course data if it exists with wrong par values
@@ -477,7 +477,7 @@ def seed_all_data(force_reseed: bool = False) -> dict:
         logger.error(f"Critical error during data seeding: {e}")
         seeding_results = {
             "status": "error",
-            "message": f"Seeding failed: {str(e)}",
+            "message": f"Seeding failed: {e!s}",
             "timestamp": datetime.now().isoformat(),
             "results": {},
         }
@@ -509,7 +509,7 @@ def get_seeding_status() -> dict:
         logger.error(f"Error checking seeding status: {e}")
         return {
             "status": "error",
-            "message": f"Status check failed: {str(e)}",
+            "message": f"Status check failed: {e!s}",
             "timestamp": datetime.now().isoformat(),
         }
 

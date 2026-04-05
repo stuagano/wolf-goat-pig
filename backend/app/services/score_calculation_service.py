@@ -13,7 +13,7 @@ This service provides a single source of truth for all scoring calculations.
 import logging
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger("app.services.score_calculation")
 
@@ -30,15 +30,15 @@ class TeamType(Enum):
 class HoleResult:
     """Result of a hole calculation."""
 
-    points_changes: Dict[str, int]
-    winners: List[str]
-    losers: List[str]
+    points_changes: dict[str, int]
+    winners: list[str]
+    losers: list[str]
     message: str
     halved: bool
     team_type: TeamType
     wager: int
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API responses."""
         return {
             "points_changes": self.points_changes,
@@ -56,10 +56,10 @@ class TeamConfig:
     """Configuration for team-based scoring."""
 
     team_type: TeamType
-    team1: Optional[List[str]] = None
-    team2: Optional[List[str]] = None
-    solo_player: Optional[str] = None
-    opponents: Optional[List[str]] = None
+    team1: list[str] | None = None
+    team2: list[str] | None = None
+    solo_player: str | None = None
+    opponents: list[str] | None = None
 
     def __post_init__(self) -> None:
         if self.team1 is None:
@@ -137,7 +137,7 @@ class ScoreCalculationService:
         logger.debug(f"Net score: gross={gross_score}, strokes={handicap_strokes}, net={net_score}")
         return net_score
 
-    def calculate_team_best_ball(self, scores: List[int]) -> int:
+    def calculate_team_best_ball(self, scores: list[int]) -> int:
         """
         Calculate best ball score for a team.
 
@@ -170,11 +170,11 @@ class ScoreCalculationService:
 
     def calculate_hole_points(
         self,
-        scores: Dict[str, int],
+        scores: dict[str, int],
         team_config: TeamConfig,
         wager: int = 1,
         apply_special_rules: bool = False,
-        special_rules: Optional[Dict[str, bool]] = None,
+        special_rules: dict[str, bool] | None = None,
     ) -> HoleResult:
         """
         Calculate points for a hole based on scores and team configuration.
@@ -225,7 +225,7 @@ class ScoreCalculationService:
         return result
 
     def _calculate_partners_points(
-        self, scores: Dict[str, int], team1: List[str], team2: List[str], wager: int
+        self, scores: dict[str, int], team1: list[str], team2: list[str], wager: int
     ) -> HoleResult:
         """
         Calculate points for partners (2v2) format.
@@ -256,7 +256,7 @@ class ScoreCalculationService:
 
         # Initialize all players to 0
         all_players = set(team1) | set(team2)
-        points_changes = {pid: 0 for pid in all_players}
+        points_changes = dict.fromkeys(all_players, 0)
 
         if team1_score < team2_score:
             # Team 1 wins
@@ -298,7 +298,7 @@ class ScoreCalculationService:
         )
 
     def _calculate_solo_points(
-        self, scores: Dict[str, int], solo_player: str, opponents: List[str], wager: int
+        self, scores: dict[str, int], solo_player: str, opponents: list[str], wager: int
     ) -> HoleResult:
         """
         Calculate points for solo (1 vs all) format.
@@ -329,7 +329,7 @@ class ScoreCalculationService:
 
         # Initialize points
         all_players = {solo_player} | set(opponents)
-        points_changes = {pid: 0 for pid in all_players}
+        points_changes = dict.fromkeys(all_players, 0)
 
         if solo_score < best_opponent_score:
             # Solo player wins - collects from all opponents
@@ -368,7 +368,7 @@ class ScoreCalculationService:
             wager=wager,
         )
 
-    def _calculate_all_vs_all_points(self, scores: Dict[str, int], wager: int) -> HoleResult:
+    def _calculate_all_vs_all_points(self, scores: dict[str, int], wager: int) -> HoleResult:
         """
         Calculate points for all vs all (skins-like) format.
 
@@ -389,7 +389,7 @@ class ScoreCalculationService:
         winners = [pid for pid, score in scores.items() if score == best_score]
         losers = [pid for pid in scores if pid not in winners]
 
-        points_changes = {pid: 0 for pid in scores}
+        points_changes = dict.fromkeys(scores, 0)
 
         if len(winners) == 1:
             # Single winner takes from all
@@ -418,7 +418,7 @@ class ScoreCalculationService:
     # Special Rules
     # =========================================================================
 
-    def _apply_special_rules(self, result: HoleResult, special_rules: Dict[str, bool]) -> HoleResult:
+    def _apply_special_rules(self, result: HoleResult, special_rules: dict[str, bool]) -> HoleResult:
         """
         Apply special rule multipliers to hole result.
 
@@ -460,11 +460,11 @@ class ScoreCalculationService:
 
     def apply_karl_marx_rule(
         self,
-        winners: List[str],
-        losers: List[str],
+        winners: list[str],
+        losers: list[str],
         wager: int,
-        current_standings: Dict[str, int],
-    ) -> Dict[str, int]:
+        current_standings: dict[str, int],
+    ) -> dict[str, int]:
         """
         Apply Karl Marx rule for point distribution.
 
@@ -482,7 +482,7 @@ class ScoreCalculationService:
             Adjusted points changes
         """
         if not winners or not losers:
-            return {pid: 0 for pid in set(winners) | set(losers)}
+            return dict.fromkeys(set(winners) | set(losers), 0)
 
         points_changes = {}
 
@@ -513,11 +513,11 @@ class ScoreCalculationService:
 
     def compare_scores(
         self,
-        scores: Dict[str, int],
+        scores: dict[str, int],
         use_net: bool = True,
-        handicaps: Optional[Dict[str, float]] = None,
+        handicaps: dict[str, float] | None = None,
         hole_handicap_index: int = 9,
-    ) -> Tuple[List[str], int]:
+    ) -> tuple[list[str], int]:
         """
         Compare scores and determine winner(s).
 
@@ -565,7 +565,7 @@ class ScoreCalculationService:
 
         return full_strokes
 
-    def calculate_final_standings(self, hole_results: List[HoleResult]) -> Dict[str, int]:
+    def calculate_final_standings(self, hole_results: list[HoleResult]) -> dict[str, int]:
         """
         Calculate final standings from a list of hole results.
 
@@ -575,7 +575,7 @@ class ScoreCalculationService:
         Returns:
             Dict of player ID to total points
         """
-        standings: Dict[str, int] = {}
+        standings: dict[str, int] = {}
 
         for result in hole_results:
             for pid, points in result.points_changes.items():
@@ -585,7 +585,7 @@ class ScoreCalculationService:
 
 
 # Singleton instance for convenience
-_service_instance: Optional[ScoreCalculationService] = None
+_service_instance: ScoreCalculationService | None = None
 
 
 def get_score_calculation_service() -> ScoreCalculationService:

@@ -8,7 +8,7 @@ physical Wolf Goat Pig scorecard. Circles = negative values.
 import json
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ Only include holes you can actually read. Omit holes that are completely unreada
 """
 
 
-def _compute_per_hole_deltas(running_totals_for_player: List[Dict]) -> List[Dict]:
+def _compute_per_hole_deltas(running_totals_for_player: list[dict]) -> list[dict]:
     """Convert running totals to per-hole deltas. Hole 1 delta = value itself (starting from 0)."""
     sorted_holes = sorted(running_totals_for_player, key=lambda x: x["hole"])
     deltas = []
@@ -57,7 +57,7 @@ def _compute_per_hole_deltas(running_totals_for_player: List[Dict]) -> List[Dict
     return deltas
 
 
-async def scan_scorecard(image_bytes: bytes, content_type: str) -> Dict[str, Any]:
+async def scan_scorecard(image_bytes: bytes, content_type: str) -> dict[str, Any]:
     """
     Send scorecard image to Gemini Vision and return extracted running totals
     plus computed per-hole quarter deltas.
@@ -68,6 +68,7 @@ async def scan_scorecard(image_bytes: bytes, content_type: str) -> Dict[str, Any
 
     try:
         import google.generativeai as genai
+
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel("gemini-2.0-flash")
 
@@ -99,7 +100,7 @@ async def scan_scorecard(image_bytes: bytes, content_type: str) -> Dict[str, Any
             entry["value"] = -abs(entry["value"])
 
     # Group running totals by player_index
-    by_player: Dict[int, List] = {}
+    by_player: dict[int, list] = {}
     for entry in raw_totals:
         pi = entry["player_index"]
         by_player.setdefault(pi, []).append(entry)
@@ -109,11 +110,13 @@ async def scan_scorecard(image_bytes: bytes, content_type: str) -> Dict[str, Any
     for player_index, totals in by_player.items():
         deltas = _compute_per_hole_deltas(totals)
         for d in deltas:
-            per_hole_quarters.append({
-                "player_index": player_index,
-                "hole": d["hole"],
-                "quarters": d["quarters"],
-            })
+            per_hole_quarters.append(
+                {
+                    "player_index": player_index,
+                    "hole": d["hole"],
+                    "quarters": d["quarters"],
+                }
+            )
 
     return {
         "players": players,

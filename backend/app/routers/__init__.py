@@ -7,4 +7,4 @@ into logical, maintainable components.
 
 from . import courses, health, players, sheet_integration
 
-__all__ = ["sheet_integration", "health", "players", "courses"]
+__all__ = ["courses", "health", "players", "sheet_integration"]

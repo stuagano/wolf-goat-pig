@@ -8,7 +8,7 @@ These endpoints allow admins to:
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -42,8 +42,8 @@ class SyncRoundRequest(BaseModel):
     date: str = Field(..., description="Date in YYYY-MM-DD format")
     group: str = Field("A", description="Group letter (A, B, C, D)")
     location: str = Field("Wing Point", description="Course name")
-    duration: Optional[str] = Field(None, description="Duration in HH:MM:SS format")
-    player_scores: List[PlayerScoreInput] = Field(..., description="List of player scores")
+    duration: str | None = Field(None, description="Duration in HH:MM:SS format")
+    player_scores: list[PlayerScoreInput] = Field(..., description="List of player scores")
 
 
 class LeaderboardEntry(BaseModel):
@@ -65,10 +65,10 @@ class RoundResultResponse(BaseModel):
     member: str
     score: int
     location: str
-    duration: Optional[str] = None
+    duration: str | None = None
 
 
-@router.get("/leaderboard", response_model=List[LeaderboardEntry])
+@router.get("/leaderboard", response_model=list[LeaderboardEntry])
 def get_spreadsheet_leaderboard():
     """Get the current leaderboard from the Google Sheet."""
     try:
@@ -77,10 +77,10 @@ def get_spreadsheet_leaderboard():
         return leaderboard
     except Exception as e:
         logger.error(f"Failed to fetch leaderboard: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch leaderboard: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch leaderboard: {e!s}")
 
 
-@router.get("/rounds", response_model=List[RoundResultResponse])
+@router.get("/rounds", response_model=list[RoundResultResponse])
 def get_all_rounds(
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of results"),
 ) -> Any:
@@ -103,10 +103,10 @@ def get_all_rounds(
         ]
     except Exception as e:
         logger.error(f"Failed to fetch rounds: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch rounds: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch rounds: {e!s}")
 
 
-@router.get("/rounds/by-date/{date}", response_model=List[Dict[str, Any]])
+@router.get("/rounds/by-date/{date}", response_model=list[dict[str, Any]])
 def get_rounds_by_date(date: str) -> Any:
     """Get all rounds for a specific date.
 
@@ -130,10 +130,10 @@ def get_rounds_by_date(date: str) -> Any:
         ]
     except Exception as e:
         logger.error(f"Failed to fetch rounds for {date}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch rounds: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch rounds: {e!s}")
 
 
-@router.get("/player/{member_name}", response_model=List[RoundResultResponse])
+@router.get("/player/{member_name}", response_model=list[RoundResultResponse])
 def get_player_history(member_name: str) -> Any:
     """Get all rounds for a specific player."""
     try:
@@ -153,7 +153,7 @@ def get_player_history(member_name: str) -> Any:
         ]
     except Exception as e:
         logger.error(f"Failed to fetch player history for {member_name}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch player history: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch player history: {e!s}")
 
 
 @router.post("/sync-round")
@@ -199,14 +199,13 @@ def sync_round_to_spreadsheet(request: SyncRoundRequest) -> Any:
                 "group": request.group,
                 "players": list(player_scores.keys()),
             }
-        else:
-            raise HTTPException(status_code=500, detail="Failed to sync to spreadsheet")
+        raise HTTPException(status_code=500, detail="Failed to sync to spreadsheet")
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to sync round: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to sync round: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to sync round: {e!s}")
 
 
 @router.get("/config")
@@ -276,7 +275,7 @@ def get_reconciliation_status():
         return service.get_sync_status()
     except Exception as e:
         logger.error(f"Failed to get reconciliation status: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get status: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get status: {e!s}")
 
 
 @router.post("/reconcile/primary-to-writable")
@@ -295,7 +294,7 @@ def sync_primary_to_writable(dry_run: bool = Query(True, description="Preview ch
         return service.sync_primary_to_writable(dry_run=dry_run)
     except Exception as e:
         logger.error(f"Failed to sync primary to writable: {e}")
-        raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Sync failed: {e!s}")
 
 
 @router.post("/reconcile/writable-to-primary")
@@ -316,7 +315,7 @@ def sync_writable_to_primary(dry_run: bool = Query(True, description="Preview ch
         return service.sync_writable_to_primary(dry_run=dry_run)
     except Exception as e:
         logger.error(f"Failed to sync writable to primary: {e}")
-        raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Sync failed: {e!s}")
 
 
 @router.get("/reconcile/diff")
@@ -361,4 +360,4 @@ def get_reconciliation_diff():
         }
     except Exception as e:
         logger.error(f"Failed to get reconciliation diff: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get diff: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get diff: {e!s}")

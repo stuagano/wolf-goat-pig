@@ -7,7 +7,6 @@ Designed to run as a Saturday afternoon cron job.
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
 
 from sqlalchemy.orm import Session
 
@@ -25,7 +24,7 @@ class PairingSchedulerService:
     """Service for generating and distributing Sunday game pairings."""
 
     @staticmethod
-    def get_next_sunday(from_date: Optional[datetime] = None) -> str:
+    def get_next_sunday(from_date: datetime | None = None) -> str:
         """Get the next Sunday's date in YYYY-MM-DD format.
 
         If from_date is already Sunday, returns that Sunday.
@@ -41,19 +40,19 @@ class PairingSchedulerService:
         return next_sunday.strftime("%Y-%m-%d")
 
     @staticmethod
-    def get_signups_for_date(db: Session, game_date: str) -> List[DailySignup]:
+    def get_signups_for_date(db: Session, game_date: str) -> list[DailySignup]:
         """Get all active signups for a specific date."""
         return (
             db.query(DailySignup).filter(DailySignup.date == game_date).filter(DailySignup.status == "signed_up").all()
         )
 
     @staticmethod
-    def get_existing_pairing(db: Session, game_date: str) -> Optional[GeneratedPairing]:
+    def get_existing_pairing(db: Session, game_date: str) -> GeneratedPairing | None:
         """Check if pairings already exist for a date."""
         return db.query(GeneratedPairing).filter(GeneratedPairing.game_date == game_date).first()
 
     @staticmethod
-    def build_player_list(db: Session, signups: List[DailySignup]) -> List[Dict]:
+    def build_player_list(db: Session, signups: list[DailySignup]) -> list[dict]:
         """Convert signups to player dicts with handicap info."""
         players = []
         for signup in signups:
@@ -79,7 +78,7 @@ class PairingSchedulerService:
         game_date: str,
         generated_by: str = "scheduler",
         force_regenerate: bool = False,
-    ) -> Tuple[Optional[GeneratedPairing], str]:
+    ) -> tuple[GeneratedPairing | None, str]:
         """Generate random pairings for a game date.
 
         Args:
@@ -164,7 +163,7 @@ class PairingSchedulerService:
         return pairing, f"Generated {len(teams)} teams from {len(players)} players"
 
     @staticmethod
-    def find_player_team(player_name: str, teams: List[Dict]) -> Optional[int]:
+    def find_player_team(player_name: str, teams: list[dict]) -> int | None:
         """Find which team (1-indexed) a player is in."""
         for i, team in enumerate(teams, 1):
             team_players = team.get("players", [])
@@ -174,7 +173,7 @@ class PairingSchedulerService:
         return None
 
     @staticmethod
-    def send_pairing_notifications(db: Session, pairing: GeneratedPairing) -> Tuple[int, int]:
+    def send_pairing_notifications(db: Session, pairing: GeneratedPairing) -> tuple[int, int]:
         """Send email notifications to all signed-up players and the golf course.
 
         Returns:
@@ -257,7 +256,7 @@ class PairingSchedulerService:
         return emails_sent, emails_failed
 
     @staticmethod
-    def run_saturday_job(db: Session) -> Dict:
+    def run_saturday_job(db: Session) -> dict:
         """Run the Saturday afternoon pairing job.
 
         Generates pairings for the next Sunday and sends notifications.

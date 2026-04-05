@@ -20,8 +20,8 @@ Notification types supported:
 """
 
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -77,8 +77,8 @@ class NotificationService:
         notification_type: str,
         message: str,
         db: Session,
-        data: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        data: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         Send a notification to a specific player.
 
@@ -112,7 +112,7 @@ class NotificationService:
             ]
 
             if notification_type not in valid_types:
-                logger.warning(f"Unknown notification type '{notification_type}', " f"proceeding anyway")
+                logger.warning(f"Unknown notification type '{notification_type}', proceeding anyway")
 
             # Create notification record
             notification = Notification(
@@ -121,14 +121,14 @@ class NotificationService:
                 message=message,
                 data=data or {},
                 is_read=False,
-                created_at=datetime.now(timezone.utc).isoformat(),
+                created_at=datetime.now(UTC).isoformat(),
             )
 
             db.add(notification)
             db.commit()
             db.refresh(notification)
 
-            logger.info(f"Sent {notification_type} notification to player {player_id}: " f"'{message}'")
+            logger.info(f"Sent {notification_type} notification to player {player_id}: '{message}'")
 
             return {
                 "id": notification.id,
@@ -143,15 +143,15 @@ class NotificationService:
         except Exception as e:
             db.rollback()
             logger.error(f"Error sending notification to player {player_id}: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to send notification: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to send notification: {e!s}")
 
     def get_player_notifications(
         self,
         player_id: int,
         db: Session,
         unread_only: bool = False,
-        limit: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Get all notifications for a specific player.
 
@@ -202,17 +202,15 @@ class NotificationService:
                     }
                 )
 
-            logger.debug(
-                f"Retrieved {len(result)} notifications for player {player_id} " f"(unread_only={unread_only})"
-            )
+            logger.debug(f"Retrieved {len(result)} notifications for player {player_id} (unread_only={unread_only})")
 
             return result
 
         except Exception as e:
             logger.error(f"Error retrieving notifications for player {player_id}: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to retrieve notifications: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to retrieve notifications: {e!s}")
 
-    def mark_as_read(self, notification_id: int, db: Session) -> Dict[str, Any]:
+    def mark_as_read(self, notification_id: int, db: Session) -> dict[str, Any]:
         """
         Mark a specific notification as read.
 
@@ -238,7 +236,7 @@ class NotificationService:
                 raise HTTPException(status_code=404, detail=f"Notification {notification_id} not found")
 
             # Update read status
-            setattr(notification, "is_read", True)
+            notification.is_read = True
             db.commit()
             db.refresh(notification)
 
@@ -259,7 +257,7 @@ class NotificationService:
         except Exception as e:
             db.rollback()
             logger.error(f"Error marking notification {notification_id} as read: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to mark notification as read: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to mark notification as read: {e!s}")
 
     def mark_all_as_read(self, player_id: int, db: Session) -> int:
         """
@@ -294,7 +292,7 @@ class NotificationService:
 
             # Mark all as read
             for notification in unread_notifications:
-                setattr(notification, "is_read", True)
+                notification.is_read = True
 
             db.commit()
 
@@ -307,10 +305,10 @@ class NotificationService:
             logger.error(f"Error marking all notifications as read for player {player_id}: {e}")
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to mark all notifications as read: {str(e)}",
+                detail=f"Failed to mark all notifications as read: {e!s}",
             )
 
-    def delete_notification(self, notification_id: int, db: Session) -> Dict[str, str]:
+    def delete_notification(self, notification_id: int, db: Session) -> dict[str, str]:
         """
         Delete a specific notification.
 
@@ -349,7 +347,7 @@ class NotificationService:
         except Exception as e:
             db.rollback()
             logger.error(f"Error deleting notification {notification_id}: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to delete notification: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to delete notification: {e!s}")
 
     def get_unread_count(self, player_id: int, db: Session) -> int:
         """
@@ -387,7 +385,7 @@ class NotificationService:
             logger.error(f"Error getting unread count for player {player_id}: {e}")
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to get unread notification count: {str(e)}",
+                detail=f"Failed to get unread notification count: {e!s}",
             )
 
     def broadcast_to_game(
@@ -396,7 +394,7 @@ class NotificationService:
         notification_type: str,
         message: str,
         db: Session,
-        data: Optional[Dict[str, Any]] = None,
+        data: dict[str, Any] | None = None,
     ) -> int:
         """
         Broadcast a notification to all players in a game.
@@ -444,19 +442,17 @@ class NotificationService:
                         )
                         notification_count += 1
                     except Exception as e:
-                        logger.error(f"Error sending notification to player " f"{game_player.player_profile_id}: {e}")
+                        logger.error(f"Error sending notification to player {game_player.player_profile_id}: {e}")
                         # Continue with other players even if one fails
                         continue
 
-            logger.info(
-                f"Broadcast {notification_type} notification to {notification_count} " f"players in game {game_id}"
-            )
+            logger.info(f"Broadcast {notification_type} notification to {notification_count} players in game {game_id}")
 
             return notification_count
 
         except Exception as e:
             logger.error(f"Error broadcasting to game {game_id}: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to broadcast notification: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to broadcast notification: {e!s}")
 
     # ====================================================================================
     # UTILITY METHODS
@@ -483,7 +479,7 @@ class NotificationService:
         """
         try:
             # Calculate cutoff date
-            cutoff_date = (datetime.now(timezone.utc) - timedelta(days=days_old)).isoformat()
+            cutoff_date = (datetime.now(UTC) - timedelta(days=days_old)).isoformat()
 
             # Get old notifications
             old_notifications = (
@@ -503,16 +499,16 @@ class NotificationService:
 
             db.commit()
 
-            logger.info(f"Deleted {count} notifications older than {days_old} days " f"for player {player_id}")
+            logger.info(f"Deleted {count} notifications older than {days_old} days for player {player_id}")
 
             return count
 
         except Exception as e:
             db.rollback()
             logger.error(f"Error deleting old notifications for player {player_id}: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to delete old notifications: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to delete old notifications: {e!s}")
 
-    def get_notification_by_id(self, notification_id: int, db: Session) -> Optional[Dict[str, Any]]:
+    def get_notification_by_id(self, notification_id: int, db: Session) -> dict[str, Any] | None:
         """
         Get a specific notification by ID.
 
@@ -547,7 +543,7 @@ class NotificationService:
 
         except Exception as e:
             logger.error(f"Error getting notification {notification_id}: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to get notification: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to get notification: {e!s}")
 
 
 # ====================================================================================

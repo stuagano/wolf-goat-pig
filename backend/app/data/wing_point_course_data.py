@@ -4,9 +4,9 @@ Official Course Data
 Est. 1903
 """
 
-from typing import Any, Dict
+from typing import Any
 
-WING_POINT_COURSE_DATA: Dict[str, Any] = {
+WING_POINT_COURSE_DATA: dict[str, Any] = {
     "name": "Wing Point Golf & Country Club",
     "established": 1903,
     "location": "Bainbridge Island, WA",
@@ -230,8 +230,7 @@ def get_nine_hole_par(front: bool = True) -> int:
     holes = WING_POINT_COURSE_DATA["holes"]
     if front:
         return sum(h["par"] for h in holes[:9])
-    else:
-        return sum(h["par"] for h in holes[9:])
+    return sum(h["par"] for h in holes[9:])
 
 
 def get_total_yards(tee_box: str = "white") -> int:
@@ -248,9 +247,9 @@ def is_hoepfinger_hole(hole_number: int, game_type: str = "4_man") -> bool:
     """Check if hole is in Hoepfinger phase"""
     if game_type == "4_man":
         return hole_number >= 17
-    elif game_type == "5_man":
+    if game_type == "5_man":
         return hole_number >= 16
-    elif game_type == "6_man":
+    if game_type == "6_man":
         return hole_number >= 13
     return False
 
@@ -261,9 +260,8 @@ def get_strategic_value(hole_number: int) -> str:
 
     if hole_number in WING_POINT_COURSE_DATA["wgp_specific"]["risk_reward_holes"]:
         return "HIGH_RISK_REWARD"
-    elif hole["handicap_men"] <= 4:
+    if hole["handicap_men"] <= 4:
         return "PLAY_SAFE"
-    elif hole["handicap_men"] >= 15:
+    if hole["handicap_men"] >= 15:
         return "ATTACK"
-    else:
-        return "STANDARD"
+    return "STANDARD"

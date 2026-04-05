@@ -3,7 +3,7 @@ import random
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, cast
 
 from .mixins import PersistenceMixin
 from .state.course_manager import get_course_manager
@@ -45,9 +45,9 @@ class TimelineEvent:
     timestamp: datetime
     type: str  # "shot", "partnership_request", "partnership_response", "double_offer", "double_response", "hole_start", "hole_complete"
     description: str
-    details: Dict[str, Any] = field(default_factory=dict)
-    player_id: Optional[str] = None
-    player_name: Optional[str] = None
+    details: dict[str, Any] = field(default_factory=dict)
+    player_id: str | None = None
+    player_name: str | None = None
 
 
 @dataclass
@@ -60,7 +60,7 @@ class Player:
     points: int = 0  # Current points (quarters)
     float_used: int = 0  # Number of times float has been used
     solo_count: int = 0  # Number of times gone solo (4-man requirement)
-    goat_position_history: List[int] = field(default_factory=list)  # Track Hoepfinger position choices
+    goat_position_history: list[int] = field(default_factory=list)  # Track Hoepfinger position choices
 
     def __post_init__(self):
         """Ensure all attributes are properly initialized"""
@@ -78,14 +78,14 @@ class TeamFormation:
     """Represents team formations for a hole"""
 
     type: str  # "partners", "solo", "aardvark_choice", "pending"
-    captain: Optional[str] = None
-    second_captain: Optional[str] = None  # 6-man game
-    team1: List[str] = field(default_factory=list)
-    team2: List[str] = field(default_factory=list)
-    team3: List[str] = field(default_factory=list)  # 6-man game
-    solo_player: Optional[str] = None
-    opponents: List[str] = field(default_factory=list)
-    pending_request: Optional[Dict] = None
+    captain: str | None = None
+    second_captain: str | None = None  # 6-man game
+    team1: list[str] = field(default_factory=list)
+    team2: list[str] = field(default_factory=list)
+    team3: list[str] = field(default_factory=list)  # 6-man game
+    solo_player: str | None = None
+    opponents: list[str] = field(default_factory=list)
+    pending_request: dict | None = None
 
 
 @dataclass
@@ -102,11 +102,11 @@ class BettingState:
     duncan_invoked: bool = False  # The Duncan (captain goes solo)
     tunkarri_invoked: bool = False  # The Tunkarri (aardvark goes solo)
     big_dick_invoked: bool = False  # The Big Dick (18th hole special)
-    joes_special_value: Optional[int] = None  # Hoepfinger hole value
-    ackerley_gambit: Optional[Dict] = None  # Player opt-in/out situations
-    line_of_scrimmage: Optional[str] = None  # Player furthest from hole
-    doubles_history: List[Dict] = field(default_factory=list)  # Track double offers
-    tossed_aardvarks: List[str] = field(default_factory=list)  # Track tossed aardvarks
+    joes_special_value: int | None = None  # Hoepfinger hole value
+    ackerley_gambit: dict | None = None  # Player opt-in/out situations
+    line_of_scrimmage: str | None = None  # Player furthest from hole
+    doubles_history: list[dict] = field(default_factory=list)  # Track double offers
+    tossed_aardvarks: list[str] = field(default_factory=list)  # Track tossed aardvarks
     ping_pong_count: int = 0  # Ping pong counter
 
 
@@ -130,8 +130,8 @@ class StrokeAdvantage:
     player_id: str
     handicap: float
     strokes_received: float  # Number of strokes received on this hole (can be 0.5 for half strokes)
-    net_score: Optional[float] = None  # Gross score minus strokes received
-    stroke_index: Optional[int] = None  # Hole's stroke index (1-18)
+    net_score: float | None = None  # Gross score minus strokes received
+    stroke_index: int | None = None  # Hole's stroke index (1-18)
 
 
 @dataclass
@@ -139,29 +139,29 @@ class HoleState:
     """Complete state for a single hole with comprehensive shot-by-shot tracking"""
 
     hole_number: int
-    hitting_order: List[str]
+    hitting_order: list[str]
     teams: TeamFormation
     betting: BettingState
 
     # Shot-by-shot state tracking
-    ball_positions: Dict[str, BallPosition] = field(default_factory=dict)
-    current_order_of_play: List[str] = field(default_factory=list)  # Based on distance from hole
-    line_of_scrimmage: Optional[str] = None  # Player furthest from hole
-    next_player_to_hit: Optional[str] = None
+    ball_positions: dict[str, BallPosition] = field(default_factory=dict)
+    current_order_of_play: list[str] = field(default_factory=list)  # Based on distance from hole
+    line_of_scrimmage: str | None = None  # Player furthest from hole
+    next_player_to_hit: str | None = None
 
     # Handicap stroke tracking
-    stroke_advantages: Dict[str, StrokeAdvantage] = field(default_factory=dict)
+    stroke_advantages: dict[str, StrokeAdvantage] = field(default_factory=dict)
     hole_par: int = 4  # Default par, can be overridden
     stroke_index: int = 10  # Default stroke index, can be overridden
     hole_yardage: int = 400  # Default yardage
     hole_difficulty: str = "Medium"  # Easy, Medium, Hard, Very Hard
 
     # Hole completion tracking
-    scores: Dict[str, Optional[int]] = field(default_factory=dict)
-    shots_completed: Dict[str, bool] = field(default_factory=dict)
-    balls_in_hole: List[str] = field(default_factory=list)  # Players who holed out
-    concessions: Dict[str, str] = field(default_factory=dict)  # "good but not in"
-    points_awarded: Dict[str, int] = field(default_factory=dict)  # Quarters won/lost per player
+    scores: dict[str, int | None] = field(default_factory=dict)
+    shots_completed: dict[str, bool] = field(default_factory=dict)
+    balls_in_hole: list[str] = field(default_factory=list)  # Players who holed out
+    concessions: dict[str, str] = field(default_factory=dict)  # "good but not in"
+    points_awarded: dict[str, int] = field(default_factory=dict)  # Quarters won/lost per player
 
     # Shot progression state
     current_shot_number: int = 1
@@ -169,13 +169,13 @@ class HoleState:
     wagering_closed: bool = False  # No more betting once ball is holed
     tee_shots_complete: int = 0  # Count of completed tee shots
     partnership_deadline_passed: bool = False  # Can no longer request partnerships
-    invitation_windows: Dict[str, bool] = field(default_factory=dict)  # Track who can still be invited
+    invitation_windows: dict[str, bool] = field(default_factory=dict)  # Track who can still be invited
 
     def set_hole_info(
         self,
-        par: Optional[int] = None,
-        yardage: Optional[int] = None,
-        stroke_index: Optional[int] = None,
+        par: int | None = None,
+        yardage: int | None = None,
+        stroke_index: int | None = None,
     ) -> None:
         """Set hole information with realistic defaults"""
         import random
@@ -216,7 +216,7 @@ class HoleState:
         else:
             self.hole_difficulty = "Easy"
 
-    def calculate_stroke_advantages(self, players: List["Player"]) -> None:
+    def calculate_stroke_advantages(self, players: list["Player"]) -> None:
         """
         Calculate stroke advantages for all players on this hole.
 
@@ -266,7 +266,7 @@ class HoleState:
             # If validation fails, default to no strokes rather than incorrect calculation
             return 0.0
 
-    def get_player_stroke_advantage(self, player_id: str) -> Optional[StrokeAdvantage]:
+    def get_player_stroke_advantage(self, player_id: str) -> StrokeAdvantage | None:
         """Get stroke advantage for a specific player"""
         return self.stroke_advantages.get(player_id)
 
@@ -292,7 +292,7 @@ class HoleState:
                 return stroke_adv.net_score
         return float(gross_score)
 
-    def get_team_stroke_advantages(self) -> Dict[str, List[Optional[StrokeAdvantage]]]:
+    def get_team_stroke_advantages(self) -> dict[str, list[StrokeAdvantage | None]]:
         """Get stroke advantages grouped by team"""
         team_strokes = {}
 
@@ -318,12 +318,12 @@ class HoleState:
 
         return team_strokes
 
-    def get_best_net_score_for_team(self, team_players: List[str]) -> Optional[float]:
+    def get_best_net_score_for_team(self, team_players: list[str]) -> float | None:
         """Get the best net score for a team (for best ball scoring)"""
         team_scores = []
         for player_id in team_players:
             if player_id in self.scores and self.scores[player_id] is not None:
-                score = cast(int, self.scores[player_id])
+                score = cast("int", self.scores[player_id])
                 net_score = self.calculate_net_score(player_id, score)
                 team_scores.append(net_score)
 
@@ -388,7 +388,7 @@ class HoleState:
     def _recalculate_hole_completion(self) -> None:
         """Update `hole_complete` based on current player ball states."""
 
-        active_players: List[str] = []
+        active_players: list[str] = []
 
         for player_id in self.hitting_order:
             if player_id in self.balls_in_hole:
@@ -410,7 +410,7 @@ class HoleState:
 
         self.hole_complete = not active_players
 
-    def get_player_ball_position(self, player_id: str) -> Optional[BallPosition]:
+    def get_player_ball_position(self, player_id: str) -> BallPosition | None:
         """Get current ball position for a player"""
         return self.ball_positions.get(player_id)
 
@@ -464,9 +464,9 @@ class HoleState:
         if self.has_ball_been_holed():
             self.wagering_closed = True
 
-    def get_approach_shot_betting_opportunities(self) -> List[Dict[str, Any]]:
+    def get_approach_shot_betting_opportunities(self) -> list[dict[str, Any]]:
         """Identify betting opportunities during approach shots and around the green"""
-        opportunities: List[Dict[str, Any]] = []
+        opportunities: list[dict[str, Any]] = []
 
         if self.wagering_closed:
             return opportunities
@@ -478,7 +478,7 @@ class HoleState:
         for player_id, ball_pos in self.ball_positions.items():
             if ball_pos.holed or ball_pos.conceded:
                 continue
-            elif ball_pos.lie_type == "green":
+            if ball_pos.lie_type == "green":
                 players_on_green.append(player_id)
             else:
                 players_approaching.append(player_id)
@@ -562,9 +562,9 @@ class HoleState:
             # Next player's window closes when they hit AND the shot after them is played
             # This will be handled when the subsequent shot is processed
 
-    def get_available_partners_for_captain(self, captain_id: str) -> List[str]:
+    def get_available_partners_for_captain(self, captain_id: str) -> list[str]:
         """Get players that captain can still invite based on timing rules"""
-        available: List[str] = []
+        available: list[str] = []
 
         if self.partnership_deadline_passed:
             return available
@@ -575,7 +575,7 @@ class HoleState:
 
         return available
 
-    def get_team_positions(self) -> Dict[str, List[Optional[BallPosition]]]:
+    def get_team_positions(self) -> dict[str, list[BallPosition | None]]:
         """Get ball positions grouped by team"""
         team_positions = {}
 
@@ -609,7 +609,7 @@ class WGPShotResult:
     shot_quality: str  # "excellent", "good", "average", "poor", "terrible"
     made_shot: bool = False
     penalty_strokes: int = 0
-    betting_implications: Optional[Dict] = None
+    betting_implications: dict | None = None
 
 
 @dataclass
@@ -618,8 +618,8 @@ class WGPBettingOpportunity:
 
     opportunity_type: str  # "double", "strategic", "partnership_change"
     message: str
-    options: List[str]
-    probability_analysis: Dict[str, float]
+    options: list[str]
+    probability_analysis: dict[str, float]
     recommended_action: str
     risk_assessment: str  # "low", "medium", "high"
 
@@ -629,19 +629,19 @@ class WGPHoleProgression:
     """Tracks shot-by-shot progression through a hole"""
 
     hole_number: int
-    shots_taken: Dict[str, List[WGPShotResult]] = field(default_factory=dict)
-    current_shot_order: List[str] = field(default_factory=list)
-    betting_opportunities: List[WGPBettingOpportunity] = field(default_factory=list)
+    shots_taken: dict[str, list[WGPShotResult]] = field(default_factory=dict)
+    current_shot_order: list[str] = field(default_factory=list)
+    betting_opportunities: list[WGPBettingOpportunity] = field(default_factory=list)
     hole_complete: bool = False
-    timeline_events: List[TimelineEvent] = field(default_factory=list)  # Chronological timeline
+    timeline_events: list[TimelineEvent] = field(default_factory=list)  # Chronological timeline
 
     def add_timeline_event(
         self,
         event_type: str,
         description: str,
-        player_id: Optional[str] = None,
-        player_name: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        player_id: str | None = None,
+        player_name: str | None = None,
+        details: dict[str, Any] | None = None,
     ) -> TimelineEvent:
         """Add a new timeline event"""
         event = TimelineEvent(
@@ -656,7 +656,7 @@ class WGPHoleProgression:
         self.timeline_events.append(event)
         return event
 
-    def get_timeline_events(self) -> List[Dict[str, Any]]:
+    def get_timeline_events(self) -> list[dict[str, Any]]:
         """Get timeline events as serializable dictionaries"""
         return [
             {
@@ -680,16 +680,16 @@ class WolfGoatPigGame(PersistenceMixin):
 
     def __init__(
         self,
-        game_id: Optional[str] = None,
+        game_id: str | None = None,
         player_count: int = 4,
-        players: Optional[List[Player]] = None,
+        players: list[Player] | None = None,
         course_manager: Any = None,
     ) -> None:
         # Initialize persistence FIRST (generates/loads game_id)
         self.__init_persistence__(game_id)
 
         # Check if we loaded from DB - if so, skip initialization
-        if hasattr(self, "_loaded_from_db") and cast(bool, getattr(self, "_loaded_from_db", False)):
+        if hasattr(self, "_loaded_from_db") and cast("bool", getattr(self, "_loaded_from_db", False)):
             return
 
         # New game initialization
@@ -708,7 +708,7 @@ class WolfGoatPigGame(PersistenceMixin):
             raise ValueError(f"Invalid player handicap: {e.message}") from e
         self.current_hole = 1
         self.game_phase = GamePhase.REGULAR
-        self.hole_states: Dict[int, HoleState] = {}
+        self.hole_states: dict[int, HoleState] = {}
         self.double_points_round = False  # Major championship days
         self.annual_banquet = False  # Annual banquet day
         self.course_manager = course_manager if course_manager else get_course_manager()
@@ -724,10 +724,10 @@ class WolfGoatPigGame(PersistenceMixin):
         self.course_name = self.course_manager.selected_course_name
 
         # Computer players for AI decision making
-        self.computer_players: Dict[str, Any] = {}
+        self.computer_players: dict[str, Any] = {}
 
         # Shot progression and betting analysis
-        self.hole_progression: Optional[WGPHoleProgression] = None
+        self.hole_progression: WGPHoleProgression | None = None
         self.betting_analysis_enabled = True
         self.shot_simulation_mode = False  # Enable for shot-by-shot play
 
@@ -741,7 +741,7 @@ class WolfGoatPigGame(PersistenceMixin):
         # Save initial state to DB
         self._save_to_db()
 
-    def set_computer_players(self, computer_player_ids: List[str], personalities: Optional[List[str]] = None) -> None:
+    def set_computer_players(self, computer_player_ids: list[str], personalities: list[str] | None = None) -> None:
         """Set which players are computer-controlled with their personalities"""
         if personalities is None:
             personalities = ["balanced"] * len(computer_player_ids)
@@ -758,12 +758,12 @@ class WolfGoatPigGame(PersistenceMixin):
             if player:
                 self.computer_players[player_id] = SimpleComputerPlayer(player, personality)
 
-    def _create_default_players(self) -> List[Player]:
+    def _create_default_players(self) -> list[Player]:
         """Create default players based on the rules.txt character list"""
         names = ["Bob", "Scott", "Vince", "Mike", "Terry", "Bill"][: self.player_count]
         handicaps = [10.5, 15, 8, 20.5, 12, 18][: self.player_count]
 
-        return [Player(id=f"p{i+1}", name=names[i], handicap=handicaps[i]) for i in range(self.player_count)]
+        return [Player(id=f"p{i + 1}", name=names[i], handicap=handicaps[i]) for i in range(self.player_count)]
 
     def _get_hoepfinger_start_hole(self) -> int:
         """Get starting hole for Hoepfinger phase based on player count"""
@@ -819,15 +819,11 @@ class WolfGoatPigGame(PersistenceMixin):
         stroke_index = min(hole_number, 18)  # Default
 
         if self.course_manager:
-
             if not hasattr(self.course_manager, "get_hole_info"):
-
                 hole_info = {}
 
             else:
-
                 try:
-
                     hole_info = self.course_manager.get_hole_info(hole_number)
                     hole_par = hole_info.get("par")
                     hole_yardage = hole_info.get("yards")
@@ -854,11 +850,9 @@ class WolfGoatPigGame(PersistenceMixin):
 
         # Set hole information (par, yardage, difficulty) - uses course data if available
         if hole_par is not None and hole_yardage is not None:
-
             hole_state.set_hole_info(par=hole_par, yardage=hole_yardage, stroke_index=stroke_index)
 
         else:
-
             hole_state.set_hole_info()
 
         # Calculate stroke advantages for all players on this hole
@@ -886,13 +880,13 @@ class WolfGoatPigGame(PersistenceMixin):
 
         self.hole_states[hole_number] = hole_state
 
-    def _random_hitting_order(self) -> List[str]:
+    def _random_hitting_order(self) -> list[str]:
         """Use hitting order from player list (determined by tee toss in frontend)"""
         # Players are already in tee order from the database (set via frontend tee toss)
         player_ids = [p.id for p in self.players]
         return player_ids
 
-    def _rotate_hitting_order(self, hole_number: int) -> List[str]:
+    def _rotate_hitting_order(self, hole_number: int) -> list[str]:
         """Rotate hitting order for subsequent holes"""
         if hole_number == 1:
             return self._random_hitting_order()
@@ -909,7 +903,7 @@ class WolfGoatPigGame(PersistenceMixin):
         """Get the player who is furthest down (the Goat)"""
         return min(self.players, key=lambda p: p.points)
 
-    def _goat_chooses_position(self, goat: Player, current_order: List[str]) -> List[str]:
+    def _goat_chooses_position(self, goat: Player, current_order: list[str]) -> list[str]:
         """
         In Hoepfinger phase, the Goat chooses hitting position
         Note: In 6-man game, can't choose same spot more than twice in a row
@@ -968,7 +962,7 @@ class WolfGoatPigGame(PersistenceMixin):
         min_points = min(p.points for p in self.players)
         return captain.points == min_points and min_points < 0
 
-    def _prompt_joes_special(self, goat: Player, natural_start: int) -> Optional[int]:
+    def _prompt_joes_special(self, goat: Player, natural_start: int) -> int | None:
         """
         Joe's Special: Goat chooses starting value in Hoepfinger phase
         Returns chosen value or None if not invoked
@@ -983,7 +977,7 @@ class WolfGoatPigGame(PersistenceMixin):
             return random.choice(options)
         return None
 
-    def request_partner(self, captain_id: str, partner_id: str) -> Dict[str, Any]:
+    def request_partner(self, captain_id: str, partner_id: str) -> dict[str, Any]:
         """Captain requests a specific player as partner"""
         hole_state = self.hole_states[self.current_hole]
 
@@ -1040,7 +1034,7 @@ class WolfGoatPigGame(PersistenceMixin):
             "awaiting_response": partner_id,
         }
 
-    def respond_to_partnership(self, partner_id: str, accept: bool) -> Dict[str, Any]:
+    def respond_to_partnership(self, partner_id: str, accept: bool) -> dict[str, Any]:
         """Respond to partnership request"""
         hole_state = self.hole_states[self.current_hole]
 
@@ -1053,14 +1047,13 @@ class WolfGoatPigGame(PersistenceMixin):
 
         if accept:
             return self._accept_partnership(captain_id, partner_id, hole_state)
-        else:
-            return self._decline_partnership(captain_id, partner_id, hole_state)
+        return self._decline_partnership(captain_id, partner_id, hole_state)
 
-    def go_solo(self, captain_id: str, use_duncan: bool = False) -> Dict[str, Any]:
+    def go_solo(self, captain_id: str, use_duncan: bool = False) -> dict[str, Any]:
         """Alias for captain_go_solo for backward compatibility"""
         return self.captain_go_solo(captain_id, use_duncan)
 
-    def captain_go_solo(self, captain_id: str, use_duncan: bool = False) -> Dict[str, Any]:
+    def captain_go_solo(self, captain_id: str, use_duncan: bool = False) -> dict[str, Any]:
         """Captain decides to go solo (Pig)"""
         hole_state = self.hole_states[self.current_hole]
 
@@ -1125,7 +1118,7 @@ class WolfGoatPigGame(PersistenceMixin):
             "wager": hole_state.betting.current_wager,
         }
 
-    def aardvark_request_team(self, aardvark_id: str, target_team: str) -> Dict[str, Any]:
+    def aardvark_request_team(self, aardvark_id: str, target_team: str) -> dict[str, Any]:
         """Aardvark requests to join a team (5-man and 6-man games)"""
         if self.player_count == 4:
             raise ValueError("No aardvark in 4-man game")
@@ -1149,7 +1142,7 @@ class WolfGoatPigGame(PersistenceMixin):
             "awaiting_response": target_team,
         }
 
-    def respond_to_aardvark(self, team_id: str, accept: bool) -> Dict[str, Any]:
+    def respond_to_aardvark(self, team_id: str, accept: bool) -> dict[str, Any]:
         """Respond to aardvark request"""
         hole_state = self.hole_states[self.current_hole]
 
@@ -1161,10 +1154,9 @@ class WolfGoatPigGame(PersistenceMixin):
 
         if accept:
             return self._accept_aardvark(aardvark_id, team_id, hole_state)
-        else:
-            return self._toss_aardvark(aardvark_id, team_id, hole_state)
+        return self._toss_aardvark(aardvark_id, team_id, hole_state)
 
-    def aardvark_go_solo(self, aardvark_id: str, use_tunkarri: bool = False) -> Dict[str, Any]:
+    def aardvark_go_solo(self, aardvark_id: str, use_tunkarri: bool = False) -> dict[str, Any]:
         """Aardvark decides to go solo (5-man and 6-man games)"""
         if self.player_count == 4:
             raise ValueError("No aardvark in 4-man game")
@@ -1195,7 +1187,7 @@ class WolfGoatPigGame(PersistenceMixin):
             "wager": hole_state.betting.current_wager,
         }
 
-    def offer_double(self, offering_player_id: str, target_team: Optional[str] = None) -> Dict[str, Any]:
+    def offer_double(self, offering_player_id: str, target_team: str | None = None) -> dict[str, Any]:
         """Offer a double to the opposing team"""
         hole_state = self.hole_states[self.current_hole]
 
@@ -1257,8 +1249,8 @@ class WolfGoatPigGame(PersistenceMixin):
         self,
         responding_team: str,
         accept: bool,
-        gambit_players: Optional[List[str]] = None,
-    ) -> Dict[str, Any]:
+        gambit_players: list[str] | None = None,
+    ) -> dict[str, Any]:
         """Respond to a double offer, with optional Ackerley's Gambit"""
         hole_state = self.hole_states[self.current_hole]
 
@@ -1269,33 +1261,31 @@ class WolfGoatPigGame(PersistenceMixin):
             if gambit_players:
                 # Ackerley's Gambit: some players opt out, others stay in
                 return self._handle_ackerley_gambit(responding_team, gambit_players, hole_state)
-            else:
-                # Standard double acceptance
-                hole_state.betting.current_wager *= 2
-                hole_state.betting.doubled = False
+            # Standard double acceptance
+            hole_state.betting.current_wager *= 2
+            hole_state.betting.doubled = False
 
-                # Add double acceptance event to timeline
-                if self.hole_progression is not None:
-                    self.hole_progression.add_timeline_event(
-                        event_type="double_response",
-                        description=f"Double accepted - wager increases to {hole_state.betting.current_wager} quarters",
-                        details={
-                            "accepted": True,
-                            "new_wager": hole_state.betting.current_wager,
-                            "responding_team": responding_team,
-                        },
-                    )
+            # Add double acceptance event to timeline
+            if self.hole_progression is not None:
+                self.hole_progression.add_timeline_event(
+                    event_type="double_response",
+                    description=f"Double accepted - wager increases to {hole_state.betting.current_wager} quarters",
+                    details={
+                        "accepted": True,
+                        "new_wager": hole_state.betting.current_wager,
+                        "responding_team": responding_team,
+                    },
+                )
 
-                return {
-                    "status": "double_accepted",
-                    "message": "Double accepted",
-                    "new_wager": hole_state.betting.current_wager,
-                }
-        else:
-            # Double declined - offering team wins hole
-            return self._resolve_double_decline(hole_state)
+            return {
+                "status": "double_accepted",
+                "message": "Double accepted",
+                "new_wager": hole_state.betting.current_wager,
+            }
+        # Double declined - offering team wins hole
+        return self._resolve_double_decline(hole_state)
 
-    def invoke_float(self, captain_id: str) -> Dict[str, Any]:
+    def invoke_float(self, captain_id: str) -> dict[str, Any]:
         """Captain invokes The Float to increase base wager"""
         captain = next(p for p in self.players if p.id == captain_id)
         hole_state = self.hole_states[self.current_hole]
@@ -1317,7 +1307,7 @@ class WolfGoatPigGame(PersistenceMixin):
             "new_wager": hole_state.betting.current_wager,
         }
 
-    def enter_hole_scores(self, scores: Dict[str, int]) -> Dict[str, Any]:
+    def enter_hole_scores(self, scores: dict[str, int]) -> dict[str, Any]:
         """Enter scores for the hole and calculate points"""
         hole_state = self.hole_states[self.current_hole]
 
@@ -1326,7 +1316,7 @@ class WolfGoatPigGame(PersistenceMixin):
             if player_id not in scores:
                 raise ValueError(f"Score missing for player {self._get_player_name(player_id)}")
 
-        hole_state.scores = {k: cast(Optional[int], v) for k, v in scores.items()}
+        hole_state.scores = {k: cast("int | None", v) for k, v in scores.items()}
 
         # Calculate and distribute points
         points_result = self._calculate_hole_points(hole_state)
@@ -1345,7 +1335,7 @@ class WolfGoatPigGame(PersistenceMixin):
 
         return points_result
 
-    def get_post_hole_analysis(self, hole_number: int) -> Dict[str, Any]:
+    def get_post_hole_analysis(self, hole_number: int) -> dict[str, Any]:
         """Generate comprehensive post-hole analysis"""
         if hole_number not in self.hole_states:
             raise ValueError(f"Hole {hole_number} not found")
@@ -1368,7 +1358,7 @@ class WolfGoatPigGame(PersistenceMixin):
 
         return analysis
 
-    def _analyze_final_teams(self, hole_state: HoleState) -> Dict[str, Any]:
+    def _analyze_final_teams(self, hole_state: HoleState) -> dict[str, Any]:
         """Analyze final team composition and formation process"""
         teams = hole_state.teams
 
@@ -1379,7 +1369,7 @@ class WolfGoatPigGame(PersistenceMixin):
         }
 
         if teams.type == "partners":
-            team_analysis_update: Dict[str, Any] = {
+            team_analysis_update: dict[str, Any] = {
                 "team1": [self._get_player_name(pid) for pid in teams.team1],
                 "team2": [self._get_player_name(pid) for pid in teams.team2],
                 "partnership_formed": True,
@@ -1390,7 +1380,7 @@ class WolfGoatPigGame(PersistenceMixin):
             }
             team_analysis.update(team_analysis_update)
         elif teams.type == "solo":
-            team_analysis_update_solo: Dict[str, Any] = {
+            team_analysis_update_solo: dict[str, Any] = {
                 "solo_player": self._get_player_name(teams.solo_player),
                 "opponents": [self._get_player_name(pid) for pid in teams.opponents],
                 "solo_risk_level": ("HIGH" if hole_state.betting.current_wager > 2 else "MEDIUM"),
@@ -1399,12 +1389,12 @@ class WolfGoatPigGame(PersistenceMixin):
 
         return team_analysis
 
-    def _analyze_betting_summary(self, hole_state: HoleState) -> Dict[str, Any]:
+    def _analyze_betting_summary(self, hole_state: HoleState) -> dict[str, Any]:
         """Analyze all betting activity on the hole"""
         betting = hole_state.betting
 
-        special_rules_list: List[str] = []
-        betting_summary: Dict[str, Any] = {
+        special_rules_list: list[str] = []
+        betting_summary: dict[str, Any] = {
             "starting_wager": betting.base_wager,
             "final_wager": betting.current_wager,
             "wager_multiplier": betting.current_wager / betting.base_wager,
@@ -1431,7 +1421,7 @@ class WolfGoatPigGame(PersistenceMixin):
 
         return betting_summary
 
-    def _analyze_scoring(self, hole_state: HoleState) -> Dict[str, Any]:
+    def _analyze_scoring(self, hole_state: HoleState) -> dict[str, Any]:
         """Analyze scoring performance and outcomes"""
         if not hole_state.scores:
             return {"scores_entered": False}
@@ -1439,7 +1429,7 @@ class WolfGoatPigGame(PersistenceMixin):
         scores = hole_state.scores
 
         # Calculate net scores with handicaps
-        net_scores: Dict[str, int] = {}
+        net_scores: dict[str, int] = {}
         for player_id, gross_score in scores.items():
             if gross_score is None:
                 continue
@@ -1470,7 +1460,7 @@ class WolfGoatPigGame(PersistenceMixin):
             "score_spread": max(valid_scores.values()) - min(valid_scores.values()),
         }
 
-    def _analyze_point_distribution(self, hole_state: HoleState) -> Dict[str, Any]:
+    def _analyze_point_distribution(self, hole_state: HoleState) -> dict[str, Any]:
         """Analyze how points were distributed"""
         if not hasattr(hole_state, "points_result") or not hole_state.scores:
             return {"points_calculated": False}
@@ -1491,7 +1481,7 @@ class WolfGoatPigGame(PersistenceMixin):
             "halved": points_result.get("halved", False),
         }
 
-    def _generate_strategic_insights(self, hole_state: HoleState) -> List[str]:
+    def _generate_strategic_insights(self, hole_state: HoleState) -> list[str]:
         """Generate strategic insights about the hole"""
         insights = []
 
@@ -1520,7 +1510,7 @@ class WolfGoatPigGame(PersistenceMixin):
 
         return insights
 
-    def _analyze_key_decisions(self, hole_state: HoleState) -> List[Dict[str, Any]]:
+    def _analyze_key_decisions(self, hole_state: HoleState) -> list[dict[str, Any]]:
         """Analyze key decisions made during the hole"""
         decisions = []
 
@@ -1559,7 +1549,7 @@ class WolfGoatPigGame(PersistenceMixin):
 
         return decisions
 
-    def _generate_performance_ratings(self, hole_state: HoleState) -> Dict[str, Any]:
+    def _generate_performance_ratings(self, hole_state: HoleState) -> dict[str, Any]:
         """Generate performance ratings for each player"""
         if not hole_state.scores:
             return {"ratings_available": False}
@@ -1597,7 +1587,7 @@ class WolfGoatPigGame(PersistenceMixin):
 
         return ratings
 
-    def _generate_what_if_scenarios(self, hole_state: HoleState) -> List[str]:
+    def _generate_what_if_scenarios(self, hole_state: HoleState) -> list[str]:
         """Generate what-if scenarios for strategic learning"""
         scenarios = []
 
@@ -1616,7 +1606,7 @@ class WolfGoatPigGame(PersistenceMixin):
 
         return scenarios
 
-    def advance_to_next_hole(self) -> Dict[str, Any]:
+    def advance_to_next_hole(self) -> dict[str, Any]:
         """Advance to the next hole"""
         if self.current_hole >= 18:
             return self._finish_game()
@@ -1631,7 +1621,7 @@ class WolfGoatPigGame(PersistenceMixin):
             "hole_state": self._get_hole_state_summary(),
         }
 
-    def get_game_state(self) -> Dict[str, Any]:
+    def get_game_state(self) -> dict[str, Any]:
         """Get complete current game state"""
         hole_state = self.hole_states.get(self.current_hole)
 
@@ -1720,7 +1710,7 @@ class WolfGoatPigGame(PersistenceMixin):
 
         return state
 
-    def _get_hole_history(self) -> List[Dict[str, Any]]:
+    def _get_hole_history(self) -> list[dict[str, Any]]:
         """Build hole history with scores and points for completed holes"""
         history = []
 
@@ -1744,7 +1734,7 @@ class WolfGoatPigGame(PersistenceMixin):
 
         return history
 
-    def _get_hole_state_summary(self) -> Dict[str, Any]:
+    def _get_hole_state_summary(self) -> dict[str, Any]:
         """Get summary of current hole state"""
         hole_state = self.hole_states.get(self.current_hole)
         if not hole_state:
@@ -1827,7 +1817,7 @@ class WolfGoatPigGame(PersistenceMixin):
 
     # Helper methods
 
-    def _get_course_scorecard_info(self) -> List[Dict[str, Any]]:
+    def _get_course_scorecard_info(self) -> list[dict[str, Any]]:
         """
         Get par and handicap (stroke index) for all 18 holes for scorecard display.
         This provides the course layout information that appears at the top of
@@ -1908,7 +1898,7 @@ class WolfGoatPigGame(PersistenceMixin):
 
         return holes_info
 
-    def _get_stroke_allocation_table(self) -> Dict[str, Dict[int, float]]:
+    def _get_stroke_allocation_table(self) -> dict[str, dict[int, float]]:
         """
         Calculate stroke allocation for all 18 holes for each player.
         This allows the scorecard to display which holes each player gets strokes on
@@ -1924,7 +1914,7 @@ class WolfGoatPigGame(PersistenceMixin):
                 "player2": {1: 0.5, 2: 0.0, 3: 0.0, ...}
             }
         """
-        stroke_allocation: Dict[str, Dict[int, float]] = {}
+        stroke_allocation: dict[str, dict[int, float]] = {}
 
         if not self.course_manager:
             return stroke_allocation
@@ -1940,7 +1930,7 @@ class WolfGoatPigGame(PersistenceMixin):
             hole_handicaps = list(range(1, 19))
 
         for player in self.players:
-            player_strokes: Dict[int, float] = {}
+            player_strokes: dict[int, float] = {}
             net_handicap = net_handicaps.get(player.id, 0.0)
 
             # Calculate strokes for all 18 holes
@@ -1963,7 +1953,7 @@ class WolfGoatPigGame(PersistenceMixin):
 
         return stroke_allocation
 
-    def _get_player_name(self, player_id: Optional[str]) -> str:
+    def _get_player_name(self, player_id: str | None) -> str:
         """Get player name by ID"""
         if player_id is None:
             return "Unknown"
@@ -1987,13 +1977,13 @@ class WolfGoatPigGame(PersistenceMixin):
         """Check if player is an aardvark on this hole"""
         if self.player_count == 4:
             return False  # No aardvark in 4-man game (only invisible)
-        elif self.player_count == 5:
+        if self.player_count == 5:
             return hole_state.hitting_order.index(player_id) == 4  # 5th position
-        else:  # 6-man
-            index = hole_state.hitting_order.index(player_id)
-            return index in [4, 5]  # 5th or 6th position
+        # 6-man
+        index = hole_state.hitting_order.index(player_id)
+        return index in [4, 5]  # 5th or 6th position
 
-    def _accept_partnership(self, captain_id: str, partner_id: str, hole_state: HoleState) -> Dict[str, Any]:
+    def _accept_partnership(self, captain_id: str, partner_id: str, hole_state: HoleState) -> dict[str, Any]:
         """Handle partnership acceptance"""
         others = [p.id for p in self.players if p.id not in [captain_id, partner_id]]
 
@@ -2031,7 +2021,7 @@ class WolfGoatPigGame(PersistenceMixin):
             "team2": others,
         }
 
-    def _decline_partnership(self, captain_id: str, partner_id: str, hole_state: HoleState) -> Dict[str, Any]:
+    def _decline_partnership(self, captain_id: str, partner_id: str, hole_state: HoleState) -> dict[str, Any]:
         """Handle partnership decline - captain goes solo"""
         others = [p.id for p in self.players if p.id != captain_id]
 
@@ -2071,7 +2061,7 @@ class WolfGoatPigGame(PersistenceMixin):
             "new_wager": hole_state.betting.current_wager,
         }
 
-    def _accept_aardvark(self, aardvark_id: str, team_id: str, hole_state: HoleState) -> Dict[str, Any]:
+    def _accept_aardvark(self, aardvark_id: str, team_id: str, hole_state: HoleState) -> dict[str, Any]:
         """Handle aardvark acceptance to team"""
         # Add aardvark to the specified team
         if team_id == "team1":
@@ -2089,7 +2079,7 @@ class WolfGoatPigGame(PersistenceMixin):
             "teams": {"team1": hole_state.teams.team1, "team2": hole_state.teams.team2},
         }
 
-    def _toss_aardvark(self, aardvark_id: str, rejecting_team: str, hole_state: HoleState) -> Dict[str, Any]:
+    def _toss_aardvark(self, aardvark_id: str, rejecting_team: str, hole_state: HoleState) -> dict[str, Any]:
         """Handle aardvark being tossed to other team"""
         # Add to tossed list
         hole_state.betting.tossed_aardvarks.append(aardvark_id)
@@ -2114,8 +2104,8 @@ class WolfGoatPigGame(PersistenceMixin):
         }
 
     def _handle_ackerley_gambit(
-        self, responding_team: str, gambit_players: List[str], hole_state: HoleState
-    ) -> Dict[str, Any]:
+        self, responding_team: str, gambit_players: list[str], hole_state: HoleState
+    ) -> dict[str, Any]:
         """Handle Ackerley's Gambit - some players opt out, others stay in"""
         opt_out_players = [p for p in gambit_players if p not in gambit_players]
         opt_in_players = gambit_players
@@ -2138,7 +2128,7 @@ class WolfGoatPigGame(PersistenceMixin):
             "new_wager": hole_state.betting.current_wager,
         }
 
-    def _resolve_double_decline(self, hole_state: HoleState) -> Dict[str, Any]:
+    def _resolve_double_decline(self, hole_state: HoleState) -> dict[str, Any]:
         """Handle double decline - offering team wins hole"""
         hole_state.betting.doubled = False
 
@@ -2189,13 +2179,13 @@ class WolfGoatPigGame(PersistenceMixin):
         elif hole_state.teams.type == "solo":
             if offering_player == hole_state.teams.solo_player:
                 # Solo player wins
-                points_changes_dict = cast(Dict[str, int], points_result["points_changes"])
+                points_changes_dict = cast("dict[str, int]", points_result["points_changes"])
                 points_changes_dict[offering_player] = wager * len(hole_state.teams.opponents)
                 for opp in hole_state.teams.opponents:
                     points_changes_dict[opp] = -wager
             else:
                 # Opponents win
-                points_changes_dict = cast(Dict[str, int], points_result["points_changes"])
+                points_changes_dict = cast("dict[str, int]", points_result["points_changes"])
                 solo_player_id = hole_state.teams.solo_player
                 if solo_player_id:
                     points_changes_dict[solo_player_id] = -wager * len(hole_state.teams.opponents)
@@ -2204,25 +2194,24 @@ class WolfGoatPigGame(PersistenceMixin):
 
         return points_result
 
-    def _calculate_hole_points(self, hole_state: HoleState) -> Dict[str, Any]:
+    def _calculate_hole_points(self, hole_state: HoleState) -> dict[str, Any]:
         """Calculate points for the hole based on scores and betting"""
         scores = hole_state.scores
         betting = hole_state.betting
         teams = hole_state.teams
 
         # Filter out None values from scores
-        valid_scores: Dict[str, int] = {pid: score for pid, score in scores.items() if score is not None}
+        valid_scores: dict[str, int] = {pid: score for pid, score in scores.items() if score is not None}
 
         if teams.type == "partners":
             return self._calculate_partners_points(valid_scores, teams, betting)
-        elif teams.type == "solo":
+        if teams.type == "solo":
             return self._calculate_solo_points(valid_scores, teams, betting)
-        else:
-            raise ValueError(f"Invalid team type for points calculation: {teams.type}")
+        raise ValueError(f"Invalid team type for points calculation: {teams.type}")
 
     def _calculate_partners_points(
-        self, scores: Dict[str, int], teams: TeamFormation, betting: BettingState
-    ) -> Dict[str, Any]:
+        self, scores: dict[str, int], teams: TeamFormation, betting: BettingState
+    ) -> dict[str, Any]:
         """Calculate points for partners format"""
         team1_score = min(scores[pid] for pid in teams.team1)
         team2_score = min(scores[pid] for pid in teams.team2)
@@ -2261,8 +2250,8 @@ class WolfGoatPigGame(PersistenceMixin):
         }
 
     def _calculate_solo_points(
-        self, scores: Dict[str, int], teams: TeamFormation, betting: BettingState
-    ) -> Dict[str, Any]:
+        self, scores: dict[str, int], teams: TeamFormation, betting: BettingState
+    ) -> dict[str, Any]:
         """Calculate points for solo format"""
         solo_player = teams.solo_player
         opponents = teams.opponents
@@ -2289,7 +2278,7 @@ class WolfGoatPigGame(PersistenceMixin):
             for opp in opponents:
                 points_changes[opp] = wager
 
-            winners_list: List[str] = list(opponents)
+            winners_list: list[str] = list(opponents)
             message = f"Opponents defeat {self._get_player_name(solo_player)}"
 
         else:
@@ -2318,7 +2307,7 @@ class WolfGoatPigGame(PersistenceMixin):
             "message": message,
         }
 
-    def _apply_karl_marx_rule(self, winners: List[str], losers: List[str], wager: int) -> Dict[str, int]:
+    def _apply_karl_marx_rule(self, winners: list[str], losers: list[str], wager: int) -> dict[str, int]:
         """
         Apply Karl Marx rule: "from each according to his ability, to each according to his need"
         Player furthest down pays/receives less
@@ -2370,7 +2359,7 @@ class WolfGoatPigGame(PersistenceMixin):
 
         return points_changes
 
-    def offer_big_dick(self, player_id: str) -> Dict[str, Any]:
+    def offer_big_dick(self, player_id: str) -> dict[str, Any]:
         """
         The Big Dick: Player with most points can risk all winnings on hole 18
         Others must unanimously accept or individual players can use Ackerley's Gambit
@@ -2400,7 +2389,7 @@ class WolfGoatPigGame(PersistenceMixin):
             "requires_unanimous_acceptance": True,
         }
 
-    def accept_big_dick(self, accepting_players: List[str]) -> Dict[str, Any]:
+    def accept_big_dick(self, accepting_players: list[str]) -> dict[str, Any]:
         """
         Accept or reject The Big Dick challenge
         If not unanimous, individual players can use Ackerley's Gambit
@@ -2429,35 +2418,33 @@ class WolfGoatPigGame(PersistenceMixin):
                 "message": f"Big Dick unanimously accepted! {challenger.name} vs the field for {abs(challenger.points)} quarters.",
                 "teams_formed": True,
             }
-        else:
-            # Not unanimous - handle Ackerley's Gambit
-            declining_players = [p.id for p in other_players if p.id not in accepting_players]
+        # Not unanimous - handle Ackerley's Gambit
+        declining_players = [p.id for p in other_players if p.id not in accepting_players]
 
-            # Accepting players split the challenge
-            if accepting_players:
-                wager_per_player = abs(challenger.points) // len(accepting_players)
-                hole_state.betting.ackerley_gambit = {
-                    "accepting_players": accepting_players,
-                    "declining_players": declining_players,
-                    "wager_per_accepting_player": wager_per_player,
-                }
+        # Accepting players split the challenge
+        if accepting_players:
+            wager_per_player = abs(challenger.points) // len(accepting_players)
+            hole_state.betting.ackerley_gambit = {
+                "accepting_players": accepting_players,
+                "declining_players": declining_players,
+                "wager_per_accepting_player": wager_per_player,
+            }
 
-                return {
-                    "status": "big_dick_gambit",
-                    "message": f"Ackerley's Gambit invoked! {len(accepting_players)} players accept the challenge.",
-                    "accepting_players": [self._get_player_name(pid) for pid in accepting_players],
-                    "declining_players": [self._get_player_name(pid) for pid in declining_players],
-                    "wager_per_player": wager_per_player,
-                }
-            else:
-                # No one accepts
-                return {
-                    "status": "big_dick_declined",
-                    "message": "Big Dick challenge declined by all players.",
-                    "teams_formed": False,
-                }
+            return {
+                "status": "big_dick_gambit",
+                "message": f"Ackerley's Gambit invoked! {len(accepting_players)} players accept the challenge.",
+                "accepting_players": [self._get_player_name(pid) for pid in accepting_players],
+                "declining_players": [self._get_player_name(pid) for pid in declining_players],
+                "wager_per_player": wager_per_player,
+            }
+        # No one accepts
+        return {
+            "status": "big_dick_declined",
+            "message": "Big Dick challenge declined by all players.",
+            "teams_formed": False,
+        }
 
-    def ping_pong_aardvark(self, team_id: str, aardvark_id: str) -> Dict[str, Any]:
+    def ping_pong_aardvark(self, team_id: str, aardvark_id: str) -> dict[str, Any]:
         """
         Ping Pong the Aardvark: Team can re-toss an Aardvark, doubling the bet again
         A team cannot toss the same Aardvark twice on the same hole
@@ -2487,14 +2474,13 @@ class WolfGoatPigGame(PersistenceMixin):
                 "ping_pong_count": hole_state.betting.ping_pong_count,
                 "aardvark_destination": next_team,
             }
-        else:
-            return {
-                "status": "aardvark_stuck",
-                "message": f"No more teams available! Aardvark {self._get_player_name(aardvark_id)} must stay.",
-                "new_wager": hole_state.betting.current_wager,
-            }
+        return {
+            "status": "aardvark_stuck",
+            "message": f"No more teams available! Aardvark {self._get_player_name(aardvark_id)} must stay.",
+            "new_wager": hole_state.betting.current_wager,
+        }
 
-    def _finish_game(self) -> Dict[str, Any]:
+    def _finish_game(self) -> dict[str, Any]:
         """Finish the game and determine final results"""
         final_scores = {p.id: p.points for p in self.players}
 
@@ -2526,7 +2512,7 @@ class WolfGoatPigGame(PersistenceMixin):
             },
         }
 
-    def enable_shot_progression(self) -> Dict[str, Any]:
+    def enable_shot_progression(self) -> dict[str, Any]:
         """Enable shot-by-shot progression mode for betting analysis"""
         self.shot_simulation_mode = True
         if not self.hole_progression:
@@ -2545,7 +2531,7 @@ class WolfGoatPigGame(PersistenceMixin):
             "shot_order": self.hole_progression.current_shot_order,
         }
 
-    def get_hole_progression_state(self) -> Dict[str, Any]:
+    def get_hole_progression_state(self) -> dict[str, Any]:
         """Get current hole progression state"""
         if not self.hole_progression:
             return {"shot_mode_enabled": False}
@@ -2600,7 +2586,7 @@ class WolfGoatPigGame(PersistenceMixin):
             hole_state.next_player_to_hit = hole_state.hitting_order[0]
             hole_state.current_order_of_play = hole_state.hitting_order.copy()
 
-    def _analyze_betting_opportunity(self, shot_result: WGPShotResult) -> Optional[WGPBettingOpportunity]:
+    def _analyze_betting_opportunity(self, shot_result: WGPShotResult) -> WGPBettingOpportunity | None:
         """Analyze if this shot creates a betting opportunity"""
         hole_state = self.hole_states[self.current_hole]
 
@@ -2660,7 +2646,7 @@ class WolfGoatPigGame(PersistenceMixin):
 
         return opportunity
 
-    def _calculate_doubling_odds(self, shot_result: WGPShotResult) -> Dict[str, float]:
+    def _calculate_doubling_odds(self, shot_result: WGPShotResult) -> dict[str, float]:
         """Calculate odds for doubling based on current shot and team situation"""
         # Get current hole state
         hole_state = self.hole_states.get(self.current_hole)
@@ -2739,7 +2725,7 @@ class WolfGoatPigGame(PersistenceMixin):
             skill_diff = (avg_team2 - avg_team1) / 20.0
             return max(-1.0, min(1.0, skill_diff))
 
-        elif teams.type == "solo":
+        if teams.type == "solo":
             # Solo player vs opponents
             captain = None
             opponents = []
@@ -2761,7 +2747,7 @@ class WolfGoatPigGame(PersistenceMixin):
 
         return 0.0
 
-    def _generate_betting_analysis(self, shot_result: WGPShotResult) -> Dict[str, Any]:
+    def _generate_betting_analysis(self, shot_result: WGPShotResult) -> dict[str, Any]:
         """Generate comprehensive betting analysis for human players"""
         analysis = {
             "shot_assessment": {
@@ -2780,7 +2766,7 @@ class WolfGoatPigGame(PersistenceMixin):
 
         return analysis
 
-    def _generate_strategic_recommendations(self, shot_result: WGPShotResult) -> List[str]:
+    def _generate_strategic_recommendations(self, shot_result: WGPShotResult) -> list[str]:
         """Generate strategic recommendations based on current situation"""
         recommendations = []
 
@@ -2798,7 +2784,7 @@ class WolfGoatPigGame(PersistenceMixin):
 
         return recommendations
 
-    def _analyze_computer_tendencies(self) -> Dict[str, Any]:
+    def _analyze_computer_tendencies(self) -> dict[str, Any]:
         """Analyze computer player tendencies for strategic insight"""
         if not hasattr(self, "computer_players"):
             return {}
@@ -2866,7 +2852,7 @@ class WolfGoatPigGame(PersistenceMixin):
 
             hole_state.next_player_to_hit = next_player
 
-    def _get_next_shot_player(self) -> Optional[str]:
+    def _get_next_shot_player(self) -> str | None:
         """Get the next player to hit based on current ball positions"""
         hole_state = self.hole_states[self.current_hole]
 
@@ -2879,9 +2865,8 @@ class WolfGoatPigGame(PersistenceMixin):
                 if player_id not in hole_state.ball_positions:
                     return player_id
             return None
-        else:
-            # All tee shots complete - use distance-based order
-            return hole_state.next_player_to_hit
+        # All tee shots complete - use distance-based order
+        return hole_state.next_player_to_hit
 
     def _check_hole_completion(self) -> bool:
         """Check if hole is complete (all players holed out or max shots reached)"""
@@ -2900,7 +2885,7 @@ class WolfGoatPigGame(PersistenceMixin):
 
         return True
 
-    def _get_comprehensive_hole_state(self) -> Dict[str, Any]:
+    def _get_comprehensive_hole_state(self) -> dict[str, Any]:
         """Get comprehensive hole state including all ball positions and game state"""
         hole_state = self.hole_states[self.current_hole]
 
@@ -2978,7 +2963,7 @@ class WolfGoatPigGame(PersistenceMixin):
 
     # Utility functions for AI decision making
 
-    def _check_partnership_requests(self, human_player_id: str) -> List[Dict[str, Any]]:
+    def _check_partnership_requests(self, human_player_id: str) -> list[dict[str, Any]]:
         """Check if any computer players want to request the human as partner"""
         self.hole_states[self.current_hole]
         requests = []
@@ -3000,7 +2985,7 @@ class WolfGoatPigGame(PersistenceMixin):
 
         return requests
 
-    def _get_available_partners(self, human_player_id: str) -> List[Dict[str, Any]]:
+    def _get_available_partners(self, human_player_id: str) -> list[dict[str, Any]]:
         """Get list of players the human can request as partners"""
         hole_state = self.hole_states[self.current_hole]
         available = []
@@ -3020,7 +3005,7 @@ class WolfGoatPigGame(PersistenceMixin):
 
         return available
 
-    def human_requests_partner(self, human_player_id: str, partner_id: str) -> Dict[str, Any]:
+    def human_requests_partner(self, human_player_id: str, partner_id: str) -> dict[str, Any]:
         """
         Human requests a specific player as partner (simulating "rolling the dice")
         """
@@ -3049,27 +3034,25 @@ class WolfGoatPigGame(PersistenceMixin):
                 result = self._accept_partnership(human_player_id, partner_id, hole_state)
                 result["computer_response"] = f"{partner.name} accepts your partnership request!"
                 return result
-            else:
-                # Computer declines - human goes solo
-                result = self._decline_partnership(human_player_id, partner_id, hole_state)
-                result["computer_response"] = f"{partner.name} declines your partnership request."
-                return result
-        else:
-            # Human partner - create pending request
-            hole_state.teams.pending_request = {
-                "type": "partnership",
-                "captain": human_player_id,
-                "requested": partner_id,
-            }
+            # Computer declines - human goes solo
+            result = self._decline_partnership(human_player_id, partner_id, hole_state)
+            result["computer_response"] = f"{partner.name} declines your partnership request."
+            return result
+        # Human partner - create pending request
+        hole_state.teams.pending_request = {
+            "type": "partnership",
+            "captain": human_player_id,
+            "requested": partner_id,
+        }
 
-            return {
-                "status": "partnership_request_pending",
-                "message": f"Partnership request sent to {partner.name}. Waiting for response...",
-                "pending_request": hole_state.teams.pending_request,
-                "hole_state": self._get_comprehensive_hole_state(),
-            }
+        return {
+            "status": "partnership_request_pending",
+            "message": f"Partnership request sent to {partner.name}. Waiting for response...",
+            "pending_request": hole_state.teams.pending_request,
+            "hole_state": self._get_comprehensive_hole_state(),
+        }
 
-    def human_goes_solo(self, human_player_id: str, use_duncan: bool = False) -> Dict[str, Any]:
+    def human_goes_solo(self, human_player_id: str, use_duncan: bool = False) -> dict[str, Any]:
         """
         Human decides to go solo (either by choice or after being declined)
         """
@@ -3105,8 +3088,8 @@ class WolfGoatPigGame(PersistenceMixin):
         }
 
     def captain_partnership_decision(
-        self, human_player_id: str, action: str, target_player_id: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, human_player_id: str, action: str, target_player_id: str | None = None
+    ) -> dict[str, Any]:
         """
         Captain (human) makes partnership decision after seeing a player's tee shot.
         Action can be: 'ask_partnership', 'wait_for_next', 'go_solo'
@@ -3144,31 +3127,29 @@ class WolfGoatPigGame(PersistenceMixin):
                     )
                     result["next_action"] = "partnership_formed_continue_hole"
                     return result
-                else:
-                    # Computer declines - human goes solo
-                    result = self._decline_partnership(human_player_id, target_player_id, hole_state)
-                    result["computer_response"] = (
-                        f"{self._get_player_name(target_player_id)} declines your partnership request."
-                    )
-                    result["next_action"] = "human_going_solo_continue_hole"
-                    return result
-            else:
-                # Human partner - create pending request
-                hole_state.teams.pending_request = {
-                    "type": "partnership",
-                    "captain": human_player_id,
-                    "requested": target_player_id,
-                }
+                # Computer declines - human goes solo
+                result = self._decline_partnership(human_player_id, target_player_id, hole_state)
+                result["computer_response"] = (
+                    f"{self._get_player_name(target_player_id)} declines your partnership request."
+                )
+                result["next_action"] = "human_going_solo_continue_hole"
+                return result
+            # Human partner - create pending request
+            hole_state.teams.pending_request = {
+                "type": "partnership",
+                "captain": human_player_id,
+                "requested": target_player_id,
+            }
 
-                return {
-                    "status": "partnership_request_pending",
-                    "message": f"Partnership request sent to {self._get_player_name(target_player_id)}. Waiting for response...",
-                    "pending_request": hole_state.teams.pending_request,
-                    "hole_state": self._get_comprehensive_hole_state(),
-                    "next_action": "wait_for_partnership_response",
-                }
+            return {
+                "status": "partnership_request_pending",
+                "message": f"Partnership request sent to {self._get_player_name(target_player_id)}. Waiting for response...",
+                "pending_request": hole_state.teams.pending_request,
+                "hole_state": self._get_comprehensive_hole_state(),
+                "next_action": "wait_for_partnership_response",
+            }
 
-        elif action == "wait_for_next":
+        if action == "wait_for_next":
             # Check if there are more players to hit
             hitting_order = hole_state.hitting_order
             hitting_order.index(human_player_id)
@@ -3182,22 +3163,20 @@ class WolfGoatPigGame(PersistenceMixin):
                     "hole_state": self._get_comprehensive_hole_state(),
                     "next_action": "next_player_tees_off",
                 }
-            else:
-                # All players have hit - captain goes solo
-                return self.human_goes_solo(human_player_id)
-
-        elif action == "go_solo":
+            # All players have hit - captain goes solo
             return self.human_goes_solo(human_player_id)
 
-        else:
-            return {
-                "status": "error",
-                "message": f"Invalid action: {action}. Must be 'ask_partnership', 'wait_for_next', or 'go_solo'",
-            }
+        if action == "go_solo":
+            return self.human_goes_solo(human_player_id)
+
+        return {
+            "status": "error",
+            "message": f"Invalid action: {action}. Must be 'ask_partnership', 'wait_for_next', or 'go_solo'",
+        }
 
     # AI Decision Making Methods (moved from WGPComputerPlayer)
 
-    def should_accept_partnership(self, captain: Player, game_state: Dict) -> bool:
+    def should_accept_partnership(self, captain: Player, game_state: dict) -> bool:
         """Decide whether to accept partnership request"""
         # For simulation purposes, use a simple decision based on handicap difference
         # In a real implementation, this would be called on a specific player
@@ -3207,16 +3186,15 @@ class WolfGoatPigGame(PersistenceMixin):
         # Simple decision logic
         if handicap_diff < 8 or current_position > 2:
             return True
-        else:
-            return random.random() > 0.4
+        return random.random() > 0.4
 
-    def should_request_partner(self, target_player_id: str, game_state: Dict) -> bool:
+    def should_request_partner(self, target_player_id: str, game_state: dict) -> bool:
         """Determine if this computer player should request a specific player as partner"""
         # This would be used if computer players could request human as partner
         # For now, computer players don't actively request partners
         return False
 
-    def should_go_solo(self, game_state: Dict) -> bool:
+    def should_go_solo(self, game_state: dict) -> bool:
         """Decide whether to go solo as captain"""
         # For simulation purposes, use simple decision logic
         current_position = 2  # Assume middle position
@@ -3225,10 +3203,9 @@ class WolfGoatPigGame(PersistenceMixin):
         # Simple decision logic
         if individual_skill > 0.4:
             return random.random() > 0.7
-        else:
-            return current_position > 3
+        return current_position > 3
 
-    def should_use_float(self, game_state: Dict) -> bool:
+    def should_use_float(self, game_state: dict) -> bool:
         """Decide whether to use float as captain"""
         # For simulation purposes, use simple decision logic
         current_position = 2  # Assume middle position
@@ -3237,10 +3214,9 @@ class WolfGoatPigGame(PersistenceMixin):
         # Simple decision logic
         if hole_confidence > 0.6:
             return random.random() > 0.5
-        else:
-            return current_position > 3
+        return current_position > 3
 
-    def should_offer_double(self, game_state: Dict) -> bool:
+    def should_offer_double(self, game_state: dict) -> bool:
         """Decide whether to offer a double"""
         # For simulation purposes, use simple decision logic
         team_advantage = 0.5  # Assume moderate advantage
@@ -3249,10 +3225,9 @@ class WolfGoatPigGame(PersistenceMixin):
         # Simple decision logic
         if team_advantage > 0.5:
             return random.random() > 0.3
-        else:
-            return current_position > 2
+        return current_position > 2
 
-    def should_accept_double(self, game_state: Dict) -> bool:
+    def should_accept_double(self, game_state: dict) -> bool:
         """Decide whether to accept a double"""
         # For simulation purposes, use simple decision logic
         current_points = 0  # Assume neutral position
@@ -3261,8 +3236,7 @@ class WolfGoatPigGame(PersistenceMixin):
         # Simple decision logic
         if hole_advantage > 0:
             return random.random() > 0.4
-        else:
-            return current_points < 0
+        return current_points < 0
 
     # Compatibility methods for old simulation API
     def setup_simulation(self, human_player, computer_configs, course_name=None):
@@ -3322,13 +3296,12 @@ class WolfGoatPigGame(PersistenceMixin):
         if "accept" in human_decisions and "partner_id" in human_decisions:
             if human_decisions["accept"]:
                 return self.respond_to_partnership(human_decisions["partner_id"], True)
-            else:
-                return self.respond_to_partnership(human_decisions["partner_id"], False)
+            return self.respond_to_partnership(human_decisions["partner_id"], False)
 
         if "action" in human_decisions:
             if human_decisions["action"] == "go_solo":
                 return self.captain_go_solo("human")
-            elif human_decisions["action"] == "request_partner":
+            if human_decisions["action"] == "request_partner":
                 return self.request_partner("human", human_decisions["requested_partner"])
 
         # Default: advance hole
@@ -3413,7 +3386,7 @@ class WolfGoatPigGame(PersistenceMixin):
 
     # ADVANCED ANALYTICS METHODS
 
-    def get_advanced_analytics(self) -> Dict[str, Any]:
+    def get_advanced_analytics(self) -> dict[str, Any]:
         """Get comprehensive analytics dashboard data"""
         return {
             "performance_trends": self._get_performance_trends(),
@@ -3424,7 +3397,7 @@ class WolfGoatPigGame(PersistenceMixin):
             "prediction_models": self._get_prediction_models(),
         }
 
-    def _get_performance_trends(self) -> Dict[str, Any]:
+    def _get_performance_trends(self) -> dict[str, Any]:
         """Analyze performance trends over completed holes"""
         trends = {}
 
@@ -3472,12 +3445,12 @@ class WolfGoatPigGame(PersistenceMixin):
 
         return trends
 
-    def _get_betting_analysis(self) -> Dict[str, Any]:
+    def _get_betting_analysis(self) -> dict[str, Any]:
         """Analyze betting patterns and success rates"""
-        total_wagers: List[int] = []
-        special_rules_count: Dict[str, int] = {}
+        total_wagers: list[int] = []
+        special_rules_count: dict[str, int] = {}
 
-        analysis: Dict[str, Any] = {
+        analysis: dict[str, Any] = {
             "wager_escalation": total_wagers,
             "special_rules_frequency": special_rules_count,
             "success_rates": {},
@@ -3521,7 +3494,7 @@ class WolfGoatPigGame(PersistenceMixin):
                         if player_points > 0:
                             partnership_wins += 1
 
-            success_rates_dict = cast(Dict[str, Any], analysis["success_rates"])
+            success_rates_dict = cast("dict[str, Any]", analysis["success_rates"])
             success_rates_dict[player.id] = {
                 "name": player.name,
                 "solo_success_rate": solo_wins / max(1, solo_attempts),
@@ -3536,7 +3509,7 @@ class WolfGoatPigGame(PersistenceMixin):
 
         return analysis
 
-    def _get_partnership_chemistry(self) -> Dict[str, Any]:
+    def _get_partnership_chemistry(self) -> dict[str, Any]:
         """Analyze partnership combinations and their success rates"""
         chemistry = {}
         partnerships = {}
@@ -3589,7 +3562,7 @@ class WolfGoatPigGame(PersistenceMixin):
 
         return chemistry
 
-    def _get_game_statistics(self) -> Dict[str, Any]:
+    def _get_game_statistics(self) -> dict[str, Any]:
         """Get overall game statistics"""
         completed_holes = len([h for h in self.hole_states.values() if h.hole_complete])
 
@@ -3605,7 +3578,7 @@ class WolfGoatPigGame(PersistenceMixin):
             "estimated_completion_time": f"{(18 - completed_holes) * 15} minutes",
         }
 
-    def _get_risk_analysis(self) -> Dict[str, Any]:
+    def _get_risk_analysis(self) -> dict[str, Any]:
         """Analyze risk-taking patterns and outcomes"""
         risk_analysis = {}
 
@@ -3623,10 +3596,8 @@ class WolfGoatPigGame(PersistenceMixin):
 
                 # Classify moves as high-risk or conservative
                 if (
-                    hole_state.teams.type == "solo"
-                    and hole_state.teams.solo_player == player.id
-                    or hole_state.betting.current_wager >= hole_state.betting.base_wager * 2
-                ):
+                    hole_state.teams.type == "solo" and hole_state.teams.solo_player == player.id
+                ) or hole_state.betting.current_wager >= hole_state.betting.base_wager * 2:
                     high_risk_moves += 1
                     if player_points > 0:
                         high_risk_successes += 1
@@ -3647,7 +3618,7 @@ class WolfGoatPigGame(PersistenceMixin):
 
         return risk_analysis
 
-    def _get_prediction_models(self) -> Dict[str, Any]:
+    def _get_prediction_models(self) -> dict[str, Any]:
         """Generate prediction models for game outcomes"""
         current_standings = sorted(self.players, key=lambda p: p.points, reverse=True)
         holes_remaining = 18 - len([h for h in self.hole_states.values() if h.hole_complete])
@@ -3677,7 +3648,7 @@ class WolfGoatPigGame(PersistenceMixin):
 
         return predictions
 
-    def _calculate_consistency(self, scores: List[float]) -> float:
+    def _calculate_consistency(self, scores: list[float]) -> float:
         """Calculate consistency score (lower variance = higher consistency)"""
         if len(scores) < 2:
             return 0.5
@@ -3686,17 +3657,16 @@ class WolfGoatPigGame(PersistenceMixin):
         variance = sum((x - avg) ** 2 for x in scores) / len(scores)
         return max(0, min(1, 1 - (variance / 10)))  # Normalize to 0-1
 
-    def _calculate_chemistry_rating(self, stats: Dict) -> str:
+    def _calculate_chemistry_rating(self, stats: dict) -> str:
         """Calculate partnership chemistry rating"""
         success_rate = stats["wins"] / max(1, stats["attempts"])
         if success_rate >= 0.7:
             return "Excellent"
-        elif success_rate >= 0.5:
+        if success_rate >= 0.5:
             return "Good"
-        elif success_rate >= 0.3:
+        if success_rate >= 0.3:
             return "Average"
-        else:
-            return "Poor"
+        return "Poor"
 
     def _get_competition_tightness(self) -> str:
         """Determine how close the competition is"""
@@ -3708,14 +3678,13 @@ class WolfGoatPigGame(PersistenceMixin):
 
         if point_spread <= 2:
             return "Very tight"
-        elif point_spread <= 5:
+        if point_spread <= 5:
             return "Competitive"
-        elif point_spread <= 10:
+        if point_spread <= 10:
             return "Moderate lead"
-        else:
-            return "Runaway leader"
+        return "Runaway leader"
 
-    def _get_key_factors(self, player: Player) -> List[str]:
+    def _get_key_factors(self, player: Player) -> list[str]:
         """Get key factors affecting player's chances"""
         factors = []
 
@@ -3733,7 +3702,7 @@ class WolfGoatPigGame(PersistenceMixin):
 
     # ========== PERSISTENCE METHODS (Required by PersistenceMixin) ==========
 
-    def _serialize(self) -> Dict[str, Any]:
+    def _serialize(self) -> dict[str, Any]:
         """
         Convert all game state to a JSON-serializable dictionary.
         This now includes the simulation-specific state.
@@ -3793,7 +3762,7 @@ class WolfGoatPigGame(PersistenceMixin):
             # Return a minimal state to avoid crashing
             return {"game_id": self.game_id, "error": str(e)}
 
-    def _deserialize(self, data: Dict[str, Any]) -> None:
+    def _deserialize(self, data: dict[str, Any]) -> None:
         """
         Restore complete game state from dictionary.
         Required by PersistenceMixin for database persistence.
@@ -3954,11 +3923,11 @@ class WolfGoatPigGame(PersistenceMixin):
             logger.error(f"Error deserializing WolfGoatPigGame: {e}")
             raise
 
-    def _get_final_scores(self) -> Dict[str, int]:
+    def _get_final_scores(self) -> dict[str, int]:
         """Get final scores for game completion. Used by PersistenceMixin."""
         return {player.id: player.points for player in self.players}
 
-    def _get_game_metadata(self) -> Dict[str, Any]:
+    def _get_game_metadata(self) -> dict[str, Any]:
         """Get game metadata for completion record. Used by PersistenceMixin."""
         course_name = "Unknown"
         if self.course_manager and hasattr(self.course_manager, "selected_course"):
@@ -3976,7 +3945,7 @@ class WolfGoatPigGame(PersistenceMixin):
             },
         }
 
-    def _get_player_results(self) -> List[Dict[str, Any]]:
+    def _get_player_results(self) -> list[dict[str, Any]]:
         """Get individual player results for completion record. Used by PersistenceMixin."""
         results = []
         for player in self.players:

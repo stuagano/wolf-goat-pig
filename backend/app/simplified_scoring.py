@@ -8,7 +8,7 @@ mechanics while reducing the serialization overhead.
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -18,11 +18,11 @@ class SimpleHoleResult:
     """Simplified hole result with just essential data"""
 
     hole_number: int
-    scores: Dict[str, int]  # player_id -> score
+    scores: dict[str, int]  # player_id -> score
     wager: int
     team_type: str  # "solo" or "partners" - defaults to "partners" if None
-    winners: List[str]
-    points_awarded: Dict[str, int]  # player_id -> points change
+    winners: list[str]
+    points_awarded: dict[str, int]  # player_id -> points change
 
 
 class SimplifiedScoring:
@@ -31,18 +31,18 @@ class SimplifiedScoring:
     core Wolf Goat Pig game mechanics.
     """
 
-    def __init__(self, players: List[Dict[str, Any]]):
+    def __init__(self, players: list[dict[str, Any]]):
         """Initialize with basic player information"""
         self.players = {p["id"]: {"name": p["name"], "points": 0} for p in players}
-        self.hole_results: Dict[int, SimpleHoleResult] = {}
+        self.hole_results: dict[int, SimpleHoleResult] = {}
 
     def enter_hole_scores(
         self,
         hole_number: int,
-        scores: Dict[str, int],
-        teams: Dict[str, Any],
+        scores: dict[str, int],
+        teams: dict[str, Any],
         wager: int = 1,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Simplified hole scoring that focuses on core mechanics.
 
@@ -98,9 +98,9 @@ class SimplifiedScoring:
 
         except Exception as e:
             logger.error(f"Error in simplified hole scoring: {e}")
-            return {"error": f"Scoring failed: {str(e)}"}
+            return {"error": f"Scoring failed: {e!s}"}
 
-    def _calculate_solo_points(self, scores: Dict[str, int], teams: Dict[str, Any], wager: int) -> Dict[str, Any]:
+    def _calculate_solo_points(self, scores: dict[str, int], teams: dict[str, Any], wager: int) -> dict[str, Any]:
         """Calculate points for solo play (one vs all others)"""
         solo_player = teams.get("solo_player")
         if not solo_player or solo_player not in scores:
@@ -145,7 +145,7 @@ class SimplifiedScoring:
             "halved": len(winners) == 0,
         }
 
-    def _calculate_partners_points(self, scores: Dict[str, int], teams: Dict[str, Any], wager: int) -> Dict[str, Any]:
+    def _calculate_partners_points(self, scores: dict[str, int], teams: dict[str, Any], wager: int) -> dict[str, Any]:
         """Calculate points for partner play (two teams of two)"""
         team1 = teams.get("team1", [])
         team2 = teams.get("team2", [])
@@ -189,7 +189,7 @@ class SimplifiedScoring:
             "halved": len(winners) == 0,
         }
 
-    def get_game_summary(self) -> Dict[str, Any]:
+    def get_game_summary(self) -> dict[str, Any]:
         """Get a simple game summary with current standings"""
         return {
             "players": self.players,
@@ -202,7 +202,7 @@ class SimplifiedScoring:
             ),
         }
 
-    def get_hole_history(self) -> List[Dict[str, Any]]:
+    def get_hole_history(self) -> list[dict[str, Any]]:
         """Get simplified hole-by-hole results"""
         history = []
         for hole_num in sorted(self.hole_results.keys()):

@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 @dataclass
@@ -7,8 +7,8 @@ class ShotStateEntry:
     """Data class for tracking shot state entries"""
 
     player_id: str
-    shot_result: Dict[str, Any]
-    probabilities: Optional[Dict[str, Any]] = None
+    shot_result: dict[str, Any]
+    probabilities: dict[str, Any] | None = None
 
 
 @dataclass
@@ -20,8 +20,8 @@ class ShotState:
 
     phase: str = "tee_shots"
     current_player_index: int = 0
-    completed_shots: List[ShotStateEntry] = field(default_factory=list)
-    pending_decisions: List[Dict[str, Any]] = field(default_factory=list)
+    completed_shots: list[ShotStateEntry] = field(default_factory=list)
+    pending_decisions: list[dict[str, Any]] = field(default_factory=list)
 
     def reset_for_hole(self):
         """Reset shot state for a new hole"""
@@ -41,27 +41,27 @@ class ShotState:
     def add_completed_shot(
         self,
         player_id: str,
-        shot_result: Dict[str, Any],
-        probabilities: Optional[Dict[str, Any]] = None,
+        shot_result: dict[str, Any],
+        probabilities: dict[str, Any] | None = None,
     ) -> None:
         """Add a completed shot to the sequence"""
         shot = ShotStateEntry(player_id=player_id, shot_result=shot_result, probabilities=probabilities)
         self.completed_shots.append(shot)
 
-    def has_next_shot(self, hitting_order: List[str]) -> bool:
+    def has_next_shot(self, hitting_order: list[str]) -> bool:
         """Check if there are more shots available in current phase"""
         if self.phase == "tee_shots":
             return self.current_player_index < len(hitting_order)
-        elif self.phase == "approach_shots":
+        if self.phase == "approach_shots":
             # Logic for approach shots based on teams
             return self._has_next_approach_shot(hitting_order)
         return False
 
-    def get_current_player_id(self, hitting_order: List[str]) -> Optional[str]:
+    def get_current_player_id(self, hitting_order: list[str]) -> str | None:
         """Get the ID of the player who should hit next"""
         if self.phase == "tee_shots" and self.current_player_index < len(hitting_order):
             return hitting_order[self.current_player_index]
-        elif self.phase == "approach_shots":
+        if self.phase == "approach_shots":
             return self._get_next_approach_player(hitting_order)
         return None
 
@@ -71,7 +71,7 @@ class ShotState:
         self.current_player_index = 0
         # Don't clear completed_shots as they may be needed for decisions
 
-    def get_phase_summary(self, hitting_order: List[str]) -> Dict[str, Any]:
+    def get_phase_summary(self, hitting_order: list[str]) -> dict[str, Any]:
         """Get comprehensive information about current shot phase"""
         return {
             "phase": self.phase,
@@ -90,7 +90,7 @@ class ShotState:
             "pending_decisions": self.pending_decisions,
         }
 
-    def add_pending_decision(self, decision: Dict[str, Any]) -> None:
+    def add_pending_decision(self, decision: dict[str, Any]) -> None:
         """Add a decision that needs to be made"""
         self.pending_decisions.append(decision)
 
@@ -98,7 +98,7 @@ class ShotState:
         """Clear all pending decisions (after they're resolved)"""
         self.pending_decisions = []
 
-    def get_tee_shot_results(self) -> List[Dict[str, Any]]:
+    def get_tee_shot_results(self) -> list[dict[str, Any]]:
         """Get all tee shot results for partnership decisions"""
         tee_shots = []
         for shot in self.completed_shots:
@@ -112,11 +112,11 @@ class ShotState:
                 )
         return tee_shots
 
-    def is_phase_complete(self, hitting_order: List[str]) -> bool:
+    def is_phase_complete(self, hitting_order: list[str]) -> bool:
         """Check if the current phase is complete"""
         if self.phase == "tee_shots":
             return self.current_player_index >= len(hitting_order)
-        elif self.phase == "approach_shots":
+        if self.phase == "approach_shots":
             return not self._has_next_approach_shot(hitting_order)
         return True
 
@@ -124,17 +124,17 @@ class ShotState:
         """Get the number of players that should participate in current phase"""
         if self.phase == "tee_shots":
             return 4  # All players hit tee shots
-        elif self.phase == "approach_shots":
+        if self.phase == "approach_shots":
             return 2  # Typically partnership plays approach shots
         return 0
 
-    def _has_next_approach_shot(self, hitting_order: List[str]) -> bool:
+    def _has_next_approach_shot(self, hitting_order: list[str]) -> bool:
         """Check if there are more approach shots needed"""
         # This would depend on team formation and strategy
         # For now, simplified logic - extend as needed
         return self.current_player_index < 2  # Max 2 approach shots in partnership
 
-    def _get_next_approach_player(self, hitting_order: List[str]) -> Optional[str]:
+    def _get_next_approach_player(self, hitting_order: list[str]) -> str | None:
         """Get the next player for approach shots based on team strategy"""
         # This would be more complex in real implementation
         # Would consider team formation, shot positions, etc.
@@ -142,7 +142,7 @@ class ShotState:
             return hitting_order[self.current_player_index]
         return None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize shot state to dictionary"""
         return {
             "phase": self.phase,
@@ -158,7 +158,7 @@ class ShotState:
             "pending_decisions": self.pending_decisions,
         }
 
-    def from_dict(self, data: Dict[str, Any]) -> None:
+    def from_dict(self, data: dict[str, Any]) -> None:
         """Deserialize shot state from dictionary"""
         self.phase = data.get("phase", "tee_shots")
         self.current_player_index = data.get("current_player_index", 0)

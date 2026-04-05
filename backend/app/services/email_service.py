@@ -8,7 +8,7 @@ import logging
 import os
 import re
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any
 
 import emails
 from jinja2 import Template
@@ -31,7 +31,7 @@ class EmailProvider(ABC):
         to_email: str,
         subject: str,
         html_body: str,
-        text_body: Optional[str] = None,
+        text_body: str | None = None,
     ) -> bool:
         pass
 
@@ -39,7 +39,7 @@ class EmailProvider(ABC):
     def is_configured(self) -> bool:
         pass
 
-    def get_configuration_status(self) -> Dict[str, Any]:
+    def get_configuration_status(self) -> dict[str, Any]:
         return {"provider": self.__class__.__name__, "configured": self.is_configured()}
 
 
@@ -65,7 +65,7 @@ class SMTPEmailProvider(EmailProvider):
         to_email: str,
         subject: str,
         html_body: str,
-        text_body: Optional[str] = None,
+        text_body: str | None = None,
     ) -> bool:
         if not self.is_configured():
             logger.error("SMTP provider is not configured. Cannot send email.")
@@ -90,9 +90,8 @@ class SMTPEmailProvider(EmailProvider):
             if response.status_code in [250, 251, 252]:
                 logger.info(f"Email sent successfully to {to_email} via SMTP.")
                 return True
-            else:
-                logger.error(f"Failed to send email to {to_email} via SMTP. Status: {response.status_code}")
-                return False
+            logger.error(f"Failed to send email to {to_email} via SMTP. Status: {response.status_code}")
+            return False
         except Exception as e:
             logger.error(f"Error sending email via SMTP to {to_email}: {e}")
             return False
@@ -110,11 +109,11 @@ class EmailService:
     """A unified service for sending emails using a configured provider."""
 
     def __init__(self):
-        self.provider: Optional[EmailProvider] = self._get_configured_provider()
+        self.provider: EmailProvider | None = self._get_configured_provider()
         if not self.provider:
             logger.warning("No email provider is configured. Email functionality will be disabled.")
 
-    def _get_configured_provider(self) -> Optional[EmailProvider]:
+    def _get_configured_provider(self) -> EmailProvider | None:
         """Determines which email provider to use based on environment variables."""
         email_provider_type = os.getenv("EMAIL_PROVIDER", "smtp").lower()
 
@@ -139,7 +138,7 @@ class EmailService:
         to_email: str,
         subject: str,
         html_body: str,
-        text_body: Optional[str] = None,
+        text_body: str | None = None,
     ) -> bool:
         if not self.is_configured():
             logger.error("Email service is not configured. Cannot send email.")
@@ -385,15 +384,22 @@ class EmailService:
             app_url: Base URL of the app for deep links
         """
         other_players = [n for n in group_players if n != player_name]
-        others_str = ", ".join(other_players[:-1]) + f" and {other_players[-1]}" if len(other_players) > 1 else other_players[0] if other_players else ""
+        others_str = (
+            ", ".join(other_players[:-1]) + f" and {other_players[-1]}"
+            if len(other_players) > 1
+            else other_players[0]
+            if other_players
+            else ""
+        )
 
         match_url = f"{app_url}/signup?tab=my-matches" if app_url else ""
-        cta_html = f'<a href="{match_url}" style="display:inline-block;padding:12px 24px;background:#047857;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;margin-top:10px;">View Match &amp; Respond</a>' if match_url else ""
-
-        players_html = "".join(
-            f'<li style="margin:5px 0;font-size:15px;">{name}</li>'
-            for name in group_players
+        cta_html = (
+            f'<a href="{match_url}" style="display:inline-block;padding:12px 24px;background:#047857;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;margin-top:10px;">View Match &amp; Respond</a>'
+            if match_url
+            else ""
         )
+
+        players_html = "".join(f'<li style="margin:5px 0;font-size:15px;">{name}</li>' for name in group_players)
 
         content = f"""
         <h2>⛳ Golf Match Found!</h2>
@@ -453,7 +459,11 @@ class EmailService:
         others_str = ", ".join(others[:-1]) + f" and {others[-1]}" if len(others) > 1 else others[0] if others else ""
 
         match_url = f"{app_url}/signup?tab=my-matches" if app_url else ""
-        cta_html = f'<a href="{match_url}" style="display:inline-block;padding:12px 24px;background:#10b981;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;margin-top:10px;">Book Your Tee Time</a>' if match_url else ""
+        cta_html = (
+            f'<a href="{match_url}" style="display:inline-block;padding:12px 24px;background:#10b981;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;margin-top:10px;">Book Your Tee Time</a>'
+            if match_url
+            else ""
+        )
 
         content = f"""
         <h2>🎉 Everyone's In!</h2>
@@ -497,7 +507,11 @@ class EmailService:
     ) -> bool:
         """Sends an email when someone declines a match."""
         match_url = f"{app_url}/signup?tab=my-matches" if app_url else ""
-        cta_html = f'<a href="{match_url}" style="display:inline-block;padding:12px 24px;background:#047857;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;margin-top:10px;">Check for New Matches</a>' if match_url else ""
+        cta_html = (
+            f'<a href="{match_url}" style="display:inline-block;padding:12px 24px;background:#047857;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;margin-top:10px;">Check for New Matches</a>'
+            if match_url
+            else ""
+        )
 
         content = f"""
         <h2>Match Update</h2>
@@ -533,7 +547,11 @@ class EmailService:
     ) -> bool:
         """Sends a nudge email when another player accepts (but not all yet)."""
         match_url = f"{app_url}/signup?tab=my-matches" if app_url else ""
-        cta_html = f'<a href="{match_url}" style="display:inline-block;padding:12px 24px;background:#047857;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;margin-top:10px;">Accept Match</a>' if match_url else ""
+        cta_html = (
+            f'<a href="{match_url}" style="display:inline-block;padding:12px 24px;background:#047857;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;margin-top:10px;">Accept Match</a>'
+            if match_url
+            else ""
+        )
 
         content = f"""
         <h2>⏳ Your {match_day} Match Needs You!</h2>
@@ -554,7 +572,7 @@ class EmailService:
             html_body=html_body,
         )
 
-    def get_provider_status(self) -> Dict[str, Any]:
+    def get_provider_status(self) -> dict[str, Any]:
         """Returns the configuration status of the current provider."""
         if not self.provider:
             return {"provider": "None", "configured": False}
@@ -563,7 +581,7 @@ class EmailService:
 
 # --- Global Service Instance ---
 
-_email_service_instance: Optional[EmailService] = None
+_email_service_instance: EmailService | None = None
 
 
 def get_email_service() -> EmailService:

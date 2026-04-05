@@ -6,7 +6,7 @@ Per-user credentials are stored encrypted in player_profiles.
 """
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, field_validator
@@ -33,11 +33,12 @@ VALID_TRANSPORT_MODES = {"WLK", "CRT", "PC"}
 # Request / Response Models
 # ------------------------------------------------------------------
 
+
 class BookTeeTimeRequest(BaseModel):
     ttdata: str
     transport_mode: str = "WLK"
-    date: Optional[str] = None  # YYYY-MM-DD, used for v5 browser booking
-    time: Optional[str] = None  # "12:00 PM", used for v5 browser booking
+    date: str | None = None  # YYYY-MM-DD, used for v5 browser booking
+    time: str | None = None  # "12:00 PM", used for v5 browser booking
 
     @field_validator("transport_mode")
     @classmethod
@@ -56,9 +57,9 @@ class BookTeeTimeRequest(BaseModel):
 
 
 class CancelTeeTimeRequest(BaseModel):
-    date: str   # YYYY-MM-DD
+    date: str  # YYYY-MM-DD
     time: str = ""  # "12:00 PM" — optional if ttdata is provided
-    ttdata: Optional[str] = None  # encrypted slot identifier (preferred)
+    ttdata: str | None = None  # encrypted slot identifier (preferred)
 
 
 class ForeteesCredentials(BaseModel):
@@ -68,12 +69,13 @@ class ForeteesCredentials(BaseModel):
 
 class ForeteesCredentialsStatus(BaseModel):
     configured: bool
-    username: Optional[str] = None
+    username: str | None = None
 
 
 # ------------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------------
+
 
 def _get_user_service(player: models.PlayerProfile):
     """Return a ForeteesService for the given player.
@@ -84,13 +86,19 @@ def _get_user_service(player: models.PlayerProfile):
     if player.foretees_username and player.foretees_password_encrypted:
         try:
             password = decrypt(player.foretees_password_encrypted)
-            logger.info("Using per-user ForeTees service for player %s (username=%s)", player.id, player.foretees_username)
+            logger.info(
+                "Using per-user ForeTees service for player %s (username=%s)", player.id, player.foretees_username
+            )
             return create_user_foretees_service(player.foretees_username, password)
         except Exception as exc:
             logger.warning("Failed to decrypt credentials for player %s (%s), falling back to env", player.id, exc)
     else:
-        logger.warning("No per-user credentials for player %s (username_set=%s, password_set=%s) — using env singleton",
-                       player.id, bool(player.foretees_username), bool(player.foretees_password_encrypted))
+        logger.warning(
+            "No per-user credentials for player %s (username_set=%s, password_set=%s) — using env singleton",
+            player.id,
+            bool(player.foretees_username),
+            bool(player.foretees_password_encrypted),
+        )
 
     return get_foretees_service()
 
@@ -111,11 +119,12 @@ def _mask_username(username: str) -> str:
 # Credential Management Endpoints
 # ------------------------------------------------------------------
 
+
 @router.get("/credentials")
 @handle_api_errors(operation_name="get credentials status")
 async def get_credentials_status(
     current_user: models.PlayerProfile = Depends(get_current_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Check whether the current user has ForeTees credentials configured."""
     configured = bool(current_user.foretees_username and current_user.foretees_password_encrypted)
     status = ForeteesCredentialsStatus(
@@ -131,7 +140,7 @@ async def save_credentials(
     creds: ForeteesCredentials,
     current_user: models.PlayerProfile = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Save (and validate) ForeTees credentials for the current user.
 
     Attempts a ForeTees login to verify the credentials are correct
@@ -164,7 +173,7 @@ async def save_credentials(
 async def remove_credentials(
     current_user: models.PlayerProfile = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Remove stored ForeTees credentials for the current user."""
     current_user.foretees_username = None
     current_user.foretees_password_encrypted = None
@@ -178,12 +187,13 @@ async def remove_credentials(
 # Tee Time Endpoints (now use per-user credentials)
 # ------------------------------------------------------------------
 
+
 @router.get("/tee-times")
 @handle_api_errors(operation_name="get tee times")
 async def get_tee_times(
     date: str,
     current_user: models.PlayerProfile = Depends(get_current_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get available tee times for a given date."""
     service = _get_user_service(current_user)
     if not service.config.enabled:
@@ -206,7 +216,7 @@ async def get_tee_times(
 @handle_api_errors(operation_name="get my bookings")
 async def get_my_bookings(
     current_user: models.PlayerProfile = Depends(get_current_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get the current member's upcoming tee time bookings."""
     service = _get_user_service(current_user)
     if not service.config.enabled:
@@ -229,7 +239,7 @@ async def get_my_bookings(
 async def book_tee_time(
     request: BookTeeTimeRequest,
     current_user: models.PlayerProfile = Depends(get_current_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Book the current user into a tee time slot."""
     service = _get_user_service(current_user)
     if not service.config.enabled:
@@ -272,7 +282,7 @@ async def book_tee_time(
 async def cancel_tee_time(
     request: CancelTeeTimeRequest,
     current_user: models.PlayerProfile = Depends(get_current_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Cancel the current user's tee time."""
     service = _get_user_service(current_user)
     if not service.config.enabled:

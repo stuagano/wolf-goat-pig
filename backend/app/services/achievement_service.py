@@ -14,7 +14,7 @@ Features:
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from sqlalchemy import and_, desc
 from sqlalchemy.orm import Session
@@ -51,8 +51,8 @@ class AchievementService:
         self,
         player_profile_id: int,
         badge_name: str,
-        game_record_id: Optional[int] = None,
-    ) -> Optional[Dict[str, Any]]:
+        game_record_id: int | None = None,
+    ) -> dict[str, Any] | None:
         """
         Award a badge to a player by badge name.
 
@@ -97,8 +97,7 @@ class AchievementService:
 
             if earned_badge:
                 logger.info(
-                    f"Awarded badge '{badge_name}' to player {player_profile_id} "
-                    f"(serial #{earned_badge.serial_number})"
+                    f"Awarded badge '{badge_name}' to player {player_profile_id} (serial #{earned_badge.serial_number})"
                 )
 
                 return {
@@ -120,7 +119,7 @@ class AchievementService:
             self.db.rollback()
             raise
 
-    def get_player_badges(self, player_profile_id: int) -> List[Dict[str, Any]]:
+    def get_player_badges(self, player_profile_id: int) -> list[dict[str, Any]]:
         """
         Get all badges earned by a player.
 
@@ -166,7 +165,7 @@ class AchievementService:
             logger.error(f"Error getting badges for player {player_profile_id}: {e}")
             raise
 
-    def get_available_badges(self) -> List[Dict[str, Any]]:
+    def get_available_badges(self) -> list[dict[str, Any]]:
         """
         Get all available badges that can be earned.
 
@@ -253,7 +252,7 @@ class AchievementService:
             logger.error(f"Error checking badge eligibility for player {player_profile_id}: {e}")
             raise
 
-    def calculate_badge_progress(self, player_profile_id: int, badge_name: str) -> Dict[str, Any]:
+    def calculate_badge_progress(self, player_profile_id: int, badge_name: str) -> dict[str, Any]:
         """
         Calculate progress toward earning a badge.
 
@@ -331,7 +330,7 @@ class AchievementService:
     # LEGACY PLAYERACHIEVEMENT METHODS (Backward Compatibility)
     # ====================================================================================
 
-    def get_player_achievements(self, player_profile_id: int) -> List[Dict[str, Any]]:
+    def get_player_achievements(self, player_profile_id: int) -> list[dict[str, Any]]:
         """
         Get PlayerAchievement records for a player (legacy system).
 
@@ -363,7 +362,7 @@ class AchievementService:
                     }
                 )
 
-            logger.info(f"Retrieved {len(achievements_list)} legacy achievements " f"for player {player_profile_id}")
+            logger.info(f"Retrieved {len(achievements_list)} legacy achievements for player {player_profile_id}")
             return achievements_list
 
         except Exception as e:
@@ -375,10 +374,10 @@ class AchievementService:
         player_profile_id: int,
         achievement_type: str,
         description: str,
-        achievement_name: Optional[str] = None,
-        game_record_id: Optional[int] = None,
-        achievement_data: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        achievement_name: str | None = None,
+        game_record_id: int | None = None,
+        achievement_data: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         Create a new PlayerAchievement record (legacy system).
 
@@ -408,7 +407,7 @@ class AchievementService:
             self.db.commit()
             self.db.refresh(achievement)
 
-            logger.info(f"Created legacy achievement '{achievement_type}' " f"for player {player_profile_id}")
+            logger.info(f"Created legacy achievement '{achievement_type}' for player {player_profile_id}")
 
             return {
                 "id": achievement.id,
@@ -503,7 +502,7 @@ class AchievementService:
 # SINGLETON PATTERN
 # ====================================================================================
 
-_achievement_service_instance: Optional[AchievementService] = None
+_achievement_service_instance: AchievementService | None = None
 
 
 def get_achievement_service(db: Session) -> AchievementService:
