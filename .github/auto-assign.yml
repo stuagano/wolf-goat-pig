@@ -4,7 +4,7 @@ addReviewers: true
 addAssignees: author
 
 reviewers:
-  - stuartgano
+  - stuagano
 
 skipKeywords:
   - wip

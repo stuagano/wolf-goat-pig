@@ -167,8 +167,8 @@ class PlayerService:
             if update_data.email is not None:
                 player.email = update_data.email
 
-            if update_data.ghin_id is not None:
-                player.ghin_id = update_data.ghin_id
+            if "ghin_id" in update_data.model_fields_set:
+                player.ghin_id = update_data.ghin_id or None
 
             if update_data.preferences is not None:
                 player.preferences = update_data.preferences
