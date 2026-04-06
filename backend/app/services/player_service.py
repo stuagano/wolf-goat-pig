@@ -195,6 +195,7 @@ class PlayerService:
                 return False
 
             player.is_active = 0
+            player.ghin_id = None  # Release GHIN ID so it can be assigned elsewhere
             self.db.commit()
 
             logger.info(f"Deleted (deactivated) player profile {player_id}")
