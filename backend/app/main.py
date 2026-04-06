@@ -477,7 +477,7 @@ async def scan_scorecard_photo(file: UploadFile = File(...)) -> dict[str, Any]:
         raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
         logger.error(f"Scorecard scan failed: {e}")
-        raise HTTPException(status_code=500, detail="Failed to process scorecard image. Please try again.")
+        raise HTTPException(status_code=500, detail=f"Scan failed: {e}")
 
 
 # GHIN Integration Endpoints
