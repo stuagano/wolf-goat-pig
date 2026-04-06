@@ -1,0 +1,32 @@
+name: Daily GHIN Handicap Sync
+
+on:
+  schedule:
+    - cron: '0 14 * * *'  # 10am ET daily
+  workflow_dispatch:       # Allow manual trigger
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Sync GHIN handicaps
+      run: |
+        echo "🏌️ Syncing GHIN handicaps..."
+        RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+          "https://wolf-goat-pig.onrender.com/ghin/sync-handicaps" \
+          -H "Content-Type: application/json" \
+          --max-time 60)
+
+        HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+        BODY=$(echo "$RESPONSE" | head -n -1)
+
+        echo "Status: $HTTP_CODE"
+        echo "Response: $BODY"
+
+        if [ "$HTTP_CODE" != "200" ]; then
+          echo "❌ Sync failed with status $HTTP_CODE"
+          exit 1
+        fi
+
+        echo "✅ GHIN sync complete"
