@@ -21,12 +21,14 @@ CRITICAL conventions:
 - Values are RUNNING TOTALS, not per-hole amounts. Each cell shows the player's cumulative quarter balance AFTER that hole.
 - Values are typically small integers (-15 to +15 range). Half-values like 0.5 are possible.
 - The running total runs continuously from hole 1 through hole 18 (no reset at hole 10).
-- If a cell is blank or has "E", treat it as 0 (player is even).
+- BLANK cells mean CARRY-OVER: the hole was tied and carried over, so the running total is the same as the previous hole. DO NOT omit blank holes — include them with the same value as the previous hole and confidence 1.0.
+- "E" means the player is exactly even (running total = 0).
 - If you can't read a value clearly, still make your best guess but assign low confidence.
+- You MUST include all 18 holes for every player. Never omit a hole.
 
 Extract:
 1. Player names (from the leftmost column or row headers)
-2. For each player, for each hole 1-18: the running total value and whether it is circled (negative)
+2. For each player, for ALL 18 holes: the running total value and whether it is circled (negative)
 
 Return ONLY valid JSON in this exact format:
 {
@@ -36,24 +38,27 @@ Return ONLY valid JSON in this exact format:
   "running_totals": [
     {"player_index": 0, "hole": 1, "value": 2, "is_circled": false, "confidence": 0.92},
     {"player_index": 0, "hole": 2, "value": 4, "is_circled": false, "confidence": 0.90},
-    {"player_index": 0, "hole": 3, "value": 3, "is_circled": true, "confidence": 0.85}
+    {"player_index": 0, "hole": 3, "value": 4, "is_circled": false, "confidence": 1.0}
   ]
 }
-
-Only include holes you can actually read. Omit holes that are completely unreadable.
 """
 
 
-def _compute_per_hole_deltas(running_totals_for_player: list[dict]) -> list[dict]:
-    """Convert running totals to per-hole deltas. Hole 1 delta = value itself (starting from 0)."""
-    sorted_holes = sorted(running_totals_for_player, key=lambda x: x["hole"])
+def _compute_per_hole_deltas(running_totals_for_player: list[dict], num_holes: int = 18) -> list[dict]:
+    """Convert running totals to per-hole deltas, filling missing holes as carry-overs (delta=0)."""
+    by_hole = {entry["hole"]: entry for entry in running_totals_for_player}
     deltas = []
     prev = 0
-    for entry in sorted_holes:
-        val = -entry["value"] if entry["is_circled"] else entry["value"]
+    for hole in range(1, num_holes + 1):
+        if hole in by_hole:
+            entry = by_hole[hole]
+            val = -abs(entry["value"]) if entry.get("is_circled") else entry["value"]
+        else:
+            # Missing hole = carry-over, running total unchanged
+            val = prev
         delta = val - prev
         prev = val
-        deltas.append({"hole": entry["hole"], "quarters": delta})
+        deltas.append({"hole": hole, "quarters": delta})
     return deltas
 
 
@@ -105,7 +110,11 @@ async def scan_scorecard(image_bytes: bytes, content_type: str) -> dict[str, Any
         pi = entry["player_index"]
         by_player.setdefault(pi, []).append(entry)
 
-    # Compute per-hole deltas for each player
+    # Ensure all players have entries (even if Gemini missed some)
+    for i in range(len(players)):
+        by_player.setdefault(i, [])
+
+    # Compute per-hole deltas for each player, filling carry-overs as delta=0
     per_hole_quarters = []
     for player_index, totals in by_player.items():
         deltas = _compute_per_hole_deltas(totals)
