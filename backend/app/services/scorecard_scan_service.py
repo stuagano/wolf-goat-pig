@@ -70,7 +70,7 @@ async def scan_scorecard(image_bytes: bytes, content_type: str) -> dict[str, Any
         import google.generativeai as genai
 
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-2.0-flash")
+        model = genai.GenerativeModel("gemini-3.0-flash")
 
         image_part = {"mime_type": content_type, "data": image_bytes}
         response = model.generate_content([EXTRACTION_PROMPT, image_part])
