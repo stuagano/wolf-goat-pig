@@ -168,7 +168,15 @@ class PlayerService:
                 player.email = update_data.email
 
             if "ghin_id" in update_data.model_fields_set:
-                player.ghin_id = update_data.ghin_id or None
+                new_ghin = update_data.ghin_id or None
+                if new_ghin:
+                    # Clear this GHIN from any other record to avoid unique constraint violations
+                    # (e.g. orphaned soft-deleted duplicates)
+                    self.db.query(PlayerProfile).filter(
+                        PlayerProfile.ghin_id == new_ghin,
+                        PlayerProfile.id != player_id,
+                    ).update({"ghin_id": None})
+                player.ghin_id = new_ghin
 
             if update_data.preferences is not None:
                 player.preferences = update_data.preferences
