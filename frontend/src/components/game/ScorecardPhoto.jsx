@@ -37,7 +37,7 @@ const ScorecardPhoto = ({ gameId, players, onSaved, onCancel }) => {
     setErrorMsg(null);
 
     const formData = new FormData();
-    formData.append('image', file);
+    formData.append('file', file);
 
     try {
       const res = await fetch(`${API_URL}/scorecard/scan`, {
@@ -46,8 +46,12 @@ const ScorecardPhoto = ({ gameId, players, onSaved, onCancel }) => {
       });
 
       if (!res.ok) {
-        const detail = await res.json().catch(() => ({}));
-        throw new Error(detail.detail || `Server error ${res.status}`);
+        const body = await res.json().catch(() => ({}));
+        const detail = body.detail;
+        const msg = Array.isArray(detail)
+          ? detail.map(e => e.msg || JSON.stringify(e)).join(', ')
+          : (typeof detail === 'string' ? detail : `Server error ${res.status}`);
+        throw new Error(msg);
       }
 
       const data = await res.json();
