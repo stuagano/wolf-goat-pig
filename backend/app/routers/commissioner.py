@@ -146,7 +146,7 @@ async def commissioner_chat(
 
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel(
-        model_name="gemini-2.0-flash",
+        model_name="gemini-flash-latest",
         system_instruction=system,
     )
     response = model.generate_content(request.message)
