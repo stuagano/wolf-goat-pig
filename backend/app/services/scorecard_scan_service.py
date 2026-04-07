@@ -8,9 +8,22 @@ physical Wolf Goat Pig scorecard. Circles = negative values.
 import json
 import logging
 import os
+from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+# Path to reference scorecard examples for few-shot prompting
+_EXAMPLES_DIR = Path(__file__).parent.parent / "data" / "scorecard_examples"
+
+
+def _load_reference_image() -> tuple[bytes, str] | None:
+    """Load the reference scorecard image for few-shot prompting, if available."""
+    for ext, mime in [("jpeg", "image/jpeg"), ("jpg", "image/jpeg"), ("png", "image/png")]:
+        path = _EXAMPLES_DIR / f"example_001.{ext}"
+        if path.exists():
+            return path.read_bytes(), mime
+    return None
 
 EXTRACTION_PROMPT = """This is a Wolf Goat Pig golf wagering scorecard photo.
 
@@ -19,12 +32,22 @@ The numbers written on it represent RUNNING TOTALS of quarters (a wagering unit)
 CRITICAL conventions:
 - CIRCLED numbers are NEGATIVE. A circle drawn around a number means that player is DOWN by that amount. Uncircled = positive (player is UP).
 - Values are RUNNING TOTALS, not per-hole amounts. Each cell shows the player's cumulative quarter balance AFTER that hole.
-- Values are typically small integers (-15 to +15 range). Half-values like 0.5 are possible.
+- Values can be LARGE — running totals of ±50 to ±200 are normal. Do NOT assume values are small. Read multi-digit numbers carefully.
+- HANDWRITING WARNING: A handwritten "6" often looks like a "u" or "U". The digit sequence "96" may appear to read "9u" or "9U" — always interpret trailing u/U as the digit 6. Similarly "16" may look like "1U", "36" like "3U", etc.
 - The running total runs continuously from hole 1 through hole 18 (no reset at hole 10).
-- BLANK cells mean CARRY-OVER: the hole was tied and carried over, so the running total is the same as the previous hole. DO NOT omit blank holes — include them with the same value as the previous hole and confidence 1.0.
+- BLANK cells or a slash "/" mean CARRY-OVER: the hole was tied and the running total is the same as the previous hole. DO NOT omit blank holes — include them with the same value as the previous hole and confidence 1.0.
 - "E" means the player is exactly even (running total = 0).
 - If you can't read a value clearly, still make your best guess but assign low confidence.
 - You MUST include all 18 holes for every player. Never omit a hole.
+
+REFERENCE EXAMPLE — use this to calibrate your reading of this scorer's handwriting:
+The image you are about to analyze is from the same scorer. In a previous scorecard:
+- Holes 1-2: all players at 0 (blank/carry)
+- Hole 3: two players went to +96 (uncircled), two players went to -96 (circled) — what appeared to be "9u" or "9U" was actually 96
+- Holes 4-5: carry-overs (blank)
+- Hole 6: one player went from -96 to -36 (+60 delta), others adjusted accordingly
+
+Key takeaway: "9u" in this handwriting = 96. Always read trailing lowercase u or U as the digit 6.
 
 Extract:
 1. Player names (from the leftmost column or row headers)
@@ -78,7 +101,23 @@ async def scan_scorecard(image_bytes: bytes, content_type: str) -> dict[str, Any
         model = genai.GenerativeModel("gemini-flash-latest")
 
         image_part = {"mime_type": content_type, "data": image_bytes}
-        response = model.generate_content([EXTRACTION_PROMPT, image_part])
+
+        # Build few-shot prompt: prepend reference image + known-correct extraction if available
+        ref = _load_reference_image()
+        if ref:
+            ref_bytes, ref_mime = ref
+            ref_gt_path = _EXAMPLES_DIR / "example_001_ground_truth.json"
+            ref_gt = ref_gt_path.read_text() if ref_gt_path.exists() else ""
+            contents = [
+                "REFERENCE SCORECARD — this is a known example. Study the handwriting style.",
+                {"mime_type": ref_mime, "data": ref_bytes},
+                f"The correct extraction for the reference scorecard above (H1-H6 confirmed):\n{ref_gt}\n\n---\n\nNow extract the NEW scorecard below using the same conventions and handwriting awareness:\n" + EXTRACTION_PROMPT,
+                image_part,
+            ]
+        else:
+            contents = [EXTRACTION_PROMPT, image_part]
+
+        response = model.generate_content(contents)
 
         raw_text = response.text.strip()
         # Strip markdown code fences if present

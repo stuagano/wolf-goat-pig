@@ -1,0 +1,45 @@
+{
+  "_notes": "Ground truth for example_001.jpeg. Players: Jeff Green, Stuart Gano, Gregg Colburn, Allen Avery. Key handwriting quirk: '9U' in this scorer's handwriting = 96 (stylized 6 looks like U). Circled = negative. Blank = carry-over.",
+  "players": [
+    {"name": "Jeff Green", "confidence": 1.0},
+    {"name": "Stuart Gano", "confidence": 1.0},
+    {"name": "Gregg Colburn", "confidence": 1.0},
+    {"name": "Allen Avery", "confidence": 1.0}
+  ],
+  "running_totals": [
+    {"player_index": 0, "hole": 1, "value": 0, "is_circled": false, "confidence": 1.0},
+    {"player_index": 0, "hole": 2, "value": 0, "is_circled": false, "confidence": 1.0},
+    {"player_index": 0, "hole": 3, "value": 96, "is_circled": true, "confidence": 1.0},
+    {"player_index": 0, "hole": 4, "value": 96, "is_circled": true, "confidence": 1.0},
+    {"player_index": 0, "hole": 5, "value": 96, "is_circled": true, "confidence": 1.0},
+    {"player_index": 0, "hole": 6, "value": 116, "is_circled": true, "confidence": 1.0},
+
+    {"player_index": 1, "hole": 1, "value": 0, "is_circled": false, "confidence": 1.0},
+    {"player_index": 1, "hole": 2, "value": 0, "is_circled": false, "confidence": 1.0},
+    {"player_index": 1, "hole": 3, "value": 96, "is_circled": false, "confidence": 1.0},
+    {"player_index": 1, "hole": 4, "value": 96, "is_circled": false, "confidence": 1.0},
+    {"player_index": 1, "hole": 5, "value": 96, "is_circled": false, "confidence": 1.0},
+    {"player_index": 1, "hole": 6, "value": 76, "is_circled": false, "confidence": 1.0},
+
+    {"player_index": 2, "hole": 1, "value": 0, "is_circled": false, "confidence": 1.0},
+    {"player_index": 2, "hole": 2, "value": 0, "is_circled": false, "confidence": 1.0},
+    {"player_index": 2, "hole": 3, "value": 96, "is_circled": true, "confidence": 1.0},
+    {"player_index": 2, "hole": 4, "value": 96, "is_circled": true, "confidence": 1.0},
+    {"player_index": 2, "hole": 5, "value": 96, "is_circled": true, "confidence": 1.0},
+    {"player_index": 2, "hole": 6, "value": 36, "is_circled": true, "confidence": 1.0},
+
+    {"player_index": 3, "hole": 1, "value": 0, "is_circled": false, "confidence": 1.0},
+    {"player_index": 3, "hole": 2, "value": 0, "is_circled": false, "confidence": 1.0},
+    {"player_index": 3, "hole": 3, "value": 96, "is_circled": false, "confidence": 1.0},
+    {"player_index": 3, "hole": 4, "value": 96, "is_circled": false, "confidence": 1.0},
+    {"player_index": 3, "hole": 5, "value": 96, "is_circled": false, "confidence": 1.0},
+    {"player_index": 3, "hole": 6, "value": 76, "is_circled": false, "confidence": 1.0}
+  ],
+  "_confirmed_holes": "H1-H6 confirmed by player Stuart Gano. H7-H18 pending.",
+  "_handwriting_notes": [
+    "Stylized 6 looks like U — '9U' in this handwriting = 96",
+    "Blank cells are carry-overs, not zero deltas",
+    "Slash '/' also indicates carry-over/tie",
+    "Values can reach into the hundreds (96+ per significant hole)"
+  ]
+}
