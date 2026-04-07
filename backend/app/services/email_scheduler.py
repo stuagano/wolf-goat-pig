@@ -318,7 +318,7 @@ class EmailScheduler:
         db = self._get_db()
         try:
             svc = get_unified_data_service(db=db)
-            rounds = svc.get_all_rounds(include_database=False)
+            rounds = svc.get_all_rounds(include_database=False, use_sheet_cache=False)
             if not rounds:
                 logger.warning("Legacy rounds sync: no rounds returned from sheets")
                 return

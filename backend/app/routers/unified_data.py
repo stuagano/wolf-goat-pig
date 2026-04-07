@@ -282,7 +282,7 @@ def sync_sheets_to_db(db: Session = Depends(get_db)) -> Any:
     service = get_unified_data_service(db=db)
 
     try:
-        all_rounds = service.get_all_rounds(include_database=False)
+        all_rounds = service.get_all_rounds(include_database=False, use_sheet_cache=False)
     except Exception as exc:
         return {"success": False, "error": str(exc), "synced": 0}
 

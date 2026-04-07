@@ -18,7 +18,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import GamePlayerResult, GameRecord
+from ..models import GamePlayerResult, GameRecord, LegacyRound
 from .spreadsheet_sync_service import PRIMARY_SHEET_ID, WRITABLE_SHEET_ID, RoundResult, SpreadsheetSyncService
 
 logger = logging.getLogger(__name__)
@@ -116,6 +116,24 @@ class UnifiedDataService:
             source=source,
         )
 
+    def _legacy_round_to_unified(self, r: LegacyRound) -> UnifiedRound:
+        """Convert a legacy_rounds DB row to unified format."""
+        try:
+            dt = datetime.strptime(r.date, "%Y-%m-%d")
+            date_display = dt.strftime("%-d-%b")
+        except ValueError:
+            date_display = r.date
+        return UnifiedRound(
+            date=date_display,
+            date_sortable=r.date,
+            group=r.group,
+            member=r.member,
+            score=r.score,
+            location=r.location,
+            duration=r.duration,
+            source=r.source,
+        )
+
     def _db_result_to_unified(self, result: GamePlayerResult, record: GameRecord) -> UnifiedRound:
         """Convert a database game result to unified format."""
         # Convert database date format to DD-Mon
@@ -141,64 +159,73 @@ class UnifiedDataService:
             source="database",
         )
 
-    def get_all_rounds(self, include_database: bool = True) -> list[UnifiedRound]:
+    def get_all_rounds(
+        self,
+        include_database: bool = True,
+        use_sheet_cache: bool = True,
+    ) -> list[UnifiedRound]:
         """Get all rounds from all sources, deduplicated.
 
         Args:
-            include_database: Whether to include database records (default True)
+            include_database: Whether to include in-app GameRecord results.
+            use_sheet_cache: When True (default), read sheet data from the
+                legacy_rounds DB cache (synced every 2h) instead of calling
+                the Sheets API live. Pass False only when populating that cache.
 
         Returns:
-            List of unified rounds, sorted by date (most recent first)
+            List of unified rounds, sorted by date (most recent first).
         """
         all_rounds: dict[tuple, UnifiedRound] = {}
 
-        # 1. Get primary spreadsheet data
-        try:
-            primary_rounds = self.primary_sheet.get_all_rounds()
-            for r in primary_rounds:
-                unified = self._sheet_round_to_unified(r, "primary_sheet")
-                key = (unified.date, unified.group, unified.member, unified.score)
-                if key not in all_rounds:
-                    all_rounds[key] = unified
-        except Exception as e:
-            logger.warning(f"Failed to fetch primary sheet: {e}")
+        if use_sheet_cache:
+            # Fast path: read from legacy_rounds DB cache
+            try:
+                db = self._get_db()
+                for r in db.query(LegacyRound).all():
+                    unified = self._legacy_round_to_unified(r)
+                    key = (unified.date_sortable, unified.group, unified.member, unified.score)
+                    if key not in all_rounds:
+                        all_rounds[key] = unified
+            except Exception as e:
+                logger.warning(f"Failed to read legacy_rounds cache: {e}")
+        else:
+            # Slow path: live Sheets API — used only by the sync job itself
+            try:
+                for r in self.primary_sheet.get_all_rounds():
+                    unified = self._sheet_round_to_unified(r, "primary_sheet")
+                    key = (unified.date_sortable, unified.group, unified.member, unified.score)
+                    if key not in all_rounds:
+                        all_rounds[key] = unified
+            except Exception as e:
+                logger.warning(f"Failed to fetch primary sheet: {e}")
 
-        # 2. Get writable spreadsheet data (may overlap with primary)
-        try:
-            writable_rounds = self.writable_sheet.get_all_rounds()
-            for r in writable_rounds:
-                unified = self._sheet_round_to_unified(r, "writable_sheet")
-                key = (unified.date, unified.group, unified.member, unified.score)
-                if key not in all_rounds:
-                    all_rounds[key] = unified
-                # If already exists from primary, keep primary as source of truth
-        except Exception as e:
-            logger.warning(f"Failed to fetch writable sheet: {e}")
+            try:
+                for r in self.writable_sheet.get_all_rounds():
+                    unified = self._sheet_round_to_unified(r, "writable_sheet")
+                    key = (unified.date_sortable, unified.group, unified.member, unified.score)
+                    if key not in all_rounds:
+                        all_rounds[key] = unified
+            except Exception as e:
+                logger.warning(f"Failed to fetch writable sheet: {e}")
 
-        # 3. Get database records
+        # Merge in-app GameRecord results
         if include_database:
             try:
                 db = self._get_db()
                 records = db.query(GameRecord).filter(GameRecord.completed_at.isnot(None)).all()
-
                 for record in records:
-                    results = db.query(GamePlayerResult).filter(GamePlayerResult.game_record_id == record.id).all()
+                    results = db.query(GamePlayerResult).filter(
+                        GamePlayerResult.game_record_id == record.id
+                    ).all()
                     for result in results:
                         unified = self._db_result_to_unified(result, record)
-                        key = (
-                            unified.date,
-                            unified.group,
-                            unified.member,
-                            unified.score,
-                        )
+                        key = (unified.date_sortable, unified.group, unified.member, unified.score)
                         if key not in all_rounds:
                             all_rounds[key] = unified
             except Exception as e:
                 logger.warning(f"Failed to fetch database records: {e}")
 
-        # Sort by date (most recent first)
-        sorted_rounds = sorted(all_rounds.values(), key=lambda r: r.date_sortable, reverse=True)
-        return sorted_rounds
+        return sorted(all_rounds.values(), key=lambda r: r.date_sortable, reverse=True)
 
     def get_unified_leaderboard(self) -> list[UnifiedLeaderboardEntry]:
         """Get unified leaderboard aggregating all sources.
@@ -284,17 +311,19 @@ class UnifiedDataService:
         }
 
         try:
-            primary_rounds = self.primary_sheet.get_all_rounds()
-            status["primary_sheet"]["available"] = True  # type: ignore[index]
-            status["primary_sheet"]["record_count"] = len(primary_rounds)  # type: ignore[index]
+            db = self._get_db()
+            primary_count = db.query(LegacyRound).filter(
+                LegacyRound.source == "primary_sheet"
+            ).count()
+            writable_count = db.query(LegacyRound).filter(
+                LegacyRound.source == "writable_sheet"
+            ).count()
+            status["primary_sheet"]["available"] = primary_count > 0  # type: ignore[index]
+            status["primary_sheet"]["record_count"] = primary_count  # type: ignore[index]
+            status["writable_sheet"]["available"] = writable_count > 0  # type: ignore[index]
+            status["writable_sheet"]["record_count"] = writable_count  # type: ignore[index]
         except Exception as e:
             status["primary_sheet"]["error"] = str(e)  # type: ignore[index]
-
-        try:
-            writable_rounds = self.writable_sheet.get_all_rounds()
-            status["writable_sheet"]["available"] = True  # type: ignore[index]
-            status["writable_sheet"]["record_count"] = len(writable_rounds)  # type: ignore[index]
-        except Exception as e:
             status["writable_sheet"]["error"] = str(e)  # type: ignore[index]
 
         try:
@@ -318,8 +347,8 @@ class UnifiedDataService:
         )
 
         try:
-            unified_rounds = self.get_all_rounds()
-            status["deduplicated_total"] = len(unified_rounds)
+            db = self._get_db()
+            status["deduplicated_total"] = db.query(LegacyRound).count()
         except Exception:
             pass
 
