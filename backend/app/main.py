@@ -293,12 +293,7 @@ ENABLE_TEST_ENDPOINTS = os.getenv("ENABLE_TEST_ENDPOINTS", "false").lower() in {
     "true",
     "yes",
 }
-ADMIN_EMAILS = {"stuagano@gmail.com", "admin@wgp.com"}
-
-
-def require_admin(x_admin_email: str | None = Header(None)) -> None:
-    if not x_admin_email or x_admin_email not in ADMIN_EMAILS:
-        raise HTTPException(status_code=403, detail="Admin access required")
+from .utils.admin_auth import require_admin  # noqa: E402
 
 
 # Database initialization moved to main startup handler

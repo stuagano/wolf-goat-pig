@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from .. import models
 from ..database import get_db
 from ..services.unified_data_service import get_unified_data_service
+from ..utils.admin_auth import require_admin
 
 logger = logging.getLogger(__name__)
 
@@ -273,7 +274,7 @@ def get_data_status(db: Session = Depends(get_db)) -> Any:
     )
 
 
-@router.post("/sync-sheets")
+@router.post("/sync-sheets", dependencies=[Depends(require_admin)])
 def sync_sheets_to_db(db: Session = Depends(get_db)) -> Any:
     """Pull all rounds from Google Sheets and upsert into legacy_rounds table.
 

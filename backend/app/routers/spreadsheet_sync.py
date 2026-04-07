@@ -10,13 +10,14 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import LegacyRound, PendingSheetSync
+from ..utils.admin_auth import require_admin
 from ..services.spreadsheet_sync_service import (
     PRIMARY_SHEET_ID,
     WRITABLE_SHEET_ID,
@@ -30,6 +31,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(
     prefix="/admin/spreadsheet",
     tags=["admin", "spreadsheet"],
+    dependencies=[Depends(require_admin)],
 )
 
 
