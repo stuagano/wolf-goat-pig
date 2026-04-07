@@ -5650,26 +5650,20 @@ def get_player_performance():
 
 
 @app.get("/leaderboard/ghin-enhanced")
-async def get_ghin_enhanced_leaderboard(  # type: ignore
+def get_ghin_enhanced_leaderboard(  # type: ignore
     limit: int = Query(100, ge=1, le=100),
 ):
-    """Get leaderboard enhanced with GHIN handicap data."""
+    """Get leaderboard enhanced with stored GHIN handicap data.
+
+    Serves from DB only — no live GHIN API call. Handicaps are refreshed
+    daily by the background scheduler (or on-demand via POST /ghin/sync-handicaps).
+    """
     try:
         db = database.SessionLocal()
         from .services.ghin_service import GHINService
 
         ghin_service = GHINService(db)
-
-        # Try to initialize GHIN service for fresh data, but continue with stored data if unavailable
-        try:
-            await ghin_service.initialize()
-        except Exception as e:
-            logger.warning(f"GHIN service unavailable, using stored handicap data: {e}")
-
-        # Always get enhanced leaderboard with stored GHIN data (even if service is offline)
-        enhanced_leaderboard = ghin_service.get_leaderboard_with_ghin_data(limit=limit)
-
-        return enhanced_leaderboard
+        return ghin_service.get_leaderboard_with_ghin_data(limit=limit)
 
     except Exception as e:
         logger.error(f"Error getting GHIN enhanced leaderboard: {e}")

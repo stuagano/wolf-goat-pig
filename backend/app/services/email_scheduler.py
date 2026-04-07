@@ -49,6 +49,10 @@ class EmailScheduler:
         # Drain the pending sheet sync queue once daily at midnight.
         schedule.every().day.at("00:00").do(self._process_pending_sheet_syncs)
 
+        # Sync GHIN handicaps daily at 6 AM. Keeps stored handicap data fresh
+        # so /leaderboard/ghin-enhanced never needs a live API call.
+        schedule.every().day.at("06:00").do(self._sync_ghin_handicaps)
+
         # DISABLED: These tasks make HTTP requests to the same server which causes deadlocks
         # Use external cron jobs or proper async background tasks instead
         # schedule.every().day.at("10:00").do(self._run_matchmaking)
@@ -459,6 +463,36 @@ class EmailScheduler:
                 return "update"
 
         return "duplicate"
+
+    def _sync_ghin_handicaps(self):
+        """Sync GHIN handicaps for all players with GHIN IDs.
+
+        Runs daily at 6 AM so /leaderboard/ghin-enhanced can serve
+        from stored data without a live API call on every request.
+        """
+        import asyncio
+
+        from ..services.ghin_service import GHINService
+
+        db = self._get_db()
+        try:
+            ghin_service = GHINService(db)
+            loop = asyncio.new_event_loop()
+            try:
+                initialized = loop.run_until_complete(ghin_service.initialize())
+                if not initialized:
+                    logger.warning("GHIN sync skipped: service not available (credentials missing or auth failed)")
+                    return
+                results = loop.run_until_complete(ghin_service.sync_all_players_handicaps())
+                synced = results.get("synced", 0)
+                failed = results.get("failed", 0)
+                logger.info("GHIN handicap sync complete: %d synced, %d failed", synced, failed)
+            finally:
+                loop.close()
+        except Exception as exc:
+            logger.error("GHIN handicap sync failed: %s", exc)
+        finally:
+            db.close()
 
     def _run_matchmaking(self):
         """
