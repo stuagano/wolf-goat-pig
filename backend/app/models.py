@@ -262,6 +262,10 @@ class GamePlayerResult(Base):
     tunkarri_wins = Column(Integer, default=0)
     big_dick_attempts = Column(Integer, default=0)  # 18th hole solo attempts this game
     big_dick_wins = Column(Integer, default=0)
+    hole_scores = Column(JSON, nullable=True)  # Per-hole score data for this player
+    betting_history = Column(JSON, nullable=True)  # Betting events for this player
+    performance_metrics = Column(JSON, nullable=True)  # Computed performance data
+    created_at = Column(String, nullable=True)  # When the result was recorded
 
 
 class PendingSheetSync(Base):

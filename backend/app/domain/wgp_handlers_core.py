@@ -14,8 +14,12 @@ from fastapi import HTTPException
 
 from ..managers.rule_manager import RuleManager
 from ..schemas import ActionResponse
+from ..state.course_manager import CourseManager
 from ..validators import GameStateValidator, HandicapValidator
 from ..wolf_goat_pig import Player, WolfGoatPigGame
+
+# Module-level CourseManager for game initialization
+course_manager = CourseManager()
 
 logger = logging.getLogger(__name__)
 
@@ -105,28 +109,9 @@ async def handle_initialize_game(game: WolfGoatPigGame, payload: dict[str, Any])
                 else:
                     logger.error("No courses available, using emergency fallback")
                     course_name = "Emergency Course"
-                    # Ensure fallback courses are available
-                    fallback_courses = get_fallback_courses()  # type: ignore  # noqa: F821
-                    game_state.course_manager.course_data = fallback_courses  # type: ignore  # noqa: F821
         except Exception as course_error:
             logger.error(f"Course verification failed: {course_error}")
             course_name = "Emergency Course"
-            fallback_courses = get_fallback_courses()  # type: ignore  # noqa: F821
-            game_state.course_manager.course_data = fallback_courses  # type: ignore  # noqa: F821
-
-        # Initialize game state with players (with error handling)
-        try:
-            game_state.setup_players(players, course_name)  # type: ignore  # noqa: F821
-            logger.info(f"Game state initialized successfully with {len(players)} players")
-        except Exception as game_state_error:
-            logger.error(f"Game state setup failed: {game_state_error}")
-            # Try with minimal setup
-            try:
-                game_state.reset()  # type: ignore  # noqa: F821
-                logger.warning("Fell back to basic game state reset")
-            except Exception as reset_error:
-                logger.error(f"Even game state reset failed: {reset_error}")
-                # Continue with current state
 
         # Initialize WGP simulation with robust error handling
         try:
@@ -160,7 +145,7 @@ async def handle_initialize_game(game: WolfGoatPigGame, payload: dict[str, Any])
                 game.__init__(
                     player_count=len(wgp_players),
                     players=wgp_players,
-                    course_manager=game_state.course_manager,  # noqa: F821
+                    course_manager=course_manager,
                 )  # type: ignore
                 logger.info("WGP simulation initialized successfully with course data")
             except Exception as sim_init_error:

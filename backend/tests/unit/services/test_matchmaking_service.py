@@ -286,7 +286,7 @@ class TestRecentMatchFiltering:
         assert len(filtered) == 1
 
     def test_filter_recent_matches_with_recent_history(self):
-        """Test filtering removes recent matches"""
+        """Test filtering removes matches where the exact same group was recently suggested."""
         from datetime import datetime
 
         matches = [
@@ -300,13 +300,14 @@ class TestRecentMatchFiltering:
             }
         ]
 
+        # Same exact group was recently suggested
         recent_history = [
             {
                 "players": [
                     {"player_id": 1},
                     {"player_id": 2},
-                    {"player_id": 5},
-                    {"player_id": 6},
+                    {"player_id": 3},
+                    {"player_id": 4},
                 ],
                 "created_at": datetime.now().isoformat(),
             }
@@ -314,5 +315,5 @@ class TestRecentMatchFiltering:
 
         filtered = MatchmakingService.filter_recent_matches(matches, recent_history, days_between_matches=3)
 
-        # Match should be filtered out because player 1 and 2 were recently matched
+        # Match should be filtered out because the exact same group was recently suggested
         assert len(filtered) == 0

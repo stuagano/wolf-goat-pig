@@ -18,7 +18,7 @@ client = TestClient(app)
 
 def load_golden_round() -> dict:
     """Load the golden round JSON file."""
-    script_dir = Path(__file__).parent
+    script_dir = Path(__file__).parent.parent  # tests/ directory
     golden_round_path = script_dir / "fixtures" / "golden_round.json"
     with open(golden_round_path, "r") as f:
         return json.load(f)

@@ -298,7 +298,6 @@ def add_course(course: schemas.CourseCreate, db: Session = Depends(get_db)) -> d
         description=course_dict.get("description", ""),
         total_par=total_par,
         total_yards=total_yards,
-        holes_data=holes,
         created_at=now,
         updated_at=now,
     )
@@ -322,8 +321,8 @@ def add_course(course: schemas.CourseCreate, db: Session = Depends(get_db)) -> d
     db.commit()
     db.refresh(db_course)
 
-    # Also add to in-memory course manager
-    course_manager.add_course(course.name, holes)  # type: ignore
+    # Refresh in-memory course manager cache
+    course_manager.load_course(course.name)
 
     logger.info(f"Created course '{course.name}' with {len(holes)} holes (ID: {db_course.id})")
 
@@ -357,7 +356,6 @@ def update_course(
         db_course.description = update_dict["description"]
     if "holes" in update_dict:
         holes = update_dict["holes"]
-        db_course.holes_data = holes
         db_course.total_par = sum(h.get("par", 0) for h in holes)
         db_course.total_yards = sum(h.get("yards", 0) for h in holes)
 
@@ -408,7 +406,7 @@ def update_course(
 
     # Update in-memory course manager
     if "holes" in update_dict:
-        course_manager.update_course(course_name, update_dict["holes"])  # type: ignore
+        course_manager.load_course(course_name)
 
     logger.info(f"Updated course '{course_name}' (ID: {db_course.id})")
 
@@ -425,7 +423,7 @@ def update_course(
 
 @router.delete("/{course_name}")
 @handle_api_errors(operation_name="delete course")
-def delete_course(course_name: str = Path(...), db: Session = Depends(get_db)) -> dict[str, str]:
+def delete_course(course_name: str = Path(...), db: Session = Depends(get_db)) -> dict[str, Any]:
     """Delete a course - removes from database"""
     db_course = db.query(models.Course).filter(models.Course.name == course_name).first()
     if not db_course:
@@ -433,9 +431,6 @@ def delete_course(course_name: str = Path(...), db: Session = Depends(get_db)) -
 
     db.delete(db_course)
     db.commit()
-
-    # Also remove from in-memory course manager
-    course_manager.delete_course(course_name)  # type: ignore
 
     logger.info(f"Deleted course '{course_name}' from database")
 

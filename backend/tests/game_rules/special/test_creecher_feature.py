@@ -28,7 +28,7 @@ class TestNetHandicapCalculation:
     """Test calculation of net handicaps relative to lowest player."""
 
     def test_net_handicaps_basic(self):
-        """Test basic net handicap calculation."""
+        """Test basic net handicap calculation with neutral slope/rating."""
         player_handicaps = {
             "player1": 5.0,
             "player2": 10.0,
@@ -36,7 +36,10 @@ class TestNetHandicapCalculation:
             "player4": 20.0,
         }
 
-        net_handicaps = HandicapValidator.calculate_net_handicaps(player_handicaps)
+        # Use neutral slope (113) and matching course_rating/par so course HC = index
+        net_handicaps = HandicapValidator.calculate_net_handicaps(
+            player_handicaps, slope_rating=113, course_rating=71.0, par=71
+        )
 
         assert net_handicaps["player1"] == 0.0  # Lowest gets 0
         assert net_handicaps["player2"] == 5.0  # 10 - 5
@@ -47,7 +50,9 @@ class TestNetHandicapCalculation:
         """Test when multiple players have the same lowest handicap."""
         player_handicaps = {"player1": 10.0, "player2": 10.0, "player3": 15.0}
 
-        net_handicaps = HandicapValidator.calculate_net_handicaps(player_handicaps)
+        net_handicaps = HandicapValidator.calculate_net_handicaps(
+            player_handicaps, slope_rating=113, course_rating=71.0, par=71
+        )
 
         assert net_handicaps["player1"] == 0.0
         assert net_handicaps["player2"] == 0.0
@@ -64,14 +69,21 @@ class TestNetHandicapCalculation:
         assert net_handicaps["player3"] == 0.0
 
     def test_net_handicaps_with_fractional(self):
-        """Test net handicap calculation with fractional handicaps."""
-        player_handicaps = {"player1": 5.5, "player2": 10.5, "player3": 15.5}
+        """Test net handicap calculation with fractional handicaps.
 
-        net_handicaps = HandicapValidator.calculate_net_handicaps(player_handicaps)
+        With neutral slope (113) and matching course_rating/par, course HC = round(index).
+        Using .3 fractions to avoid banker's rounding ambiguity on .5 values.
+        5.3→5, 10.3→10, 15.3→15  →  net: 0, 5, 10
+        """
+        player_handicaps = {"player1": 5.3, "player2": 10.3, "player3": 15.3}
+
+        net_handicaps = HandicapValidator.calculate_net_handicaps(
+            player_handicaps, slope_rating=113, course_rating=71.0, par=71
+        )
 
         assert net_handicaps["player1"] == 0.0
-        assert net_handicaps["player2"] == 5.0  # 10.5 - 5.5
-        assert net_handicaps["player3"] == 10.0  # 15.5 - 5.5
+        assert net_handicaps["player2"] == 5.0  # round(10.3) - round(5.3) = 10 - 5
+        assert net_handicaps["player3"] == 10.0  # round(15.3) - round(5.3) = 15 - 5
 
     def test_net_handicaps_empty_dict(self):
         """Test with empty player dictionary."""

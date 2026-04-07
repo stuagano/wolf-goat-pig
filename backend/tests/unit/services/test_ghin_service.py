@@ -73,7 +73,7 @@ class TestGHINAuthentication:
     """Test GHIN authentication"""
 
     @pytest.mark.asyncio
-    @patch.dict("os.environ", {"GHIN_USERNAME": "test_user", "GHIN_PASSWORD": "test_pass"})
+    @patch.dict("os.environ", {"GHIN_API_USER": "test_user", "GHIN_API_PASS": "test_pass"})
     @patch("httpx.AsyncClient")
     async def test_initialize_success(self, mock_client, db):
         """Test successful GHIN authentication"""
@@ -81,6 +81,7 @@ class TestGHINAuthentication:
 
         # Mock successful authentication response
         mock_response = Mock()
+        mock_response.status_code = 200
         mock_response.json.return_value = {"golfer_user": {"golfer_user_token": "test_jwt_token_123"}}
         mock_response.raise_for_status = Mock()
 
@@ -106,7 +107,7 @@ class TestGHINAuthentication:
         assert service.initialized is False
 
     @pytest.mark.asyncio
-    @patch.dict("os.environ", {"GHIN_USERNAME": "test_user", "GHIN_PASSWORD": "wrong_pass"})
+    @patch.dict("os.environ", {"GHIN_API_USER": "test_user", "GHIN_API_PASS": "wrong_pass"})
     @patch("httpx.AsyncClient")
     async def test_initialize_auth_failure(self, mock_client, db):
         """Test failed authentication"""
@@ -190,7 +191,7 @@ class TestSyncPlayerHandicap:
 class TestGHINConfiguration:
     """Test GHIN configuration"""
 
-    @patch.dict("os.environ", {"GHIN_USERNAME": "user", "GHIN_PASSWORD": "pass"})
+    @patch.dict("os.environ", {"GHIN_API_USER": "user", "GHIN_API_PASS": "pass"})
     def test_env_var_loading(self, db):
         """Test environment variables are loaded"""
         service = GHINService(db)
