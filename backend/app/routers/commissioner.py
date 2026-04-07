@@ -71,33 +71,47 @@ class ChatRequest(BaseModel):
 
 
 def _build_data_context(db: Session) -> str:
-    """Pull current leaderboard and player list from the DB."""
+    """Build leaderboard and player context from the Render DB only."""
+    from .. import models
+    from sqlalchemy import func
+
     lines = []
 
+    # Leaderboard: aggregate legacy_rounds by member
     try:
-        from ..services.unified_data_service import get_unified_data_service
-        svc = get_unified_data_service(db)
-        svc._db = db  # ensure DB session is set for database-sourced rounds
-        leaderboard = svc.get_unified_leaderboard()
-        if leaderboard:
+        rows = (
+            db.query(
+                models.LegacyRound.member,
+                func.sum(models.LegacyRound.score).label("quarters"),
+                func.count(models.LegacyRound.id).label("rounds"),
+            )
+            .group_by(models.LegacyRound.member)
+            .order_by(func.sum(models.LegacyRound.score).desc())
+            .limit(20)
+            .all()
+        )
+        if rows:
             lines.append("## Current Season Leaderboard")
-            for entry in leaderboard[:20]:
+            for i, row in enumerate(rows, 1):
+                avg = row.quarters / row.rounds if row.rounds else 0
                 lines.append(
-                    f"  {entry.rank}. {entry.member}: {entry.quarters:+d}Q "
-                    f"over {entry.rounds} rounds (avg {entry.average:+.1f}Q/round)"
+                    f"  {i}. {row.member}: {row.quarters:+d}Q "
+                    f"over {row.rounds} rounds (avg {avg:+.1f}Q/round)"
                 )
+        else:
+            lines.append("## Leaderboard\n  (no historical data synced yet — run /data/sync-sheets)")
     except Exception as exc:
-        logger.warning("Could not load leaderboard: %s", exc)
+        logger.warning("Could not load leaderboard from DB: %s", exc)
 
+    # Registered players with handicaps
     try:
-        from .. import models
         players = db.query(models.PlayerProfile).order_by(models.PlayerProfile.name).all()
         if players:
             lines.append("\n## Registered Players")
             for p in players:
                 lines.append(f"  - {p.name} (handicap: {p.handicap})")
     except Exception as exc:
-        logger.debug("Could not load players: %s", exc)
+        logger.warning("Could not load players: %s", exc)
 
     return "\n".join(lines)
 

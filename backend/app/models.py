@@ -262,6 +262,20 @@ class GamePlayerResult(Base):
     tunkarri_wins = Column(Integer, default=0)
     big_dick_attempts = Column(Integer, default=0)  # 18th hole solo attempts this game
     big_dick_wins = Column(Integer, default=0)
+
+
+class LegacyRound(Base):
+    """Historical round data synced from Google Sheets."""
+
+    __tablename__ = "legacy_rounds"
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(String, index=True)          # e.g. "2026-04-06"
+    group = Column(String)                     # e.g. "A"
+    member = Column(String, index=True)        # e.g. "Stuart Gano"
+    score = Column(Integer)                    # quarters won/lost
+    location = Column(String)                  # course name
+    source = Column(String, default="sheet")   # "primary_sheet" or "writable_sheet"
+    synced_at = Column(String)                 # ISO timestamp of last sync
     hole_scores = Column(JSON, default=dict)  # Hole-by-hole scores
     betting_history = Column(JSON, default=list)  # Detailed betting decisions
     performance_metrics = Column(JSON, default=dict)  # Advanced metrics

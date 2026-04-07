@@ -9,12 +9,14 @@ Data is automatically deduplicated based on date/group/member/score.
 """
 
 import logging
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from .. import models
 from ..database import get_db
 from ..services.unified_data_service import get_unified_data_service
 
@@ -269,3 +271,41 @@ def get_data_status(db: Session = Depends(get_db)) -> Any:
         unified_total=status["unified_total"],
         deduplicated_total=status["deduplicated_total"],
     )
+
+
+@router.post("/sync-sheets")
+def sync_sheets_to_db(db: Session = Depends(get_db)) -> Any:
+    """Pull all rounds from Google Sheets and upsert into legacy_rounds table.
+
+    Safe to run repeatedly — clears and repopulates the table each time.
+    """
+    service = get_unified_data_service(db=db)
+
+    try:
+        all_rounds = service.get_all_rounds(include_database=False)
+    except Exception as exc:
+        return {"success": False, "error": str(exc), "synced": 0}
+
+    if not all_rounds:
+        return {"success": False, "error": "No rounds returned from sheets", "synced": 0}
+
+    synced_at = datetime.now(UTC).isoformat()
+
+    # Clear existing sheet-sourced rows and repopulate
+    db.query(models.LegacyRound).filter(
+        models.LegacyRound.source.in_(["primary_sheet", "writable_sheet"])
+    ).delete(synchronize_session=False)
+
+    for r in all_rounds:
+        db.add(models.LegacyRound(
+            date=r.date_sortable,
+            group=r.group,
+            member=r.member,
+            score=r.score,
+            location=r.location or "",
+            source=r.source,
+            synced_at=synced_at,
+        ))
+
+    db.commit()
+    return {"success": True, "synced": len(all_rounds), "synced_at": synced_at}
