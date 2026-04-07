@@ -42,6 +42,10 @@ class EmailScheduler:
         # Runs at 2:00 PM every Saturday to generate pairings and notify players
         schedule.every().saturday.at("14:00").do(self._run_saturday_pairings)
 
+        # Sync Google Sheets round history into legacy_rounds table every 2 hours.
+        # Direct DB call — no HTTP, no deadlock risk.
+        schedule.every(2).hours.do(self._sync_legacy_rounds)
+
         # DISABLED: These tasks make HTTP requests to the same server which causes deadlocks
         # Use external cron jobs or proper async background tasks instead
         # schedule.every().day.at("10:00").do(self._run_matchmaking)
@@ -295,6 +299,46 @@ class EmailScheduler:
 
         except Exception as e:
             logger.error(f"Error in Saturday pairing job: {e!s}")
+        finally:
+            db.close()
+
+    def _sync_legacy_rounds(self):
+        """Sync Google Sheets round history into the legacy_rounds DB table.
+
+        Runs every 2 hours. Direct DB call — safe to run in background thread.
+        """
+        from datetime import UTC, datetime as dt
+        from ..models import LegacyRound
+        from ..services.unified_data_service import get_unified_data_service
+
+        logger.info("Syncing legacy rounds from Google Sheets...")
+        db = self._get_db()
+        try:
+            svc = get_unified_data_service(db=db)
+            rounds = svc.get_all_rounds(include_database=False)
+            if not rounds:
+                logger.warning("Legacy rounds sync: no rounds returned from sheets")
+                return
+
+            synced_at = dt.now(UTC).isoformat()
+            db.query(LegacyRound).filter(
+                LegacyRound.source.in_(["primary_sheet", "writable_sheet"])
+            ).delete(synchronize_session=False)
+            for r in rounds:
+                db.add(LegacyRound(
+                    date=r.date_sortable,
+                    group=r.group,
+                    member=r.member,
+                    score=r.score,
+                    location=r.location or "",
+                    source=r.source,
+                    synced_at=synced_at,
+                ))
+            db.commit()
+            logger.info("Legacy rounds sync complete: %d rows written", len(rounds))
+        except Exception as exc:
+            logger.error("Legacy rounds sync failed: %s", exc)
+            db.rollback()
         finally:
             db.close()
 

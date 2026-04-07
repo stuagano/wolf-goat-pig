@@ -243,6 +243,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     else:
         logger.info("📧 Email notifications disabled")
 
+    # Kick off an immediate legacy rounds sync on startup (non-blocking)
+    try:
+        import threading
+        from .services.email_scheduler import email_scheduler as _sched
+        t = threading.Thread(target=_sched._sync_legacy_rounds, daemon=True)
+        t.start()
+        logger.info("📊 Legacy rounds sync started in background")
+    except Exception as e:
+        logger.warning(f"Legacy rounds startup sync failed to launch: {e}")
+
     logger.info("🚀 Wolf Goat Pig API startup completed successfully!")
 
     yield  # Application runs here
