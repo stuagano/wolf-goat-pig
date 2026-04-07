@@ -123,11 +123,11 @@ async def commissioner_chat(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Ask the Commissioner a question about rules or game history."""
-    api_key = os.getenv("ANTHROPIC_API_KEY")
+    api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        raise ValueError("Commissioner AI is not configured (ANTHROPIC_API_KEY missing)")
+        raise ValueError("Commissioner AI is not configured (GEMINI_API_KEY missing)")
 
-    import anthropic
+    import google.generativeai as genai
 
     data_context = _build_data_context(db)
     game_context = _build_game_context(request.game_state)
@@ -144,13 +144,10 @@ async def commissioner_chat(
         "If you don't have data to answer a stats question, say so honestly."
     )
 
-    client = anthropic.Anthropic(api_key=api_key)
-    response = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=512,
-        system=system,
-        messages=[{"role": "user", "content": request.message}],
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel(
+        model_name="gemini-2.0-flash",
+        system_instruction=system,
     )
-
-    text = response.content[0].text
-    return ApiResponse.success(data={"response": text})
+    response = model.generate_content(request.message)
+    return ApiResponse.success(data={"response": response.text})
