@@ -67,6 +67,8 @@ services:
         value: ""
       - key: FORETEES_ENCRYPTION_KEY
         value: ""
+      - key: ANTHROPIC_API_KEY
+        sync: false
       - key: WEB_CONCURRENCY
         value: "1"
       - key: FORWARDED_ALLOW_IPS
