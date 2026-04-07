@@ -264,6 +264,29 @@ class GamePlayerResult(Base):
     big_dick_wins = Column(Integer, default=0)
 
 
+class PendingSheetSync(Base):
+    """Queue of app-recorded rounds waiting to be written to Google Sheets.
+
+    The background processor drains this queue, deduplicates against
+    legacy_rounds, and writes new/updated rounds to the sheet.
+    """
+
+    __tablename__ = "pending_sheet_syncs"
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(String, index=True)          # YYYY-MM-DD
+    group = Column(String)                     # "A"-"D"
+    location = Column(String)
+    duration = Column(String, nullable=True)
+    # {player_name: total_quarters} — app sums per-hole scores before enqueueing
+    player_scores = Column(JSON)
+    status = Column(String, default="pending", index=True)
+    # "new" | "update" | "duplicate" | null (unprocessed)
+    dedup_action = Column(String, nullable=True)
+    created_at = Column(String)
+    processed_at = Column(String, nullable=True)
+    error = Column(String, nullable=True)
+
+
 class LegacyRound(Base):
     """Historical round data synced from Google Sheets."""
 
@@ -274,6 +297,7 @@ class LegacyRound(Base):
     member = Column(String, index=True)        # e.g. "Stuart Gano"
     score = Column(Integer)                    # quarters won/lost
     location = Column(String)                  # course name
+    duration = Column(String, nullable=True)   # e.g. "02:15:00"
     source = Column(String, default="sheet")   # "primary_sheet" or "writable_sheet"
     synced_at = Column(String)                 # ISO timestamp of last sync
     hole_scores = Column(JSON, default=dict)  # Hole-by-hole scores

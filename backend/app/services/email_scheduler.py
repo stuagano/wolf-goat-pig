@@ -46,6 +46,9 @@ class EmailScheduler:
         # Direct DB call — no HTTP, no deadlock risk.
         schedule.every(2).hours.do(self._sync_legacy_rounds)
 
+        # Drain the pending sheet sync queue once daily at midnight.
+        schedule.every().day.at("00:00").do(self._process_pending_sheet_syncs)
+
         # DISABLED: These tasks make HTTP requests to the same server which causes deadlocks
         # Use external cron jobs or proper async background tasks instead
         # schedule.every().day.at("10:00").do(self._run_matchmaking)
@@ -331,6 +334,7 @@ class EmailScheduler:
                     member=r.member,
                     score=r.score,
                     location=r.location or "",
+                    duration=r.duration,
                     source=r.source,
                     synced_at=synced_at,
                 ))
@@ -341,6 +345,120 @@ class EmailScheduler:
             db.rollback()
         finally:
             db.close()
+
+    def _process_pending_sheet_syncs(self):
+        """Drain the pending_sheet_syncs queue.
+
+        For each pending row:
+          1. Dedup against legacy_rounds (same date + group + player set)
+             - All players present AND all scores match → "duplicate", skip
+             - Players match but any score differs → "update", overwrite in sheet
+             - No matching round found → "new", append to sheet
+          2. Write to sheet if new/update
+          3. Mark row processed; trigger a legacy_rounds refresh on any writes.
+
+        The app records per-hole scores; the legacy sheet stores only round totals.
+        player_scores in the queue are expected to be the summed totals.
+        """
+        from datetime import UTC, datetime as dt
+
+        from ..models import LegacyRound, PendingSheetSync
+        from .spreadsheet_sync_service import get_spreadsheet_sync_service
+
+        db = self._get_db()
+        try:
+            pending = (
+                db.query(PendingSheetSync)
+                .filter(PendingSheetSync.status == "pending")
+                .order_by(PendingSheetSync.created_at)
+                .all()
+            )
+            if not pending:
+                return
+
+            logger.info("Processing %d pending sheet sync(s)", len(pending))
+            wrote_any = False
+
+            for job in pending:
+                job.status = "processing"
+                db.commit()
+
+                try:
+                    action = self._dedup_action(db, job)
+                    job.dedup_action = action
+
+                    if action == "duplicate":
+                        logger.info(
+                            "Skipping duplicate round %s group=%s", job.date, job.group
+                        )
+                    else:
+                        logger.info(
+                            "Writing %s round %s group=%s to sheet",
+                            action, job.date, job.group,
+                        )
+                        game_date = dt.strptime(job.date, "%Y-%m-%d")
+                        svc = get_spreadsheet_sync_service()
+                        success = svc.sync_completed_game(
+                            game_date=game_date,
+                            group=job.group,
+                            location=job.location,
+                            player_scores=job.player_scores,
+                            duration=job.duration,
+                        )
+                        if not success:
+                            raise RuntimeError("sync_completed_game returned False")
+                        wrote_any = True
+
+                    job.status = "done"
+                    job.processed_at = dt.now(UTC).isoformat()
+                    db.commit()
+
+                except Exception as exc:
+                    logger.error("Sheet sync job %d failed: %s", job.id, exc)
+                    job.status = "failed"
+                    job.error = str(exc)
+                    job.processed_at = dt.now(UTC).isoformat()
+                    db.commit()
+
+            if wrote_any:
+                logger.info("Sheet writes completed — refreshing legacy_rounds cache")
+                self._sync_legacy_rounds()
+
+        except Exception as exc:
+            logger.error("_process_pending_sheet_syncs failed: %s", exc)
+        finally:
+            db.close()
+
+    def _dedup_action(self, db, job) -> str:
+        """Return 'duplicate', 'update', or 'new' for a PendingSheetSync job.
+
+        Dedup key: date + group + exact set of player names.
+        Score comparison: app's summed player_scores vs. stored legacy scores.
+        """
+        from ..models import LegacyRound
+
+        incoming_players = set(job.player_scores.keys())
+
+        existing = (
+            db.query(LegacyRound)
+            .filter(LegacyRound.date == job.date, LegacyRound.group == job.group)
+            .all()
+        )
+        if not existing:
+            return "new"
+
+        existing_players = {r.member for r in existing}
+        if existing_players != incoming_players:
+            # Different player set — treat as a new (distinct) round
+            return "new"
+
+        # Same player set — compare scores
+        existing_scores = {r.member: r.score for r in existing}
+        for player, score in job.player_scores.items():
+            if existing_scores.get(player) != score:
+                return "update"
+
+        return "duplicate"
 
     def _run_matchmaking(self):
         """
