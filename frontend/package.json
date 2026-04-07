@@ -37,7 +37,7 @@
     "typecheck": "tsc --noEmit",
     "prevercel-build": "node scripts/update-sw-version.js",
     "vercel-build": "react-scripts build",
-    "prepare": "node -e \"try{require('husky')}catch(e){process.exit(0)};require('child_process').execSync('husky',{stdio:'inherit'})\"",
+
     "test:e2e": "playwright test --config tests/e2e/playwright.config.js",
     "test:e2e:ui": "playwright test --config tests/e2e/playwright.config.js --ui",
     "test:e2e:debug": "playwright test --config tests/e2e/playwright.config.js --debug",
@@ -105,7 +105,6 @@
     "@playwright/test": "^1.56.1",
     "@types/react": "^19.2.8",
     "@types/react-dom": "^19.0.0",
-    "husky": "^9.1.7",
     "typescript": "^5.9.3"
   }
 }
