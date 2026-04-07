@@ -13,7 +13,7 @@ from typing import Any, cast
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
 
-from .. import models, schemas
+from .. import database, models, schemas
 from ..database import get_db
 from ..services.auth_service import get_current_user
 from ..services.email_service import get_email_service
@@ -600,3 +600,216 @@ async def get_match_details(
         "all_accepted": all(p.response == "accepted" for p in all_players),
         "can_book": (match.status == "accepted" and all(p.response == "accepted" for p in all_players)),
     }
+
+
+# ============================================================================
+# GET /matchmaking/suggestions - Get match suggestions
+# ============================================================================
+
+
+@router.get("/suggestions")
+def get_match_suggestions(
+    min_overlap_hours: float = 2.0,
+    preferred_days: str | None = None,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """
+    Get matchmaking suggestions based on player availability.
+
+    Args:
+        min_overlap_hours: Minimum hours of overlap required (default 2)
+        preferred_days: Comma-separated list of preferred days (0=Monday, 6=Sunday)
+    """
+    try:
+        # Get all active players' availability
+        players_with_availability = db.query(models.PlayerProfile).filter(models.PlayerProfile.is_active == 1).all()
+
+        all_players_data = []
+        for player in players_with_availability:
+            player_data: dict[str, Any] = {
+                "player_id": player.id,
+                "player_name": player.name,
+                "email": player.email,
+                "availability": [],
+            }
+
+            availability = (
+                db.query(models.PlayerAvailability)
+                .filter(models.PlayerAvailability.player_profile_id == player.id)
+                .all()
+            )
+
+            for avail in availability:
+                player_data["availability"].append(
+                    {
+                        "day_of_week": avail.day_of_week,
+                        "is_available": avail.is_available,
+                        "available_from_time": avail.available_from_time,
+                        "available_to_time": avail.available_to_time,
+                        "notes": avail.notes,
+                    }
+                )
+
+            all_players_data.append(player_data)
+
+        # Parse preferred days if provided
+        preferred_days_list = None
+        if preferred_days:
+            preferred_days_list = [int(d.strip()) for d in preferred_days.split(",")]
+
+        # Find matches
+        matches = MatchmakingService.find_matches(
+            all_players_data,
+            min_overlap_hours=min_overlap_hours,
+            preferred_days=preferred_days_list,
+        )
+
+        # Get recent match history to filter out recently matched players
+        recent_matches = (
+            db.query(models.MatchSuggestion)
+            .filter(models.MatchSuggestion.created_at >= (datetime.now() - timedelta(days=7)).isoformat())
+            .all()
+        )
+
+        # Convert to format expected by filter function
+        recent_match_history = []
+        for match in recent_matches:
+            match_players = (
+                db.query(models.MatchPlayer).filter(models.MatchPlayer.match_suggestion_id == match.id).all()
+            )
+
+            recent_match_history.append(
+                {
+                    "created_at": match.created_at,
+                    "players": [{"player_id": mp.player_profile_id} for mp in match_players],
+                }
+            )
+
+        # Filter out recently matched players
+        filtered_matches = MatchmakingService.filter_recent_matches(
+            matches, recent_match_history, days_between_matches=3
+        )
+
+        return {
+            "total_matches_found": len(matches),
+            "filtered_matches": len(filtered_matches),
+            "matches": filtered_matches[:10],  # Return top 10 matches
+        }
+
+    except Exception as e:
+        logger.error(f"Error finding match suggestions: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to find matches: {e!s}")
+
+
+# ============================================================================
+# POST /matchmaking/create-and-notify - Create matches and send notifications
+# ============================================================================
+
+
+@router.post("/create-and-notify")
+async def create_and_notify_matches(db: Session = Depends(get_db)) -> dict[str, Any]:
+    """
+    Run the full matchmaking process: find matches and send notifications.
+    This endpoint can be called by a scheduler or manually.
+    """
+    try:
+        # First, find matches
+        matches_response = get_match_suggestions(min_overlap_hours=2.0, db=db)
+
+        if not matches_response["matches"]:
+            return {
+                "message": "No suitable matches found",
+                "matches_checked": matches_response["total_matches_found"],
+            }
+
+        email_service = get_email_service()
+
+        # Save the top matches to database
+        saved_matches = []
+        notifications_sent = []
+
+        for match_data in matches_response["matches"][:5]:  # Save top 5 matches
+            try:
+                # Create match suggestion
+                match = models.MatchSuggestion(
+                    day_of_week=match_data["day_of_week"],
+                    overlap_start=match_data["overlap_start"],
+                    overlap_end=match_data["overlap_end"],
+                    suggested_tee_time=match_data["suggested_tee_time"],
+                    match_quality_score=match_data["match_quality"],
+                    status="pending",
+                    created_at=datetime.now().isoformat(),
+                    expires_at=(datetime.now() + timedelta(days=7)).isoformat(),
+                )
+                db.add(match)
+                db.commit()
+                db.refresh(match)
+
+                # Add players to match
+                for player in match_data["players"]:
+                    match_player = models.MatchPlayer(
+                        match_suggestion_id=match.id,
+                        player_profile_id=player["player_id"],
+                        player_name=player["player_name"],
+                        player_email=player["email"],
+                        created_at=datetime.now().isoformat(),
+                    )
+                    db.add(match_player)
+
+                db.commit()
+                saved_matches.append(match.id)
+
+                # Send notification email
+                notification = MatchmakingService.create_match_notification(match_data)
+
+                # Send email to all players
+                try:
+                    for recipient in notification["recipients"]:
+                        email_service._send_email(  # type: ignore
+                            to_email=recipient,
+                            subject=notification["subject"],
+                            html_body=notification["body"],
+                        )
+
+                    # Mark as sent
+                    match.notification_sent = True  # type: ignore
+                    match.notification_sent_at = datetime.now().isoformat()  # type: ignore
+                    db.commit()
+
+                    notifications_sent.append(
+                        {
+                            "match_id": match.id,
+                            "players": [p["player_name"] for p in match_data["players"]],
+                            "status": "sent",
+                        }
+                    )
+
+                    logger.info(f"Sent match notification for match {match.id}")
+
+                except Exception as e:
+                    logger.error(f"Failed to send notification for match {match.id}: {e}")
+                    notifications_sent.append(
+                        {
+                            "match_id": match.id,
+                            "players": [p["player_name"] for p in match_data["players"]],
+                            "status": "failed",
+                            "error": str(e),
+                        }
+                    )
+
+            except Exception as e:
+                logger.error(f"Error creating match: {e}")
+                continue
+
+        return {
+            "matches_found": matches_response["total_matches_found"],
+            "matches_created": len(saved_matches),
+            "notifications_sent": len([n for n in notifications_sent if n["status"] == "sent"]),
+            "notifications_failed": len([n for n in notifications_sent if n["status"] == "failed"]),
+            "match_ids": saved_matches,
+            "details": notifications_sent,
+        }
+
+    except Exception as e:
+        logger.error(f"Error in create and notify matches: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create and notify matches: {e!s}")
