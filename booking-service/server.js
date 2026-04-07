@@ -132,17 +132,19 @@ async function book(args) {
     await loginAndSSO(page, username, password);
     await navigateToSlot(page, date, time);
 
-    // Set transport mode
-    await page.evaluate((mode) => {
-      for (const sel of document.querySelectorAll('select')) {
-        const opts = Array.from(sel.options).map((o) => o.value);
-        if (opts.includes('WLK') || opts.includes('CRT')) {
-          sel.value = mode;
-          sel.dispatchEvent(new Event('change', { bubbles: true }));
-          return;
-        }
+    // Set transport mode using Playwright's native selectOption so that
+    // ForeTees v5's JS framework event handlers actually fire (plain
+    // dispatchEvent is ignored by SPA frameworks).
+    const mode = transport_mode || 'WLK';
+    const transportSelects = page.locator('select');
+    const selectCount = await transportSelects.count();
+    for (let i = 0; i < selectCount; i++) {
+      const sel = transportSelects.nth(i);
+      const opts = await sel.evaluate((el) => Array.from(el.options).map((o) => o.value));
+      if (opts.includes('WLK') || opts.includes('CRT') || opts.includes('PC')) {
+        await sel.selectOption(mode).catch(() => {});
       }
-    }, transport_mode || 'WLK');
+    }
 
     // Click Submit Request / Submit Changes
     const respPromise = page
