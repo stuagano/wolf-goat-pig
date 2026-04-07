@@ -77,6 +77,7 @@ def _build_data_context(db: Session) -> str:
     try:
         from ..services.unified_data_service import get_unified_data_service
         svc = get_unified_data_service(db)
+        svc._db = db  # ensure DB session is set for database-sourced rounds
         leaderboard = svc.get_unified_leaderboard()
         if leaderboard:
             lines.append("## Current Season Leaderboard")
@@ -86,7 +87,7 @@ def _build_data_context(db: Session) -> str:
                     f"over {entry.rounds} rounds (avg {entry.average:+.1f}Q/round)"
                 )
     except Exception as exc:
-        logger.debug("Could not load leaderboard: %s", exc)
+        logger.warning("Could not load leaderboard: %s", exc)
 
     try:
         from .. import models
