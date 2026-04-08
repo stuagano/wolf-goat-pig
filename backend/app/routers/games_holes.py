@@ -345,6 +345,8 @@ async def get_next_rotation(game_id: str, db: Session = Depends(database.get_db)
             "captain_id": new_rotation[0],
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error calculating next rotation: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -444,6 +446,8 @@ async def get_next_hole_wager(  # type: ignore
             "message": "Normal base wager",
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error calculating next hole wager: {e}")
         raise HTTPException(status_code=500, detail=str(e))

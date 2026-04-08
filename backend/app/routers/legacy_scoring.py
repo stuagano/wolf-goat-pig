@@ -44,6 +44,8 @@ async def start_simplified_game(payload: dict[str, Any]):  # type: ignore
             "players": simplified_games[game_id].players,
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error starting simplified game: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to start game: {e!s}")

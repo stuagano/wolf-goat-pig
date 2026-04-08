@@ -68,16 +68,15 @@ class TestStartSimplifiedGame:
         assert "message" in data
         assert "4 players" in data["message"]
 
-    def test_returns_500_without_players(self):
-        """Empty players list raises HTTPException(400) inside the try block,
-        but the generic except catches it and re-raises as 500."""
+    def test_returns_400_without_players(self):
+        """Empty players list returns 400."""
         resp = client.post("/wgp/simplified/start-game", json={"players": []})
-        assert resp.status_code == 500
+        assert resp.status_code == 400
 
-    def test_returns_500_with_empty_payload(self):
-        """Missing players key defaults to empty list, triggering the same path."""
+    def test_returns_400_with_empty_payload(self):
+        """Missing players key defaults to empty list, returns 400."""
         resp = client.post("/wgp/simplified/start-game", json={})
-        assert resp.status_code == 500
+        assert resp.status_code == 400
 
     def test_error_detail_mentions_players(self):
         resp = client.post("/wgp/simplified/start-game", json={"players": []})

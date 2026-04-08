@@ -33,11 +33,11 @@ def get_leaderboard(  # type: ignore
         leaderboard_type = "total_earnings"  # Default leaderboard type
         leaderboard = leaderboard_service.get_leaderboard(leaderboard_type=leaderboard_type, db=db, limit=limit)
 
-        # Sort by total_earnings based on sort parameter
+        # Sort by value (the metric returned by the leaderboard service) based on sort parameter
         if sort == "asc":
-            leaderboard.sort(key=lambda x: x.get("total_earnings", 0))
+            leaderboard.sort(key=lambda x: x.get("value", 0))
         else:
-            leaderboard.sort(key=lambda x: x.get("total_earnings", 0), reverse=True)
+            leaderboard.sort(key=lambda x: x.get("value", 0), reverse=True)
 
         # Convert to schema format
         entries = []
