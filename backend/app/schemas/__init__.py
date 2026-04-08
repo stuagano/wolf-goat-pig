@@ -7,7 +7,6 @@ All schemas are re-exported here so existing code using
 
 from .betting import (
     GameSetupRequest,
-    MonteCarloRequest,
     OddsCalculationRequest,
     ShotAnalysisRequest,
 )
@@ -135,7 +134,6 @@ __all__ = [
     "WeeklySignupWithMessagesView",
     # betting
     "GameSetupRequest",
-    "MonteCarloRequest",
     "OddsCalculationRequest",
     "ShotAnalysisRequest",
 ]

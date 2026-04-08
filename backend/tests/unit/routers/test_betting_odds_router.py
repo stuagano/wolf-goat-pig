@@ -141,7 +141,6 @@ class TestCalculateOdds:
                 "par": 4,
                 "teams": "pending",
             },
-            "use_monte_carlo": False,
         }
         base.update(overrides)
         return base
@@ -161,25 +160,12 @@ class TestCalculateOdds:
         assert "optimal_strategy" in data
         assert "confidence_level" in data
 
-    def test_calculate_odds_with_monte_carlo_flag(self):
-        """Monte Carlo flag is accepted; response may fail with numpy serialization in test env."""
-        payload = self._valid_payload(
-            use_monte_carlo=True,
-            simulation_params={"num_simulations": 100, "max_time_ms": 10.0},
-        )
-        try:
-            resp = client.post("/wgp/calculate-odds", json=payload)
-        except Exception:
-            # PydanticSerializationError for numpy.bool may propagate through TestClient
-            return
-        # If serialization succeeds, verify the response
+    def test_calculate_odds_monte_carlo_always_false(self):
+        """Monte Carlo removed — response always has monte_carlo_used=False."""
+        resp = client.post("/wgp/calculate-odds", json=self._valid_payload())
         if resp.status_code == 200:
             data = resp.json()
-            assert data["monte_carlo_used"] is True
-            assert data["simulation_details"] is not None
-        else:
-            # Known numpy.bool serialization issue at the Pydantic layer
-            assert resp.status_code == 500
+            assert data["monte_carlo_used"] is False
 
     def test_calculate_odds_four_players(self):
         payload = self._valid_payload()

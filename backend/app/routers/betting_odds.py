@@ -38,8 +38,6 @@ class OddsCalculationRequest(BaseModel):
 
     players: list[dict[str, Any]] = Field(..., description="Current player states")
     hole_state: dict[str, Any] = Field(..., description="Current hole state")
-    use_monte_carlo: bool = Field(default=False, description="Use Monte Carlo simulation for higher accuracy")
-    simulation_params: dict[str, Any] | None = Field(default=None, description="Monte Carlo simulation parameters")
 
 
 class BettingScenarioResponse(BaseModel):
@@ -67,8 +65,8 @@ class OddsCalculationResponse(BaseModel):
     risk_assessment: dict[str, Any]
     educational_insights: list[str]
     confidence_level: float
-    monte_carlo_used: bool = False
-    simulation_details: dict[str, Any] | None = None
+    monte_carlo_used: bool = False  # Deprecated, always False
+    simulation_details: dict[str, Any] | None = None  # Deprecated, always None
 
 
 # ---------------------------------------------------------------------------
@@ -200,7 +198,6 @@ async def calculate_real_time_odds(request: OddsCalculationRequest) -> dict[str,
     Provides comprehensive analysis for strategic decision making.
     """
     try:
-        from ..services.monte_carlo import SimulationParams, run_monte_carlo_simulation
         from ..services.odds_calculator import (
             OddsCalculator,
             create_hole_state_from_game_data,
@@ -209,57 +206,17 @@ async def calculate_real_time_odds(request: OddsCalculationRequest) -> dict[str,
 
         start_time = time.time()
 
-        # Convert request data to internal objects
         player_states = [create_player_state_from_game_data(p) for p in request.players]
         hole_state = create_hole_state_from_game_data(request.hole_state)
 
-        # Initialize odds calculator
         calculator = OddsCalculator()
 
-        # Determine if we should use Monte Carlo
-        use_mc = request.use_monte_carlo
-        if not use_mc:
-            # Auto-enable Monte Carlo for complex scenarios
-            complex_scenario = (
-                len(player_states) > 4
-                or hole_state.teams.value != "pending"
-                or any(p.distance_to_pin > 200 for p in player_states)
-            )
-            use_mc = complex_scenario
-
-        simulation_details = None
-        if use_mc:
-            # Run Monte Carlo simulation
-            mc_params = SimulationParams()
-            if request.simulation_params:
-                mc_params.num_simulations = request.simulation_params.get("num_simulations", 5000)
-                mc_params.max_simulation_time_ms = request.simulation_params.get("max_time_ms", 25.0)
-
-            simulation_result = run_monte_carlo_simulation(
-                player_states,
-                hole_state,
-                mc_params.num_simulations,
-                mc_params.max_simulation_time_ms,
-            )
-
-            simulation_details = {
-                "num_simulations_run": simulation_result.num_simulations_run,
-                "simulation_time_ms": simulation_result.simulation_time_ms,
-                "convergence_achieved": simulation_result.convergence_achieved,
-                "confidence_intervals": simulation_result.confidence_intervals,
-            }
-
-            # Enhance calculator with Monte Carlo results
-            # This would integrate MC results into the main calculation
-
-        # Calculate comprehensive odds
         odds_result = calculator.calculate_real_time_odds(
             player_states,
             hole_state,
-            game_context={"monte_carlo_result": simulation_details if use_mc else None},
+            game_context={},
         )
 
-        # Convert betting scenarios to response format
         betting_scenarios = []
         for scenario in odds_result.betting_scenarios:
             betting_scenarios.append(
@@ -287,8 +244,8 @@ async def calculate_real_time_odds(request: OddsCalculationRequest) -> dict[str,
             risk_assessment=odds_result.risk_assessment,
             educational_insights=odds_result.educational_insights,
             confidence_level=odds_result.confidence_level,
-            monte_carlo_used=use_mc,
-            simulation_details=simulation_details,
+            monte_carlo_used=False,
+            simulation_details=None,
         )
 
     except Exception as e:

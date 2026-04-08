@@ -15,12 +15,6 @@ class OddsCalculationRequest(BaseModel):
     current_state: dict[str, Any] | None = None
 
 
-class MonteCarloRequest(BaseModel):
-    players: list[dict[str, Any]]
-    hole_info: dict[str, Any]
-    simulation_params: dict[str, Any] | None = None
-
-
 class ShotAnalysisRequest(BaseModel):
     player_id: str
     distance_to_pin: float
