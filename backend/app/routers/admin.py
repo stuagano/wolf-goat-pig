@@ -733,8 +733,32 @@ async def run_database_migration(
         except Exception as e:
             logger.error(f"Migration failed: {e}")
             raise HTTPException(status_code=500, detail=f"Migration failed: {e!s}")
+    elif migration == "add_missing_columns":
+        try:
+            from sqlalchemy import text
+            stmts = [
+                "ALTER TABLE legacy_rounds ADD COLUMN IF NOT EXISTS duration VARCHAR",
+                "ALTER TABLE legacy_rounds ADD COLUMN IF NOT EXISTS hole_scores JSONB DEFAULT '{}'",
+                "ALTER TABLE legacy_rounds ADD COLUMN IF NOT EXISTS betting_history JSONB DEFAULT '[]'",
+                "ALTER TABLE legacy_rounds ADD COLUMN IF NOT EXISTS performance_metrics JSONB DEFAULT '{}'",
+                "ALTER TABLE legacy_rounds ADD COLUMN IF NOT EXISTS created_at VARCHAR",
+                "ALTER TABLE game_player_results ADD COLUMN IF NOT EXISTS hole_scores JSONB",
+                "ALTER TABLE game_player_results ADD COLUMN IF NOT EXISTS betting_history JSONB",
+                "ALTER TABLE game_player_results ADD COLUMN IF NOT EXISTS performance_metrics JSONB",
+                "ALTER TABLE game_player_results ADD COLUMN IF NOT EXISTS created_at VARCHAR",
+            ]
+            applied = []
+            for stmt in stmts:
+                db.execute(text(stmt))
+                applied.append(stmt.split("ADD COLUMN IF NOT EXISTS ")[1].split(" ")[0])
+            db.commit()
+            return {"status": "success", "columns_added": applied}
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Migration failed: {e}")
+            raise HTTPException(status_code=500, detail=f"Migration failed: {e!s}")
     else:
         raise HTTPException(
             status_code=400,
-            detail=f"Unknown migration: {migration}. Available: add_statistics_columns",
+            detail=f"Unknown migration: {migration}. Available: add_statistics_columns, add_missing_columns",
         )
