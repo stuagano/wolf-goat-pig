@@ -7,9 +7,6 @@
  * import { calculateStrokeAllocation, getStrokesForHole } from '../utils';
  */
 
-// API utilities
-export * from './api';
-
 // Stroke allocation utilities (Creecher Feature)
 export {
   getStrokesForHole,

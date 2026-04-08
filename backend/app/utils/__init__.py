@@ -7,7 +7,7 @@ This package contains reusable utilities:
 - response_types: TypedDict models for API responses
 
 Related services:
-- services.score_calculation_service: Centralized scoring logic
+- (deprecated) scoring logic lives in domain/managers; legacy modules quarantined under `backend/_unused/`
 """
 
 from .api_helpers import ApiResponse, handle_api_errors, require_not_none, with_db_session
