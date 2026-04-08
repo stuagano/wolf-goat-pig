@@ -46,7 +46,10 @@ async def _gemini_generate(
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         resp = await client.post(url, json=payload)
-        resp.raise_for_status()
+        if resp.status_code == 429:
+            raise ValueError("Commissioner is getting too many questions right now. Try again in a minute.")
+        if resp.status_code != 200:
+            raise ValueError(f"Gemini API returned status {resp.status_code}")
 
     data = resp.json()
     candidates = data.get("candidates", [])
