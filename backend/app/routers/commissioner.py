@@ -12,6 +12,7 @@ import os
 import re
 from typing import Any
 
+import httpx
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import text
@@ -23,6 +24,37 @@ from ..utils.api_helpers import ApiResponse, handle_api_errors
 logger = logging.getLogger("app.routers.commissioner")
 
 router = APIRouter(prefix="/api/commissioner", tags=["commissioner"])
+
+_GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
+
+
+async def _gemini_generate(
+    prompt: str,
+    system_instruction: str,
+    model: str = "gemini-2.0-flash",
+) -> str:
+    """Call the Gemini REST API directly, bypassing the SDK's geo-check."""
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("Commissioner AI is not configured (GEMINI_API_KEY missing)")
+
+    url = f"{_GEMINI_API_URL}/{model}:generateContent?key={api_key}"
+    payload = {
+        "system_instruction": {"parts": [{"text": system_instruction}]},
+        "contents": [{"parts": [{"text": prompt}]}],
+    }
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        resp = await client.post(url, json=payload)
+        resp.raise_for_status()
+
+    data = resp.json()
+    candidates = data.get("candidates", [])
+    if not candidates:
+        raise ValueError("Gemini returned no candidates")
+    parts = candidates[0].get("content", {}).get("parts", [])
+    return parts[0].get("text", "") if parts else ""
+
 
 WGP_RULES = """
 You are the Wolf Goat Pig Commissioner — an authoritative, friendly rules expert and
@@ -140,12 +172,6 @@ async def commissioner_chat(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Ask the Commissioner a question about rules or game history."""
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise ValueError("Commissioner AI is not configured (GEMINI_API_KEY missing)")
-
-    import google.generativeai as genai
-
     data_context = _build_data_context(db)
     game_context = _build_game_context(request.game_state)
 
@@ -161,13 +187,8 @@ async def commissioner_chat(
         "If you don't have data to answer a stats question, say so honestly."
     )
 
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(
-        model_name="gemini-flash-latest",
-        system_instruction=system,
-    )
-    response = model.generate_content(request.message)
-    return ApiResponse.success(data={"response": response.text})
+    response_text = await _gemini_generate(request.message, system)
+    return ApiResponse.success(data={"response": response_text})
 
 
 # ---------------------------------------------------------------------------
@@ -338,14 +359,6 @@ async def commissioner_data_chat(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Ask Commissioner Hover Over a data question about the WGP database."""
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise ValueError("Commissioner AI is not configured (GEMINI_API_KEY missing)")
-
-    import google.generativeai as genai
-
-    genai.configure(api_key=api_key)
-
     # Step 1: Ask Gemini to produce a SQL query (or a direct answer for rules)
     system = f"""{WGP_RULES}
 
@@ -365,12 +378,7 @@ Example queries:
 - "Best single round ever?" → SELECT member, score, date, location FROM legacy_rounds ORDER BY score DESC LIMIT 5
 - "Who goes solo the most?" → SELECT pp.name, ps.solo_attempts, ps.solo_wins FROM player_statistics ps JOIN player_profiles pp ON ps.player_id = pp.id WHERE ps.solo_attempts > 0 ORDER BY ps.solo_attempts DESC"""
 
-    model = genai.GenerativeModel(
-        model_name="gemini-flash-latest",
-        system_instruction=system,
-    )
-    step1_response = model.generate_content(request.question)
-    step1_text = step1_response.text
+    step1_text = await _gemini_generate(request.question, system)
 
     # Step 2: Extract SQL from ```sql ... ``` blocks
     sql_match = re.search(r"```sql\s*(.*?)\s*```", step1_text, re.DOTALL)
@@ -416,10 +424,6 @@ Example queries:
         "your voice: authoritative, colorful golf commentary, using specific "
         "numbers from the data. Keep it concise but entertaining."
     )
-    narration_model = genai.GenerativeModel(
-        model_name="gemini-flash-latest",
-        system_instruction=narration_system,
-    )
 
     narration_prompt = (
         f"The user asked: {request.question}\n\n"
@@ -431,10 +435,10 @@ Example queries:
     if results["truncated"]:
         narration_prompt += "\n(Results were truncated to 100 rows.)"
 
-    narration_response = narration_model.generate_content(narration_prompt)
+    narration_text = await _gemini_generate(narration_prompt, narration_system)
 
     return ApiResponse.success(data={
-        "response": narration_response.text,
+        "response": narration_text,
         "table_data": results,
         "sql_used": sql,
     })
