@@ -55,7 +55,7 @@ async def handle_offer_double(game: WolfGoatPigGame, payload: dict[str, Any]) ->
         player_name = game._get_player_name(player_id)
 
         # Add timeline event to hole progression if available
-        if hasattr(wgp_simulation, "hole_progression") and game.hole_progression:  # type: ignore
+        if hasattr(game, "hole_progression") and game.hole_progression:  # type: ignore
             game.hole_progression.add_timeline_event(
                 event_type="double_offer",
                 description=f"{player_name} offered to double the wager",
@@ -101,7 +101,7 @@ async def handle_accept_double(game: WolfGoatPigGame, payload: dict[str, Any]) -
             message = "Double declined. Original wager maintained."
 
         # Add timeline event to hole progression if available
-        if hasattr(wgp_simulation, "hole_progression") and game.hole_progression:  # type: ignore
+        if hasattr(game, "hole_progression") and game.hole_progression:  # type: ignore
             game.hole_progression.add_timeline_event(
                 event_type="double_response",
                 description=f"Double {'accepted' if accepted else 'declined'}",
@@ -195,7 +195,7 @@ async def handle_toggle_option(game: WolfGoatPigGame, payload: dict[str, Any]) -
         captain_id = payload["captain_id"]
 
         # Get the game state instance
-        game_state = game.game_state if hasattr(wgp_simulation, "game_state") else None  # type: ignore
+        game_state = game.game_state if hasattr(game, "game_state") else None  # type: ignore
 
         if not game_state:
             raise HTTPException(status_code=400, detail="No active game")
@@ -259,7 +259,7 @@ async def handle_flush(game: WolfGoatPigGame, payload: dict[str, Any]) -> Action
             raise ValueError("Either player_id or team_id is required for flush")
 
         # Get the game state instance
-        game_state = game.game_state if hasattr(wgp_simulation, "game_state") else None  # type: ignore
+        game_state = game.game_state if hasattr(game, "game_state") else None  # type: ignore
 
         if not game_state:
             raise HTTPException(status_code=400, detail="No active game")

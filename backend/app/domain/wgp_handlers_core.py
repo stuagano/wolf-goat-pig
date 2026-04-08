@@ -187,7 +187,7 @@ async def handle_initialize_game(game: WolfGoatPigGame, payload: dict[str, Any])
 
             # Add initial timeline event
             try:
-                if hasattr(wgp_simulation, "hole_progression") and game.hole_progression:  # type: ignore
+                if hasattr(game, "hole_progression") and game.hole_progression:  # type: ignore
                     game.hole_progression.add_timeline_event(
                         event_type="game_start",
                         description=f"Game started with {len(players)} players on {course_name}",
@@ -484,7 +484,7 @@ async def handle_advance_hole(game: WolfGoatPigGame) -> ActionResponse:
         current_state = game.get_game_state()
 
         # Add timeline event for hole advancement
-        if hasattr(wgp_simulation, "hole_progression") and game.hole_progression:  # type: ignore
+        if hasattr(game, "hole_progression") and game.hole_progression:  # type: ignore
             game.hole_progression.add_timeline_event(
                 event_type="hole_start",
                 description=f"Started hole {game.current_hole}",
@@ -556,7 +556,7 @@ async def handle_complete_game(game: WolfGoatPigGame, payload: dict[str, Any]) -
     """Handle completing a game and saving results permanently"""
     try:
         # Get the game state instance
-        game_state = game.game_state if hasattr(wgp_simulation, "game_state") else None  # type: ignore
+        game_state = game.game_state if hasattr(game, "game_state") else None  # type: ignore
 
         if not game_state:
             raise HTTPException(status_code=400, detail="No active game to complete")
@@ -615,7 +615,7 @@ async def handle_record_net_score(game: WolfGoatPigGame, payload: dict[str, Any]
         score = payload["score"]
 
         # Get the game state instance
-        game_state = game.game_state if hasattr(wgp_simulation, "game_state") else None  # type: ignore
+        game_state = game.game_state if hasattr(game, "game_state") else None  # type: ignore
 
         if not game_state:
             raise HTTPException(status_code=400, detail="No active game")
@@ -645,7 +645,7 @@ async def handle_calculate_hole_points(payload: dict[str, Any]) -> ActionRespons
     """Handle calculating points for the current hole"""
     try:
         # Get the game state instance
-        game_state = game.game_state if hasattr(wgp_simulation, "game_state") else None  # type: ignore
+        game_state = game.game_state if hasattr(game, "game_state") else None  # type: ignore
 
         if not game_state:
             raise HTTPException(status_code=400, detail="No active game")

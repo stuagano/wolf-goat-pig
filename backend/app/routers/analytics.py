@@ -27,7 +27,8 @@ def get_game_stats():
 
         # Get basic game statistics
         total_games = db.query(models.GameRecord).count() if hasattr(models, "GameRecord") else 0
-        total_simulations = db.query(models.SimulationResult).count()
+        # SimulationResult model removed — simulation mode deprecated
+        total_simulations = 0
 
         # Get course usage
         course_manager = get_course_manager()

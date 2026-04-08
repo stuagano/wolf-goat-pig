@@ -141,7 +141,7 @@ async def handle_respond_partnership(game: WolfGoatPigGame, payload: dict[str, A
             message = "Partnership declined. Captain goes solo."
 
         # Add timeline event to hole progression if available
-        if hasattr(wgp_simulation, "hole_progression") and game.hole_progression:  # type: ignore
+        if hasattr(game, "hole_progression") and game.hole_progression:  # type: ignore
             game.hole_progression.add_timeline_event(
                 event_type="partnership_response",
                 description=f"Partnership {'accepted' if accepted else 'declined'}",
@@ -187,7 +187,7 @@ async def handle_declare_solo(game: WolfGoatPigGame) -> ActionResponse:
         game.captain_go_solo(captain_id)
 
         # Add timeline event to hole progression if available
-        if hasattr(wgp_simulation, "hole_progression") and game.hole_progression:  # type: ignore
+        if hasattr(game, "hole_progression") and game.hole_progression:  # type: ignore
             game.hole_progression.add_timeline_event(
                 event_type="partnership_decision",
                 description="Captain goes solo - 1 vs 3",
