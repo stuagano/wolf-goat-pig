@@ -5,7 +5,7 @@
  * This proxy runs on Vercel (whose IPs Google accepts) and forwards the
  * request unchanged. The Render backend calls this instead of Google directly.
  *
- * Protected by a shared secret in the x-proxy-secret header.
+ * Protected by an optional shared secret in the x-proxy-secret header.
  */
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
