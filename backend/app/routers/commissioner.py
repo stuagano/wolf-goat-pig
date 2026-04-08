@@ -49,7 +49,10 @@ async def _gemini_generate(
         if resp.status_code == 429:
             raise ValueError("Commissioner is getting too many questions right now. Try again in a minute.")
         if resp.status_code != 200:
-            raise ValueError(f"Gemini API returned status {resp.status_code}")
+            body = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
+            err_msg = body.get("error", {}).get("message", "unknown error")
+            logger.error("Gemini API %d: %s", resp.status_code, err_msg)
+            raise ValueError(f"Gemini API error: {err_msg}")
 
     data = resp.json()
     candidates = data.get("candidates", [])
