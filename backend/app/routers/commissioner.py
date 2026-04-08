@@ -31,7 +31,7 @@ _GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 async def _gemini_generate(
     prompt: str,
     system_instruction: str,
-    model: str = "gemini-2.0-flash",
+    model: str = "gemini-1.5-flash",
 ) -> str:
     """Call the Gemini REST API directly, bypassing the SDK's geo-check."""
     api_key = os.getenv("GEMINI_API_KEY")
