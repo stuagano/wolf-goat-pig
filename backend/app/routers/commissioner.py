@@ -293,10 +293,13 @@ def _validate_sql(sql: str) -> bool:
     # Strip block comments
     cleaned = re.sub(r"/\*.*?\*/", " ", cleaned, flags=re.DOTALL)
     # Normalize whitespace
-    cleaned = " ".join(cleaned.split())
+    cleaned = " ".join(cleaned.split()).strip()
+    # Strip a single trailing semicolon (Gemini adds these routinely)
+    if cleaned.endswith(";"):
+        cleaned = cleaned[:-1].strip()
 
     # Must start with SELECT
-    if not cleaned.strip().upper().startswith("SELECT"):
+    if not cleaned.upper().startswith("SELECT"):
         return False
 
     # Reject semicolons (multi-statement injection)
@@ -401,7 +404,7 @@ Example queries:
             "sql_used": None,
         })
 
-    sql = sql_match.group(1).strip()
+    sql = sql_match.group(1).strip().rstrip(";")
 
     # Validate the SQL
     if not _validate_sql(sql):
