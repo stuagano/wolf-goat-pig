@@ -319,7 +319,7 @@ async def handle_play_shot(game: WolfGoatPigGame, payload: dict[str, Any] = None
         )
         if is_tee_shot:
             # Create a WGPShotResult object from the shot_result dictionary
-            from archived.game_engine.wolf_goat_pig_simulation import WGPShotResult
+            from .game_types import WGPShotResult
 
             shot_obj = WGPShotResult(
                 player_id=shot_result.get("player_id", next_player),
