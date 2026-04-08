@@ -15,7 +15,11 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # Configuration
-COMPOSE_FILE="docker-compose.prod.yml"
+# Prefer root docker-compose.yml; keep prod filename as optional override.
+COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"
+if [ -f "docker-compose.prod.yml" ]; then
+    COMPOSE_FILE="docker-compose.prod.yml"
+fi
 ENV_FILE=".env.local"
 
 # Functions

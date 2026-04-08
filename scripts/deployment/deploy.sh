@@ -88,7 +88,7 @@ run_tests() {
     source venv/bin/activate
     
     # Run tests
-    python -m pytest tests/test_unified_action_api.py -v
+    python -m pytest tests/ -v
     
     print_success "All tests passed!"
     cd ..

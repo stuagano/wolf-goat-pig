@@ -92,15 +92,19 @@ case $choice in
 
         echo -e "\n${GREEN}Running Docker Production Test...${NC}"
 
-        # Check if docker-compose.prod.yml exists
-        if [ ! -f "docker-compose.prod.yml" ]; then
-            echo -e "${RED}docker-compose.prod.yml not found${NC}"
+        # Prefer root docker-compose.yml (canonical). Keep prod filename as optional override.
+        COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"
+        if [ -f "docker-compose.prod.yml" ]; then
+            COMPOSE_FILE="docker-compose.prod.yml"
+        fi
+        if [ ! -f "$COMPOSE_FILE" ]; then
+            echo -e "${RED}No compose file found (expected docker-compose.yml)${NC}"
             exit 1
         fi
 
         # Start Docker containers
         echo -e "${BLUE}Building and starting Docker containers...${NC}"
-        docker-compose -f docker-compose.prod.yml up --build -d
+        docker-compose -f "$COMPOSE_FILE" up --build -d
 
         # Wait for services to be ready
         echo -e "${YELLOW}Waiting for services to start...${NC}"
@@ -112,12 +116,12 @@ case $choice in
 
         # Show logs
         echo -e "\n${BLUE}Container logs:${NC}"
-        docker-compose -f docker-compose.prod.yml logs --tail=50
+        docker-compose -f "$COMPOSE_FILE" logs --tail=50
 
         # Prompt for cleanup
         read -p "Stop Docker containers? [y/N]: " stop_docker
         if [[ $stop_docker =~ ^[Yy]$ ]]; then
-            docker-compose -f docker-compose.prod.yml down
+            docker-compose -f "$COMPOSE_FILE" down
         fi
         ;;
 
@@ -160,10 +164,14 @@ case $choice in
         # Test 3: Docker if available
         if [ "$SKIP_DOCKER" = false ]; then
             echo -e "\n${BLUE}Test 3/4: Docker Compose Test${NC}"
-            docker-compose -f docker-compose.prod.yml up --build -d
+            COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"
+            if [ -f "docker-compose.prod.yml" ]; then
+                COMPOSE_FILE="docker-compose.prod.yml"
+            fi
+            docker-compose -f "$COMPOSE_FILE" up --build -d
             sleep 20
             python scripts/deployment/verify-deployments.py
-            docker-compose -f docker-compose.prod.yml down
+            docker-compose -f "$COMPOSE_FILE" down
         else
             echo -e "\n${YELLOW}Test 3/4: Docker test skipped (Docker not installed)${NC}"
         fi

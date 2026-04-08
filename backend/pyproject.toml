@@ -82,3 +82,12 @@ known-first-party = ["app"]
 quote-style = "double"
 indent-style = "space"
 line-ending = "auto"
+
+[tool.pytest.ini_options]
+# Keep `pytest` hermetic by default. Diagnostic/manual tests are still kept in-repo,
+# but should be run explicitly (e.g. `pytest tests/_diagnostic/...`).
+norecursedirs = ["_diagnostic", "manual", "integration"]
+markers = [
+    "integration: tests that require external services or long-running setup",
+]
+addopts = "-ra -m \"not integration\""
