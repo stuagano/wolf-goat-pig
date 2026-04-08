@@ -207,22 +207,21 @@ class TestRemovePlayer:
         resp = client.delete("/games/nonexistent-id/players/p1")
         assert resp.status_code == 404
 
-    def test_remove_player_hits_attribute_bug(self):
-        """Existing bug: game.status should be game.game_status — returns 500."""
+    def test_remove_player_succeeds(self):
+        """Remove a player from a game."""
         game, p1, _p2 = _create_setup_game()
         resp = client.delete(
             f"/games/{game['game_id']}/players/{p1['player_slot_id']}",
         )
-        # Bug: 'GameStateModel' object has no attribute 'status'
-        assert resp.status_code == 500
+        assert resp.status_code == 200
 
-    def test_remove_nonexistent_player_also_hits_attribute_bug(self):
-        """The attribute bug fires before the player lookup, so this is also 500."""
+    def test_remove_nonexistent_player_returns_404(self):
+        """Removing a nonexistent player slot returns 404."""
         game, _p1, _p2 = _create_setup_game()
         resp = client.delete(
             f"/games/{game['game_id']}/players/nonexistent-slot",
         )
-        assert resp.status_code == 500
+        assert resp.status_code == 404
 
 
 # ── PATCH /games/{game_id}/players/{player_slot_id}/handicap ────────────────
@@ -272,21 +271,20 @@ class TestUpdatePlayerHandicap:
         )
         assert resp.status_code == 404
 
-    def test_update_handicap_valid_value_hits_attribute_bug(self):
-        """Existing bug: game.status should be game.game_status — returns 500."""
+    def test_update_handicap_valid_value_succeeds(self):
+        """Update a player's handicap."""
         game, p1, _p2 = _create_setup_game()
         resp = client.patch(
             f"/games/{game['game_id']}/players/{p1['player_slot_id']}/handicap",
             json={"handicap": 15.5},
         )
-        # Bug: 'GameStateModel' object has no attribute 'status'
-        assert resp.status_code == 500
+        assert resp.status_code == 200
 
-    def test_update_handicap_nonexistent_player_hits_attribute_bug(self):
-        """The attribute bug fires before the player lookup, so this is also 500."""
+    def test_update_handicap_nonexistent_player_returns_404(self):
+        """Updating handicap for nonexistent player returns 404."""
         game, _p1, _p2 = _create_setup_game()
         resp = client.patch(
             f"/games/{game['game_id']}/players/nonexistent-slot/handicap",
             json={"handicap": 10.0},
         )
-        assert resp.status_code == 500
+        assert resp.status_code == 404

@@ -405,7 +405,7 @@ async def remove_player(game_id: str, player_slot_id: str, db: Session = Depends
             raise HTTPException(status_code=404, detail="Game not found")
 
         # Only allow removing players if game hasn't started
-        if game.status not in ["setup", "lobby"]:
+        if game.game_status not in ["setup", "lobby"]:
             raise HTTPException(
                 status_code=400,
                 detail="Cannot remove players from a game that has already started",
@@ -490,7 +490,7 @@ async def update_player_handicap(  # type: ignore
             raise HTTPException(status_code=404, detail="Game not found")
 
         # Only allow updating handicap if game hasn't started
-        if game.status not in ["setup", "lobby"]:
+        if game.game_status not in ["setup", "lobby"]:
             raise HTTPException(status_code=400, detail="Cannot update handicap after game has started")
 
         # Update in game_players table
