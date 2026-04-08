@@ -35,6 +35,7 @@ import CompletedGamesPage from "./pages/CompletedGamesPage";
 import AccountPage from "./pages/AccountPage";
 import BadgesPage from "./pages/BadgesPage";
 import ScorecardScanPage from "./pages/ScorecardScanPage";
+import AskPage from "./pages/AskPage";
 import Navigation from "./components/ui/Navigation";
 import AppFooter from "./components/ui/AppFooter";
 import { BadgeNotificationManager } from "./components/game/BadgeNotification";
@@ -410,6 +411,7 @@ function App() {
               <Route path="/account" element={<AccountPage />} />
               <Route path="/badges" element={<BadgesPage />} />
               <Route path="/scorecard-scan" element={<ScorecardScanPage />} />
+              <Route path="/ask" element={<AskPage />} />
               <Route path="/tee-times" element={<Navigate to="/signup" />} />
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>

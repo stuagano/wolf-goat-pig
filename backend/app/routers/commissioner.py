@@ -9,10 +9,12 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from typing import Any
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -166,3 +168,273 @@ async def commissioner_chat(
     )
     response = model.generate_content(request.message)
     return ApiResponse.success(data={"response": response.text})
+
+
+# ---------------------------------------------------------------------------
+# Data Chat — "Ask Commissioner Hover Over"
+# ---------------------------------------------------------------------------
+
+DATA_SCHEMA = """
+## Queryable Tables
+
+### legacy_rounds
+Columns: id, date, group, member, score, location, duration, source, synced_at
+Note: Uses `member` (string name) not a foreign key. Player matching requires
+`player_profiles.name` or `player_profiles.legacy_name`.
+
+### player_profiles
+Columns: id, name, legacy_name, email, handicap, ghin_id, ghin_last_updated,
+avatar_url, created_at, updated_at, last_played, is_active, is_ai,
+playing_style, description
+(EXCLUDED columns: foretees_password_encrypted, foretees_username, preferences,
+personality_traits, strengths, weaknesses)
+
+### player_statistics
+Columns: id, player_id, games_played, games_won, total_earnings, holes_played,
+holes_won, avg_earnings_per_hole, betting_success_rate, successful_bets,
+total_bets, partnership_success_rate, partnerships_formed, partnerships_won,
+solo_attempts, solo_wins, ping_pong_count, ping_pong_wins,
+invisible_aardvark_appearances, invisible_aardvark_wins, duncan_attempts,
+duncan_wins, tunkarri_attempts, tunkarri_wins, big_dick_attempts,
+big_dick_wins, eagles, birdies, pars, bogeys, double_bogeys,
+worse_than_double, current_win_streak, current_loss_streak, best_win_streak,
+worst_loss_streak, times_as_wolf, times_as_goat, times_as_pig,
+times_as_aardvark, last_updated
+
+### game_records
+Columns: id, game_id, course_name, game_mode, player_count,
+total_holes_played, game_duration_minutes, created_at, completed_at,
+final_scores
+
+### game_player_results
+Columns: id, game_record_id, player_profile_id, player_name, final_position,
+total_earnings, holes_won, successful_bets, total_bets, partnerships_formed,
+partnerships_won, solo_attempts, solo_wins, ping_pongs, ping_pongs_won,
+duncan_attempts, duncan_wins, tunkarri_attempts, tunkarri_wins,
+big_dick_attempts, big_dick_wins, created_at
+
+### ghin_scores
+Columns: id, player_profile_id, ghin_id, score_date, course_name, tees,
+score, course_rating, slope_rating, differential, posted,
+handicap_index_at_time, synced_at
+
+### ghin_handicap_history
+Columns: id, player_profile_id, ghin_id, effective_date, handicap_index,
+revision_reason, scores_used_count, synced_at
+
+## Relationships
+- player_statistics.player_id → player_profiles.id
+- game_player_results.game_record_id → game_records.id
+- game_player_results.player_profile_id → player_profiles.id
+- ghin_scores.player_profile_id → player_profiles.id
+- ghin_handicap_history.player_profile_id → player_profiles.id
+""".strip()
+
+_ALLOWED_TABLES = {
+    "legacy_rounds",
+    "player_profiles",
+    "player_statistics",
+    "game_records",
+    "game_player_results",
+    "ghin_scores",
+    "ghin_handicap_history",
+}
+
+_DENIED_COLUMNS = {
+    "foretees_password_encrypted",
+    "foretees_username",
+    "preferences",
+    "personality_traits",
+    "strengths",
+    "weaknesses",
+}
+
+_DANGEROUS_KEYWORDS = {
+    "INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "CREATE",
+    "TRUNCATE", "GRANT", "REVOKE", "EXEC",
+}
+
+
+def _validate_sql(sql: str) -> bool:
+    """Return True if *sql* is a safe, read-only SELECT against allowed tables."""
+    # Strip single-line comments
+    cleaned = re.sub(r"--[^\n]*", " ", sql)
+    # Strip block comments
+    cleaned = re.sub(r"/\*.*?\*/", " ", cleaned, flags=re.DOTALL)
+    # Normalize whitespace
+    cleaned = " ".join(cleaned.split())
+
+    # Must start with SELECT
+    if not cleaned.strip().upper().startswith("SELECT"):
+        return False
+
+    # Reject semicolons (multi-statement injection)
+    if ";" in cleaned:
+        return False
+
+    upper = cleaned.upper()
+
+    # Reject dangerous keywords (word-boundary check)
+    for kw in _DANGEROUS_KEYWORDS:
+        if re.search(rf"\b{kw}\b", upper):
+            return False
+
+    # Check denied columns
+    lower = cleaned.lower()
+    for col in _DENIED_COLUMNS:
+        if col in lower:
+            return False
+
+    # Table allowlist — every FROM / JOIN target must be in the allowlist
+    table_refs = re.findall(r"\bFROM\s+(\w+)", upper)
+    table_refs += re.findall(r"\bJOIN\s+(\w+)", upper)
+    for tbl in table_refs:
+        if tbl.lower() not in _ALLOWED_TABLES:
+            return False
+
+    return True
+
+
+def _execute_readonly_sql(db: Session, sql: str, row_limit: int = 100) -> dict:
+    """Execute a read-only SQL statement and return columnar results."""
+    try:
+        # Enforce row limit
+        upper = sql.upper().strip()
+        limit_match = re.search(r"\bLIMIT\s+(\d+)", upper)
+        if limit_match:
+            existing_limit = int(limit_match.group(1))
+            if existing_limit > row_limit:
+                sql = re.sub(
+                    r"(?i)\bLIMIT\s+\d+",
+                    f"LIMIT {row_limit}",
+                    sql,
+                )
+        else:
+            sql = f"{sql.rstrip().rstrip(';')} LIMIT {row_limit}"
+
+        result = db.execute(text(sql))
+        columns = list(result.keys())
+        rows = [list(row) for row in result.fetchall()]
+        truncated = len(rows) >= row_limit
+
+        return {
+            "columns": columns,
+            "rows": rows,
+            "row_count": len(rows),
+            "truncated": truncated,
+        }
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
+class DataChatRequest(BaseModel):
+    question: str
+
+
+@router.post("/data-chat")
+@handle_api_errors(operation_name="commissioner data chat")
+async def commissioner_data_chat(
+    request: DataChatRequest,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Ask Commissioner Hover Over a data question about the WGP database."""
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("Commissioner AI is not configured (GEMINI_API_KEY missing)")
+
+    import google.generativeai as genai
+
+    genai.configure(api_key=api_key)
+
+    # Step 1: Ask Gemini to produce a SQL query (or a direct answer for rules)
+    system = f"""{WGP_RULES}
+
+{DATA_SCHEMA}
+
+You are Commissioner Hover Over — the all-knowing statistician and historian of Wolf Goat Pig.
+You have access to the full game database. When asked a data question, respond with a SQL query
+wrapped in ```sql ... ``` code blocks. Use PostgreSQL syntax.
+
+If the question is purely about rules (not data), respond directly without SQL.
+If you're unsure which player is meant, use ILIKE with wildcards for fuzzy matching.
+
+Example queries:
+- "Who has the most quarters?" → SELECT member, SUM(score) as total_quarters FROM legacy_rounds GROUP BY member ORDER BY total_quarters DESC LIMIT 10
+- "Stuart's handicap history" → SELECT effective_date, handicap_index FROM ghin_handicap_history gh JOIN player_profiles pp ON gh.player_profile_id = pp.id WHERE pp.name ILIKE '%Stuart%' ORDER BY effective_date
+- "How many rounds per player?" → SELECT member, COUNT(*) as rounds FROM legacy_rounds GROUP BY member ORDER BY rounds DESC
+- "Best single round ever?" → SELECT member, score, date, location FROM legacy_rounds ORDER BY score DESC LIMIT 5
+- "Who goes solo the most?" → SELECT pp.name, ps.solo_attempts, ps.solo_wins FROM player_statistics ps JOIN player_profiles pp ON ps.player_id = pp.id WHERE ps.solo_attempts > 0 ORDER BY ps.solo_attempts DESC"""
+
+    model = genai.GenerativeModel(
+        model_name="gemini-flash-latest",
+        system_instruction=system,
+    )
+    step1_response = model.generate_content(request.question)
+    step1_text = step1_response.text
+
+    # Step 2: Extract SQL from ```sql ... ``` blocks
+    sql_match = re.search(r"```sql\s*(.*?)\s*```", step1_text, re.DOTALL)
+
+    if not sql_match:
+        # No SQL — this is a rules-only answer
+        return ApiResponse.success(data={
+            "response": step1_text,
+            "table_data": None,
+            "sql_used": None,
+        })
+
+    sql = sql_match.group(1).strip()
+
+    # Validate the SQL
+    if not _validate_sql(sql):
+        return ApiResponse.success(data={
+            "response": (
+                "The Commissioner attempted a query that didn't pass safety "
+                "validation. Please rephrase your question."
+            ),
+            "table_data": None,
+            "sql_used": sql,
+        })
+
+    # Execute the SQL
+    results = _execute_readonly_sql(db, sql)
+
+    if "error" in results:
+        return ApiResponse.success(data={
+            "response": (
+                f"The Commissioner's query hit a snag: {results['error']}. "
+                "Try rephrasing your question."
+            ),
+            "table_data": None,
+            "sql_used": sql,
+        })
+
+    # Step 3: Ask Gemini to narrate the results
+    narration_system = (
+        "You are Commissioner Hover Over — the all-knowing statistician and "
+        "historian of Wolf Goat Pig. Narrate the following query results in "
+        "your voice: authoritative, colorful golf commentary, using specific "
+        "numbers from the data. Keep it concise but entertaining."
+    )
+    narration_model = genai.GenerativeModel(
+        model_name="gemini-flash-latest",
+        system_instruction=narration_system,
+    )
+
+    narration_prompt = (
+        f"The user asked: {request.question}\n\n"
+        f"SQL executed: {sql}\n\n"
+        f"Results (columns: {results['columns']}):\n"
+    )
+    for row in results["rows"]:
+        narration_prompt += f"  {row}\n"
+    if results["truncated"]:
+        narration_prompt += "\n(Results were truncated to 100 rows.)"
+
+    narration_response = narration_model.generate_content(narration_prompt)
+
+    return ApiResponse.success(data={
+        "response": narration_response.text,
+        "table_data": results,
+        "sql_used": sql,
+    })
