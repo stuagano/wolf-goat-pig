@@ -25,7 +25,10 @@ logger = logging.getLogger("app.routers.commissioner")
 
 router = APIRouter(prefix="/api/commissioner", tags=["commissioner"])
 
-_GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
+_GEMINI_PROXY_URL = os.getenv(
+    "GEMINI_PROXY_URL",
+    "https://wolf-goat-pig.vercel.app/api/gemini-proxy",
+)
 
 
 async def _gemini_generate(
@@ -33,19 +36,20 @@ async def _gemini_generate(
     system_instruction: str,
     model: str = "gemini-flash-latest",
 ) -> str:
-    """Call the Gemini REST API directly, bypassing the SDK's geo-check."""
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise ValueError("Commissioner AI is not configured (GEMINI_API_KEY missing)")
-
-    url = f"{_GEMINI_API_URL}/{model}:generateContent?key={api_key}"
+    """Call Gemini via the Vercel proxy (bypasses Render's geo-block)."""
     payload = {
+        "model": model,
         "system_instruction": {"parts": [{"text": system_instruction}]},
         "contents": [{"parts": [{"text": prompt}]}],
     }
 
+    headers = {}
+    proxy_secret = os.getenv("GEMINI_PROXY_SECRET")
+    if proxy_secret:
+        headers["x-proxy-secret"] = proxy_secret
+
     async with httpx.AsyncClient(timeout=30.0) as client:
-        resp = await client.post(url, json=payload)
+        resp = await client.post(_GEMINI_PROXY_URL, json=payload, headers=headers)
         if resp.status_code == 429:
             raise ValueError("Commissioner is getting too many questions right now. Try again in a minute.")
         if resp.status_code != 200:
