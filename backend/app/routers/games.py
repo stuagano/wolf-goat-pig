@@ -669,21 +669,34 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
             raise HTTPException(status_code=404, detail="Game not found")
 
         if game.game_status == "completed":
-            return {
-                "success": True,
-                "message": "Game is already marked as completed",
-                "game_id": game_id,
-                "game_status": "completed",
-            }
+            # Check if results were already persisted
+            existing_record = db.query(models.GameRecord).filter(
+                models.GameRecord.game_id == game_id
+            ).first()
+            if existing_record:
+                return {
+                    "success": True,
+                    "message": "Game is already marked as completed",
+                    "game_id": game_id,
+                    "game_status": "completed",
+                }
+            # Fall through to persist results for previously completed games
+            logger.info("Game %s was completed but has no GameRecord — backfilling", game_id)
 
         if game.game_status == "setup":
             raise HTTPException(status_code=400, detail="Cannot complete a game that hasn't started yet")
 
         state = game.state or {}
         players = state.get("players", [])
-        standings = state.get("standings", {})
         hole_history = state.get("hole_history", [])
         hole_quarters = state.get("hole_quarters", {})
+
+        # Derive standings from hole_history if not present
+        standings = state.get("standings", {})
+        if not standings and hole_history:
+            for entry in hole_history:
+                for pid, q in entry.get("points_delta", {}).items():
+                    standings[pid] = standings.get(pid, 0) + q
 
         # Update game status
         game.game_status = "completed"
