@@ -326,11 +326,16 @@ def _validate_sql(sql: str) -> bool:
         if col in lower:
             return False
 
-    # Table allowlist — every FROM / JOIN target must be in the allowlist
+    # Extract CTE names (WITH name AS ...) so they're treated as valid aliases
+    cte_names = {name.lower() for name in re.findall(r"\bWITH\s+(\w+)\s+AS\b", upper)}
+    cte_names |= {name.lower() for name in re.findall(r",\s*(\w+)\s+AS\s*\(", upper)}
+    allowed = _ALLOWED_TABLES | cte_names
+
+    # Table allowlist — every FROM / JOIN target must be allowed
     table_refs = re.findall(r"\bFROM\s+(\w+)", upper)
     table_refs += re.findall(r"\bJOIN\s+(\w+)", upper)
     for tbl in table_refs:
-        if tbl.lower() not in _ALLOWED_TABLES:
+        if tbl.lower() not in allowed:
             return False
 
     return True
