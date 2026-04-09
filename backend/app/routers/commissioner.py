@@ -252,9 +252,11 @@ duncan_attempts, duncan_wins, tunkarri_attempts, tunkarri_wins,
 big_dick_attempts, big_dick_wins, hole_scores (JSON), performance_metrics (JSON),
 created_at
 Note: hole_scores is a JSON array of per-hole objects with keys: hole, quarters,
-gross_score, teams, wager, phase. The column type is json (not jsonb), so use
-json_array_elements(hole_scores) (NOT jsonb_array_elements) and cast with
-e.g. `CROSS JOIN json_array_elements(gpr.hole_scores) AS h` then `(h->>'quarters')::numeric`
+gross_score, teams, wager, phase. The column type is json (not jsonb).
+IMPORTANT: To query hole_scores, use this exact pattern:
+  CROSS JOIN json_array_elements(gpr.hole_scores) AS h
+Then access fields with ->> operator (NOT dot notation): (h->>'hole')::int, (h->>'quarters')::numeric, h->>'gross_score'
+Example: SELECT gpr.player_name, (h->>'hole')::int AS hole, (h->>'quarters')::numeric AS quarters FROM game_player_results gpr CROSS JOIN json_array_elements(gpr.hole_scores) AS h WHERE gpr.player_name ILIKE '%Stuart%' ORDER BY (h->>'hole')::int
 
 ### ghin_scores
 Columns: id, player_profile_id, ghin_id, score_date, course_name, tees,
