@@ -25,45 +25,51 @@ logger = logging.getLogger("app.routers.commissioner")
 
 router = APIRouter(prefix="/api/commissioner", tags=["commissioner"])
 
-_GEMINI_PROXY_URL = os.getenv(
-    "GEMINI_PROXY_URL",
-    "https://wolf-goat-pig.vercel.app/api/gemini-proxy",
-)
+_GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+_GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
 
-async def _gemini_generate(
+async def _llm_generate(
     prompt: str,
     system_instruction: str,
-    model: str = "gemini-2.0-flash-lite",
 ) -> str:
-    """Call Gemini via the Vercel proxy (bypasses Render's geo-block)."""
+    """Call Groq API (OpenAI-compatible) for LLM generation."""
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        raise ValueError("Commissioner AI is not configured (GROQ_API_KEY missing)")
+
     payload = {
-        "model": model,
-        "system_instruction": {"parts": [{"text": system_instruction}]},
-        "contents": [{"parts": [{"text": prompt}]}],
+        "model": _GROQ_MODEL,
+        "messages": [
+            {"role": "system", "content": system_instruction},
+            {"role": "user", "content": prompt},
+        ],
+        "temperature": 0.7,
+        "max_tokens": 2048,
     }
 
-    headers = {}
-    proxy_secret = os.getenv("GEMINI_PROXY_SECRET")
-    if proxy_secret:
-        headers["x-proxy-secret"] = proxy_secret
-
     async with httpx.AsyncClient(timeout=30.0) as client:
-        resp = await client.post(_GEMINI_PROXY_URL, json=payload, headers=headers)
+        resp = await client.post(
+            _GROQ_API_URL,
+            json=payload,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+        )
         if resp.status_code == 429:
             raise ValueError("Commissioner is getting too many questions right now. Try again in a minute.")
         if resp.status_code != 200:
             body = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
             err_msg = body.get("error", {}).get("message", "unknown error")
-            logger.error("Gemini API %d: %s", resp.status_code, err_msg)
-            raise ValueError(f"Gemini API error: {err_msg}")
+            logger.error("Groq API %d: %s", resp.status_code, err_msg)
+            raise ValueError(f"LLM API error: {err_msg}")
 
     data = resp.json()
-    candidates = data.get("candidates", [])
-    if not candidates:
-        raise ValueError("Gemini returned no candidates")
-    parts = candidates[0].get("content", {}).get("parts", [])
-    return parts[0].get("text", "") if parts else ""
+    choices = data.get("choices", [])
+    if not choices:
+        raise ValueError("LLM returned no choices")
+    return choices[0].get("message", {}).get("content", "")
 
 
 WGP_RULES = """
@@ -197,7 +203,7 @@ async def commissioner_chat(
         "If you don't have data to answer a stats question, say so honestly."
     )
 
-    response_text = await _gemini_generate(request.message, system)
+    response_text = await _llm_generate(request.message, system)
     return ApiResponse.success(data={"response": response_text})
 
 
@@ -391,7 +397,7 @@ Example queries:
 - "Best single round ever?" → SELECT member, score, date, location FROM legacy_rounds ORDER BY score DESC LIMIT 5
 - "Who goes solo the most?" → SELECT pp.name, ps.solo_attempts, ps.solo_wins FROM player_statistics ps JOIN player_profiles pp ON ps.player_id = pp.id WHERE ps.solo_attempts > 0 ORDER BY ps.solo_attempts DESC"""
 
-    step1_text = await _gemini_generate(request.question, system)
+    step1_text = await _llm_generate(request.question, system)
 
     # Step 2: Extract SQL from ```sql ... ``` blocks
     sql_match = re.search(r"```sql\s*(.*?)\s*```", step1_text, re.DOTALL)
@@ -448,7 +454,7 @@ Example queries:
     if results["truncated"]:
         narration_prompt += "\n(Results were truncated to 100 rows.)"
 
-    narration_text = await _gemini_generate(narration_prompt, narration_system)
+    narration_text = await _llm_generate(narration_prompt, narration_system)
 
     return ApiResponse.success(data={
         "response": narration_text,
