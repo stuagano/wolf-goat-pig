@@ -337,9 +337,14 @@ def _validate_sql(sql: str) -> bool:
     allowed = _ALLOWED_TABLES | cte_names
 
     # Table allowlist — every FROM / JOIN target must be allowed
-    # Skip function calls (word followed by '(') like jsonb_array_elements(...)
-    table_refs = re.findall(r"\bFROM\s+(\w+)(?!\s*\()", upper)
-    table_refs += re.findall(r"\bJOIN\s+(\w+)(?!\s*\()", upper)
+    # Skip function calls (word immediately followed by '(') like jsonb_array_elements(...)
+    table_refs = []
+    for m in re.finditer(r"\b(?:FROM|JOIN)\s+(\w+)", upper):
+        name = m.group(1)
+        after = upper[m.end():]
+        if after and after[0] == "(":
+            continue  # function call, not a table
+        table_refs.append(name)
     for tbl in table_refs:
         if tbl.lower() not in allowed:
             return False
