@@ -657,16 +657,10 @@ async def delete_game(game_id: str, db: Session = Depends(database.get_db)):  # 
 @router.post("/{game_id}/complete")
 async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db)):
     """
-    Mark a game as completed.
+    Mark a game as completed and persist results to GameRecord / GamePlayerResult.
 
-    This endpoint is used to manually mark a game as complete when all 18 holes
-    have been played but the status wasn't automatically updated.
-
-    Args:
-        game_id: The game ID to mark as complete
-
-    Returns:
-        Updated game information
+    Extracts hole-by-hole data from the game state JSON and writes it to the
+    permanent results tables so it's queryable by the Commissioner data explorer.
     """
     try:
         game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
@@ -685,20 +679,115 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
         if game.game_status == "setup":
             raise HTTPException(status_code=400, detail="Cannot complete a game that hasn't started yet")
 
-        # Update game status to completed
+        state = game.state or {}
+        players = state.get("players", [])
+        standings = state.get("standings", {})
+        hole_history = state.get("hole_history", [])
+        hole_quarters = state.get("hole_quarters", {})
+
+        # Update game status
         game.game_status = "completed"
-        if game.state:
-            game.state["game_status"] = "completed"
+        state["game_status"] = "completed"
+        game.state = state
+
+        now = datetime.utcnow().isoformat()
+
+        # Create GameRecord if one doesn't already exist
+        existing_record = db.query(models.GameRecord).filter(
+            models.GameRecord.game_id == game_id
+        ).first()
+
+        if not existing_record:
+            game_record = models.GameRecord(
+                game_id=game_id,
+                course_name=state.get("course_name", "Wing Point"),
+                game_mode="wolf_goat_pig",
+                player_count=len(players),
+                total_holes_played=len(hole_quarters),
+                created_at=game.created_at or now,
+                completed_at=now,
+                final_scores=standings,
+            )
+            db.add(game_record)
+            db.flush()  # Get the ID
+            record_id = game_record.id
+        else:
+            record_id = existing_record.id
+
+        # Build per-player hole scores from hole_history
+        player_hole_data = {}
+        for entry in hole_history:
+            hole_num = entry.get("hole")
+            points_delta = entry.get("points_delta", {})
+            gross_scores = entry.get("gross_scores", {})
+            teams = entry.get("teams")
+            wager = entry.get("wager")
+            phase = entry.get("phase")
+            for pid, quarters in points_delta.items():
+                if pid not in player_hole_data:
+                    player_hole_data[pid] = []
+                player_hole_data[pid].append({
+                    "hole": hole_num,
+                    "quarters": quarters,
+                    "gross_score": gross_scores.get(pid) if gross_scores else None,
+                    "teams": teams,
+                    "wager": wager,
+                    "phase": phase,
+                })
+
+        # Rank players by earnings for final_position
+        sorted_players = sorted(players, key=lambda p: standings.get(p.get("id"), 0), reverse=True)
+
+        # Create GamePlayerResult for each player
+        results_created = 0
+        for rank, player in enumerate(sorted_players, 1):
+            pid = player.get("id")
+            player_name = player.get("name", "Unknown")
+            profile_id = player.get("player_profile_id")
+            total_earnings = standings.get(pid, 0)
+
+            # Count holes won (positive quarters)
+            holes_data = player_hole_data.get(pid, [])
+            holes_won = sum(1 for h in holes_data if h.get("quarters", 0) > 0)
+
+            # Check if result already exists
+            existing_result = db.query(models.GamePlayerResult).filter(
+                models.GamePlayerResult.game_record_id == record_id,
+                models.GamePlayerResult.player_name == player_name,
+            ).first()
+
+            if not existing_result:
+                result = models.GamePlayerResult(
+                    game_record_id=record_id,
+                    player_profile_id=profile_id,
+                    player_name=player_name,
+                    final_position=rank,
+                    total_earnings=total_earnings,
+                    holes_won=holes_won,
+                    hole_scores=holes_data,
+                    performance_metrics={
+                        "handicap": player.get("handicap"),
+                        "holes_played": len(holes_data),
+                        "avg_quarters_per_hole": round(total_earnings / max(len(holes_data), 1), 2),
+                    },
+                    created_at=now,
+                )
+                db.add(result)
+                results_created += 1
 
         db.commit()
 
-        logger.info(f"Game {game_id} marked as completed")
+        logger.info(
+            "Game %s completed: %d players, %d holes, %d results created",
+            game_id, len(players), len(hole_quarters), results_created,
+        )
 
         return {
             "success": True,
             "message": "Game marked as completed",
             "game_id": game_id,
             "game_status": "completed",
+            "results_created": results_created,
         }
 
     except HTTPException:

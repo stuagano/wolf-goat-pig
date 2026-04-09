@@ -249,7 +249,11 @@ Columns: id, game_record_id, player_profile_id, player_name, final_position,
 total_earnings, holes_won, successful_bets, total_bets, partnerships_formed,
 partnerships_won, solo_attempts, solo_wins, ping_pongs, ping_pongs_won,
 duncan_attempts, duncan_wins, tunkarri_attempts, tunkarri_wins,
-big_dick_attempts, big_dick_wins, created_at
+big_dick_attempts, big_dick_wins, hole_scores (JSON), performance_metrics (JSON),
+created_at
+Note: hole_scores is a JSON array of per-hole objects with keys: hole, quarters,
+gross_score, teams, wager, phase. Use PostgreSQL JSON operators to query:
+e.g. `jsonb_array_elements(hole_scores) AS h` then `(h->>'quarters')::numeric`
 
 ### ghin_scores
 Columns: id, player_profile_id, ghin_id, score_date, course_name, tees,
