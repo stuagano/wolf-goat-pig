@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from .. import database, models, schemas
@@ -763,29 +764,40 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
             holes_data = player_hole_data.get(pid, [])
             holes_won = sum(1 for h in holes_data if h.get("quarters", 0) > 0)
 
-            # Check if result already exists
-            existing_result = db.query(models.GamePlayerResult).filter(
-                models.GamePlayerResult.game_record_id == record_id,
-                models.GamePlayerResult.player_name == player_name,
+            # Check if result already exists (raw SQL to avoid ORM column mismatch)
+            exists = db.execute(
+                text("SELECT 1 FROM game_player_results WHERE game_record_id = :rid AND player_name = :pn LIMIT 1"),
+                {"rid": record_id, "pn": player_name},
             ).first()
 
-            if not existing_result:
-                result = models.GamePlayerResult(
-                    game_record_id=record_id,
-                    player_profile_id=profile_id,
-                    player_name=player_name,
-                    final_position=rank,
-                    total_earnings=total_earnings,
-                    holes_won=holes_won,
-                    hole_scores=holes_data,
-                    performance_metrics={
-                        "handicap": player.get("handicap"),
-                        "holes_played": len(holes_data),
-                        "avg_quarters_per_hole": round(total_earnings / max(len(holes_data), 1), 2),
+            if not exists:
+                perf = json.dumps({
+                    "handicap": player.get("handicap"),
+                    "holes_played": len(holes_data),
+                    "avg_quarters_per_hole": round(total_earnings / max(len(holes_data), 1), 2),
+                })
+                db.execute(
+                    text("""
+                        INSERT INTO game_player_results
+                            (game_record_id, player_profile_id, player_name,
+                             final_position, total_earnings, holes_won,
+                             hole_scores, performance_metrics, created_at)
+                        VALUES
+                            (:rid, :pid, :pname, :pos, :earn, :hw,
+                             :hs::jsonb, :pm::jsonb, :cat)
+                    """),
+                    {
+                        "rid": record_id,
+                        "pid": profile_id,
+                        "pname": player_name,
+                        "pos": rank,
+                        "earn": total_earnings,
+                        "hw": holes_won,
+                        "hs": json.dumps(holes_data),
+                        "pm": perf,
+                        "cat": now,
                     },
-                    created_at=now,
                 )
-                db.add(result)
                 results_created += 1
 
         db.commit()
