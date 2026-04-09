@@ -34,7 +34,7 @@ _GEMINI_PROXY_URL = os.getenv(
 async def _gemini_generate(
     prompt: str,
     system_instruction: str,
-    model: str = "gemini-flash-latest",
+    model: str = "gemini-2.0-flash-lite",
 ) -> str:
     """Call Gemini via the Vercel proxy (bypasses Render's geo-block)."""
     payload = {
