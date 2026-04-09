@@ -304,8 +304,9 @@ def _validate_sql(sql: str) -> bool:
     if cleaned.endswith(";"):
         cleaned = cleaned[:-1].strip()
 
-    # Must start with SELECT
-    if not cleaned.upper().startswith("SELECT"):
+    # Must start with SELECT or WITH (CTEs)
+    first_word = cleaned.split()[0].upper() if cleaned.split() else ""
+    if first_word not in ("SELECT", "WITH"):
         return False
 
     # Reject semicolons (multi-statement injection)
