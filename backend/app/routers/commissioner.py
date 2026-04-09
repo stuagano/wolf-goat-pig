@@ -215,7 +215,8 @@ DATA_SCHEMA = """
 ## Queryable Tables
 
 ### legacy_rounds
-Columns: id, date, group, member, score, location, duration, source, synced_at
+Columns: id, date, "group", member, score, location, duration, source, synced_at
+IMPORTANT: `group` is a PostgreSQL reserved word — always quote it as "group" in queries.
 Note: Uses `member` (string name) not a foreign key. Player matching requires
 `player_profiles.name` or `player_profiles.legacy_name`.
 
