@@ -784,7 +784,7 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
                              hole_scores, performance_metrics, created_at)
                         VALUES
                             (:rid, :pid, :pname, :pos, :earn, :hw,
-                             :hs::jsonb, :pm::jsonb, :cat)
+                             CAST(:hs AS jsonb), CAST(:pm AS jsonb), :cat)
                     """),
                     {
                         "rid": record_id,
