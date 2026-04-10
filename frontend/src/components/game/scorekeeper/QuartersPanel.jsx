@@ -1,6 +1,6 @@
 // frontend/src/components/game/scorekeeper/QuartersPanel.jsx
-// Compact wager-based quarters entry — tap winners, losers auto-calculate
-import React, { useState } from "react";
+// Quick wager + tap-winners as primary UX. Manual mode for edits/overrides.
+import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 
 const WAGER_PRESETS = [1, 2, 4, 8, 12, 16, 20, 24];
@@ -13,61 +13,63 @@ const QuartersPanel = ({
   setExpandedPlayers,
   setQuarters,
   theme,
+  editingHole,
+  currentWager,
 }) => {
-  const [wager, setWager] = useState(null);
+  const [wager, setWager] = useState(currentWager || null);
   const [winners, setWinners] = useState(new Set());
-  const [mode, setMode] = useState("quick"); // "quick" (wager+tap) or "manual"
+  const [showManual, setShowManual] = useState(false);
 
-  // Compute the sum of current quarters
+  // Default to manual when editing an existing hole (values already set)
+  useEffect(() => {
+    if (editingHole) {
+      setShowManual(true);
+    } else {
+      setShowManual(false);
+      setWinners(new Set());
+      setWager(currentWager || null);
+    }
+  }, [editingHole, currentWager]);
+
   const totalSum = players.reduce(
     (acc, p) => acc + (parseFloat(quarters[p.id]) || 0),
     0,
   );
+  const hasAnyValue = Object.values(quarters).some((v) => v !== "" && v !== undefined && v !== null);
 
-  // Apply wager + winners to quarters
-  const applyWagerDistribution = (w, wins) => {
+  // Distribute wager among winners/losers
+  const applyDistribution = (w, wins) => {
     if (!w || wins.size === 0 || wins.size === players.length) return;
-
-    const losers = players.filter((p) => !wins.has(p.id));
+    const loserCount = players.length - wins.size;
     const winnerCount = wins.size;
-    const loserCount = losers.length;
+    const perWinner = (w * loserCount) / winnerCount;
+    const perLoser = -w;
 
-    // Total pot = wager * number of losers (each loser pays the wager to the pot)
-    // Split evenly among winners
-    const totalPot = w * loserCount;
-    const perWinner = totalPot / winnerCount;
-    const perLoser = -(totalPot / loserCount);
-
-    const newQuarters = {};
+    const newQ = {};
     players.forEach((p) => {
-      if (wins.has(p.id)) {
-        newQuarters[p.id] = perWinner.toString();
-      } else {
-        newQuarters[p.id] = perLoser.toString();
-      }
+      newQ[p.id] = wins.has(p.id) ? perWinner.toString() : perLoser.toString();
     });
-    setQuarters(newQuarters);
+    setQuarters(newQ);
   };
 
   const handleWagerSelect = (w) => {
     setWager(w);
-    if (winners.size > 0) {
-      applyWagerDistribution(w, winners);
+    if (winners.size > 0 && winners.size < players.length) {
+      applyDistribution(w, winners);
     }
   };
 
   const handlePlayerTap = (playerId) => {
-    const newWinners = new Set(winners);
-    if (newWinners.has(playerId)) {
-      newWinners.delete(playerId);
+    const next = new Set(winners);
+    if (next.has(playerId)) {
+      next.delete(playerId);
     } else {
-      newWinners.add(playerId);
+      next.add(playerId);
     }
-    setWinners(newWinners);
-    if (wager && newWinners.size > 0 && newWinners.size < players.length) {
-      applyWagerDistribution(wager, newWinners);
-    } else if (newWinners.size === 0) {
-      // Clear quarters when no winners selected
+    setWinners(next);
+    if (wager && next.size > 0 && next.size < players.length) {
+      applyDistribution(wager, next);
+    } else if (next.size === 0) {
       const cleared = {};
       players.forEach((p) => { cleared[p.id] = ""; });
       setQuarters(cleared);
@@ -79,7 +81,6 @@ const QuartersPanel = ({
     players.forEach((p) => { allZero[p.id] = "0"; });
     setQuarters(allZero);
     setWinners(new Set());
-    setWager(null);
   };
 
   const handleClear = () => {
@@ -87,226 +88,175 @@ const QuartersPanel = ({
     players.forEach((p) => { cleared[p.id] = ""; });
     setQuarters(cleared);
     setWinners(new Set());
-    setWager(null);
+    setWager(currentWager || null);
   };
+
+  // --- Sum badge ---
+  const sumColor = hasAnyValue && Math.abs(totalSum) < 0.001
+    ? "#4CAF50"
+    : Math.abs(totalSum) > 0.001
+      ? "#f44336"
+      : theme.colors.textSecondary;
+  const sumText = Math.abs(totalSum) < 0.001
+    ? hasAnyValue ? "0 \u2713" : "0"
+    : (totalSum > 0 ? "+" : "") + totalSum.toFixed(1);
 
   return (
     <div style={{ marginBottom: "20px" }}>
-      {/* Header with mode toggle and sum */}
+      {/* Header */}
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          marginBottom: "12px",
-          padding: "8px 12px",
+          marginBottom: "10px",
+          padding: "6px 12px",
           background: theme.colors.backgroundSecondary,
           borderRadius: "8px",
         }}
       >
-        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+        <h3
+          style={{
+            margin: 0, textTransform: "uppercase", letterSpacing: "0.5px",
+            fontSize: "12px", fontWeight: "bold", color: theme.colors.textSecondary,
+          }}
+        >
+          Quarters
+        </h3>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <span style={{ fontSize: "13px", fontWeight: "bold", color: sumColor }}>
+            {sumText}
+          </span>
           <button
-            onClick={() => setMode("quick")}
+            onClick={() => setShowManual(!showManual)}
             style={{
-              padding: "4px 10px",
-              fontSize: "11px",
-              fontWeight: "bold",
-              border: `1px solid ${mode === "quick" ? theme.colors.primary : theme.colors.border}`,
-              borderRadius: "6px",
-              background: mode === "quick" ? theme.colors.primary : "transparent",
-              color: mode === "quick" ? "white" : theme.colors.textSecondary,
+              padding: "2px 8px", fontSize: "10px", fontWeight: "600",
+              border: `1px solid ${theme.colors.border}`, borderRadius: "4px",
+              background: showManual ? theme.colors.primary : "transparent",
+              color: showManual ? "white" : theme.colors.textSecondary,
               cursor: "pointer",
             }}
           >
-            Quick
+            {showManual ? "Quick" : "Edit"}
           </button>
-          <button
-            onClick={() => setMode("manual")}
-            style={{
-              padding: "4px 10px",
-              fontSize: "11px",
-              fontWeight: "bold",
-              border: `1px solid ${mode === "manual" ? theme.colors.primary : theme.colors.border}`,
-              borderRadius: "6px",
-              background: mode === "manual" ? theme.colors.primary : "transparent",
-              color: mode === "manual" ? "white" : theme.colors.textSecondary,
-              cursor: "pointer",
-            }}
-          >
-            Manual
-          </button>
-        </div>
-        <div style={{ fontSize: "14px", fontWeight: "bold" }}>
-          {(() => {
-            const color = Math.abs(totalSum) < 0.001 && Object.values(quarters).some((v) => v !== "" && v !== undefined)
-              ? "#4CAF50"
-              : Math.abs(totalSum) > 0.001
-                ? "#f44336"
-                : theme.colors.textSecondary;
-            const displaySum = Math.abs(totalSum) < 0.001
-              ? Object.values(quarters).some((v) => v !== "" && v !== undefined) ? "0 \u2713" : "0"
-              : (totalSum > 0 ? "+" : "") + totalSum.toFixed(1);
-            return <span style={{ color }}>Sum: {displaySum}</span>;
-          })()}
         </div>
       </div>
 
-      {mode === "quick" ? (
+      {!showManual ? (
+        /* ── QUICK MODE ── */
         <>
-          {/* Wager selector */}
-          <div style={{ marginBottom: "12px" }}>
-            <div
-              style={{
-                fontSize: "11px",
-                fontWeight: "bold",
-                color: theme.colors.textSecondary,
-                textTransform: "uppercase",
-                marginBottom: "6px",
-              }}
-            >
-              Wager per player
-            </div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
-                gap: "6px",
-              }}
-            >
-              {WAGER_PRESETS.map((w) => (
-                <button
-                  key={w}
-                  onClick={() => handleWagerSelect(w)}
-                  className="touch-optimized"
-                  style={{
-                    padding: "10px 4px",
-                    borderRadius: "10px",
-                    border: `2px solid ${wager === w ? theme.colors.primary : theme.colors.border}`,
-                    background: wager === w ? theme.colors.primary : theme.colors.paper,
-                    color: wager === w ? "white" : theme.colors.textPrimary,
-                    fontWeight: "bold",
-                    fontSize: "16px",
-                    cursor: "pointer",
-                    transition: "all 0.15s ease",
-                  }}
-                >
-                  {w}Q
-                </button>
-              ))}
-            </div>
-            {/* Custom wager input */}
-            <div style={{ marginTop: "6px", display: "flex", gap: "6px", alignItems: "center" }}>
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                placeholder="Custom"
-                value={wager && !WAGER_PRESETS.includes(wager) ? wager : ""}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value, 10);
-                  if (!isNaN(val) && val > 0) {
-                    handleWagerSelect(val);
-                  } else if (e.target.value === "") {
-                    setWager(null);
-                  }
-                }}
+          {/* Wager grid */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: "6px",
+              marginBottom: "10px",
+            }}
+          >
+            {WAGER_PRESETS.map((w) => (
+              <button
+                key={w}
+                onClick={() => handleWagerSelect(w)}
+                className="touch-optimized"
                 style={{
-                  flex: 1,
-                  padding: "8px 12px",
-                  fontSize: "14px",
-                  border: `1px solid ${theme.colors.border}`,
-                  borderRadius: "8px",
-                  textAlign: "center",
-                  outline: "none",
+                  padding: "10px 4px", borderRadius: "10px",
+                  border: `2px solid ${wager === w ? theme.colors.primary : theme.colors.border}`,
+                  background: wager === w ? theme.colors.primary : theme.colors.paper,
+                  color: wager === w ? "white" : theme.colors.textPrimary,
+                  fontWeight: "bold", fontSize: "15px", cursor: "pointer",
+                  transition: "all 0.12s ease",
                 }}
-              />
-              <span style={{ fontSize: "12px", color: theme.colors.textSecondary }}>Q</span>
-            </div>
+              >
+                {w}Q
+              </button>
+            ))}
           </div>
 
-          {/* Player tap-to-win grid */}
-          <div style={{ marginBottom: "12px" }}>
+          {/* Custom wager */}
+          <div style={{ display: "flex", gap: "6px", alignItems: "center", marginBottom: "12px" }}>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="Other"
+              value={wager && !WAGER_PRESETS.includes(wager) ? wager : ""}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                if (!isNaN(val) && val > 0) handleWagerSelect(val);
+                else if (e.target.value === "") setWager(null);
+              }}
+              style={{
+                flex: 1, padding: "8px 12px", fontSize: "14px",
+                border: `1px solid ${theme.colors.border}`, borderRadius: "8px",
+                textAlign: "center", outline: "none",
+              }}
+            />
+            <span style={{ fontSize: "12px", color: theme.colors.textSecondary, fontWeight: "600" }}>Q</span>
+          </div>
+
+          {/* Tap winners */}
+          {wager && (
             <div
               style={{
-                fontSize: "11px",
-                fontWeight: "bold",
-                color: theme.colors.textSecondary,
-                textTransform: "uppercase",
-                marginBottom: "6px",
+                fontSize: "11px", fontWeight: "bold", color: theme.colors.textSecondary,
+                textTransform: "uppercase", marginBottom: "6px",
               }}
             >
               Tap winners
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              {players.map((player) => {
-                const isWinner = winners.has(player.id);
-                const currentVal = parseFloat(quarters[player.id]) || 0;
-                const hasValue = quarters[player.id] !== "" && quarters[player.id] !== undefined;
+          )}
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {players.map((player) => {
+              const isWinner = winners.has(player.id);
+              const val = parseFloat(quarters[player.id]) || 0;
+              const hasVal = quarters[player.id] !== "" && quarters[player.id] !== undefined;
 
-                return (
-                  <button
-                    key={player.id}
-                    onClick={() => handlePlayerTap(player.id)}
-                    className="touch-optimized"
+              return (
+                <button
+                  key={player.id}
+                  onClick={() => handlePlayerTap(player.id)}
+                  className="touch-optimized"
+                  style={{
+                    display: "flex", justifyContent: "space-between", alignItems: "center",
+                    padding: "14px 16px", borderRadius: "12px",
+                    border: `2px solid ${isWinner ? "#4CAF50" : hasVal && val < 0 ? "#EF5350" : theme.colors.border}`,
+                    background: isWinner
+                      ? "linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%)"
+                      : hasVal && val < 0
+                        ? "linear-gradient(135deg, #FFEBEE 0%, #FFCDD2 100%)"
+                        : theme.colors.paper,
+                    cursor: "pointer", transition: "all 0.12s ease", textAlign: "left",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <span style={{ fontSize: "20px" }}>
+                      {isWinner ? "\uD83C\uDFC6" : "\uD83D\uDC64"}
+                    </span>
+                    <span style={{ fontWeight: "bold", fontSize: "16px", color: theme.colors.textPrimary }}>
+                      {player.name}
+                    </span>
+                  </div>
+                  <span
                     style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      padding: "14px 16px",
-                      borderRadius: "12px",
-                      border: `2px solid ${isWinner ? "#4CAF50" : !isWinner && hasValue && currentVal < 0 ? "#EF5350" : theme.colors.border}`,
-                      background: isWinner
-                        ? "linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%)"
-                        : !isWinner && hasValue && currentVal < 0
-                          ? "linear-gradient(135deg, #FFEBEE 0%, #FFCDD2 100%)"
-                          : theme.colors.paper,
-                      cursor: "pointer",
-                      transition: "all 0.15s ease",
-                      textAlign: "left",
+                      fontSize: "22px", fontWeight: "bold", minWidth: "50px", textAlign: "right",
+                      color: hasVal
+                        ? val > 0 ? "#2E7D32" : val < 0 ? "#C62828" : theme.colors.textSecondary
+                        : theme.colors.textSecondary,
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                      <span style={{ fontSize: "20px" }}>
-                        {isWinner ? "\uD83C\uDFC6" : "\uD83D\uDC64"}
-                      </span>
-                      <div>
-                        <div style={{ fontWeight: "bold", fontSize: "16px", color: theme.colors.textPrimary }}>
-                          {player.name}
-                        </div>
-                        {scores[player.id] > 0 && (
-                          <div style={{ fontSize: "11px", color: theme.colors.textSecondary }}>
-                            {scores[player.id]} strokes
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "22px",
-                        fontWeight: "bold",
-                        minWidth: "60px",
-                        textAlign: "right",
-                        color: hasValue
-                          ? currentVal > 0 ? "#2E7D32" : currentVal < 0 ? "#C62828" : theme.colors.textSecondary
-                          : theme.colors.textSecondary,
-                      }}
-                    >
-                      {hasValue
-                        ? (currentVal > 0 ? `+${currentVal}` : currentVal)
-                        : "\u2014"}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+                    {hasVal ? (val > 0 ? `+${val}` : val) : "\u2014"}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </>
       ) : (
-        /* Manual mode — inline inputs for each player */
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "12px" }}>
+        /* ── MANUAL / EDIT MODE ── */
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           {players.map((player) => {
-            const currentVal = parseFloat(quarters[player.id]) || 0;
-            const adjustQuarters = (delta) => {
+            const val = parseFloat(quarters[player.id]) || 0;
+            const adjust = (delta) => {
               const base = parseFloat(quarters[player.id]) || 0;
               setQuarters({ ...quarters, [player.id]: (base + delta).toString() });
             };
@@ -315,20 +265,16 @@ const QuartersPanel = ({
               <div
                 key={player.id}
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  padding: "8px 12px",
-                  background: theme.colors.paper,
-                  borderRadius: "12px",
-                  border: `1px solid ${theme.colors.border}`,
+                  display: "flex", alignItems: "center", gap: "8px",
+                  padding: "8px 12px", background: theme.colors.paper,
+                  borderRadius: "12px", border: `1px solid ${theme.colors.border}`,
                 }}
               >
                 <div style={{ flex: 1, fontWeight: "bold", fontSize: "14px" }}>
                   {player.name}
                 </div>
                 <button
-                  onClick={() => adjustQuarters(-1)}
+                  onClick={() => adjust(-1)}
                   className="touch-optimized"
                   style={{
                     width: "36px", height: "36px", borderRadius: "8px",
@@ -345,21 +291,21 @@ const QuartersPanel = ({
                   pattern="-?[0-9]*\.?[0-9]*"
                   value={quarters[player.id] ?? ""}
                   onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === "" || val === "-" || /^-?\d*\.?\d*$/.test(val)) {
-                      setQuarters({ ...quarters, [player.id]: val });
+                    const v = e.target.value;
+                    if (v === "" || v === "-" || /^-?\d*\.?\d*$/.test(v)) {
+                      setQuarters({ ...quarters, [player.id]: v });
                     }
                   }}
                   placeholder="0"
                   style={{
                     width: "64px", padding: "8px", fontSize: "18px", fontWeight: "bold",
-                    border: `2px solid ${currentVal > 0 ? "#4CAF50" : currentVal < 0 ? "#f44336" : theme.colors.border}`,
+                    border: `2px solid ${val > 0 ? "#4CAF50" : val < 0 ? "#f44336" : theme.colors.border}`,
                     borderRadius: "10px", textAlign: "center", outline: "none",
-                    color: currentVal > 0 ? "#4CAF50" : currentVal < 0 ? "#f44336" : theme.colors.textPrimary,
+                    color: val > 0 ? "#4CAF50" : val < 0 ? "#f44336" : theme.colors.textPrimary,
                   }}
                 />
                 <button
-                  onClick={() => adjustQuarters(1)}
+                  onClick={() => adjust(1)}
                   className="touch-optimized"
                   style={{
                     width: "36px", height: "36px", borderRadius: "8px",
@@ -377,7 +323,7 @@ const QuartersPanel = ({
       )}
 
       {/* Quick Actions */}
-      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
         <button
           onClick={handlePush}
           className="touch-optimized"
@@ -413,6 +359,8 @@ QuartersPanel.propTypes = {
   setExpandedPlayers: PropTypes.func.isRequired,
   setQuarters: PropTypes.func.isRequired,
   theme: PropTypes.object.isRequired,
+  editingHole: PropTypes.number,
+  currentWager: PropTypes.number,
 };
 
 export default QuartersPanel;

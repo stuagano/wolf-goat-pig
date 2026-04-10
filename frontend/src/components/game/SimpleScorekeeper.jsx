@@ -2370,6 +2370,8 @@ const SimpleScorekeeper = ({
         setExpandedPlayers={setExpandedPlayers}
         setQuarters={setQuarters}
         theme={theme}
+        editingHole={editingHole}
+        currentWager={currentWager}
       />
 
       {/* Scores (Optional) - Collapsible */}
