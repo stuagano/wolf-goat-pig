@@ -959,9 +959,54 @@ const SimpleScorekeeper = ({
     return null;
   };
 
+  // Compute effective quarters with auto-balance applied
+  const getEffectiveQuarters = () => {
+    const effective = { ...quarters };
+    const entered = [];
+    const empty = [];
+    players.forEach((p) => {
+      const val = effective[p.id];
+      if (val !== undefined && val !== "" && val !== null) {
+        entered.push({ id: p.id, value: parseFloat(val) || 0 });
+      } else {
+        empty.push(p.id);
+      }
+    });
+    if (empty.length === 1 && entered.length >= 1) {
+      const sum = entered.reduce((acc, e) => acc + e.value, 0);
+      effective[empty[0]] = (-sum).toString();
+    }
+    return effective;
+  };
+
   // Submit hole to backend
   const handleSubmitHole = async () => {
-    const validationError = validateHole();
+    // Apply auto-balance before validation
+    const effectiveQuarters = getEffectiveQuarters();
+    setQuarters(effectiveQuarters);
+
+    // Validate with effective quarters
+    const allPlayers = players.map((p) => p.id);
+    const quartersEntered = Object.keys(effectiveQuarters).length > 0;
+    let validationError = null;
+    if (!quartersEntered) {
+      validationError = "Please enter quarters for all players";
+    } else {
+      for (const playerId of allPlayers) {
+        if (effectiveQuarters[playerId] === undefined || effectiveQuarters[playerId] === "") {
+          validationError = "Please enter quarters for all players";
+          break;
+        }
+      }
+      if (!validationError) {
+        const quartersSum = allPlayers.reduce((sum, playerId) => {
+          return sum + (parseFloat(effectiveQuarters[playerId]) || 0);
+        }, 0);
+        if (Math.abs(quartersSum) > 0.001) {
+          validationError = `Quarters must sum to zero. Current sum: ${quartersSum > 0 ? "+" : ""}${quartersSum.toFixed(2)}`;
+        }
+      }
+    }
     if (validationError) {
       setError(validationError);
       return;
@@ -991,7 +1036,7 @@ const SimpleScorekeeper = ({
       // Build pointsDelta from user-entered quarters (supports decimals for split scoring)
       const pointsDelta = createPlayerMap(
         players,
-        (p) => parseFloat(quarters[p.id]) || 0,
+        (p) => parseFloat(effectiveQuarters[p.id]) || 0,
       );
 
       // Zero-sum already validated in validateHole()

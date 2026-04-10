@@ -16,6 +16,45 @@ const QuartersPanel = ({
   setQuarters,
   theme,
 }) => {
+  // Auto-balance: compute which players have manual entries vs the auto-fill candidate
+  const getAutoBalance = () => {
+    const entered = [];
+    const empty = [];
+    players.forEach((p) => {
+      const val = quarters[p.id];
+      if (val !== undefined && val !== "" && val !== null) {
+        entered.push({ id: p.id, value: parseFloat(val) || 0 });
+      } else {
+        empty.push(p.id);
+      }
+    });
+    // Auto-fill when exactly one player is empty
+    if (empty.length === 1 && entered.length >= 1) {
+      const sum = entered.reduce((acc, e) => acc + e.value, 0);
+      return { playerId: empty[0], value: -sum };
+    }
+    return null;
+  };
+
+  const autoBalance = getAutoBalance();
+
+  const getDisplayValue = (playerId) => {
+    const manual = quarters[playerId];
+    if (manual !== undefined && manual !== "" && manual !== null) {
+      return { value: parseFloat(manual) || 0, isAuto: false };
+    }
+    if (autoBalance && autoBalance.playerId === playerId) {
+      return { value: autoBalance.value, isAuto: true };
+    }
+    return { value: 0, isAuto: false };
+  };
+
+  // Compute sum including auto-balance
+  const totalSum = players.reduce((acc, p) => {
+    const { value } = getDisplayValue(p.id);
+    return acc + value;
+  }, 0);
+
   return (
     <div style={{ marginBottom: "20px" }}>
       {/* Section Header with Sum */}
@@ -45,15 +84,11 @@ const QuartersPanel = ({
         <div style={{ fontSize: "14px", fontWeight: "bold" }}>
           Sum:{" "}
           {(() => {
-            const sum = players.reduce(
-              (acc, p) => acc + (parseFloat(quarters[p.id]) || 0),
-              0,
-            );
-            const color = Math.abs(sum) < 0.001 ? "#4CAF50" : "#f44336";
+            const color = Math.abs(totalSum) < 0.001 ? "#4CAF50" : "#f44336";
             const displaySum =
-              Math.abs(sum) < 0.001
-                ? "0"
-                : (sum > 0 ? "+" : "") + sum.toFixed(1);
+              Math.abs(totalSum) < 0.001
+                ? "0 ✓"
+                : (totalSum > 0 ? "+" : "") + totalSum.toFixed(1);
             return <span style={{ color }}>{displaySum}</span>;
           })()}
         </div>
@@ -62,15 +97,26 @@ const QuartersPanel = ({
       {/* Player Cards */}
       <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
         {players.map((player, idx) => {
-          const currentVal = parseFloat(quarters[player.id]) || 0;
+          const { value: currentVal, isAuto } = getDisplayValue(player.id);
           const playerStrokes = scores[player.id];
           const isExpanded = expandedPlayers[idx] || false;
 
           const adjustQuarters = (delta) => {
+            const baseVal = isAuto ? currentVal : (parseFloat(quarters[player.id]) || 0);
             setQuarters({
               ...quarters,
-              [player.id]: (currentVal + delta).toString(),
+              [player.id]: (baseVal + delta).toString(),
             });
+          };
+
+          // Accept auto-balanced value into the real quarters on tap
+          const acceptAutoBalance = () => {
+            if (isAuto) {
+              setQuarters({
+                ...quarters,
+                [player.id]: currentVal.toString(),
+              });
+            }
           };
 
           const toggleExpanded = () => {
@@ -177,23 +223,31 @@ const QuartersPanel = ({
                   }}
                 >
                   <div
+                    onClick={isAuto ? acceptAutoBalance : undefined}
                     style={{
-                      background: theme.colors.backgroundSecondary,
-                      border: `1px solid ${theme.colors.border}`,
+                      background: isAuto
+                        ? "rgba(33, 150, 243, 0.08)"
+                        : theme.colors.backgroundSecondary,
+                      border: isAuto
+                        ? "2px dashed #2196F3"
+                        : `1px solid ${theme.colors.border}`,
                       width: "48px",
                       height: "48px",
                       borderRadius: "12px",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
+                      cursor: isAuto ? "pointer" : "default",
                     }}
                   >
                     <span
                       style={{
                         fontSize: "24px",
                         fontWeight: "bold",
-                        color:
-                          currentVal > 0
+                        fontStyle: isAuto ? "italic" : "normal",
+                        color: isAuto
+                          ? "#2196F3"
+                          : currentVal > 0
                             ? "#4CAF50"
                             : currentVal < 0
                               ? "#f44336"
