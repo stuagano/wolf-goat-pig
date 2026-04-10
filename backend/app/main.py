@@ -299,7 +299,7 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     logger.error(f"Unhandled exception: {exc}")
     logger.error(traceback.format_exc())
-    return JSONResponse(status_code=500, content={"error": "Internal server error", "detail": str(exc)})
+    return JSONResponse(status_code=500, content={"error": "Internal server error"})
 
 
 async def run_seeding_process():

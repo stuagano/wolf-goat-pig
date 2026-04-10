@@ -77,26 +77,19 @@ const ActiveGamesPage = () => {
     // Prevent event bubbling
     event?.stopPropagation();
 
-    console.log('🗑️ Delete button clicked for game:', gameId);
-
     // Confirm deletion
     const confirmed = window.confirm(
       'Are you sure you want to delete this game? This action cannot be undone.'
     );
 
     if (!confirmed) {
-      console.log('❌ Deletion cancelled by user');
       return;
     }
-
-    console.log('✅ User confirmed deletion, calling API...');
     setDeletingGameId(gameId);
     setError(null);
 
     try {
       const deleteUrl = `${API_URL}/games/${gameId}`;
-      console.log('🌐 DELETE request to:', deleteUrl);
-
       const response = await fetch(deleteUrl, {
         method: 'DELETE',
         headers: {
@@ -104,25 +97,19 @@ const ActiveGamesPage = () => {
         }
       });
 
-      console.log('📡 Response status:', response.status);
-
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
         console.error('❌ Delete failed:', errorData);
         throw new Error(errorData.detail || `Failed to delete game (${response.status})`);
       }
 
-      const result = await response.json();
-      console.log('✅ Delete successful:', result);
+      await response.json();
 
       // Show success message briefly
       setError(null);
 
       // Refresh the games list
-      console.log('🔄 Refreshing games list...');
       await loadGames();
-
-      console.log('✅ Games list refreshed');
     } catch (err) {
       console.error('💥 Error deleting game:', err);
       setError(`Failed to delete game: ${err.message}`);

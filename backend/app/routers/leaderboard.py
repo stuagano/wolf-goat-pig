@@ -7,9 +7,11 @@ Leaderboard rankings, GHIN-enhanced leaderboard, and game result recording.
 import logging
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
 
-from .. import database, models, schemas
+from .. import models, schemas
+from ..database import get_db
 from ..services.ghin_service import GHINService
 from ..services.leaderboard_service import get_leaderboard_service
 from ..services.player_service import PlayerService
@@ -23,11 +25,10 @@ router = APIRouter(tags=["leaderboard"])
 def get_leaderboard(  # type: ignore
     limit: int = Query(100, ge=1, le=100),  # Default to 100 to show all players
     sort: str = Query("desc", pattern="^(asc|desc)$"),  # Add sort parameter
+    db: Session = Depends(get_db),
 ):
     """Get the player leaderboard. Uses LeaderboardService for consolidated leaderboard logic."""
     try:
-        db = database.SessionLocal()
-
         # Use LeaderboardService for leaderboard queries
         leaderboard_service = get_leaderboard_service(db)
         leaderboard_type = "total_earnings"  # Default leaderboard type
@@ -68,16 +69,12 @@ def get_leaderboard(  # type: ignore
     except Exception as e:
         logger.error(f"Error getting leaderboard: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get leaderboard: {e!s}")
-    finally:
-        db.close()
 
 
 @router.get("/leaderboard/{metric}")
-def get_leaderboard_by_metric(metric: str, limit: int = Query(10, ge=1, le=100)):  # type: ignore
+def get_leaderboard_by_metric(metric: str, limit: int = Query(10, ge=1, le=100), db: Session = Depends(get_db)):  # type: ignore
     """Get leaderboard sorted by specific metric. Uses LeaderboardService."""
     try:
-        db = database.SessionLocal()
-
         # Use LeaderboardService for metric-based leaderboards
         leaderboard_service = get_leaderboard_service(db)
 
@@ -102,13 +99,12 @@ def get_leaderboard_by_metric(metric: str, limit: int = Query(10, ge=1, le=100))
     except Exception as e:
         logger.error(f"Error getting leaderboard by metric {metric}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get leaderboard: {e!s}")
-    finally:
-        db.close()
 
 
 @router.get("/leaderboard/ghin-enhanced")
 def get_ghin_enhanced_leaderboard(  # type: ignore
     limit: int = Query(100, ge=1, le=100),
+    db: Session = Depends(get_db),
 ):
     """Get leaderboard enhanced with stored GHIN handicap data.
 
@@ -116,24 +112,18 @@ def get_ghin_enhanced_leaderboard(  # type: ignore
     daily by the background scheduler (or on-demand via POST /ghin/sync-handicaps).
     """
     try:
-        db = database.SessionLocal()
-
         ghin_service = GHINService(db)
         return ghin_service.get_leaderboard_with_ghin_data(limit=limit)
 
     except Exception as e:
         logger.error(f"Error getting GHIN enhanced leaderboard: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get GHIN enhanced leaderboard: {e!s}")
-    finally:
-        db.close()
 
 
 @router.post("/game-results")
-def record_game_result(game_result: schemas.GamePlayerResultCreate) -> dict[str, Any]:
+def record_game_result(game_result: schemas.GamePlayerResultCreate, db: Session = Depends(get_db)) -> dict[str, Any]:
     """Record a game result for a player."""
     try:
-        db = database.SessionLocal()
-
         player_service = PlayerService(db)
         success = player_service.record_game_result(game_result)
 
@@ -155,5 +145,3 @@ def record_game_result(game_result: schemas.GamePlayerResultCreate) -> dict[str,
     except Exception as e:
         logger.error(f"Error recording game result: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to record game result: {e!s}")
-    finally:
-        db.close()

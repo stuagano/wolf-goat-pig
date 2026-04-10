@@ -27,9 +27,7 @@ export const useGamePersistence = (gameState, isActive) => {
 
     // Save current state
     const success = storage.set(STORAGE_KEY, dataToSave);
-    if (success) {
-      console.log('[Persistence] Game state saved to localStorage');
-    }
+    // State saved if success is true
   }, [STORAGE_KEY, BACKUP_KEY]);
 
   // Load game state from localStorage
@@ -37,14 +35,12 @@ export const useGamePersistence = (gameState, isActive) => {
     // Try to load main state
     const stored = storage.get(STORAGE_KEY);
     if (stored) {
-      console.log('[Persistence] Game state loaded from localStorage');
       return stored;
     }
 
     // Try backup if main state failed
     const backup = storage.get(BACKUP_KEY);
     if (backup) {
-      console.log('[Persistence] Loaded from backup');
       return backup;
     }
 
@@ -54,9 +50,7 @@ export const useGamePersistence = (gameState, isActive) => {
   // Clear saved game state
   const clearLocal = useCallback(() => {
     const removed = storage.remove(STORAGE_KEY) && storage.remove(BACKUP_KEY);
-    if (removed) {
-      console.log('[Persistence] Game state cleared from localStorage');
-    }
+    // State cleared if removed is true
   }, [STORAGE_KEY, BACKUP_KEY]);
 
   // Auto-save when game state changes

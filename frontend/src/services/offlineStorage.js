@@ -92,8 +92,6 @@ export async function processPendingSync(fetchFn = fetch) {
     return { synced: 0, failed: 0, errors: [] };
   }
 
-  console.log(`[OfflineStorage] Processing ${pending.length} pending sync requests...`);
-
   const results = {
     synced: 0,
     failed: 0,
@@ -115,7 +113,7 @@ export async function processPendingSync(fetchFn = fetch) {
 
       if (response.ok) {
         results.synced++;
-        console.log(`[OfflineStorage] Synced request for game ${item.gameId}`);
+        // Synced successfully
       } else {
         // Don't retry client errors (4xx)
         if (response.status >= 400 && response.status < 500) {
@@ -148,8 +146,6 @@ export async function processPendingSync(fetchFn = fetch) {
 
   // Update last sync time
   offlineStore.set(STORAGE_KEYS.LAST_SYNC, new Date().toISOString());
-
-  console.log(`[OfflineStorage] Sync complete: ${results.synced} synced, ${results.failed} failed, ${remaining.length} remaining`);
 
   return results;
 }
@@ -190,7 +186,7 @@ export function setupAutoSync(onSyncComplete) {
     const pending = getPendingSync();
     if (pending.length === 0) return;
 
-    console.log('[OfflineStorage] Connection restored, syncing pending requests...');
+    // Connection restored, syncing pending requests
 
     try {
       const results = await processPendingSync();

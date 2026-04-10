@@ -45,19 +45,6 @@ const Scorecard = ({
     }
   }, [currentHole]);
 
-  // Debug logging with safe array/object access
-  useEffect(() => {
-    console.log('[Scorecard] Received data:', {
-      players: Array.isArray(players) ? players.map(p => p && p.id ? ({ id: p.id, name: p.name || 'Unknown' }) : null).filter(Boolean) : [],
-      holeHistoryLength: Array.isArray(holeHistory) ? holeHistory.length : 0,
-      currentHole: typeof currentHole === 'number' ? currentHole : 1,
-      courseHolesLength: Array.isArray(courseHoles) ? courseHoles.length : 0,
-      hasStrokeAllocation: strokeAllocation && typeof strokeAllocation === 'object' ? Object.keys(strokeAllocation).length > 0 : false,
-      holeHistory: Array.isArray(holeHistory) ? holeHistory : [],
-      courseHoles: Array.isArray(courseHoles) ? courseHoles : [],
-      strokeAllocation: strokeAllocation && typeof strokeAllocation === 'object' ? strokeAllocation : {}
-    });
-  }, [players, holeHistory, currentHole, courseHoles, strokeAllocation]);
 
   // Create a scorecard data structure
   const holes = Array.from({ length: 18 }, (_, i) => i + 1);

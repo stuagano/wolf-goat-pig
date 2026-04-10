@@ -146,7 +146,6 @@ export function queueSync(gameId, type, payload, options = {}) {
         updatedAt: new Date().toISOString(),
       };
       syncStore.set(STORAGE_KEYS.SYNC_QUEUE, queue);
-      console.log('[SyncManager] Merged with existing queue item for game:', gameId);
       notifyListeners();
       return existing.id;
     }
@@ -155,7 +154,6 @@ export function queueSync(gameId, type, payload, options = {}) {
   queue.push(queueItem);
   syncStore.set(STORAGE_KEYS.SYNC_QUEUE, queue);
   
-  console.log('[SyncManager] Queued sync:', queueItem.id, type);
   notifyListeners();
   
   // Trigger processing if online
@@ -185,25 +183,20 @@ function scheduleProcessing(delay = 0) {
  */
 export async function processQueue(options = {}) {
   if (isProcessing) {
-    console.log('[SyncManager] Already processing queue');
     return { skipped: true };
   }
 
   if (!navigator.onLine) {
-    console.log('[SyncManager] Offline, skipping queue processing');
     return { offline: true };
   }
 
   const queue = getSyncQueue();
   if (queue.length === 0) {
-    console.log('[SyncManager] Queue is empty');
     return { synced: 0, failed: 0 };
   }
 
   isProcessing = true;
   notifyListeners();
-
-  console.log(`[SyncManager] Processing ${queue.length} queued items...`);
 
   const results = {
     synced: 0,
@@ -253,8 +246,6 @@ export async function processQueue(options = {}) {
 
       if (response.ok) {
         results.synced++;
-        console.log('[SyncManager] Synced:', item.id, item.type);
-        
         // Update last sync time
         syncStore.set(STORAGE_KEYS.LAST_SYNC, new Date().toISOString());
         
@@ -320,7 +311,6 @@ export async function processQueue(options = {}) {
       if (item.attempts < MAX_ATTEMPTS) {
         updatedQueue.push(item);
         results.retrying.push(item.id);
-        console.log('[SyncManager] Will retry:', item.id, item.lastError);
       } else {
         results.failed++;
         results.errors.push({
@@ -340,13 +330,10 @@ export async function processQueue(options = {}) {
   isProcessing = false;
   notifyListeners();
 
-  console.log('[SyncManager] Processing complete:', results);
-
   // Schedule retry for remaining items with exponential backoff
   if (updatedQueue.length > 0 && navigator.onLine) {
     const maxAttempts = Math.max(...updatedQueue.map(i => i.attempts));
     const delay = Math.min(30000, 2000 * Math.pow(2, maxAttempts - 1));
-    console.log(`[SyncManager] Scheduling retry in ${delay}ms`);
     scheduleProcessing(delay);
   }
 
@@ -360,7 +347,6 @@ export function clearQueue() {
   syncStore.set(STORAGE_KEYS.SYNC_QUEUE, []);
   syncStore.set(STORAGE_KEYS.SYNC_ERRORS, []);
   notifyListeners();
-  console.log('[SyncManager] Queue cleared');
 }
 
 /**
@@ -394,13 +380,11 @@ export async function forceRetryAll() {
  */
 export function setupAutoSync() {
   const handleOnline = () => {
-    console.log('[SyncManager] Connection restored, processing queue...');
     notifyListeners();
     scheduleProcessing(2000); // Small delay after reconnect
   };
 
   const handleOffline = () => {
-    console.log('[SyncManager] Connection lost');
     if (retryTimeoutId) {
       clearTimeout(retryTimeoutId);
       retryTimeoutId = null;
@@ -535,7 +519,6 @@ export function saveLocalGameState(gameId, gameState) {
   
   const success = syncStore.set(key, data);
   if (success) {
-    console.log('[SyncManager] Game state saved locally:', gameId);
   }
   return success;
 }
@@ -554,7 +537,6 @@ export function loadLocalGameState(gameId) {
   const data = syncStore.get(key, null);
   
   if (data) {
-    console.log('[SyncManager] Loaded local game state:', gameId, 'saved at:', data.savedAt);
   }
   return data;
 }
@@ -569,7 +551,6 @@ export function clearLocalGameState(gameId) {
   
   const key = `${STORAGE_KEYS.GAME_STATE}-${gameId}`;
   syncStore.remove(key);
-  console.log('[SyncManager] Cleared local game state:', gameId);
 }
 
 /**
@@ -587,7 +568,6 @@ export function getNewerLocalState(gameId, serverUpdatedAt) {
   const serverTime = serverUpdatedAt ? new Date(serverUpdatedAt) : new Date(0);
   
   if (localTime > serverTime) {
-    console.log('[SyncManager] Local state is newer than server');
     return localState;
   }
   

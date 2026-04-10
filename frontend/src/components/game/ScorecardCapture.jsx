@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 
 /**
  * ScorecardCapture — camera input with preview and retake flow.
@@ -9,14 +9,23 @@ const ScorecardCapture = ({ onCapture, onCancel, onManualEntry }) => {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [capturedFile, setCapturedFile] = useState(null);
 
+  // Clean up object URL on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
     setCapturedFile(file);
     setPreviewUrl(URL.createObjectURL(file));
   };
 
   const handleRetake = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
     setCapturedFile(null);
     // Reset the input so the same file can be re-selected

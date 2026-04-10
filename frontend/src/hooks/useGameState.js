@@ -35,7 +35,6 @@ export function useGameState({
   const restoredState = useMemo(() => {
     const localState = syncManager.loadLocalGameState(gameId);
     if (localState?.holeHistory && localState.holeHistory.length > initialHoleHistory.length) {
-      console.log('[useGameState] Restored from local storage:', localState.holeHistory.length, 'holes');
       return localState;
     }
     return null;

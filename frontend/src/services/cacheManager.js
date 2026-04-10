@@ -22,7 +22,7 @@ async function loadVersion() {
       const data = await response.json();
       APP_VERSION = data.version || APP_VERSION;
       versionLoaded = true;
-      console.log("[CacheManager] Loaded version:", APP_VERSION);
+      // Version loaded successfully
     }
   } catch (e) {
     console.warn("[CacheManager] Could not load version.json:", e.message);
@@ -85,8 +85,6 @@ export function hasAppUpdated() {
  * Clear all application caches
  */
 export async function clearAllCaches() {
-  console.log("[CacheManager] Clearing all caches...");
-
   const results = {
     serviceWorkerCache: false,
     localStorage: false,
@@ -99,7 +97,6 @@ export async function clearAllCaches() {
       const cacheNames = await caches.keys();
       await Promise.all(
         cacheNames.map((cacheName) => {
-          console.log("[CacheManager] Deleting cache:", cacheName);
           return caches.delete(cacheName);
         }),
       );
@@ -135,7 +132,6 @@ export async function clearAllCaches() {
     console.error("[CacheManager] Failed to clear sessionStorage:", error);
   }
 
-  console.log("[CacheManager] Cache clear results:", results);
   return results;
 }
 
@@ -143,8 +139,6 @@ export async function clearAllCaches() {
  * Force refresh the app by clearing caches and reloading
  */
 export async function forceRefresh() {
-  console.log("[CacheManager] Force refreshing app...");
-
   // Clear all caches
   await clearAllCaches();
 
@@ -274,12 +268,6 @@ export async function initCacheManager() {
 
   // Check for version update on app start
   if (hasAppUpdated()) {
-    console.log(
-      "[CacheManager] App updated from",
-      getStoredVersion(),
-      "to",
-      APP_VERSION,
-    );
     storeCurrentVersion();
 
     // Clear old caches on version update
@@ -290,10 +278,6 @@ export async function initCacheManager() {
   setInterval(() => {
     checkForUpdates().then((result) => {
       if (result.updateAvailable) {
-        console.log(
-          "[CacheManager] New version available:",
-          result.serverVersion,
-        );
         // Dispatch custom event for UI to handle
         window.dispatchEvent(
           new CustomEvent("appUpdateAvailable", {
@@ -304,7 +288,6 @@ export async function initCacheManager() {
     });
   }, UPDATE_CHECK_INTERVAL);
 
-  console.log("[CacheManager] Initialized - Version:", APP_VERSION);
 }
 
 const cacheManager = {

@@ -83,7 +83,6 @@ export function clear() {
     // Remove collected keys
     keysToRemove.forEach(key => localStorage.removeItem(key));
 
-    console.log(`[Storage] Cleared ${keysToRemove.length} app-related keys`);
     return true;
   } catch (error) {
     console.warn('[Storage] Failed to clear app data:', error);
@@ -185,7 +184,6 @@ export function createNamespacedStorage(namespace) {
       try {
         const keys = getKeys(prefix);
         keys.forEach(key => localStorage.removeItem(key));
-        console.log(`[Storage:${namespace}] Cleared ${keys.length} keys`);
         return true;
       } catch (error) {
         console.warn(`[Storage:${namespace}] Failed to clear namespace:`, error);

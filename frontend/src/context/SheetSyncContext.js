@@ -70,11 +70,6 @@ export const SheetSyncProvider = ({ children }) => {
         last_played: "N/A", // Will be populated when we add round history
       }));
 
-      console.log("Unified leaderboard loaded:", {
-        playersFound: finalData.length,
-        sampleData: finalData.slice(0, 3),
-      });
-
       setSyncData(finalData);
 
       // Also fetch data sources status
@@ -83,7 +78,7 @@ export const SheetSyncProvider = ({ children }) => {
         if (statusResponse.ok) {
           const status = await statusResponse.json();
           setDataStatus(status);
-          console.log("Data sources status:", status);
+          // Data sources status loaded
         }
       } catch (statusErr) {
         console.warn("Failed to fetch data status:", statusErr);

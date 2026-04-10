@@ -72,13 +72,13 @@ root.render(
 // Disabled in development to avoid reload loops
 if (process.env.NODE_ENV === 'production') {
   serviceWorkerRegistration.register({
-    onSuccess: (registration) => {
-      console.log('[PWA] Service worker registered successfully:', registration);
+    onSuccess: () => {
+      // Service worker registered successfully
     },
-    onUpdate: (registration) => {
-      console.log('[PWA] New content available; please refresh.');
+    onUpdate: () => {
+      // New content available
     }
   });
 } else {
-  console.log('[DEV] Service worker disabled in development mode');
+  // Service worker disabled in development mode
 } // Deploy 20260109-fix-blank-page

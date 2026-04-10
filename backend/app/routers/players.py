@@ -88,24 +88,27 @@ def get_player_profile_by_name(player_name: str, db: Session = Depends(get_db)) 
 @router.get("/availability/all", response_model=list[dict])
 @handle_api_errors(operation_name="get all players availability")
 def get_all_players_availability(db: Session = Depends(get_db)) -> list[dict[str, Any]]:
-    """Get all players' weekly availability with their names."""
-    players_with_availability = db.query(models.PlayerProfile).all()
+    """Get all players' weekly availability with their names.
+
+    Uses two queries instead of N+1: one for all players, one for all availability records.
+    """
+    from collections import defaultdict
+
+    players = db.query(models.PlayerProfile).all()
+    all_availability = db.query(models.PlayerAvailability).all()
+
+    # Group availability by player_profile_id
+    availability_by_player: dict[int, list[models.PlayerAvailability]] = defaultdict(list)
+    for avail in all_availability:
+        availability_by_player[avail.player_profile_id].append(avail)
 
     result: list[dict[str, Any]] = []
-    for player in players_with_availability:
+    for player in players:
         player_data: dict[str, Any] = {
             "player_id": player.id,
             "player_name": player.name,
             "email": player.email,
-            "availability": [],
-        }
-
-        availability = (
-            db.query(models.PlayerAvailability).filter(models.PlayerAvailability.player_profile_id == player.id).all()
-        )
-
-        for avail in availability:
-            player_data["availability"].append(
+            "availability": [
                 {
                     "day_of_week": avail.day_of_week,
                     "is_available": avail.is_available,
@@ -113,8 +116,9 @@ def get_all_players_availability(db: Session = Depends(get_db)) -> list[dict[str
                     "available_to_time": avail.available_to_time,
                     "notes": avail.notes,
                 }
-            )
-
+                for avail in availability_by_player.get(player.id, [])
+            ],
+        }
         result.append(player_data)
 
     return result

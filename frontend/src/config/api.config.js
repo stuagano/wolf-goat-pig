@@ -19,7 +19,6 @@ function detectApiUrl() {
   // 1. Check build-time environment variable (preferred)
   const envApiUrl = process.env.REACT_APP_API_URL;
   if (envApiUrl && envApiUrl.trim() !== '') {
-    console.log('[API Config] Using REACT_APP_API_URL:', envApiUrl);
     return envApiUrl.trim();
   }
 
@@ -29,26 +28,17 @@ function detectApiUrl() {
 
     // Local development
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      const devUrl = 'http://localhost:8000';
-      console.log('[API Config] Detected local development, using:', devUrl);
-      return devUrl;
+      return 'http://localhost:8000';
     }
 
     // Vercel production
     if (hostname.includes('vercel.app')) {
-      const prodUrl = 'https://wolf-goat-pig.onrender.com';
-      console.warn('[API Config] Detected Vercel deployment but REACT_APP_API_URL not set!');
-      console.warn('[API Config] Using default production URL:', prodUrl);
-      console.warn('[API Config] Please set REACT_APP_API_URL in Vercel dashboard');
-      return prodUrl;
+      return 'https://wolf-goat-pig.onrender.com';
     }
   }
 
   // 3. Final fallback - assume production
-  const fallbackUrl = 'https://wolf-goat-pig.onrender.com';
-  console.warn('[API Config] No environment variable or hostname match');
-  console.warn('[API Config] Using fallback URL:', fallbackUrl);
-  return fallbackUrl;
+  return 'https://wolf-goat-pig.onrender.com';
 }
 
 /**
@@ -61,8 +51,7 @@ function validateApiUrl(url) {
       throw new Error(`Invalid protocol: ${parsed.protocol}`);
     }
     return true;
-  } catch (error) {
-    console.error('[API Config] Invalid API URL:', url, error.message);
+  } catch {
     return false;
   }
 }
@@ -92,13 +81,5 @@ export const apiConfig = {
     ? 'vercel'
     : 'local',
 };
-
-// Log configuration on startup
-console.log('[API Config] Configuration:', {
-  baseUrl: apiConfig.baseUrl,
-  isDevelopment: apiConfig.isDevelopment,
-  isProduction: apiConfig.isProduction,
-  platform: apiConfig.platform,
-});
 
 export default apiConfig;

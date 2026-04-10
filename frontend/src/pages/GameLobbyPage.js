@@ -262,11 +262,8 @@ function GameLobbyPage() {
     setError('');
 
     try {
-      console.log('Ordered players received:', orderedPlayers);
-
       // Map ordered players to their slot IDs
       const playerOrder = orderedPlayers.map(player => player.player_slot_id || player.id);
-      console.log('Player order to send:', playerOrder);
 
       const response = await fetch(`${API_URL}/games/${gameId}/tee-order`, {
         method: 'PATCH',
@@ -275,8 +272,6 @@ function GameLobbyPage() {
       });
 
       const data = await response.json();
-      console.log('Response from backend:', data);
-
       if (!response.ok) {
         throw new Error(data.detail || 'Failed to set tee order');
       }

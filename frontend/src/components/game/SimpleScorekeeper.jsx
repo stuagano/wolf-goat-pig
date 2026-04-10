@@ -106,11 +106,6 @@ const SimpleScorekeeper = ({
       localState?.holeHistory &&
       localState.holeHistory.length > initialHoleHistory.length
     ) {
-      console.log(
-        "[Scorekeeper] Restored from local storage:",
-        localState.holeHistory.length,
-        "holes",
-      );
       return localState;
     }
     return null;
@@ -1375,7 +1370,6 @@ const SimpleScorekeeper = ({
       const result = await fetchJson(`${API_URL}/games/${gameId}/complete`, {
         method: "POST",
       });
-      console.log("Game marked as complete:", result);
       setIsGameMarkedComplete(true);
     } catch (error) {
       console.error("Error marking game complete:", error);
@@ -2281,8 +2275,7 @@ const SimpleScorekeeper = ({
                 is_doubled: false, // Need to track this from betting events
                 current_hole_par: holePar || 4,
               }}
-              onBettingAction={(scenario) => {
-                console.log("Suggested betting action:", scenario);
+              onBettingAction={() => {
                 // Integration with actual betting state would go here
               }}
             />

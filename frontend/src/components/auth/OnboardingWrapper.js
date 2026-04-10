@@ -37,8 +37,8 @@ const OnboardingWrapper = ({ children }) => {
     <>
       {children}
       <OnboardingModal
-        onComplete={(legacyName) => {
-          console.log('Onboarding complete, linked to:', legacyName);
+        onComplete={() => {
+          // Onboarding complete
         }}
         onSkip={skipLegacyName}
         updateLegacyName={updateLegacyName}

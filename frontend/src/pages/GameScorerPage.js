@@ -74,7 +74,6 @@ const GameScorerPage = () => {
 
       if (data.success && data.game_id) {
         // Successfully created test game, navigate to it
-        console.log('Test game created:', data);
         navigate(`/game/${data.game_id}`);
       } else {
         throw new Error('Failed to create game or no game_id returned');

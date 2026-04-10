@@ -18,7 +18,6 @@ const ColdStartHandler = ({ children, onReady }) => {
 
     // In local development, skip the health check and render immediately
     if (isLocalDevelopment) {
-      console.log('[ColdStartHandler] Local development detected - skipping health check');
       setBackendStatus('ready');
       if (onReady) onReady();
       return;

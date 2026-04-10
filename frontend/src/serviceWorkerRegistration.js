@@ -24,11 +24,6 @@ export function register(config) {
 
       if (isLocalhost) {
         checkValidServiceWorker(swUrl, config);
-        navigator.serviceWorker.ready.then(() => {
-          console.log(
-            '[PWA] This web app is being served cache-first by a service worker.'
-          );
-        });
       } else {
         registerValidSW(swUrl, config);
       }
@@ -40,8 +35,6 @@ function registerValidSW(swUrl, config) {
   navigator.serviceWorker
     .register(swUrl)
     .then((registration) => {
-      console.log('[PWA] Service Worker registered:', registration);
-
       registration.onupdatefound = () => {
         const installingWorker = registration.installing;
         if (installingWorker == null) {
@@ -51,14 +44,10 @@ function registerValidSW(swUrl, config) {
         installingWorker.onstatechange = () => {
           if (installingWorker.state === 'installed') {
             if (navigator.serviceWorker.controller) {
-              console.log('[PWA] New content available; please refresh.');
-
               if (config && config.onUpdate) {
                 config.onUpdate(registration);
               }
             } else {
-              console.log('[PWA] Content cached for offline use.');
-
               if (config && config.onSuccess) {
                 config.onSuccess(registration);
               }
@@ -92,7 +81,7 @@ function checkValidServiceWorker(swUrl, config) {
       }
     })
     .catch(() => {
-      console.log('[PWA] No internet connection found. App is running in offline mode.');
+      // App is running in offline mode
     });
 }
 
@@ -115,10 +104,8 @@ export function requestBackgroundSync(tag = 'sync-game-state') {
   if ('serviceWorker' in navigator && 'SyncManager' in window) {
     navigator.serviceWorker.ready.then((registration) => {
       return registration.sync.register(tag);
-    }).then(() => {
-      console.log('[PWA] Background sync requested:', tag);
-    }).catch((error) => {
-      console.log('[PWA] Background sync failed:', error);
+    }).catch(() => {
+      // Background sync not available
     });
   }
 }
@@ -135,12 +122,10 @@ export function isOffline() {
  */
 export function setupConnectivityListeners(onOnline, onOffline) {
   window.addEventListener('online', () => {
-    console.log('[PWA] Connection restored');
     if (onOnline) onOnline();
   });
 
   window.addEventListener('offline', () => {
-    console.log('[PWA] Connection lost');
     if (onOffline) onOffline();
   });
 
