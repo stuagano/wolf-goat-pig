@@ -1,15 +1,18 @@
 """
 Scorecard Photo Scan Service
 
-Uses Gemini Vision to extract running quarter totals from a photo of a
-physical Wolf Goat Pig scorecard. Circles = negative values.
+Uses Gemini Vision (via Vercel proxy) to extract running quarter totals
+from a photo of a physical Wolf Goat Pig scorecard. Circles = negative values.
 """
 
+import base64
 import json
 import logging
 import os
 from pathlib import Path
 from typing import Any
+
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -87,40 +90,66 @@ def _compute_per_hole_deltas(running_totals_for_player: list[dict], num_holes: i
 
 async def scan_scorecard(image_bytes: bytes, content_type: str) -> dict[str, Any]:
     """
-    Send scorecard image to Gemini Vision and return extracted running totals
-    plus computed per-hole quarter deltas.
+    Send scorecard image to Gemini Vision (via Vercel proxy) and return
+    extracted running totals plus computed per-hole quarter deltas.
     """
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise ValueError("GEMINI_API_KEY not configured")
+    proxy_url = os.getenv(
+        "GEMINI_PROXY_URL",
+        "https://wolf-goat-pig.vercel.app/api/gemini-proxy",
+    )
 
     try:
-        import google.generativeai as genai
+        # Encode image as base64 for the Gemini REST API
+        image_b64 = base64.b64encode(image_bytes).decode("utf-8")
 
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-flash-latest")
+        # Build contents array with inline image data
+        parts = []
 
-        image_part = {"mime_type": content_type, "data": image_bytes}
-
-        # Build few-shot prompt: prepend reference image + known-correct extraction if available
+        # Add reference image if available (few-shot)
         ref = _load_reference_image()
         if ref:
             ref_bytes, ref_mime = ref
+            ref_b64 = base64.b64encode(ref_bytes).decode("utf-8")
             ref_gt_path = _EXAMPLES_DIR / "example_001_ground_truth.json"
             ref_gt = ref_gt_path.read_text() if ref_gt_path.exists() else ""
-            contents = [
-                "REFERENCE SCORECARD — this is a known example. Study the handwriting style.",
-                {"mime_type": ref_mime, "data": ref_bytes},
-                f"The correct extraction for the reference scorecard above (H1-H6 confirmed):\n{ref_gt}\n\n---\n\nNow extract the NEW scorecard below using the same conventions and handwriting awareness:\n" + EXTRACTION_PROMPT,
-                image_part,
-            ]
+            parts.append({"text": "REFERENCE SCORECARD — this is a known example. Study the handwriting style."})
+            parts.append({"inline_data": {"mime_type": ref_mime, "data": ref_b64}})
+            parts.append({"text": f"The correct extraction for the reference scorecard above (H1-H6 confirmed):\n{ref_gt}\n\n---\n\nNow extract the NEW scorecard below using the same conventions and handwriting awareness:\n{EXTRACTION_PROMPT}"})
         else:
-            contents = [EXTRACTION_PROMPT, image_part]
+            parts.append({"text": EXTRACTION_PROMPT})
 
-        response = model.generate_content(contents)
+        # Add the actual scorecard image
+        parts.append({"inline_data": {"mime_type": content_type, "data": image_b64}})
 
-        raw_text = response.text.strip()
+        payload = {
+            "model": "gemini-flash-latest",
+            "contents": [{"parts": parts}],
+        }
+
+        headers = {}
+        proxy_secret = os.getenv("GEMINI_PROXY_SECRET")
+        if proxy_secret:
+            headers["x-proxy-secret"] = proxy_secret
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post(proxy_url, json=payload, headers=headers)
+
+        if resp.status_code == 429:
+            raise ValueError("Scorecard scanner is rate-limited. Try again in a minute.")
+        if resp.status_code != 200:
+            body = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
+            err_msg = body.get("error", {}).get("message", "unknown error")
+            logger.error("Gemini Vision API %d: %s", resp.status_code, err_msg)
+            raise ValueError(f"Vision API error: {err_msg}")
+
+        data = resp.json()
+        candidates = data.get("candidates", [])
+        if not candidates:
+            raise ValueError("Gemini returned no candidates")
+        raw_text = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+
         # Strip markdown code fences if present
+        raw_text = raw_text.strip()
         if raw_text.startswith("```"):
             raw_text = raw_text.split("```")[1]
             if raw_text.startswith("json"):
@@ -129,10 +158,12 @@ async def scan_scorecard(image_bytes: bytes, content_type: str) -> dict[str, Any
         extracted = json.loads(raw_text)
 
     except json.JSONDecodeError as e:
-        logger.error(f"Gemini returned non-JSON: {e}")
+        logger.error("Gemini returned non-JSON: %s", e)
         raise ValueError(f"Failed to parse Gemini response: {e}")
+    except ValueError:
+        raise
     except Exception as e:
-        logger.error(f"Gemini API error: {e}")
+        logger.error("Gemini Vision error: %s", e)
         raise
 
     players = extracted.get("players", [])
