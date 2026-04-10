@@ -16,6 +16,9 @@ requests>=2.31.0
 # Data validation and serialization
 pydantic>=2.6.0
 
+# Image processing (scorecard compression)
+Pillow>=10.0.0
+
 # Scientific computing
 numpy>=1.24.0
 
