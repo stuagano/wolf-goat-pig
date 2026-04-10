@@ -117,6 +117,7 @@ function AccountPage() {
     homeCourse: 'Wing Point Golf & Country Club',
     preferredTees: 'white',
     bettingStyle: 'moderate',
+    venmoHandle: '',
   });
 
   // Load settings and stats
@@ -532,6 +533,15 @@ function AccountPage() {
               <option value="moderate">Moderate</option>
               <option value="aggressive">Aggressive</option>
             </select>
+
+            <label style={labelStyle}>Venmo Handle</label>
+            <input
+              type="text"
+              value={settings.venmoHandle}
+              onChange={(e) => handleChange('venmoHandle', e.target.value)}
+              placeholder="@your-venmo"
+              style={inputStyle}
+            />
           </div>
         ) : (
           <div>
@@ -562,6 +572,11 @@ function AccountPage() {
               value={settings.bettingStyle
                 ? settings.bettingStyle.charAt(0).toUpperCase() + settings.bettingStyle.slice(1)
                 : 'Not set'}
+              theme={theme}
+            />
+            <SettingRow
+              label="Venmo"
+              value={settings.venmoHandle || 'Not set'}
               theme={theme}
               noBorder
             />

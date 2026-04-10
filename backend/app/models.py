@@ -155,6 +155,7 @@ class PlayerProfile(Base):
     )
     is_active = Column(Integer, default=1)  # SQLite uses integers for booleans
     is_ai = Column(Integer, default=0)
+    venmo_handle = Column(String, nullable=True)  # e.g. "@stuart-gano"
     foretees_username = Column(String, nullable=True)
     foretees_password_encrypted = Column(String, nullable=True)
     playing_style = Column(String, nullable=True)

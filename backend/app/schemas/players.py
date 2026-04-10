@@ -75,6 +75,7 @@ class PlayerProfileResponse(PlayerProfileBase):
     is_active: bool = True
     is_ai: bool = False
     ghin_id: str | None = None
+    venmo_handle: str | None = None
     playing_style: str | None = None
     description: str | None = None
 

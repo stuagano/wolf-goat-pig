@@ -172,6 +172,26 @@ async def update_my_legacy_name(
     return schemas.PlayerProfileResponse.model_validate(current_user)
 
 
+@router.put("/me/venmo")
+@handle_api_errors(operation_name="update venmo handle")
+async def update_my_venmo(
+    body: dict[str, str | None],
+    current_user: models.PlayerProfile = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update current user's Venmo handle."""
+    handle = (body.get("venmo_handle") or "").strip()
+    # Normalize: ensure @ prefix
+    if handle and not handle.startswith("@"):
+        handle = f"@{handle}"
+    current_user.venmo_handle = handle or None
+    current_user.updated_at = datetime.now(UTC).isoformat()
+    db.commit()
+    db.refresh(current_user)
+    logger.info("Updated venmo_handle for user %s to '%s'", current_user.id, handle)
+    return schemas.PlayerProfileResponse.model_validate(current_user)
+
+
 @router.get("/me/availability", response_model=list[schemas.PlayerAvailabilityResponse])
 @handle_api_errors(operation_name="get my availability")
 async def get_my_availability(
