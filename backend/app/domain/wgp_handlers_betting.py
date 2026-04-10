@@ -92,12 +92,15 @@ async def handle_accept_double(game: WolfGoatPigGame, payload: dict[str, Any]) -
         # Get current game state
         game.get_game_state()
 
+        # Identify the responding team from the payload
+        responding_team = payload.get("responding_team", payload.get("team_id", "unknown"))
+
         # Respond to double
         if accepted:
-            game.respond_to_double("responding_team", True)
+            game.respond_to_double(responding_team, True)
             message = "Double accepted! Wager doubled."
         else:
-            game.respond_to_double("responding_team", False)
+            game.respond_to_double(responding_team, False)
             message = "Double declined. Original wager maintained."
 
         # Add timeline event to hole progression if available
@@ -220,24 +223,24 @@ async def handle_toggle_option(game: WolfGoatPigGame, payload: dict[str, Any]) -
             hole_number=game_state.current_hole,
         )
 
-        # Get the new option state for logging
+        # Get the new option state for logging (read AFTER apply_option toggled it)
         hole_state = game_state.hole_states[game_state.current_hole]
-        current_option = getattr(hole_state.betting, "option_active", False)
+        option_active = getattr(hole_state.betting, "option_active", False)
 
         updated_state = game.get_game_state()
 
         return ActionResponse(
             game_state=updated_state,
-            log_message=f"The Option {'activated' if not current_option else 'deactivated'}",
+            log_message=f"The Option {'activated' if option_active else 'deactivated'}",
             available_actions=[],
             timeline_event={
                 "id": f"option_toggled_{captain_id}_{datetime.now().timestamp()}",
                 "timestamp": datetime.now().isoformat(),
                 "type": "option_toggled",
-                "description": f"Captain {'activated' if not current_option else 'deactivated'} The Option",
+                "description": f"Captain {'activated' if option_active else 'deactivated'} The Option",
                 "details": {
                     "captain_id": captain_id,
-                    "option_active": not current_option,
+                    "option_active": option_active,
                 },
             },
         )

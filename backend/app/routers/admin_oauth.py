@@ -12,6 +12,7 @@ from fastapi import APIRouter, Header, HTTPException, Query
 from fastapi.responses import HTMLResponse
 
 from ..services.email_service import get_email_service
+from ..utils.admin_auth import require_admin
 
 logger = logging.getLogger("app.routers.admin_oauth")
 
@@ -21,10 +22,7 @@ router = APIRouter(prefix="/admin", tags=["admin-oauth"])
 @router.get("/oauth2-status")
 def get_oauth2_status(x_admin_email: str = Header(None)):  # type: ignore
     """Get OAuth2 configuration status (admin only)"""
-    # Check admin access
-    admin_emails = ["stuagano@gmail.com", "admin@wgp.com"]
-    if not x_admin_email or x_admin_email not in admin_emails:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    require_admin(x_admin_email)
 
     try:
         oauth2_service = get_email_service()
@@ -38,10 +36,7 @@ def get_oauth2_status(x_admin_email: str = Header(None)):  # type: ignore
 @router.post("/oauth2-authorize")
 def start_oauth2_authorization(request: dict[str, Any], x_admin_email: str = Header(None)):  # type: ignore
     """Start OAuth2 authorization flow (admin only)"""
-    # Check admin access
-    admin_emails = ["stuagano@gmail.com", "admin@wgp.com"]
-    if not x_admin_email or x_admin_email not in admin_emails:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    require_admin(x_admin_email)
 
     try:
         oauth2_service = get_email_service()
@@ -254,10 +249,7 @@ def handle_oauth2_callback(code: str = Query(...), state: str = Query(None)):  #
 @router.post("/oauth2-test-email")
 async def test_oauth2_email(request: dict[str, Any], x_admin_email: str = Header(None)):  # type: ignore
     """Send test email using OAuth2 (admin only)"""
-    # Check admin access
-    admin_emails = ["stuagano@gmail.com", "admin@wgp.com"]
-    if not x_admin_email or x_admin_email not in admin_emails:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    require_admin(x_admin_email)
 
     try:
         test_email = request.get("test_email")

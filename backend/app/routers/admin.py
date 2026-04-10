@@ -36,10 +36,7 @@ router = APIRouter(tags=["admin"])
 @router.get("/admin/email-config")
 def get_email_config(x_admin_email: str = Header(None)):  # type: ignore
     """Get current email configuration (admin only)"""
-    # Check admin access
-    admin_emails = ["stuagano@gmail.com", "admin@wgp.com"]
-    if not x_admin_email or x_admin_email not in admin_emails:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    require_admin(x_admin_email)
 
     # Return current config (without password)
     return {
@@ -58,10 +55,7 @@ def get_email_config(x_admin_email: str = Header(None)):  # type: ignore
 @router.post("/admin/email-config")
 def update_email_config(config: dict[str, Any], x_admin_email: str = Header(None)):  # type: ignore
     """Update email configuration (admin only)"""
-    # Check admin access
-    admin_emails = ["stuagano@gmail.com", "admin@wgp.com"]
-    if not x_admin_email or x_admin_email not in admin_emails:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    require_admin(x_admin_email)
 
     try:
         # Update environment variables (in memory for this session)
@@ -90,10 +84,7 @@ def update_email_config(config: dict[str, Any], x_admin_email: str = Header(None
 @router.post("/admin/test-email")
 async def test_admin_email(request: dict[str, Any], x_admin_email: str = Header(None)):  # type: ignore
     """Send a test email with provided configuration (admin only)"""
-    # Check admin access
-    admin_emails = ["stuagano@gmail.com", "admin@wgp.com"]
-    if not x_admin_email or x_admin_email not in admin_emails:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    require_admin(x_admin_email)
 
     try:
         test_email = request.get("test_email")
@@ -169,10 +160,7 @@ async def test_admin_email(request: dict[str, Any], x_admin_email: str = Header(
 @router.post("/admin/upload-credentials")
 async def upload_gmail_credentials(file: UploadFile = File(...), x_admin_email: str = Header(None)):  # type: ignore
     """Upload Gmail API credentials file (admin only)"""
-    # Check admin access
-    admin_emails = ["stuagano@gmail.com", "admin@wgp.com"]
-    if not x_admin_email or x_admin_email not in admin_emails:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    require_admin(x_admin_email)
 
     try:
         # Validate file type
@@ -248,10 +236,7 @@ async def get_active_banner(db: Session = Depends(database.get_db)):  # type: ig
 @router.get("/admin/banner")
 async def get_banner_config(x_admin_email: str = Header(None), db: Session = Depends(database.get_db)):  # type: ignore
     """Get current banner configuration (admin only)"""
-    # Check admin access
-    admin_emails = ["stuagano@gmail.com", "admin@wgp.com"]
-    if not x_admin_email or x_admin_email not in admin_emails:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    require_admin(x_admin_email)
 
     try:
         banner = db.query(models.GameBanner).order_by(models.GameBanner.id.desc()).first()
@@ -286,10 +271,7 @@ async def create_or_update_banner(  # type: ignore
     db: Session = Depends(database.get_db),
 ):
     """Create or update the game banner (admin only)"""
-    # Check admin access
-    admin_emails = ["stuagano@gmail.com", "admin@wgp.com"]
-    if not x_admin_email or x_admin_email not in admin_emails:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    require_admin(x_admin_email)
 
     try:
         # Deactivate all existing banners if creating a new active one
@@ -345,10 +327,7 @@ async def update_banner(  # type: ignore
     db: Session = Depends(database.get_db),
 ):
     """Update an existing banner (admin only)"""
-    # Check admin access
-    admin_emails = ["stuagano@gmail.com", "admin@wgp.com"]
-    if not x_admin_email or x_admin_email not in admin_emails:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    require_admin(x_admin_email)
 
     try:
         banner = db.query(models.GameBanner).filter(models.GameBanner.id == banner_id).first()
@@ -402,10 +381,7 @@ async def delete_banner(  # type: ignore
     db: Session = Depends(database.get_db),
 ):
     """Delete a banner (admin only)"""
-    # Check admin access
-    admin_emails = ["stuagano@gmail.com", "admin@wgp.com"]
-    if not x_admin_email or x_admin_email not in admin_emails:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    require_admin(x_admin_email)
 
     try:
         banner = db.query(models.GameBanner).filter(models.GameBanner.id == banner_id).first()
@@ -433,9 +409,7 @@ async def delete_banner(  # type: ignore
 @router.delete("/admin/matches")
 def admin_delete_all_matches(x_admin_email: str = Header(None)):  # type: ignore
     """Delete all match records (admin only, for testing)."""
-    admin_emails = ["stuagano@gmail.com", "admin@wgp.com"]
-    if not x_admin_email or x_admin_email not in admin_emails:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    require_admin(x_admin_email)
     db = database.SessionLocal()
     try:
         deleted_players = db.query(models.MatchPlayer).delete()
@@ -504,7 +478,7 @@ async def get_table_content(
                 detail=f"Table '{table_name}' not found in schema '{schema_name}'",
             )
 
-        query = text(f"SELECT * FROM {schema_name}.{table_name} LIMIT 100;")
+        query = text(f"SELECT * FROM \"{schema_name}\".\"{table_name}\" LIMIT 100;")
         table_content = db.execute(query).fetchall()
         columns = table_content[0].keys() if table_content else []
         rows = [dict(row._mapping) for row in table_content]

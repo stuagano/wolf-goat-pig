@@ -10,6 +10,7 @@ from typing import Any
 
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+import httpx as _httpx
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
@@ -55,26 +56,33 @@ class AuthService:
                     logger.error("Auth0 configuration not set for production")
                     raise HTTPException(status_code=500, detail="Authentication service not configured")
 
+                # Fetch JWKS from Auth0 using httpx (python-jose compatible)
                 jwks_url = f"https://{AUTH0_DOMAIN}/.well-known/jwks.json"
-                jwks_client = jwt.PyJWKClient(jwks_url)
-                signing_key = jwks_client.get_signing_key_from_jwt(token)
+                resp = _httpx.get(jwks_url, timeout=10.0)
+                resp.raise_for_status()
+                jwks = resp.json()
 
                 payload = jwt.decode(
                     token,
-                    signing_key.key,
+                    jwks,
                     algorithms=AUTH0_ALGORITHMS,
                     audience=AUTH0_API_AUDIENCE,
                     issuer=f"https://{AUTH0_DOMAIN}/",
                 )
                 return dict(payload)
-            # Development mode - allow mock authentication
-            logger.warning("Using mock authentication - development mode only")
-            return {
-                "sub": "auth0|123456789",
-                "email": "test@example.com",
-                "name": "Test User",
-                "picture": "https://example.com/avatar.jpg",
-            }
+            elif os.getenv("ENVIRONMENT") == "development":
+                # Development mode - allow mock authentication
+                logger.warning("Using mock authentication - development mode only")
+                return {
+                    "sub": "auth0|123456789",
+                    "email": "test@example.com",
+                    "name": "Test User",
+                    "picture": "https://example.com/avatar.jpg",
+                }
+            else:
+                # Unknown environment - fail safe
+                logger.error(f"Unknown ENVIRONMENT value: {os.getenv('ENVIRONMENT')!r} — refusing to authenticate")
+                raise HTTPException(status_code=500, detail="Authentication service misconfigured")
 
         except JWTError as e:
             logger.error(f"JWT verification failed: {e!s}")

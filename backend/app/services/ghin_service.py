@@ -488,12 +488,12 @@ class GHINService:
         try:
             # Use environment-based GHIN integration
             if (os.getenv("ENABLE_GHIN_INTEGRATION") or "false").lower() != "true":
-                logger.info("GHIN integration disabled, using mock data")
-                return await self._get_mock_handicap_data(ghin_id)
+                logger.info("GHIN integration disabled, returning None")
+                return None
 
             if not self.jwt_token:
                 logger.error("GHIN JWT token not available")
-                return await self._get_mock_handicap_data(ghin_id)
+                return None
 
             headers = {"Authorization": f"Bearer {self.jwt_token}"}
             url = f"{self.GHIN_API_BASE_URL}/golfers.json"
@@ -534,8 +534,8 @@ class GHINService:
                 }
 
         except Exception as e:
-            logger.warning(f"GHIN API call failed for {ghin_id}: {e}")
-            return await self._get_mock_handicap_data(ghin_id)
+            logger.error(f"GHIN API call failed for {ghin_id}: {e}")
+            return None
 
     async def _get_mock_handicap_data(self, ghin_id: str) -> dict[str, Any]:
         """Return mock handicap data for development/fallback"""
