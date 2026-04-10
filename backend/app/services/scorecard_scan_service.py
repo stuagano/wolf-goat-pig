@@ -1,7 +1,7 @@
 """
 Scorecard Photo Scan Service
 
-Uses Gemini Vision (via Vercel proxy) to extract running quarter totals
+Uses Groq Vision (Llama 4 Scout) to extract running quarter totals
 from a photo of a physical Wolf Goat Pig scorecard. Circles = negative values.
 """
 
@@ -15,6 +15,9 @@ from typing import Any
 import httpx
 
 logger = logging.getLogger(__name__)
+
+_GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+_GROQ_VISION_MODEL = os.getenv("GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
 
 # Path to reference scorecard examples for few-shot prompting
 _EXAMPLES_DIR = Path(__file__).parent.parent / "data" / "scorecard_examples"
@@ -90,20 +93,18 @@ def _compute_per_hole_deltas(running_totals_for_player: list[dict], num_holes: i
 
 async def scan_scorecard(image_bytes: bytes, content_type: str) -> dict[str, Any]:
     """
-    Send scorecard image to Gemini Vision (via Vercel proxy) and return
-    extracted running totals plus computed per-hole quarter deltas.
+    Send scorecard image to Groq Vision and return extracted running totals
+    plus computed per-hole quarter deltas.
     """
-    proxy_url = os.getenv(
-        "GEMINI_PROXY_URL",
-        "https://wolf-goat-pig.vercel.app/api/gemini-proxy",
-    )
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        raise ValueError("GROQ_API_KEY not configured")
 
     try:
-        # Encode image as base64 for the Gemini REST API
         image_b64 = base64.b64encode(image_bytes).decode("utf-8")
 
-        # Build contents array with inline image data
-        parts = []
+        # Build messages with image content (OpenAI-compatible vision format)
+        user_content = []
 
         # Add reference image if available (few-shot)
         ref = _load_reference_image()
@@ -112,41 +113,59 @@ async def scan_scorecard(image_bytes: bytes, content_type: str) -> dict[str, Any
             ref_b64 = base64.b64encode(ref_bytes).decode("utf-8")
             ref_gt_path = _EXAMPLES_DIR / "example_001_ground_truth.json"
             ref_gt = ref_gt_path.read_text() if ref_gt_path.exists() else ""
-            parts.append({"text": "REFERENCE SCORECARD — this is a known example. Study the handwriting style."})
-            parts.append({"inline_data": {"mime_type": ref_mime, "data": ref_b64}})
-            parts.append({"text": f"The correct extraction for the reference scorecard above (H1-H6 confirmed):\n{ref_gt}\n\n---\n\nNow extract the NEW scorecard below using the same conventions and handwriting awareness:\n{EXTRACTION_PROMPT}"})
+            user_content.append({
+                "type": "text",
+                "text": "REFERENCE SCORECARD — study the handwriting style:",
+            })
+            user_content.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:{ref_mime};base64,{ref_b64}"},
+            })
+            user_content.append({
+                "type": "text",
+                "text": f"Correct extraction for the reference (H1-H6 confirmed):\n{ref_gt}\n\n---\n\nNow extract the NEW scorecard below:\n{EXTRACTION_PROMPT}",
+            })
         else:
-            parts.append({"text": EXTRACTION_PROMPT})
+            user_content.append({"type": "text", "text": EXTRACTION_PROMPT})
 
         # Add the actual scorecard image
-        parts.append({"inline_data": {"mime_type": content_type, "data": image_b64}})
+        user_content.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:{content_type};base64,{image_b64}"},
+        })
 
         payload = {
-            "model": "gemini-flash-latest",
-            "contents": [{"parts": parts}],
+            "model": _GROQ_VISION_MODEL,
+            "messages": [
+                {"role": "user", "content": user_content},
+            ],
+            "temperature": 0.3,
+            "max_tokens": 4096,
         }
 
-        headers = {}
-        proxy_secret = os.getenv("GEMINI_PROXY_SECRET")
-        if proxy_secret:
-            headers["x-proxy-secret"] = proxy_secret
-
         async with httpx.AsyncClient(timeout=60.0) as client:
-            resp = await client.post(proxy_url, json=payload, headers=headers)
+            resp = await client.post(
+                _GROQ_API_URL,
+                json=payload,
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+            )
 
         if resp.status_code == 429:
             raise ValueError("Scorecard scanner is rate-limited. Try again in a minute.")
         if resp.status_code != 200:
             body = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
             err_msg = body.get("error", {}).get("message", "unknown error")
-            logger.error("Gemini Vision API %d: %s", resp.status_code, err_msg)
+            logger.error("Groq Vision API %d: %s", resp.status_code, err_msg)
             raise ValueError(f"Vision API error: {err_msg}")
 
         data = resp.json()
-        candidates = data.get("candidates", [])
-        if not candidates:
-            raise ValueError("Gemini returned no candidates")
-        raw_text = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+        choices = data.get("choices", [])
+        if not choices:
+            raise ValueError("Groq returned no choices")
+        raw_text = choices[0].get("message", {}).get("content", "")
 
         # Strip markdown code fences if present
         raw_text = raw_text.strip()
@@ -158,12 +177,12 @@ async def scan_scorecard(image_bytes: bytes, content_type: str) -> dict[str, Any
         extracted = json.loads(raw_text)
 
     except json.JSONDecodeError as e:
-        logger.error("Gemini returned non-JSON: %s", e)
-        raise ValueError(f"Failed to parse Gemini response: {e}")
+        logger.error("Groq returned non-JSON: %s", e)
+        raise ValueError(f"Failed to parse vision response: {e}")
     except ValueError:
         raise
     except Exception as e:
-        logger.error("Gemini Vision error: %s", e)
+        logger.error("Groq Vision error: %s", e)
         raise
 
     players = extracted.get("players", [])
@@ -180,7 +199,7 @@ async def scan_scorecard(image_bytes: bytes, content_type: str) -> dict[str, Any
         pi = entry["player_index"]
         by_player.setdefault(pi, []).append(entry)
 
-    # Ensure all players have entries (even if Gemini missed some)
+    # Ensure all players have entries (even if model missed some)
     for i in range(len(players)):
         by_player.setdefault(i, [])
 
