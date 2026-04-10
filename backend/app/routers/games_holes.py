@@ -8,6 +8,7 @@ from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from .. import database, models, schemas
@@ -650,12 +651,116 @@ async def save_quarters_only(game_id: str, request: QuartersOnlyRequest, db: Ses
 
         logger.info(f"Saved quarters-only data for game {game_id}: {holes_with_data} holes")
 
+        # Persist GameRecord + GamePlayerResult when game is complete
+        results_created = 0
+        if holes_with_data >= 18:
+            try:
+                existing_record = db.execute(
+                    text("SELECT id FROM game_records WHERE game_id = :gid LIMIT 1"),
+                    {"gid": game_id},
+                ).first()
+
+                if not existing_record:
+                    now = datetime.now(UTC).isoformat()
+                    players = game_state.get("players", [])
+
+                    # Create GameRecord
+                    db.execute(
+                        text("""
+                            INSERT INTO game_records
+                                (game_id, course_name, game_mode, player_count,
+                                 total_holes_played, created_at, completed_at, final_scores)
+                            VALUES
+                                (:gid, :course, 'wolf_goat_pig', :pc, :holes, :cat, :comp,
+                                 CAST(:scores AS json))
+                        """),
+                        {
+                            "gid": game_id,
+                            "course": game_state.get("course_name", "Wing Point"),
+                            "pc": len(players),
+                            "holes": holes_with_data,
+                            "cat": game.created_at or now,
+                            "comp": now,
+                            "scores": json.dumps(standings),
+                        },
+                    )
+                    record_row = db.execute(
+                        text("SELECT id FROM game_records WHERE game_id = :gid"),
+                        {"gid": game_id},
+                    ).first()
+                    record_id = record_row[0]
+
+                    # Build per-player hole data from hole_history
+                    player_hole_data = {}
+                    for entry in hole_history:
+                        pts = entry.get("points_delta", {})
+                        gross = entry.get("gross_scores", {})
+                        for pid, quarters in pts.items():
+                            if pid not in player_hole_data:
+                                player_hole_data[pid] = []
+                            player_hole_data[pid].append({
+                                "hole": entry.get("hole"),
+                                "quarters": quarters,
+                                "gross_score": gross.get(pid) if gross else None,
+                                "teams": entry.get("teams"),
+                                "wager": entry.get("wager"),
+                                "phase": entry.get("phase"),
+                            })
+
+                    sorted_players = sorted(
+                        players,
+                        key=lambda p: standings.get(p.get("id"), 0),
+                        reverse=True,
+                    )
+
+                    for rank, player in enumerate(sorted_players, 1):
+                        pid = player.get("id")
+                        holes_data = player_hole_data.get(pid, [])
+                        total_earn = standings.get(pid, 0)
+                        holes_won = sum(1 for h in holes_data if h.get("quarters", 0) > 0)
+                        perf = json.dumps({
+                            "handicap": player.get("handicap"),
+                            "holes_played": len(holes_data),
+                            "avg_quarters_per_hole": round(total_earn / max(len(holes_data), 1), 2),
+                        })
+                        db.execute(
+                            text("""
+                                INSERT INTO game_player_results
+                                    (game_record_id, player_profile_id, player_name,
+                                     final_position, total_earnings, holes_won,
+                                     hole_scores, performance_metrics, created_at)
+                                VALUES
+                                    (:rid, :pid, :pname, :pos, :earn, :hw,
+                                     CAST(:hs AS json), CAST(:pm AS json), :cat)
+                            """),
+                            {
+                                "rid": record_id,
+                                "pid": player.get("player_profile_id"),
+                                "pname": player.get("name", "Unknown"),
+                                "pos": rank,
+                                "earn": total_earn,
+                                "hw": holes_won,
+                                "hs": json.dumps(holes_data),
+                                "pm": perf,
+                                "cat": now,
+                            },
+                        )
+                        results_created += 1
+
+                    db.commit()
+                    logger.info("Game %s: persisted %d player results", game_id, results_created)
+
+            except Exception as e:
+                logger.error("Failed to persist game results for %s: %s", game_id, e)
+                # Don't fail the whole request — quarters are already saved
+
         return {
             "success": True,
             "game_id": game_id,
             "holes_saved": holes_with_data,
             "standings": standings,
             "game_status": game.game_status,
+            "results_created": results_created,
         }
 
     except HTTPException:
