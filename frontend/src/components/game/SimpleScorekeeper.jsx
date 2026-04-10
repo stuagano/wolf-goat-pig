@@ -1705,23 +1705,21 @@ const SimpleScorekeeper = ({
           </div>
         )}
 
-        {/* Scan Scorecard Photo button */}
-        <div style={{ marginTop: "8px", textAlign: "center" }}>
+        {/* Scan Scorecard Photo — small link, not a prominent button */}
+        <div style={{ marginTop: "4px", textAlign: "center" }}>
           <button
             onClick={() => setShowScorecardPhoto(true)}
-            className="touch-optimized"
             style={{
-              padding: "8px 16px",
-              fontSize: "13px",
-              border: "1px solid #2196F3",
-              borderRadius: "8px",
-              background: "white",
-              color: "#2196F3",
+              padding: "4px 8px",
+              fontSize: "11px",
+              border: "none",
+              background: "transparent",
+              color: "#9CA3AF",
               cursor: "pointer",
-              fontWeight: "bold",
+              textDecoration: "underline",
             }}
           >
-            📷 Scan Scorecard Photo
+            📷 Import from photo
           </button>
         </div>
       </div>
