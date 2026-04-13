@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { LoginButton, AuthHealthCheck } from '../components/auth';
+import StaleGameBanner from '../components/game/StaleGameBanner';
 
 function HomePage() {
   const navigate = useNavigate();
@@ -437,6 +438,9 @@ function HomePage() {
             </button>
           </div>
         </div>
+
+        {/* Stale Game Nudge - shown if user has games idle 24+ hours */}
+        <StaleGameBanner isAuthenticated={isAuthenticated} />
 
         {/* Resume Game Banner - shown if active session exists */}
         {activeGameSession && (
