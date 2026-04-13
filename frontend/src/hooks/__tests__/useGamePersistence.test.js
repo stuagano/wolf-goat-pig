@@ -15,13 +15,13 @@ describe('useGamePersistence', () => {
     localStorageMock = mockLocalStorage();
 
     // Suppress console.log/error during tests
-    jest.spyOn(console, 'log').mockImplementation(() => {});
-    jest.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
-    jest.useRealTimers();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   describe('saveToLocal', () => {
@@ -237,7 +237,7 @@ describe('useGamePersistence', () => {
 
   describe('auto-save behavior', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     test('should auto-save when isActive is true and gameState changes', async () => {
@@ -249,7 +249,7 @@ describe('useGamePersistence', () => {
 
       // Wait for debounce
       act(() => {
-        jest.advanceTimersByTime(1100);
+        vi.advanceTimersByTime(1100);
       });
 
       expect(localStorageMock.setItem).toHaveBeenCalled();
@@ -259,7 +259,7 @@ describe('useGamePersistence', () => {
       rerender({ state: updatedState, active: true });
 
       act(() => {
-        jest.advanceTimersByTime(1100);
+        vi.advanceTimersByTime(1100);
       });
 
       // Should have saved again
@@ -274,7 +274,7 @@ describe('useGamePersistence', () => {
       );
 
       act(() => {
-        jest.advanceTimersByTime(1100);
+        vi.advanceTimersByTime(1100);
       });
 
       // setItem should not be called for auto-save
@@ -292,7 +292,7 @@ describe('useGamePersistence', () => {
       for (let i = 2; i <= 5; i++) {
         rerender({ state: { ...gameState, current_hole: i }, active: true });
         act(() => {
-          jest.advanceTimersByTime(100); // Less than 1 second
+          vi.advanceTimersByTime(100); // Less than 1 second
         });
       }
 
@@ -301,7 +301,7 @@ describe('useGamePersistence', () => {
 
       // Wait for full debounce period
       act(() => {
-        jest.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
       });
 
       // Now it should have saved

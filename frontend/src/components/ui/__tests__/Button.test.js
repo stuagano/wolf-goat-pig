@@ -19,7 +19,7 @@ import '@testing-library/jest-dom';
 import Button from '../Button';
 
 // Mock theme provider
-jest.mock('../../../theme/Provider', () => ({
+vi.mock('../../../theme/Provider', () => ({
   useTheme: () => ({
     colors: {
       primary: '#007bff',
@@ -99,7 +99,7 @@ describe('Button Component', () => {
 
   describe('Click Handling', () => {
     it('calls onClick when clicked', async () => {
-      const handleClick = jest.fn();
+      const handleClick = vi.fn();
       render(<Button onClick={handleClick}>Click me</Button>);
       
       const button = screen.getByRole('button');
@@ -109,7 +109,7 @@ describe('Button Component', () => {
     });
 
     it('does not call onClick when disabled', async () => {
-      const handleClick = jest.fn();
+      const handleClick = vi.fn();
       render(
         <Button onClick={handleClick} disabled>
           Click me
@@ -123,7 +123,7 @@ describe('Button Component', () => {
     });
 
     it('handles click with keyboard', async () => {
-      const handleClick = jest.fn();
+      const handleClick = vi.fn();
       render(<Button onClick={handleClick}>Click me</Button>);
       
       const button = screen.getByRole('button');
@@ -134,7 +134,7 @@ describe('Button Component', () => {
     });
 
     it('handles click with spacebar', async () => {
-      const handleClick = jest.fn();
+      const handleClick = vi.fn();
       render(<Button onClick={handleClick}>Click me</Button>);
       
       const button = screen.getByRole('button');

@@ -2,7 +2,7 @@ import { renderHook, act } from '@testing-library/react';
 import { useShotAnalysis } from '../useShotAnalysis';
 
 // Mock fetch
-global.fetch = jest.fn();
+global.fetch = vi.fn();
 
 describe('useShotAnalysis', () => {
   beforeEach(() => {

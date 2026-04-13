@@ -32,9 +32,8 @@ export default defineConfig({
       reuseExistingServer: true,
       cwd: '../../',
       env: {
-        REACT_APP_API_URL: 'http://localhost:8333',
-        REACT_APP_USE_MOCK_AUTH: 'true',
-        PORT: '3000',
+        VITE_API_URL: 'http://localhost:8333',
+        VITE_USE_MOCK_AUTH: 'true',
       },
     },
     {

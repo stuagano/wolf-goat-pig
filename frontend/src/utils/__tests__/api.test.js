@@ -2,12 +2,12 @@
 import '@testing-library/jest-dom';
 
 // Mock fetch globally
-global.fetch = jest.fn();
+global.fetch = vi.fn();
 
 describe('API Integration Tests', () => {
   beforeEach(() => {
     fetch.mockClear();
-    process.env.REACT_APP_API_URL = 'http://test-api.com';
+    vi.stubEnv('VITE_API_URL', 'http://test-api.com');
   });
 
   describe('Matchmaking API', () => {

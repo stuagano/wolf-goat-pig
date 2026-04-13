@@ -6,12 +6,12 @@ import { useAuth0 as mockUseAuth0 } from '@auth0/auth0-react';
 import { createMockFetchResponse, createMockUser } from '../../../test-utils/mockFactories';
 
 // Mock Auth0
-jest.mock('@auth0/auth0-react', () => ({
-  useAuth0: jest.fn()
+vi.mock('@auth0/auth0-react', () => ({
+  useAuth0: vi.fn()
 }));
 
 // Mock fetch
-global.fetch = jest.fn();
+global.fetch = vi.fn();
 
 const mockAvailabilityData = [
   {
@@ -40,7 +40,7 @@ describe('PlayerAvailability', () => {
     fetch.mockImplementation(defaultAvailabilityResponse);
     mockUseAuth0.mockReturnValue({
       user: createMockUser({ id: 'user123', name: 'Test User' }),
-      getAccessTokenSilently: jest.fn().mockResolvedValue('mock-token'),
+      getAccessTokenSilently: vi.fn().mockResolvedValue('mock-token'),
       isAuthenticated: true
     });
   });
@@ -207,7 +207,7 @@ describe('PlayerAvailability', () => {
     // Mock unauthenticated state
     mockUseAuth0.mockReturnValue({
       user: null,
-      getAccessTokenSilently: jest.fn(),
+      getAccessTokenSilently: vi.fn(),
       isAuthenticated: false
     });
 

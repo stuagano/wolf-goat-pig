@@ -5,16 +5,16 @@
   "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/build",
   "installCommand": "cd frontend && npm install --legacy-peer-deps --no-audit",
-  "framework": "create-react-app",
+  "framework": null,
   "ignoreCommand": "git diff --quiet HEAD^ HEAD ./frontend ./api ./vercel.json",
   "build": {
     "env": {
-      "REACT_APP_API_URL": "https://wolf-goat-pig.onrender.com",
-      "REACT_APP_AUTH0_DOMAIN": "dev-jm88n088hpt7oe48.us.auth0.com",
-      "REACT_APP_AUTH0_CLIENT_ID": "qAZuRv5E9mPQ9uTGg7NWpkpfVj8bCeoB",
-      "REACT_APP_AUTH0_AUDIENCE": "https://wolf-goat-pig.onrender.com",
-      "REACT_APP_ENABLE_ANALYTICS": "true",
-      "REACT_APP_DEPLOY_PLATFORM": "vercel",
+      "VITE_API_URL": "https://wolf-goat-pig.onrender.com",
+      "VITE_AUTH0_DOMAIN": "dev-jm88n088hpt7oe48.us.auth0.com",
+      "VITE_AUTH0_CLIENT_ID": "qAZuRv5E9mPQ9uTGg7NWpkpfVj8bCeoB",
+      "VITE_AUTH0_AUDIENCE": "https://wolf-goat-pig.onrender.com",
+      "VITE_ENABLE_ANALYTICS": "true",
+      "VITE_DEPLOY_PLATFORM": "vercel",
       "CI": "false"
     }
   },

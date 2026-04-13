@@ -9,11 +9,11 @@ describe('TeeTossModal', () => {
         { id: 'p3', name: 'Player 3' },
         { id: 'p4', name: 'Player 4' },
     ];
-    const mockOnClose = jest.fn();
-    const mockOnOrderComplete = jest.fn();
+    const mockOnClose = vi.fn();
+    const mockOnOrderComplete = vi.fn();
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     test('renders correctly with initial state', () => {

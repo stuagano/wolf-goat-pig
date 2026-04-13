@@ -10,7 +10,7 @@ export let APP_VERSION = "0.1.1";
 
 // Build timestamp - auto-generated during build
 export const BUILD_TIMESTAMP =
-  process.env.REACT_APP_BUILD_TIME || new Date().toISOString();
+  import.meta.env.VITE_BUILD_TIME || new Date().toISOString();
 
 // Load version from version.json (generated at build time)
 let versionLoaded = false;

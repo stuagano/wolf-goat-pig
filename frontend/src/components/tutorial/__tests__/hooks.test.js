@@ -18,8 +18,8 @@ import {
   createMockUser
 } from '../../../test-utils/mockFactories';
 
-jest.mock('../../../hooks/useTutorialProgress', () => {
-  const mockHook = jest.fn();
+vi.mock('../../../hooks/useTutorialProgress', () => {
+  const mockHook = vi.fn();
   return {
     __esModule: true,
     useTutorialProgress: mockHook,
@@ -27,8 +27,8 @@ jest.mock('../../../hooks/useTutorialProgress', () => {
   };
 });
 
-jest.mock('../../../hooks/usePlayerProfile', () => {
-  const mockHook = jest.fn();
+vi.mock('../../../hooks/usePlayerProfile', () => {
+  const mockHook = vi.fn();
   return {
     __esModule: true,
     usePlayerProfile: mockHook,
@@ -49,22 +49,22 @@ const createTutorialProgressMock = () => ({
   },
 
   // Progress tracking methods
-  completeCurrentStep: jest.fn(),
-  completeCurrentModule: jest.fn(),
-  updateProgress: jest.fn(),
+  completeCurrentStep: vi.fn(),
+  completeCurrentModule: vi.fn(),
+  updateProgress: vi.fn(),
 
   // Navigation methods
-  navigateToModule: jest.fn(),
-  navigateToStep: jest.fn(),
+  navigateToModule: vi.fn(),
+  navigateToStep: vi.fn(),
 
   // Persistence methods
-  saveProgress: jest.fn(),
-  loadProgress: jest.fn(),
-  clearProgress: jest.fn(),
-  resumeFromSaved: jest.fn(),
+  saveProgress: vi.fn(),
+  loadProgress: vi.fn(),
+  clearProgress: vi.fn(),
+  resumeFromSaved: vi.fn(),
 
   // Analytics methods
-  getAnalytics: jest.fn().mockReturnValue({
+  getAnalytics: vi.fn().mockReturnValue({
     totalTimeSpent: 2400,
     modulesCompleted: 3,
     stepsCompleted: 28,
@@ -75,13 +75,13 @@ const createTutorialProgressMock = () => ({
     strugglingAreas: ['betting-calculations'],
     strengths: ['basic-rules', 'team-formation']
   }),
-  trackEvent: jest.fn(),
+  trackEvent: vi.fn(),
 
   // State methods
-  isModuleCompleted: jest.fn(),
-  isStepCompleted: jest.fn(),
-  getModuleProgress: jest.fn(),
-  getOverallProgress: jest.fn()
+  isModuleCompleted: vi.fn(),
+  isStepCompleted: vi.fn(),
+  getModuleProgress: vi.fn(),
+  getOverallProgress: vi.fn()
 });
 
 const createPlayerProfileMock = () => ({
@@ -107,19 +107,19 @@ const createPlayerProfileMock = () => ({
   error: null,
 
   // Tutorial-specific methods
-  updateTutorialProgress: jest.fn(),
-  completeTutorial: jest.fn(),
-  updatePreferences: jest.fn(),
-  resetTutorialProgress: jest.fn(),
-  getTutorialStats: jest.fn()
+  updateTutorialProgress: vi.fn(),
+  completeTutorial: vi.fn(),
+  updatePreferences: vi.fn(),
+  resetTutorialProgress: vi.fn(),
+  getTutorialStats: vi.fn()
 });
 
 // Mock localStorage for tutorial progress persistence
 const mockLocalStorage = {
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn()
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn()
 };
 
 Object.defineProperty(window, 'localStorage', {
@@ -128,13 +128,13 @@ Object.defineProperty(window, 'localStorage', {
 });
 
 // Mock API calls
-global.fetch = jest.fn();
+global.fetch = vi.fn();
 
 describe('useTutorialProgress Hook', () => {
   let mockTutorialProgress;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     mockTutorialProgress = createTutorialProgressMock();
     useTutorialProgress.mockImplementation(() => mockTutorialProgress);
@@ -382,7 +382,7 @@ describe('usePlayerProfile Hook (Tutorial Context)', () => {
   let mockPlayerProfile;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     mockPlayerProfile = createPlayerProfileMock();
 
@@ -568,7 +568,7 @@ describe('Hook Integration Tests', () => {
   let playerProfileMock;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     tutorialProgressMock = createTutorialProgressMock();
     playerProfileMock = createPlayerProfileMock();
@@ -604,5 +604,5 @@ describe('Hook Integration Tests', () => {
 
 // Cleanup after all tests
 afterAll(() => {
-  jest.restoreAllMocks();
+  vi.restoreAllMocks();
 });

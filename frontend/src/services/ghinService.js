@@ -16,7 +16,7 @@ class GHINService {
       this.client = new GhinClient(username, password);
       await this.client.login();
       this.initialized = true;
-      if (process.env.NODE_ENV !== 'production') {
+      if (import.meta.env.DEV) {
         console.debug('GHIN client initialized successfully');
       }
       return true;
@@ -213,8 +213,8 @@ const ghinService = new GHINService();
 export const initializeGHIN = async (username, password) => {
   if (!username || !password) {
     // Try to get from environment variables
-    username = process.env.REACT_APP_GHIN_USERNAME;
-    password = process.env.REACT_APP_GHIN_PASSWORD;
+    username = import.meta.env.VITE_GHIN_USERNAME;
+    password = import.meta.env.VITE_GHIN_PASSWORD;
   }
 
   if (!username || !password) {

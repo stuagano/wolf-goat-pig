@@ -1,7 +1,8 @@
 {
   "name": "wgp-frontend",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
+  "type": "module",
   "engines": {
     "node": ">=18.0.0 <26.0.0",
     "npm": ">=9.0.0"
@@ -10,30 +11,30 @@
     "@auth0/auth0-react": "^2.4.0",
     "ghin": "^0.7.0",
     "html2canvas": "^1.4.1",
+    "prop-types": "^15.8.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.8.2",
-    "react-scripts": "^5.0.1",
     "uuid": "^13.0.0",
     "ajv-keywords": "3.5.2"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "vite",
     "prebuild": "node scripts/update-sw-version.js",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "test:ci": "react-scripts test --watchAll=false --ci",
-    "test:coverage": "react-scripts test --watchAll=false --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=html",
-    "test:coverage:ci": "react-scripts test --watchAll=false --ci --coverage --coverageReporters=text --coverageReporters=lcov",
-    "test:hooks": "react-scripts test --watchAll=false --testPathPattern=hooks/__tests__",
-    "test:services": "react-scripts test --watchAll=false --testPathPattern=services/__tests__",
-    "test:components": "react-scripts test --watchAll=false --testPathPattern=components/__tests__",
-    "test:game": "react-scripts test --watchAll=false --testPathPattern=components/game/__tests__",
-    "eject": "react-scripts eject",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:ci": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:coverage:ci": "vitest run --coverage",
+    "test:hooks": "vitest run --testPathPattern=hooks/__tests__",
+    "test:services": "vitest run --testPathPattern=services/__tests__",
+    "test:components": "vitest run --testPathPattern=components/__tests__",
+    "test:game": "vitest run --testPathPattern=components/game/__tests__",
     "lint": "eslint src/**/*.{js,jsx}",
     "typecheck": "tsc --noEmit",
     "prevercel-build": "node scripts/update-sw-version.js",
-    "vercel-build": "react-scripts build",
+    "vercel-build": "vite build",
     "test:e2e": "playwright test --config tests/e2e/playwright.config.js",
     "test:e2e:ui": "playwright test --config tests/e2e/playwright.config.js --ui",
     "test:e2e:debug": "playwright test --config tests/e2e/playwright.config.js --debug",
@@ -42,61 +43,6 @@
     "test:e2e:production": "playwright test --config tests/e2e/playwright.production.config.js",
     "lint:deploy": "node scripts/lint-frontend-deploy.js"
   },
-  "jest": {
-    "transformIgnorePatterns": [
-      "node_modules/(?!(uuid)/)"
-    ],
-    "collectCoverageFrom": [
-      "src/**/*.{js,jsx}",
-      "!src/index.js",
-      "!src/reportWebVitals.js",
-      "!src/**/*.d.ts",
-      "!src/test-utils/**"
-    ],
-    "coverageThreshold": {
-      "global": {
-        "branches": 1,
-        "functions": 1,
-        "lines": 1,
-        "statements": 1
-      }
-    }
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ],
-    "overrides": [
-      {
-        "files": [
-          "**/__tests__/**/*.{js,jsx}",
-          "**/*.test.{js,jsx}"
-        ],
-        "rules": {
-          "testing-library/no-wait-for-multiple-assertions": "off",
-          "testing-library/no-node-access": "off",
-          "testing-library/no-container": "off",
-          "testing-library/no-wait-for-side-effects": "off",
-          "jest/no-conditional-expect": "off"
-        }
-      }
-    ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
-  },
-  "proxy": "http://localhost:8000",
-  "homepage": "/",
   "devDependencies": {
     "@playwright/test": "^1.56.1",
     "@testing-library/dom": "^10.4.1",
@@ -105,6 +51,11 @@
     "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.2.8",
     "@types/react-dom": "^19.0.0",
-    "typescript": "^5.9.3"
+    "@vitejs/plugin-react": "^4.7.0",
+    "@vitest/coverage-v8": "^3.2.4",
+    "jsdom": "^26.1.0",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.2",
+    "vitest": "^3.2.4"
   }
 }

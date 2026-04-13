@@ -70,7 +70,7 @@ root.render(
 
 // Register service worker for PWA offline capability
 // Disabled in development to avoid reload loops
-if (process.env.NODE_ENV === 'production') {
+if (import.meta.env.PROD) {
   serviceWorkerRegistration.register({
     onSuccess: () => {
       // Service worker registered successfully
