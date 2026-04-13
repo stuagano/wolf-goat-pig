@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import '../../styles/mobile-touch.css';
+import { apiConfig } from '../../config/api.config';
 
-const API_URL = process.env.REACT_APP_API_URL || "";
+const API_URL = apiConfig.baseUrl;
 
 const SignupCalendar = ({ onSignupChange, onDateSelect }) => {
   const { user, isAuthenticated } = useAuth0();

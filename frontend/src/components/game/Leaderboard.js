@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from '../ui';
 import { useSheetSync } from '../../context';
+import { apiConfig } from '../../config/api.config';
 
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+const API_URL = apiConfig.baseUrl;
 
 const Leaderboard = () => {
   const { syncData: liveLeaderboardData, syncStatus, error: syncError, performLiveSync } = useSheetSync();

@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.types import JSON
 
@@ -113,6 +113,10 @@ class GameStateModel(Base):
 # Track authenticated players in games
 class GamePlayer(Base):
     __tablename__ = "game_players"
+    __table_args__ = (
+        Index("ix_game_players_game_slot", "game_id", "player_slot_id"),
+        Index("ix_game_players_game_user", "game_id", "user_id"),
+    )
     id = Column(Integer, primary_key=True, index=True)
     game_id = Column(get_uuid_column(), index=True)  # References GameStateModel.game_id
     player_slot_id = Column(String)  # e.g., "p1", "p2", "p3", "p4"
@@ -296,6 +300,9 @@ class LegacyRound(Base):
     """Historical round data synced from Google Sheets."""
 
     __tablename__ = "legacy_rounds"
+    __table_args__ = (
+        Index("ix_legacy_rounds_date_group_member", "date", "group", "member"),
+    )
     id = Column(Integer, primary_key=True, index=True)
     date = Column(String, index=True)          # e.g. "2026-04-06"
     group = Column(String)                     # e.g. "A"
@@ -326,6 +333,9 @@ class PlayerAchievement(Base):
 # Daily Sign-up System Models
 class DailySignup(Base):
     __tablename__ = "daily_signups"
+    __table_args__ = (
+        Index("ix_daily_signups_date_player", "date", "player_profile_id"),
+    )
     id = Column(Integer, primary_key=True, index=True)
     date = Column(String, index=True)  # YYYY-MM-DD format
     player_profile_id = Column(Integer, index=True)  # References PlayerProfile.id
@@ -382,6 +392,9 @@ class DailyMessage(Base):
 # GHIN Integration Models
 class GHINScore(Base):
     __tablename__ = "ghin_scores"
+    __table_args__ = (
+        Index("ix_ghin_scores_player_date", "player_profile_id", "score_date"),
+    )
     id = Column(Integer, primary_key=True, index=True)
     player_profile_id = Column(Integer, index=True)  # References PlayerProfile.id
     ghin_id = Column(String, index=True)  # GHIN ID

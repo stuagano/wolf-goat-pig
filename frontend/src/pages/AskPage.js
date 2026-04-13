@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { apiConfig } from '../config/api.config';
 
 const SUGGESTED_QUESTIONS = [
   'Who has the best all-time record?',
@@ -172,7 +173,7 @@ function AskPage() {
     setIsTyping(true);
 
     try {
-      const apiBase = process.env.REACT_APP_API_URL || '';
+      const apiBase = apiConfig.baseUrl;
       const resp = await fetch(`${apiBase}/api/commissioner/data-chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

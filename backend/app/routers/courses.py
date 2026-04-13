@@ -16,6 +16,7 @@ from datetime import UTC, datetime
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, File, HTTPException, Path, UploadFile
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
@@ -196,11 +197,12 @@ def get_fallback_courses() -> dict[str, Any]:
 
 
 @router.get("")
-def get_courses() -> Any:
+def get_courses(response: Response) -> Any:
     """Get all available courses with robust fallback handling.
 
     Returns course data WITH holes information for each course.
     """
+    response.headers["Cache-Control"] = "public, max-age=300"
     global course_manager
     try:
         # First get the list of course names

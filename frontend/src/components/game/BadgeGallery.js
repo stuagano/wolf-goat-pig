@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './BadgeGallery.css';
+import { apiConfig } from '../../config/api.config';
 
-const API_URL = process.env.REACT_APP_API_URL || '';
+const API_URL = apiConfig.baseUrl;
 
 // RARITY_COLORS - kept for potential future use in dynamic styling
 // eslint-disable-next-line no-unused-vars

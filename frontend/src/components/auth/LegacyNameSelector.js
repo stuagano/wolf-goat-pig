@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { apiConfig } from '../../config/api.config';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_URL = apiConfig.baseUrl;
 
 /**
  * Component for selecting a legacy player name from the thousand-cranes.com tee sheet

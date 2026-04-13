@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../theme/Provider';
+import { apiConfig } from '../../config/api.config';
 
 const ColdStartHandler = ({ children, onReady }) => {
   const theme = useTheme();
@@ -7,7 +8,7 @@ const ColdStartHandler = ({ children, onReady }) => {
   const [retryAttempt, setRetryAttempt] = useState(0);
   // const [startTime, setStartTime] = useState(Date.now()); // Moved to useEffect
 
-  const API_URL = process.env.REACT_APP_API_URL || "";
+  const API_URL = apiConfig.baseUrl;
 
   // Skip cold start handler in development - localhost should be instant
   const isLocalDevelopment = API_URL.includes('localhost') || API_URL.includes('127.0.0.1');

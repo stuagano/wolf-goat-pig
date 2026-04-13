@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './CommissionerChat.css';
+import { apiConfig } from '../../config/api.config';
 
 /**
  * CommissionerChat - On-field rules expert chat component
@@ -40,7 +41,7 @@ const CommissionerChat = ({ gameState, inline = false, onSaveToNotes, startOpen 
     setIsTyping(true);
 
     try {
-      const apiBase = process.env.REACT_APP_API_URL || '';
+      const apiBase = apiConfig.baseUrl;
       const resp = await fetch(`${apiBase}/api/commissioner/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../theme/Provider';
 import { useAuth0 } from '@auth0/auth0-react';
+import { apiConfig } from '../config/api.config';
 
-const API_URL = process.env.REACT_APP_API_URL || "";
+const API_URL = apiConfig.baseUrl;
 
 function CreateGamePage() {
   const theme = useTheme();

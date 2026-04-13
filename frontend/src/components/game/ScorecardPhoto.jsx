@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import ScorecardCapture from './ScorecardCapture';
 import ScorecardReview from './ScorecardReview';
+import { apiConfig } from '../../config/api.config';
 
-const API_URL = process.env.REACT_APP_API_URL || '';
+const API_URL = apiConfig.baseUrl;
 
 /**
  * ScorecardPhoto — orchestrates the full scorecard photo flow:

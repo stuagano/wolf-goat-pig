@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useTeeTimes from '../../hooks/useTeeTimes';
 import BookingModal from '../foretees/BookingModal';
+import { apiConfig } from '../../config/api.config';
 
-const API_URL = process.env.REACT_APP_API_URL || "";
+const API_URL = apiConfig.baseUrl;
 
 // Get the next occurrence of a day-of-week (0=Mon, 6=Sun)
 const getNextDateForDay = (dayOfWeek) => {

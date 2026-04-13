@@ -5,8 +5,9 @@ import { SimpleScorekeeper } from '../components/game';
 import { Card } from '../components/ui';
 import { useTheme } from '../theme/Provider';
 import ErrorBoundary, { GameErrorFallback } from '../components/common/ErrorBoundary';
+import { apiConfig } from '../config/api.config';
 
-const API_URL = process.env.REACT_APP_API_URL || "";
+const API_URL = apiConfig.baseUrl;
 
 /**
  * Wrapper page for SimpleScorekeeper that loads game data

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Card } from '../ui';
+import { apiConfig } from '../../config/api.config';
 
 /**
  * SheetIntegrationDashboard - Manages Google Sheets integration for metrics and leaderboards
@@ -13,7 +14,7 @@ import { Card } from '../ui';
  * - Direct Google Sheets URL sync
  */
 const SheetIntegrationDashboard = () => {
-    const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+    const API_URL = apiConfig.baseUrl;
     const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM/export?format=csv&gid=0";
 
     const [sheetData, setSheetData] = useState(null);

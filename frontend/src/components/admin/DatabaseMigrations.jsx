@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import "./DatabaseMigrations.css";
+import { apiConfig } from "../../config/api.config";
 
 const DatabaseMigrations = () => {
   const [status, setStatus] = useState(null);
@@ -12,7 +13,7 @@ const DatabaseMigrations = () => {
   const [logs, setLogs] = useState([]);
   const { user } = useAuth0();
 
-  const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+  const API_URL = apiConfig.baseUrl;
 
   const addLog = (message, type = "info") => {
     const timestamp = new Date().toLocaleTimeString();

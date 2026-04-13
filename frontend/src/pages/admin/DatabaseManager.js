@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card } from '../../components/ui';
+import { apiConfig } from '../../config/api.config';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_URL = apiConfig.baseUrl;
 
 const DatabaseManager = () => {
   const [schemas, setSchemas] = useState([]);

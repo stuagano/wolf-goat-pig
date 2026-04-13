@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
+import { apiConfig } from '../config/api.config';
 
-const API_URL = process.env.REACT_APP_API_URL || '';
+const API_URL = apiConfig.baseUrl;
 const WS_URL = (API_URL || window.location.origin).replace(/^http/, 'ws');
 
 /**

@@ -31,8 +31,9 @@ import {
   HoleNavigation,
 } from "./scorekeeper";
 import "../../styles/mobile-touch.css";
+import { apiConfig } from "../../config/api.config";
 
-const API_URL = process.env.REACT_APP_API_URL || "";
+const API_URL = apiConfig.baseUrl;
 
 /**
  * Helper component to display player name with authentication indicator

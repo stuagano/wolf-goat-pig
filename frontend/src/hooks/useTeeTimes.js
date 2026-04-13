@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
+import { apiConfig } from '../config/api.config';
 
-const API_URL = process.env.REACT_APP_API_URL || '';
+const API_URL = apiConfig.baseUrl;
 
 const useTeeTimes = () => {
   const { getAccessTokenSilently } = useAuth0();

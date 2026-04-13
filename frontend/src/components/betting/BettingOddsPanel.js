@@ -5,8 +5,9 @@ import ProbabilityVisualization from '../visualization/ProbabilityVisualization'
 import EducationalTooltip, { BettingConcepts, generateStrategicInsight, ContextualHelp } from '../ui/EducationalTooltip';
 import { UI_COLORS, BETTING_COLORS, getRiskColor, getRiskIcon } from '../../constants/colors';
 import { formatProbability, formatValue } from '../../utils/bettingHelpers';
+import { apiConfig } from '../../config/api.config';
 
-const API_URL = process.env.REACT_APP_API_URL || '';
+const API_URL = apiConfig.baseUrl;
 
 // Use centralized color constants
 const COLORS = {

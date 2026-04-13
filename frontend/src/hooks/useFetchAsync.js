@@ -23,8 +23,9 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
+import { apiConfig } from '../config/api.config';
 
-const API_URL = process.env.REACT_APP_API_URL || '';
+const API_URL = apiConfig.baseUrl;
 
 /**
  * Custom hook for async fetch operations with standardized error handling

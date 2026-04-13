@@ -5,8 +5,9 @@ import { Card } from '../components/ui';
 import { useTheme } from '../theme/Provider';
 import CommissionerChat from '../components/game/CommissionerChat';
 import AppFooter from '../components/ui/AppFooter';
+import { apiConfig } from '../config/api.config';
 
-const API_URL = process.env.REACT_APP_API_URL || "";
+const API_URL = apiConfig.baseUrl;
 
 /**
  * ActiveGamesPage - List all in-progress games

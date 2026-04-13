@@ -6,8 +6,9 @@ import WGPAnalyticsDashboard from '../components/analytics/WGPAnalyticsDashboard
 import GHINIntegration from '../components/integration/GHINIntegration';
 import FoursomesManager from './admin/FoursomesManager';
 import DatabaseManager from './admin/DatabaseManager';
+import { apiConfig } from '../config/api.config';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_URL = apiConfig.baseUrl;
 
 const AdminPage = () => {
   const navigate = useNavigate();

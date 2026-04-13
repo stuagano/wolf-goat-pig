@@ -8,6 +8,7 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
@@ -23,11 +24,13 @@ router = APIRouter(tags=["leaderboard"])
 
 @router.get("/leaderboard", response_model=list[schemas.LeaderboardEntry])
 def get_leaderboard(  # type: ignore
+    response: Response,
     limit: int = Query(100, ge=1, le=100),  # Default to 100 to show all players
     sort: str = Query("desc", pattern="^(asc|desc)$"),  # Add sort parameter
     db: Session = Depends(get_db),
 ):
     """Get the player leaderboard. Uses LeaderboardService for consolidated leaderboard logic."""
+    response.headers["Cache-Control"] = "public, max-age=60"
     try:
         # Use LeaderboardService for leaderboard queries
         leaderboard_service = get_leaderboard_service(db)

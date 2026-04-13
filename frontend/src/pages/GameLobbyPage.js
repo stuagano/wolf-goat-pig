@@ -4,8 +4,9 @@ import { useTheme } from '../theme/Provider';
 import { useSheetSync } from '../context';
 import CommissionerChat from '../components/game/CommissionerChat';
 import TeeTossModal from '../components/game/TeeTossModal';
+import { apiConfig } from '../config/api.config';
 
-const API_URL = process.env.REACT_APP_API_URL || "";
+const API_URL = apiConfig.baseUrl;
 
 function GameLobbyPage() {
   const theme = useTheme();

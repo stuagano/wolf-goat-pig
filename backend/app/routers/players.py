@@ -17,6 +17,7 @@ from datetime import UTC, datetime
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
@@ -50,10 +51,12 @@ def create_player_profile(
 @router.get("", response_model=list[schemas.PlayerProfileResponse])
 @handle_api_errors(operation_name="get player profiles")
 def get_all_player_profiles(
+    response: Response,
     active_only: bool = Query(True, description="Return only active profiles"),
     db: Session = Depends(get_db),
 ) -> list[schemas.PlayerProfileResponse]:
     """Get all player profiles."""
+    response.headers["Cache-Control"] = "public, max-age=60"
     player_service = PlayerService(db)
     profiles = player_service.get_all_player_profiles(active_only=active_only)
     logger.info(f"Retrieved {len(profiles)} player profiles")

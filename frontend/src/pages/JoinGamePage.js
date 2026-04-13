@@ -3,8 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useTheme } from '../theme/Provider';
 import { useAuth0 } from '@auth0/auth0-react';
 import { Input } from '../components/ui';
+import { apiConfig } from '../config/api.config';
 
-const API_URL = process.env.REACT_APP_API_URL || "";
+const API_URL = apiConfig.baseUrl;
 
 function JoinGamePage() {
   const theme = useTheme();

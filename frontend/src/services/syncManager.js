@@ -9,6 +9,7 @@
  */
 
 import { createNamespacedStorage } from '../utils/storage';
+import { apiConfig } from '../config/api.config';
 
 const syncStore = createNamespacedStorage('wgp-sync');
 
@@ -206,7 +207,7 @@ export async function processQueue(options = {}) {
   };
 
   const updatedQueue = [];
-  const API_URL = process.env.REACT_APP_API_URL || '';
+  const API_URL = apiConfig.baseUrl;
   const MAX_ATTEMPTS = 5;
 
   for (const item of queue) {
@@ -438,7 +439,7 @@ export async function syncHoleData(gameId, holeQuarters, optionalDetails, curren
   }
 
   // Try to sync immediately
-  const API_URL = process.env.REACT_APP_API_URL || '';
+  const API_URL = apiConfig.baseUrl;
   
   try {
     const controller = new AbortController();

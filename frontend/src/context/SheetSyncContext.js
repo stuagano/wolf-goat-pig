@@ -5,6 +5,7 @@ import React, {
   useCallback,
   useContext,
 } from "react";
+import { apiConfig } from "../config/api.config";
 
 const SheetSyncContext = createContext();
 
@@ -37,7 +38,7 @@ export const SheetSyncProvider = ({ children }) => {
       setSyncStatus("connecting");
       setError(null);
 
-      const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+      const API_URL = apiConfig.baseUrl;
 
       setSyncStatus("syncing");
 

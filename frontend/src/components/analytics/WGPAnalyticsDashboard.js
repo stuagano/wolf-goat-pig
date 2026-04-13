@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import ghinService, { initializeGHIN } from '../../services/ghinService';
+import { apiConfig } from '../../config/api.config';
 
 const WGPAnalyticsDashboard = () => {
   const [leaderboardData, setLeaderboardData] = useState([]);
@@ -107,7 +108,7 @@ const WGPAnalyticsDashboard = () => {
     try {
       setLoading(true);
       
-      const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+      const API_URL = apiConfig.baseUrl;
       
       // Always use GHIN-enhanced leaderboard (shows stored handicap data even if GHIN API is offline)
       const leaderboardUrl = `${API_URL}/leaderboard/ghin-enhanced`;

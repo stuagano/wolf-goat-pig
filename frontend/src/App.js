@@ -25,6 +25,7 @@ import UpdateNotification from "./components/ui/UpdateNotification";
 import OfflineIndicator from "./components/ui/OfflineIndicator";
 import { initCacheManager } from "./services/cacheManager";
 import syncManager from "./services/syncManager";
+import { apiConfig } from "./config/api.config";
 import "./styles/mobile-touch.css"; // Import mobile touch optimization styles
 
 // Lazy-loaded routes — reduces initial bundle by ~40-60%
@@ -48,7 +49,7 @@ const BadgesPage = React.lazy(() => import("./pages/BadgesPage"));
 const ScorecardScanPage = React.lazy(() => import("./pages/ScorecardScanPage"));
 const AskPage = React.lazy(() => import("./pages/AskPage"));
 
-const API_URL = process.env.REACT_APP_API_URL || "";
+const API_URL = apiConfig.baseUrl;
 
 function App() {
   const theme = useTheme();
