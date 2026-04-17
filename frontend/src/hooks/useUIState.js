@@ -18,6 +18,9 @@ export function useUIState() {
   const [showSpecialActions, setShowSpecialActions] = useState(false);
   const [showUsageStats, setShowUsageStats] = useState(false);
   const [showAdvancedBetting, setShowAdvancedBetting] = useState(false);
+  const [stuartMode, setStuartMode] = useState(
+    () => localStorage.getItem('wgp_stuart_mode') === 'true'
+  );
   
   // Loading and error states
   const [submitting, setSubmitting] = useState(false);
@@ -84,6 +87,14 @@ export function useUIState() {
     setError(null);
   }, []);
 
+  const toggleStuartMode = useCallback(() => {
+    setStuartMode(prev => {
+      const next = !prev;
+      localStorage.setItem('wgp_stuart_mode', String(next));
+      return next;
+    });
+  }, []);
+
   /**
    * Set error with optional auto-clear
    */
@@ -140,6 +151,10 @@ export function useUIState() {
     isGameMarkedComplete,
     setIsGameMarkedComplete,
     
+    // Stuart Mode
+    stuartMode,
+    toggleStuartMode,
+
     // Actions
     toggleSection,
     startEditingPlayerName,
