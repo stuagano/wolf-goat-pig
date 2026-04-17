@@ -29,6 +29,7 @@ import {
   TeamSelector,
   QuartersPanel,
   HoleNavigation,
+  StuartModePanel,
 } from "./scorekeeper";
 import "../../styles/mobile-touch.css";
 import { apiConfig } from "../../config/api.config";
@@ -371,6 +372,8 @@ const SimpleScorekeeper = ({
     setIsGameMarkedComplete,
     startEditingPlayerName,
     cancelEditingPlayerName: handleCancelPlayerNameEdit,
+    stuartMode,
+    toggleStuartMode,
   } = ui;
 
   // Offline-first sync hook
@@ -1762,6 +1765,25 @@ const SimpleScorekeeper = ({
             📷 Import from photo
           </button>
         </div>
+        {/* Stuart Mode toggle */}
+        <div style={{ marginTop: "4px", textAlign: "center" }}>
+          <button
+            onClick={toggleStuartMode}
+            style={{
+              padding: "4px 12px",
+              fontSize: "12px",
+              border: `1px solid ${stuartMode ? "#F59E0B" : theme.colors.border}`,
+              borderRadius: "12px",
+              background: stuartMode ? "rgba(245,158,11,0.15)" : "transparent",
+              color: stuartMode ? "#92400E" : theme.colors.textSecondary,
+              cursor: "pointer",
+              fontWeight: stuartMode ? "bold" : "normal",
+              transition: "all 0.2s",
+            }}
+          >
+            🧠 Stuart Mode {stuartMode ? "ON" : "OFF"}
+          </button>
+        </div>
       </div>
 
       {/* Enhanced Hole Title Section - Combines hole info, hitting order, and strokes */}
@@ -1784,6 +1806,18 @@ const SimpleScorekeeper = ({
         jumpToHole={jumpToHole}
         movePlayerInOrder={movePlayerInOrder}
       />
+      {/* Stuart Mode — strategy panel */}
+      {stuartMode && (
+        <StuartModePanel
+          players={players}
+          currentHole={currentHole}
+          strokeAllocation={strokeAllocation}
+          playerStandings={playerStandings}
+          courseData={courseData}
+          currentWager={currentWager}
+          theme={theme}
+        />
+      )}
 
       {/* Float & Option Tracking - Collapsed by default */}
       <div
