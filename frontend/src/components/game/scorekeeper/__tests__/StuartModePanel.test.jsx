@@ -81,10 +81,6 @@ describe('whisperer proactive briefing', () => {
     });
   });
 
-  afterEach(() => {
-    global.fetch.mockReset();
-  });
-
   test('calls /api/commissioner/chat on mount', async () => {
     render(<StuartModePanel {...baseProps} />);
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
