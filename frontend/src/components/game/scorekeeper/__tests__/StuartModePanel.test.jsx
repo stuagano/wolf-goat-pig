@@ -118,6 +118,7 @@ describe('whisperer proactive briefing', () => {
 describe('whisperer UI', () => {
   beforeEach(() => {
     global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
       json: async () => ({ data: { response: 'Hole 5: Watch Steve.' } }),
     });
   });
@@ -147,6 +148,18 @@ describe('whisperer UI', () => {
     // The 🤫 emoji should be adjacent in the same message row
     const messages = screen.getByTestId('whisperer-messages');
     expect(messages.textContent).toContain('🤫');
+  });
+
+  test('shows error message when API returns HTTP error', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({ detail: 'Internal server error' }),
+    });
+    render(<StuartModePanel {...baseProps} />);
+    await waitFor(() =>
+      expect(screen.getByText('Connection error — try again.')).toBeInTheDocument()
+    );
   });
 
   test('toggle button collapses the open drawer', async () => {

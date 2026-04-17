@@ -77,7 +77,8 @@ const StuartModePanel = ({
         }),
       });
       const json = await resp.json();
-      const text = json?.data?.response || json?.detail || 'Sorry, I could not get a response.';
+      if (!resp.ok) throw new Error(json?.detail || `HTTP ${resp.status}`);
+      const text = json?.data?.response || 'Sorry, I could not get a response.';
       setWhispererMessages(prev => [...prev, { type: 'whisperer', text, timestamp: new Date() }]);
     } catch {
       setWhispererMessages(prev => [...prev, {
