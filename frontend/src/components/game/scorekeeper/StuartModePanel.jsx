@@ -5,7 +5,7 @@ import { generateInsights } from '../../../utils/stuartModeInsights';
 
 const SOLO_BADGE = {
   go:      { label: 'Solo ✓', bg: '#4CAF50', color: 'white' },
-  caution: { label: 'Solo ⚠',  bg: '#FF9800', color: 'white' },
+  caution: { label: 'Solo ⚠',  bg: '#F59E0B', color: 'white' },
   avoid:   { label: 'Solo ✗',  bg: '#f44336', color: 'white' },
 };
 
