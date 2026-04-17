@@ -88,7 +88,9 @@ const StuartModePanel = ({
     } finally {
       setWhispererLoading(false);
     }
-  }, [players, currentHole, playerStandings, strokeAllocation, currentWager, courseData, insights]);
+    // insights is intentionally excluded — it is a new object on every render
+    // and callCommissioner only fires on hole change via the proactive useEffect.
+  }, [players, currentHole, playerStandings, strokeAllocation, currentWager, courseData]);
 
   // ── Proactive briefing on hole change ─────────────────────────────────
   useEffect(() => {
@@ -97,7 +99,10 @@ const StuartModePanel = ({
       whispererMessages,
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentHole]); // intentionally only re-fires on hole change
+  }, [currentHole]);
+  // whispererMessages is intentionally excluded: adding it would re-fire the briefing
+  // on every message. The snapshot passed here is the history at the moment of hole
+  // change, which is the correct context window for the new briefing.
 
   // ── Auto-scroll on new message ────────────────────────────────────────
   useEffect(() => {
