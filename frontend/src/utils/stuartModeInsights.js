@@ -8,7 +8,7 @@ export function computeThreatScore(handicap, strokes) {
   return handicap - strokes;
 }
 
-const HIGH_THREAT_THRESHOLD = 4;
+const HIGH_THREAT_CEILING = 4;
 const QUARTERS_SWING_THRESHOLD = 3;
 
 /**
@@ -47,7 +47,7 @@ export function generateInsights({
   const threats = players.map(player => {
     const strokes = strokeAllocation?.[player.id]?.[currentHole] ?? 0;
     const threatScore = computeThreatScore(player.handicap, strokes);
-    const isHighThreat = !player.is_authenticated && threatScore <= HIGH_THREAT_THRESHOLD;
+    const isHighThreat = !player.is_authenticated && threatScore <= HIGH_THREAT_CEILING;
     const quarters = playerStandings?.[player.id]?.quarters ?? 0;
     const hungry = isHighThreat && quarters < -QUARTERS_SWING_THRESHOLD;
 
@@ -59,7 +59,6 @@ export function generateInsights({
     return { player, threatScore, strokeSituation, isHighThreat, hungry, quarters };
   }).sort((a, b) => a.threatScore - b.threatScore);
 
-  const stuartEntry = threats.find(t => t.player.is_authenticated);
   const stuartStrokes = strokeAllocation?.[stuart.id]?.[currentHole] ?? 0;
   const stuartQuarters = playerStandings?.[stuart.id]?.quarters ?? 0;
   const highThreats = threats.filter(t => t.isHighThreat);
@@ -86,7 +85,7 @@ export function generateInsights({
     headline = `Watch out for ${names}`;
   } else if (stuartStrokes >= 1) {
     headline = 'Stroke advantage — you have the edge';
-  } else if (stuartEntry?.strokeSituation === 'creecher') {
+  } else if (stuartStrokes >= 0.4 && stuartStrokes < 1) {
     headline = 'Creecher (½ stroke) — partial advantage';
   } else if (strokeIndex && strokeIndex <= 6) {
     headline = `Tough hole (SI ${strokeIndex}) — consider a partner`;

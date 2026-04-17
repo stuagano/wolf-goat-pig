@@ -163,4 +163,19 @@ describe('generateInsights', () => {
     const result = generateInsights(params);
     expect(result.soloRecommendation).toBe('caution');
   });
+
+  test('returns fallback when no authenticated player found', () => {
+    const params = {
+      players: [{ id: 'p1', name: 'Bob', handicap: 10, is_authenticated: false }],
+      currentHole: 1,
+      strokeAllocation: {},
+      playerStandings: {},
+      courseData: { holes: [] },
+      currentWager: 1,
+    };
+    const result = generateInsights(params);
+    expect(result.headline).toBe('No authenticated player found');
+    expect(result.threats).toEqual([]);
+    expect(result.soloRecommendation).toBe('caution');
+  });
 });
