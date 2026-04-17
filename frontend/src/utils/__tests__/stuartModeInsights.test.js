@@ -139,4 +139,28 @@ describe('generateInsights', () => {
     const steveThreat = result.threats.find(t => t.player.id === 'p2');
     expect(steveThreat.hungry).toBe(true);
   });
+
+  test('soloRecommendation is caution when Stuart has Creecher and high-threat opponent exists', () => {
+    const params = {
+      ...baseParams,
+      strokeAllocation: { p1: { 5: 0.5 }, p2: { 5: 0 }, p3: { 5: 0 }, p4: { 5: 0 } },
+    };
+    const result = generateInsights(params);
+    expect(result.soloRecommendation).toBe('caution');
+  });
+
+  test('being down > 3q bumps soloRecommendation up one level (avoid → caution)', () => {
+    const params = {
+      ...baseParams,
+      strokeAllocation: { p1: { 5: 0 }, p2: { 5: 0 }, p3: { 5: 0 }, p4: { 5: 0 } },
+      playerStandings: {
+        p1: { quarters: -4 },
+        p2: { quarters: 0 },
+        p3: { quarters: 0 },
+        p4: { quarters: 0 },
+      },
+    };
+    const result = generateInsights(params);
+    expect(result.soloRecommendation).toBe('caution');
+  });
 });
