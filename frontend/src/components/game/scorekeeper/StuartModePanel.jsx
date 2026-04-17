@@ -1,6 +1,7 @@
 // frontend/src/components/game/scorekeeper/StuartModePanel.jsx
-import React from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
+import { apiConfig } from '../../../config/api.config';
 import { generateInsights } from '../../../utils/stuartModeInsights';
 
 const SOLO_BADGE = {
@@ -28,6 +29,105 @@ const StuartModePanel = ({
   });
 
   const badge = SOLO_BADGE[insights.soloRecommendation];
+
+  // ── Whisperer state ───────────────────────────────────────────────────
+  const [whispererMessages, setWhispererMessages] = useState([]);
+  const [whispererOpen, setWhispererOpen] = useState(false);
+  const [whispererLoading, setWhispererLoading] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+  const messagesEndRef = useRef(null);
+
+  // ── API helper ────────────────────────────────────────────────────────
+  // messagesSnapshot must be passed explicitly by the caller so the API
+  // receives the latest history even before a state re-render completes.
+  const callCommissioner = useCallback(async (prompt, messagesSnapshot) => {
+    setWhispererLoading(true);
+    setWhispererOpen(true);
+    try {
+      const resp = await fetch(`${apiConfig.baseUrl}/api/commissioner/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: prompt,
+          game_state: {
+            players,
+            current_hole: currentHole,
+            standings: playerStandings,
+            stroke_allocation: strokeAllocation,
+            current_wager: currentWager,
+            course_data: courseData,
+            whisperer_mode: true,
+            insights: {
+              headline: insights.headline,
+              solo_recommendation: insights.soloRecommendation,
+              threats: insights.threats.map(t => ({
+                name: t.player.name,
+                handicap: t.player.handicap,
+                threat_score: t.threatScore,
+                stroke_situation: t.strokeSituation,
+                hungry: t.hungry,
+                quarters: t.quarters,
+              })),
+            },
+            conversation_history: messagesSnapshot
+              .slice(-10)
+              .map(m => `${m.type === 'whisperer' ? 'Commissioner' : 'Stuart'}: ${m.text}`)
+              .join('\n'),
+          },
+        }),
+      });
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json?.detail || `HTTP ${resp.status}`);
+      const text = json?.data?.response || 'Sorry, I could not get a response.';
+      setWhispererMessages(prev => [...prev, { type: 'whisperer', text, timestamp: new Date() }]);
+    } catch {
+      setWhispererMessages(prev => [...prev, {
+        type: 'whisperer',
+        text: 'Connection error — try again.',
+        timestamp: new Date(),
+      }]);
+    } finally {
+      setWhispererLoading(false);
+    }
+    // insights is intentionally excluded — it is a new object on every render
+    // and callCommissioner only fires on hole change via the proactive useEffect.
+  }, [players, currentHole, playerStandings, strokeAllocation, currentWager, courseData]);
+
+  // ── Proactive briefing on hole change ─────────────────────────────────
+  useEffect(() => {
+    callCommissioner(
+      `Give me a quick strategic briefing for hole ${currentHole}. Be direct and specific — focus on who I need to watch, whether to go solo, and any quarter context that matters.`,
+      whispererMessages,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentHole]);
+  // whispererMessages is intentionally excluded: adding it would re-fire the briefing
+  // on every message. The snapshot passed here is the history at the moment of hole
+  // change, which is the correct context window for the new briefing.
+
+  // ── Auto-scroll on new message ────────────────────────────────────────
+  useEffect(() => {
+    if (messagesEndRef.current?.scrollIntoView) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [whispererMessages]);
+
+  // ── User send handler ─────────────────────────────────────────────────
+  const handleSend = async () => {
+    if (!inputValue.trim() || whispererLoading) return;
+    const text = inputValue.trim();
+    setInputValue('');
+    const updatedMessages = [...whispererMessages, { type: 'user', text, timestamp: new Date() }];
+    setWhispererMessages(updatedMessages);
+    await callCommissioner(text, updatedMessages);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
 
   const standingsRows = [...players].sort((a, b) => {
     const qa = playerStandings?.[a.id]?.quarters ?? 0;
@@ -173,6 +273,151 @@ const StuartModePanel = ({
             );
           })}
         </div>
+      </div>
+
+      {/* ── Whisperer: Ask Commissioner ────────────────────────────────── */}
+      <div style={{ borderTop: '1px solid rgba(245,158,11,0.3)' }}>
+
+        {/* Toggle header */}
+        <button
+          data-testid="whisperer-toggle"
+          onClick={() => setWhispererOpen(o => !o)}
+          style={{
+            width: '100%',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '8px 16px',
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            color: theme.colors.textPrimary,
+          }}
+        >
+          <span style={{ fontSize: '12px', fontWeight: 'bold' }}>Ask Commissioner 🤫</span>
+          <span style={{ fontSize: '11px', color: theme.colors.textSecondary }}>
+            {whispererOpen ? '▲' : '▼'}
+          </span>
+        </button>
+
+        {/* Message history (shown when open) */}
+        {whispererOpen && (
+          <div
+            data-testid="whisperer-messages"
+            style={{
+              maxHeight: '220px',
+              overflowY: 'auto',
+              padding: '0 8px 4px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+            }}
+          >
+            {/* key={idx} is safe — messages are append-only and never reordered or deleted */}
+            {whispererMessages.map((msg, idx) => (
+              <div
+                key={idx}
+                style={{
+                  display: 'flex',
+                  justifyContent: msg.type === 'user' ? 'flex-end' : 'flex-start',
+                  alignItems: 'flex-start',
+                  gap: '4px',
+                }}
+              >
+                {msg.type === 'whisperer' && (
+                  <span style={{ fontSize: '14px', flexShrink: 0 }}>🤫</span>
+                )}
+                <div
+                  style={{
+                    background: msg.type === 'whisperer'
+                      ? 'rgba(245,158,11,0.1)'
+                      : 'rgba(0,0,0,0.06)',
+                    borderRadius: '8px',
+                    padding: '6px 10px',
+                    maxWidth: '85%',
+                    fontSize: '13px',
+                    lineHeight: 1.4,
+                    color: theme.colors.textPrimary,
+                  }}
+                >
+                  {msg.type === 'user' && (
+                    <div style={{
+                      fontSize: '10px',
+                      fontWeight: 'bold',
+                      marginBottom: '2px',
+                      textAlign: 'right',
+                      color: theme.colors.textSecondary,
+                    }}>
+                      You
+                    </div>
+                  )}
+                  {msg.text}
+                </div>
+              </div>
+            ))}
+
+            {whispererLoading && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 0',
+              }}>
+                <span style={{ fontSize: '14px' }}>🤫</span>
+                <span style={{ fontSize: '13px', color: theme.colors.textSecondary }}>...</span>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+        )}
+
+        {/* Input row */}
+        <div style={{
+          display: 'flex',
+          gap: '8px',
+          padding: '8px 12px 10px',
+          alignItems: 'center',
+        }}>
+          <input
+            type="text"
+            placeholder="Ask something..."
+            value={inputValue}
+            onChange={e => setInputValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={whispererLoading}
+            style={{
+              flex: 1,
+              border: `1px solid rgba(245,158,11,${whispererLoading ? '0.2' : '0.5'})`,
+              borderRadius: '8px',
+              padding: '6px 10px',
+              fontSize: '13px',
+              outline: 'none',
+              background: 'transparent',
+              color: theme.colors.textPrimary,
+              opacity: whispererLoading ? 0.5 : 1,
+            }}
+          />
+          <button
+            data-testid="whisperer-send"
+            onClick={handleSend}
+            disabled={whispererLoading || !inputValue.trim()}
+            style={{
+              background: '#F59E0B',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '6px 12px',
+              fontSize: '14px',
+              cursor: whispererLoading || !inputValue.trim() ? 'not-allowed' : 'pointer',
+              opacity: whispererLoading || !inputValue.trim() ? 0.5 : 1,
+              flexShrink: 0,
+            }}
+          >
+            →
+          </button>
+        </div>
+
       </div>
     </div>
   );
