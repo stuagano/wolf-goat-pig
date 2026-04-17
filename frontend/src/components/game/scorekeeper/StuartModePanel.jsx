@@ -312,6 +312,7 @@ const StuartModePanel = ({
               gap: '6px',
             }}
           >
+            {/* key={idx} is safe — messages are append-only and never reordered or deleted */}
             {whispererMessages.map((msg, idx) => (
               <div
                 key={idx}
