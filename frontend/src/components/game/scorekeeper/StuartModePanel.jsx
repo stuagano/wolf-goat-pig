@@ -1,6 +1,7 @@
 // frontend/src/components/game/scorekeeper/StuartModePanel.jsx
-import React from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
+import { apiConfig } from '../../../config/api.config';
 import { generateInsights } from '../../../utils/stuartModeInsights';
 
 const SOLO_BADGE = {
@@ -28,6 +29,99 @@ const StuartModePanel = ({
   });
 
   const badge = SOLO_BADGE[insights.soloRecommendation];
+
+  // ── Whisperer state ───────────────────────────────────────────────────
+  const [whispererMessages, setWhispererMessages] = useState([]);
+  const [whispererOpen, setWhispererOpen] = useState(false);
+  const [whispererLoading, setWhispererLoading] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+  const messagesEndRef = useRef(null);
+
+  // ── API helper ────────────────────────────────────────────────────────
+  // messagesSnapshot must be passed explicitly by the caller so the API
+  // receives the latest history even before a state re-render completes.
+  const callCommissioner = useCallback(async (prompt, messagesSnapshot) => {
+    setWhispererLoading(true);
+    setWhispererOpen(true);
+    try {
+      const resp = await fetch(`${apiConfig.baseUrl}/api/commissioner/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: prompt,
+          game_state: {
+            players,
+            current_hole: currentHole,
+            standings: playerStandings,
+            stroke_allocation: strokeAllocation,
+            current_wager: currentWager,
+            course_data: courseData,
+            whisperer_mode: true,
+            insights: {
+              headline: insights.headline,
+              solo_recommendation: insights.soloRecommendation,
+              threats: insights.threats.map(t => ({
+                name: t.player.name,
+                handicap: t.player.handicap,
+                threat_score: t.threatScore,
+                stroke_situation: t.strokeSituation,
+                hungry: t.hungry,
+                quarters: t.quarters,
+              })),
+            },
+            conversation_history: messagesSnapshot
+              .slice(-10)
+              .map(m => `${m.type === 'whisperer' ? 'Commissioner' : 'Stuart'}: ${m.text}`)
+              .join('\n'),
+          },
+        }),
+      });
+      const json = await resp.json();
+      const text = json?.data?.response || json?.detail || 'Sorry, I could not get a response.';
+      setWhispererMessages(prev => [...prev, { type: 'whisperer', text, timestamp: new Date() }]);
+    } catch {
+      setWhispererMessages(prev => [...prev, {
+        type: 'whisperer',
+        text: 'Connection error — try again.',
+        timestamp: new Date(),
+      }]);
+    } finally {
+      setWhispererLoading(false);
+    }
+  }, [players, currentHole, playerStandings, strokeAllocation, currentWager, courseData, insights]);
+
+  // ── Proactive briefing on hole change ─────────────────────────────────
+  useEffect(() => {
+    callCommissioner(
+      `Give me a quick strategic briefing for hole ${currentHole}. Be direct and specific — focus on who I need to watch, whether to go solo, and any quarter context that matters.`,
+      whispererMessages,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentHole]); // intentionally only re-fires on hole change
+
+  // ── Auto-scroll on new message ────────────────────────────────────────
+  useEffect(() => {
+    if (messagesEndRef.current?.scrollIntoView) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [whispererMessages]);
+
+  // ── User send handler ─────────────────────────────────────────────────
+  const handleSend = async () => {
+    if (!inputValue.trim() || whispererLoading) return;
+    const text = inputValue.trim();
+    setInputValue('');
+    const updatedMessages = [...whispererMessages, { type: 'user', text, timestamp: new Date() }];
+    setWhispererMessages(updatedMessages);
+    await callCommissioner(text, updatedMessages);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
 
   const standingsRows = [...players].sort((a, b) => {
     const qa = playerStandings?.[a.id]?.quarters ?? 0;

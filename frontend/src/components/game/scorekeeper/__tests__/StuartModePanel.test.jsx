@@ -1,6 +1,6 @@
 // frontend/src/components/game/scorekeeper/__tests__/StuartModePanel.test.jsx
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import StuartModePanel from '../StuartModePanel';
 
 const theme = {
@@ -70,4 +70,45 @@ test('shows hungry indicator for player who is down and high threat', () => {
   };
   render(<StuartModePanel {...props} />);
   expect(screen.getByTestId('hungry-p2')).toBeInTheDocument();
+});
+
+// ── Whisperer: proactive briefing ──────────────────────────────────────
+
+describe('whisperer proactive briefing', () => {
+  beforeEach(() => {
+    global.fetch = jest.fn().mockResolvedValue({
+      json: async () => ({ data: { response: 'Hole 5: Watch Steve.' } }),
+    });
+  });
+
+  test('calls /api/commissioner/chat on mount', async () => {
+    render(<StuartModePanel {...baseProps} />);
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+    const [url] = global.fetch.mock.calls[0];
+    expect(url).toMatch(/commissioner\/chat/);
+  });
+
+  test('sends briefing prompt for the current hole', async () => {
+    render(<StuartModePanel {...baseProps} />);
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+    const body = JSON.parse(global.fetch.mock.calls[0][1].body);
+    expect(body.message).toMatch(/strategic briefing for hole 5/i);
+  });
+
+  test('includes whisperer_mode and insights in game_state', async () => {
+    render(<StuartModePanel {...baseProps} />);
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+    const body = JSON.parse(global.fetch.mock.calls[0][1].body);
+    expect(body.game_state.whisperer_mode).toBe(true);
+    expect(body.game_state.insights).toBeDefined();
+    expect(Array.isArray(body.game_state.insights.threats)).toBe(true);
+    expect(typeof body.game_state.insights.solo_recommendation).toBe('string');
+  });
+
+  test('includes conversation_history string in game_state', async () => {
+    render(<StuartModePanel {...baseProps} />);
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+    const body = JSON.parse(global.fetch.mock.calls[0][1].body);
+    expect(typeof body.game_state.conversation_history).toBe('string');
+  });
 });
