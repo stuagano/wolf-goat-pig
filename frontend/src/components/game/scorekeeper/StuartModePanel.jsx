@@ -273,6 +273,150 @@ const StuartModePanel = ({
           })}
         </div>
       </div>
+
+      {/* ── Whisperer: Ask Commissioner ────────────────────────────────── */}
+      <div style={{ borderTop: '1px solid rgba(245,158,11,0.3)' }}>
+
+        {/* Toggle header */}
+        <button
+          data-testid="whisperer-toggle"
+          onClick={() => setWhispererOpen(o => !o)}
+          style={{
+            width: '100%',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '8px 16px',
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            color: theme.colors.textPrimary,
+          }}
+        >
+          <span style={{ fontSize: '12px', fontWeight: 'bold' }}>Ask Commissioner 🤫</span>
+          <span style={{ fontSize: '11px', color: theme.colors.textSecondary }}>
+            {whispererOpen ? '▲' : '▼'}
+          </span>
+        </button>
+
+        {/* Message history (shown when open) */}
+        {whispererOpen && (
+          <div
+            data-testid="whisperer-messages"
+            style={{
+              maxHeight: '220px',
+              overflowY: 'auto',
+              padding: '0 8px 4px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+            }}
+          >
+            {whispererMessages.map((msg, idx) => (
+              <div
+                key={idx}
+                style={{
+                  display: 'flex',
+                  justifyContent: msg.type === 'user' ? 'flex-end' : 'flex-start',
+                  alignItems: 'flex-start',
+                  gap: '4px',
+                }}
+              >
+                {msg.type === 'whisperer' && (
+                  <span style={{ fontSize: '14px', flexShrink: 0 }}>🤫</span>
+                )}
+                <div
+                  style={{
+                    background: msg.type === 'whisperer'
+                      ? 'rgba(245,158,11,0.1)'
+                      : 'rgba(0,0,0,0.06)',
+                    borderRadius: '8px',
+                    padding: '6px 10px',
+                    maxWidth: '85%',
+                    fontSize: '13px',
+                    lineHeight: 1.4,
+                    color: theme.colors.textPrimary,
+                  }}
+                >
+                  {msg.type === 'user' && (
+                    <div style={{
+                      fontSize: '10px',
+                      fontWeight: 'bold',
+                      marginBottom: '2px',
+                      textAlign: 'right',
+                      color: theme.colors.textSecondary,
+                    }}>
+                      You
+                    </div>
+                  )}
+                  {msg.text}
+                </div>
+              </div>
+            ))}
+
+            {whispererLoading && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 0',
+              }}>
+                <span style={{ fontSize: '14px' }}>🤫</span>
+                <span style={{ fontSize: '13px', color: theme.colors.textSecondary }}>...</span>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+        )}
+
+        {/* Input row */}
+        <div style={{
+          display: 'flex',
+          gap: '8px',
+          padding: '8px 12px 10px',
+          alignItems: 'center',
+        }}>
+          <input
+            type="text"
+            placeholder="Ask something..."
+            value={inputValue}
+            onChange={e => setInputValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={whispererLoading}
+            style={{
+              flex: 1,
+              border: `1px solid rgba(245,158,11,${whispererLoading ? '0.2' : '0.5'})`,
+              borderRadius: '8px',
+              padding: '6px 10px',
+              fontSize: '13px',
+              outline: 'none',
+              background: 'transparent',
+              color: theme.colors.textPrimary,
+              opacity: whispererLoading ? 0.5 : 1,
+            }}
+          />
+          <button
+            data-testid="whisperer-send"
+            onClick={handleSend}
+            disabled={whispererLoading || !inputValue.trim()}
+            style={{
+              background: '#F59E0B',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '6px 12px',
+              fontSize: '14px',
+              cursor: whispererLoading || !inputValue.trim() ? 'not-allowed' : 'pointer',
+              opacity: whispererLoading || !inputValue.trim() ? 0.5 : 1,
+              flexShrink: 0,
+            }}
+          >
+            →
+          </button>
+        </div>
+
+      </div>
     </div>
   );
 };
