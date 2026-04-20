@@ -4,7 +4,7 @@
   "name": "wolf-goat-pig",
   "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/build",
-  "installCommand": "cd frontend && npm ci --legacy-peer-deps --prefer-offline --no-audit",
+  "installCommand": "cd frontend && npm install --legacy-peer-deps --no-audit",
   "framework": "create-react-app",
   "ignoreCommand": "git diff --quiet HEAD^ HEAD ./frontend ./api",
   "build": {
