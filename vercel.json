@@ -6,7 +6,7 @@
   "outputDirectory": "frontend/build",
   "installCommand": "cd frontend && npm install --legacy-peer-deps --no-audit",
   "framework": "create-react-app",
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD ./frontend ./api",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD ./frontend ./api ./vercel.json",
   "build": {
     "env": {
       "REACT_APP_API_URL": "https://wolf-goat-pig.onrender.com",
