@@ -316,6 +316,26 @@ const QuartersPanel = ({
                 >
                   +
                 </button>
+                <button
+                  onClick={() => {
+                    const base = parseFloat(quarters[player.id]) || 0;
+                    if (base !== 0) {
+                      setQuarters({ ...quarters, [player.id]: (-base).toString() });
+                    }
+                  }}
+                  className="touch-optimized"
+                  style={{
+                    width: "36px", height: "36px", borderRadius: "8px",
+                    border: `1px solid ${val < 0 ? "#66BB6A" : "#EF5350"}`,
+                    background: val < 0 ? "#E8F5E9" : "#FFEBEE",
+                    color: val < 0 ? "#2E7D32" : "#C62828",
+                    fontWeight: "bold", fontSize: "12px",
+                    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                    opacity: val === 0 ? 0.4 : 1,
+                  }}
+                >
+                  +/−
+                </button>
               </div>
             );
           })}
