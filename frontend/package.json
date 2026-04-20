@@ -14,7 +14,8 @@
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.8.2",
     "react-scripts": "^5.0.1",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "ajv-keywords": "3.5.2"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -96,10 +97,6 @@
   },
   "proxy": "http://localhost:8000",
   "homepage": "/",
-  "overrides": {
-    "schema-utils": "^3.1.1",
-    "ajv-keywords": "^3.5.2"
-  },
   "devDependencies": {
     "@playwright/test": "^1.56.1",
     "@testing-library/dom": "^10.4.1",
