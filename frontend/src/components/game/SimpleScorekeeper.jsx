@@ -17,6 +17,7 @@ import ShotAnalysisWidget from "./ShotAnalysisWidget";
 import BettingOddsPanel from "../betting/BettingOddsPanel";
 import CommissionerChat from "./CommissionerChat";
 import EditPlayerNameModal from "./EditPlayerNameModal";
+import EditHoleModal from "./EditHoleModal";
 import ScorecardPhoto from "./ScorecardPhoto";
 import { triggerBadgeNotification } from "./BadgeNotification";
 import { SyncStatusBanner } from "../ui/SyncStatusIndicator";
@@ -385,6 +386,7 @@ const SimpleScorekeeper = ({
   const [editingOrder, setEditingOrder] = useState(false); // Track if user is editing hitting order
   const [expandedPlayers, setExpandedPlayers] = useState({ 0: true }); // Track which player cards are expanded (first player by default)
   const [showScorecardPhoto, setShowScorecardPhoto] = useState(false); // Scorecard photo scan flow
+  const [editModalHole, setEditModalHole] = useState(null); // Hole data for edit modal (null = closed)
 
   // Betting state (bettingHistory, pendingOffer, currentHoleBettingEvents) migrated to useBettingState hook
 
@@ -1170,6 +1172,45 @@ const SimpleScorekeeper = ({
     }
   };
 
+  // Save edits from the edit-hole modal without touching current hole state
+  const handleEditModalSave = async (updatedHole) => {
+    const updatedHistory = holeHistory.map((h) =>
+      h.hole === updatedHole.hole ? updatedHole : h,
+    );
+    setHoleHistory(updatedHistory);
+
+    // Recalculate standings
+    const newStandings = createPlayerMap(players, (p) => ({
+      quarters: 0, name: p.name, soloCount: 0, floatCount: 0, optionCount: 0,
+    }));
+    updatedHistory.forEach((hole) => {
+      const delta = hole.points_delta || {};
+      Object.entries(delta).forEach(([playerId, points]) => {
+        if (newStandings[playerId]) {
+          newStandings[playerId].quarters += typeof points === "number" ? points : 0;
+        }
+      });
+      if (hole.teams?.type === "solo" && hole.teams?.captain) {
+        if (newStandings[hole.teams.captain]) {
+          newStandings[hole.teams.captain].soloCount += 1;
+        }
+      }
+    });
+    setPlayerStandings(newStandings);
+
+    // Sync to backend
+    const holeQuarters = {};
+    const optionalDetails = {};
+    updatedHistory.forEach((hole) => {
+      if (hole.points_delta) holeQuarters[String(hole.hole)] = hole.points_delta;
+      optionalDetails[String(hole.hole)] = {
+        teams: hole.teams, winner: hole.winner, wager: hole.wager,
+        gross_scores: hole.gross_scores, phase: hole.phase, notes: hole.notes || null,
+      };
+    });
+    await syncHole(holeQuarters, optionalDetails, currentHole);
+  };
+
   // Track achievement check status
   const [achievementCheckFailed, setAchievementCheckFailed] = useState(false);
 
@@ -1322,42 +1363,36 @@ const SimpleScorekeeper = ({
     hole,
     playerId,
     strokes,
-    quarters,
+    quarters: quartersOverride,
   }) => {
     const holeData = holeHistory.find((h) => h.hole === hole);
-    if (holeData) {
-      // Update the scores for this specific player
-      const updatedScores = { ...holeData.gross_scores };
-      if (strokes !== null) {
-        updatedScores[playerId] = strokes;
-      }
+    if (!holeData) return;
 
-      // Update points delta if quarters were changed
-      const updatedPointsDelta = { ...holeData.points_delta };
-      if (quarters !== null && quarters !== undefined) {
-        updatedPointsDelta[playerId] = quarters;
-      }
+    const updatedScores = { ...holeData.gross_scores };
+    if (strokes !== null) updatedScores[playerId] = strokes;
 
-      // Load this hole into edit mode with updated values
-      loadHoleForEdit({
-        ...holeData,
-        gross_scores: updatedScores,
-        points_delta: updatedPointsDelta,
-      });
+    const updatedPointsDelta = { ...holeData.points_delta };
+    if (quartersOverride !== null && quartersOverride !== undefined) {
+      updatedPointsDelta[playerId] = quartersOverride;
     }
+
+    handleEditModalSave({
+      ...holeData,
+      gross_scores: updatedScores,
+      points_delta: updatedPointsDelta,
+    });
   };
 
-  // Direct hole jump - load any hole for editing
+  // Direct hole jump - open edit modal for completed holes
   const jumpToHole = (holeNumber) => {
     const holeData = holeHistory.find((h) => h.hole === holeNumber);
     if (holeData) {
-      loadHoleForEdit(holeData);
+      setEditModalHole(holeData);
     } else {
       setCurrentHole(holeNumber);
       resetHole();
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
-    // Scroll to top
-    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   // Check if game is complete (all 18 holes played)
@@ -2814,6 +2849,14 @@ const SimpleScorekeeper = ({
           theme={theme}
         />
       )}
+
+      <EditHoleModal
+        isOpen={!!editModalHole}
+        onClose={() => setEditModalHole(null)}
+        onSave={handleEditModalSave}
+        holeData={editModalHole}
+        players={localPlayers}
+      />
     </div>
   );
 };

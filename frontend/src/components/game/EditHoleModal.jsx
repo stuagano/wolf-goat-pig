@@ -1,276 +1,235 @@
 /**
- * EditHoleModal - Shared modal component for editing hole data
+ * EditHoleModal - Modal for editing scores and quarters of a completed hole.
  *
- * Consolidates the edit hole modal that was duplicated in:
- * - Scorecard.jsx
- * - SimpleScorekeeper.jsx
- *
- * Provides a consistent UI for editing strokes and quarters.
+ * Shows all players' strokes and quarters for a single hole. Saves directly
+ * to holeHistory without overwriting the current hole being scored.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { useTheme } from '../../theme/Provider';
-import { Card, Button, Input } from '../ui';
-import { useScoreValidation, SCORE_CONSTRAINTS } from '../../hooks/useScoreValidation';
 
-/**
- * EditHoleModal Component
- *
- * @param {Object} props
- * @param {boolean} props.isOpen - Whether the modal is open
- * @param {Function} props.onClose - Callback when modal is closed
- * @param {Function} props.onSave - Callback when changes are saved ({ hole, playerId, strokes, quarters })
- * @param {number} props.holeNumber - The hole number being edited
- * @param {string} props.playerName - Name of the player
- * @param {string} props.playerId - ID of the player
- * @param {number} props.currentStrokes - Current strokes value
- * @param {number} props.currentQuarters - Current quarters value
- * @param {boolean} props.showQuartersOverride - Whether to show the quarters override field
- */
 const EditHoleModal = ({
   isOpen,
   onClose,
   onSave,
-  holeNumber,
-  playerName,
-  playerId,
-  currentStrokes = null,
-  currentQuarters = 0,
-  showQuartersOverride = true
+  holeData,
+  players,
 }) => {
   const theme = useTheme();
-  const { validateStrokes, validateQuarters } = useScoreValidation();
+  const [scores, setScores] = useState({});
+  const [quarters, setQuarters] = useState({});
+  const [saving, setSaving] = useState(false);
 
-  const [strokes, setStrokes] = useState('');
-  const [quarters, setQuarters] = useState('');
-  const [errors, setErrors] = useState({ strokes: null, quarters: null });
-
-  // Reset form when modal opens or data changes
   useEffect(() => {
-    if (isOpen) {
-      setStrokes(currentStrokes !== null ? currentStrokes.toString() : '');
-      setQuarters(currentQuarters !== null ? currentQuarters.toString() : '0');
-      setErrors({ strokes: null, quarters: null });
+    if (isOpen && holeData) {
+      setScores({ ...holeData.gross_scores });
+      setQuarters(
+        Object.fromEntries(
+          players.map(p => [p.id, (holeData.points_delta?.[p.id] ?? 0).toString()])
+        )
+      );
     }
-  }, [isOpen, currentStrokes, currentQuarters]);
+  }, [isOpen, holeData, players]);
 
-  const handleStrokesChange = useCallback((e) => {
-    const value = e.target.value;
-    setStrokes(value);
-    if (value !== '') {
-      const validation = validateStrokes(value);
-      setErrors(prev => ({ ...prev, strokes: validation.error }));
-    } else {
-      setErrors(prev => ({ ...prev, strokes: null }));
+  const handleSave = useCallback(async () => {
+    const parsedQuarters = {};
+    for (const p of players) {
+      parsedQuarters[p.id] = parseFloat(quarters[p.id]) || 0;
     }
-  }, [validateStrokes]);
-
-  const handleQuartersChange = useCallback((e) => {
-    const value = e.target.value;
-    setQuarters(value);
-    if (value !== '') {
-      const validation = validateQuarters(value);
-      setErrors(prev => ({ ...prev, quarters: validation.error }));
-    } else {
-      setErrors(prev => ({ ...prev, quarters: null }));
-    }
-  }, [validateQuarters]);
-
-  const handleSave = useCallback(() => {
-    // Validate strokes
-    const strokesValidation = validateStrokes(strokes);
-    if (!strokesValidation.valid) {
-      setErrors(prev => ({ ...prev, strokes: strokesValidation.error }));
-      return;
-    }
-
-    // Validate quarters if shown
-    let quartersValue = 0;
-    if (showQuartersOverride) {
-      const quartersValidation = validateQuarters(quarters);
-      if (!quartersValidation.valid) {
-        setErrors(prev => ({ ...prev, quarters: quartersValidation.error }));
-        return;
-      }
-      quartersValue = quartersValidation.value;
-    }
-
-    onSave({
-      hole: holeNumber,
-      playerId,
-      strokes: strokesValidation.value,
-      quarters: quartersValue
-    });
-
-    onClose();
-  }, [strokes, quarters, holeNumber, playerId, showQuartersOverride, validateStrokes, validateQuarters, onSave, onClose]);
-
-  const handleKeyPress = useCallback((e) => {
-    if (e.key === 'Enter') {
-      handleSave();
-    } else if (e.key === 'Escape') {
+    setSaving(true);
+    try {
+      await onSave({
+        ...holeData,
+        gross_scores: scores,
+        points_delta: parsedQuarters,
+      });
       onClose();
+    } catch {
+      // parent handles errors
+    } finally {
+      setSaving(false);
     }
-  }, [handleSave, onClose]);
+  }, [holeData, scores, quarters, players, onSave, onClose]);
 
-  if (!isOpen) return null;
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === 'Escape') onClose();
+  }, [onClose]);
+
+  if (!isOpen || !holeData) return null;
 
   return (
     <div
       style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-        padding: '20px'
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 1000, padding: '20px',
       }}
       onClick={onClose}
-      onKeyDown={handleKeyPress}
+      onKeyDown={handleKeyDown}
       role="dialog"
       aria-modal="true"
       aria-labelledby="edit-hole-title"
     >
-      <Card
+      <div
         style={{
-          maxWidth: '400px',
-          width: '100%',
-          padding: '24px',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+          maxWidth: '420px', width: '100%', padding: '20px',
+          background: theme.colors.paper, borderRadius: '16px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
         }}
-        onClick={(e) => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
         <h3
           id="edit-hole-title"
           style={{
-            marginTop: 0,
-            marginBottom: '20px',
-            color: theme.colors.primary,
-            fontSize: '20px'
+            margin: '0 0 16px', color: theme.colors.primary, fontSize: '20px',
           }}
         >
-          Edit Hole {holeNumber} - {playerName}
+          Edit Hole {holeData.hole}
         </h3>
 
-        {/* Strokes Input */}
-        <div style={{ marginBottom: '16px' }}>
-          <label style={{
-            display: 'block',
-            marginBottom: '8px',
-            fontWeight: 'bold',
-            color: theme.colors.textPrimary
-          }}>
-            Strokes (Gross Score):
-          </label>
-          <Input
-            type="number"
-            value={strokes}
-            onChange={handleStrokesChange}
-            min={SCORE_CONSTRAINTS.MIN_STROKES}
-            max={SCORE_CONSTRAINTS.MAX_STROKES}
-            autoFocus
-            variant="inline"
-            inputStyle={{
-              width: '100%',
-              padding: '12px',
-              fontSize: '16px',
-              border: `2px solid ${errors.strokes ? theme.colors.error : theme.colors.border}`,
-              borderRadius: '8px',
-              boxSizing: 'border-box'
-            }}
-          />
-          <p style={{
-            fontSize: '12px',
-            color: errors.strokes ? theme.colors.error : theme.colors.textSecondary,
-            marginTop: '4px',
-            marginBottom: 0
-          }}>
-            {errors.strokes || `Actual number of strokes taken (${SCORE_CONSTRAINTS.MIN_STROKES}-${SCORE_CONSTRAINTS.MAX_STROKES})`}
-          </p>
+        {/* Column headers */}
+        <div style={{
+          display: 'grid', gridTemplateColumns: '1fr 80px 120px',
+          gap: '8px', marginBottom: '8px', padding: '0 4px',
+          fontSize: '12px', fontWeight: 'bold', color: theme.colors.textSecondary,
+        }}>
+          <div>Player</div>
+          <div style={{ textAlign: 'center' }}>Strokes</div>
+          <div style={{ textAlign: 'center' }}>Quarters</div>
         </div>
 
-        {/* Quarters Override Input */}
-        {showQuartersOverride && (
-          <div style={{ marginBottom: '24px' }}>
-            <label style={{
-              display: 'block',
-              marginBottom: '8px',
-              fontWeight: 'bold',
-              color: theme.colors.textPrimary
-            }}>
-              Quarters (Manual Override):
-            </label>
-            <Input
-              type="number"
-              value={quarters}
-              onChange={handleQuartersChange}
-              min={SCORE_CONSTRAINTS.MIN_QUARTERS}
-              max={SCORE_CONSTRAINTS.MAX_QUARTERS}
-              step="0.5"
-              variant="inline"
-              inputStyle={{
-                width: '100%',
-                padding: '12px',
-                fontSize: '16px',
-                border: `2px solid ${errors.quarters ? theme.colors.error : theme.colors.warning || '#ff9800'}`,
-                borderRadius: '8px',
-                backgroundColor: 'rgba(255, 152, 0, 0.05)',
-                boxSizing: 'border-box'
+        {/* Player rows */}
+        {players.map(player => {
+          const qVal = parseFloat(quarters[player.id]) || 0;
+          return (
+            <div
+              key={player.id}
+              style={{
+                display: 'grid', gridTemplateColumns: '1fr 80px 120px',
+                gap: '8px', alignItems: 'center',
+                padding: '8px 4px',
+                borderBottom: `1px solid ${theme.colors.border}`,
               }}
-            />
-            <p style={{
-              fontSize: '12px',
-              color: errors.quarters ? theme.colors.error : theme.colors.textSecondary,
-              marginTop: '4px',
-              marginBottom: 0
-            }}>
-              {errors.quarters || (
-                <>
-                  Override automatic quarter calculation. Use when scores are correct but quarters are wrong.
-                  <br />
-                  Positive for winning (+), negative for losing (-)
-                </>
-              )}
-            </p>
-          </div>
-        )}
+            >
+              <div style={{ fontWeight: 'bold', fontSize: '14px' }}>
+                {player.name}
+              </div>
 
-        {/* Action Buttons */}
+              {/* Strokes */}
+              <input
+                type="text"
+                inputMode="numeric"
+                value={scores[player.id] ?? ''}
+                onChange={e => {
+                  const v = e.target.value;
+                  if (v === '' || /^\d+$/.test(v)) {
+                    setScores({ ...scores, [player.id]: v === '' ? '' : parseInt(v, 10) });
+                  }
+                }}
+                style={{
+                  width: '100%', padding: '8px', fontSize: '16px', fontWeight: 'bold',
+                  border: `2px solid ${theme.colors.border}`, borderRadius: '8px',
+                  textAlign: 'center', outline: 'none', boxSizing: 'border-box',
+                  background: theme.colors.paper,
+                  color: theme.colors.textPrimary,
+                }}
+              />
+
+              {/* Quarters with +/- flip */}
+              <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="-?[0-9]*\.?[0-9]*"
+                  value={quarters[player.id] ?? ''}
+                  onChange={e => {
+                    const v = e.target.value;
+                    if (v === '' || v === '-' || /^-?\d*\.?\d*$/.test(v)) {
+                      setQuarters({ ...quarters, [player.id]: v });
+                    }
+                  }}
+                  style={{
+                    width: '60px', padding: '8px', fontSize: '16px', fontWeight: 'bold',
+                    border: `2px solid ${qVal > 0 ? '#4CAF50' : qVal < 0 ? '#f44336' : theme.colors.border}`,
+                    borderRadius: '8px', textAlign: 'center', outline: 'none',
+                    color: qVal > 0 ? '#4CAF50' : qVal < 0 ? '#f44336' : theme.colors.textPrimary,
+                    background: theme.colors.paper,
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <button
+                  onClick={() => {
+                    const base = parseFloat(quarters[player.id]) || 0;
+                    if (base !== 0) {
+                      setQuarters({ ...quarters, [player.id]: (-base).toString() });
+                    }
+                  }}
+                  className="touch-optimized"
+                  style={{
+                    width: '32px', height: '32px', borderRadius: '6px',
+                    border: `1px solid ${qVal < 0 ? '#66BB6A' : '#EF5350'}`,
+                    background: qVal < 0 ? '#E8F5E9' : '#FFEBEE',
+                    color: qVal < 0 ? '#2E7D32' : '#C62828',
+                    fontWeight: 'bold', fontSize: '11px',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    opacity: qVal === 0 ? 0.4 : 1, flexShrink: 0,
+                  }}
+                >
+                  +/−
+                </button>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Zero-sum indicator */}
+        {(() => {
+          const sum = players.reduce((acc, p) => acc + (parseFloat(quarters[p.id]) || 0), 0);
+          const balanced = Math.abs(sum) < 0.01;
+          return (
+            <div style={{
+              marginTop: '12px', padding: '8px 12px', borderRadius: '8px',
+              background: balanced ? 'rgba(76,175,80,0.1)' : 'rgba(244,67,54,0.1)',
+              color: balanced ? '#4CAF50' : '#f44336',
+              fontSize: '13px', fontWeight: 'bold', textAlign: 'center',
+            }}>
+              {balanced ? '✓ Quarters balanced' : `⚠ Quarters sum: ${sum > 0 ? '+' : ''}${sum}`}
+            </div>
+          );
+        })()}
+
+        {/* Actions */}
         <div style={{
-          display: 'flex',
-          gap: '12px',
-          justifyContent: 'flex-end'
+          display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px',
         }}>
-          <Button
-            variant="secondary"
+          <button
             onClick={onClose}
+            className="touch-optimized"
             style={{
-              padding: '10px 20px',
-              fontSize: '16px'
+              padding: '10px 20px', fontSize: '16px', fontWeight: 'bold',
+              border: `1px solid ${theme.colors.border}`, borderRadius: '8px',
+              background: 'transparent', color: theme.colors.textPrimary, cursor: 'pointer',
             }}
           >
             Cancel
-          </Button>
-          <Button
-            variant="primary"
+          </button>
+          <button
             onClick={handleSave}
-            disabled={!!errors.strokes || (showQuartersOverride && !!errors.quarters)}
+            disabled={saving}
+            className="touch-optimized"
             style={{
-              padding: '10px 20px',
-              fontSize: '16px'
+              padding: '10px 20px', fontSize: '16px', fontWeight: 'bold',
+              border: 'none', borderRadius: '8px',
+              background: theme.colors.primary, color: 'white', cursor: 'pointer',
+              opacity: saving ? 0.6 : 1,
             }}
           >
-            Save
-          </Button>
+            {saving ? 'Saving...' : 'Save'}
+          </button>
         </div>
-      </Card>
+      </div>
     </div>
   );
 };
@@ -279,12 +238,11 @@ EditHoleModal.propTypes = {
   isOpen: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
   onSave: PropTypes.func.isRequired,
-  holeNumber: PropTypes.number,
-  playerName: PropTypes.string,
-  playerId: PropTypes.string,
-  currentStrokes: PropTypes.number,
-  currentQuarters: PropTypes.number,
-  showQuartersOverride: PropTypes.bool
+  holeData: PropTypes.object,
+  players: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    name: PropTypes.string.isRequired,
+  })).isRequired,
 };
 
 export default EditHoleModal;
