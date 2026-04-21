@@ -20,7 +20,7 @@
   },
   "scripts": {
     "start": "vite",
-    "prebuild": "node scripts/update-sw-version.js",
+    "prebuild": "node scripts/update-sw-version.cjs",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest",
@@ -33,7 +33,7 @@
     "test:game": "vitest run --testPathPattern=components/game/__tests__",
     "lint": "eslint src/**/*.{js,jsx}",
     "typecheck": "tsc --noEmit",
-    "prevercel-build": "node scripts/update-sw-version.js",
+    "prevercel-build": "node scripts/update-sw-version.cjs",
     "vercel-build": "vite build",
     "test:e2e": "playwright test --config tests/e2e/playwright.config.js",
     "test:e2e:ui": "playwright test --config tests/e2e/playwright.config.js --ui",
