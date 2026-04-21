@@ -11,12 +11,12 @@ import {
 } from '../../../test-utils/mockFactories';
 
 // Mock the useTheme hook
-jest.mock('../../../theme/Provider', () => ({
+vi.mock('../../../theme/Provider', () => ({
   useTheme: () => require('../../../test-utils/mockFactories').createMockTheme()
 }));
 
 // Mock the UI components
-jest.mock('../../ui', () => ({
+vi.mock('../../ui', () => ({
   Card: ({ children, style }) => <div style={style} data-testid="card">{children}</div>,
   Button: ({ children, onClick, variant, style }) => (
     <button onClick={onClick} data-variant={variant} style={style}>
@@ -233,7 +233,7 @@ describe('Scorecard', () => {
     };
 
     test('opens edit modal when clicking completed hole cell', () => {
-      const onEditHole = jest.fn();
+      const onEditHole = vi.fn();
       render(<Scorecard {...defaultProps} onEditHole={onEditHole} />);
 
       // Click on a score cell for hole 1 (completed) - find cell with "Click to edit" title
@@ -246,7 +246,7 @@ describe('Scorecard', () => {
     });
 
     test('shows strokes input in edit modal', () => {
-      const onEditHole = jest.fn();
+      const onEditHole = vi.fn();
       render(<Scorecard {...defaultProps} onEditHole={onEditHole} />);
 
       const scoreCell = findClickableScoreCell();
@@ -256,7 +256,7 @@ describe('Scorecard', () => {
     });
 
     test('shows quarters input in edit modal', () => {
-      const onEditHole = jest.fn();
+      const onEditHole = vi.fn();
       render(<Scorecard {...defaultProps} onEditHole={onEditHole} />);
 
       const scoreCell = findClickableScoreCell();
@@ -266,7 +266,7 @@ describe('Scorecard', () => {
     });
 
     test('closes modal on cancel', () => {
-      const onEditHole = jest.fn();
+      const onEditHole = vi.fn();
       render(<Scorecard {...defaultProps} onEditHole={onEditHole} />);
 
       const scoreCell = findClickableScoreCell();
@@ -279,7 +279,7 @@ describe('Scorecard', () => {
     });
 
     test('calls onEditHole with correct data on save', async () => {
-      const onEditHole = jest.fn();
+      const onEditHole = vi.fn();
       render(<Scorecard {...defaultProps} onEditHole={onEditHole} />);
 
       const scoreCell = findClickableScoreCell();
@@ -301,7 +301,7 @@ describe('Scorecard', () => {
 
   describe('Player Name Editing', () => {
     test('shows edit icon when onPlayerNameChange provided', () => {
-      const onPlayerNameChange = jest.fn();
+      const onPlayerNameChange = vi.fn();
       render(<Scorecard {...defaultProps} onPlayerNameChange={onPlayerNameChange} />);
 
       // Should show edit icons (pencil emoji)
@@ -314,7 +314,7 @@ describe('Scorecard', () => {
     });
 
     test('opens name edit modal when clicking player name', () => {
-      const onPlayerNameChange = jest.fn();
+      const onPlayerNameChange = vi.fn();
       render(<Scorecard {...defaultProps} onPlayerNameChange={onPlayerNameChange} />);
 
       // Click on player name (multiple instances in new layout, get the first one)
@@ -378,8 +378,8 @@ describe('Scorecard', () => {
     };
 
     test('validates strokes are within valid range', async () => {
-      const onEditHole = jest.fn();
-      const alertMock = jest.spyOn(window, 'alert').mockImplementation(() => {});
+      const onEditHole = vi.fn();
+      const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
 
       render(<Scorecard {...defaultProps} onEditHole={onEditHole} />);
 
@@ -398,8 +398,8 @@ describe('Scorecard', () => {
     });
 
     test('validates quarters are within valid range', async () => {
-      const onEditHole = jest.fn();
-      const alertMock = jest.spyOn(window, 'alert').mockImplementation(() => {});
+      const onEditHole = vi.fn();
+      const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
 
       render(<Scorecard {...defaultProps} onEditHole={onEditHole} />);
 

@@ -9,7 +9,7 @@ import {
 } from '../../../test-utils/mockFactories';
 
 // Mock fetch globally
-global.fetch = jest.fn(() =>
+global.fetch = vi.fn(() =>
   Promise.resolve({
     ok: true,
     json: () => Promise.resolve({})
@@ -17,7 +17,7 @@ global.fetch = jest.fn(() =>
 );
 
 // Mock ThemeProvider
-jest.mock('../../../theme/Provider', () => ({
+vi.mock('../../../theme/Provider', () => ({
   ThemeProvider: ({ children }) => <div>{children}</div>,
   useTheme: () => require('../../../test-utils/mockFactories').createMockTheme({
     colors: {
@@ -44,7 +44,7 @@ jest.mock('../../../theme/Provider', () => ({
 }));
 
 // Mock Input component - filter out non-DOM props
-jest.mock('../../ui', () => ({
+vi.mock('../../ui', () => ({
   Input: function Input({ value, onChange, inputStyle, variant, ...props }) {
     return (
       <input
@@ -58,22 +58,22 @@ jest.mock('../../ui', () => ({
 }));
 
 // Mock Scorecard component
-jest.mock('../Scorecard', () => {
+vi.mock('../Scorecard', () => {
   return function MockScorecard() {
     return <div data-testid="mock-scorecard">Scorecard</div>;
   };
 });
 
 // Mock GameCompletionView component
-jest.mock('../GameCompletionView', () => {
+vi.mock('../GameCompletionView', () => {
   return function MockGameCompletionView() {
     return <div data-testid="mock-game-completion">Game Complete</div>;
   };
 });
 
 // Mock BadgeNotification
-jest.mock('../BadgeNotification', () => ({
-  triggerBadgeNotification: jest.fn()
+vi.mock('../BadgeNotification', () => ({
+  triggerBadgeNotification: vi.fn()
 }));
 
 describe('SimpleScorekeeper - Betting Interface', () => {
@@ -97,12 +97,12 @@ describe('SimpleScorekeeper - Betting Interface', () => {
     gameId: 'test-game-123',
     players: mockPlayers,
     course: mockCourse,
-    onHoleComplete: jest.fn(),
-    onGameComplete: jest.fn()
+    onHoleComplete: vi.fn(),
+    onGameComplete: vi.fn()
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     global.fetch.mockClear();
   });
 

@@ -7,7 +7,7 @@
  * - Vercel production (Render backend)
  *
  * Priority:
- * 1. REACT_APP_API_URL environment variable (set in Vercel dashboard)
+ * 1. VITE_API_URL environment variable (set in Vercel dashboard)
  * 2. Runtime detection from window.location
  * 3. Default fallback URLs
  */
@@ -17,7 +17,7 @@
  */
 function detectApiUrl() {
   // 1. Check build-time environment variable (preferred)
-  const envApiUrl = process.env.REACT_APP_API_URL;
+  const envApiUrl = import.meta.env.VITE_API_URL;
   if (envApiUrl && envApiUrl.trim() !== '') {
     return envApiUrl.trim();
   }

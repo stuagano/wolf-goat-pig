@@ -4,7 +4,7 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import BadgeGallery from '../game/BadgeGallery';
 
 // Mock fetch
-global.fetch = jest.fn();
+global.fetch = vi.fn();
 
 // Helper function to wait for loading to complete
 const waitForLoadingToComplete = async () => {
@@ -91,7 +91,7 @@ describe('BadgeGallery', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     fetch.mockImplementation((url) => {
       if (url.includes('/earned')) {
         return Promise.resolve({
@@ -352,7 +352,7 @@ describe('BadgeGallery', () => {
 
   describe('Error Handling', () => {
     test('handles API error gracefully', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       fetch.mockRejectedValue(new Error('Network error'));
 

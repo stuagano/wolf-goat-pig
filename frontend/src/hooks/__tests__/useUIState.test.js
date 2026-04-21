@@ -116,7 +116,7 @@ describe('useUIState', () => {
 
     test('should warn on unknown section', () => {
       const { result } = renderHook(() => useUIState());
-      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       
       act(() => {
         result.current.toggleSection('unknownSection');
@@ -181,7 +181,7 @@ describe('useUIState', () => {
     });
 
     test('should set error with auto-clear', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const { result } = renderHook(() => useUIState());
       
       act(() => {
@@ -191,15 +191,15 @@ describe('useUIState', () => {
       expect(result.current.error).toBe('Temporary error');
       
       act(() => {
-        jest.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
       });
       
       expect(result.current.error).toBeNull();
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     test('should not auto-clear error when clearAfterMs is 0', () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const { result } = renderHook(() => useUIState());
       
       act(() => {
@@ -209,11 +209,11 @@ describe('useUIState', () => {
       expect(result.current.error).toBe('Permanent error');
       
       act(() => {
-        jest.advanceTimersByTime(5000);
+        vi.advanceTimersByTime(5000);
       });
       
       expect(result.current.error).toBe('Permanent error');
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
   });
 

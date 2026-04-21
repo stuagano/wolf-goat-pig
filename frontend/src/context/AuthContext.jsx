@@ -13,17 +13,16 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  // Support both React and Vite environment variable formats
-  const domain = process.env.REACT_APP_AUTH0_DOMAIN || process.env.VITE_AUTH0_DOMAIN;
-  const clientId = process.env.REACT_APP_AUTH0_CLIENT_ID || process.env.VITE_AUTH0_CLIENT_ID;
+  const domain = import.meta.env.VITE_AUTH0_DOMAIN;
+  const clientId = import.meta.env.VITE_AUTH0_CLIENT_ID;
   // Temporarily disable audience to fix login issues
-  // const audience = process.env.REACT_APP_AUTH0_AUDIENCE;
+  // const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
 
   if (!domain || !clientId) {
-    throw new Error('Please define REACT_APP_AUTH0_DOMAIN and REACT_APP_AUTH0_CLIENT_ID environment variables');
+    throw new Error('Please define VITE_AUTH0_DOMAIN and VITE_AUTH0_CLIENT_ID environment variables');
   }
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (import.meta.env.DEV) {
     console.debug('🔧 Auth0 Configuration:', {
       domain,
       clientId: clientId.substring(0, 8) + '...',

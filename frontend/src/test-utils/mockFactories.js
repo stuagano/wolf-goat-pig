@@ -101,8 +101,8 @@ export const createMockUseTheme = (themeOverrides = {}) => {
 export const createMockAuthContext = ({
   isAuthenticated = false,
   user = null,
-  login = jest.fn(),
-  logout = jest.fn(),
+  login = vi.fn(),
+  logout = vi.fn(),
   loading = false,
   error = null
 } = {}) => ({
@@ -112,7 +112,7 @@ export const createMockAuthContext = ({
   logout,
   loading,
   error,
-  checkAuth: jest.fn()
+  checkAuth: vi.fn()
 });
 
 /**
@@ -446,12 +446,12 @@ export const createMockBettingScenario = (type = 'double_down', overrides = {}) 
  * @returns {Object} Mock UI component implementations
  */
 export const createMockUIComponents = () => ({
-  Card: jest.fn(({ children, className, style }) => (
+  Card: vi.fn(({ children, className, style }) => (
     <div data-testid="card" className={className} style={style}>
       {children}
     </div>
   )),
-  Button: jest.fn(({ children, onClick, variant, disabled, style }) => (
+  Button: vi.fn(({ children, onClick, variant, disabled, style }) => (
     <button
       onClick={onClick}
       data-variant={variant}
@@ -462,7 +462,7 @@ export const createMockUIComponents = () => ({
       {children}
     </button>
   )),
-  Input: jest.fn(({ type, value, onChange, placeholder, disabled }) => (
+  Input: vi.fn(({ type, value, onChange, placeholder, disabled }) => (
     <input
       type={type}
       value={value}
@@ -472,7 +472,7 @@ export const createMockUIComponents = () => ({
       data-testid="input"
     />
   )),
-  Modal: jest.fn(({ isOpen, onClose, title, children }) =>
+  Modal: vi.fn(({ isOpen, onClose, title, children }) =>
     isOpen ? (
       <div data-testid="modal">
         <div data-testid="modal-title">{title}</div>
@@ -494,17 +494,17 @@ export const createMockUIComponents = () => ({
  * @returns {Object} Mock event handlers
  */
 export const createMockEventHandlers = () => ({
-  onClick: jest.fn(),
-  onChange: jest.fn(),
-  onSubmit: jest.fn(),
-  onClose: jest.fn(),
-  onSave: jest.fn(),
-  onCancel: jest.fn(),
-  onEdit: jest.fn(),
-  onDelete: jest.fn(),
-  onBettingAction: jest.fn(),
-  onEditHole: jest.fn(),
-  onPlayerNameChange: jest.fn()
+  onClick: vi.fn(),
+  onChange: vi.fn(),
+  onSubmit: vi.fn(),
+  onClose: vi.fn(),
+  onSave: vi.fn(),
+  onCancel: vi.fn(),
+  onEdit: vi.fn(),
+  onDelete: vi.fn(),
+  onBettingAction: vi.fn(),
+  onEditHole: vi.fn(),
+  onPlayerNameChange: vi.fn()
 });
 
 /**
@@ -515,8 +515,8 @@ export const createMockEventHandlers = () => ({
  */
 export const createMockEvent = (type = 'click', properties = {}) => ({
   type,
-  preventDefault: jest.fn(),
-  stopPropagation: jest.fn(),
+  preventDefault: vi.fn(),
+  stopPropagation: vi.fn(),
   target: {
     value: '',
     name: '',
@@ -587,11 +587,11 @@ export const createMockTutorialContext = (overrides = {}) => ({
   isActive: false,
   currentModule: null,
   currentStep: 0,
-  startTutorial: jest.fn(),
-  nextStep: jest.fn(),
-  prevStep: jest.fn(),
-  completeTutorial: jest.fn(),
-  skipTutorial: jest.fn(),
+  startTutorial: vi.fn(),
+  nextStep: vi.fn(),
+  prevStep: vi.fn(),
+  completeTutorial: vi.fn(),
+  skipTutorial: vi.fn(),
   ...overrides
 });
 

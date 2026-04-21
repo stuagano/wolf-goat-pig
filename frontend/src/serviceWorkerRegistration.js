@@ -14,13 +14,14 @@ const isLocalhost = Boolean(
 export function register(config) {
   // Enable in both production AND development for local testing
   if ('serviceWorker' in navigator) {
-    const publicUrl = new URL(process.env.PUBLIC_URL || '', window.location.href);
-    if (publicUrl.origin !== window.location.origin && process.env.PUBLIC_URL) {
+    const baseUrl = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
+    const publicUrl = new URL(baseUrl, window.location.href);
+    if (publicUrl.origin !== window.location.origin && baseUrl) {
       return;
     }
 
     window.addEventListener('load', () => {
-      const swUrl = `${process.env.PUBLIC_URL}/service-worker.js`;
+      const swUrl = `${baseUrl}/service-worker.js`;
 
       if (isLocalhost) {
         checkValidServiceWorker(swUrl, config);

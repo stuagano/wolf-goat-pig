@@ -12,12 +12,12 @@ describe('useBettingState', () => {
   const defaultOptions = {
     currentHole: 1,
     currentWager: 1,
-    setCurrentWager: jest.fn(),
+    setCurrentWager: vi.fn(),
     players: mockPlayers,
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('initial state', () => {
@@ -71,7 +71,7 @@ describe('useBettingState', () => {
     });
 
     test('should not create offer if one is pending', () => {
-      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       const { result } = renderHook(() => useBettingState(defaultOptions));
       
       act(() => {
@@ -102,7 +102,7 @@ describe('useBettingState', () => {
 
   describe('respondToOffer', () => {
     test('should accept pending offer and update wager', () => {
-      const setCurrentWager = jest.fn();
+      const setCurrentWager = vi.fn();
       const { result } = renderHook(() => useBettingState({
         ...defaultOptions,
         setCurrentWager,
@@ -124,7 +124,7 @@ describe('useBettingState', () => {
     });
 
     test('should decline pending offer without updating wager', () => {
-      const setCurrentWager = jest.fn();
+      const setCurrentWager = vi.fn();
       const { result } = renderHook(() => useBettingState({
         ...defaultOptions,
         setCurrentWager,
@@ -146,7 +146,7 @@ describe('useBettingState', () => {
     });
 
     test('should warn if no pending offer', () => {
-      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       const { result } = renderHook(() => useBettingState(defaultOptions));
       
       act(() => {

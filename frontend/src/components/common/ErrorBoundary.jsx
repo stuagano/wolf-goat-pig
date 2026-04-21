@@ -46,7 +46,7 @@ const DefaultErrorFallback = ({ error, resetError }) => (
         Try Again
       </button>
     )}
-    {process.env.NODE_ENV === 'development' && error?.stack && (
+    {import.meta.env.DEV && error?.stack && (
       <details style={{ marginTop: '15px' }}>
         <summary style={{ cursor: 'pointer', fontSize: '12px', color: '#742a2a' }}>
           Error Details (Development Only)

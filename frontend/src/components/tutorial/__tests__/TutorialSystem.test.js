@@ -27,23 +27,23 @@ import { createMockTheme, createMockTutorialContext } from '../../../test-utils/
 
 import TutorialSystem from '../TutorialSystem';
 
-jest.mock('../../../context/TutorialContext', () => ({
+vi.mock('../../../context/TutorialContext', () => ({
   __esModule: true,
-  useTutorial: jest.fn()
+  useTutorial: vi.fn()
 }));
 
-jest.mock('../../../hooks/useTutorialProgress', () => ({
+vi.mock('../../../hooks/useTutorialProgress', () => ({
   __esModule: true,
-  useTutorialProgress: jest.fn()
+  useTutorialProgress: vi.fn()
 }));
 
-jest.mock('../../../theme/Provider', () => ({
+vi.mock('../../../theme/Provider', () => ({
   __esModule: true,
-  useTheme: jest.fn()
+  useTheme: vi.fn()
 }));
 
 // Mock all the tutorial modules
-jest.mock('../modules/GolfBasicsModule', () => {
+vi.mock('../modules/GolfBasicsModule', () => {
   return function MockGolfBasicsModule({ onStepComplete, onModuleComplete, currentStep, goToStep }) {
     return (
       <div data-testid="golf-basics-module">
@@ -57,58 +57,58 @@ jest.mock('../modules/GolfBasicsModule', () => {
   };
 });
 
-jest.mock('../modules/GameOverviewModule', () => {
+vi.mock('../modules/GameOverviewModule', () => {
   return function MockGameOverviewModule(props) {
     return <div data-testid="game-overview-module">Game Overview Module</div>;
   };
 });
 
-jest.mock('../modules/TeamFormationModule', () => {
+vi.mock('../modules/TeamFormationModule', () => {
   return function MockTeamFormationModule(props) {
     return <div data-testid="team-formation-module">Team Formation Module</div>;
   };
 });
 
-jest.mock('../modules/BettingSystemModule', () => {
+vi.mock('../modules/BettingSystemModule', () => {
   return function MockBettingSystemModule(props) {
     return <div data-testid="betting-system-module">Betting System Module</div>;
   };
 });
 
-jest.mock('../modules/AdvancedRulesModule', () => {
+vi.mock('../modules/AdvancedRulesModule', () => {
   return function MockAdvancedRulesModule(props) {
     return <div data-testid="advanced-rules-module">Advanced Rules Module</div>;
   };
 });
 
-jest.mock('../modules/AnalysisToolsModule', () => {
+vi.mock('../modules/AnalysisToolsModule', () => {
   return function MockAnalysisToolsModule(props) {
     return <div data-testid="analysis-tools-module">Analysis Tools Module</div>;
   };
 });
 
-jest.mock('../modules/PracticeGameModule', () => {
+vi.mock('../modules/PracticeGameModule', () => {
   return function MockPracticeGameModule(props) {
     return <div data-testid="practice-game-module">Practice Game Module</div>;
   };
 });
 
-jest.mock('../ProgressTracker', () => {
+vi.mock('../ProgressTracker', () => {
   return function MockProgressTracker() {
     return <div data-testid="progress-tracker">Progress Tracker</div>;
   };
 });
 
-jest.mock('../TutorialOverlay', () => {
+vi.mock('../TutorialOverlay', () => {
   return function MockTutorialOverlay() {
     return <div data-testid="tutorial-overlay">Tutorial Overlay</div>;
   };
 });
 
 // Mock hooks with default implementations
-const mockUseTutorial = jest.mocked(useTutorial);
-const mockUseTutorialProgress = jest.mocked(useTutorialProgress);
-const mockUseTheme = jest.mocked(useTheme);
+const mockUseTutorial = vi.mocked(useTutorial);
+const mockUseTutorialProgress = vi.mocked(useTutorialProgress);
+const mockUseTheme = vi.mocked(useTheme);
 
 describe('TutorialSystem', () => {
   let mockTutorial;
@@ -119,7 +119,7 @@ describe('TutorialSystem', () => {
 
   beforeEach(() => {
     // Reset all mocks
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Mock tutorial context
     mockTutorial = {
@@ -149,25 +149,25 @@ describe('TutorialSystem', () => {
         skipBasics: false,
         pace: 'normal'
       },
-      startTutorial: jest.fn(),
-      nextModule: jest.fn(),
-      previousModule: jest.fn(),
-      nextStep: jest.fn(),
-      previousStep: jest.fn(),
-      goToStep: jest.fn(),
-      toggleOverlay: jest.fn(),
-      toggleHints: jest.fn(),
-      toggleSidebar: jest.fn(),
-      updatePreferences: jest.fn()
+      startTutorial: vi.fn(),
+      nextModule: vi.fn(),
+      previousModule: vi.fn(),
+      nextStep: vi.fn(),
+      previousStep: vi.fn(),
+      goToStep: vi.fn(),
+      toggleOverlay: vi.fn(),
+      toggleHints: vi.fn(),
+      toggleSidebar: vi.fn(),
+      updatePreferences: vi.fn()
     };
 
     // Mock progress hook
     mockProgress = {
-      completeCurrentStep: jest.fn(),
-      completeCurrentModule: jest.fn(),
-      resumeFromSaved: jest.fn(),
-      loadProgress: jest.fn(),
-      getAnalytics: jest.fn().mockReturnValue({
+      completeCurrentStep: vi.fn(),
+      completeCurrentModule: vi.fn(),
+      resumeFromSaved: vi.fn(),
+      loadProgress: vi.fn(),
+      getAnalytics: vi.fn().mockReturnValue({
         totalTimeSpent: 3600,
         modulesCompleted: 3,
         stepsCompleted: 25,
@@ -237,8 +237,8 @@ describe('TutorialSystem', () => {
     });
 
     // Mock callback functions
-    mockOnComplete = jest.fn();
-    mockOnExit = jest.fn();
+    mockOnComplete = vi.fn();
+    mockOnExit = vi.fn();
 
     // Setup mock returns
     mockUseTutorial.mockReturnValue(mockTutorial);
@@ -253,8 +253,8 @@ describe('TutorialSystem', () => {
     });
 
     // Mock addEventListener and removeEventListener
-    const mockAddEventListener = jest.fn();
-    const mockRemoveEventListener = jest.fn();
+    const mockAddEventListener = vi.fn();
+    const mockRemoveEventListener = vi.fn();
     window.addEventListener = mockAddEventListener;
     window.removeEventListener = mockRemoveEventListener;
   });

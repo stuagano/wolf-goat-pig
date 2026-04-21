@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ShotAnalysisWidget from '../ShotAnalysisWidget';
 
 // Mock the useTheme hook
-jest.mock('../../../theme/Provider', () => ({
+vi.mock('../../../theme/Provider', () => ({
   useTheme: () => ({
     colors: {
       primary: '#2196F3',
@@ -29,8 +29,8 @@ jest.mock('../../../theme/Provider', () => ({
 }));
 
 // Mock the useShotAnalysis hook
-const mockAnalyzeShot = jest.fn();
-jest.mock('../../../hooks', () => ({
+const mockAnalyzeShot = vi.fn();
+vi.mock('../../../hooks', () => ({
   useShotAnalysis: () => ({
     analysis: null,
     loading: false,
@@ -40,7 +40,7 @@ jest.mock('../../../hooks', () => ({
 }));
 
 // Mock UI components
-jest.mock('../../ui', () => ({
+vi.mock('../../ui', () => ({
   Button: ({ children, onClick, disabled }) => (
     <button onClick={onClick} disabled={disabled}>{children}</button>
   ),

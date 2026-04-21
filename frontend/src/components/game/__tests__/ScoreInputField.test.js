@@ -4,7 +4,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import ScoreInputField from '../ScoreInputField';
 
 // Mock the useTheme hook
-jest.mock('../../../theme/Provider', () => ({
+vi.mock('../../../theme/Provider', () => ({
   useTheme: () => ({
     colors: {
       primary: '#2196F3',
@@ -19,7 +19,7 @@ jest.mock('../../../theme/Provider', () => ({
 }));
 
 // Mock the Input component
-jest.mock('../../ui', () => ({
+vi.mock('../../ui', () => ({
   Input: ({ type, value, onChange, disabled, min, max, placeholder, variant, inputStyle }) => (
     <input
       type={type}
@@ -37,7 +37,7 @@ jest.mock('../../ui', () => ({
 }));
 
 // Mock the SCORE_CONSTRAINTS
-jest.mock('../../../hooks/useScoreValidation', () => ({
+vi.mock('../../../hooks/useScoreValidation', () => ({
   SCORE_CONSTRAINTS: {
     MIN_STROKES: 1,
     MAX_STROKES: 15
@@ -51,8 +51,8 @@ describe('ScoreInputField', () => {
     handicap: 15
   };
 
-  const mockOnChange = jest.fn();
-  const mockOnClear = jest.fn();
+  const mockOnChange = vi.fn();
+  const mockOnClear = vi.fn();
 
   beforeEach(() => {
     mockOnChange.mockClear();

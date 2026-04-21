@@ -5,7 +5,7 @@ import AllPlayersAvailability from '../AllPlayersAvailability';
 import { createMockFetchResponse } from '../../../test-utils/mockFactories';
 
 // Mock fetch
-global.fetch = jest.fn();
+global.fetch = vi.fn();
 
 const mockPlayersData = [
   {

@@ -21,15 +21,16 @@ if (typeof globalThis.crypto === 'undefined') {
   };
 }
 
-// Mock environment variables
-process.env.REACT_APP_API_URL = 'http://test-api.com';
-process.env.REACT_APP_USE_MOCK_AUTH = 'true';
+// Mock environment variables for Vitest
+// Use vi.stubEnv for Vite-style env vars
+vi.stubEnv('VITE_API_URL', 'http://test-api.com');
+vi.stubEnv('VITE_USE_MOCK_AUTH', 'true');
 
 // Mock window.alert
-global.alert = jest.fn();
+global.alert = vi.fn();
 
 // Mock window.confirm
-global.confirm = jest.fn(() => true);
+global.confirm = vi.fn(() => true);
 
 const defaultFetchImplementation = () =>
   Promise.resolve({
@@ -40,10 +41,10 @@ const defaultFetchImplementation = () =>
 
 // Mock window.localStorage
 const localStorageMock = {
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(),
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
 };
 global.localStorage = localStorageMock;
 
@@ -55,11 +56,11 @@ Object.defineProperty(window, 'innerWidth', {
 });
 
 // Mock fetch globally
-global.fetch = jest.fn(defaultFetchImplementation);
+global.fetch = vi.fn(defaultFetchImplementation);
 
 beforeEach(() => {
   // Clear all mocks before each test
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   global.fetch.mockImplementation(defaultFetchImplementation);
   localStorageMock.getItem.mockClear();
   localStorageMock.setItem.mockClear();

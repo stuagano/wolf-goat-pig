@@ -5,16 +5,16 @@ import { useAuth0 } from '@auth0/auth0-react';
 import { createMockAuthContext, createMockUser } from '../../test-utils/mockFactories';
 
 // Mock the auth0 hook
-jest.mock('@auth0/auth0-react');
+vi.mock('@auth0/auth0-react');
 
 describe('useAuth', () => {
   const mockAuth0Return = {
     ...createMockAuthContext(),
-    getAccessTokenSilently: jest.fn(),
+    getAccessTokenSilently: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     useAuth0.mockReturnValue(mockAuth0Return);
   });
 
@@ -181,7 +181,7 @@ describe('useAuth', () => {
     });
 
     test('should expose loginWithRedirect from Auth0', () => {
-      const loginFn = jest.fn();
+      const loginFn = vi.fn();
       useAuth0.mockReturnValue({
         ...mockAuth0Return,
         loginWithRedirect: loginFn,
@@ -193,7 +193,7 @@ describe('useAuth', () => {
     });
 
     test('should expose logout from Auth0', () => {
-      const logoutFn = jest.fn();
+      const logoutFn = vi.fn();
       useAuth0.mockReturnValue({
         ...mockAuth0Return,
         logout: logoutFn,
@@ -205,7 +205,7 @@ describe('useAuth', () => {
     });
 
     test('should expose getAccessTokenSilently from Auth0', () => {
-      const getTokenFn = jest.fn();
+      const getTokenFn = vi.fn();
       useAuth0.mockReturnValue({
         ...mockAuth0Return,
         getAccessTokenSilently: getTokenFn,

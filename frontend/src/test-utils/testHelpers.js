@@ -46,7 +46,7 @@ export const renderWithContext = (ui, options = {}) => {
 
 // Mock fetch with customizable responses
 export const mockFetch = (responses = {}) => {
-  const fetchMock = jest.fn();
+  const fetchMock = vi.fn();
   
   // Default successful response
   fetchMock.mockImplementation((url, options) => {
@@ -77,14 +77,14 @@ export const mockFetch = (responses = {}) => {
 
 // Mock fetch that returns errors
 export const mockFetchError = (error = new Error('Network error')) => {
-  const fetchMock = jest.fn().mockRejectedValue(error);
+  const fetchMock = vi.fn().mockRejectedValue(error);
   global.fetch = fetchMock;
   return fetchMock;
 };
 
 // Mock fetch with specific HTTP errors
 export const mockFetchHttpError = (status = 500, statusText = 'Internal Server Error') => {
-  const fetchMock = jest.fn().mockResolvedValue({
+  const fetchMock = vi.fn().mockResolvedValue({
     ok: false,
     status,
     statusText,
@@ -101,17 +101,17 @@ export const mockLocalStorage = () => {
   const store = {};
   
   const localStorageMock = {
-    getItem: jest.fn((key) => store[key] || null),
-    setItem: jest.fn((key, value) => {
+    getItem: vi.fn((key) => store[key] || null),
+    setItem: vi.fn((key, value) => {
       store[key] = value.toString();
     }),
-    removeItem: jest.fn((key) => {
+    removeItem: vi.fn((key) => {
       delete store[key];
     }),
-    clear: jest.fn(() => {
+    clear: vi.fn(() => {
       Object.keys(store).forEach(key => delete store[key]);
     }),
-    key: jest.fn((index) => Object.keys(store)[index] || null),
+    key: vi.fn((index) => Object.keys(store)[index] || null),
     get length() {
       return Object.keys(store).length;
     }
@@ -130,17 +130,17 @@ export const mockSessionStorage = () => {
   const store = {};
   
   const sessionStorageMock = {
-    getItem: jest.fn((key) => store[key] || null),
-    setItem: jest.fn((key, value) => {
+    getItem: vi.fn((key) => store[key] || null),
+    setItem: vi.fn((key, value) => {
       store[key] = value.toString();
     }),
-    removeItem: jest.fn((key) => {
+    removeItem: vi.fn((key) => {
       delete store[key];
     }),
-    clear: jest.fn(() => {
+    clear: vi.fn(() => {
       Object.keys(store).forEach(key => delete store[key]);
     }),
-    key: jest.fn((index) => Object.keys(store)[index] || null),
+    key: vi.fn((index) => Object.keys(store)[index] || null),
     get length() {
       return Object.keys(store).length;
     }
@@ -156,9 +156,9 @@ export const mockSessionStorage = () => {
 
 // Mock window.confirm and window.alert
 export const mockWindowDialogs = () => {
-  const confirmMock = jest.fn(() => true);
-  const alertMock = jest.fn();
-  const promptMock = jest.fn(() => 'test input');
+  const confirmMock = vi.fn(() => true);
+  const alertMock = vi.fn();
+  const promptMock = vi.fn(() => 'test input');
   
   global.confirm = confirmMock;
   global.alert = alertMock;
@@ -181,9 +181,9 @@ export const mockWindowLocation = (url = 'http://localhost:3000/') => {
     search: location.search,
     hash: location.hash,
     origin: location.origin,
-    assign: jest.fn(),
-    replace: jest.fn(),
-    reload: jest.fn(),
+    assign: vi.fn(),
+    replace: vi.fn(),
+    reload: vi.fn(),
     toString: () => location.href
   };
   
@@ -197,10 +197,10 @@ export const mockWindowLocation = (url = 'http://localhost:3000/') => {
 
 // Mock ResizeObserver
 export const mockResizeObserver = () => {
-  const ResizeObserverMock = jest.fn().mockImplementation((callback) => ({
-    observe: jest.fn(),
-    unobserve: jest.fn(),
-    disconnect: jest.fn()
+  const ResizeObserverMock = vi.fn().mockImplementation((callback) => ({
+    observe: vi.fn(),
+    unobserve: vi.fn(),
+    disconnect: vi.fn()
   }));
   
   global.ResizeObserver = ResizeObserverMock;
@@ -209,10 +209,10 @@ export const mockResizeObserver = () => {
 
 // Mock IntersectionObserver
 export const mockIntersectionObserver = () => {
-  const IntersectionObserverMock = jest.fn().mockImplementation((callback) => ({
-    observe: jest.fn(),
-    unobserve: jest.fn(),
-    disconnect: jest.fn(),
+  const IntersectionObserverMock = vi.fn().mockImplementation((callback) => ({
+    observe: vi.fn(),
+    unobserve: vi.fn(),
+    disconnect: vi.fn(),
     root: null,
     rootMargin: '',
     thresholds: []
@@ -225,17 +225,17 @@ export const mockIntersectionObserver = () => {
 // Mock URL and Blob for file operations
 export const mockFileOperations = () => {
   const URLMock = {
-    createObjectURL: jest.fn(() => 'mock-object-url'),
-    revokeObjectURL: jest.fn()
+    createObjectURL: vi.fn(() => 'mock-object-url'),
+    revokeObjectURL: vi.fn()
   };
   
-  const BlobMock = jest.fn().mockImplementation((content, options) => ({
+  const BlobMock = vi.fn().mockImplementation((content, options) => ({
     size: content[0].length,
     type: options?.type || 'application/octet-stream',
-    slice: jest.fn(),
-    stream: jest.fn(),
-    text: jest.fn().mockResolvedValue(content[0]),
-    arrayBuffer: jest.fn()
+    slice: vi.fn(),
+    stream: vi.fn(),
+    text: vi.fn().mockResolvedValue(content[0]),
+    arrayBuffer: vi.fn()
   }));
   
   global.URL = URLMock;
@@ -244,13 +244,13 @@ export const mockFileOperations = () => {
   const linkMock = {
     href: '',
     download: '',
-    click: jest.fn(),
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn()
+    click: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn()
   };
   
   const originalCreateElement = document.createElement;
-  document.createElement = jest.fn().mockImplementation((tagName) => {
+  document.createElement = vi.fn().mockImplementation((tagName) => {
     if (tagName === 'a') {
       return linkMock;
     }
@@ -262,14 +262,14 @@ export const mockFileOperations = () => {
 
 // Mock WebSocket
 export const mockWebSocket = () => {
-  const WebSocketMock = jest.fn().mockImplementation((url) => {
+  const WebSocketMock = vi.fn().mockImplementation((url) => {
     const ws = {
       url,
       readyState: WebSocket.OPEN,
-      send: jest.fn(),
-      close: jest.fn(),
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
+      send: vi.fn(),
+      close: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
       onopen: null,
       onmessage: null,
       onerror: null,
@@ -454,7 +454,7 @@ export const animationUtils = {
   // Mock CSS transitions
   mockTransitions: () => {
     const originalGetComputedStyle = window.getComputedStyle;
-    window.getComputedStyle = jest.fn().mockImplementation((element) => {
+    window.getComputedStyle = vi.fn().mockImplementation((element) => {
       const styles = originalGetComputedStyle(element);
       return {
         ...styles,
@@ -538,23 +538,23 @@ export const setupTestEnvironment = () => {
   mockIntersectionObserver();
   
   // Set up common global mocks
-  global.matchMedia = jest.fn().mockImplementation((query) => ({
+  global.matchMedia = vi.fn().mockImplementation((query) => ({
     matches: false,
     media: query,
     onchange: null,
-    addListener: jest.fn(),
-    removeListener: jest.fn(),
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-    dispatchEvent: jest.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
   }));
   
   // Mock requestAnimationFrame
-  global.requestAnimationFrame = jest.fn().mockImplementation((cb) => {
+  global.requestAnimationFrame = vi.fn().mockImplementation((cb) => {
     setTimeout(cb, 0);
   });
   
-  global.cancelAnimationFrame = jest.fn();
+  global.cancelAnimationFrame = vi.fn();
   
   // Set up console suppression for expected warnings
   const originalError = console.error;

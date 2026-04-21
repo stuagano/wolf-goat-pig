@@ -93,7 +93,7 @@ const WGPAnalyticsDashboard = () => {
       });
 
       setGhinData(ghinDataMap);
-      if (process.env.NODE_ENV !== 'production') {
+      if (import.meta.env.DEV) {
         console.debug(`Fetched GHIN data for ${Object.keys(ghinDataMap).length} players`);
       }
 
@@ -186,7 +186,7 @@ const WGPAnalyticsDashboard = () => {
     try {
       const ghinInitialized = await initializeGHIN();
       setGhinEnabled(ghinInitialized);
-      if (process.env.NODE_ENV !== 'production') {
+      if (import.meta.env.DEV) {
         if (ghinInitialized) {
           console.debug('GHIN service initialized successfully');
         } else {

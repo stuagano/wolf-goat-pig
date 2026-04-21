@@ -1,6 +1,6 @@
 const React = require('react');
 
-let navigateMock = jest.fn();
+let navigateMock = vi.fn();
 let locationMock = {
   pathname: '/',
   search: '',
@@ -35,7 +35,7 @@ const useParams = () => ({
 const useRouteError = () => undefined;
 
 const __setNavigateMock = (fn) => {
-  navigateMock = typeof fn === 'function' ? fn : jest.fn();
+  navigateMock = typeof fn === 'function' ? fn : vi.fn();
 };
 
 const __setLocationMock = (nextLocation) => {
@@ -50,7 +50,7 @@ const __setLocationMock = (nextLocation) => {
 };
 
 const __resetRouterMocks = () => {
-  navigateMock = jest.fn();
+  navigateMock = vi.fn();
   locationMock = {
     pathname: '/',
     search: '',
