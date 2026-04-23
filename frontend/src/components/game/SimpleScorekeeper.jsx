@@ -2428,13 +2428,8 @@ const SimpleScorekeeper = ({
       <QuartersPanel
         players={players}
         quarters={quarters}
-        scores={scores}
-        expandedPlayers={expandedPlayers}
-        setExpandedPlayers={setExpandedPlayers}
         setQuarters={setQuarters}
         theme={theme}
-        editingHole={editingHole}
-        currentWager={currentWager}
       />
 
       {/* Scores (Optional) - Collapsible */}
