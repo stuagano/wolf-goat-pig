@@ -18,7 +18,6 @@ import BettingOddsPanel from "../betting/BettingOddsPanel";
 import CommissionerChat from "./CommissionerChat";
 import EditPlayerNameModal from "./EditPlayerNameModal";
 import EditHoleModal from "./EditHoleModal";
-import ScorecardPhoto from "./ScorecardPhoto";
 import { triggerBadgeNotification } from "./BadgeNotification";
 import { SyncStatusBanner } from "../ui/SyncStatusIndicator";
 import { useHoleSync, useUIState, useBettingState } from "../../hooks";
@@ -30,7 +29,6 @@ import {
   TeamSelector,
   QuartersPanel,
   HoleNavigation,
-  StuartModePanel,
 } from "./scorekeeper";
 import "../../styles/mobile-touch.css";
 import { apiConfig } from "../../config/api.config";
@@ -373,8 +371,6 @@ const SimpleScorekeeper = ({
     setIsGameMarkedComplete,
     startEditingPlayerName,
     cancelEditingPlayerName: handleCancelPlayerNameEdit,
-    stuartMode,
-    toggleStuartMode,
   } = ui;
 
   // Offline-first sync hook
@@ -385,7 +381,6 @@ const SimpleScorekeeper = ({
   const [courseData, setCourseData] = useState(null); // Course data with hole information
   const [editingOrder, setEditingOrder] = useState(false); // Track if user is editing hitting order
   const [expandedPlayers, setExpandedPlayers] = useState({ 0: true }); // Track which player cards are expanded (first player by default)
-  const [showScorecardPhoto, setShowScorecardPhoto] = useState(false); // Scorecard photo scan flow
   const [editModalHole, setEditModalHole] = useState(null); // Hole data for edit modal (null = closed)
 
   // Betting state (bettingHistory, pendingOffer, currentHoleBettingEvents) migrated to useBettingState hook
@@ -1783,42 +1778,6 @@ const SimpleScorekeeper = ({
           </div>
         )}
 
-        {/* Scan Scorecard Photo — small link, not a prominent button */}
-        <div style={{ marginTop: "4px", textAlign: "center" }}>
-          <button
-            onClick={() => setShowScorecardPhoto(true)}
-            style={{
-              padding: "4px 8px",
-              fontSize: "11px",
-              border: "none",
-              background: "transparent",
-              color: "#9CA3AF",
-              cursor: "pointer",
-              textDecoration: "underline",
-            }}
-          >
-            📷 Import from photo
-          </button>
-        </div>
-        {/* Stuart Mode toggle */}
-        <div style={{ marginTop: "4px", textAlign: "center" }}>
-          <button
-            onClick={toggleStuartMode}
-            style={{
-              padding: "4px 12px",
-              fontSize: "12px",
-              border: `1px solid ${stuartMode ? "#F59E0B" : theme.colors.border}`,
-              borderRadius: "12px",
-              background: stuartMode ? "rgba(245,158,11,0.15)" : "transparent",
-              color: stuartMode ? "#92400E" : theme.colors.textSecondary,
-              cursor: "pointer",
-              fontWeight: stuartMode ? "bold" : "normal",
-              transition: "all 0.2s",
-            }}
-          >
-            🧠 Stuart Mode {stuartMode ? "ON" : "OFF"}
-          </button>
-        </div>
       </div>
 
       {/* Enhanced Hole Title Section - Combines hole info, hitting order, and strokes */}
@@ -1841,18 +1800,6 @@ const SimpleScorekeeper = ({
         jumpToHole={jumpToHole}
         movePlayerInOrder={movePlayerInOrder}
       />
-      {/* Stuart Mode — strategy panel */}
-      {stuartMode && (
-        <StuartModePanel
-          players={players}
-          currentHole={currentHole}
-          strokeAllocation={strokeAllocation}
-          playerStandings={playerStandings}
-          courseData={courseData}
-          currentWager={currentWager}
-          theme={theme}
-        />
-      )}
 
       {/* Float & Option Tracking - Collapsed by default */}
       <div
@@ -2795,44 +2742,6 @@ const SimpleScorekeeper = ({
 
       {/* Old scorecard removed - now showing golf-style scorecard at top */}
 
-      {/* Scorecard Photo Scan Overlay */}
-      {showScorecardPhoto && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.6)",
-            zIndex: 1000,
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "center",
-            overflowY: "auto",
-            padding: "16px",
-          }}
-        >
-          <div
-            style={{
-              background: "white",
-              borderRadius: "16px",
-              padding: "20px",
-              width: "100%",
-              maxWidth: "600px",
-              marginTop: "20px",
-            }}
-          >
-            <ScorecardPhoto
-              gameId={gameId}
-              players={players}
-              onSaved={(holeQuarters) => {
-                setShowScorecardPhoto(false);
-                // Reload the page so the saved quarters appear in the scorecard
-                window.location.reload();
-              }}
-              onCancel={() => setShowScorecardPhoto(false)}
-            />
-          </div>
-        </div>
-      )}
 
       {/* Edit Player Name Modal */}
       {editingPlayerName && (
