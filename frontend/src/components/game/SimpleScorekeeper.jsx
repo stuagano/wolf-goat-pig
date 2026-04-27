@@ -29,6 +29,7 @@ import {
   TeamSelector,
   QuartersPanel,
   HoleNavigation,
+  StuartModePanel,
 } from "./scorekeeper";
 import "../../styles/mobile-touch.css";
 import { apiConfig } from "../../config/api.config";
@@ -371,6 +372,8 @@ const SimpleScorekeeper = ({
     setIsGameMarkedComplete,
     startEditingPlayerName,
     cancelEditingPlayerName: handleCancelPlayerNameEdit,
+    stuartMode,
+    toggleStuartMode,
   } = ui;
 
   // Offline-first sync hook
@@ -398,6 +401,19 @@ const SimpleScorekeeper = ({
   // Auto-collapse team selection when teams are set
   // Team selection stays visible so players can see teams during the hole
   // (Auto-collapse removed per user request)
+
+  // Hidden Stuart Mode toggle: Cmd/Ctrl+Shift+S. State persists in localStorage
+  // via useUIState, so once enabled it stays on across reloads.
+  useEffect(() => {
+    const handleKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === "S" || e.key === "s")) {
+        e.preventDefault();
+        toggleStuartMode();
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [toggleStuartMode]);
 
   // Fetch course data
   useEffect(() => {
@@ -2739,6 +2755,19 @@ const SimpleScorekeeper = ({
         jumpToHole={jumpToHole}
         handleSubmitHole={handleSubmitHole}
       />
+
+      {/* Stuart Mode strategy panel — toggled via Cmd/Ctrl+Shift+S, persisted in localStorage */}
+      {stuartMode && (
+        <StuartModePanel
+          players={players}
+          currentHole={currentHole}
+          strokeAllocation={strokeAllocation}
+          playerStandings={playerStandings}
+          courseData={courseData}
+          currentWager={currentWager}
+          theme={theme}
+        />
+      )}
 
       {/* Old scorecard removed - now showing golf-style scorecard at top */}
 
