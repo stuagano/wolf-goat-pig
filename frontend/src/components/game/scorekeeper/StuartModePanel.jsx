@@ -18,6 +18,7 @@ const StuartModePanel = ({
   courseData,
   currentWager,
   theme,
+  aiMoves = [],
 }) => {
   const insights = generateInsights({
     players,
@@ -194,6 +195,40 @@ const StuartModePanel = ({
           </div>
         </div>
       </div>
+
+      {/* AI moves log (only when there's something to show) */}
+      {aiMoves.length > 0 && (
+        <div
+          data-testid="ai-moves-log"
+          style={{
+            padding: '8px 16px',
+            background: 'rgba(245,158,11,0.05)',
+            borderBottom: '1px solid rgba(245,158,11,0.2)',
+          }}
+        >
+          <div
+            style={{
+              fontSize: '10px',
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+              color: theme.colors.textSecondary,
+              marginBottom: '4px',
+            }}
+          >
+            AI Moves
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            {aiMoves.slice(-5).map((m, i) => (
+              <div
+                key={`${m.timestamp}-${i}`}
+                style={{ fontSize: '12px', color: theme.colors.textPrimary }}
+              >
+                {m.text}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Standings strip */}
       <div style={{ padding: '10px 16px' }}>
@@ -436,6 +471,13 @@ StuartModePanel.propTypes = {
   courseData: PropTypes.object,
   currentWager: PropTypes.number.isRequired,
   theme: PropTypes.object.isRequired,
+  aiMoves: PropTypes.arrayOf(
+    PropTypes.shape({
+      type: PropTypes.string,
+      text: PropTypes.string.isRequired,
+      timestamp: PropTypes.number,
+    }),
+  ),
 };
 
 export default StuartModePanel;

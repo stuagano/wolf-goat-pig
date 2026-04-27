@@ -34,6 +34,7 @@ import {
 import "../../styles/mobile-touch.css";
 import { apiConfig } from "../../config/api.config";
 import { prefillAiScores } from "../../utils/stuartModeSimulation";
+import { aiCaptainDecide } from "../../utils/stuartModeAiDecisions";
 
 const API_URL = apiConfig.baseUrl;
 
@@ -386,6 +387,7 @@ const SimpleScorekeeper = ({
   const [editingOrder, setEditingOrder] = useState(false); // Track if user is editing hitting order
   const [expandedPlayers, setExpandedPlayers] = useState({ 0: true }); // Track which player cards are expanded (first player by default)
   const [editModalHole, setEditModalHole] = useState(null); // Hole data for edit modal (null = closed)
+  const [aiMoves, setAiMoves] = useState([]); // Stuart Mode: log of AI decisions for the current hole
 
   // Betting state (bettingHistory, pendingOffer, currentHoleBettingEvents) migrated to useBettingState hook
 
@@ -477,6 +479,63 @@ const SimpleScorekeeper = ({
     const changed = Object.keys(updated).some((k) => updated[k] !== scores[k]);
     if (changed) setScores(updated);
   }, [stuartMode, currentHole, players, courseData, gameId, scores, setScores]);
+
+  // Stuart Mode: clear the AI move log when the hole changes.
+  useEffect(() => {
+    setAiMoves([]);
+  }, [currentHole]);
+
+  // Stuart Mode: when the rotation captain is an AI player and no team
+  // selection has been made yet, auto-pick (solo vs partners + partner).
+  useEffect(() => {
+    if (!stuartMode || !players?.length || !rotationOrder?.length) return;
+    if (team1.length > 0 || captain) return; // user or prior pass already picked
+
+    const aiCaptainId = rotationOrder[captainIndex];
+    const aiCaptain = players.find((p) => p.id === aiCaptainId);
+    if (!aiCaptain || aiCaptain.is_authenticated) return;
+
+    const decision = aiCaptainDecide({
+      captain: aiCaptain,
+      players,
+      currentHole,
+      strokeAllocation,
+      playerStandings,
+    });
+
+    if (decision.mode === "solo") {
+      setTeamMode("solo");
+      setCaptain(aiCaptain.id);
+    } else if (decision.partnerId) {
+      setTeamMode("partners");
+      setTeam1([aiCaptain.id, decision.partnerId]);
+    }
+
+    setAiMoves((prev) => [
+      ...prev,
+      {
+        type: "captain",
+        text:
+          decision.mode === "solo"
+            ? `🤖 ${aiCaptain.name} goes solo — ${decision.reason}`
+            : `🤖 ${decision.reason}`,
+        timestamp: Date.now(),
+      },
+    ]);
+  }, [
+    stuartMode,
+    currentHole,
+    rotationOrder,
+    captainIndex,
+    players,
+    team1.length,
+    captain,
+    strokeAllocation,
+    playerStandings,
+    setTeamMode,
+    setCaptain,
+    setTeam1,
+  ]);
 
   // Fetch course data
   useEffect(() => {
@@ -2829,6 +2888,7 @@ const SimpleScorekeeper = ({
           courseData={courseData}
           currentWager={currentWager}
           theme={theme}
+          aiMoves={aiMoves}
         />
       )}
 
