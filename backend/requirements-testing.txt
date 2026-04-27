@@ -7,6 +7,6 @@ behave>=1.2.6
 playwright
 pytest-playwright
 mypy>=1.8.0
-types-requests>=2.31.0
+types-requests>=2.33.0.20260408
 ruff>=0.11.0
 types-python-dateutil>=2.8.0
