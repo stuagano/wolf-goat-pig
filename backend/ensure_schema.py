@@ -68,7 +68,11 @@ def ensure_schema():
             with open(filepath, "r") as f:
                 sql = f.read()
 
-                statements = [s.strip() for s in sql.split(";") if s.strip() and not s.strip().startswith("--")]
+                # Note: don't filter out segments that start with '--'. A leading
+                # comment is part of the next statement, e.g. `-- intro\nALTER ...`,
+                # and stripping it here would silently drop the entire ALTER.
+                # PostgreSQL parses leading comments natively; let it.
+                statements = [s.strip() for s in sql.split(";") if s.strip()]
 
                 for statement in statements:
                     if statement:
