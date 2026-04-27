@@ -68,11 +68,18 @@ def ensure_schema():
             with open(filepath, "r") as f:
                 sql = f.read()
 
-                # Note: don't filter out segments that start with '--'. A leading
-                # comment is part of the next statement, e.g. `-- intro\nALTER ...`,
-                # and stripping it here would silently drop the entire ALTER.
-                # PostgreSQL parses leading comments natively; let it.
-                statements = [s.strip() for s in sql.split(";") if s.strip()]
+                # Strip line-comments before deciding if a segment has SQL.
+                # A naive `startswith('--')` filter would drop ALTER statements
+                # that have a leading comment header; checking only after
+                # stripping comments correctly skips comment-only trailers.
+                def has_sql(segment: str) -> bool:
+                    return any(
+                        line.strip()
+                        for line in segment.splitlines()
+                        if not line.strip().startswith("--")
+                    )
+
+                statements = [s.strip() for s in sql.split(";") if has_sql(s)]
 
                 for statement in statements:
                     if statement:
