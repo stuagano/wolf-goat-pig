@@ -4,7 +4,7 @@ uvicorn[standard]>=0.29.0
 python-multipart>=0.0.9
 
 # Database dependencies
-SQLAlchemy>=2.0.30,<3.0
+SQLAlchemy>=2.0.49,<3.0
 psycopg2-binary>=2.9.9
 
 # HTTP client and configuration
