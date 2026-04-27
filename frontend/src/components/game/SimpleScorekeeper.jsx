@@ -33,6 +33,7 @@ import {
 } from "./scorekeeper";
 import "../../styles/mobile-touch.css";
 import { apiConfig } from "../../config/api.config";
+import { prefillAiScores } from "../../utils/stuartModeSimulation";
 
 const API_URL = apiConfig.baseUrl;
 
@@ -458,6 +459,24 @@ const SimpleScorekeeper = ({
       document.removeEventListener("pointermove", handlePointerMove);
     };
   }, [toggleStuartMode]);
+
+  // Stuart Mode score pre-fill: when on, generate plausible gross scores for
+  // any non-authenticated player who hasn't been scored yet on this hole.
+  // Stuart can override any field — this only fills empties.
+  useEffect(() => {
+    if (!stuartMode || !players?.length) return;
+    const hole = courseData?.holes?.find((h) => h.hole_number === currentHole);
+    const updated = prefillAiScores({
+      players,
+      currentScores: scores,
+      par: hole?.par || 4,
+      strokeIndex: hole?.handicap || 9,
+      gameId,
+      hole: currentHole,
+    });
+    const changed = Object.keys(updated).some((k) => updated[k] !== scores[k]);
+    if (changed) setScores(updated);
+  }, [stuartMode, currentHole, players, courseData, gameId, scores, setScores]);
 
   // Fetch course data
   useEffect(() => {
