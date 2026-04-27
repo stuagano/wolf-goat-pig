@@ -402,17 +402,61 @@ const SimpleScorekeeper = ({
   // Team selection stays visible so players can see teams during the hole
   // (Auto-collapse removed per user request)
 
-  // Hidden Stuart Mode toggle: Cmd/Ctrl+Shift+S. State persists in localStorage
-  // via useUIState, so once enabled it stays on across reloads.
+  // Hidden Stuart Mode toggle. Two activation paths so it works without a
+  // keyboard on mobile, both leading to the same persisted state in
+  // localStorage (wgp_stuart_mode via useUIState):
+  //   - Desktop: Cmd/Ctrl+Shift+S
+  //   - Touch / mouse: long-press (1.5s) anywhere on a non-interactive
+  //     part of the page. Pointermove > 10px cancels so a scroll doesn't
+  //     trigger it.
   useEffect(() => {
+    const INTERACTIVE_SELECTOR =
+      'button, input, select, textarea, a, label, [role="button"], [contenteditable="true"]';
+
     const handleKey = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === "S" || e.key === "s")) {
         e.preventDefault();
         toggleStuartMode();
       }
     };
+
+    let pressTimer = null;
+    let pressStart = null;
+    const cancelPress = () => {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+      }
+      pressStart = null;
+    };
+    const handlePointerDown = (e) => {
+      if (e.target?.closest?.(INTERACTIVE_SELECTOR)) return;
+      pressStart = { x: e.clientX, y: e.clientY };
+      pressTimer = setTimeout(() => {
+        pressTimer = null;
+        toggleStuartMode();
+      }, 1500);
+    };
+    const handlePointerMove = (e) => {
+      if (!pressStart) return;
+      const dx = e.clientX - pressStart.x;
+      const dy = e.clientY - pressStart.y;
+      if (dx * dx + dy * dy > 100) cancelPress();
+    };
+
     window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("pointerup", cancelPress);
+    document.addEventListener("pointercancel", cancelPress);
+    document.addEventListener("pointermove", handlePointerMove);
+    return () => {
+      cancelPress();
+      window.removeEventListener("keydown", handleKey);
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("pointerup", cancelPress);
+      document.removeEventListener("pointercancel", cancelPress);
+      document.removeEventListener("pointermove", handlePointerMove);
+    };
   }, [toggleStuartMode]);
 
   // Fetch course data
