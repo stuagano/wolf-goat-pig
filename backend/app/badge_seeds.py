@@ -4,6 +4,7 @@ Run this script to populate the badge system with all available badges.
 """
 
 from datetime import UTC, datetime
+from .utils.time import utc_now
 from typing import cast
 
 from sqlalchemy.orm import Session
@@ -22,7 +23,7 @@ def seed_badges(db: Session) -> None:
     # db.commit()
 
     badge_id_counter = 1
-    created_at = datetime.now(UTC).isoformat()
+    created_at = utc_now().isoformat()
 
     # ====================================================================================
     # ACHIEVEMENT BADGES - One-Time Unlocks

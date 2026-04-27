@@ -10,6 +10,7 @@ import logging
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from datetime import UTC, datetime
+from ..utils.time import utc_now
 from functools import wraps
 from typing import Any, TypeVar
 
@@ -189,7 +190,7 @@ class ApiResponse:
             "success": True,
             "message": message,
             "data": data,
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": utc_now().isoformat(),
         }
         if meta:
             response["meta"] = meta
@@ -220,7 +221,7 @@ class ApiResponse:
             "code": code,
             "details": details or {},
             "status_code": status_code,
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": utc_now().isoformat(),
         }
 
     @staticmethod

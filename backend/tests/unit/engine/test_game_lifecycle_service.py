@@ -106,10 +106,10 @@ class TestCreateGame:
 
     @patch("app.services.game_lifecycle_service.WolfGoatPigGame")
     @patch("app.services.game_lifecycle_service.uuid.uuid4")
-    @patch("app.services.game_lifecycle_service.datetime")
+    @patch("app.services.game_lifecycle_service.utc_now")
     def test_create_game_success(
         self,
-        mock_datetime,
+        mock_utc_now,
         mock_uuid,
         mock_sim_class,
         service,
@@ -121,7 +121,7 @@ class TestCreateGame:
         # Arrange
         mock_uuid.return_value = Mock()
         mock_uuid.return_value.__str__ = Mock(return_value="test-game-id")
-        mock_datetime.now.return_value.isoformat.return_value = "2024-11-03T00:00:00"
+        mock_utc_now.return_value.isoformat.return_value = "2024-11-03T00:00:00"
         mock_sim_class.return_value = mock_simulation
 
         # Act
@@ -149,10 +149,10 @@ class TestCreateGame:
 
     @patch("app.services.game_lifecycle_service.WolfGoatPigGame")
     @patch("app.services.game_lifecycle_service.uuid.uuid4")
-    @patch("app.services.game_lifecycle_service.datetime")
+    @patch("app.services.game_lifecycle_service.utc_now")
     def test_create_game_minimum_parameters(
         self,
-        mock_datetime,
+        mock_utc_now,
         mock_uuid,
         mock_sim_class,
         service,
@@ -164,7 +164,7 @@ class TestCreateGame:
         # Arrange
         mock_uuid.return_value = Mock()
         mock_uuid.return_value.__str__ = Mock(return_value="test-game-id")
-        mock_datetime.now.return_value.isoformat.return_value = "2024-11-03T00:00:00"
+        mock_utc_now.return_value.isoformat.return_value = "2024-11-03T00:00:00"
         mock_sim_class.return_value = mock_simulation
 
         # Act
@@ -229,10 +229,10 @@ class TestCreateGame:
 
     @patch("app.services.game_lifecycle_service.WolfGoatPigGame")
     @patch("app.services.game_lifecycle_service.uuid.uuid4")
-    @patch("app.services.game_lifecycle_service.datetime")
+    @patch("app.services.game_lifecycle_service.utc_now")
     def test_create_game_with_custom_base_wager(
         self,
-        mock_datetime,
+        mock_utc_now,
         mock_uuid,
         mock_sim_class,
         service,
@@ -244,7 +244,7 @@ class TestCreateGame:
         # Arrange
         mock_uuid.return_value = Mock()
         mock_uuid.return_value.__str__ = Mock(return_value="test-game-id")
-        mock_datetime.now.return_value.isoformat.return_value = "2024-11-03T00:00:00"
+        mock_utc_now.return_value.isoformat.return_value = "2024-11-03T00:00:00"
         mock_sim_class.return_value = mock_simulation
 
         # Act
@@ -257,10 +257,10 @@ class TestCreateGame:
 
     @patch("app.services.game_lifecycle_service.WolfGoatPigGame")
     @patch("app.services.game_lifecycle_service.uuid.uuid4")
-    @patch("app.services.game_lifecycle_service.datetime")
+    @patch("app.services.game_lifecycle_service.utc_now")
     def test_create_game_six_players(
         self,
-        mock_datetime,
+        mock_utc_now,
         mock_uuid,
         mock_sim_class,
         service,
@@ -272,7 +272,7 @@ class TestCreateGame:
         players = [Player(id=f"p{i}", name=f"Player{i}", handicap=10.0) for i in range(1, 7)]
         mock_uuid.return_value = Mock()
         mock_uuid.return_value.__str__ = Mock(return_value="test-game-id")
-        mock_datetime.now.return_value.isoformat.return_value = "2024-11-03T00:00:00"
+        mock_utc_now.return_value.isoformat.return_value = "2024-11-03T00:00:00"
         mock_sim_class.return_value = mock_simulation
 
         # Act
@@ -395,14 +395,14 @@ class TestGetGame:
 class TestStartGame:
     """Test start_game method."""
 
-    @patch("app.services.game_lifecycle_service.datetime")
-    def test_start_game_success(self, mock_datetime, service, mock_db, mock_simulation, mock_game_record):
+    @patch("app.services.game_lifecycle_service.utc_now")
+    def test_start_game_success(self, mock_utc_now, service, mock_db, mock_simulation, mock_game_record):
         """Test successful game start from setup state."""
         # Arrange
         game_id = "test-game-id"
         service._active_games[game_id] = mock_simulation
         mock_game_record.game_status = "setup"
-        mock_datetime.now.return_value.isoformat.return_value = "2024-11-03T01:00:00"
+        mock_utc_now.return_value.isoformat.return_value = "2024-11-03T01:00:00"
         mock_db.query.return_value.filter.return_value.first.return_value = mock_game_record
 
         # Act
@@ -483,14 +483,14 @@ class TestStartGame:
 class TestPauseGame:
     """Test pause_game method."""
 
-    @patch("app.services.game_lifecycle_service.datetime")
-    def test_pause_game_success(self, mock_datetime, service, mock_db, mock_simulation, mock_game_record):
+    @patch("app.services.game_lifecycle_service.utc_now")
+    def test_pause_game_success(self, mock_utc_now, service, mock_db, mock_simulation, mock_game_record):
         """Test successful game pause."""
         # Arrange
         game_id = "test-game-id"
         service._active_games[game_id] = mock_simulation
         mock_game_record.game_status = "in_progress"
-        mock_datetime.now.return_value.isoformat.return_value = "2024-11-03T02:00:00"
+        mock_utc_now.return_value.isoformat.return_value = "2024-11-03T02:00:00"
         mock_db.query.return_value.filter.return_value.first.return_value = mock_game_record
 
         # Act
@@ -570,14 +570,14 @@ class TestPauseGame:
 class TestResumeGame:
     """Test resume_game method."""
 
-    @patch("app.services.game_lifecycle_service.datetime")
-    def test_resume_game_success(self, mock_datetime, service, mock_db, mock_simulation, mock_game_record):
+    @patch("app.services.game_lifecycle_service.utc_now")
+    def test_resume_game_success(self, mock_utc_now, service, mock_db, mock_simulation, mock_game_record):
         """Test successful game resume."""
         # Arrange
         game_id = "test-game-id"
         service._active_games[game_id] = mock_simulation
         mock_game_record.game_status = "paused"
-        mock_datetime.now.return_value.isoformat.return_value = "2024-11-03T03:00:00"
+        mock_utc_now.return_value.isoformat.return_value = "2024-11-03T03:00:00"
         mock_db.query.return_value.filter.return_value.first.return_value = mock_game_record
 
         # Act
@@ -657,10 +657,10 @@ class TestResumeGame:
 class TestCompleteGame:
     """Test complete_game method."""
 
-    @patch("app.services.game_lifecycle_service.datetime")
+    @patch("app.services.game_lifecycle_service.utc_now")
     def test_complete_game_success(
         self,
-        mock_datetime,
+        mock_utc_now,
         service,
         mock_db,
         mock_simulation,
@@ -674,7 +674,7 @@ class TestCompleteGame:
         mock_simulation.players = sample_players
         service._active_games[game_id] = mock_simulation
         mock_game_record.game_status = "in_progress"
-        mock_datetime.now.return_value.isoformat.return_value = "2024-11-03T04:00:00"
+        mock_utc_now.return_value.isoformat.return_value = "2024-11-03T04:00:00"
         mock_db.query.return_value.filter.return_value.first.return_value = mock_game_record
 
         # Act
@@ -690,14 +690,14 @@ class TestCompleteGame:
         assert mock_game_record.state["game_status"] == "completed"
         mock_db.commit.assert_called_once()
 
-    @patch("app.services.game_lifecycle_service.datetime")
-    def test_complete_game_already_completed(self, mock_datetime, service, mock_db, mock_simulation, mock_game_record):
+    @patch("app.services.game_lifecycle_service.utc_now")
+    def test_complete_game_already_completed(self, mock_utc_now, service, mock_db, mock_simulation, mock_game_record):
         """Test completing already completed game returns existing stats."""
         # Arrange
         game_id = "test-game-id"
         service._active_games[game_id] = mock_simulation
         mock_game_record.game_status = "completed"
-        mock_datetime.now.return_value.isoformat.return_value = "2024-11-03T04:00:00"
+        mock_utc_now.return_value.isoformat.return_value = "2024-11-03T04:00:00"
         mock_db.query.return_value.filter.return_value.first.return_value = mock_game_record
 
         # Act
@@ -719,10 +719,10 @@ class TestCompleteGame:
 
         assert exc_info.value.status_code == 404
 
-    @patch("app.services.game_lifecycle_service.datetime")
+    @patch("app.services.game_lifecycle_service.utc_now")
     def test_complete_game_with_course_name(
         self,
-        mock_datetime,
+        mock_utc_now,
         service,
         mock_db,
         mock_simulation,
@@ -736,7 +736,7 @@ class TestCompleteGame:
         service._active_games[game_id] = mock_simulation
         mock_game_record.game_status = "in_progress"
         mock_game_record.state["course_name"] = "Pebble Beach"
-        mock_datetime.now.return_value.isoformat.return_value = "2024-11-03T04:00:00"
+        mock_utc_now.return_value.isoformat.return_value = "2024-11-03T04:00:00"
         mock_db.query.return_value.filter.return_value.first.return_value = mock_game_record
 
         # Act
@@ -745,10 +745,10 @@ class TestCompleteGame:
         # Assert
         assert result["course_name"] == "Pebble Beach"
 
-    @patch("app.services.game_lifecycle_service.datetime")
+    @patch("app.services.game_lifecycle_service.utc_now")
     def test_complete_game_with_base_wager(
         self,
-        mock_datetime,
+        mock_utc_now,
         service,
         mock_db,
         mock_simulation,
@@ -762,7 +762,7 @@ class TestCompleteGame:
         service._active_games[game_id] = mock_simulation
         mock_game_record.game_status = "in_progress"
         mock_game_record.state["base_wager"] = 5
-        mock_datetime.now.return_value.isoformat.return_value = "2024-11-03T04:00:00"
+        mock_utc_now.return_value.isoformat.return_value = "2024-11-03T04:00:00"
         mock_db.query.return_value.filter.return_value.first.return_value = mock_game_record
 
         # Act
@@ -788,10 +788,10 @@ class TestCompleteGame:
         assert "Failed to complete game" in str(exc_info.value.detail)
         mock_db.rollback.assert_called_once()
 
-    @patch("app.services.game_lifecycle_service.datetime")
+    @patch("app.services.game_lifecycle_service.utc_now")
     def test_complete_game_stores_final_stats(
         self,
-        mock_datetime,
+        mock_utc_now,
         service,
         mock_db,
         mock_simulation,
@@ -804,7 +804,7 @@ class TestCompleteGame:
         mock_simulation.players = sample_players
         service._active_games[game_id] = mock_simulation
         mock_game_record.game_status = "in_progress"
-        mock_datetime.now.return_value.isoformat.return_value = "2024-11-03T04:00:00"
+        mock_utc_now.return_value.isoformat.return_value = "2024-11-03T04:00:00"
         mock_db.query.return_value.filter.return_value.first.return_value = mock_game_record
 
         # Act
@@ -1058,10 +1058,10 @@ class TestIntegration:
 
     @patch("app.services.game_lifecycle_service.WolfGoatPigGame")
     @patch("app.services.game_lifecycle_service.uuid.uuid4")
-    @patch("app.services.game_lifecycle_service.datetime")
+    @patch("app.services.game_lifecycle_service.utc_now")
     def test_full_game_lifecycle(
         self,
-        mock_datetime,
+        mock_utc_now,
         mock_uuid,
         mock_sim_class,
         service,
@@ -1075,7 +1075,7 @@ class TestIntegration:
         game_id = "test-game-id"
         mock_uuid.return_value = Mock()
         mock_uuid.return_value.__str__ = Mock(return_value=game_id)
-        mock_datetime.now.return_value.isoformat.return_value = "2024-11-03T00:00:00"
+        mock_utc_now.return_value.isoformat.return_value = "2024-11-03T00:00:00"
         mock_sim_class.return_value = mock_simulation
         mock_simulation.players = sample_players
         mock_game_record.game_id = game_id
@@ -1107,10 +1107,10 @@ class TestIntegration:
 
     @patch("app.services.game_lifecycle_service.WolfGoatPigGame")
     @patch("app.services.game_lifecycle_service.uuid.uuid4")
-    @patch("app.services.game_lifecycle_service.datetime")
+    @patch("app.services.game_lifecycle_service.utc_now")
     def test_multiple_games_management(
         self,
-        mock_datetime,
+        mock_utc_now,
         mock_uuid,
         mock_sim_class,
         service,
@@ -1126,7 +1126,7 @@ class TestIntegration:
             game_ids.append(gid)
             mock_uuid.return_value = Mock()
             mock_uuid.return_value.__str__ = Mock(return_value=gid)
-            mock_datetime.now.return_value.isoformat.return_value = "2024-11-03T00:00:00"
+            mock_utc_now.return_value.isoformat.return_value = "2024-11-03T00:00:00"
             mock_sim_class.return_value = mock_simulation
 
             # Act: Create game

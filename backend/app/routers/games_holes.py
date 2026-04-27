@@ -4,6 +4,7 @@ import json
 import logging
 import traceback
 from datetime import UTC, datetime
+from ..utils.time import utc_now
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -79,7 +80,7 @@ async def complete_hole(  # type: ignore
 
         # Persist to database
         game.state = game_state
-        game.updated_at = datetime.now(UTC).isoformat()
+        game.updated_at = utc_now().isoformat()
 
         from sqlalchemy.orm.attributes import flag_modified
 
@@ -185,7 +186,7 @@ async def update_hole(  # type: ignore
 
         # Persist to database
         game.state = game_state
-        game.updated_at = datetime.now(UTC).isoformat()
+        game.updated_at = utc_now().isoformat()
 
         from sqlalchemy.orm.attributes import flag_modified
 
@@ -251,7 +252,7 @@ async def delete_hole(game_id: str, hole_number: int, db: Session = Depends(data
 
         # Update game state in database
         game.state = game_state
-        game.updated_at = datetime.now(UTC).isoformat()
+        game.updated_at = utc_now().isoformat()
 
         from sqlalchemy.orm.attributes import flag_modified
 
@@ -661,7 +662,7 @@ async def save_quarters_only(game_id: str, request: QuartersOnlyRequest, db: Ses
                 ).first()
 
                 if not existing_record:
-                    now = datetime.now(UTC).isoformat()
+                    now = utc_now().isoformat()
                     players = game_state.get("players", [])
 
                     # Create GameRecord

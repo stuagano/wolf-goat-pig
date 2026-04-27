@@ -12,6 +12,7 @@ This service handles all game lifecycle operations including:
 import logging
 import uuid
 from datetime import UTC, datetime
+from ..utils.time import utc_now
 from typing import Any, Optional, cast
 
 from fastapi import HTTPException
@@ -97,7 +98,7 @@ class GameLifecycleService:
 
             # Generate unique game ID
             game_id = str(uuid.uuid4())
-            current_time = datetime.now(UTC).isoformat()
+            current_time = utc_now().isoformat()
 
             logger.info(f"Creating new game {game_id} with {player_count} players")
 
@@ -251,7 +252,7 @@ class GameLifecycleService:
             if game_record.state:
                 state_dict = cast("dict[str, Any]", game_record.state)
                 state_dict["game_status"] = "in_progress"
-            game_record.updated_at = datetime.now(UTC).isoformat()
+            game_record.updated_at = utc_now().isoformat()
 
             db.commit()
 
@@ -301,7 +302,7 @@ class GameLifecycleService:
             if game_record.state:
                 state_dict = cast("dict[str, Any]", game_record.state)
                 state_dict["game_status"] = "paused"
-            game_record.updated_at = datetime.now(UTC).isoformat()
+            game_record.updated_at = utc_now().isoformat()
 
             db.commit()
 
@@ -351,7 +352,7 @@ class GameLifecycleService:
             if game_record.state:
                 state_dict = cast("dict[str, Any]", game_record.state)
                 state_dict["game_status"] = "in_progress"
-            game_record.updated_at = datetime.now(UTC).isoformat()
+            game_record.updated_at = utc_now().isoformat()
 
             db.commit()
 
@@ -402,7 +403,7 @@ class GameLifecycleService:
             final_stats = {
                 "game_id": game_id,
                 "status": "completed",
-                "completed_at": datetime.now(UTC).isoformat(),
+                "completed_at": utc_now().isoformat(),
                 "final_scores": {},
                 "total_holes_played": (game.current_hole - 1 if hasattr(game, "current_hole") else 0),
                 "course_name": game_record.state.get("course_name"),
@@ -424,7 +425,7 @@ class GameLifecycleService:
                 state_dict = cast("dict[str, Any]", game_record.state)
                 state_dict["game_status"] = "completed"
                 state_dict["final_stats"] = final_stats
-            game_record.updated_at = datetime.now(UTC).isoformat()
+            game_record.updated_at = utc_now().isoformat()
 
             db.commit()
 

@@ -42,6 +42,7 @@ from .post_hole_analytics import PostHoleAnalyzer
 
 # Import routers
 from .routers import admin_oauth, analytics, courses, foretees, games, games_holes, games_players, health, leaderboard, matchmaking, players, sheet_integration, wgp_actions
+from .routers.email_routes import initialize_email_scheduler
 from .services.email_service import get_email_service
 from .services.game_lifecycle_service import get_game_lifecycle_service
 from .services.leaderboard_service import get_leaderboard_service

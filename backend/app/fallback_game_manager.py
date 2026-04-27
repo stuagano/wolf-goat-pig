@@ -10,6 +10,7 @@ import logging
 import random
 import string
 from datetime import UTC, datetime
+from .utils.time import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +64,7 @@ class FallbackGameManager:
         if not join_code:
             join_code = self.generate_join_code()
 
-        now = datetime.now(UTC).isoformat()
+        now = utc_now().isoformat()
 
         game = {
             "id": len(self.games) + 1,  # Auto-increment ID
@@ -105,7 +106,7 @@ class FallbackGameManager:
             if key != "id" and key != "game_id":  # Don't allow changing these
                 game[key] = value
 
-        game["updated_at"] = datetime.now(UTC).isoformat()
+        game["updated_at"] = utc_now().isoformat()
 
         logger.debug(f"Updated fallback game: {game_id}")
         return game

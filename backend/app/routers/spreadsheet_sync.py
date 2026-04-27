@@ -8,6 +8,7 @@ These endpoints allow admins to:
 
 import logging
 from datetime import UTC, datetime
+from ..utils.time import utc_now
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
@@ -228,7 +229,7 @@ def sync_round_to_spreadsheet(
         duration=request.duration,
         player_scores={p.name: p.score for p in request.player_scores},
         status="pending",
-        created_at=datetime.now(UTC).isoformat(),
+        created_at=utc_now().isoformat(),
     )
     db.add(job)
     db.commit()

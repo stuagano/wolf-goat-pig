@@ -13,6 +13,7 @@ import json
 import logging
 import traceback
 from datetime import UTC, datetime
+from ..utils.time import utc_now
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, File, HTTPException, Path, UploadFile
@@ -294,7 +295,7 @@ def add_course(course: schemas.CourseCreate, db: Session = Depends(get_db)) -> d
     total_yards = sum(h.get("yards", 0) for h in holes)
 
     # Create database record
-    now = datetime.now(UTC).isoformat()
+    now = utc_now().isoformat()
     db_course = models.Course(
         name=course.name,
         description=course_dict.get("description", ""),
@@ -401,7 +402,7 @@ def update_course(
                 if hole_number not in update_hole_numbers:
                     db.delete(existing_holes_dict[hole_number])
 
-    db_course.updated_at = datetime.now(UTC).isoformat()
+    db_course.updated_at = utc_now().isoformat()
 
     db.commit()
     db.refresh(db_course)

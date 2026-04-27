@@ -14,6 +14,7 @@ To migrate: Replace players.py with this file after testing.
 
 import logging
 from datetime import UTC, datetime
+from ..utils.time import utc_now
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, Query
@@ -171,7 +172,7 @@ async def update_my_legacy_name(
 
     # Update the profile
     current_user.legacy_name = legacy_name
-    current_user.updated_at = datetime.now(UTC).isoformat()
+    current_user.updated_at = utc_now().isoformat()
     db.commit()
     db.refresh(current_user)
 
@@ -192,7 +193,7 @@ async def update_my_venmo(
     if handle and not handle.startswith("@"):
         handle = f"@{handle}"
     current_user.venmo_handle = handle or None
-    current_user.updated_at = datetime.now(UTC).isoformat()
+    current_user.updated_at = utc_now().isoformat()
     db.commit()
     db.refresh(current_user)
     logger.info("Updated venmo_handle for user %s to '%s'", current_user.id, handle)
@@ -238,7 +239,7 @@ async def set_my_availability(
         .first()
     )
 
-    now = datetime.now(UTC).isoformat()
+    now = utc_now().isoformat()
 
     if existing:
         existing.available_from_time = availability.available_from_time
@@ -302,7 +303,7 @@ async def get_my_email_preferences(
     db: Session = Depends(get_db),
 ) -> schemas.EmailPreferencesResponse:
     """Get current user's email preferences."""
-    now = datetime.now(UTC).isoformat()
+    now = utc_now().isoformat()
 
     prefs = (
         db.query(models.EmailPreferences).filter(models.EmailPreferences.player_profile_id == current_user.id).first()
@@ -337,7 +338,7 @@ async def update_my_email_preferences(
     db: Session = Depends(get_db),
 ) -> schemas.EmailPreferencesResponse:
     """Update current user's email preferences."""
-    now = datetime.now(UTC).isoformat()
+    now = utc_now().isoformat()
 
     prefs = (
         db.query(models.EmailPreferences).filter(models.EmailPreferences.player_profile_id == current_user.id).first()
@@ -474,7 +475,7 @@ def get_player_profile_with_stats(player_id: int, db: Session = Depends(get_db))
             best_hole_performance=[],
             worst_hole_performance=[],
             performance_trends=[],
-            last_updated=datetime.now(UTC).isoformat(),
+            last_updated=utc_now().isoformat(),
         )
 
     recent_achievements: list[Any] = []  # Placeholder for future implementation
@@ -664,7 +665,7 @@ def set_player_availability(
         .first()
     )
 
-    now = datetime.now(UTC).isoformat()
+    now = utc_now().isoformat()
 
     if existing:
         existing.available_from_time = availability.available_from_time  # type: ignore
@@ -705,7 +706,7 @@ def set_player_availability(
 @handle_api_errors(operation_name="get email preferences")
 def get_email_preferences(player_id: int, db: Session = Depends(get_db)) -> schemas.EmailPreferencesResponse:
     """Get a player's email preferences."""
-    now = datetime.now(UTC).isoformat()
+    now = utc_now().isoformat()
 
     preferences = (
         db.query(models.EmailPreferences).filter(models.EmailPreferences.player_profile_id == player_id).first()
@@ -740,7 +741,7 @@ def update_email_preferences(
         if hasattr(preferences, field):
             setattr(preferences, field, value)
 
-    preferences.updated_at = datetime.now(UTC).isoformat()  # type: ignore
+    preferences.updated_at = utc_now().isoformat()  # type: ignore
     db.commit()
     db.refresh(preferences)
 

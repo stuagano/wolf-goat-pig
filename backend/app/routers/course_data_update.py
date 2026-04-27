@@ -4,6 +4,7 @@ Endpoint to update course data for in-progress games
 
 import logging
 from datetime import UTC
+from ..utils.time import utc_now
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -108,7 +109,7 @@ async def update_game_course_data(game_id: str, db: Session = Depends(get_db)) -
 
         from datetime import datetime
 
-        game.updated_at = datetime.now(UTC).isoformat()
+        game.updated_at = utc_now().isoformat()
 
         db.commit()
         db.refresh(game)
@@ -221,7 +222,7 @@ async def update_all_games_course_data(db: Session = Depends(get_db)) -> dict[st
 
             from datetime import datetime
 
-            game.updated_at = datetime.now(UTC).isoformat()
+            game.updated_at = utc_now().isoformat()
 
             games_updated += 1
             total_holes_updated += holes_updated_this_game

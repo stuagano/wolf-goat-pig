@@ -123,7 +123,7 @@ async def create_game_with_join_code(
 
         # Create game with unique ID
         game_id = str(uuid.uuid4())
-        current_time = datetime.now(UTC).isoformat()
+        current_time = utc_now().isoformat()
 
         # Initial game state
         initial_state = {
@@ -223,7 +223,7 @@ async def join_game_with_code(  # type: ignore
 
         # Assign player slot
         player_slot_id = f"p{len(current_players) + 1}"
-        current_time = datetime.now(UTC).isoformat()
+        current_time = utc_now().isoformat()
 
         # Ensure handicap is valid - use default if None
         player_handicap = request.handicap if request.handicap is not None else 18.0
@@ -360,7 +360,7 @@ async def set_tee_order(
 
         # Mark tee order as set in game state
         game.state["tee_order_set"] = True
-        game.updated_at = datetime.now(UTC)
+        game.updated_at = utc_now()
 
         # Tell SQLAlchemy the JSON field has changed
         from sqlalchemy.orm.attributes import flag_modified
@@ -481,7 +481,7 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
 
         # Update database game state
         game.game_status = "in_progress"  # type: ignore
-        game.updated_at = datetime.now(UTC).isoformat()  # type: ignore
+        game.updated_at = utc_now().isoformat()  # type: ignore
         game.state = initial_state  # type: ignore
         game.state["game_status"] = "in_progress"
         game.state["started_at"] = game.updated_at
@@ -1055,7 +1055,7 @@ async def perform_game_action_by_id(  # type: ignore
         if game:
             game.state = simulation.get_game_state()
             game.state["game_id"] = game_id
-            game.updated_at = datetime.now(UTC).isoformat()
+            game.updated_at = utc_now().isoformat()
 
             # Check if game is completed
             if simulation.current_hole > 18:

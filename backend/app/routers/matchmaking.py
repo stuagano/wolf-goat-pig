@@ -67,7 +67,7 @@ def _get_all_players_availability(db: Session) -> list[dict[str, Any]]:
 
 def _get_recent_match_history(db: Session, days: int = 7) -> list[dict[str, Any]]:
     """Get recent match history for filtering."""
-    cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
+    cutoff = (utc_now() - timedelta(days=days)).isoformat()
     recent_matches = db.query(models.MatchSuggestion).filter(models.MatchSuggestion.created_at >= cutoff).all()
     history: list[dict[str, Any]] = []
     for match in recent_matches:
@@ -86,8 +86,8 @@ def _save_match_to_db(
     match_data: dict[str, Any],
 ) -> models.MatchSuggestion:
     """Save a match suggestion and its players to the database."""
-    now = datetime.now(UTC).isoformat()
-    expires = (datetime.now(UTC) + timedelta(days=7)).isoformat()
+    now = utc_now().isoformat()
+    expires = (utc_now() + timedelta(days=7)).isoformat()
 
     match = models.MatchSuggestion(
         day_of_week=match_data["day_of_week"],
@@ -222,7 +222,7 @@ def run_matchmaking_for_player(
     recent_db_matches = (
         db.query(models.MatchSuggestion)
         .filter(
-            models.MatchSuggestion.created_at >= (datetime.now(UTC) - timedelta(days=7)).isoformat(),
+            models.MatchSuggestion.created_at >= (utc_now() - timedelta(days=7)).isoformat(),
             models.MatchSuggestion.status.in_(["pending", "accepted"]),
         )
         .all()
@@ -363,7 +363,7 @@ async def respond_to_match(
             detail=f"You have already responded with '{match_player.response}'",
         )
 
-    now = datetime.now(UTC).isoformat()
+    now = utc_now().isoformat()
     match_player.response = response_body.response  # type: ignore
     match_player.responded_at = now  # type: ignore
     match_player.updated_at = now  # type: ignore

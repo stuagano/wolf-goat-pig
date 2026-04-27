@@ -3,6 +3,7 @@
 import logging
 import random
 from datetime import UTC, datetime
+from ..utils.time import utc_now
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -94,7 +95,7 @@ async def create_test_game(
     # Generate 6-character join code
     join_code = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
     game_id = str(uuid.uuid4())
-    current_time = datetime.now(UTC).isoformat()
+    current_time = utc_now().isoformat()
 
     # Create mock players (supports up to 6 players)
     mock_players = [
@@ -346,7 +347,7 @@ async def update_player_name(  # type: ignore
                         break
 
                 game.state = state  # type: ignore
-                game.updated_at = datetime.now(UTC).isoformat()  # type: ignore
+                game.updated_at = utc_now().isoformat()  # type: ignore
 
                 # Also update GamePlayer record
                 game_player = (
@@ -432,7 +433,7 @@ async def remove_player(game_id: str, player_slot_id: str, db: Session = Depends
         players = state.get("players", [])
         state["players"] = [p for p in players if p.get("id") != player_slot_id]
         game.state = state
-        game.updated_at = datetime.now(UTC).isoformat()
+        game.updated_at = utc_now().isoformat()
 
         db.commit()
 
@@ -517,7 +518,7 @@ async def update_player_handicap(  # type: ignore
                 break
 
         game.state = state
-        game.updated_at = datetime.now(UTC).isoformat()
+        game.updated_at = utc_now().isoformat()
 
         db.commit()
 

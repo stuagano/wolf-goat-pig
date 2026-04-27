@@ -289,8 +289,8 @@ async def create_or_update_banner(  # type: ignore
             text_color=banner_data.text_color,
             show_icon=banner_data.show_icon,
             dismissible=banner_data.dismissible,
-            created_at=datetime.now(UTC).isoformat(),
-            updated_at=datetime.now(UTC).isoformat(),
+            created_at=utc_now().isoformat(),
+            updated_at=utc_now().isoformat(),
         )
 
         db.add(new_banner)
@@ -345,7 +345,7 @@ async def update_banner(  # type: ignore
         for field, value in update_data.items():
             setattr(banner, field, value)
 
-        banner.updated_at = datetime.now(UTC).isoformat()
+        banner.updated_at = utc_now().isoformat()
 
         db.commit()
         db.refresh(banner)
@@ -515,7 +515,7 @@ async def get_orphaned_games(
     """Get a list of orphaned games (setup status, 0 players, older than specified hours)."""
     require_admin(x_admin_email)
     try:
-        cutoff_time = datetime.now(UTC) - timedelta(hours=hours_old)
+        cutoff_time = utc_now() - timedelta(hours=hours_old)
 
         # Query for orphaned games
         orphaned = (
@@ -567,7 +567,7 @@ async def delete_orphaned_games(
     """
     require_admin(x_admin_email)
     try:
-        cutoff_time = datetime.now(UTC) - timedelta(hours=hours_old)
+        cutoff_time = utc_now() - timedelta(hours=hours_old)
 
         # Find orphaned games
         orphaned = (
@@ -679,7 +679,7 @@ async def get_database_stats(x_admin_email: str | None = Header(None), db: Sessi
             "unread": unread_notifications,
         }
 
-        return {"generated_at": datetime.now(UTC).isoformat(), "stats": stats}
+        return {"generated_at": utc_now().isoformat(), "stats": stats}
     except Exception as e:
         logger.error(f"Error getting database stats: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get database stats: {e!s}")

@@ -21,6 +21,7 @@ Notification types supported:
 
 import logging
 from datetime import UTC, datetime, timedelta
+from ..utils.time import utc_now
 from typing import Any
 
 from fastapi import HTTPException
@@ -121,7 +122,7 @@ class NotificationService:
                 message=message,
                 data=data or {},
                 is_read=False,
-                created_at=datetime.now(UTC).isoformat(),
+                created_at=utc_now().isoformat(),
             )
 
             db.add(notification)
@@ -479,7 +480,7 @@ class NotificationService:
         """
         try:
             # Calculate cutoff date
-            cutoff_date = (datetime.now(UTC) - timedelta(days=days_old)).isoformat()
+            cutoff_date = (utc_now() - timedelta(days=days_old)).isoformat()
 
             # Get old notifications
             old_notifications = (

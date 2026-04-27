@@ -10,6 +10,7 @@ Data is automatically deduplicated based on date/group/member/score.
 
 import logging
 from datetime import UTC, datetime
+from ..utils.time import utc_now
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query
@@ -290,7 +291,7 @@ def sync_sheets_to_db(db: Session = Depends(get_db)) -> Any:
     if not all_rounds:
         return {"success": False, "error": "No rounds returned from sheets", "synced": 0}
 
-    synced_at = datetime.now(UTC).isoformat()
+    synced_at = utc_now().isoformat()
 
     # Clear existing sheet-sourced rows and repopulate
     db.query(models.LegacyRound).filter(
