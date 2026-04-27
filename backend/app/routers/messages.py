@@ -6,6 +6,7 @@ Daily message board for player communication.
 
 import logging
 from datetime import datetime
+from ..utils.time import utc_now
 
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -50,10 +51,10 @@ def create_message(message: schemas.DailyMessageCreate):  # type: ignore
             player_profile_id=message.player_profile_id or 1,
             player_name=message.player_name or "Anonymous",
             message=message.message,
-            message_time=datetime.now().isoformat(),
+            message_time=utc_now().isoformat(),
             is_active=1,
-            created_at=datetime.now().isoformat(),
-            updated_at=datetime.now().isoformat(),
+            created_at=utc_now().isoformat(),
+            updated_at=utc_now().isoformat(),
         )
 
         db.add(db_message)
@@ -83,7 +84,7 @@ def update_message(message_id: int, message_update: schemas.DailyMessageUpdate):
 
         if message_update.message is not None:
             db_message.message = message_update.message  # type: ignore
-            db_message.updated_at = datetime.now().isoformat()  # type: ignore
+            db_message.updated_at = utc_now().isoformat()  # type: ignore
 
         db.commit()
         db.refresh(db_message)
@@ -112,7 +113,7 @@ def delete_message(message_id: int):  # type: ignore
             raise HTTPException(status_code=404, detail="Message not found")
 
         db_message.is_active = 0  # type: ignore
-        db_message.updated_at = datetime.now().isoformat()  # type: ignore
+        db_message.updated_at = utc_now().isoformat()  # type: ignore
 
         db.commit()
 

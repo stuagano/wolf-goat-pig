@@ -8,6 +8,7 @@ Handles match suggestions, accept/decline responses, and the
 import logging
 import os
 from datetime import UTC, datetime, timedelta
+from ..utils.time import utc_now
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
@@ -667,7 +668,7 @@ def get_match_suggestions(
         # Get recent match history to filter out recently matched players
         recent_matches = (
             db.query(models.MatchSuggestion)
-            .filter(models.MatchSuggestion.created_at >= (datetime.now() - timedelta(days=7)).isoformat())
+            .filter(models.MatchSuggestion.created_at >= (utc_now() - timedelta(days=7)).isoformat())
             .all()
         )
 
@@ -738,8 +739,8 @@ async def create_and_notify_matches(db: Session = Depends(get_db)) -> dict[str, 
                     suggested_tee_time=match_data["suggested_tee_time"],
                     match_quality_score=match_data["match_quality"],
                     status="pending",
-                    created_at=datetime.now().isoformat(),
-                    expires_at=(datetime.now() + timedelta(days=7)).isoformat(),
+                    created_at=utc_now().isoformat(),
+                    expires_at=(utc_now() + timedelta(days=7)).isoformat(),
                 )
                 db.add(match)
                 db.commit()
@@ -752,7 +753,7 @@ async def create_and_notify_matches(db: Session = Depends(get_db)) -> dict[str, 
                         player_profile_id=player["player_id"],
                         player_name=player["player_name"],
                         player_email=player["email"],
-                        created_at=datetime.now().isoformat(),
+                        created_at=utc_now().isoformat(),
                     )
                     db.add(match_player)
 
@@ -773,7 +774,7 @@ async def create_and_notify_matches(db: Session = Depends(get_db)) -> dict[str, 
 
                     # Mark as sent
                     match.notification_sent = True  # type: ignore
-                    match.notification_sent_at = datetime.now().isoformat()  # type: ignore
+                    match.notification_sent_at = utc_now().isoformat()  # type: ignore
                     db.commit()
 
                     notifications_sent.append(

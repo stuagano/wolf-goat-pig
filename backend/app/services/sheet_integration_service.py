@@ -14,6 +14,7 @@ Features:
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
+from ..utils.time import utc_now
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -294,7 +295,7 @@ class SheetIntegrationService:
                         player = PlayerProfile(
                             name=player_name,
                             handicap=data.get("handicap", 18.0),
-                            created_date=datetime.now().isoformat(),
+                            created_date=utc_now().isoformat(),
                             is_active=1,
                         )
                         self.db.add(player)
@@ -314,7 +315,7 @@ class SheetIntegrationService:
                         if field_name != "player_name" and hasattr(stats, field_name) and value is not None:
                             setattr(stats, field_name, value)
 
-                    stats.last_updated = datetime.now().isoformat()
+                    stats.last_updated = utc_now().isoformat()
                     results["players_updated"] += 1
                     results["players_processed"] += 1
 

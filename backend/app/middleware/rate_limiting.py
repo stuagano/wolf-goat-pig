@@ -6,6 +6,7 @@ Prevents excessive calls to expensive operations like Google Sheets sync.
 
 import logging
 from datetime import datetime, timedelta
+from ..utils.time import utc_now
 
 from fastapi import HTTPException
 
@@ -44,7 +45,7 @@ class RateLimiter:
             HTTPException: 429 if rate limit exceeded
         """
         rate_key = f"{key}:{client_id or 'system'}"
-        now = datetime.now()
+        now = utc_now()
         min_interval = timedelta(seconds=min_interval_seconds)
 
         if rate_key in self.last_request:

@@ -6,6 +6,7 @@ For production, consider using Redis for distributed caching.
 
 import logging
 from datetime import datetime, timedelta
+from ..utils.time import utc_now
 from typing import Any
 
 logger = logging.getLogger("app.caching")
@@ -47,7 +48,7 @@ class SimpleCache:
             return None
 
         value, timestamp = self.cache[key]
-        age = datetime.now() - timestamp
+        age = utc_now() - timestamp
 
         if age >= self.default_ttl:
             # Expired, remove from cache
@@ -69,7 +70,7 @@ class SimpleCache:
             key: Cache key
             value: Value to cache
         """
-        self.cache[key] = (value, datetime.now())
+        self.cache[key] = (value, utc_now())
         logger.debug(f"Cache SET for key: {key}")
 
     def invalidate(self, key: str) -> None:
@@ -93,7 +94,7 @@ class SimpleCache:
 
     def cleanup_expired(self):
         """Remove all expired entries from cache."""
-        now = datetime.now()
+        now = utc_now()
         expired_keys = [key for key, (_, timestamp) in self.cache.items() if now - timestamp >= self.default_ttl]
 
         for key in expired_keys:

@@ -7,6 +7,7 @@ These are plain async functions (no APIRouter). The router in
 
 import logging
 from datetime import datetime
+from ..utils.time import utc_now
 from typing import Any
 
 from fastapi import HTTPException
@@ -100,8 +101,8 @@ async def handle_request_partnership(game: WolfGoatPigGame, payload: dict[str, A
             log_message=result.get("message", f"Partnership requested with {target_player}"),
             available_actions=available_actions,
             timeline_event={
-                "id": f"partnership_request_{datetime.now().timestamp()}",
-                "timestamp": datetime.now().isoformat(),
+                "id": f"partnership_request_{utc_now().timestamp()}",
+                "timestamp": utc_now().isoformat(),
                 "type": "partnership_request",
                 "description": f"Partnership requested with {target_player}",
                 "player_name": game._get_player_name(captain_id),
@@ -157,8 +158,8 @@ async def handle_respond_partnership(game: WolfGoatPigGame, payload: dict[str, A
             log_message=message,
             available_actions=[{"action_type": "PLAY_SHOT", "prompt": "Continue with hole"}],
             timeline_event={
-                "id": f"partnership_response_{datetime.now().timestamp()}",
-                "timestamp": datetime.now().isoformat(),
+                "id": f"partnership_response_{utc_now().timestamp()}",
+                "timestamp": utc_now().isoformat(),
                 "type": "partnership_response",
                 "description": f"Partnership {'accepted' if accepted else 'declined'}",
                 "player_name": "Partner",
@@ -203,8 +204,8 @@ async def handle_declare_solo(game: WolfGoatPigGame) -> ActionResponse:
             log_message="Captain declares solo! It's 1 vs 3.",
             available_actions=[{"action_type": "PLAY_SHOT", "prompt": "Continue with hole"}],
             timeline_event={
-                "id": f"solo_declaration_{datetime.now().timestamp()}",
-                "timestamp": datetime.now().isoformat(),
+                "id": f"solo_declaration_{utc_now().timestamp()}",
+                "timestamp": utc_now().isoformat(),
                 "type": "partnership_decision",
                 "description": "Captain goes solo - 1 vs 3",
                 "player_name": "Captain",
@@ -238,8 +239,8 @@ async def handle_aardvark_join_request(game: WolfGoatPigGame, payload: dict[str,
                 }
             ],
             timeline_event={
-                "id": f"aardvark_request_{datetime.now().timestamp()}",
-                "timestamp": datetime.now().isoformat(),
+                "id": f"aardvark_request_{utc_now().timestamp()}",
+                "timestamp": utc_now().isoformat(),
                 "type": "aardvark_request",
                 "description": result["message"],
                 "details": {"aardvark_id": aardvark_id, "target_team": target_team},
@@ -264,8 +265,8 @@ async def handle_aardvark_toss(game: WolfGoatPigGame, payload: dict[str, Any]) -
             log_message=result["message"],
             available_actions=[{"action_type": "PLAY_SHOT", "prompt": "Continue with hole"}],
             timeline_event={
-                "id": f"aardvark_toss_{datetime.now().timestamp()}",
-                "timestamp": datetime.now().isoformat(),
+                "id": f"aardvark_toss_{utc_now().timestamp()}",
+                "timestamp": utc_now().isoformat(),
                 "type": "aardvark_toss",
                 "description": result["message"],
                 "details": {
@@ -297,8 +298,8 @@ async def handle_aardvark_go_solo(game: WolfGoatPigGame, payload: dict[str, Any]
             log_message=result["message"],
             available_actions=[{"action_type": "PLAY_SHOT", "prompt": "Continue with hole"}],
             timeline_event={
-                "id": f"aardvark_solo_{datetime.now().timestamp()}",
-                "timestamp": datetime.now().isoformat(),
+                "id": f"aardvark_solo_{utc_now().timestamp()}",
+                "timestamp": utc_now().isoformat(),
                 "type": "aardvark_solo",
                 "description": result["message"],
                 "details": {
@@ -327,8 +328,8 @@ async def handle_ping_pong_aardvark(game: WolfGoatPigGame, payload: dict[str, An
             log_message=result["message"],
             available_actions=[{"action_type": "PLAY_SHOT", "prompt": "Continue with hole"}],
             timeline_event={
-                "id": f"ping_pong_{datetime.now().timestamp()}",
-                "timestamp": datetime.now().isoformat(),
+                "id": f"ping_pong_{utc_now().timestamp()}",
+                "timestamp": utc_now().isoformat(),
                 "type": "ping_pong_aardvark",
                 "description": result["message"],
                 "details": {

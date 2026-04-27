@@ -12,6 +12,7 @@ import json
 import logging
 import os
 from datetime import UTC, datetime, timedelta
+from ..utils.time import utc_now
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, UploadFile
@@ -497,7 +498,7 @@ async def get_table_content(
 async def test_deployment(x_admin_email: str | None = Header(None)):  # type: ignore
     """Test that new deployments are working."""
     require_admin(x_admin_email)
-    return {"message": "Deployment is working", "timestamp": datetime.now().isoformat()}
+    return {"message": "Deployment is working", "timestamp": utc_now().isoformat()}
 
 
 # =============================================================================

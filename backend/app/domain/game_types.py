@@ -3,6 +3,7 @@
 import random
 from dataclasses import dataclass, field
 from datetime import datetime
+from ..utils.time import utc_now
 from enum import Enum
 from typing import Any
 
@@ -636,7 +637,7 @@ class WGPHoleProgression:
         """Add a new timeline event"""
         event = TimelineEvent(
             id=f"event_{len(self.timeline_events) + 1}",
-            timestamp=datetime.now(),
+            timestamp=utc_now(),
             type=event_type,
             description=description,
             details=details or {},

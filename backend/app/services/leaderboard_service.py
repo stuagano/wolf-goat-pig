@@ -20,6 +20,7 @@ Features:
 import logging
 import time
 from datetime import datetime, timedelta
+from ..utils.time import utc_now
 from typing import Any
 
 from fastapi import HTTPException
@@ -277,7 +278,7 @@ class LeaderboardService:
                 )
 
             # Calculate date range
-            end_date = datetime.now()
+            end_date = utc_now()
             start_date = end_date - timedelta(days=7)
 
             # Generate time-filtered leaderboard
@@ -326,7 +327,7 @@ class LeaderboardService:
                 )
 
             # Calculate date range
-            end_date = datetime.now()
+            end_date = utc_now()
             start_date = end_date - timedelta(days=30)
 
             # Generate time-filtered leaderboard

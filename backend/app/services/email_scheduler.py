@@ -7,6 +7,7 @@ This module handles scheduling and sending automated emails based on user prefer
 import logging
 import threading
 from datetime import datetime, timedelta
+from ..utils.time import utc_now
 from typing import Any
 
 import schedule
@@ -217,7 +218,7 @@ class EmailScheduler:
         """Get available signup dates for the next week"""
         # Mock implementation - replace with actual logic
         dates = []
-        today = datetime.now()
+        today = utc_now()
 
         for i in range(1, 8):  # Next 7 days
             date = today + timedelta(days=i)

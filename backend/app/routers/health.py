@@ -11,6 +11,7 @@ Uses new utility patterns:
 import logging
 import os
 from datetime import datetime
+from ..utils.time import utc_now
 from typing import Any, cast
 
 from fastapi import APIRouter, HTTPException
@@ -186,7 +187,7 @@ def health_check() -> dict[str, Any]:
     """Comprehensive health check endpoint verifying all critical systems"""
     health_status: dict[str, Any] = {
         "status": "healthy",
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": utc_now().isoformat(),
         "environment": os.getenv("ENVIRONMENT", "unknown"),
         "version": "1.0.0",
         "components": {},
@@ -241,7 +242,7 @@ def readiness_check():
     Only checks if the app is running, not comprehensive system health.
     Use /health for detailed health checks.
     """
-    return {"status": "ready", "timestamp": datetime.now().isoformat()}
+    return {"status": "ready", "timestamp": utc_now().isoformat()}
 
 
 @router.post("/admin/ensure-schema")

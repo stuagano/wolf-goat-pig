@@ -4,6 +4,7 @@ import logging
 import time
 import traceback
 from datetime import datetime
+from ..utils.time import utc_now
 from typing import Any
 
 from fastapi import APIRouter, Body, HTTPException
@@ -183,7 +184,7 @@ async def get_shot_range_analysis(request: ShotRangeAnalysisRequest) -> dict[str
         return {
             "status": "success",
             "analysis": analysis,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": utc_now().isoformat(),
         }
 
     except Exception as e:
@@ -341,7 +342,7 @@ async def get_current_betting_opportunities():
         return {
             "opportunities": opportunities,
             "hole_number": current_hole,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": utc_now().isoformat(),
             "game_active": current_state.get("active", False),
         }
 

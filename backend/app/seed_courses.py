@@ -1,4 +1,5 @@
 from datetime import datetime
+from .utils.time import utc_now
 
 from .database import SessionLocal, init_db
 from .models import Course, Hole
@@ -788,8 +789,8 @@ def main():
                 total_yards=course_data["total_yards"],
                 course_rating=course_data.get("course_rating"),
                 slope_rating=course_data.get("slope_rating"),
-                created_at=datetime.now().isoformat(),
-                updated_at=datetime.now().isoformat(),
+                created_at=utc_now().isoformat(),
+                updated_at=utc_now().isoformat(),
             )
 
             db.add(course)

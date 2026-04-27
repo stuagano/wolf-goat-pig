@@ -5,6 +5,7 @@ Handles scenarios where more than 4 players are signed up for a given day.
 
 import logging
 from datetime import datetime
+from ..utils.time import utc_now
 from random import Random, SystemRandom
 from typing import Any
 
@@ -60,7 +61,7 @@ class TeamFormationService:
             team = {
                 "team_id": team_number,
                 "players": team_players,
-                "created_at": datetime.now().isoformat(),
+                "created_at": utc_now().isoformat(),
                 "formation_method": "random",
             }
             teams.append(team)
@@ -113,7 +114,7 @@ class TeamFormationService:
                     {
                         "rotation_number": rotation + 1,
                         "teams": teams,
-                        "created_at": datetime.now().isoformat(),
+                        "created_at": utc_now().isoformat(),
                         "total_teams": len(teams),
                         "total_players_assigned": len(teams) * 4,
                     }
@@ -191,7 +192,7 @@ class TeamFormationService:
                 "team_id": team_number,
                 "players": team_players,
                 "average_handicap": round(team_avg_handicap, 1),
-                "created_at": datetime.now().isoformat(),
+                "created_at": utc_now().isoformat(),
                 "formation_method": "balanced",
             }
             teams.append(team)
@@ -215,7 +216,7 @@ class TeamFormationService:
                 "total_teams": 0,
                 "total_players_assigned": 0,
                 "formation_method": None,
-                "created_at": datetime.now().isoformat(),
+                "created_at": utc_now().isoformat(),
             }
 
         total_players = sum(len(team["players"]) for team in teams)
@@ -225,7 +226,7 @@ class TeamFormationService:
             "total_teams": len(teams),
             "total_players_assigned": total_players,
             "formation_method": formation_method,
-            "created_at": datetime.now().isoformat(),
+            "created_at": utc_now().isoformat(),
             "teams": teams,
         }
 

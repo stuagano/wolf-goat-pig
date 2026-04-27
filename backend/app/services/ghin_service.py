@@ -11,6 +11,7 @@ This service handles:
 import logging
 import os
 from datetime import datetime
+from ..utils.time import utc_now
 from typing import Any, cast
 
 import httpx  # Added httpx for API calls
@@ -119,17 +120,17 @@ class GHINService:
             if handicap_data:
                 # Update player profile with latest handicap - use setattr to avoid Column type errors
                 player.handicap = handicap_data.get("handicap_index", player.handicap)
-                player.ghin_last_updated = datetime.now().isoformat()
+                player.ghin_last_updated = utc_now().isoformat()
 
                 # Store handicap history
                 handicap_history = GHINHandicapHistory(
                     player_profile_id=player_id,
                     ghin_id=player.ghin_id,
-                    effective_date=handicap_data.get("effective_date", datetime.now().date().isoformat()),
+                    effective_date=handicap_data.get("effective_date", utc_now().date().isoformat()),
                     handicap_index=handicap_data.get("handicap_index"),
                     revision_reason=handicap_data.get("revision_reason"),
                     scores_used_count=handicap_data.get("scores_used_count"),
-                    synced_at=datetime.now().isoformat(),
+                    synced_at=utc_now().isoformat(),
                 )
 
                 self.db.add(handicap_history)
@@ -201,9 +202,9 @@ class GHINService:
                         differential=score_data.get("differential"),
                         posted=1 if score_data.get("posted", True) else 0,
                         handicap_index_at_time=score_data.get("handicap_index_at_time"),
-                        synced_at=datetime.now().isoformat(),
-                        created_at=datetime.now().isoformat(),
-                        updated_at=datetime.now().isoformat(),
+                        synced_at=utc_now().isoformat(),
+                        created_at=utc_now().isoformat(),
+                        updated_at=utc_now().isoformat(),
                     )
 
                     self.db.add(ghin_score)
@@ -258,7 +259,7 @@ class GHINService:
                 "total_players": len(players_with_ghin),
                 "synced": synced_count,
                 "errors": error_count,
-                "synced_at": datetime.now().isoformat(),
+                "synced_at": utc_now().isoformat(),
             }
 
             logger.info(f"Bulk handicap sync completed: {summary}")

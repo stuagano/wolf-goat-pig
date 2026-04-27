@@ -45,9 +45,8 @@ class TestGetNextSunday:
         assert len(parts[2]) == 2  # day
 
     def test_uses_datetime_now_when_no_from_date(self):
-        with patch("app.services.pairing_scheduler_service.datetime") as mock_dt:
-            mock_dt.now.return_value = datetime(2026, 4, 6)  # Monday
-            mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
+        with patch("app.services.pairing_scheduler_service.utc_now") as mock_utc_now:
+            mock_utc_now.return_value = datetime(2026, 4, 6)  # Monday
             result = PairingSchedulerService.get_next_sunday()
         assert result == "2026-04-12"
 

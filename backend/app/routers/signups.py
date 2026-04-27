@@ -6,6 +6,7 @@ Legacy player lookup and daily sign-up management.
 
 import logging
 from datetime import datetime, timedelta
+from ..utils.time import utc_now
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -162,12 +163,12 @@ def create_signup(signup: schemas.DailySignupCreate):  # type: ignore
             date=signup.date,
             player_profile_id=signup.player_profile_id,
             player_name=signup.player_name,
-            signup_time=datetime.now().isoformat(),
+            signup_time=utc_now().isoformat(),
             preferred_start_time=signup.preferred_start_time,
             notes=signup.notes,
             status="signed_up",
-            created_at=datetime.now().isoformat(),
-            updated_at=datetime.now().isoformat(),
+            created_at=utc_now().isoformat(),
+            updated_at=utc_now().isoformat(),
         )
 
         db.add(db_signup)
@@ -213,7 +214,7 @@ def update_signup(signup_id: int, signup_update: schemas.DailySignupUpdate):  # 
         if signup_update.status is not None:
             db_signup.status = signup_update.status  # type: ignore
 
-        db_signup.updated_at = datetime.now().isoformat()  # type: ignore
+        db_signup.updated_at = utc_now().isoformat()  # type: ignore
 
         db.commit()
         db.refresh(db_signup)
@@ -249,7 +250,7 @@ def cancel_signup(signup_id: int):  # type: ignore
             raise HTTPException(status_code=404, detail="Sign-up not found")
 
         db_signup.status = "cancelled"  # type: ignore
-        db_signup.updated_at = datetime.now().isoformat()  # type: ignore
+        db_signup.updated_at = utc_now().isoformat()  # type: ignore
 
         db.commit()
 

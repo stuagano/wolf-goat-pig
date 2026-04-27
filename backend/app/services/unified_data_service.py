@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
+from ..utils.time import utc_now
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -91,11 +92,11 @@ class UnifiedDataService:
         """
         try:
             # Try parsing with current year
-            current_year = datetime.now().year
+            current_year = utc_now().year
             dt = datetime.strptime(f"{date_str}-{current_year}", "%d-%b-%Y")
 
             # If date is in the future by more than a month, it's probably last year
-            if dt > datetime.now() and (dt - datetime.now()).days > 30:
+            if dt > utc_now() and (dt - utc_now()).days > 30:
                 dt = dt.replace(year=current_year - 1)
 
             return dt.strftime("%Y-%m-%d")

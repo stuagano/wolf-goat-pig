@@ -8,6 +8,7 @@ Rate limited to prevent excessive API calls.
 
 import logging
 from datetime import datetime
+from ..utils.time import utc_now
 from typing import Any
 
 import httpx
@@ -159,7 +160,7 @@ async def create_leaderboard_from_sheet(sheet_data: list[dict], db: Session = De
         return {
             "leaderboard": leaderboard,
             "player_count": len(leaderboard),
-            "created_at": datetime.now().isoformat(),
+            "created_at": utc_now().isoformat(),
         }
 
     except Exception as e:
@@ -210,7 +211,7 @@ def export_current_data_for_sheet(
             "data": export_data,
             "headers": sheet_headers,
             "row_count": len(export_data),
-            "exported_at": datetime.now().isoformat(),
+            "exported_at": utc_now().isoformat(),
         }
 
     except Exception as e:
@@ -484,7 +485,7 @@ async def sync_wgp_sheet_data(
                 player_stats_record.avg_earnings_per_game = avg_earnings
 
                 # Update timestamp
-                player_stats_record.last_updated = datetime.now().isoformat()
+                player_stats_record.last_updated = utc_now().isoformat()
 
                 # Try to fetch GHIN data if player has GHIN ID
                 ghin_data = None
@@ -538,7 +539,7 @@ async def sync_wgp_sheet_data(
         result = {
             "sync_results": sync_results,
             "player_count": len(player_stats),
-            "synced_at": datetime.now().isoformat(),
+            "synced_at": utc_now().isoformat(),
             "headers_found": headers,
             "players_synced": list(player_stats.keys()),
             "sample_data": {name: stats for name, stats in list(player_stats.items())[:3]},  # First 3 players as sample
@@ -605,7 +606,7 @@ async def fetch_google_sheet(request: dict[str, str]) -> dict[str, Any]:
             "headers": headers,
             "data": data,
             "row_count": len(data),
-            "fetched_at": datetime.now().isoformat(),
+            "fetched_at": utc_now().isoformat(),
         }
 
     except httpx.RequestError as e:
@@ -636,7 +637,7 @@ async def compare_sheet_to_db_data(request: dict, db: Session = Depends(get_db))
         return {
             "comparison": comparison,
             "differences_found": len(comparison.get("differences", [])),
-            "compared_at": datetime.now().isoformat(),
+            "compared_at": utc_now().isoformat(),
         }
 
     except Exception as e:

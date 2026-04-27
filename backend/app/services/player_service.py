@@ -11,6 +11,7 @@ This service handles all player profile operations including:
 
 import logging
 from datetime import datetime
+from ..utils.time import utc_now
 from typing import Any
 
 from sqlalchemy import and_, desc
@@ -51,7 +52,7 @@ class PlayerService:
                 name=profile_data.name,
                 handicap=profile_data.handicap,
                 avatar_url=profile_data.avatar_url,
-                created_at=datetime.now().isoformat(),
+                created_at=utc_now().isoformat(),
                 preferences=profile_data.preferences
                 or {
                     "ai_difficulty": "medium",
@@ -66,7 +67,7 @@ class PlayerService:
             self.db.flush()  # Get the ID before committing
 
             # Create initial statistics record
-            player_stats = PlayerStatistics(player_id=player_profile.id, last_updated=datetime.now().isoformat())
+            player_stats = PlayerStatistics(player_id=player_profile.id, last_updated=utc_now().isoformat())
 
             self.db.add(player_stats)
             self.db.commit()
@@ -233,7 +234,7 @@ class PlayerService:
         try:
             player = self.db.query(PlayerProfile).filter(PlayerProfile.id == player_id).first()
             if player:
-                player.last_played = datetime.now().isoformat()
+                player.last_played = utc_now().isoformat()
                 self.db.commit()
 
         except Exception as e:
@@ -246,7 +247,7 @@ class PlayerService:
         try:
             # Create game player result record
             result_record = GamePlayerResult(**game_result.model_dump())
-            result_record.created_at = datetime.now().isoformat()
+            result_record.created_at = utc_now().isoformat()
             self.db.add(result_record)
 
             # Update player statistics
@@ -374,7 +375,7 @@ class PlayerService:
 
         # Update performance trends
         performance_point = {
-            "game_date": datetime.now().isoformat(),
+            "game_date": utc_now().isoformat(),
             "earnings": game_result.total_earnings,
             "position": game_result.final_position,
             "holes_won": game_result.holes_won,
@@ -389,7 +390,7 @@ class PlayerService:
             trends = trends[-50:]
 
         stats.performance_trends = trends
-        stats.last_updated = datetime.now().isoformat()
+        stats.last_updated = utc_now().isoformat()
 
     # Analytics and Insights
     def get_player_performance_analytics(self, player_id: int) -> PlayerPerformanceAnalytics | None:
@@ -747,7 +748,7 @@ class PlayerService:
                         achievement_type=achievement_type,
                         achievement_name=name,
                         description=description,
-                        earned_date=datetime.now().isoformat(),
+                        earned_date=utc_now().isoformat(),
                         achievement_data={"game_result": game_result.model_dump()},
                     )
 

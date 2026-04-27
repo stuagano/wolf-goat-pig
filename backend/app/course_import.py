@@ -10,6 +10,7 @@ import logging
 import os
 from dataclasses import dataclass
 from datetime import datetime
+from .utils.time import utc_now
 from typing import Any
 
 import httpx
@@ -391,7 +392,7 @@ class CourseImporter:
                 slope_rating=course_data.get("slope_rating"),
                 holes_data=holes_data,
                 source="JSON File",
-                last_updated=datetime.now().isoformat(),
+                last_updated=utc_now().isoformat(),
                 location=course_data.get("location"),
                 website=course_data.get("website"),
                 phone=course_data.get("phone"),
@@ -420,7 +421,7 @@ class CourseImporter:
                 if course_data.slope_rating is not None:
                     existing_course.slope_rating = course_data.slope_rating
                 existing_course.holes_data = course_data.holes_data
-                existing_course.updated_at = datetime.now().isoformat()
+                existing_course.updated_at = utc_now().isoformat()
             else:
                 # Create new course
                 new_course = Course(
@@ -431,8 +432,8 @@ class CourseImporter:
                     course_rating=course_data.course_rating,
                     slope_rating=course_data.slope_rating,
                     holes_data=course_data.holes_data,
-                    created_at=datetime.now().isoformat(),
-                    updated_at=datetime.now().isoformat(),
+                    created_at=utc_now().isoformat(),
+                    updated_at=utc_now().isoformat(),
                 )
                 db.add(new_course)
 

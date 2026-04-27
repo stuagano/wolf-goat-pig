@@ -7,6 +7,7 @@ These are plain async functions (no APIRouter). The router in
 
 import logging
 from datetime import datetime
+from ..utils.time import utc_now
 from typing import Any
 
 from fastapi import HTTPException
@@ -71,8 +72,8 @@ async def handle_offer_double(game: WolfGoatPigGame, payload: dict[str, Any]) ->
             log_message="Double offered! Wager increases.",
             available_actions=[{"action_type": "ACCEPT_DOUBLE", "prompt": "Accept/Decline double"}],
             timeline_event={
-                "id": f"double_offer_{datetime.now().timestamp()}",
-                "timestamp": datetime.now().isoformat(),
+                "id": f"double_offer_{utc_now().timestamp()}",
+                "timestamp": utc_now().isoformat(),
                 "type": "double_offer",
                 "description": f"{player_name} offered to double the wager",
                 "player_name": player_name,
@@ -120,8 +121,8 @@ async def handle_accept_double(game: WolfGoatPigGame, payload: dict[str, Any]) -
             log_message=message,
             available_actions=[{"action_type": "PLAY_SHOT", "prompt": "Continue with hole"}],
             timeline_event={
-                "id": f"double_response_{datetime.now().timestamp()}",
-                "timestamp": datetime.now().isoformat(),
+                "id": f"double_response_{utc_now().timestamp()}",
+                "timestamp": utc_now().isoformat(),
                 "type": "double_response",
                 "description": f"Double {'accepted' if accepted else 'declined'}",
                 "player_name": "Responding Team",
@@ -172,8 +173,8 @@ async def handle_invoke_float(game: WolfGoatPigGame, payload: dict[str, Any]) ->
             log_message="Float invoked! Wager doubled.",
             available_actions=[],
             timeline_event={
-                "id": f"float_invoked_{captain_id}_{datetime.now().timestamp()}",
-                "timestamp": datetime.now().isoformat(),
+                "id": f"float_invoked_{captain_id}_{utc_now().timestamp()}",
+                "timestamp": utc_now().isoformat(),
                 "type": "float_invoked",
                 "description": "Captain invoked Float - wager doubled!",
                 "details": {
@@ -234,8 +235,8 @@ async def handle_toggle_option(game: WolfGoatPigGame, payload: dict[str, Any]) -
             log_message=f"The Option {'activated' if option_active else 'deactivated'}",
             available_actions=[],
             timeline_event={
-                "id": f"option_toggled_{captain_id}_{datetime.now().timestamp()}",
-                "timestamp": datetime.now().isoformat(),
+                "id": f"option_toggled_{captain_id}_{utc_now().timestamp()}",
+                "timestamp": utc_now().isoformat(),
                 "type": "option_toggled",
                 "description": f"Captain {'activated' if option_active else 'deactivated'} The Option",
                 "details": {
@@ -314,8 +315,8 @@ async def handle_flush(game: WolfGoatPigGame, payload: dict[str, Any]) -> Action
             log_message=f"Flush! {concede_description}",
             available_actions=[{"action_type": "ADVANCE_HOLE", "prompt": "Continue to next hole"}],
             timeline_event={
-                "id": f"flush_{datetime.now().timestamp()}",
-                "timestamp": datetime.now().isoformat(),
+                "id": f"flush_{utc_now().timestamp()}",
+                "timestamp": utc_now().isoformat(),
                 "type": "flush",
                 "description": concede_description,
                 "details": {
@@ -353,8 +354,8 @@ async def handle_concede_putt(game: WolfGoatPigGame, payload: dict[str, Any]) ->
             log_message=f"{conceding_player} concedes putt to {conceded_player}",
             available_actions=[{"action_type": "PLAY_SHOT", "prompt": "Continue with hole"}],
             timeline_event={
-                "id": f"concession_{datetime.now().timestamp()}",
-                "timestamp": datetime.now().isoformat(),
+                "id": f"concession_{utc_now().timestamp()}",
+                "timestamp": utc_now().isoformat(),
                 "type": "concession",
                 "description": f"Putt conceded to {conceded_player}",
                 "player_name": conceding_player,
@@ -384,8 +385,8 @@ async def handle_offer_big_dick(game: WolfGoatPigGame, payload: dict[str, Any]) 
                 }
             ],
             timeline_event={
-                "id": f"big_dick_offer_{datetime.now().timestamp()}",
-                "timestamp": datetime.now().isoformat(),
+                "id": f"big_dick_offer_{utc_now().timestamp()}",
+                "timestamp": utc_now().isoformat(),
                 "type": "big_dick_offer",
                 "description": result["message"],
                 "player_name": result["challenger_name"],
@@ -410,8 +411,8 @@ async def handle_accept_big_dick(game: WolfGoatPigGame, payload: dict[str, Any])
             log_message=result["message"],
             available_actions=[{"action_type": "PLAY_SHOT", "prompt": "Continue with hole"}],
             timeline_event={
-                "id": f"big_dick_response_{datetime.now().timestamp()}",
-                "timestamp": datetime.now().isoformat(),
+                "id": f"big_dick_response_{utc_now().timestamp()}",
+                "timestamp": utc_now().isoformat(),
                 "type": "big_dick_response",
                 "description": result["message"],
                 "details": result,
@@ -442,8 +443,8 @@ async def handle_joes_special(game: WolfGoatPigGame, payload: dict[str, Any]) ->
             log_message=f"Joe's Special invoked! Hole starts at {selected_value} quarters.",
             available_actions=[{"action_type": "PLAY_SHOT", "prompt": "Continue with hole"}],
             timeline_event={
-                "id": f"joes_special_{datetime.now().timestamp()}",
-                "timestamp": datetime.now().isoformat(),
+                "id": f"joes_special_{utc_now().timestamp()}",
+                "timestamp": utc_now().isoformat(),
                 "type": "joes_special",
                 "description": f"Joe's Special: Hole value set to {selected_value} quarters",
                 "details": {"selected_value": selected_value},

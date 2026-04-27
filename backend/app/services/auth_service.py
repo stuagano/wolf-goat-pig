@@ -6,6 +6,7 @@ import logging
 import os
 from collections.abc import Generator
 from datetime import datetime
+from ..utils.time import utc_now
 from typing import Any
 
 from fastapi import Depends, HTTPException
@@ -117,8 +118,8 @@ class AuthService:
                 legacy_name=legacy_name,  # Link to legacy tee sheet system
                 email=email,
                 avatar_url=picture,
-                created_at=datetime.now().isoformat(),
-                updated_at=datetime.now().isoformat(),
+                created_at=utc_now().isoformat(),
+                updated_at=utc_now().isoformat(),
                 handicap=18.0,  # Default handicap
                 preferences={
                     "auth0_id": auth0_id,
@@ -136,8 +137,8 @@ class AuthService:
             # Create default email preferences
             email_prefs = EmailPreferences(
                 player_profile_id=player.id,
-                created_at=datetime.now().isoformat(),
-                updated_at=datetime.now().isoformat(),
+                created_at=utc_now().isoformat(),
+                updated_at=utc_now().isoformat(),
             )
             db.add(email_prefs)
             db.commit()
@@ -159,7 +160,7 @@ class AuthService:
                 update_needed = True
 
             if update_needed:
-                player.updated_at = datetime.now().isoformat()
+                player.updated_at = utc_now().isoformat()
                 db.commit()
                 logger.info(f"Updated player profile for {player.name}")
 
@@ -184,7 +185,7 @@ class AuthService:
             updated_prefs = dict(player.preferences) if player.preferences else {}
             updated_prefs["auth0_id"] = auth0_id
             player.preferences = updated_prefs
-            player.updated_at = datetime.now().isoformat()
+            player.updated_at = utc_now().isoformat()
 
             db.commit()
             logger.info(f"Linked Auth0 account {auth0_id} to player {player.name}")

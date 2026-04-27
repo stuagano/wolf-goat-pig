@@ -4,6 +4,7 @@ import json
 import logging
 import traceback
 from datetime import UTC, datetime
+from ..utils.time import utc_now
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -704,7 +705,7 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
         state["game_status"] = "completed"
         game.state = state
 
-        now = datetime.utcnow().isoformat()
+        now = utc_now().isoformat()
 
         # Create GameRecord if one doesn't already exist
         existing_record = db.query(models.GameRecord).filter(
