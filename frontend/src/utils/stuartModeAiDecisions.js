@@ -7,6 +7,19 @@ const SOLO_HCP_THRESHOLD = 15; // captain handicap above this rarely solos
 const SOLO_QUARTERS_FLOOR = -5; // already deeply down — partner up
 const HUNGRY_THRESHOLD = -5; // quarters at or below = "hungry"
 const STRONG_PLAYER_HCP = 10; // below this = always backs themselves
+const SOLO_HCP_EDGE = 4; // captain hcp this many strokes below field avg → confident solo
+const DOUBLE_OFFER_FREQ = 3; // 1-in-N hash gate so AI doesn't offer every favorable hole
+
+// Tiny string hash used for deterministic per-(player, hole) gating. Same
+// inputs always return the same boolean, so re-renders are stable.
+const stableHash = (str) => {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+};
 
 export function aiPartnerResponse({
   aiPlayer,
@@ -73,6 +86,10 @@ export function aiShouldOfferDouble({
     const strokes = strokeAllocation?.[ai.id]?.[currentHole] ?? 0;
     const quarters = playerStandings?.[ai.id]?.quarters ?? 0;
     const handicap = (Number.isFinite(Number(ai.handicap)) ? Number(ai.handicap) : 18);
+    // Per-hole gate so a player who has strokes on every hole doesn't
+    // offer doubles on every single hole. Roughly 1-in-DOUBLE_OFFER_FREQ.
+    const gate = stableHash(`${ai.id}|${currentHole}|dbl`) % DOUBLE_OFFER_FREQ === 0;
+    if (!gate) continue;
     // Offer when you have a stroke and the wager is still cheap.
     if (strokes >= 1 && currentWager <= 2) {
       return { player: ai, reason: "stroke on the hole, presses for value" };
@@ -114,20 +131,34 @@ export function aiCaptainDecide({
 
   const bestPartner = ranked[0]?.player;
 
-  // Solo when the captain has a real stroke advantage AND isn't already
-  // deep in a hole. Falls back to partners with the strongest available.
+  // Solo gate (tuned against ~17% historical solo rate observed in
+  // backend/game_player_results): allow solo when EITHER the captain has
+  // a stroke advantage OR their handicap is meaningfully better than
+  // the field — both conditions also gated on not being deeply down.
   const captainHcp = (Number.isFinite(Number(captain.handicap)) ? Number(captain.handicap) : 18);
-  const canSolo =
-    captainStrokes >= 1 &&
+  const fieldAvgHcp =
+    others.reduce(
+      (s, p) =>
+        s + (Number.isFinite(Number(p.handicap)) ? Number(p.handicap) : 18),
+      0,
+    ) / Math.max(1, others.length);
+  const hcpEdge = fieldAvgHcp - captainHcp; // positive = captain better than field
+
+  const eligibleToSolo =
+    (captainStrokes >= 1 || hcpEdge >= SOLO_HCP_EDGE) &&
     captainHcp < SOLO_HCP_THRESHOLD &&
     captainQuarters > SOLO_QUARTERS_FLOOR;
 
-  if (canSolo) {
-    return {
-      mode: "solo",
-      partnerId: null,
-      reason: `${captain.name} has a stroke and favorable position`,
-    };
+  // Also require a per-hole gate so the same captain doesn't solo every
+  // single time the conditions allow. Roughly 1-in-2 of eligible holes.
+  const soloGate = stableHash(`${captain.id}|${currentHole}|solo`) % 2 === 0;
+
+  if (eligibleToSolo && soloGate) {
+    const reason =
+      captainStrokes >= 1
+        ? `${captain.name} has a stroke and favorable position`
+        : `${captain.name} (hcp ${captainHcp}) has a clear edge on the field`;
+    return { mode: "solo", partnerId: null, reason };
   }
   return {
     mode: "partners",
