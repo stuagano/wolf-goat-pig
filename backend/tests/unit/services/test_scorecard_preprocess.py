@@ -25,3 +25,17 @@ def test_returns_tuple_of_bytes_content_type_diagnostics(example_image_bytes):
     assert content_type in ("image/jpeg", "image/png")
     assert isinstance(diag, dict)
     assert "preprocessing_applied" in diag
+
+
+def test_returns_original_on_bad_bytes():
+    annotated, content_type, diag = annotate_circles(b"not an image", "image/jpeg")
+    assert annotated == b"not an image"
+    assert content_type == "image/jpeg"
+    assert diag["preprocessing_applied"] is False
+    assert diag.get("error")
+
+
+def test_returns_original_on_empty_bytes():
+    annotated, content_type, diag = annotate_circles(b"", "image/jpeg")
+    assert annotated == b""
+    assert diag["preprocessing_applied"] is False
