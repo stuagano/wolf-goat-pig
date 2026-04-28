@@ -91,129 +91,126 @@ def _compute_per_hole_deltas(running_totals_for_player: list[dict], num_holes: i
     return deltas
 
 
-async def scan_scorecard(image_bytes: bytes, content_type: str) -> dict[str, Any]:
-    """
-    Send scorecard image to Groq Vision and return extracted running totals
-    plus computed per-hole quarter deltas.
-    """
+_STRICT_SUFFIX = """
+
+CRITICAL OUTPUT RULE — your previous response either failed to parse as JSON or violated the zero-sum invariant. Do these:
+1. Output ONLY a valid JSON object. No markdown fences, no prose, no leading or trailing text.
+2. Wolf Goat Pig is ZERO-SUM. On every hole, the change in running totals across all players MUST sum to 0. If your numbers don't satisfy this, re-read the cells before answering.
+3. If a value is unclear, lower its confidence — do NOT guess in a way that breaks zero-sum.
+"""
+
+
+def _validate_zero_sum(per_hole_quarters: list[dict]) -> dict[str, Any]:
+    """Per-hole deltas must sum to zero across players. Returns {valid, bad_holes}."""
+    by_hole: dict[int, float] = {}
+    for entry in per_hole_quarters:
+        h = entry["hole"]
+        by_hole[h] = by_hole.get(h, 0) + entry["quarters"]
+    # Allow small rounding noise (we store ints, so anything non-zero is real).
+    bad_holes = {h: s for h, s in by_hole.items() if abs(s) > 0.5}
+    return {"valid": not bad_holes, "bad_holes": bad_holes}
+
+
+async def _call_groq_vision(
+    image_bytes: bytes,
+    content_type: str,
+    *,
+    strict: bool = False,
+) -> dict[str, Any]:
+    """One round-trip to Groq Vision. Strict mode tightens the prompt and lowers temp."""
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
         raise ValueError("GROQ_API_KEY not configured")
 
-    try:
-        image_b64 = base64.b64encode(image_bytes).decode("utf-8")
+    image_b64 = base64.b64encode(image_bytes).decode("utf-8")
+    user_content: list[dict[str, Any]] = []
 
-        # Build messages with image content (OpenAI-compatible vision format)
-        user_content = []
+    ref = _load_reference_image()
+    if ref:
+        ref_bytes, ref_mime = ref
+        ref_b64 = base64.b64encode(ref_bytes).decode("utf-8")
+        ref_gt_path = _EXAMPLES_DIR / "example_001_ground_truth.json"
+        ref_gt = ref_gt_path.read_text() if ref_gt_path.exists() else ""
+        user_content.append({"type": "text", "text": "REFERENCE SCORECARD — study the handwriting style:"})
+        user_content.append({"type": "image_url", "image_url": {"url": f"data:{ref_mime};base64,{ref_b64}"}})
+        prompt = (
+            f"Correct extraction for the reference (H1-H6 confirmed):\n{ref_gt}\n\n"
+            f"---\n\nNow extract the NEW scorecard below:\n{EXTRACTION_PROMPT}"
+        )
+    else:
+        prompt = EXTRACTION_PROMPT
+    if strict:
+        prompt += _STRICT_SUFFIX
+    user_content.append({"type": "text", "text": prompt})
+    user_content.append({"type": "image_url", "image_url": {"url": f"data:{content_type};base64,{image_b64}"}})
 
-        # Add reference image if available (few-shot)
-        ref = _load_reference_image()
-        if ref:
-            ref_bytes, ref_mime = ref
-            ref_b64 = base64.b64encode(ref_bytes).decode("utf-8")
-            ref_gt_path = _EXAMPLES_DIR / "example_001_ground_truth.json"
-            ref_gt = ref_gt_path.read_text() if ref_gt_path.exists() else ""
-            user_content.append({
-                "type": "text",
-                "text": "REFERENCE SCORECARD — study the handwriting style:",
-            })
-            user_content.append({
-                "type": "image_url",
-                "image_url": {"url": f"data:{ref_mime};base64,{ref_b64}"},
-            })
-            user_content.append({
-                "type": "text",
-                "text": f"Correct extraction for the reference (H1-H6 confirmed):\n{ref_gt}\n\n---\n\nNow extract the NEW scorecard below:\n{EXTRACTION_PROMPT}",
-            })
-        else:
-            user_content.append({"type": "text", "text": EXTRACTION_PROMPT})
+    payload = {
+        "model": _GROQ_VISION_MODEL,
+        "messages": [{"role": "user", "content": user_content}],
+        "temperature": 0.0 if strict else 0.3,
+        "max_tokens": 4096,
+    }
 
-        # Add the actual scorecard image
-        user_content.append({
-            "type": "image_url",
-            "image_url": {"url": f"data:{content_type};base64,{image_b64}"},
-        })
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        resp = await client.post(
+            _GROQ_API_URL,
+            json=payload,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        )
 
-        payload = {
-            "model": _GROQ_VISION_MODEL,
-            "messages": [
-                {"role": "user", "content": user_content},
-            ],
-            "temperature": 0.3,
-            "max_tokens": 4096,
-        }
+    if resp.status_code == 429:
+        raise ValueError("Scorecard scanner is rate-limited. Try again in a minute.")
+    if resp.status_code != 200:
+        body = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
+        err_msg = body.get("error", {}).get("message", "unknown error")
+        logger.error("Groq Vision API %d: %s", resp.status_code, err_msg)
+        raise ValueError(f"Vision API error: {err_msg}")
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            resp = await client.post(
-                _GROQ_API_URL,
-                json=payload,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-            )
+    data = resp.json()
+    choices = data.get("choices", [])
+    if not choices:
+        raise ValueError("Groq returned no choices")
+    raw_text = (choices[0].get("message", {}).get("content") or "").strip()
 
-        if resp.status_code == 429:
-            raise ValueError("Scorecard scanner is rate-limited. Try again in a minute.")
-        if resp.status_code != 200:
-            body = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
-            err_msg = body.get("error", {}).get("message", "unknown error")
-            logger.error("Groq Vision API %d: %s", resp.status_code, err_msg)
-            raise ValueError(f"Vision API error: {err_msg}")
+    # Strip markdown fences and any surrounding prose so a stray ```json block
+    # or "Here is the JSON:" preamble doesn't blow up the parse.
+    if raw_text.startswith("```"):
+        raw_text = raw_text.split("```", 2)[1]
+        if raw_text.startswith("json"):
+            raw_text = raw_text[4:]
+        raw_text = raw_text.rsplit("```", 1)[0].strip()
+    # Last-ditch: take the substring from the first { to the last }.
+    if not raw_text.startswith("{"):
+        first = raw_text.find("{")
+        last = raw_text.rfind("}")
+        if first != -1 and last > first:
+            raw_text = raw_text[first : last + 1]
 
-        data = resp.json()
-        choices = data.get("choices", [])
-        if not choices:
-            raise ValueError("Groq returned no choices")
-        raw_text = choices[0].get("message", {}).get("content", "")
+    return json.loads(raw_text)
 
-        # Strip markdown code fences if present
-        raw_text = raw_text.strip()
-        if raw_text.startswith("```"):
-            raw_text = raw_text.split("```")[1]
-            if raw_text.startswith("json"):
-                raw_text = raw_text[4:]
 
-        extracted = json.loads(raw_text)
-
-    except json.JSONDecodeError as e:
-        logger.error("Groq returned non-JSON: %s", e)
-        raise ValueError(f"Failed to parse vision response: {e}")
-    except ValueError:
-        raise
-    except Exception as e:
-        logger.error("Groq Vision error: %s", e)
-        raise
-
+def _shape_extraction(extracted: dict[str, Any]) -> dict[str, Any]:
+    """Apply circle=negative, group by player, compute per-hole deltas."""
     players = extracted.get("players", [])
     raw_totals = extracted.get("running_totals", [])
 
-    # Apply circle = negative to values
     for entry in raw_totals:
         if entry.get("is_circled"):
             entry["value"] = -abs(entry["value"])
 
-    # Group running totals by player_index
     by_player: dict[int, list] = {}
     for entry in raw_totals:
         pi = entry["player_index"]
         by_player.setdefault(pi, []).append(entry)
-
-    # Ensure all players have entries (even if model missed some)
     for i in range(len(players)):
         by_player.setdefault(i, [])
 
-    # Compute per-hole deltas for each player, filling carry-overs as delta=0
-    per_hole_quarters = []
+    per_hole_quarters: list[dict] = []
     for player_index, totals in by_player.items():
         deltas = _compute_per_hole_deltas(totals)
         for d in deltas:
             per_hole_quarters.append(
-                {
-                    "player_index": player_index,
-                    "hole": d["hole"],
-                    "quarters": d["quarters"],
-                }
+                {"player_index": player_index, "hole": d["hole"], "quarters": d["quarters"]}
             )
 
     return {
@@ -221,3 +218,40 @@ async def scan_scorecard(image_bytes: bytes, content_type: str) -> dict[str, Any
         "running_totals": raw_totals,
         "per_hole_quarters": per_hole_quarters,
     }
+
+
+async def scan_scorecard(image_bytes: bytes, content_type: str) -> dict[str, Any]:
+    """
+    Send scorecard image to Groq Vision and return extracted running totals
+    plus computed per-hole quarter deltas. Retries once if the first attempt
+    returns malformed JSON or violates the zero-sum invariant — these are
+    the dominant failure modes in practice and a stricter retry catches
+    most of them without doubling latency on the happy path.
+    """
+    parse_error: Exception | None = None
+    try:
+        extracted = await _call_groq_vision(image_bytes, content_type, strict=False)
+    except json.JSONDecodeError as e:
+        logger.warning("First scan returned non-JSON, retrying strict: %s", e)
+        parse_error = e
+        extracted = None  # forces retry below
+
+    if extracted is not None:
+        result = _shape_extraction(extracted)
+        validation = _validate_zero_sum(result["per_hole_quarters"])
+        if validation["valid"]:
+            result["validation"] = validation
+            return result
+        logger.warning("Zero-sum violated on first scan: %s — retrying strict", validation["bad_holes"])
+
+    # Retry with stricter prompt, deterministic temperature
+    try:
+        extracted = await _call_groq_vision(image_bytes, content_type, strict=True)
+    except json.JSONDecodeError as e:
+        if parse_error is not None:
+            logger.error("Both scan attempts returned non-JSON")
+        raise ValueError(f"Failed to parse vision response: {e}")
+
+    result = _shape_extraction(extracted)
+    result["validation"] = _validate_zero_sum(result["per_hole_quarters"])
+    return result

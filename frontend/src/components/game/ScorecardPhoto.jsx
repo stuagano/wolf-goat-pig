@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ScorecardCapture from './ScorecardCapture';
 import ScorecardReview from './ScorecardReview';
 import { apiConfig } from '../../config/api.config';
+import { preprocessScorecardImage } from '../../utils/scorecardImage';
 
 const API_URL = apiConfig.baseUrl;
 
@@ -37,8 +38,13 @@ const ScorecardPhoto = ({ gameId, players, onSaved, onCancel }) => {
     setStage('processing');
     setErrorMsg(null);
 
+    // Auto-orient via EXIF and downscale oversized phone shots before
+    // upload — much cleaner input for the vision model and ~5–10x less
+    // bandwidth from a 4032px iPhone capture.
+    const prepped = await preprocessScorecardImage(file);
+
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', prepped);
 
     try {
       const res = await fetch(`${API_URL}/scorecard/scan`, {
