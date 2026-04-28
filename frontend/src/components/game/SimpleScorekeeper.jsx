@@ -7,6 +7,7 @@ import React, {
   useMemo,
   useReducer,
   useCallback,
+  useRef,
 } from "react";
 import PropTypes from "prop-types";
 import { useTheme } from "../../theme/Provider";
@@ -34,7 +35,12 @@ import {
 import "../../styles/mobile-touch.css";
 import { apiConfig } from "../../config/api.config";
 import { prefillAiScores } from "../../utils/stuartModeSimulation";
-import { aiCaptainDecide } from "../../utils/stuartModeAiDecisions";
+import {
+  aiCaptainDecide,
+  aiPartnerResponse,
+  aiDoubleResponse,
+  aiShouldOfferDouble,
+} from "../../utils/stuartModeAiDecisions";
 
 const API_URL = apiConfig.baseUrl;
 
@@ -334,6 +340,9 @@ const SimpleScorekeeper = ({
     addBettingEvent,
     logBettingAction,
     getPlayerName,
+    pendingOffer,
+    createOffer,
+    respondToOffer,
   } = betting;
   // Additional betting features available: betting.bettingHistory, betting.createOffer,
   // betting.respondToOffer, betting.showBettingHistory, betting.historyTab, betting.pendingOffer
@@ -535,6 +544,117 @@ const SimpleScorekeeper = ({
     setTeamMode,
     setCaptain,
     setTeam1,
+  ]);
+
+  // Stuart Mode: which side is each player on for this hole. In partners
+  // mode, team1 vs team2; in solo mode, captain vs opponents.
+  const stuartTeamInfo = useMemo(() => {
+    const stuart = players?.find((p) => p.is_authenticated);
+    if (!stuart) return null;
+    const sideOf = (id) => {
+      if (teamMode === "solo") return captain === id ? "captain" : "opponents";
+      return team1.includes(id) ? "team1" : "team2";
+    };
+    const stuartSide = sideOf(stuart.id);
+    const isStuartResponseTurn = pendingOffer
+      ? sideOf(pendingOffer.offered_by) !== stuartSide
+      : false;
+    return { stuart, stuartSide, sideOf, isStuartResponseTurn };
+  }, [players, teamMode, team1, captain, pendingOffer]);
+
+  // Stuart Mode: AI auto-responds when it's the AI team's turn to answer.
+  useEffect(() => {
+    if (!stuartMode || !pendingOffer || !stuartTeamInfo) return;
+    if (stuartTeamInfo.isStuartResponseTurn) return; // Stuart will click
+
+    const { sideOf } = stuartTeamInfo;
+    const offerSide = sideOf(pendingOffer.offered_by);
+    const responders = players.filter((p) => sideOf(p.id) !== offerSide);
+    const representative = responders[0];
+    if (!representative) return;
+
+    const result = aiDoubleResponse({
+      aiPlayer: representative,
+      currentHole,
+      strokeAllocation,
+      playerStandings,
+      currentWager,
+    });
+
+    const timer = setTimeout(() => {
+      respondToOffer(result.decision, representative.id);
+      setAiMoves((prev) => [
+        ...prev,
+        {
+          type: "double-response",
+          text: `🤖 ${representative.name} ${result.decision === "accept" ? "accepts" : "declines"} the double — ${result.reason}`,
+          timestamp: Date.now(),
+        },
+      ]);
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [
+    stuartMode,
+    pendingOffer,
+    stuartTeamInfo,
+    players,
+    currentHole,
+    strokeAllocation,
+    playerStandings,
+    currentWager,
+    respondToOffer,
+  ]);
+
+  // Stuart Mode: AI proactively considers offering a double once team
+  // selection has settled for this hole.
+  const offerCheckedHoleRef = useRef(null);
+  useEffect(() => {
+    if (!stuartMode || !stuartTeamInfo) return;
+    if (offerCheckedHoleRef.current === currentHole) return;
+
+    const teamReady = teamMode === "solo" ? !!captain : team1.length >= 2;
+    if (!teamReady) return;
+    offerCheckedHoleRef.current = currentHole;
+
+    const { sideOf } = stuartTeamInfo;
+    const stuartSide = stuartTeamInfo.stuartSide;
+    const aiTeamPlayers = players.filter(
+      (p) => !p.is_authenticated && sideOf(p.id) !== stuartSide,
+    );
+
+    const result = aiShouldOfferDouble({
+      aiTeamPlayers,
+      currentHole,
+      strokeAllocation,
+      playerStandings,
+      currentWager,
+    });
+    if (!result) return;
+
+    const timer = setTimeout(() => {
+      createOffer("double", result.player.id);
+      setAiMoves((prev) => [
+        ...prev,
+        {
+          type: "double-offer",
+          text: `🤖 ${result.player.name} offers double — ${result.reason}`,
+          timestamp: Date.now(),
+        },
+      ]);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [
+    stuartMode,
+    currentHole,
+    teamMode,
+    team1.length,
+    captain,
+    stuartTeamInfo,
+    players,
+    strokeAllocation,
+    playerStandings,
+    currentWager,
+    createOffer,
   ]);
 
   // Fetch course data
@@ -792,10 +912,37 @@ const SimpleScorekeeper = ({
     if (team1.includes(playerId)) {
       // Remove from team1 (they'll go to team2 automatically)
       setTeam1(team1.filter((id) => id !== playerId));
-    } else {
-      // Add to team1
-      setTeam1([...team1, playerId]);
+      return;
     }
+
+    // Stuart Mode: when adding an AI player as partner, run their accept
+    // /decline heuristic. Decline = don't add + log; accept = add + log.
+    if (stuartMode) {
+      const target = players.find((p) => p.id === playerId);
+      if (target && !target.is_authenticated) {
+        const result = aiPartnerResponse({
+          aiPlayer: target,
+          currentHole,
+          strokeAllocation,
+          playerStandings,
+        });
+        setAiMoves((prev) => [
+          ...prev,
+          {
+            type: "partner",
+            text:
+              result.decision === "accept"
+                ? `🤖 ${target.name} accepts partnership — ${result.reason}`
+                : `🤖 ${target.name} declines partnership — ${result.reason}`,
+            timestamp: Date.now(),
+          },
+        ]);
+        if (result.decision === "decline") return; // don't add
+      }
+    }
+
+    // Add to team1
+    setTeam1([...team1, playerId]);
   };
 
   // Handle captain selection for solo mode
@@ -2508,6 +2655,108 @@ const SimpleScorekeeper = ({
         invisibleAardvarkTossed={invisibleAardvarkTossed}
         setInvisibleAardvarkTossed={setInvisibleAardvarkTossed}
       />
+
+      {/* Stuart Mode: doubles offer / response control */}
+      {stuartMode && stuartTeamInfo?.stuart && (
+        <div
+          data-testid="double-offer-control"
+          style={{
+            background: pendingOffer ? "#FFF3E0" : theme.colors.paper,
+            border: `1px solid ${pendingOffer ? "#F59E0B" : theme.colors.border}`,
+            borderRadius: "8px",
+            padding: "10px 14px",
+            marginBottom: "12px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "12px",
+          }}
+        >
+          <div style={{ flex: 1, fontSize: "13px" }}>
+            <div style={{ fontWeight: "bold", color: theme.colors.textPrimary }}>
+              Wager: {currentWager}q
+            </div>
+            {pendingOffer && (
+              <div style={{ color: "#92400E", marginTop: "2px" }}>
+                Double offered by {getPlayerName(pendingOffer.offered_by)} —{" "}
+                {pendingOffer.wager_before}q → {pendingOffer.wager_after}q
+              </div>
+            )}
+          </div>
+          {pendingOffer ? (
+            stuartTeamInfo.isStuartResponseTurn ? (
+              <div style={{ display: "flex", gap: "6px" }}>
+                <button
+                  data-testid="double-accept"
+                  onClick={() =>
+                    respondToOffer("accept", stuartTeamInfo.stuart.id)
+                  }
+                  style={{
+                    padding: "6px 12px",
+                    fontSize: "13px",
+                    background: "#4CAF50",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    fontWeight: "bold",
+                  }}
+                >
+                  Accept
+                </button>
+                <button
+                  data-testid="double-decline"
+                  onClick={() =>
+                    respondToOffer("decline", stuartTeamInfo.stuart.id)
+                  }
+                  style={{
+                    padding: "6px 12px",
+                    fontSize: "13px",
+                    background: "white",
+                    color: "#92400E",
+                    border: "1px solid #F59E0B",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Decline
+                </button>
+              </div>
+            ) : (
+              <span style={{ fontSize: "12px", color: theme.colors.textSecondary }}>
+                AI deciding…
+              </span>
+            )
+          ) : (
+            <button
+              data-testid="offer-double-button"
+              onClick={() => {
+                createOffer("double", stuartTeamInfo.stuart.id);
+                setAiMoves((prev) => [
+                  ...prev,
+                  {
+                    type: "double-offer",
+                    text: `You offer double — wager ${currentWager}q → ${currentWager * 2}q`,
+                    timestamp: Date.now(),
+                  },
+                ]);
+              }}
+              style={{
+                padding: "6px 12px",
+                fontSize: "13px",
+                background: "#F59E0B",
+                color: "white",
+                border: "none",
+                borderRadius: "6px",
+                cursor: "pointer",
+                fontWeight: "bold",
+              }}
+            >
+              Offer Double → {currentWager * 2}q
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Quarters Entry (Primary) - Enhanced Player Cards */}
       <QuartersPanel
