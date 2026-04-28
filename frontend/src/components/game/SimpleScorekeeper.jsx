@@ -1786,6 +1786,33 @@ const SimpleScorekeeper = ({
       className="thumb-zone-container"
       style={{ padding: "20px", maxWidth: "800px", margin: "0 auto" }}
     >
+      {/* Stuart Mode toggle — small fixed-position icon, dims when off */}
+      <button
+        data-testid="stuart-mode-toggle"
+        onClick={toggleStuartMode}
+        aria-label={stuartMode ? "Stuart Mode on" : "Stuart Mode off"}
+        title={stuartMode ? "Stuart Mode on (tap to turn off)" : "Stuart Mode off (tap to turn on)"}
+        style={{
+          position: "fixed",
+          top: "12px",
+          right: "12px",
+          width: "40px",
+          height: "40px",
+          borderRadius: "50%",
+          border: stuartMode ? "2px solid #F59E0B" : `1px solid ${theme.colors.border}`,
+          background: stuartMode ? "#F59E0B" : "rgba(255,255,255,0.85)",
+          color: stuartMode ? "white" : theme.colors.textSecondary,
+          fontSize: "18px",
+          cursor: "pointer",
+          boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+          opacity: stuartMode ? 1 : 0.6,
+          zIndex: 50,
+          padding: 0,
+        }}
+      >
+        🧠
+      </button>
+
       {/* Sync Status Banner - Shows when offline or pending uploads */}
       <SyncStatusBanner />
 
