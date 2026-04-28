@@ -30,13 +30,15 @@ vi.mock('../../../theme/Provider', () => ({
 
 // Mock the useShotAnalysis hook
 const mockAnalyzeShot = vi.fn();
+const mockShotAnalysisValues = {
+  analysis: null,
+  loading: false,
+  error: null,
+  analyzeShot: mockAnalyzeShot
+};
+
 vi.mock('../../../hooks', () => ({
-  useShotAnalysis: () => ({
-    analysis: null,
-    loading: false,
-    error: null,
-    analyzeShot: mockAnalyzeShot
-  })
+  useShotAnalysis: () => mockShotAnalysisValues
 }));
 
 // Mock UI components
@@ -78,6 +80,7 @@ describe('ShotAnalysisWidget', () => {
 
   beforeEach(() => {
     mockAnalyzeShot.mockClear();
+    mockShotAnalysisValues.analysis = null;
   });
 
   it('renders correctly', () => {
@@ -130,13 +133,8 @@ describe('ShotAnalysisWidget', () => {
       strategic_advice: ['Play it safe']
     };
 
-    // Re-mock hook for this test
-    require('../../../hooks').useShotAnalysis = () => ({
-      analysis: mockAnalysis,
-      loading: false,
-      error: null,
-      analyzeShot: mockAnalyzeShot
-    });
+    // Update mock for this test
+    mockShotAnalysisValues.analysis = mockAnalysis;
 
     render(<ShotAnalysisWidget {...defaultProps} />);
     

@@ -29,6 +29,9 @@ vi.stubEnv('VITE_USE_MOCK_AUTH', 'true');
 // Mock window.alert
 global.alert = vi.fn();
 
+// Provide jest compatibility shim
+global.jest = vi;
+
 // Mock window.confirm
 global.confirm = vi.fn(() => true);
 
@@ -40,12 +43,21 @@ const defaultFetchImplementation = () =>
   });
 
 // Mock window.localStorage
-const localStorageMock = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
-};
+const localStorageMock = (() => {
+  let store = {};
+  return {
+    getItem: vi.fn((key) => store[key] || null),
+    setItem: vi.fn((key, value) => {
+      store[key] = value.toString();
+    }),
+    removeItem: vi.fn((key) => {
+      delete store[key];
+    }),
+    clear: vi.fn(() => {
+      store = {};
+    }),
+  };
+})();
 global.localStorage = localStorageMock;
 
 // Mock window.innerWidth for responsive tests

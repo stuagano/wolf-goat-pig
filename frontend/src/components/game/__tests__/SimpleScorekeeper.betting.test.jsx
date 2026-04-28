@@ -17,31 +17,34 @@ global.fetch = vi.fn(() =>
 );
 
 // Mock ThemeProvider
-vi.mock('../../../theme/Provider', () => ({
-  ThemeProvider: ({ children }) => <div>{children}</div>,
-  useTheme: () => require('../../../test-utils/mockFactories').createMockTheme({
-    colors: {
-      primary: '#059669',
-      textPrimary: '#1f2937',
-      textSecondary: '#6b7280',
-      border: '#d1d5db',
-      paper: '#ffffff',
-      backgroundSecondary: '#f3f4f6'
-    },
-    buttonStyle: {
-      padding: '12px 24px',
-      borderRadius: '8px',
-      border: 'none',
-      cursor: 'pointer'
-    },
-    cardStyle: {
-      background: '#ffffff',
-      borderRadius: '8px',
-      padding: '16px',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-    }
-  })
-}));
+vi.mock('../../../theme/Provider', async () => {
+  const factories = await import('../../../test-utils/mockFactories');
+  return {
+    ThemeProvider: ({ children }) => <div>{children}</div>,
+    useTheme: () => factories.createMockTheme({
+      colors: {
+        primary: '#059669',
+        textPrimary: '#1f2937',
+        textSecondary: '#6b7280',
+        border: '#d1d5db',
+        paper: '#ffffff',
+        backgroundSecondary: '#f3f4f6'
+      },
+      buttonStyle: {
+        padding: '12px 24px',
+        borderRadius: '8px',
+        border: 'none',
+        cursor: 'pointer'
+      },
+      cardStyle: {
+        background: '#ffffff',
+        borderRadius: '8px',
+        padding: '16px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+      }
+    })
+  };
+});
 
 // Mock Input component - filter out non-DOM props
 vi.mock('../../ui', () => ({
@@ -58,18 +61,18 @@ vi.mock('../../ui', () => ({
 }));
 
 // Mock Scorecard component
-vi.mock('../Scorecard', () => {
-  return function MockScorecard() {
+vi.mock('../Scorecard', () => ({
+  default: function MockScorecard() {
     return <div data-testid="mock-scorecard">Scorecard</div>;
-  };
-});
+  }
+}));
 
 // Mock GameCompletionView component
-vi.mock('../GameCompletionView', () => {
-  return function MockGameCompletionView() {
+vi.mock('../GameCompletionView', () => ({
+  default: function MockGameCompletionView() {
     return <div data-testid="mock-game-completion">Game Complete</div>;
-  };
-});
+  }
+}));
 
 // Mock BadgeNotification
 vi.mock('../BadgeNotification', () => ({

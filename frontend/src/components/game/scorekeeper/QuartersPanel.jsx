@@ -102,6 +102,7 @@ const QuartersPanel = ({
               <button
                 onClick={() => adjust(-1)}
                 className="touch-optimized"
+                aria-label={`Decrease quarters for ${player.name}`}
                 style={{
                   width: "36px", height: "36px", borderRadius: "8px",
                   border: "1px solid #EF5350", background: "#FFEBEE",
@@ -133,6 +134,7 @@ const QuartersPanel = ({
               <button
                 onClick={() => adjust(1)}
                 className="touch-optimized"
+                aria-label={`Increase quarters for ${player.name}`}
                 style={{
                   width: "36px", height: "36px", borderRadius: "8px",
                   border: "1px solid #66BB6A", background: "#E8F5E9",
@@ -150,6 +152,7 @@ const QuartersPanel = ({
                   }
                 }}
                 className="touch-optimized"
+                aria-label={`Invert quarters for ${player.name}`}
                 style={{
                   width: "36px", height: "36px", borderRadius: "8px",
                   border: `1px solid ${val < 0 ? "#66BB6A" : "#EF5350"}`,

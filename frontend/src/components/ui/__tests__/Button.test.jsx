@@ -202,9 +202,9 @@ describe('Button Component', () => {
       
       const button = screen.getByRole('button');
       expect(button).toHaveStyle({
-        backgroundColor: 'transparent',
-        color: '#007bff',
-        border: '1px solid #007bff'
+        backgroundColor: 'rgba(0, 0, 0, 0)',
+        color: 'rgb(0, 123, 255)',
+        border: '1px solid rgb(0, 123, 255)'
       });
     });
   });

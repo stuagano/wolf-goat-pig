@@ -43,8 +43,8 @@ vi.mock('../../../theme/Provider', () => ({
 }));
 
 // Mock all the tutorial modules
-vi.mock('../modules/GolfBasicsModule', () => {
-  return function MockGolfBasicsModule({ onStepComplete, onModuleComplete, currentStep, goToStep }) {
+vi.mock('../modules/GolfBasicsModule', () => ({
+  default: function MockGolfBasicsModule({ onStepComplete, onModuleComplete, currentStep, goToStep }) {
     return (
       <div data-testid="golf-basics-module">
         <h3>Golf Basics Module</h3>
@@ -54,56 +54,56 @@ vi.mock('../modules/GolfBasicsModule', () => {
         <button onClick={() => goToStep && goToStep(2)}>Go to Step 2</button>
       </div>
     );
-  };
-});
+  }
+}));
 
-vi.mock('../modules/GameOverviewModule', () => {
-  return function MockGameOverviewModule(props) {
+vi.mock('../modules/GameOverviewModule', () => ({
+  default: function MockGameOverviewModule(props) {
     return <div data-testid="game-overview-module">Game Overview Module</div>;
-  };
-});
+  }
+}));
 
-vi.mock('../modules/TeamFormationModule', () => {
-  return function MockTeamFormationModule(props) {
+vi.mock('../modules/TeamFormationModule', () => ({
+  default: function MockTeamFormationModule(props) {
     return <div data-testid="team-formation-module">Team Formation Module</div>;
-  };
-});
+  }
+}));
 
-vi.mock('../modules/BettingSystemModule', () => {
-  return function MockBettingSystemModule(props) {
+vi.mock('../modules/BettingSystemModule', () => ({
+  default: function MockBettingSystemModule(props) {
     return <div data-testid="betting-system-module">Betting System Module</div>;
-  };
-});
+  }
+}));
 
-vi.mock('../modules/AdvancedRulesModule', () => {
-  return function MockAdvancedRulesModule(props) {
+vi.mock('../modules/AdvancedRulesModule', () => ({
+  default: function MockAdvancedRulesModule(props) {
     return <div data-testid="advanced-rules-module">Advanced Rules Module</div>;
-  };
-});
+  }
+}));
 
-vi.mock('../modules/AnalysisToolsModule', () => {
-  return function MockAnalysisToolsModule(props) {
+vi.mock('../modules/AnalysisToolsModule', () => ({
+  default: function MockAnalysisToolsModule(props) {
     return <div data-testid="analysis-tools-module">Analysis Tools Module</div>;
-  };
-});
+  }
+}));
 
-vi.mock('../modules/PracticeGameModule', () => {
-  return function MockPracticeGameModule(props) {
+vi.mock('../modules/PracticeGameModule', () => ({
+  default: function MockPracticeGameModule(props) {
     return <div data-testid="practice-game-module">Practice Game Module</div>;
-  };
-});
+  }
+}));
 
-vi.mock('../ProgressTracker', () => {
-  return function MockProgressTracker() {
+vi.mock('../ProgressTracker', () => ({
+  default: function MockProgressTracker() {
     return <div data-testid="progress-tracker">Progress Tracker</div>;
-  };
-});
+  }
+}));
 
-vi.mock('../TutorialOverlay', () => {
-  return function MockTutorialOverlay() {
+vi.mock('../TutorialOverlay', () => ({
+  default: function MockTutorialOverlay() {
     return <div data-testid="tutorial-overlay">Tutorial Overlay</div>;
-  };
-});
+  }
+}));
 
 // Mock hooks with default implementations
 const mockUseTutorial = vi.mocked(useTutorial);

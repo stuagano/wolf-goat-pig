@@ -12,7 +12,23 @@ import {
 
 // Mock the useTheme hook
 vi.mock('../../../theme/Provider', () => ({
-  useTheme: () => require('../../../test-utils/mockFactories').createMockTheme()
+  useTheme: () => ({
+    colors: {
+      primary: '#1976d2',
+      secondary: '#9c27b0',
+      background: '#ffffff',
+      backgroundSecondary: '#f5f5f5',
+      textPrimary: '#000000',
+      textSecondary: '#666666',
+      border: '#e0e0e0',
+      success: '#4caf50',
+      error: '#f44336',
+      warning: '#ff9800',
+      accent: '#ff4081'
+    },
+    spacing: (val) => val * 8,
+    borderRadius: 4
+  })
 }));
 
 // Mock the UI components

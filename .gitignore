@@ -103,6 +103,7 @@ Desktop.ini
 
 # Git worktrees
 .worktrees/
+.claude/worktrees/
 
 # Additional common artifacts
 # Dependencies
