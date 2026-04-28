@@ -80,23 +80,30 @@ export function aiShouldOfferDouble({
   strokeAllocation,
   playerStandings,
   currentWager,
+  phase = "default",
 }) {
   if (!aiTeamPlayers?.length) return null;
   for (const ai of aiTeamPlayers) {
     const strokes = strokeAllocation?.[ai.id]?.[currentHole] ?? 0;
     const quarters = playerStandings?.[ai.id]?.quarters ?? 0;
     const handicap = (Number.isFinite(Number(ai.handicap)) ? Number(ai.handicap) : 18);
-    // Per-hole gate so a player who has strokes on every hole doesn't
-    // offer doubles on every single hole. Roughly 1-in-DOUBLE_OFFER_FREQ.
-    const gate = stableHash(`${ai.id}|${currentHole}|dbl`) % DOUBLE_OFFER_FREQ === 0;
+    // Per-(player, hole, phase) gate so a player doesn't pile offers on
+    // top of each other. Each phase gets an independent ~1-in-N chance.
+    const gate =
+      stableHash(`${ai.id}|${currentHole}|${phase}|dbl`) % DOUBLE_OFFER_FREQ ===
+      0;
     if (!gate) continue;
-    // Offer when you have a stroke and the wager is still cheap.
+    // Stroke on the hole, wager still cheap → offer.
     if (strokes >= 1 && currentWager <= 2) {
       return { player: ai, reason: "stroke on the hole, presses for value" };
     }
-    // Or when ahead in standings and want to put pressure on
+    // Ahead in standings + low handicap → apply pressure.
     if (quarters > 5 && handicap < STRONG_PLAYER_HCP && currentWager <= 4) {
       return { player: ai, reason: "ahead and confident, applies pressure" };
+    }
+    // Behind and on the green → desperate press.
+    if (phase === "green" && quarters < HUNGRY_THRESHOLD && currentWager <= 2) {
+      return { player: ai, reason: "down too far, swings for it on the green" };
     }
   }
   return null;

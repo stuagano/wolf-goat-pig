@@ -397,6 +397,7 @@ const SimpleScorekeeper = ({
   const [expandedPlayers, setExpandedPlayers] = useState({ 0: true }); // Track which player cards are expanded (first player by default)
   const [editModalHole, setEditModalHole] = useState(null); // Hole data for edit modal (null = closed)
   const [aiMoves, setAiMoves] = useState([]); // Stuart Mode: log of AI decisions for the current hole
+  const [holePhase, setHolePhase] = useState("tee"); // 'tee' | 'after-tee' | 'green'
 
   // Betting state (bettingHistory, pendingOffer, currentHoleBettingEvents) migrated to useBettingState hook
 
@@ -489,16 +490,19 @@ const SimpleScorekeeper = ({
     if (changed) setScores(updated);
   }, [stuartMode, currentHole, players, courseData, gameId, scores, setScores]);
 
-  // Stuart Mode: clear the AI move log when the hole changes.
+  // Stuart Mode: clear AI moves and reset hole phase when the hole changes.
   useEffect(() => {
     setAiMoves([]);
+    setHolePhase("tee");
   }, [currentHole]);
 
-  // Stuart Mode: when the rotation captain is an AI player and no team
-  // selection has been made yet, auto-pick (solo vs partners + partner).
+  // Stuart Mode @ tee phase: AI captain decides whether to call solo
+  // BEFORE seeing tee shots (Duncan-style). If it would partner, it
+  // waits — partner pick happens after the tee phase.
   useEffect(() => {
-    if (!stuartMode || !players?.length || !rotationOrder?.length) return;
-    if (team1.length > 0 || captain) return; // user or prior pass already picked
+    if (!stuartMode || holePhase !== "tee") return;
+    if (!players?.length || !rotationOrder?.length) return;
+    if (team1.length > 0 || captain) return;
 
     const aiCaptainId = rotationOrder[captainIndex];
     const aiCaptain = players.find((p) => p.id === aiCaptainId);
@@ -512,27 +516,33 @@ const SimpleScorekeeper = ({
       playerStandings,
     });
 
-    if (decision.mode === "solo") {
-      setTeamMode("solo");
-      setCaptain(aiCaptain.id);
-    } else if (decision.partnerId) {
-      setTeamMode("partners");
-      setTeam1([aiCaptain.id, decision.partnerId]);
-    }
-
-    setAiMoves((prev) => [
-      ...prev,
-      {
-        type: "captain",
-        text:
-          decision.mode === "solo"
-            ? `🤖 ${aiCaptain.name} goes solo — ${decision.reason}`
-            : `🤖 ${decision.reason}`,
-        timestamp: Date.now(),
-      },
-    ]);
+    const t = setTimeout(() => {
+      if (decision.mode === "solo") {
+        setTeamMode("solo");
+        setCaptain(aiCaptain.id);
+        setAiMoves((prev) => [
+          ...prev,
+          {
+            type: "captain",
+            text: `🤖 ${aiCaptain.name} calls solo before tee — ${decision.reason}`,
+            timestamp: Date.now(),
+          },
+        ]);
+      } else {
+        setAiMoves((prev) => [
+          ...prev,
+          {
+            type: "captain-wait",
+            text: `🤖 ${aiCaptain.name} waits to see tee shots`,
+            timestamp: Date.now(),
+          },
+        ]);
+      }
+    }, 800);
+    return () => clearTimeout(t);
   }, [
     stuartMode,
+    holePhase,
     currentHole,
     rotationOrder,
     captainIndex,
@@ -543,6 +553,53 @@ const SimpleScorekeeper = ({
     playerStandings,
     setTeamMode,
     setCaptain,
+  ]);
+
+  // Stuart Mode @ after-tee phase: if the AI captain didn't go solo at
+  // tee, they now pick their partner (having "seen" the tee shots).
+  useEffect(() => {
+    if (!stuartMode || holePhase !== "after-tee") return;
+    if (!players?.length || !rotationOrder?.length) return;
+    if (team1.length > 0 || captain) return;
+
+    const aiCaptainId = rotationOrder[captainIndex];
+    const aiCaptain = players.find((p) => p.id === aiCaptainId);
+    if (!aiCaptain || aiCaptain.is_authenticated) return;
+
+    const decision = aiCaptainDecide({
+      captain: aiCaptain,
+      players,
+      currentHole,
+      strokeAllocation,
+      playerStandings,
+    });
+    if (decision.mode !== "partners" || !decision.partnerId) return;
+
+    const t = setTimeout(() => {
+      setTeamMode("partners");
+      setTeam1([aiCaptain.id, decision.partnerId]);
+      setAiMoves((prev) => [
+        ...prev,
+        {
+          type: "captain",
+          text: `🤖 ${decision.reason}`,
+          timestamp: Date.now(),
+        },
+      ]);
+    }, 800);
+    return () => clearTimeout(t);
+  }, [
+    stuartMode,
+    holePhase,
+    currentHole,
+    rotationOrder,
+    captainIndex,
+    players,
+    team1.length,
+    captain,
+    strokeAllocation,
+    playerStandings,
+    setTeamMode,
     setTeam1,
   ]);
 
@@ -605,19 +662,20 @@ const SimpleScorekeeper = ({
     respondToOffer,
   ]);
 
-  // Stuart Mode: AI proactively considers offering a double once team
-  // selection has settled for this hole.
-  const offerCheckedHoleRef = useRef(null);
+  // Stuart Mode: at each phase entry, AI considers offering a double.
+  // One attempt per (hole, phase). Phase is part of the hash gate inside
+  // aiShouldOfferDouble so each phase rolls independently.
+  const offerCheckedPhasesRef = useRef({});
   useEffect(() => {
     if (!stuartMode || !stuartTeamInfo) return;
-    if (offerCheckedHoleRef.current === currentHole) return;
+    const key = `${currentHole}|${holePhase}`;
+    if (offerCheckedPhasesRef.current[key]) return;
 
     const teamReady = teamMode === "solo" ? !!captain : team1.length >= 2;
     if (!teamReady) return;
-    offerCheckedHoleRef.current = currentHole;
+    offerCheckedPhasesRef.current[key] = true;
 
-    const { sideOf } = stuartTeamInfo;
-    const stuartSide = stuartTeamInfo.stuartSide;
+    const { sideOf, stuartSide } = stuartTeamInfo;
     const aiTeamPlayers = players.filter(
       (p) => !p.is_authenticated && sideOf(p.id) !== stuartSide,
     );
@@ -628,6 +686,7 @@ const SimpleScorekeeper = ({
       strokeAllocation,
       playerStandings,
       currentWager,
+      phase: holePhase,
     });
     if (!result) return;
 
@@ -637,15 +696,16 @@ const SimpleScorekeeper = ({
         ...prev,
         {
           type: "double-offer",
-          text: `🤖 ${result.player.name} offers double — ${result.reason}`,
+          text: `🤖 ${result.player.name} offers double @ ${holePhase} — ${result.reason}`,
           timestamp: Date.now(),
         },
       ]);
-    }, 1500);
+    }, 1200);
     return () => clearTimeout(timer);
   }, [
     stuartMode,
     currentHole,
+    holePhase,
     teamMode,
     team1.length,
     captain,
@@ -2085,6 +2145,50 @@ const SimpleScorekeeper = ({
         jumpToHole={jumpToHole}
         movePlayerInOrder={movePlayerInOrder}
       />
+
+      {/* Stuart Mode: hole phase strip — drives mid-hole AI decisions */}
+      {stuartMode && (
+        <div
+          data-testid="hole-phase-strip"
+          style={{
+            display: "flex",
+            gap: "6px",
+            marginBottom: "12px",
+            padding: "8px",
+            background: theme.colors.paper,
+            border: `1px solid ${theme.colors.border}`,
+            borderRadius: "8px",
+          }}
+        >
+          {[
+            { key: "tee", label: "⛳ Tee" },
+            { key: "after-tee", label: "🏌️ After Tee" },
+            { key: "green", label: "🏁 Green" },
+          ].map((p) => {
+            const isActive = holePhase === p.key;
+            return (
+              <button
+                key={p.key}
+                data-testid={`phase-${p.key}`}
+                onClick={() => setHolePhase(p.key)}
+                style={{
+                  flex: 1,
+                  padding: "8px",
+                  fontSize: "13px",
+                  fontWeight: isActive ? "bold" : "normal",
+                  background: isActive ? "#F59E0B" : "white",
+                  color: isActive ? "white" : theme.colors.textPrimary,
+                  border: `1px solid ${isActive ? "#F59E0B" : theme.colors.border}`,
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                }}
+              >
+                {p.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Float & Option Tracking - Collapsed by default */}
       <div
