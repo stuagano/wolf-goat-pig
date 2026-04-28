@@ -43,7 +43,7 @@ export const simulatePlayerScore = ({
     (hole * 0x9e3779b1);
   const rand = mulberry32(seed);
 
-  const handicap = Math.max(0, Number(player.handicap) || 18);
+  const handicap = Math.max(0, (Number.isFinite(Number(player.handicap)) ? Number(player.handicap) : 18));
   const par4 = Number(par) || 4;
 
   // Expected over-par rises with handicap and difficulty (low stroke index = hard).

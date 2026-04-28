@@ -16,7 +16,7 @@ export function aiPartnerResponse({
 }) {
   const strokes = strokeAllocation?.[aiPlayer.id]?.[currentHole] ?? 0;
   const quarters = playerStandings?.[aiPlayer.id]?.quarters ?? 0;
-  const handicap = Number(aiPlayer.handicap) || 18;
+  const handicap = (Number.isFinite(Number(aiPlayer.handicap)) ? Number(aiPlayer.handicap) : 18);
 
   if (strokes >= 1) {
     return { decision: "accept", reason: "has a stroke on this hole" };
@@ -39,7 +39,7 @@ export function aiDoubleResponse({
 }) {
   const strokes = strokeAllocation?.[aiPlayer.id]?.[currentHole] ?? 0;
   const quarters = playerStandings?.[aiPlayer.id]?.quarters ?? 0;
-  const handicap = Number(aiPlayer.handicap) || 18;
+  const handicap = (Number.isFinite(Number(aiPlayer.handicap)) ? Number(aiPlayer.handicap) : 18);
 
   // Accept if you have a stroke (favorable) or you're hungry and need a swing.
   if (strokes >= 1) {
@@ -72,7 +72,7 @@ export function aiShouldOfferDouble({
   for (const ai of aiTeamPlayers) {
     const strokes = strokeAllocation?.[ai.id]?.[currentHole] ?? 0;
     const quarters = playerStandings?.[ai.id]?.quarters ?? 0;
-    const handicap = Number(ai.handicap) || 18;
+    const handicap = (Number.isFinite(Number(ai.handicap)) ? Number(ai.handicap) : 18);
     // Offer when you have a stroke and the wager is still cheap.
     if (strokes >= 1 && currentWager <= 2) {
       return { player: ai, reason: "stroke on the hole, presses for value" };
@@ -105,7 +105,7 @@ export function aiCaptainDecide({
     .map((p) => {
       const strokes = strokeAllocation?.[p.id]?.[currentHole] ?? 0;
       const quarters = playerStandings?.[p.id]?.quarters ?? 0;
-      const handicap = Number(p.handicap) || 18;
+      const handicap = (Number.isFinite(Number(p.handicap)) ? Number(p.handicap) : 18);
       const hungryPenalty = quarters < -5 ? 3 : 0;
       const score = handicap - strokes * 4 + hungryPenalty;
       return { player: p, score, strokes, quarters };
@@ -116,7 +116,7 @@ export function aiCaptainDecide({
 
   // Solo when the captain has a real stroke advantage AND isn't already
   // deep in a hole. Falls back to partners with the strongest available.
-  const captainHcp = Number(captain.handicap) || 18;
+  const captainHcp = (Number.isFinite(Number(captain.handicap)) ? Number(captain.handicap) : 18);
   const canSolo =
     captainStrokes >= 1 &&
     captainHcp < SOLO_HCP_THRESHOLD &&
