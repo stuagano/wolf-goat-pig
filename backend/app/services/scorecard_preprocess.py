@@ -54,7 +54,7 @@ def _detect_circles(img: np.ndarray) -> list[tuple[int, int, int]]:
         dp=1.2,
         minDist=min_dist,
         param1=100,
-        param2=30,
+        param2=40,
         minRadius=min_radius,
         maxRadius=max_radius,
     )
