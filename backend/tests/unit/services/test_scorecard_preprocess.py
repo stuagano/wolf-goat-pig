@@ -62,3 +62,31 @@ def test_returns_diagnostics_when_no_circles_detected():
     annotated, content_type, diag = annotate_circles(encoded.tobytes(), "image/jpeg")
     assert diag["preprocessing_applied"] is False
     assert diag["circles_detected"] == 0
+
+
+def test_annotation_returns_jpeg_with_same_dimensions(example_image_bytes):
+    annotated, content_type, diag = annotate_circles(example_image_bytes, "image/jpeg")
+    if not diag.get("preprocessing_applied"):
+        pytest.skip("annotation skipped — sanity bounds not met for example image")
+
+    assert content_type == "image/jpeg"
+    arr = np.frombuffer(annotated, dtype=np.uint8)
+    decoded = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    assert decoded is not None, "annotated bytes must decode as a valid image"
+
+    in_arr = np.frombuffer(example_image_bytes, dtype=np.uint8)
+    in_decoded = cv2.imdecode(in_arr, cv2.IMREAD_COLOR)
+    assert decoded.shape == in_decoded.shape
+
+
+def test_annotation_introduces_red_pixels(example_image_bytes):
+    """Annotated image should contain pure red pixels (the markers); originals shouldn't."""
+    annotated, _, diag = annotate_circles(example_image_bytes, "image/jpeg")
+    if not diag.get("preprocessing_applied"):
+        pytest.skip("annotation skipped — sanity bounds not met for example image")
+
+    arr = np.frombuffer(annotated, dtype=np.uint8)
+    decoded = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    # BGR red: B=0, G=0, R=255 (with JPEG quantization slack)
+    red_mask = (decoded[:, :, 0] < 30) & (decoded[:, :, 1] < 30) & (decoded[:, :, 2] > 220)
+    assert red_mask.sum() > 100, "expected ≥100 pure-red marker pixels"

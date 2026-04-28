@@ -19,12 +19,14 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-# Detection sanity bounds — outside these we assume detection failed and skip annotation.
 _MIN_CIRCLES = 1
 _MAX_CIRCLES = 150
-
-# Crop from top of image — pre-printed yardages are in the top section, no handwriting there.
 _TOP_CROP_FRACTION = 0.25
+
+_RECT_COLOR_BGR = (0, 0, 255)  # pure red
+_RECT_THICKNESS = 4
+_RECT_PADDING_PX = 8
+_JPEG_QUALITY = 90
 
 
 def _decode_image(image_bytes: bytes) -> np.ndarray:
@@ -38,8 +40,7 @@ def _decode_image(image_bytes: bytes) -> np.ndarray:
 
 
 def _detect_circles(img: np.ndarray) -> list[tuple[int, int, int]]:
-    """Return list of (x, y, radius) tuples for detected circles in the handwriting region."""
-    height, width = img.shape[:2]
+    height, _ = img.shape[:2]
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     blurred = cv2.medianBlur(gray, 3)
 
@@ -67,6 +68,25 @@ def _detect_circles(img: np.ndarray) -> list[tuple[int, int, int]]:
             continue
         out.append((int(x), int(y), int(r)))
     return out
+
+
+def _draw_markers(img: np.ndarray, circles: list[tuple[int, int, int]]) -> np.ndarray:
+    height, width = img.shape[:2]
+    out = img.copy()
+    for x, y, r in circles:
+        x1 = max(0, x - r - _RECT_PADDING_PX)
+        y1 = max(0, y - r - _RECT_PADDING_PX)
+        x2 = min(width - 1, x + r + _RECT_PADDING_PX)
+        y2 = min(height - 1, y + r + _RECT_PADDING_PX)
+        cv2.rectangle(out, (x1, y1), (x2, y2), _RECT_COLOR_BGR, _RECT_THICKNESS)
+    return out
+
+
+def _encode_jpeg(img: np.ndarray) -> bytes:
+    ok, buf = cv2.imencode(".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY), _JPEG_QUALITY])
+    if not ok:
+        raise ValueError("failed to encode annotated image as JPEG")
+    return buf.tobytes()
 
 
 def annotate_circles(
@@ -100,16 +120,23 @@ def annotate_circles(
             "image_dimensions": [width, height],
         }
 
-    if len(circles) < _MIN_CIRCLES or len(circles) > _MAX_CIRCLES:
-        return image_bytes, content_type, {
-            "preprocessing_applied": False,
-            "circles_detected": len(circles),
-            "image_dimensions": [width, height],
-        }
-
-    return image_bytes, content_type, {
-        "preprocessing_applied": False,
+    diag: dict[str, Any] = {
         "circles_detected": len(circles),
         "image_dimensions": [width, height],
-        "error": "annotation_not_yet_implemented",
     }
+
+    if len(circles) < _MIN_CIRCLES or len(circles) > _MAX_CIRCLES:
+        diag["preprocessing_applied"] = False
+        return image_bytes, content_type, diag
+
+    try:
+        annotated = _draw_markers(img, circles)
+        encoded = _encode_jpeg(annotated)
+    except (cv2.error, ValueError) as e:
+        logger.warning("Scorecard preprocessing annotation failed: %s", e)
+        diag["preprocessing_applied"] = False
+        diag["error"] = str(e)
+        return image_bytes, content_type, diag
+
+    diag["preprocessing_applied"] = True
+    return encoded, "image/jpeg", diag
