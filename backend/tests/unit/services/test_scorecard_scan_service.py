@@ -325,3 +325,38 @@ class TestDeltaSumProperty:
         totals = [{"hole": 1, "value": -96, "is_circled": True}]
         deltas = _compute_per_hole_deltas(totals, num_holes=9)
         assert sum(d["quarters"] for d in deltas) == -96
+
+
+class TestScanScorecardCallsPreprocessing:
+    """scan_scorecard() must run annotate_circles() once and reuse output."""
+
+    def test_preprocessing_called_once_and_diagnostics_returned(self, monkeypatch):
+        from app.services import scorecard_scan_service as svc
+
+        call_count = {"n": 0}
+
+        def fake_annotate(image_bytes, content_type):
+            call_count["n"] += 1
+            return b"ANNOTATED", "image/jpeg", {"preprocessing_applied": True, "circles_detected": 7}
+
+        async def fake_call_groq(image_bytes, content_type, *, strict=False):
+            assert image_bytes == b"ANNOTATED", "vision must receive annotated bytes"
+            return {
+                "players": [{"name": "P1", "confidence": 1.0}, {"name": "P2", "confidence": 1.0}],
+                "running_totals": [
+                    {"player_index": 0, "hole": h, "value": 0, "is_circled": False, "confidence": 1.0}
+                    for h in range(1, 19)
+                ] + [
+                    {"player_index": 1, "hole": h, "value": 0, "is_circled": False, "confidence": 1.0}
+                    for h in range(1, 19)
+                ],
+            }
+
+        monkeypatch.setattr(svc, "annotate_circles", fake_annotate)
+        monkeypatch.setattr(svc, "_call_groq_vision", fake_call_groq)
+
+        result = asyncio.run(svc.scan_scorecard(b"ORIGINAL", "image/jpeg"))
+
+        assert call_count["n"] == 1, "annotate_circles must run exactly once per scan"
+        assert result["preprocessing"]["preprocessing_applied"] is True
+        assert result["preprocessing"]["circles_detected"] == 7

@@ -14,6 +14,8 @@ from typing import Any
 
 import httpx
 
+from .scorecard_preprocess import annotate_circles
+
 logger = logging.getLogger(__name__)
 
 _GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
@@ -70,6 +72,13 @@ Return ONLY valid JSON in this exact format:
     {"player_index": 0, "hole": 3, "value": 4, "is_circled": false, "confidence": 1.0}
   ]
 }
+
+CRITICAL — CIRCLE DETECTION HINTS:
+Bright red rectangles have been pre-drawn around cells whose values are
+CIRCLED on the original card. Treat any value inside a red rectangle as
+is_circled: true. Cells WITHOUT a red rectangle are uncircled (positive).
+The red rectangles are pre-processing markers — ignore them when reading
+the value itself, only use them to determine the sign.
 """
 
 
@@ -227,26 +236,35 @@ async def scan_scorecard(image_bytes: bytes, content_type: str) -> dict[str, Any
     returns malformed JSON or violates the zero-sum invariant — these are
     the dominant failure modes in practice and a stricter retry catches
     most of them without doubling latency on the happy path.
+
+    Preprocessing: classical circle detection draws red rectangles around
+    each detected hand-drawn circle once at the top of the function. The
+    annotated bytes are reused for both the initial call and the strict
+    retry. Annotation failures degrade gracefully — original bytes are sent.
     """
+    annotated_bytes, annotated_ct, preprocessing_diag = annotate_circles(
+        image_bytes, content_type
+    )
+
     parse_error: Exception | None = None
     try:
-        extracted = await _call_groq_vision(image_bytes, content_type, strict=False)
+        extracted = await _call_groq_vision(annotated_bytes, annotated_ct, strict=False)
     except json.JSONDecodeError as e:
         logger.warning("First scan returned non-JSON, retrying strict: %s", e)
         parse_error = e
-        extracted = None  # forces retry below
+        extracted = None
 
     if extracted is not None:
         result = _shape_extraction(extracted)
         validation = _validate_zero_sum(result["per_hole_quarters"])
         if validation["valid"]:
             result["validation"] = validation
+            result["preprocessing"] = preprocessing_diag
             return result
         logger.warning("Zero-sum violated on first scan: %s — retrying strict", validation["bad_holes"])
 
-    # Retry with stricter prompt, deterministic temperature
     try:
-        extracted = await _call_groq_vision(image_bytes, content_type, strict=True)
+        extracted = await _call_groq_vision(annotated_bytes, annotated_ct, strict=True)
     except json.JSONDecodeError as e:
         if parse_error is not None:
             logger.error("Both scan attempts returned non-JSON")
@@ -254,4 +272,5 @@ async def scan_scorecard(image_bytes: bytes, content_type: str) -> dict[str, Any
 
     result = _shape_extraction(extracted)
     result["validation"] = _validate_zero_sum(result["per_hole_quarters"])
+    result["preprocessing"] = preprocessing_diag
     return result
