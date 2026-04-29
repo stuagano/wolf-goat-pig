@@ -328,12 +328,13 @@ class TestDeltaSumProperty:
 
 
 class TestScanScorecardCallsPreprocessing:
-    """scan_scorecard() must run deskew + annotate_circles once each, in order."""
+    """scan_scorecard() must run deskew + grid_crop + annotate_circles once each, in order."""
 
     def test_preprocessing_pipeline_order_and_diagnostics(self, monkeypatch):
         from app.services import scorecard_scan_service as svc
 
         deskew_calls = {"n": 0}
+        grid_calls = {"n": 0}
         annotate_calls = {"n": 0}
 
         def fake_deskew(image_bytes, content_type):
@@ -341,9 +342,18 @@ class TestScanScorecardCallsPreprocessing:
             assert image_bytes == b"ORIGINAL", "deskew runs on original bytes"
             return b"DESKEWED", "image/jpeg", {"deskew_applied": True, "warped_dimensions": [800, 400]}
 
+        def fake_grid(image_bytes, content_type):
+            grid_calls["n"] += 1
+            assert image_bytes == b"DESKEWED", "grid_crop must receive deskewed bytes"
+            return b"GRID_CROPPED", "image/jpeg", {
+                "grid_crop_applied": True,
+                "row_lines": [10, 50, 100, 150, 200],
+                "col_lines": [5, 20, 40, 60, 80, 100],
+            }
+
         def fake_annotate(image_bytes, content_type):
             annotate_calls["n"] += 1
-            assert image_bytes == b"DESKEWED", "annotate must receive deskewed bytes"
+            assert image_bytes == b"GRID_CROPPED", "annotate must receive grid-cropped bytes"
             return b"ANNOTATED", "image/jpeg", {"preprocessing_applied": True, "circles_detected": 7}
 
         async def fake_call_groq(image_bytes, content_type, *, strict=False):
@@ -360,13 +370,16 @@ class TestScanScorecardCallsPreprocessing:
             }
 
         monkeypatch.setattr(svc, "deskew_to_card", fake_deskew)
+        monkeypatch.setattr(svc, "crop_to_grid", fake_grid)
         monkeypatch.setattr(svc, "annotate_circles", fake_annotate)
         monkeypatch.setattr(svc, "_call_groq_vision", fake_call_groq)
 
         result = asyncio.run(svc.scan_scorecard(b"ORIGINAL", "image/jpeg"))
 
         assert deskew_calls["n"] == 1, "deskew_to_card must run exactly once per scan"
+        assert grid_calls["n"] == 1, "crop_to_grid must run exactly once per scan"
         assert annotate_calls["n"] == 1, "annotate_circles must run exactly once per scan"
         assert result["preprocessing"]["deskew"]["deskew_applied"] is True
+        assert result["preprocessing"]["grid_crop"]["grid_crop_applied"] is True
         assert result["preprocessing"]["circles"]["preprocessing_applied"] is True
         assert result["preprocessing"]["circles"]["circles_detected"] == 7

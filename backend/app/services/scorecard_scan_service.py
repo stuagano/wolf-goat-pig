@@ -14,7 +14,7 @@ from typing import Any
 
 import httpx
 
-from .scorecard_preprocess import annotate_circles, deskew_to_card
+from .scorecard_preprocess import annotate_circles, crop_to_grid, deskew_to_card
 
 logger = logging.getLogger(__name__)
 
@@ -241,7 +241,9 @@ async def scan_scorecard(image_bytes: bytes, content_type: str) -> dict[str, Any
     through to the previous step's bytes):
       1. deskew_to_card: detect the card frame and perspective-warp to a
          rectangle so the model sees a clean top-down view.
-      2. annotate_circles: classical Hough detection draws red rectangles
+      2. crop_to_grid: detect grid lines and tighten the frame to just the
+         table region, dropping branding/title/footer.
+      3. annotate_circles: classical Hough detection draws red rectangles
          around hand-drawn circles to make the negative/positive sign call
          a rectangle-spotting task instead of a circle-recognition task.
     The annotated bytes are reused for both the initial call and the strict
@@ -250,10 +252,17 @@ async def scan_scorecard(image_bytes: bytes, content_type: str) -> dict[str, Any
     deskewed_bytes, deskewed_ct, deskew_diag = deskew_to_card(
         image_bytes, content_type
     )
-    annotated_bytes, annotated_ct, circle_diag = annotate_circles(
+    cropped_bytes, cropped_ct, grid_diag = crop_to_grid(
         deskewed_bytes, deskewed_ct
     )
-    preprocessing_diag = {"deskew": deskew_diag, "circles": circle_diag}
+    annotated_bytes, annotated_ct, circle_diag = annotate_circles(
+        cropped_bytes, cropped_ct
+    )
+    preprocessing_diag = {
+        "deskew": deskew_diag,
+        "grid_crop": grid_diag,
+        "circles": circle_diag,
+    }
 
     parse_error: Exception | None = None
     try:

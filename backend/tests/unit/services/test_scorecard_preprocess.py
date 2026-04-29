@@ -9,8 +9,10 @@ import numpy as np
 import pytest
 
 from app.services.scorecard_preprocess import (
+    _find_peaks,
     _order_corners,
     annotate_circles,
+    crop_to_grid,
     deskew_to_card,
 )
 
@@ -179,3 +181,86 @@ def test_deskew_then_annotate_pipeline_on_example(example_image_bytes):
     assert isinstance(annotated, bytes)
     # Whether deskew applied or not, circle detection should still run cleanly.
     assert "preprocessing_applied" in circle_diag
+
+
+# ---------- Grid detection / crop ----------
+
+
+def test_find_peaks_empty_signal_returns_empty():
+    assert _find_peaks(np.array([], dtype=np.int64), min_separation=5) == []
+
+
+def test_find_peaks_zero_signal_returns_empty():
+    assert _find_peaks(np.zeros(100, dtype=np.int64), min_separation=5) == []
+
+
+def test_find_peaks_finds_distinct_peaks():
+    """Three runs above 50% of max with gaps — should find 3 peak midpoints."""
+    sig = np.zeros(200, dtype=np.int64)
+    sig[10:14] = 100
+    sig[60:65] = 100
+    sig[150:154] = 100
+    peaks = _find_peaks(sig, min_separation=5)
+    assert len(peaks) == 3
+    assert abs(peaks[0] - 11) <= 1
+    assert abs(peaks[1] - 62) <= 1
+    assert abs(peaks[2] - 151) <= 1
+
+
+def test_find_peaks_merges_close_peaks():
+    """Two peaks within min_separation collapse into one (the stronger)."""
+    sig = np.zeros(200, dtype=np.int64)
+    sig[10:14] = 50
+    sig[20:24] = 100  # stronger
+    sig[100:104] = 100
+    peaks = _find_peaks(sig, min_separation=20)
+    assert len(peaks) == 2
+    # First merged peak should be at the stronger position (~22)
+    assert abs(peaks[0] - 21) <= 2
+    assert abs(peaks[1] - 101) <= 2
+
+
+def test_crop_to_grid_returns_original_on_bad_bytes():
+    out, ct, diag = crop_to_grid(b"not an image", "image/jpeg")
+    assert out == b"not an image"
+    assert diag["grid_crop_applied"] is False
+    assert diag.get("error")
+
+
+def test_crop_to_grid_returns_original_on_blank_image():
+    """Blank canvas has no grid lines — should pass through."""
+    blank = np.full((400, 600, 3), 255, dtype=np.uint8)
+    ok, encoded = cv2.imencode(".jpg", blank)
+    assert ok
+    out, _, diag = crop_to_grid(encoded.tobytes(), "image/jpeg")
+    assert out == encoded.tobytes()
+    assert diag["grid_crop_applied"] is False
+    assert diag.get("reason") == "too_few_lines"
+
+
+def test_crop_to_grid_detects_synthetic_grid():
+    """A synthetic grid with 5 H-lines + 6 V-lines should crop to grid bounds."""
+    canvas = np.full((400, 800, 3), 255, dtype=np.uint8)
+    # Draw a grid covering ~half the canvas; outer region should get cropped away.
+    h_ys = [50, 100, 150, 200, 250]
+    v_xs = [100, 200, 300, 400, 500, 600]
+    for y in h_ys:
+        cv2.line(canvas, (v_xs[0], y), (v_xs[-1], y), (0, 0, 0), 2)
+    for x in v_xs:
+        cv2.line(canvas, (x, h_ys[0]), (x, h_ys[-1]), (0, 0, 0), 2)
+    ok, encoded = cv2.imencode(".jpg", canvas)
+    assert ok
+
+    out, ct, diag = crop_to_grid(encoded.tobytes(), "image/jpeg")
+    assert diag["grid_crop_applied"] is True, f"expected crop, got diag={diag}"
+    assert ct == "image/jpeg"
+    assert len(diag["row_lines"]) >= 5
+    assert len(diag["col_lines"]) >= 6
+    cw, ch = diag["cropped_dimensions"]
+    # Cropped image should be smaller than the original 800x400 canvas.
+    assert cw < 800 and ch < 400
+    # And it should still contain the grid (decode is valid).
+    arr = np.frombuffer(out, dtype=np.uint8)
+    decoded = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    assert decoded is not None
+    assert decoded.shape[0] == ch and decoded.shape[1] == cw

@@ -42,6 +42,12 @@ _DESKEW_TOP_CONTOURS = 5          # only check the largest N contours
 _DESKEW_MIN_ASPECT = 1.3
 _DESKEW_MAX_ASPECT = 3.5
 
+_GRID_PEAK_RATIO = 0.5         # peaks are ≥50% of max projection
+_GRID_MIN_H_LINES = 3          # need at least 3 horizontal lines for a meaningful grid
+_GRID_MIN_V_LINES = 5          # 5 vertical lines = 4 columns minimum
+_GRID_CROP_PADDING = 10        # px padding around detected grid bounds
+_GRID_MIN_CROP_DIM = 50        # reject crops smaller than this
+
 
 def _decode_image(image_bytes: bytes) -> np.ndarray:
     arr = np.frombuffer(image_bytes, dtype=np.uint8)
@@ -220,6 +226,136 @@ def deskew_to_card(
 
     diag["deskew_applied"] = True
     diag["warped_dimensions"] = [warped.shape[1], warped.shape[0]]
+    return encoded, "image/jpeg", diag
+
+
+def _find_peaks(signal: np.ndarray, min_separation: int) -> list[int]:
+    """
+    Locate peak positions in a 1D signal. Each contiguous run of values above
+    `_GRID_PEAK_RATIO * max(signal)` becomes one peak (its midpoint), then
+    peaks closer than `min_separation` are merged keeping the stronger one.
+    """
+    if signal.size == 0 or signal.max() == 0:
+        return []
+    threshold = _GRID_PEAK_RATIO * signal.max()
+    above = signal > threshold
+
+    peaks: list[int] = []
+    i = 0
+    while i < len(above):
+        if above[i]:
+            start = i
+            while i < len(above) and above[i]:
+                i += 1
+            peaks.append((start + i - 1) // 2)
+        else:
+            i += 1
+
+    merged: list[int] = []
+    for p in peaks:
+        if not merged or (p - merged[-1]) >= min_separation:
+            merged.append(p)
+        elif signal[p] > signal[merged[-1]]:
+            merged[-1] = p
+    return merged
+
+
+def _detect_grid_lines(img: np.ndarray) -> tuple[list[int], list[int]]:
+    """
+    Detect horizontal and vertical grid line positions. Uses morphological
+    opening with long line-shaped kernels to isolate true grid lines from
+    text and handwriting, then finds peaks in the row/column projections.
+
+    Returns (horizontal_line_y_positions, vertical_line_x_positions),
+    each sorted ascending.
+    """
+    height, width = img.shape[:2]
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    thresh = cv2.adaptiveThreshold(
+        gray, 255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV,
+        15, -2,
+    )
+
+    h_kernel_w = max(20, width // 30)
+    v_kernel_h = max(20, height // 30)
+    h_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (h_kernel_w, 1))
+    v_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, v_kernel_h))
+
+    h_lines = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, h_kernel)
+    v_lines = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, v_kernel)
+
+    h_proj = h_lines.sum(axis=1)
+    v_proj = v_lines.sum(axis=0)
+
+    h_positions = _find_peaks(h_proj, min_separation=max(5, height // 50))
+    v_positions = _find_peaks(v_proj, min_separation=max(5, width // 50))
+    return h_positions, v_positions
+
+
+def crop_to_grid(
+    image_bytes: bytes, content_type: str
+) -> tuple[bytes, str, dict[str, Any]]:
+    """
+    Detect the table grid in the image and crop tightly to the grid bounds
+    (with small padding). Drops scorecard branding/title/footer regions so
+    the vision model and circle detector both work on a tighter frame.
+
+    Returns (cropped_bytes, content_type, diagnostics). On any failure
+    (decode, line detection, too few lines, crop too small), returns the
+    original bytes — every step degrades gracefully.
+
+    Cell-level bounding boxes are NOT computed here; downstream callers
+    that need them can derive them from row_lines × col_lines in the diag.
+    """
+    try:
+        img = _decode_image(image_bytes)
+    except ValueError as e:
+        logger.warning("Grid crop decode failed: %s", e)
+        return image_bytes, content_type, {"grid_crop_applied": False, "error": str(e)}
+
+    height, width = img.shape[:2]
+    diag: dict[str, Any] = {"original_dimensions": [width, height]}
+
+    try:
+        h_lines, v_lines = _detect_grid_lines(img)
+    except cv2.error as e:
+        logger.warning("Grid line detection failed: %s", e)
+        diag["grid_crop_applied"] = False
+        diag["error"] = f"line_detect_failed: {e}"
+        return image_bytes, content_type, diag
+
+    diag["row_lines"] = h_lines
+    diag["col_lines"] = v_lines
+
+    if len(h_lines) < _GRID_MIN_H_LINES or len(v_lines) < _GRID_MIN_V_LINES:
+        diag["grid_crop_applied"] = False
+        diag["reason"] = "too_few_lines"
+        return image_bytes, content_type, diag
+
+    pad = _GRID_CROP_PADDING
+    y1 = max(0, h_lines[0] - pad)
+    y2 = min(height, h_lines[-1] + pad)
+    x1 = max(0, v_lines[0] - pad)
+    x2 = min(width, v_lines[-1] + pad)
+
+    cropped = img[y1:y2, x1:x2]
+    if cropped.shape[0] < _GRID_MIN_CROP_DIM or cropped.shape[1] < _GRID_MIN_CROP_DIM:
+        diag["grid_crop_applied"] = False
+        diag["reason"] = "crop_too_small"
+        return image_bytes, content_type, diag
+
+    try:
+        encoded = _encode_jpeg(cropped)
+    except (cv2.error, ValueError) as e:
+        logger.warning("Grid crop encode failed: %s", e)
+        diag["grid_crop_applied"] = False
+        diag["error"] = str(e)
+        return image_bytes, content_type, diag
+
+    diag["grid_crop_applied"] = True
+    diag["cropped_dimensions"] = [cropped.shape[1], cropped.shape[0]]
+    diag["crop_bounds"] = [x1, y1, x2, y2]
     return encoded, "image/jpeg", diag
 
 

@@ -139,9 +139,13 @@ async def evaluate(fixtures: list[tuple[Path, Path]]) -> list[dict]:
 
         preproc = extracted.get("preprocessing", {})
         deskew = preproc.get("deskew", {})
+        grid = preproc.get("grid_crop", {})
         circles = preproc.get("circles", {})
         print(
             f"  Preprocessing: deskew={deskew.get('deskew_applied', False)} "
+            f"grid_crop={grid.get('grid_crop_applied', False)} "
+            f"(rows={len(grid.get('row_lines', []))}, "
+            f"cols={len(grid.get('col_lines', []))}) "
             f"circles={circles.get('circles_detected', '?')} "
             f"annotated={circles.get('preprocessing_applied', False)}"
         )
