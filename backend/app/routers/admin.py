@@ -648,7 +648,7 @@ async def get_database_stats(x_admin_email: str | None = Header(None), db: Sessi
             .filter(models.PlayerProfile.email.isnot(None), models.PlayerProfile.email != "")
             .count()
         )
-        ai_players = db.query(models.PlayerProfile).filter(models.PlayerProfile.is_ai == True).count()
+        ai_players = db.query(models.PlayerProfile).filter(models.PlayerProfile.is_ai == 1).count()
 
         stats["players"] = {
             "total": total_players,
