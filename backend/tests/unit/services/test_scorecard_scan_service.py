@@ -328,15 +328,22 @@ class TestDeltaSumProperty:
 
 
 class TestScanScorecardCallsPreprocessing:
-    """scan_scorecard() must run annotate_circles() once and reuse output."""
+    """scan_scorecard() must run deskew + annotate_circles once each, in order."""
 
-    def test_preprocessing_called_once_and_diagnostics_returned(self, monkeypatch):
+    def test_preprocessing_pipeline_order_and_diagnostics(self, monkeypatch):
         from app.services import scorecard_scan_service as svc
 
-        call_count = {"n": 0}
+        deskew_calls = {"n": 0}
+        annotate_calls = {"n": 0}
+
+        def fake_deskew(image_bytes, content_type):
+            deskew_calls["n"] += 1
+            assert image_bytes == b"ORIGINAL", "deskew runs on original bytes"
+            return b"DESKEWED", "image/jpeg", {"deskew_applied": True, "warped_dimensions": [800, 400]}
 
         def fake_annotate(image_bytes, content_type):
-            call_count["n"] += 1
+            annotate_calls["n"] += 1
+            assert image_bytes == b"DESKEWED", "annotate must receive deskewed bytes"
             return b"ANNOTATED", "image/jpeg", {"preprocessing_applied": True, "circles_detected": 7}
 
         async def fake_call_groq(image_bytes, content_type, *, strict=False):
@@ -352,11 +359,14 @@ class TestScanScorecardCallsPreprocessing:
                 ],
             }
 
+        monkeypatch.setattr(svc, "deskew_to_card", fake_deskew)
         monkeypatch.setattr(svc, "annotate_circles", fake_annotate)
         monkeypatch.setattr(svc, "_call_groq_vision", fake_call_groq)
 
         result = asyncio.run(svc.scan_scorecard(b"ORIGINAL", "image/jpeg"))
 
-        assert call_count["n"] == 1, "annotate_circles must run exactly once per scan"
-        assert result["preprocessing"]["preprocessing_applied"] is True
-        assert result["preprocessing"]["circles_detected"] == 7
+        assert deskew_calls["n"] == 1, "deskew_to_card must run exactly once per scan"
+        assert annotate_calls["n"] == 1, "annotate_circles must run exactly once per scan"
+        assert result["preprocessing"]["deskew"]["deskew_applied"] is True
+        assert result["preprocessing"]["circles"]["preprocessing_applied"] is True
+        assert result["preprocessing"]["circles"]["circles_detected"] == 7

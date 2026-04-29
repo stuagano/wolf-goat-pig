@@ -14,7 +14,7 @@ from typing import Any
 
 import httpx
 
-from .scorecard_preprocess import annotate_circles
+from .scorecard_preprocess import annotate_circles, deskew_to_card
 
 logger = logging.getLogger(__name__)
 
@@ -237,14 +237,23 @@ async def scan_scorecard(image_bytes: bytes, content_type: str) -> dict[str, Any
     the dominant failure modes in practice and a stricter retry catches
     most of them without doubling latency on the happy path.
 
-    Preprocessing: classical circle detection draws red rectangles around
-    each detected hand-drawn circle once at the top of the function. The
-    annotated bytes are reused for both the initial call and the strict
-    retry. Annotation failures degrade gracefully — original bytes are sent.
+    Preprocessing pipeline (each step degrades gracefully — failures fall
+    through to the previous step's bytes):
+      1. deskew_to_card: detect the card frame and perspective-warp to a
+         rectangle so the model sees a clean top-down view.
+      2. annotate_circles: classical Hough detection draws red rectangles
+         around hand-drawn circles to make the negative/positive sign call
+         a rectangle-spotting task instead of a circle-recognition task.
+    The annotated bytes are reused for both the initial call and the strict
+    retry.
     """
-    annotated_bytes, annotated_ct, preprocessing_diag = annotate_circles(
+    deskewed_bytes, deskewed_ct, deskew_diag = deskew_to_card(
         image_bytes, content_type
     )
+    annotated_bytes, annotated_ct, circle_diag = annotate_circles(
+        deskewed_bytes, deskewed_ct
+    )
+    preprocessing_diag = {"deskew": deskew_diag, "circles": circle_diag}
 
     parse_error: Exception | None = None
     try:

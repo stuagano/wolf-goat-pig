@@ -1,12 +1,18 @@
 """
 Scorecard photo preprocessing.
 
-Detects hand-drawn circles classically (Hough) and draws bright red
-rectangles around each one. The downstream vision model can reliably
-detect bright red rectangles, but is unreliable at detecting hand-drawn
-circles — so we shift the burden.
+Two stages, both with graceful fallback to the original image on failure:
 
-Public entry point: annotate_circles().
+1. deskew_to_card(): detect the scorecard's outer 4-corner contour and
+   apply a perspective warp so the card fills a rectangular frame. This
+   normalizes shooting angle so downstream steps see a clean top-down view.
+
+2. annotate_circles(): detect hand-drawn circles classically (Hough) and
+   draw bright red rectangles around each one. The vision model reliably
+   detects bright red rectangles but struggles with hand-drawn circles —
+   we shift the burden.
+
+Public entry points: deskew_to_card(), annotate_circles().
 """
 
 from __future__ import annotations
@@ -27,6 +33,14 @@ _RECT_COLOR_BGR = (0, 0, 255)  # pure red
 _RECT_THICKNESS = 4
 _RECT_PADDING_PX = 8
 _JPEG_QUALITY = 90
+
+_DESKEW_MIN_AREA_FRACTION = 0.30  # card must occupy ≥30% of frame
+_DESKEW_APPROX_EPSILON = 0.02     # poly approx tolerance, fraction of perimeter
+_DESKEW_TOP_CONTOURS = 5          # only check the largest N contours
+# WGP scorecard prints landscape ~1.7-2.5:1. Anything outside this is more likely
+# a tabletop, page, or background rectangle than the card itself.
+_DESKEW_MIN_ASPECT = 1.3
+_DESKEW_MAX_ASPECT = 3.5
 
 
 def _decode_image(image_bytes: bytes) -> np.ndarray:
@@ -87,6 +101,126 @@ def _encode_jpeg(img: np.ndarray) -> bytes:
     if not ok:
         raise ValueError("failed to encode annotated image as JPEG")
     return buf.tobytes()
+
+
+def _detect_card_corners(img: np.ndarray) -> np.ndarray | None:
+    """
+    Find the outer 4-corner contour of the scorecard. Returns 4×2 array of
+    (x, y) corner points in undefined order, or None if no quad found that
+    covers ≥_DESKEW_MIN_AREA_FRACTION of the image.
+    """
+    height, width = img.shape[:2]
+    img_area = float(height * width)
+
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    edges = cv2.Canny(blurred, 50, 150)
+    edges = cv2.dilate(edges, np.ones((3, 3), np.uint8), iterations=1)
+
+    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return None
+
+    contours = sorted(contours, key=cv2.contourArea, reverse=True)[:_DESKEW_TOP_CONTOURS]
+
+    for c in contours:
+        if cv2.contourArea(c) < img_area * _DESKEW_MIN_AREA_FRACTION:
+            return None  # remaining contours are even smaller
+        peri = cv2.arcLength(c, True)
+        approx = cv2.approxPolyDP(c, _DESKEW_APPROX_EPSILON * peri, True)
+        if len(approx) != 4:
+            continue
+        x, y, w, h = cv2.boundingRect(approx)
+        aspect = max(w, h) / max(min(w, h), 1)
+        if aspect < _DESKEW_MIN_ASPECT or aspect > _DESKEW_MAX_ASPECT:
+            continue  # quad shape doesn't match a WGP scorecard
+        return approx.reshape(4, 2).astype("float32")
+
+    return None
+
+
+def _order_corners(pts: np.ndarray) -> np.ndarray:
+    """
+    Order 4 corner points as (top-left, top-right, bottom-right, bottom-left).
+    TL has smallest x+y; BR has largest x+y; TR has smallest y-x; BL has largest y-x.
+    """
+    rect = np.zeros((4, 2), dtype="float32")
+    s = pts.sum(axis=1)
+    rect[0] = pts[np.argmin(s)]  # TL
+    rect[2] = pts[np.argmax(s)]  # BR
+    diff = np.diff(pts, axis=1).ravel()  # y - x
+    rect[1] = pts[np.argmin(diff)]  # TR
+    rect[3] = pts[np.argmax(diff)]  # BL
+    return rect
+
+
+def _warp_to_rect(img: np.ndarray, corners: np.ndarray) -> np.ndarray:
+    rect = _order_corners(corners)
+    tl, tr, br, bl = rect
+
+    width_top = np.linalg.norm(tr - tl)
+    width_bot = np.linalg.norm(br - bl)
+    height_left = np.linalg.norm(bl - tl)
+    height_right = np.linalg.norm(br - tr)
+
+    out_w = int(max(width_top, width_bot))
+    out_h = int(max(height_left, height_right))
+    if out_w < 50 or out_h < 50:
+        raise ValueError(f"warped dimensions too small: {out_w}x{out_h}")
+
+    dst = np.array(
+        [[0, 0], [out_w - 1, 0], [out_w - 1, out_h - 1], [0, out_h - 1]],
+        dtype="float32",
+    )
+    M = cv2.getPerspectiveTransform(rect, dst)
+    return cv2.warpPerspective(img, M, (out_w, out_h))
+
+
+def deskew_to_card(
+    image_bytes: bytes, content_type: str
+) -> tuple[bytes, str, dict[str, Any]]:
+    """
+    Detect the scorecard's outer 4-corner frame and warp it to a rectangle.
+
+    Returns (deskewed_bytes, content_type, diagnostics). On any failure
+    (no 4-corner contour found, warp failure, decode failure), returns the
+    original bytes/content_type so the caller can proceed with the unmodified
+    image.
+    """
+    try:
+        img = _decode_image(image_bytes)
+    except ValueError as e:
+        logger.warning("Deskew decode failed: %s", e)
+        return image_bytes, content_type, {"deskew_applied": False, "error": str(e)}
+
+    height, width = img.shape[:2]
+    diag: dict[str, Any] = {"original_dimensions": [width, height]}
+
+    try:
+        corners = _detect_card_corners(img)
+    except cv2.error as e:
+        logger.warning("Deskew corner detection failed: %s", e)
+        diag["deskew_applied"] = False
+        diag["error"] = f"corner_detect_failed: {e}"
+        return image_bytes, content_type, diag
+
+    if corners is None:
+        diag["deskew_applied"] = False
+        diag["reason"] = "no_4corner_contour"
+        return image_bytes, content_type, diag
+
+    try:
+        warped = _warp_to_rect(img, corners)
+        encoded = _encode_jpeg(warped)
+    except (cv2.error, ValueError) as e:
+        logger.warning("Deskew warp failed: %s", e)
+        diag["deskew_applied"] = False
+        diag["error"] = str(e)
+        return image_bytes, content_type, diag
+
+    diag["deskew_applied"] = True
+    diag["warped_dimensions"] = [warped.shape[1], warped.shape[0]]
+    return encoded, "image/jpeg", diag
 
 
 def annotate_circles(

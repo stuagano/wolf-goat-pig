@@ -138,9 +138,12 @@ async def evaluate(fixtures: list[tuple[Path, Path]]) -> list[dict]:
             print(f"  Zero-sum: FAIL holes={sorted(bad.keys())}")
 
         preproc = extracted.get("preprocessing", {})
+        deskew = preproc.get("deskew", {})
+        circles = preproc.get("circles", {})
         print(
-            f"  Preprocessing: {preproc.get('circles_detected', '?')} circles, "
-            f"applied={preproc.get('preprocessing_applied', False)}"
+            f"  Preprocessing: deskew={deskew.get('deskew_applied', False)} "
+            f"circles={circles.get('circles_detected', '?')} "
+            f"annotated={circles.get('preprocessing_applied', False)}"
         )
 
         results.append(
