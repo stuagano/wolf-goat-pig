@@ -130,7 +130,7 @@ def test_deskew_returns_original_when_no_card_found():
     blank = np.full((1000, 1500, 3), 255, dtype=np.uint8)
     ok, encoded = cv2.imencode(".jpg", blank)
     assert ok
-    out_bytes, content_type, diag = deskew_to_card(encoded.tobytes(), "image/jpeg")
+    out_bytes, _, diag = deskew_to_card(encoded.tobytes(), "image/jpeg")
     assert out_bytes == encoded.tobytes(), "no-card case must return original bytes"
     assert diag["deskew_applied"] is False
     assert diag.get("reason") == "no_4corner_contour"
@@ -175,7 +175,7 @@ def test_deskew_rejects_square_quad():
 
 def test_deskew_then_annotate_pipeline_on_example(example_image_bytes):
     """End-to-end: real example image should not break either stage."""
-    deskewed, ct, deskew_diag = deskew_to_card(example_image_bytes, "image/jpeg")
+    deskewed, ct, _ = deskew_to_card(example_image_bytes, "image/jpeg")
     assert isinstance(deskewed, bytes) and len(deskewed) > 0
     annotated, _, circle_diag = annotate_circles(deskewed, ct)
     assert isinstance(annotated, bytes)
@@ -221,7 +221,7 @@ def test_find_peaks_merges_close_peaks():
 
 
 def test_crop_to_grid_returns_original_on_bad_bytes():
-    out, ct, diag = crop_to_grid(b"not an image", "image/jpeg")
+    out, _, diag = crop_to_grid(b"not an image", "image/jpeg")
     assert out == b"not an image"
     assert diag["grid_crop_applied"] is False
     assert diag.get("error")
@@ -252,8 +252,8 @@ def test_crop_to_grid_detects_synthetic_grid():
     assert ok
 
     out, ct, diag = crop_to_grid(encoded.tobytes(), "image/jpeg")
-    assert diag["grid_crop_applied"] is True, f"expected crop, got diag={diag}"
     assert ct == "image/jpeg"
+    assert diag["grid_crop_applied"] is True, f"expected crop, got diag={diag}"
     assert len(diag["row_lines"]) >= 5
     assert len(diag["col_lines"]) >= 6
     cw, ch = diag["cropped_dimensions"]

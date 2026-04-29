@@ -136,7 +136,7 @@ def _detect_card_corners(img: np.ndarray) -> np.ndarray | None:
         approx = cv2.approxPolyDP(c, _DESKEW_APPROX_EPSILON * peri, True)
         if len(approx) != 4:
             continue
-        x, y, w, h = cv2.boundingRect(approx)
+        _, _, w, h = cv2.boundingRect(approx)
         aspect = max(w, h) / max(min(w, h), 1)
         if aspect < _DESKEW_MIN_ASPECT or aspect > _DESKEW_MAX_ASPECT:
             continue  # quad shape doesn't match a WGP scorecard
