@@ -6,8 +6,9 @@ For production, consider using Redis for distributed caching.
 
 import logging
 from datetime import datetime, timedelta
-from ..utils.time import utc_now
 from typing import Any
+
+from ..utils.time import utc_now
 
 logger = logging.getLogger("app.caching")
 

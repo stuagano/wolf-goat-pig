@@ -3,16 +3,14 @@
 import json
 import logging
 import traceback
-from datetime import UTC, datetime
-from ..utils.time import utc_now
-from typing import Any, cast
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from .. import database, models, schemas
+from .. import database, models
 from ..managers.websocket_manager import manager as websocket_manager
 from ..schemas import CompleteHoleRequest, RotationSelectionRequest
 from ..services.game_lifecycle_service import get_game_lifecycle_service
@@ -25,7 +23,7 @@ from ..services.hole_completion_service import (
     sync_simulation,
 )
 from ..services.notification_service import get_notification_service
-from ..wolf_goat_pig import Player, WolfGoatPigGame
+from ..utils.time import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +33,7 @@ router = APIRouter(prefix="/games", tags=["games"])
 # ---------------------------------------------------------------------------
 # Models
 # ---------------------------------------------------------------------------
+
 
 class QuartersOnlyRequest(BaseModel):
     """Simplified scoring request - just quarters per hole per player"""
@@ -699,14 +698,16 @@ async def save_quarters_only(game_id: str, request: QuartersOnlyRequest, db: Ses
                         for pid, quarters in pts.items():
                             if pid not in player_hole_data:
                                 player_hole_data[pid] = []
-                            player_hole_data[pid].append({
-                                "hole": entry.get("hole"),
-                                "quarters": quarters,
-                                "gross_score": gross.get(pid) if gross else None,
-                                "teams": entry.get("teams"),
-                                "wager": entry.get("wager"),
-                                "phase": entry.get("phase"),
-                            })
+                            player_hole_data[pid].append(
+                                {
+                                    "hole": entry.get("hole"),
+                                    "quarters": quarters,
+                                    "gross_score": gross.get(pid) if gross else None,
+                                    "teams": entry.get("teams"),
+                                    "wager": entry.get("wager"),
+                                    "phase": entry.get("phase"),
+                                }
+                            )
 
                     sorted_players = sorted(
                         players,
@@ -719,11 +720,13 @@ async def save_quarters_only(game_id: str, request: QuartersOnlyRequest, db: Ses
                         holes_data = player_hole_data.get(pid, [])
                         total_earn = standings.get(pid, 0)
                         holes_won = sum(1 for h in holes_data if h.get("quarters", 0) > 0)
-                        perf = json.dumps({
-                            "handicap": player.get("handicap"),
-                            "holes_played": len(holes_data),
-                            "avg_quarters_per_hole": round(total_earn / max(len(holes_data), 1), 2),
-                        })
+                        perf = json.dumps(
+                            {
+                                "handicap": player.get("handicap"),
+                                "holes_played": len(holes_data),
+                                "avg_quarters_per_hole": round(total_earn / max(len(holes_data), 1), 2),
+                            }
+                        )
                         db.execute(
                             text("""
                                 INSERT INTO game_player_results

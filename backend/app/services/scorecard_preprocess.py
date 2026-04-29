@@ -35,18 +35,18 @@ _RECT_PADDING_PX = 8
 _JPEG_QUALITY = 90
 
 _DESKEW_MIN_AREA_FRACTION = 0.30  # card must occupy ≥30% of frame
-_DESKEW_APPROX_EPSILON = 0.02     # poly approx tolerance, fraction of perimeter
-_DESKEW_TOP_CONTOURS = 5          # only check the largest N contours
+_DESKEW_APPROX_EPSILON = 0.02  # poly approx tolerance, fraction of perimeter
+_DESKEW_TOP_CONTOURS = 5  # only check the largest N contours
 # WGP scorecard prints landscape ~1.7-2.5:1. Anything outside this is more likely
 # a tabletop, page, or background rectangle than the card itself.
 _DESKEW_MIN_ASPECT = 1.3
 _DESKEW_MAX_ASPECT = 3.5
 
-_GRID_PEAK_RATIO = 0.5         # peaks are ≥50% of max projection
-_GRID_MIN_H_LINES = 3          # need at least 3 horizontal lines for a meaningful grid
-_GRID_MIN_V_LINES = 5          # 5 vertical lines = 4 columns minimum
-_GRID_CROP_PADDING = 10        # px padding around detected grid bounds
-_GRID_MIN_CROP_DIM = 50        # reject crops smaller than this
+_GRID_PEAK_RATIO = 0.5  # peaks are ≥50% of max projection
+_GRID_MIN_H_LINES = 3  # need at least 3 horizontal lines for a meaningful grid
+_GRID_MIN_V_LINES = 5  # 5 vertical lines = 4 columns minimum
+_GRID_CROP_PADDING = 10  # px padding around detected grid bounds
+_GRID_MIN_CROP_DIM = 50  # reject crops smaller than this
 
 
 def _decode_image(image_bytes: bytes) -> np.ndarray:
@@ -182,9 +182,7 @@ def _warp_to_rect(img: np.ndarray, corners: np.ndarray) -> np.ndarray:
     return cv2.warpPerspective(img, M, (out_w, out_h))
 
 
-def deskew_to_card(
-    image_bytes: bytes, content_type: str
-) -> tuple[bytes, str, dict[str, Any]]:
+def deskew_to_card(image_bytes: bytes, content_type: str) -> tuple[bytes, str, dict[str, Any]]:
     """
     Detect the scorecard's outer 4-corner frame and warp it to a rectangle.
 
@@ -272,9 +270,12 @@ def _detect_grid_lines(img: np.ndarray) -> tuple[list[int], list[int]]:
     height, width = img.shape[:2]
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     thresh = cv2.adaptiveThreshold(
-        gray, 255,
-        cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV,
-        15, -2,
+        gray,
+        255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY_INV,
+        15,
+        -2,
     )
 
     h_kernel_w = max(20, width // 30)
@@ -293,9 +294,7 @@ def _detect_grid_lines(img: np.ndarray) -> tuple[list[int], list[int]]:
     return h_positions, v_positions
 
 
-def crop_to_grid(
-    image_bytes: bytes, content_type: str
-) -> tuple[bytes, str, dict[str, Any]]:
+def crop_to_grid(image_bytes: bytes, content_type: str) -> tuple[bytes, str, dict[str, Any]]:
     """
     Detect the table grid in the image and crop tightly to the grid bounds
     (with small padding). Drops scorecard branding/title/footer regions so
@@ -359,9 +358,7 @@ def crop_to_grid(
     return encoded, "image/jpeg", diag
 
 
-def annotate_circles(
-    image_bytes: bytes, content_type: str
-) -> tuple[bytes, str, dict[str, Any]]:
+def annotate_circles(image_bytes: bytes, content_type: str) -> tuple[bytes, str, dict[str, Any]]:
     """
     Detect circles in the scorecard image and draw red rectangles around each.
 
@@ -373,10 +370,14 @@ def annotate_circles(
         img = _decode_image(image_bytes)
     except ValueError as e:
         logger.warning("Scorecard preprocessing decode failed: %s", e)
-        return image_bytes, content_type, {
-            "preprocessing_applied": False,
-            "error": str(e),
-        }
+        return (
+            image_bytes,
+            content_type,
+            {
+                "preprocessing_applied": False,
+                "error": str(e),
+            },
+        )
 
     height, width = img.shape[:2]
 
@@ -384,11 +385,15 @@ def annotate_circles(
         circles = _detect_circles(img)
     except cv2.error as e:
         logger.warning("Scorecard preprocessing Hough failed: %s", e)
-        return image_bytes, content_type, {
-            "preprocessing_applied": False,
-            "error": f"hough_failed: {e}",
-            "image_dimensions": [width, height],
-        }
+        return (
+            image_bytes,
+            content_type,
+            {
+                "preprocessing_applied": False,
+                "error": f"hough_failed: {e}",
+                "image_dimensions": [width, height],
+            },
+        )
 
     diag: dict[str, Any] = {
         "circles_detected": len(circles),

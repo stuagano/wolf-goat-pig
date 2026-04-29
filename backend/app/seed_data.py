@@ -4,8 +4,6 @@ Initializes database with all required data for proper simulation bootstrapping.
 """
 
 import logging
-from datetime import datetime
-from .utils.time import utc_now
 from typing import Any, cast
 
 from sqlalchemy import text
@@ -15,6 +13,7 @@ from .database import SessionLocal, init_db
 from .models import Course, Hole, PlayerProfile, Rule
 from .seed_courses import DEFAULT_COURSES
 from .seed_rules import RULES
+from .utils.time import utc_now
 
 logger = logging.getLogger(__name__)
 

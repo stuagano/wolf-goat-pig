@@ -6,8 +6,9 @@ Analyzes player availability to create 4-player groups with overlapping schedule
 import logging
 from collections import defaultdict
 from datetime import datetime, time, timedelta
-from ..utils.time import utc_now
 from itertools import combinations
+
+from ..utils.time import utc_now
 
 logger = logging.getLogger(__name__)
 

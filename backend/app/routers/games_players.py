@@ -2,8 +2,6 @@
 
 import logging
 import random
-from datetime import UTC, datetime
-from ..utils.time import utc_now
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,6 +11,7 @@ from sqlalchemy.orm import Session
 from .. import database, models
 from ..services.game_lifecycle_service import get_game_lifecycle_service
 from ..state.course_manager import CourseManager
+from ..utils.time import utc_now
 from ..wolf_goat_pig import Player, WolfGoatPigGame
 
 logger = logging.getLogger(__name__)
@@ -23,6 +22,7 @@ router = APIRouter(prefix="/games", tags=["games"])
 # ---------------------------------------------------------------------------
 # Test seed models (used only by create-test)
 # ---------------------------------------------------------------------------
+
 
 class BallSeed(BaseModel):
     """Testing helper payload for manually positioning a ball."""

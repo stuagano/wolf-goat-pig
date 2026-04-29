@@ -6,13 +6,12 @@ These are plain async functions (no APIRouter). The router in
 """
 
 import logging
-from datetime import datetime
-from ..utils.time import utc_now
 from typing import Any
 
 from fastapi import HTTPException
 
 from ..schemas import ActionResponse
+from ..utils.time import utc_now
 from ..wolf_goat_pig import WolfGoatPigGame
 
 logger = logging.getLogger(__name__)
@@ -21,6 +20,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Handlers — team / partnership actions
 # ---------------------------------------------------------------------------
+
 
 async def handle_request_partnership(game: WolfGoatPigGame, payload: dict[str, Any]) -> ActionResponse:
     """Handle partnership request"""

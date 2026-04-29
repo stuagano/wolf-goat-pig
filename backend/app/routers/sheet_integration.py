@@ -7,8 +7,6 @@ Rate limited to prevent excessive API calls.
 """
 
 import logging
-from datetime import datetime
-from ..utils.time import utc_now
 from typing import Any
 
 import httpx
@@ -20,6 +18,7 @@ from ..database import get_db
 from ..middleware.caching import sheet_sync_cache
 from ..middleware.rate_limiting import rate_limiter
 from ..services.player_service import PlayerService
+from ..utils.time import utc_now
 
 logger = logging.getLogger("app.routers.sheet_integration")
 

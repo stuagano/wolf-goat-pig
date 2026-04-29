@@ -6,14 +6,14 @@ Extracted from GameState to enable persistence in WolfGoatPigGame.
 """
 
 import uuid
-from datetime import UTC, datetime
-from ..utils.time import utc_now
+from datetime import datetime
 from typing import Any, cast
 
 from sqlalchemy.orm import Session
 
 from ..database import SessionLocal
 from ..models import GamePlayerResult, GameRecord, GameStateModel
+from ..utils.time import utc_now
 
 
 class PersistenceMixin:

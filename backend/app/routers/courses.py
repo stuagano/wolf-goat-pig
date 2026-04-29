@@ -12,8 +12,6 @@ Uses new utility patterns:
 import json
 import logging
 import traceback
-from datetime import UTC, datetime
-from ..utils.time import utc_now
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, File, HTTPException, Path, UploadFile
@@ -25,6 +23,7 @@ from ..course_import import import_course_by_name, import_course_from_json
 from ..database import get_db
 from ..state.course_manager import CourseManager
 from ..utils.api_helpers import ApiResponse, handle_api_errors
+from ..utils.time import utc_now
 
 logger = logging.getLogger("app.routers.courses")
 

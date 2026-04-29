@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
-from .. import models, schemas
+from .. import schemas
 from ..database import get_db
 from ..services.ghin_service import GHINService
 from ..services.leaderboard_service import get_leaderboard_service

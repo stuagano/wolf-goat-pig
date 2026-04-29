@@ -255,7 +255,7 @@ class TestTeeOrder:
         join_code = game["join_code"]
         slots = []
         for i in range(count):
-            resp = _join_game(join_code, player_name=f"Player{i+1}")
+            resp = _join_game(join_code, player_name=f"Player{i + 1}")
             slots.append(resp.json()["player_slot_id"])
         return game["game_id"], slots
 

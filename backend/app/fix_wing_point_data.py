@@ -4,12 +4,11 @@ This script checks if Wing Point exists in the database and updates it if the pa
 """
 
 import logging
-from datetime import datetime
-from .utils.time import utc_now
 from typing import Any
 
 from .database import SessionLocal
 from .models import Course
+from .utils.time import utc_now
 
 logger = logging.getLogger(__name__)
 

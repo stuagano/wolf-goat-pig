@@ -11,14 +11,13 @@ This service handles all game lifecycle operations including:
 
 import logging
 import uuid
-from datetime import UTC, datetime
-from ..utils.time import utc_now
 from typing import Any, Optional, cast
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from ..models import GameStateModel
+from ..utils.time import utc_now
 from ..wolf_goat_pig import Player, WolfGoatPigGame
 
 logger = logging.getLogger(__name__)

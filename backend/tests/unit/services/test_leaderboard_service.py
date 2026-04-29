@@ -44,8 +44,8 @@ def test_players(db):
     players = []
     for i in range(5):
         player = PlayerProfile(
-            name=f"Player {i+1}",
-            email=f"player{i+1}@example.com",
+            name=f"Player {i + 1}",
+            email=f"player{i + 1}@example.com",
             handicap=18.0 - i,
             is_active=1,
             is_ai=0,
@@ -150,7 +150,7 @@ class TestLeaderboardService:
             "handicap_improvement",
         ]
 
-        assert service.LEADERBOARD_TYPES == expected_types
+        assert expected_types == service.LEADERBOARD_TYPES
 
     def test_get_leaderboard_invalid_type(self, db):
         """Test that invalid leaderboard type raises HTTPException."""

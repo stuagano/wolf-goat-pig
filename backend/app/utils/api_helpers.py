@@ -9,13 +9,13 @@ import asyncio
 import logging
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
-from datetime import UTC, datetime
-from ..utils.time import utc_now
 from functools import wraps
 from typing import Any, TypeVar
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
+
+from ..utils.time import utc_now
 
 logger = logging.getLogger("app.utils.api_helpers")
 

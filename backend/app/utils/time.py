@@ -1,6 +1,6 @@
 """Time helpers."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 def utc_now() -> datetime:
@@ -10,4 +10,4 @@ def utc_now() -> datetime:
     # correct. Always returns UTC regardless of host timezone, replacing
     # callers of the bare datetime.now() / datetime.utcnow() that drifted
     # with the server's local TZ.
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)

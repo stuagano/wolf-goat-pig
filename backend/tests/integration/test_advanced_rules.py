@@ -9,8 +9,10 @@ from app.wolf_goat_pig import WGPPlayer, WolfGoatPigGame
 
 def _make_game(player_count: int = 4) -> WolfGoatPigGame:
     """Create a WolfGoatPigGame with DB persistence stubbed out."""
-    with patch.object(WolfGoatPigGame, "__init_persistence__", lambda self, gid: None), \
-         patch.object(WolfGoatPigGame, "_save_to_db", lambda self: None):
+    with (
+        patch.object(WolfGoatPigGame, "__init_persistence__", lambda self, gid: None),
+        patch.object(WolfGoatPigGame, "_save_to_db", lambda self: None),
+    ):
         game = WolfGoatPigGame(player_count=player_count)
     return game
 
@@ -30,7 +32,7 @@ class TestAdvancedWGPRules:
 
     def test_hoepfinger_phase_4_man_game(self):
         assert self.game.hoepfinger_start_hole == 17
-        assert 17 >= self.game.hoepfinger_start_hole
+        assert self.game.hoepfinger_start_hole <= 17
 
     def test_hoepfinger_phase_5_man_game(self):
         game_5 = _make_game(player_count=5)
@@ -145,8 +147,8 @@ class TestAdvancedWGPRules:
 
     def test_vinnies_variation_4_man_game(self):
         assert self.game.vinnie_variation_start == 13
-        assert 13 >= self.game.vinnie_variation_start
-        assert 12 < self.game.vinnie_variation_start
+        assert self.game.vinnie_variation_start <= 13
+        assert self.game.vinnie_variation_start > 12
 
     def test_vinnies_variation_not_in_5_man_game(self):
         game_5 = _make_game(player_count=5)

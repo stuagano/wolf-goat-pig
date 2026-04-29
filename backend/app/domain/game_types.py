@@ -3,10 +3,10 @@
 import random
 from dataclasses import dataclass, field
 from datetime import datetime
-from ..utils.time import utc_now
 from enum import Enum
 from typing import Any
 
+from ..utils.time import utc_now
 from ..validators import HandicapValidator
 
 
@@ -169,7 +169,6 @@ class HoleState:
         stroke_index: int | None = None,
     ) -> None:
         """Set hole information with realistic defaults"""
-        import random
 
         # Set par with realistic distribution
         if par is None:
@@ -661,4 +660,3 @@ class WGPHoleProgression:
             }
             for event in self.timeline_events
         ]
-

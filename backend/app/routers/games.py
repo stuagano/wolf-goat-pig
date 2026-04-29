@@ -3,8 +3,6 @@
 import json
 import logging
 import traceback
-from datetime import UTC, datetime
-from ..utils.time import utc_now
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -13,11 +11,11 @@ from sqlalchemy.orm import Session
 
 from .. import database, models, schemas
 from ..managers.websocket_manager import manager as websocket_manager
-from ..schemas import ActionRequest, ActionResponse
+from ..schemas import ActionRequest
 from ..services.game_lifecycle_service import get_game_lifecycle_service
 from ..services.notification_service import get_notification_service
 from ..state.course_manager import CourseManager
-from ..validators import GameStateValidator, HandicapValidator
+from ..utils.time import utc_now
 from ..wolf_goat_pig import Player, WolfGoatPigGame
 
 logger = logging.getLogger(__name__)
@@ -28,6 +26,7 @@ router = APIRouter(prefix="/games", tags=["games"])
 # ---------------------------------------------------------------------------
 # Legacy-to-unified action mapping (used by POST /games/{game_id}/action)
 # ---------------------------------------------------------------------------
+
 
 def _get_current_captain_id() -> str | None:
     """Best-effort lookup for the active captain id across legacy and unified state."""
@@ -672,9 +671,7 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
 
         if game.game_status == "completed":
             # Check if results were already persisted
-            existing_record = db.query(models.GameRecord).filter(
-                models.GameRecord.game_id == game_id
-            ).first()
+            existing_record = db.query(models.GameRecord).filter(models.GameRecord.game_id == game_id).first()
             if existing_record:
                 return {
                     "success": True,
@@ -708,9 +705,7 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
         now = utc_now().isoformat()
 
         # Create GameRecord if one doesn't already exist
-        existing_record = db.query(models.GameRecord).filter(
-            models.GameRecord.game_id == game_id
-        ).first()
+        existing_record = db.query(models.GameRecord).filter(models.GameRecord.game_id == game_id).first()
 
         if not existing_record:
             game_record = models.GameRecord(
@@ -741,14 +736,16 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
             for pid, quarters in points_delta.items():
                 if pid not in player_hole_data:
                     player_hole_data[pid] = []
-                player_hole_data[pid].append({
-                    "hole": hole_num,
-                    "quarters": quarters,
-                    "gross_score": gross_scores.get(pid) if gross_scores else None,
-                    "teams": teams,
-                    "wager": wager,
-                    "phase": phase,
-                })
+                player_hole_data[pid].append(
+                    {
+                        "hole": hole_num,
+                        "quarters": quarters,
+                        "gross_score": gross_scores.get(pid) if gross_scores else None,
+                        "teams": teams,
+                        "wager": wager,
+                        "phase": phase,
+                    }
+                )
 
         # Rank players by earnings for final_position
         sorted_players = sorted(players, key=lambda p: standings.get(p.get("id"), 0), reverse=True)
@@ -772,11 +769,13 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
             ).first()
 
             if not exists:
-                perf = json.dumps({
-                    "handicap": player.get("handicap"),
-                    "holes_played": len(holes_data),
-                    "avg_quarters_per_hole": round(total_earnings / max(len(holes_data), 1), 2),
-                })
+                perf = json.dumps(
+                    {
+                        "handicap": player.get("handicap"),
+                        "holes_played": len(holes_data),
+                        "avg_quarters_per_hole": round(total_earnings / max(len(holes_data), 1), 2),
+                    }
+                )
                 db.execute(
                     text("""
                         INSERT INTO game_player_results
@@ -805,7 +804,10 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
 
         logger.info(
             "Game %s completed: %d players, %d holes, %d results created",
-            game_id, len(players), len(hole_quarters), results_created,
+            game_id,
+            len(players),
+            len(hole_quarters),
+            results_created,
         )
 
         return {

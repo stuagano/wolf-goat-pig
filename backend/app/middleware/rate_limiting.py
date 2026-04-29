@@ -6,9 +6,10 @@ Prevents excessive calls to expensive operations like Google Sheets sync.
 
 import logging
 from datetime import datetime, timedelta
-from ..utils.time import utc_now
 
 from fastapi import HTTPException
+
+from ..utils.time import utc_now
 
 logger = logging.getLogger("app.rate_limiting")
 

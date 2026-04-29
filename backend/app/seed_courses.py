@@ -1,8 +1,6 @@
-from datetime import datetime
-from .utils.time import utc_now
-
 from .database import SessionLocal, init_db
 from .models import Course, Hole
+from .utils.time import utc_now
 
 # Realistic golf course data with proper yards, descriptions, and stroke indexes
 DEFAULT_COURSES = [

@@ -1,16 +1,18 @@
 """
 Comprehensive tests for Wolf Goat Pig API endpoints
 """
+
+import os
+import sys
 import uuid
 
 import pytest
 from fastapi.testclient import TestClient
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from app.main import app
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+
 from app.database import SessionLocal, init_db
+from app.main import app
 
 
 @pytest.fixture
@@ -31,6 +33,7 @@ def setup_database():
     # Seed rules so /rules and health-check pass
     try:
         from app.seed_rules import main as _seed_rules_main
+
         _seed_rules_main()
     except Exception:
         pass
@@ -53,7 +56,7 @@ def game_id(client):
 
 class TestHealthEndpoints:
     """Test health and diagnostic endpoints"""
-    
+
     def test_health_check(self, client):
         response = client.get("/health")
         # In the test environment some components (e.g. AI players) are not
@@ -68,7 +71,7 @@ class TestHealthEndpoints:
         else:
             # 503 wraps the detail in an HTTPException
             assert "detail" in data
-    
+
     def test_ghin_diagnostic(self, client):
         response = client.get("/ghin/diagnostic")
         assert response.status_code == 200
@@ -78,7 +81,7 @@ class TestHealthEndpoints:
 
 class TestCourseManagement:
     """Test course management endpoints"""
-    
+
     def test_get_courses(self, client):
         response = client.get("/courses")
         assert response.status_code == 200
@@ -92,10 +95,7 @@ class TestCourseManagement:
         course_name = f"Test Golf Club {uuid.uuid4().hex[:8]}"
         new_course = {
             "name": course_name,
-            "holes": [
-                {"hole_number": i, "par": 4, "yards": 400, "handicap": i}
-                for i in range(1, 19)
-            ]
+            "holes": [{"hole_number": i, "par": 4, "yards": 400, "handicap": i} for i in range(1, 19)],
         }
 
         response = client.post("/courses", json=new_course)
@@ -109,21 +109,13 @@ class TestCourseManagement:
         # First add a course
         new_course = {
             "name": course_name,
-            "holes": [
-                {"hole_number": i, "par": 4, "yards": 400, "handicap": i}
-                for i in range(1, 19)
-            ]
+            "holes": [{"hole_number": i, "par": 4, "yards": 400, "handicap": i} for i in range(1, 19)],
         }
         resp = client.post("/courses", json=new_course)
         assert resp.status_code == 200, f"Course creation failed: {resp.text}"
 
         # Update it -- keep total par in valid range (70-74)
-        update_data = {
-            "holes": [
-                {"hole_number": i, "par": 4, "yards": 350, "handicap": i}
-                for i in range(1, 19)
-            ]
-        }
+        update_data = {"holes": [{"hole_number": i, "par": 4, "yards": 350, "handicap": i} for i in range(1, 19)]}
 
         response = client.put(f"/courses/{course_name}", json=update_data)
         assert response.status_code == 200
@@ -135,10 +127,7 @@ class TestCourseManagement:
         # First add a course
         new_course = {
             "name": course_name,
-            "holes": [
-                {"hole_number": i, "par": 4, "yards": 400, "handicap": i}
-                for i in range(1, 19)
-            ]
+            "holes": [{"hole_number": i, "par": 4, "yards": 400, "handicap": i} for i in range(1, 19)],
         }
         resp = client.post("/courses", json=new_course)
         assert resp.status_code == 200, f"Course creation failed: {resp.text}"
@@ -178,10 +167,10 @@ class TestUnifiedActionAPI:
                     {"id": "p1", "name": "Alice", "handicap": 10, "strength": 8},
                     {"id": "p2", "name": "Bob", "handicap": 15, "strength": 6},
                     {"id": "p3", "name": "Charlie", "handicap": 18, "strength": 5},
-                    {"id": "p4", "name": "David", "handicap": 20, "strength": 4}
+                    {"id": "p4", "name": "David", "handicap": 20, "strength": 4},
                 ],
-                "course_name": "Wing Point Golf & Country Club"
-            }
+                "course_name": "Wing Point Golf & Country Club",
+            },
         }
 
         response = client.post(f"/wgp/{game_id}/action", json=action_data)
@@ -203,17 +192,14 @@ class TestUnifiedActionAPI:
                     {"id": "p1", "name": "Alice", "handicap": 10},
                     {"id": "p2", "name": "Bob", "handicap": 15},
                     {"id": "p3", "name": "Charlie", "handicap": 18},
-                    {"id": "p4", "name": "David", "handicap": 20}
+                    {"id": "p4", "name": "David", "handicap": 20},
                 ]
-            }
+            },
         }
         client.post(f"/wgp/{game_id}/action", json=init_action)
 
         # Play a shot
-        shot_action = {
-            "action_type": "PLAY_SHOT",
-            "payload": {}
-        }
+        shot_action = {"action_type": "PLAY_SHOT", "payload": {}}
 
         response = client.post(f"/wgp/{game_id}/action", json=shot_action)
         # The endpoint may succeed (200) or fail (500) depending on
@@ -232,17 +218,14 @@ class TestUnifiedActionAPI:
                     {"id": "p1", "name": "Alice", "handicap": 10},
                     {"id": "p2", "name": "Bob", "handicap": 15},
                     {"id": "p3", "name": "Charlie", "handicap": 18},
-                    {"id": "p4", "name": "David", "handicap": 20}
+                    {"id": "p4", "name": "David", "handicap": 20},
                 ]
-            }
+            },
         }
         client.post(f"/wgp/{game_id}/action", json=init_action)
 
         # Request partnership
-        partnership_action = {
-            "action_type": "REQUEST_PARTNERSHIP",
-            "payload": {"target_player_name": "Bob"}
-        }
+        partnership_action = {"action_type": "REQUEST_PARTNERSHIP", "payload": {"target_player_name": "Bob"}}
 
         response = client.post(f"/wgp/{game_id}/action", json=partnership_action)
         # The handler may fail (500) if team state is not fully
@@ -253,10 +236,7 @@ class TestUnifiedActionAPI:
             assert "partnership" in data["log_message"].lower()
 
     def test_invalid_action_type(self, client, game_id):
-        action_data = {
-            "action_type": "INVALID_ACTION",
-            "payload": {}
-        }
+        action_data = {"action_type": "INVALID_ACTION", "payload": {}}
 
         response = client.post(f"/wgp/{game_id}/action", json=action_data)
         assert response.status_code == 400
@@ -271,17 +251,14 @@ class TestUnifiedActionAPI:
                     {"id": "p1", "name": "Alice", "handicap": 10},
                     {"id": "p2", "name": "Bob", "handicap": 15},
                     {"id": "p3", "name": "Charlie", "handicap": 18},
-                    {"id": "p4", "name": "David", "handicap": 20}
+                    {"id": "p4", "name": "David", "handicap": 20},
                 ]
-            }
+            },
         }
         client.post(f"/wgp/{game_id}/action", json=init_action)
 
         # Declare solo
-        solo_action = {
-            "action_type": "DECLARE_SOLO",
-            "payload": {}
-        }
+        solo_action = {"action_type": "DECLARE_SOLO", "payload": {}}
 
         response = client.post(f"/wgp/{game_id}/action", json=solo_action)
         # No captain is set after bare initialization, so the endpoint
@@ -292,21 +269,17 @@ class TestUnifiedActionAPI:
 
 class TestCourseImport:
     """Test course import endpoints"""
-    
+
     def test_get_import_sources(self, client):
         response = client.get("/courses/import/sources")
         assert response.status_code == 200
         data = response.json()
         assert "sources" in data
         assert len(data["sources"]) > 0
-    
+
     def test_preview_course_import(self, client):
-        request_data = {
-            "course_name": "Pebble Beach Golf Links",
-            "state": "CA",
-            "city": "Pebble Beach"
-        }
-        
+        request_data = {"course_name": "Pebble Beach Golf Links", "state": "CA", "city": "Pebble Beach"}
+
         response = client.post("/courses/import/preview", json=request_data)
         assert response.status_code == 200
         data = response.json()
@@ -330,8 +303,8 @@ class TestErrorHandling:
                 "players": [
                     {"id": "p1", "name": "Alice", "handicap": 10}
                 ],  # Only 1 player -- handler returns emergency fallback
-                "course_name": "Test Course"
-            }
+                "course_name": "Test Course",
+            },
         }
 
         response = client.post(f"/wgp/{game_id}/action", json=action_data)
@@ -351,9 +324,9 @@ class TestErrorHandling:
                     {"id": "p1"},  # Missing name and handicap -- handler fills defaults
                     {"id": "p2", "name": "Bob"},  # Missing handicap -- handler fills default
                     {"id": "p3", "name": "Charlie", "handicap": 18},
-                    {"id": "p4", "name": "David", "handicap": 20}
+                    {"id": "p4", "name": "David", "handicap": 20},
                 ]
-            }
+            },
         }
 
         response = client.post(f"/wgp/{game_id}/action", json=action_data)

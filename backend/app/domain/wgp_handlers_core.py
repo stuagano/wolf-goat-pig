@@ -7,8 +7,6 @@ These are plain async functions (no APIRouter). The router in
 
 import logging
 import traceback
-from datetime import datetime
-from ..utils.time import utc_now
 from typing import Any
 
 from fastapi import HTTPException
@@ -16,6 +14,7 @@ from fastapi import HTTPException
 from ..managers.rule_manager import RuleManager
 from ..schemas import ActionResponse
 from ..state.course_manager import CourseManager
+from ..utils.time import utc_now
 from ..validators import GameStateValidator, HandicapValidator
 from ..wolf_goat_pig import Player, WolfGoatPigGame
 
@@ -33,6 +32,7 @@ game: WolfGoatPigGame | None = None
 # ---------------------------------------------------------------------------
 # Private helpers
 # ---------------------------------------------------------------------------
+
 
 def _get_current_captain_id() -> str | None:
     """Best-effort lookup for the active captain id across legacy and unified state."""
@@ -70,6 +70,7 @@ def _serialize_game_state():
 # ---------------------------------------------------------------------------
 # Handlers — core game flow
 # ---------------------------------------------------------------------------
+
 
 async def handle_initialize_game(game: WolfGoatPigGame, payload: dict[str, Any]) -> ActionResponse:
     """Handle game initialization with robust error handling and fallbacks"""

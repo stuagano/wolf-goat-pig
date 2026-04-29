@@ -20,7 +20,6 @@ Features:
 import logging
 import time
 from datetime import datetime, timedelta
-from ..utils.time import utc_now
 from typing import Any
 
 from fastapi import HTTPException
@@ -28,6 +27,7 @@ from sqlalchemy import Float, and_, case, cast, desc, func
 from sqlalchemy.orm import Session
 
 from ..models import GamePlayerResult, PlayerAchievement, PlayerBadgeEarned, PlayerProfile, PlayerStatistics
+from ..utils.time import utc_now
 
 logger = logging.getLogger(__name__)
 

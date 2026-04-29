@@ -20,7 +20,7 @@ def load_golden_round() -> dict:
     """Load the golden round JSON file."""
     script_dir = Path(__file__).parent.parent  # tests/ directory
     golden_round_path = script_dir / "fixtures" / "golden_round.json"
-    with open(golden_round_path, "r") as f:
+    with open(golden_round_path) as f:
         return json.load(f)
 
 
@@ -32,7 +32,7 @@ def test_golden_round_quarters_balance():
         quarters = hole.get("quarters", {})
         total = sum(quarters.values())
         assert abs(total) < 0.01, (
-            f"Hole {hole['hole_number']}: Quarters sum to {total}, expected 0. " f"Quarters: {quarters}"
+            f"Hole {hole['hole_number']}: Quarters sum to {total}, expected 0. Quarters: {quarters}"
         )
 
 
@@ -42,7 +42,7 @@ def test_golden_round_final_totals_sum_to_zero():
     expected_final = round_data.get("expected_final_totals", {})
 
     total_sum = sum(expected_final.values())
-    assert abs(total_sum) < 0.01, f"Final totals sum to {total_sum}, expected 0. " f"Totals: {expected_final}"
+    assert abs(total_sum) < 0.01, f"Final totals sum to {total_sum}, expected 0. Totals: {expected_final}"
 
 
 def test_golden_round_running_totals():
@@ -51,7 +51,7 @@ def test_golden_round_running_totals():
     holes = round_data.get("holes", [])
     player_ids = [p["id"] for p in round_data.get("game_metadata", {}).get("players", [])]
 
-    running_totals = {pid: 0 for pid in player_ids}
+    running_totals = dict.fromkeys(player_ids, 0)
 
     for hole in holes:
         quarters = hole.get("quarters", {})
@@ -117,7 +117,7 @@ def test_golden_round_through_scoring_system():
         player_map[golden_player["id"]] = players[i]["id"]
 
     # Track running totals
-    running_totals = {pid: 0 for pid in player_map.values()}
+    running_totals = dict.fromkeys(player_map.values(), 0)
 
     # Submit each hole
     for hole_data in holes:
@@ -181,7 +181,7 @@ def test_golden_round_through_scoring_system():
             actual_pid = player_map[golden_pid]
             actual_q = points_delta.get(actual_pid, 0)
             assert expected_q == actual_q, (
-                f"Hole {hole_num}, Player {golden_pid}: " f"Expected {expected_q} quarters, got {actual_q}"
+                f"Hole {hole_num}, Player {golden_pid}: Expected {expected_q} quarters, got {actual_q}"
             )
 
         # Update running totals
@@ -194,7 +194,7 @@ def test_golden_round_through_scoring_system():
         actual_pid = player_map[golden_pid]
         actual_total = running_totals[actual_pid]
         assert expected_total == actual_total, (
-            f"Final total mismatch for {golden_pid}: " f"Expected {expected_total}, got {actual_total}"
+            f"Final total mismatch for {golden_pid}: Expected {expected_total}, got {actual_total}"
         )
 
 

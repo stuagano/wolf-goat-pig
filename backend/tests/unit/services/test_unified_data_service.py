@@ -23,6 +23,7 @@ def make_service():
 
 # ── UnifiedRound dataclass ────────────────────────────────────────────────────
 
+
 class TestUnifiedRound:
     def test_equal_rounds_are_deduplicated(self):
         r1 = UnifiedRound("6-Apr", "2026-04-06", "A", "Stuart", 4, "Wing Point")
@@ -42,6 +43,7 @@ class TestUnifiedRound:
 
 
 # ── UnifiedLeaderboardEntry ───────────────────────────────────────────────────
+
 
 class TestUnifiedLeaderboardEntry:
     def test_recalculate_average_basic(self):
@@ -65,6 +67,7 @@ class TestUnifiedLeaderboardEntry:
 
 
 # ── _parse_sheet_date ─────────────────────────────────────────────────────────
+
 
 class TestParseSheetDate:
     def setup_method(self):
@@ -111,6 +114,7 @@ class TestParseSheetDate:
 
 # ── get_unified_leaderboard (mocked data sources) ────────────────────────────
 
+
 class TestGetUnifiedLeaderboard:
     def test_returns_list(self):
         svc = make_service()
@@ -136,6 +140,7 @@ class TestGetUnifiedLeaderboard:
         svc.writable_sheet = MagicMock()
 
         from app.services.spreadsheet_sync_service import RoundResult
+
         rounds = [
             RoundResult(date="06-Apr", group="A", member="Stuart", score=4, location="Wing Point"),
             RoundResult(date="07-Apr", group="A", member="Stuart", score=8, location="Wing Point"),

@@ -3,14 +3,13 @@
 import logging
 import time
 import traceback
-from datetime import datetime
-from ..utils.time import utc_now
 from typing import Any
 
 from fastapi import APIRouter, Body, HTTPException
 from pydantic import BaseModel, Field
 
 from ..domain.shot_range_analysis import analyze_shot_decision
+from ..utils.time import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -264,7 +263,6 @@ async def get_current_betting_opportunities():
     try:
         # game global lives in domain handler module
         from ..domain.wgp_handlers_core import game
-
         from ..managers.rule_manager import RuleManager, RuleViolationError
 
         # Get current game state

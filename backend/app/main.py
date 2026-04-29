@@ -1,80 +1,61 @@
-import json
 import logging
 import os
-import random
-import time
 import traceback
-import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime, timedelta
-from typing import Any, cast
+from datetime import UTC, datetime
+from typing import Any
 
-import httpx
 from fastapi import (
-    Body,
-    Depends,
     FastAPI,
-    File,
     Header,
     HTTPException,
-    Path,
-    Query,
     Request,
-    UploadFile,
-    WebSocket,
-    WebSocketDisconnect,
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
-from sqlalchemy import and_, text
-from sqlalchemy.orm import Session
+from pydantic import BaseModel
 
 from . import database, models, schemas
 from .badge_routes import router as badge_router
-from .managers.rule_manager import RuleManager, RuleViolationError
-from .managers.scoring_manager import get_scoring_manager
-from .managers.websocket_manager import manager as websocket_manager
 from .migrations_routes import router as migrations_router
 from .post_hole_analytics import PostHoleAnalyzer
 
 # Import routers
-from .routers import admin_oauth, analytics, courses, foretees, games, games_holes, games_players, health, leaderboard, matchmaking, players, sheet_integration, wgp_actions
-from .routers.email_routes import initialize_email_scheduler
-from .services.email_service import get_email_service
-from .services.game_lifecycle_service import get_game_lifecycle_service
-from .services.leaderboard_service import get_leaderboard_service
-from .services.legacy_player_service import (
-    get_legacy_players,
-    validate_player_for_legacy,
+from .routers import (
+    admin_oauth,
+    analytics,
+    courses,
+    foretees,
+    games,
+    games_holes,
+    games_players,
+    health,
+    leaderboard,
+    matchmaking,
+    players,
+    sheet_integration,
+    wgp_actions,
 )
-from .services.legacy_signup_service import get_legacy_signup_service
-from .services.notification_service import get_notification_service
+from .routers.email_routes import initialize_email_scheduler
+
 # Simulation timeline enhancements removed
 from .state.course_manager import CourseManager
-from .validators import GameStateValidationError, GameStateValidator, HandicapValidator
-from .wolf_goat_pig import Player, WolfGoatPigGame
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 # Shared state accessors — actual state lives in state/app_state.py
-from .state.app_state import (  # noqa: E402
+from .state.app_state import (
     get_course_manager,
     get_email_scheduler,
-    get_email_service_instance,
     get_post_hole_analyzer,
     set_course_manager,
-    set_email_scheduler,
-    set_email_service_instance,
     set_post_hole_analyzer,
 )
 
-
 # Import shared action models from schemas
-from .schemas import ActionRequest, ActionResponse, CompleteHoleRequest, HoleTeams, ManualPointsOverride, RotationSelectionRequest  # noqa: E402
 
 
 # Testing seed models moved to routers/games_players.py
@@ -118,7 +99,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Kick off an immediate legacy rounds sync on startup (non-blocking)
     try:
         import threading
+
         from .services.email_scheduler import email_scheduler as _sched
+
         t = threading.Thread(target=_sched._sync_legacy_rounds, daemon=True)
         t.start()
         logger.info("📊 Legacy rounds sync started in background")
@@ -166,8 +149,7 @@ ENABLE_TEST_ENDPOINTS = os.getenv("ENABLE_TEST_ENDPOINTS", "false").lower() in {
     "true",
     "yes",
 }
-from .utils.admin_auth import require_admin  # noqa: E402
-
+from .utils.admin_auth import require_admin
 
 # Database initialization moved to main startup handler
 
@@ -258,12 +240,23 @@ app.include_router(course_data_update.router)
 app.include_router(foretees.router)
 app.include_router(matchmaking.router)
 from .routers import commissioner, ghin, scorecard
+
 app.include_router(commissioner.router)
 app.include_router(ghin.router)
 app.include_router(scorecard.router)
 app.include_router(analytics.router)
 app.include_router(leaderboard.router)
-from .routers import admin, betting_odds, email_routes, legacy_scoring, messages, signups, team_formation, websocket_routes
+from .routers import (
+    admin,
+    betting_odds,
+    email_routes,
+    legacy_scoring,
+    messages,
+    signups,
+    team_formation,
+    websocket_routes,
+)
+
 app.include_router(messages.router)
 app.include_router(email_routes.router)
 app.include_router(signups.router)
@@ -347,7 +340,6 @@ def get_rules():
         raise HTTPException(status_code=500, detail="Failed to get rules")
     finally:
         db.close()
-
 
 
 # Games routes moved to routers/games.py, routers/games_holes.py, routers/games_players.py
@@ -474,7 +466,6 @@ if STATIC_DIR.exists() and static_assets_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_assets_dir)), name="static")
 else:
     logger.warning("Frontend static assets not found. Expected %s", static_assets_dir)
-
 
 
 @app.head("/")

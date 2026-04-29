@@ -122,8 +122,9 @@ class ChatRequest(BaseModel):
 
 def _build_data_context(db: Session) -> str:
     """Build leaderboard and player context from the Render DB only."""
-    from .. import models
     from sqlalchemy import func
+
+    from .. import models
 
     lines = []
 
@@ -145,8 +146,7 @@ def _build_data_context(db: Session) -> str:
             for i, row in enumerate(rows, 1):
                 avg = row.quarters / row.rounds if row.rounds else 0
                 lines.append(
-                    f"  {i}. {row.member}: {row.quarters:+d}Q "
-                    f"over {row.rounds} rounds (avg {avg:+.1f}Q/round)"
+                    f"  {i}. {row.member}: {row.quarters:+d}Q over {row.rounds} rounds (avg {avg:+.1f}Q/round)"
                 )
         else:
             lines.append("## Leaderboard\n  (no historical data synced yet — run /data/sync-sheets)")
@@ -295,8 +295,16 @@ _DENIED_COLUMNS = {
 }
 
 _DANGEROUS_KEYWORDS = {
-    "INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "CREATE",
-    "TRUNCATE", "GRANT", "REVOKE", "EXEC",
+    "INSERT",
+    "UPDATE",
+    "DELETE",
+    "DROP",
+    "ALTER",
+    "CREATE",
+    "TRUNCATE",
+    "GRANT",
+    "REVOKE",
+    "EXEC",
 }
 
 
@@ -344,7 +352,7 @@ def _validate_sql(sql: str) -> bool:
     table_refs = []
     for m in re.finditer(r"\b(?:FROM|JOIN)\s+(\w+)", upper):
         name = m.group(1)
-        after = upper[m.end():]
+        after = upper[m.end() :]
         if after and after[0] == "(":
             continue  # function call, not a table
         table_refs.append(name)
@@ -424,37 +432,40 @@ Example queries:
 
     if not sql_match:
         # No SQL — this is a rules-only answer
-        return ApiResponse.success(data={
-            "response": step1_text,
-            "table_data": None,
-            "sql_used": None,
-        })
+        return ApiResponse.success(
+            data={
+                "response": step1_text,
+                "table_data": None,
+                "sql_used": None,
+            }
+        )
 
     sql = sql_match.group(1).strip().rstrip(";")
 
     # Validate the SQL
     if not _validate_sql(sql):
-        return ApiResponse.success(data={
-            "response": (
-                "The Commissioner attempted a query that didn't pass safety "
-                "validation. Please rephrase your question."
-            ),
-            "table_data": None,
-            "sql_used": sql,
-        })
+        return ApiResponse.success(
+            data={
+                "response": (
+                    "The Commissioner attempted a query that didn't pass safety "
+                    "validation. Please rephrase your question."
+                ),
+                "table_data": None,
+                "sql_used": sql,
+            }
+        )
 
     # Execute the SQL
     results = _execute_readonly_sql(db, sql)
 
     if "error" in results:
-        return ApiResponse.success(data={
-            "response": (
-                f"The Commissioner's query hit a snag: {results['error']}. "
-                "Try rephrasing your question."
-            ),
-            "table_data": None,
-            "sql_used": sql,
-        })
+        return ApiResponse.success(
+            data={
+                "response": (f"The Commissioner's query hit a snag: {results['error']}. Try rephrasing your question."),
+                "table_data": None,
+                "sql_used": sql,
+            }
+        )
 
     # Step 3: Ask Gemini to narrate the results
     narration_system = (
@@ -465,9 +476,7 @@ Example queries:
     )
 
     narration_prompt = (
-        f"The user asked: {request.question}\n\n"
-        f"SQL executed: {sql}\n\n"
-        f"Results (columns: {results['columns']}):\n"
+        f"The user asked: {request.question}\n\nSQL executed: {sql}\n\nResults (columns: {results['columns']}):\n"
     )
     for row in results["rows"]:
         narration_prompt += f"  {row}\n"
@@ -476,8 +485,10 @@ Example queries:
 
     narration_text = await _llm_generate(narration_prompt, narration_system)
 
-    return ApiResponse.success(data={
-        "response": narration_text,
-        "table_data": results,
-        "sql_used": sql,
-    })
+    return ApiResponse.success(
+        data={
+            "response": narration_text,
+            "table_data": results,
+            "sql_used": sql,
+        }
+    )

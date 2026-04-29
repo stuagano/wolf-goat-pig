@@ -7,11 +7,11 @@ Designed to run as a Saturday afternoon cron job.
 
 import logging
 from datetime import datetime, timedelta
-from ..utils.time import utc_now
 
 from sqlalchemy.orm import Session
 
 from ..models import DailySignup, GeneratedPairing, PlayerProfile
+from ..utils.time import utc_now
 from .email_service import get_email_service
 from .team_formation_service import TeamFormationService
 

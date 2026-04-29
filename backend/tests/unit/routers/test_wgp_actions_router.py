@@ -44,7 +44,7 @@ def _setup_started_game(player_count=4):
     join_code = game["join_code"]
     slots = []
     for i in range(player_count):
-        r = _join_game(join_code, player_name=f"Player{i+1}", handicap=10.0 + i)
+        r = _join_game(join_code, player_name=f"Player{i + 1}", handicap=10.0 + i)
         slots.append(r.json()["player_slot_id"])
     client.patch(
         f"/games/{game['game_id']}/tee-order",

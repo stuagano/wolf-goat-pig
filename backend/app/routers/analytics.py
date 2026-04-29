@@ -5,8 +5,6 @@ Game statistics, player performance, and analytics overview endpoints.
 """
 
 import logging
-from datetime import datetime
-from ..utils.time import utc_now
 
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import and_
@@ -14,6 +12,7 @@ from sqlalchemy import and_
 from .. import database, models
 from ..services.statistics_service import StatisticsService
 from ..state.app_state import get_course_manager
+from ..utils.time import utc_now
 
 logger = logging.getLogger("app.routers.analytics")
 

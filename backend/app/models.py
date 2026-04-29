@@ -282,8 +282,8 @@ class PendingSheetSync(Base):
 
     __tablename__ = "pending_sheet_syncs"
     id = Column(Integer, primary_key=True, index=True)
-    date = Column(String, index=True)          # YYYY-MM-DD
-    group = Column(String)                     # "A"-"D"
+    date = Column(String, index=True)  # YYYY-MM-DD
+    group = Column(String)  # "A"-"D"
     location = Column(String)
     duration = Column(String, nullable=True)
     # {player_name: total_quarters} — app sums per-hole scores before enqueueing
@@ -300,18 +300,16 @@ class LegacyRound(Base):
     """Historical round data synced from Google Sheets."""
 
     __tablename__ = "legacy_rounds"
-    __table_args__ = (
-        Index("ix_legacy_rounds_date_group_member", "date", "group", "member"),
-    )
+    __table_args__ = (Index("ix_legacy_rounds_date_group_member", "date", "group", "member"),)
     id = Column(Integer, primary_key=True, index=True)
-    date = Column(String, index=True)          # e.g. "2026-04-06"
-    group = Column(String)                     # e.g. "A"
-    member = Column(String, index=True)        # e.g. "Stuart Gano"
-    score = Column(Integer)                    # quarters won/lost
-    location = Column(String)                  # course name
-    duration = Column(String, nullable=True)   # e.g. "02:15:00"
-    source = Column(String, default="sheet")   # "primary_sheet" or "writable_sheet"
-    synced_at = Column(String)                 # ISO timestamp of last sync
+    date = Column(String, index=True)  # e.g. "2026-04-06"
+    group = Column(String)  # e.g. "A"
+    member = Column(String, index=True)  # e.g. "Stuart Gano"
+    score = Column(Integer)  # quarters won/lost
+    location = Column(String)  # course name
+    duration = Column(String, nullable=True)  # e.g. "02:15:00"
+    source = Column(String, default="sheet")  # "primary_sheet" or "writable_sheet"
+    synced_at = Column(String)  # ISO timestamp of last sync
     hole_scores = Column(JSON, default=dict)  # Hole-by-hole scores
     betting_history = Column(JSON, default=list)  # Detailed betting decisions
     performance_metrics = Column(JSON, default=dict)  # Advanced metrics
@@ -333,9 +331,7 @@ class PlayerAchievement(Base):
 # Daily Sign-up System Models
 class DailySignup(Base):
     __tablename__ = "daily_signups"
-    __table_args__ = (
-        Index("ix_daily_signups_date_player", "date", "player_profile_id"),
-    )
+    __table_args__ = (Index("ix_daily_signups_date_player", "date", "player_profile_id"),)
     id = Column(Integer, primary_key=True, index=True)
     date = Column(String, index=True)  # YYYY-MM-DD format
     player_profile_id = Column(Integer, index=True)  # References PlayerProfile.id
@@ -392,9 +388,7 @@ class DailyMessage(Base):
 # GHIN Integration Models
 class GHINScore(Base):
     __tablename__ = "ghin_scores"
-    __table_args__ = (
-        Index("ix_ghin_scores_player_date", "player_profile_id", "score_date"),
-    )
+    __table_args__ = (Index("ix_ghin_scores_player_date", "player_profile_id", "score_date"),)
     id = Column(Integer, primary_key=True, index=True)
     player_profile_id = Column(Integer, index=True)  # References PlayerProfile.id
     ghin_id = Column(String, index=True)  # GHIN ID

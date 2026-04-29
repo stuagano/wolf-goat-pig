@@ -10,8 +10,6 @@ This service handles:
 
 import logging
 import os
-from datetime import datetime
-from ..utils.time import utc_now
 from typing import Any, cast
 
 import httpx  # Added httpx for API calls
@@ -19,6 +17,7 @@ from sqlalchemy import and_, desc
 from sqlalchemy.orm import Session
 
 from ..models import GHINHandicapHistory, GHINScore, PlayerProfile, PlayerStatistics
+from ..utils.time import utc_now
 
 # Note: The actual GHIN API integration would require proper authentication
 # For now, we'll create a service structure that can be easily adapted

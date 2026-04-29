@@ -32,9 +32,7 @@ def test_hole_completion(client, game_with_id):
     while shot_count < max_shots:
         shot_count += 1
 
-        response = client.post(f"/wgp/{game_id}/action", json={
-            "action_type": "PLAY_SHOT"
-        })
+        response = client.post(f"/wgp/{game_id}/action", json={"action_type": "PLAY_SHOT"})
 
         # PLAY_SHOT should succeed or return 400 if game state doesn't allow it
         if response.status_code != 200:

@@ -9,7 +9,7 @@ or the database is temporarily unavailable.
 import logging
 import random
 import string
-from datetime import UTC, datetime
+
 from .utils.time import utc_now
 
 logger = logging.getLogger(__name__)

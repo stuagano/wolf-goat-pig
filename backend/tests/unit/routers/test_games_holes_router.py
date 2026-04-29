@@ -44,7 +44,7 @@ def _setup_started_game(player_count=4):
     join_code = game["join_code"]
     slots = []
     for i in range(player_count):
-        r = _join_game(join_code, player_name=f"Player{i+1}", handicap=10.0 + i)
+        r = _join_game(join_code, player_name=f"Player{i + 1}", handicap=10.0 + i)
         slots.append(r.json()["player_slot_id"])
     client.patch(
         f"/games/{game['game_id']}/tee-order",
@@ -214,7 +214,8 @@ class TestDeleteHole:
     def test_delete_hole_not_in_history_returns_404(self):
         game_id, slots = _setup_started_game()
         self._save_quarters_and_get_state(
-            game_id, slots,
+            game_id,
+            slots,
             {"1": {slots[0]: 1, slots[1]: -1, slots[2]: 0, slots[3]: 0}},
         )
         resp = client.delete(f"/games/{game_id}/holes/5")

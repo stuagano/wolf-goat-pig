@@ -13,8 +13,6 @@ To migrate: Replace players.py with this file after testing.
 """
 
 import logging
-from datetime import UTC, datetime
-from ..utils.time import utc_now
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, Query
@@ -26,6 +24,7 @@ from ..database import get_db
 from ..services.auth_service import get_current_user
 from ..services.player_service import PlayerService
 from ..utils.api_helpers import ApiResponse, handle_api_errors, require_not_none
+from ..utils.time import utc_now
 
 logger = logging.getLogger("app.routers.players")
 

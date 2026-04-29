@@ -11,8 +11,7 @@ and response formats.
 import json
 import logging
 import os
-from datetime import UTC, datetime, timedelta
-from ..utils.time import utc_now
+from datetime import timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, UploadFile
@@ -23,6 +22,7 @@ from .. import database, models, schemas
 from ..services.email_service import get_email_service
 from ..state.app_state import set_email_service_instance
 from ..utils.admin_auth import require_admin
+from ..utils.time import utc_now
 
 logger = logging.getLogger("app.routers.admin")
 
@@ -479,7 +479,7 @@ async def get_table_content(
                 detail=f"Table '{table_name}' not found in schema '{schema_name}'",
             )
 
-        query = text(f"SELECT * FROM \"{schema_name}\".\"{table_name}\" LIMIT 100;")
+        query = text(f'SELECT * FROM "{schema_name}"."{table_name}" LIMIT 100;')
         table_content = db.execute(query).fetchall()
         columns = table_content[0].keys() if table_content else []
         rows = [dict(row._mapping) for row in table_content]
@@ -711,6 +711,7 @@ async def run_database_migration(
     elif migration == "add_missing_columns":
         try:
             from sqlalchemy import text
+
             stmts = [
                 "ALTER TABLE legacy_rounds ADD COLUMN IF NOT EXISTS duration VARCHAR",
                 "ALTER TABLE legacy_rounds ADD COLUMN IF NOT EXISTS hole_scores JSONB DEFAULT '{}'",

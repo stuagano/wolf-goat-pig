@@ -126,9 +126,9 @@ class TestMigrations:
         assert result2["success"] is True, "Second migration run should succeed"
 
         # Second run should report no migrations needed
-        assert (
-            "No migrations needed" in result2["message"] or "migration" in result2["message"].lower()
-        ), "Second run should indicate migrations are up-to-date"
+        assert "No migrations needed" in result2["message"] or "migration" in result2["message"].lower(), (
+            "Second run should indicate migrations are up-to-date"
+        )
 
 
 class TestModelDefinitions:
@@ -154,9 +154,9 @@ class TestModelDefinitions:
         # Model should have all columns that exist in the table
         for col in ["tee_order", "player_name", "handicap", "game_id"]:
             if col in table_columns:
-                assert col in model_columns or hasattr(
-                    GamePlayer, col
-                ), f"GamePlayer model missing column that exists in table: {col}"
+                assert col in model_columns or hasattr(GamePlayer, col), (
+                    f"GamePlayer model missing column that exists in table: {col}"
+                )
 
 
 class TestDatabaseIntegration:

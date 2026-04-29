@@ -4,8 +4,6 @@ Detects when players earn badges and manages badge awarding logic.
 """
 
 from collections.abc import Callable
-from datetime import UTC, datetime
-from .utils.time import utc_now
 from typing import Any
 
 from sqlalchemy import and_
@@ -21,6 +19,7 @@ from .models import (
     PlayerSeriesProgress,
     PlayerStatistics,
 )
+from .utils.time import utc_now
 
 
 class BadgeEngine:

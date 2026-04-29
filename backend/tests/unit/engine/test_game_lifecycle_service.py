@@ -248,7 +248,7 @@ class TestCreateGame:
         mock_sim_class.return_value = mock_simulation
 
         # Act
-        game_id, simulation = service.create_game(db=mock_db, player_count=4, players=sample_players, base_wager=5)
+        game_id, _simulation = service.create_game(db=mock_db, player_count=4, players=sample_players, base_wager=5)
 
         # Assert - base_wager is stored in game state, not on the game object
         # The game object doesn't have a global betting_state attribute
@@ -276,7 +276,7 @@ class TestCreateGame:
         mock_sim_class.return_value = mock_simulation
 
         # Act
-        game_id, simulation = service.create_game(db=mock_db, player_count=6, players=players)
+        game_id, _simulation = service.create_game(db=mock_db, player_count=6, players=players)
 
         # Assert
         assert game_id == "test-game-id"
@@ -1082,7 +1082,7 @@ class TestIntegration:
         mock_db.query.return_value.filter.return_value.first.return_value = mock_game_record
 
         # Act 1: Create game
-        created_id, sim = service.create_game(db=mock_db, player_count=4, players=sample_players)
+        created_id, _sim = service.create_game(db=mock_db, player_count=4, players=sample_players)
 
         # Act 2: Start game
         mock_game_record.game_status = "setup"

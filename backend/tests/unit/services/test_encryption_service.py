@@ -6,8 +6,8 @@ import pytest
 
 from app.services.encryption_service import decrypt, encrypt
 
-
 # ── Roundtrip ────────────────────────────────────────────────────────────────
+
 
 class TestRoundtrip:
     def test_encrypt_then_decrypt_returns_original(self):
@@ -48,6 +48,7 @@ class TestRoundtrip:
 
 # ── Key derivation ────────────────────────────────────────────────────────────
 
+
 class TestKeyDerivation:
     def test_uses_foretees_encryption_key_when_set(self, monkeypatch):
         monkeypatch.setenv("FORETEES_ENCRYPTION_KEY", "my-raw-key")
@@ -73,6 +74,7 @@ class TestKeyDerivation:
     def test_44_char_base64_key_used_directly(self, monkeypatch):
         """A 44-char base64 string is a valid Fernet key and used as-is."""
         from cryptography.fernet import Fernet
+
         valid_key = Fernet.generate_key().decode()
         assert len(valid_key) == 44
         monkeypatch.setenv("FORETEES_ENCRYPTION_KEY", valid_key)

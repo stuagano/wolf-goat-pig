@@ -9,8 +9,6 @@ Data is automatically deduplicated based on date/group/member/score.
 """
 
 import logging
-from datetime import UTC, datetime
-from ..utils.time import utc_now
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query
@@ -21,6 +19,7 @@ from .. import models
 from ..database import get_db
 from ..services.unified_data_service import get_unified_data_service
 from ..utils.admin_auth import require_admin
+from ..utils.time import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -294,20 +293,22 @@ def sync_sheets_to_db(db: Session = Depends(get_db)) -> Any:
     synced_at = utc_now().isoformat()
 
     # Clear existing sheet-sourced rows and repopulate
-    db.query(models.LegacyRound).filter(
-        models.LegacyRound.source.in_(["primary_sheet", "writable_sheet"])
-    ).delete(synchronize_session=False)
+    db.query(models.LegacyRound).filter(models.LegacyRound.source.in_(["primary_sheet", "writable_sheet"])).delete(
+        synchronize_session=False
+    )
 
     for r in all_rounds:
-        db.add(models.LegacyRound(
-            date=r.date_sortable,
-            group=r.group,
-            member=r.member,
-            score=r.score,
-            location=r.location or "",
-            source=r.source,
-            synced_at=synced_at,
-        ))
+        db.add(
+            models.LegacyRound(
+                date=r.date_sortable,
+                group=r.group,
+                member=r.member,
+                score=r.score,
+                location=r.location or "",
+                source=r.source,
+                synced_at=synced_at,
+            )
+        )
 
     db.commit()
     return {"success": True, "synced": len(all_rounds), "synced_at": synced_at}

@@ -1,6 +1,6 @@
 import logging
 import random
-from dataclasses import asdict, field
+from dataclasses import asdict
 from datetime import datetime
 from typing import Any, cast
 
@@ -10,7 +10,6 @@ from .domain.game_types import (
     GamePhase,
     HoleState,
     Player,
-    PlayerRole,
     TeamFormation,
     TimelineEvent,
     WGPBettingOpportunity,

@@ -20,14 +20,14 @@ Notification types supported:
 """
 
 import logging
-from datetime import UTC, datetime, timedelta
-from ..utils.time import utc_now
+from datetime import timedelta
 from typing import Any
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from ..models import Notification
+from ..utils.time import utc_now
 
 logger = logging.getLogger(__name__)
 

@@ -38,7 +38,7 @@ def test_simplified_scoring():
     # Test Hole 2: Partners play
     print("\n--- Hole 2: Partners Play ---")
     scores = {"p1": 5, "p2": 4, "p3": 4, "p4": 6}  # Team 2 (Charlie+Diana) wins
-    teams: Dict[str, Any] = {
+    teams: dict[str, Any] = {
         "type": "partners",
         "team1": ["p1", "p2"],
         "team2": ["p3", "p4"],
@@ -51,7 +51,7 @@ def test_simplified_scoring():
     # Test Hole 3: Tied hole
     print("\n--- Hole 3: Tied Hole ---")
     scores = {"p1": 4, "p2": 5, "p3": 4, "p4": 5}  # Teams tied
-    teams: Dict[str, Any] = {
+    teams: dict[str, Any] = {
         "type": "partners",
         "team1": ["p1", "p2"],
         "team2": ["p3", "p4"],

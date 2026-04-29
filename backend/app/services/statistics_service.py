@@ -13,14 +13,14 @@ import logging
 import statistics
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from ..utils.time import utc_now
+from datetime import timedelta
 from typing import Any
 
 from sqlalchemy import and_, desc, func
 from sqlalchemy.orm import Session
 
 from ..models import GamePlayerResult, GameRecord, PlayerProfile, PlayerStatistics
+from ..utils.time import utc_now
 
 logger = logging.getLogger(__name__)
 

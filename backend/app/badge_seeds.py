@@ -3,14 +3,13 @@ Badge System Seeds - Initialize all badges in the database
 Run this script to populate the badge system with all available badges.
 """
 
-from datetime import UTC, datetime
-from .utils.time import utc_now
 from typing import cast
 
 from sqlalchemy.orm import Session
 
 from .database import SessionLocal
 from .models import Badge, BadgeSeries, SeasonalBadge
+from .utils.time import utc_now
 
 
 def seed_badges(db: Session) -> None:

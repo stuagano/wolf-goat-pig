@@ -13,13 +13,13 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from ..utils.time import utc_now
 from typing import Any
 
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import GamePlayerResult, GameRecord, LegacyRound
+from ..utils.time import utc_now
 from .spreadsheet_sync_service import PRIMARY_SHEET_ID, WRITABLE_SHEET_ID, RoundResult, SpreadsheetSyncService
 
 logger = logging.getLogger(__name__)
@@ -215,9 +215,7 @@ class UnifiedDataService:
                 db = self._get_db()
                 records = db.query(GameRecord).filter(GameRecord.completed_at.isnot(None)).all()
                 for record in records:
-                    results = db.query(GamePlayerResult).filter(
-                        GamePlayerResult.game_record_id == record.id
-                    ).all()
+                    results = db.query(GamePlayerResult).filter(GamePlayerResult.game_record_id == record.id).all()
                     for result in results:
                         unified = self._db_result_to_unified(result, record)
                         key = (unified.date_sortable, unified.group, unified.member, unified.score)
@@ -313,12 +311,8 @@ class UnifiedDataService:
 
         try:
             db = self._get_db()
-            primary_count = db.query(LegacyRound).filter(
-                LegacyRound.source == "primary_sheet"
-            ).count()
-            writable_count = db.query(LegacyRound).filter(
-                LegacyRound.source == "writable_sheet"
-            ).count()
+            primary_count = db.query(LegacyRound).filter(LegacyRound.source == "primary_sheet").count()
+            writable_count = db.query(LegacyRound).filter(LegacyRound.source == "writable_sheet").count()
             status["primary_sheet"]["available"] = primary_count > 0  # type: ignore[index]
             status["primary_sheet"]["record_count"] = primary_count  # type: ignore[index]
             status["writable_sheet"]["available"] = writable_count > 0  # type: ignore[index]

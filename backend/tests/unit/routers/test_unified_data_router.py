@@ -90,8 +90,7 @@ class TestGetUnifiedLeaderboard:
     def test_leaderboard_respects_limit(self, mock_get_service):
         mock_service = MagicMock()
         mock_service.get_unified_leaderboard.return_value = [
-            _make_mock_leaderboard_entry(f"Player{i}", i * 5, i + 1)
-            for i in range(10)
+            _make_mock_leaderboard_entry(f"Player{i}", i * 5, i + 1) for i in range(10)
         ]
         mock_get_service.return_value = mock_service
 

@@ -9,14 +9,13 @@ import json
 import logging
 import os
 from dataclasses import dataclass
-from datetime import datetime
-from .utils.time import utc_now
 from typing import Any
 
 import httpx
 
 from .database import SessionLocal
 from .models import Course
+from .utils.time import utc_now
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

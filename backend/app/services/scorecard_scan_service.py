@@ -33,6 +33,7 @@ def _load_reference_image() -> tuple[bytes, str] | None:
             return path.read_bytes(), mime
     return None
 
+
 EXTRACTION_PROMPT = """This is a Wolf Goat Pig golf wagering scorecard photo.
 
 The numbers written on it represent RUNNING TOTALS of quarters (a wagering unit) for each player across the round.
@@ -218,9 +219,7 @@ def _shape_extraction(extracted: dict[str, Any]) -> dict[str, Any]:
     for player_index, totals in by_player.items():
         deltas = _compute_per_hole_deltas(totals)
         for d in deltas:
-            per_hole_quarters.append(
-                {"player_index": player_index, "hole": d["hole"], "quarters": d["quarters"]}
-            )
+            per_hole_quarters.append({"player_index": player_index, "hole": d["hole"], "quarters": d["quarters"]})
 
     return {
         "players": players,
@@ -249,15 +248,9 @@ async def scan_scorecard(image_bytes: bytes, content_type: str) -> dict[str, Any
     The annotated bytes are reused for both the initial call and the strict
     retry.
     """
-    deskewed_bytes, deskewed_ct, deskew_diag = deskew_to_card(
-        image_bytes, content_type
-    )
-    cropped_bytes, cropped_ct, grid_diag = crop_to_grid(
-        deskewed_bytes, deskewed_ct
-    )
-    annotated_bytes, annotated_ct, circle_diag = annotate_circles(
-        cropped_bytes, cropped_ct
-    )
+    deskewed_bytes, deskewed_ct, deskew_diag = deskew_to_card(image_bytes, content_type)
+    cropped_bytes, cropped_ct, grid_diag = crop_to_grid(deskewed_bytes, deskewed_ct)
+    annotated_bytes, annotated_ct, circle_diag = annotate_circles(cropped_bytes, cropped_ct)
     preprocessing_diag = {
         "deskew": deskew_diag,
         "grid_crop": grid_diag,

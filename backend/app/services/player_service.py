@@ -10,8 +10,6 @@ This service handles all player profile operations including:
 """
 
 import logging
-from datetime import datetime
-from ..utils.time import utc_now
 from typing import Any
 
 from sqlalchemy import and_, desc
@@ -27,6 +25,7 @@ from ..schemas import (
     PlayerProfileUpdate,
     PlayerStatisticsResponse,
 )
+from ..utils.time import utc_now
 
 logger = logging.getLogger(__name__)
 

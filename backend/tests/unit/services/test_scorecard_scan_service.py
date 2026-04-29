@@ -10,8 +10,8 @@ import pytest
 
 from app.services.scorecard_scan_service import _compute_per_hole_deltas
 
-
 # ── _compute_per_hole_deltas ──────────────────────────────────────────────────
+
 
 class TestComputePerHoleDeltas:
     def test_simple_increasing_running_totals(self):
@@ -111,6 +111,7 @@ class TestComputePerHoleDeltas:
 
 # ── Groq Vision response helpers ─────────────────────────────────────────────
 
+
 def _groq_response(content: str, status_code: int = 200) -> MagicMock:
     """Build a mock httpx.Response with the given content and status code."""
     resp = MagicMock()
@@ -144,9 +145,11 @@ def _run_scan(
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.post = AsyncMock(return_value=response)
 
-    with patch.dict("os.environ", env, clear=True), \
-         patch("app.services.scorecard_scan_service._load_reference_image", return_value=None), \
-         patch("httpx.AsyncClient", return_value=mock_client):
+    with (
+        patch.dict("os.environ", env, clear=True),
+        patch("app.services.scorecard_scan_service._load_reference_image", return_value=None),
+        patch("httpx.AsyncClient", return_value=mock_client),
+    ):
         result = asyncio.run(scan_scorecard(image_bytes, "image/jpeg"))
 
     return result, mock_client
@@ -154,14 +157,14 @@ def _run_scan(
 
 # ── scan_scorecard (Groq Vision mocked) ──────────────────────────────────────
 
+
 class TestScanScorecardParsing:
     def test_missing_groq_api_key_raises(self):
         """GROQ_API_KEY must be set or scan_scorecard raises ValueError."""
         from app.services.scorecard_scan_service import scan_scorecard
 
-        with patch.dict("os.environ", {}, clear=True):
-            with pytest.raises(ValueError, match="GROQ_API_KEY"):
-                asyncio.run(scan_scorecard(b"fake", "image/jpeg"))
+        with patch.dict("os.environ", {}, clear=True), pytest.raises(ValueError, match="GROQ_API_KEY"):
+            asyncio.run(scan_scorecard(b"fake", "image/jpeg"))
 
     def test_result_has_required_keys(self):
         resp = _groq_response('{"players": [], "running_totals": []}')
@@ -172,13 +175,15 @@ class TestScanScorecardParsing:
 
     def test_successful_scan_with_player_data(self):
         """Full round-trip: Groq returns player data, service parses it correctly."""
-        groq_json = json.dumps({
-            "players": [{"name": "Jeff", "confidence": 0.95}],
-            "running_totals": [
-                {"player_index": 0, "hole": 1, "value": 4, "is_circled": False, "confidence": 0.9},
-                {"player_index": 0, "hole": 2, "value": 8, "is_circled": False, "confidence": 0.9},
-            ],
-        })
+        groq_json = json.dumps(
+            {
+                "players": [{"name": "Jeff", "confidence": 0.95}],
+                "running_totals": [
+                    {"player_index": 0, "hole": 1, "value": 4, "is_circled": False, "confidence": 0.9},
+                    {"player_index": 0, "hole": 2, "value": 8, "is_circled": False, "confidence": 0.9},
+                ],
+            }
+        )
         result, _ = _run_scan(_groq_response(groq_json))
         assert len(result["players"]) == 1
         assert result["players"][0]["name"] == "Jeff"
@@ -188,34 +193,40 @@ class TestScanScorecardParsing:
         assert player_deltas[1]["quarters"] == 4
 
     def test_circled_value_becomes_negative(self):
-        groq_json = json.dumps({
-            "players": [{"name": "Jeff", "confidence": 1.0}],
-            "running_totals": [
-                {"player_index": 0, "hole": 1, "value": 96, "is_circled": True, "confidence": 1.0},
-            ],
-        })
+        groq_json = json.dumps(
+            {
+                "players": [{"name": "Jeff", "confidence": 1.0}],
+                "running_totals": [
+                    {"player_index": 0, "hole": 1, "value": 96, "is_circled": True, "confidence": 1.0},
+                ],
+            }
+        )
         result, _ = _run_scan(_groq_response(groq_json))
         h1 = next(d for d in result["per_hole_quarters"] if d["hole"] == 1)
         assert h1["quarters"] == -96
 
     def test_uncircled_value_stays_positive(self):
-        groq_json = json.dumps({
-            "players": [{"name": "Stuart", "confidence": 1.0}],
-            "running_totals": [
-                {"player_index": 0, "hole": 1, "value": 96, "is_circled": False, "confidence": 1.0},
-            ],
-        })
+        groq_json = json.dumps(
+            {
+                "players": [{"name": "Stuart", "confidence": 1.0}],
+                "running_totals": [
+                    {"player_index": 0, "hole": 1, "value": 96, "is_circled": False, "confidence": 1.0},
+                ],
+            }
+        )
         result, _ = _run_scan(_groq_response(groq_json))
         h1 = next(d for d in result["per_hole_quarters"] if d["hole"] == 1)
         assert h1["quarters"] == 96
 
     def test_per_hole_quarters_covers_all_18_holes(self):
-        groq_json = json.dumps({
-            "players": [{"name": "Stuart", "confidence": 1.0}],
-            "running_totals": [
-                {"player_index": 0, "hole": 1, "value": 4, "is_circled": False, "confidence": 1.0},
-            ],
-        })
+        groq_json = json.dumps(
+            {
+                "players": [{"name": "Stuart", "confidence": 1.0}],
+                "running_totals": [
+                    {"player_index": 0, "hole": 1, "value": 4, "is_circled": False, "confidence": 1.0},
+                ],
+            }
+        )
         result, _ = _run_scan(_groq_response(groq_json))
         player_0 = [d for d in result["per_hole_quarters"] if d["player_index"] == 0]
         assert len(player_0) == 18
@@ -310,6 +321,7 @@ class TestScanScorecardParsing:
 
 # ── Zero-sum within a single player's deltas ─────────────────────────────────
 
+
 class TestDeltaSumProperty:
     def test_sum_of_deltas_equals_final_running_total_simple(self):
         """For any player, sum(deltas) == last running total value."""
@@ -345,11 +357,15 @@ class TestScanScorecardCallsPreprocessing:
         def fake_grid(image_bytes, content_type):
             grid_calls["n"] += 1
             assert image_bytes == b"DESKEWED", "grid_crop must receive deskewed bytes"
-            return b"GRID_CROPPED", "image/jpeg", {
-                "grid_crop_applied": True,
-                "row_lines": [10, 50, 100, 150, 200],
-                "col_lines": [5, 20, 40, 60, 80, 100],
-            }
+            return (
+                b"GRID_CROPPED",
+                "image/jpeg",
+                {
+                    "grid_crop_applied": True,
+                    "row_lines": [10, 50, 100, 150, 200],
+                    "col_lines": [5, 20, 40, 60, 80, 100],
+                },
+            )
 
         def fake_annotate(image_bytes, content_type):
             annotate_calls["n"] += 1
@@ -363,7 +379,8 @@ class TestScanScorecardCallsPreprocessing:
                 "running_totals": [
                     {"player_index": 0, "hole": h, "value": 0, "is_circled": False, "confidence": 1.0}
                     for h in range(1, 19)
-                ] + [
+                ]
+                + [
                     {"player_index": 1, "hole": h, "value": 0, "is_circled": False, "confidence": 1.0}
                     for h in range(1, 19)
                 ],

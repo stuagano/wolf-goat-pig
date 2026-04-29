@@ -119,7 +119,7 @@ def test_all_players_must_go_solo_before_hoepfinger():
     game_state = state_response.json()
 
     # Count solo usage from hole history
-    solo_counts = {pid: 0 for pid in player_ids}
+    solo_counts = dict.fromkeys(player_ids, 0)
     for hole in game_state.get("hole_history", []):
         if hole["teams"]["type"] == "solo":
             solo_counts[hole["teams"]["captain"]] += 1

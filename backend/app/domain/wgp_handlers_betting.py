@@ -6,8 +6,6 @@ These are plain async functions (no APIRouter). The router in
 """
 
 import logging
-from datetime import datetime
-from ..utils.time import utc_now
 from typing import Any
 
 from fastapi import HTTPException
@@ -15,6 +13,7 @@ from fastapi import HTTPException
 from ..managers.rule_manager import RuleManager, RuleViolationError
 from ..managers.scoring_manager import get_scoring_manager
 from ..schemas import ActionResponse
+from ..utils.time import utc_now
 from ..validators import GameStateValidationError, GameStateValidator
 from ..wolf_goat_pig import WolfGoatPigGame
 
@@ -24,6 +23,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Handlers — betting actions
 # ---------------------------------------------------------------------------
+
 
 async def handle_offer_double(game: WolfGoatPigGame, payload: dict[str, Any]) -> ActionResponse:
     """Handle double offer"""

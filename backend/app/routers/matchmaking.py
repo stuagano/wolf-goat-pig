@@ -7,20 +7,20 @@ Handles match suggestions, accept/decline responses, and the
 
 import logging
 import os
-from datetime import UTC, datetime, timedelta
-from ..utils.time import utc_now
+from datetime import timedelta
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy.orm import Session
 
-from .. import database, models, schemas
+from .. import models, schemas
 from ..database import get_db
 from ..services.auth_service import get_current_user
 from ..services.email_service import get_email_service
 from ..services.matchmaking_service import MatchmakingService
 from ..services.notification_service import get_notification_service
 from ..utils.api_helpers import handle_api_errors
+from ..utils.time import utc_now
 
 logger = logging.getLogger("app.routers.matchmaking")
 

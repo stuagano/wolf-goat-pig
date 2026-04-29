@@ -4,10 +4,10 @@ Handles scenarios where more than 4 players are signed up for a given day.
 """
 
 import logging
-from datetime import datetime
-from ..utils.time import utc_now
 from random import Random, SystemRandom
 from typing import Any
+
+from ..utils.time import utc_now
 
 logger = logging.getLogger(__name__)
 

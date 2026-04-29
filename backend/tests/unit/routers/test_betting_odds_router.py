@@ -248,8 +248,7 @@ class TestQuickOdds:
 
     def test_quick_odds_four_players(self):
         players = [
-            {"id": f"p{i}", "name": f"P{i}", "handicap": 8 + i * 4, "distance_to_pin": 100 + i * 30}
-            for i in range(4)
+            {"id": f"p{i}", "name": f"P{i}", "handicap": 8 + i * 4, "distance_to_pin": 100 + i * 30} for i in range(4)
         ]
         resp = client.post("/wgp/quick-odds", json=players)
         assert resp.status_code == 200

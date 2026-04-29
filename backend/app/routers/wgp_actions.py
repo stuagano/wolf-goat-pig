@@ -11,8 +11,19 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from .. import database
-from ..schemas import ActionRequest, ActionResponse
-from ..services.game_lifecycle_service import get_game_lifecycle_service
+
+# Domain handler imports — betting actions
+from ..domain.wgp_handlers_betting import (
+    handle_accept_big_dick,
+    handle_accept_double,
+    handle_concede_putt,
+    handle_flush,
+    handle_invoke_float,
+    handle_joes_special,
+    handle_offer_big_dick,
+    handle_offer_double,
+    handle_toggle_option,
+)
 
 # Domain handler imports — core game flow
 from ..domain.wgp_handlers_core import (
@@ -37,19 +48,8 @@ from ..domain.wgp_handlers_teams import (
     handle_request_partnership,
     handle_respond_partnership,
 )
-
-# Domain handler imports — betting actions
-from ..domain.wgp_handlers_betting import (
-    handle_accept_big_dick,
-    handle_accept_double,
-    handle_concede_putt,
-    handle_flush,
-    handle_invoke_float,
-    handle_joes_special,
-    handle_offer_big_dick,
-    handle_offer_double,
-    handle_toggle_option,
-)
+from ..schemas import ActionRequest, ActionResponse
+from ..services.game_lifecycle_service import get_game_lifecycle_service
 
 logger = logging.getLogger(__name__)
 
@@ -60,9 +60,11 @@ router = APIRouter(prefix="/wgp", tags=["wgp-actions"])
 # Legacy-to-unified action mappings (kept next to the dispatcher)
 # ---------------------------------------------------------------------------
 
+
 def _get_current_captain_id_for_mapping() -> str | None:
     """Thin wrapper used only by LEGACY_TO_UNIFIED_ACTIONS lambdas."""
     from ..domain.wgp_handlers_core import _get_current_captain_id
+
     return _get_current_captain_id()
 
 
@@ -114,6 +116,7 @@ UNIFIED_ACTION_TYPES = {
 # ---------------------------------------------------------------------------
 # Unified Action API — main game logic endpoint
 # ---------------------------------------------------------------------------
+
 
 @router.post("/{game_id}/action", response_model=ActionResponse)
 async def unified_action(game_id: str, action: ActionRequest, db: Session = Depends(database.get_db)) -> ActionResponse:

@@ -111,11 +111,14 @@ class TestCreateSignup:
         date = f"2099-01-{_unique_id()[:2].replace('a', '1').replace('b', '2').replace('c', '3').replace('d', '4').replace('e', '5').replace('f', '6')}"
         # Use a fixed unique date to avoid collisions
         date = f"2099-{uuid.uuid4().int % 12 + 1:02d}-{uuid.uuid4().int % 28 + 1:02d}"
-        resp = client.post("/signups", json={
-            "date": date,
-            "player_profile_id": player_id,
-            "player_name": player_name,
-        })
+        resp = client.post(
+            "/signups",
+            json={
+                "date": date,
+                "player_profile_id": player_id,
+                "player_name": player_name,
+            },
+        )
         assert resp.status_code == 200
 
     def test_create_signup_response_has_id(self):
@@ -123,11 +126,14 @@ class TestCreateSignup:
         if player_id is None:
             pytest.skip("Could not create player for signup test")
         date = f"2099-{uuid.uuid4().int % 12 + 1:02d}-{uuid.uuid4().int % 28 + 1:02d}"
-        resp = client.post("/signups", json={
-            "date": date,
-            "player_profile_id": player_id,
-            "player_name": player_name,
-        })
+        resp = client.post(
+            "/signups",
+            json={
+                "date": date,
+                "player_profile_id": player_id,
+                "player_name": player_name,
+            },
+        )
         if resp.status_code == 200:
             data = resp.json()
             assert "id" in data
@@ -147,11 +153,14 @@ class TestCreateSignup:
         assert resp.status_code == 400
 
     def test_create_signup_invalid_date_returns_422(self):
-        resp = client.post("/signups", json={
-            "date": "not-a-date",
-            "player_profile_id": 1,
-            "player_name": "Test",
-        })
+        resp = client.post(
+            "/signups",
+            json={
+                "date": "not-a-date",
+                "player_profile_id": 1,
+                "player_name": "Test",
+            },
+        )
         assert resp.status_code == 422
 
     def test_create_signup_missing_fields_returns_422(self):
@@ -168,11 +177,14 @@ class TestUpdateSignup:
         if player_id is None:
             return None
         date = f"2099-{uuid.uuid4().int % 12 + 1:02d}-{uuid.uuid4().int % 28 + 1:02d}"
-        resp = client.post("/signups", json={
-            "date": date,
-            "player_profile_id": player_id,
-            "player_name": player_name,
-        })
+        resp = client.post(
+            "/signups",
+            json={
+                "date": date,
+                "player_profile_id": player_id,
+                "player_name": player_name,
+            },
+        )
         if resp.status_code == 200:
             return resp.json()["id"]
         return None
@@ -209,11 +221,14 @@ class TestCancelSignup:
         if player_id is None:
             pytest.skip("Could not create player")
         date = f"2099-{uuid.uuid4().int % 12 + 1:02d}-{uuid.uuid4().int % 28 + 1:02d}"
-        create_resp = client.post("/signups", json={
-            "date": date,
-            "player_profile_id": player_id,
-            "player_name": player_name,
-        })
+        create_resp = client.post(
+            "/signups",
+            json={
+                "date": date,
+                "player_profile_id": player_id,
+                "player_name": player_name,
+            },
+        )
         if create_resp.status_code != 200:
             pytest.skip("Could not create signup")
         signup_id = create_resp.json()["id"]

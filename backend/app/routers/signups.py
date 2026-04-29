@@ -6,7 +6,6 @@ Legacy player lookup and daily sign-up management.
 
 import logging
 from datetime import datetime, timedelta
-from ..utils.time import utc_now
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -16,6 +15,7 @@ from ..services.legacy_player_service import (
     validate_player_for_legacy,
 )
 from ..services.legacy_signup_service import get_legacy_signup_service
+from ..utils.time import utc_now
 
 logger = logging.getLogger("app.routers.signups")
 

@@ -10,8 +10,6 @@ Uses new utility patterns:
 
 import logging
 import os
-from datetime import datetime
-from ..utils.time import utc_now
 from typing import Any, cast
 
 from fastapi import APIRouter, HTTPException
@@ -20,6 +18,7 @@ from sqlalchemy import text
 from .. import models
 from ..state.course_manager import CourseManager
 from ..utils.api_helpers import handle_api_errors, managed_session
+from ..utils.time import utc_now
 
 logger = logging.getLogger("app.routers.health")
 

@@ -653,10 +653,8 @@ def update_carry_over_state(
             game_state["last_push_hole"] = request.hole_number
             game_state["consecutive_push_block"] = False
     else:
-        if "carry_over_wager" in game_state:
-            del game_state["carry_over_wager"]
-        if "carry_over_from_hole" in game_state:
-            del game_state["carry_over_from_hole"]
+        game_state.pop("carry_over_wager", None)
+        game_state.pop("carry_over_from_hole", None)
         game_state["consecutive_push_block"] = False
 
 

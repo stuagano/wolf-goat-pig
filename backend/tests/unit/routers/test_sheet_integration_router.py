@@ -313,11 +313,7 @@ class TestSyncWgpSheetData:
     def test_parses_csv_and_syncs_players(self, mock_httpx_cls, mock_rate_limiter, mock_cache):
         mock_cache.get.return_value = None
 
-        csv_content = (
-            "Member,Score,Rounds,Average\n"
-            "Alice,10,5,2.0\n"
-            "Bob,-5,3,-1.67\n"
-        )
+        csv_content = "Member,Score,Rounds,Average\nAlice,10,5,2.0\nBob,-5,3,-1.67\n"
         mock_response = MagicMock()
         mock_response.text = csv_content
         mock_response.raise_for_status = MagicMock()
@@ -344,11 +340,7 @@ class TestSyncWgpSheetData:
     def test_skips_summary_rows(self, mock_httpx_cls, mock_rate_limiter, mock_cache):
         mock_cache.get.return_value = None
 
-        csv_content = (
-            "Member,Quarters,Rounds\n"
-            "Alice,10,5\n"
-            "Total,100,50\n"
-        )
+        csv_content = "Member,Quarters,Rounds\nAlice,10,5\nTotal,100,50\n"
         mock_response = MagicMock()
         mock_response.text = csv_content
         mock_response.raise_for_status = MagicMock()
@@ -372,12 +364,7 @@ class TestSyncWgpSheetData:
     def test_stops_at_summary_section(self, mock_httpx_cls, mock_rate_limiter, mock_cache):
         mock_cache.get.return_value = None
 
-        csv_content = (
-            "Member,Quarters,Rounds\n"
-            "Alice,10,5\n"
-            "Most Rounds Played,,\n"
-            "Bob,20,10\n"
-        )
+        csv_content = "Member,Quarters,Rounds\nAlice,10,5\nMost Rounds Played,,\nBob,20,10\n"
         mock_response = MagicMock()
         mock_response.text = csv_content
         mock_response.raise_for_status = MagicMock()
@@ -482,9 +469,7 @@ class TestFetchGoogleSheet:
         import httpx
 
         mock_client = AsyncMock()
-        mock_client.get = AsyncMock(
-            side_effect=httpx.RequestError("Connection failed", request=MagicMock())
-        )
+        mock_client.get = AsyncMock(side_effect=httpx.RequestError("Connection failed", request=MagicMock()))
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
         mock_httpx_cls.return_value = mock_client

@@ -37,6 +37,7 @@ async def scan_scorecard_photo(file: UploadFile = File(...)) -> dict[str, Any]:
     if len(image_bytes) > 2_500_000 and content_type in ("image/jpeg", "image/png", "image/webp"):
         try:
             from io import BytesIO
+
             from PIL import Image
 
             img = Image.open(BytesIO(image_bytes))

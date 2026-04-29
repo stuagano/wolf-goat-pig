@@ -14,12 +14,12 @@ Features:
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from ..utils.time import utc_now
 from typing import Any
 
 from sqlalchemy.orm import Session
 
 from ..models import PlayerProfile, PlayerStatistics
+from ..utils.time import utc_now
 from .statistics_service import StatisticsService
 
 logger = logging.getLogger(__name__)

@@ -5,18 +5,17 @@ Authentication Service for linking Auth0 users to PlayerProfile records
 import logging
 import os
 from collections.abc import Generator
-from datetime import datetime
-from ..utils.time import utc_now
 from typing import Any
 
+import httpx as _httpx
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-import httpx as _httpx
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
 from ..database import SessionLocal, get_db
 from ..models import EmailPreferences, PlayerProfile
+from ..utils.time import utc_now
 from .legacy_player_service import find_similar_players, get_canonical_name
 
 logger = logging.getLogger(__name__)
@@ -71,7 +70,7 @@ class AuthService:
                     issuer=f"https://{AUTH0_DOMAIN}/",
                 )
                 return dict(payload)
-            elif os.getenv("ENVIRONMENT") == "development":
+            if os.getenv("ENVIRONMENT") == "development":
                 # Development mode - allow mock authentication
                 logger.warning("Using mock authentication - development mode only")
                 return {
@@ -80,10 +79,9 @@ class AuthService:
                     "name": "Test User",
                     "picture": "https://example.com/avatar.jpg",
                 }
-            else:
-                # Unknown environment - fail safe
-                logger.error(f"Unknown ENVIRONMENT value: {os.getenv('ENVIRONMENT')!r} — refusing to authenticate")
-                raise HTTPException(status_code=500, detail="Authentication service misconfigured")
+            # Unknown environment - fail safe
+            logger.error(f"Unknown ENVIRONMENT value: {os.getenv('ENVIRONMENT')!r} — refusing to authenticate")
+            raise HTTPException(status_code=500, detail="Authentication service misconfigured")
 
         except JWTError as e:
             logger.error(f"JWT verification failed: {e!s}")
