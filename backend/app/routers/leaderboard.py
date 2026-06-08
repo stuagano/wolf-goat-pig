@@ -1,107 +1,19 @@
-"""
-Leaderboard Router
-
-Leaderboard rankings, GHIN-enhanced leaderboard, and game result recording.
-"""
+"""GHIN-enhanced leaderboard and game result recording."""
 
 import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from .. import schemas
 from ..database import get_db
 from ..services.ghin_service import GHINService
-from ..services.leaderboard_service import get_leaderboard_service
 from ..services.player_service import PlayerService
 
 logger = logging.getLogger("app.routers.leaderboard")
 
 router = APIRouter(tags=["leaderboard"])
-
-
-@router.get("/leaderboard", response_model=list[schemas.LeaderboardEntry])
-def get_leaderboard(  # type: ignore
-    response: Response,
-    limit: int = Query(100, ge=1, le=100),  # Default to 100 to show all players
-    sort: str = Query("desc", pattern="^(asc|desc)$"),  # Add sort parameter
-    db: Session = Depends(get_db),
-):
-    """Get the player leaderboard. Uses LeaderboardService for consolidated leaderboard logic."""
-    response.headers["Cache-Control"] = "public, max-age=60"
-    try:
-        # Use LeaderboardService for leaderboard queries
-        leaderboard_service = get_leaderboard_service(db)
-        leaderboard_type = "total_earnings"  # Default leaderboard type
-        leaderboard = leaderboard_service.get_leaderboard(leaderboard_type=leaderboard_type, db=db, limit=limit)
-
-        # Sort by value (the metric returned by the leaderboard service) based on sort parameter
-        if sort == "asc":
-            leaderboard.sort(key=lambda x: x.get("value", 0))
-        else:
-            leaderboard.sort(key=lambda x: x.get("value", 0), reverse=True)
-
-        # Convert to schema format
-        entries = []
-        for i, entry in enumerate(leaderboard, 1):
-            total_earnings = (
-                entry.get("value", 0) if leaderboard_type == "total_earnings" else entry.get("total_earnings", 0)
-            )
-            games = entry.get("games_played", 1)
-            entries.append(
-                schemas.LeaderboardEntry(
-                    rank=entry.get("rank", i),
-                    player_id=entry.get("player_id"),
-                    player_name=entry.get("player_name"),
-                    total_earnings=total_earnings,
-                    games_played=games,
-                    win_percentage=(
-                        entry.get("win_percentage", 0) * 100
-                        if entry.get("win_percentage", 0) <= 1
-                        else entry.get("win_percentage", 0)
-                    ),
-                    avg_earnings=total_earnings / games if games > 0 else 0,
-                    partnership_success=entry.get("partnership_success", 0),
-                )
-            )
-
-        return entries
-
-    except Exception as e:
-        logger.error(f"Error getting leaderboard: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get leaderboard: {e!s}")
-
-
-@router.get("/leaderboard/{metric}")
-def get_leaderboard_by_metric(metric: str, limit: int = Query(10, ge=1, le=100), db: Session = Depends(get_db)):  # type: ignore
-    """Get leaderboard sorted by specific metric. Uses LeaderboardService."""
-    try:
-        # Use LeaderboardService for metric-based leaderboards
-        leaderboard_service = get_leaderboard_service(db)
-
-        # Map metric names to leaderboard types
-        metric_map = {
-            "earnings": "total_earnings",
-            "total_earnings": "total_earnings",
-            "win_rate": "win_rate",
-            "games_played": "games_played",
-            "avg_score": "avg_score",
-        }
-
-        leaderboard_type = metric_map.get(metric, "total_earnings")
-        leaderboard = leaderboard_service.get_leaderboard(leaderboard_type=leaderboard_type, db=db, limit=limit)
-
-        return {
-            "metric": metric,
-            "leaderboard": leaderboard,
-            "total_players": len(leaderboard),
-        }
-
-    except Exception as e:
-        logger.error(f"Error getting leaderboard by metric {metric}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get leaderboard: {e!s}")
 
 
 @router.get("/leaderboard/ghin-enhanced")
