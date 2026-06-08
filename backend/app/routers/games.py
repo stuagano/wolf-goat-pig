@@ -16,6 +16,8 @@ from ..services.game_lifecycle_service import get_game_lifecycle_service
 from ..services.notification_service import get_notification_service
 from ..state.course_manager import CourseManager
 from ..utils.time import utc_now
+from sqlalchemy.orm.attributes import flag_modified
+
 from ..wolf_goat_pig import Player, WolfGoatPigGame
 
 logger = logging.getLogger(__name__)
@@ -108,6 +110,8 @@ async def create_game_with_join_code(
     db: Session = Depends(database.get_db),
 ) -> dict[str, Any]:
     """Create a new game with a join code for authenticated players"""
+    if player_count not in (4, 5, 6):
+        raise HTTPException(status_code=400, detail="Wolf Goat Pig requires 4, 5, or 6 players")
     try:
         import random
         import string
@@ -254,6 +258,7 @@ async def join_game_with_code(  # type: ignore
         )
         game.updated_at = current_time
 
+        flag_modified(game, "state")
         db.commit()
         db.refresh(game_player)
 
@@ -360,9 +365,6 @@ async def set_tee_order(
         # Mark tee order as set in game state
         game.state["tee_order_set"] = True
         game.updated_at = utc_now()
-
-        # Tell SQLAlchemy the JSON field has changed
-        from sqlalchemy.orm.attributes import flag_modified
 
         flag_modified(game, "state")
 

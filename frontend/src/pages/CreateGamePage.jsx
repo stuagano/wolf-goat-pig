@@ -61,17 +61,22 @@ function CreateGamePage() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create game');
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.detail || 'Failed to create game');
       }
 
       const data = await response.json();
+
+      if (!data.game_id) {
+        throw new Error('Server returned no game ID — please try again');
+      }
 
       // Navigate to lobby with the game ID
       navigate(`/lobby/${data.game_id}`);
 
     } catch (err) {
       console.error('Error creating game:', err);
-      setError('Failed to create game. Please try again.');
+      setError(err.message || 'Failed to create game. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -142,8 +147,6 @@ function CreateGamePage() {
               background: theme.colors.paper
             }}
           >
-            <option value={2}>2 Players</option>
-            <option value={3}>3 Players</option>
             <option value={4}>4 Players (Standard)</option>
             <option value={5}>5 Players</option>
             <option value={6}>6 Players</option>
