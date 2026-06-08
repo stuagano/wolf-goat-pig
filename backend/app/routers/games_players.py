@@ -54,6 +54,10 @@ class BettingSeed(BaseModel):
     ping_pong_count: int | None = Field(None, ge=0)
 
 
+class UpdatePlayerNameRequest(BaseModel):
+    name: str = Field(..., min_length=2, max_length=50)
+
+
 class SimulationSeedRequest(BaseModel):
     """Parameters accepted by the test seeding endpoint."""
 
@@ -289,21 +293,13 @@ async def create_test_game(
 async def update_player_name(  # type: ignore
     game_id: str,
     player_id: str,
-    name_update: dict,
+    name_update: UpdatePlayerNameRequest,
     db: Session = Depends(database.get_db),
 ):
-    """
-    Update a player's name in an active game.
-    Allows editing player names in the game scorer without requiring PlayerProfile records.
-
-    Args:
-        game_id: The game ID
-        player_id: The player's ID (e.g., "test-player-1")
-        name_update: Dict with "name" key containing the new name
-    """
+    """Update a player's name in an active game."""
     try:
-        new_name = name_update.get("name")
-        if not new_name or not isinstance(new_name, str) or not new_name.strip():
+        new_name = name_update.name.strip()
+        if not new_name:
             raise HTTPException(status_code=400, detail="Invalid name provided")
 
         new_name = new_name.strip()
