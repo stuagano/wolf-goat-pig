@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import ScorecardCapture from './ScorecardCapture';
 import ScorecardReview from './ScorecardReview';
+import GHINPostModal from './GHINPostModal';
 import { apiConfig } from '../../config/api.config';
 import { preprocessScorecardImage } from '../../utils/scorecardImage';
 
@@ -24,9 +25,10 @@ const buildBlankExtraction = (players) => ({
 });
 
 const ScorecardPhoto = ({ gameId, players, onSaved, onCancel }) => {
-  // 'capture' | 'processing' | 'review' | 'saving' | 'error'
+  // 'capture' | 'processing' | 'review' | 'saving' | 'ghin_prompt' | 'error'
   const [stage, setStage] = useState('capture');
   const [extraction, setExtraction] = useState(null);
+  const [savedQuarters, setSavedQuarters] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
 
   const enterManually = () => {
@@ -90,7 +92,8 @@ const ScorecardPhoto = ({ gameId, players, onSaved, onCancel }) => {
         throw new Error(detail.detail || `Save failed: ${res.status}`);
       }
 
-      onSaved(holeQuarters);
+      setSavedQuarters(holeQuarters);
+      setStage('ghin_prompt');
     } catch (err) {
       setErrorMsg(err.message || 'Failed to save quarters');
       setStage('error');
@@ -134,6 +137,17 @@ const ScorecardPhoto = ({ gameId, players, onSaved, onCancel }) => {
         <div className="animate-spin text-4xl">💾</div>
         <p className="text-gray-600 font-medium">Saving quarters...</p>
       </div>
+    );
+  }
+
+  if (stage === 'ghin_prompt') {
+    return (
+      <GHINPostModal
+        players={players}
+        playedAt={new Date().toISOString().slice(0, 10)}
+        onPosted={() => onSaved(savedQuarters)}
+        onSkip={() => onSaved(savedQuarters)}
+      />
     );
   }
 

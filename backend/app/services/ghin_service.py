@@ -479,6 +479,70 @@ class GHINService:
                     logger.debug(f"Rollback failed: {rollback_error}")
                 return []
 
+    async def search_courses(self, name: str) -> dict[str, Any]:
+        """Search for golf courses by name via GHIN API."""
+        if not self.jwt_token:
+            raise ConnectionError("GHIN service not authenticated")
+        headers = {
+            "Authorization": f"Bearer {self.jwt_token}",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            "Origin": "https://www.ghin.com",
+            "Referer": "https://www.ghin.com/",
+        }
+        params = {"name": name, "per_page": 20, "page": 1, "country_code": "US"}
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                f"{self.GHIN_API_BASE_URL}/courses.json",
+                headers=headers,
+                params=params,
+            )
+            logger.info("GHIN course search %s → %d", name, resp.status_code)
+            resp.raise_for_status()
+            return cast("dict[str, Any]", resp.json())
+
+    async def post_score(
+        self,
+        ghin_id: str,
+        course_id: int,
+        tee_set_rating_id: int,
+        gross_score: int,
+        played_at: str,
+        number_of_holes: int = 18,
+    ) -> dict[str, Any]:
+        """Post a score to GHIN on behalf of the authenticated golfer."""
+        if not self.jwt_token:
+            raise ConnectionError("GHIN service not authenticated")
+        headers = {
+            "Authorization": f"Bearer {self.jwt_token}",
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            "Origin": "https://www.ghin.com",
+            "Referer": "https://www.ghin.com/",
+        }
+        body = {
+            "score": {
+                "golfer_id": int(ghin_id),
+                "course_id": course_id,
+                "tee_set_rating_id": tee_set_rating_id,
+                "played_at": played_at,
+                "number_of_holes": number_of_holes,
+                "gross_score": gross_score,
+                "adjusted_gross_score": gross_score,
+                "score_type": "H",
+                "is_tournament": False,
+                "stat_track_flag": False,
+            }
+        }
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                f"{self.GHIN_API_BASE_URL}/scores.json",
+                headers=headers,
+                json=body,
+            )
+            logger.info("GHIN score post ghin=%s → %d: %s", ghin_id, resp.status_code, resp.text[:300])
+            resp.raise_for_status()
+            return cast("dict[str, Any]", resp.json())
+
     # GHIN API Integration - Now supports real API calls
 
     async def _fetch_handicap_from_ghin(self, ghin_id: str) -> dict[str, Any] | None:
