@@ -11,6 +11,25 @@
 import { createNamespacedStorage } from '../utils/storage';
 import { apiConfig } from '../config/api.config';
 
+// Convert internal queue payload {hole_quarters, optional_details, current_hole}
+// to the /scores API shape {holes: [...], current_hole}
+function toScoresPayload({ hole_quarters, optional_details, current_hole }) {
+  const holes = Object.keys(hole_quarters || {}).map(holeStr => {
+    const details = (optional_details || {})[holeStr] || {};
+    return {
+      hole_number: parseInt(holeStr, 10),
+      quarters: hole_quarters[holeStr],
+      gross_scores: details.gross_scores || null,
+      notes: details.notes || null,
+      teams: details.teams || null,
+      winner: details.winner || null,
+      wager: details.wager || null,
+      phase: details.phase || null,
+    };
+  });
+  return { holes, current_hole };
+}
+
 const syncStore = createNamespacedStorage('wgp-sync');
 
 const STORAGE_KEYS = {
@@ -96,7 +115,7 @@ function notifyListeners() {
  * Queue a sync request for background processing
  * 
  * @param {string} gameId - The game ID
- * @param {string} type - Request type (e.g., 'quarters-only', 'complete-hole')
+ * @param {string} type - Request type (e.g., 'scores', 'complete-game')
  * @param {Object} payload - The data to sync
  * @param {Object} options - Additional options
  * @returns {string} Queue item ID
@@ -118,9 +137,9 @@ export function queueSync(gameId, type, payload, options = {}) {
 
   // For hole syncs, we can merge with existing queue items for same game
   // This prevents duplicate syncs if user submits multiple holes while offline
-  if (type === 'quarters-only') {
+  if (type === 'scores') {
     const existingIndex = queue.findIndex(
-      item => item.gameId === gameId && item.type === 'quarters-only'
+      item => item.gameId === gameId && item.type === 'scores'
     );
     
     if (existingIndex >= 0) {
@@ -216,10 +235,10 @@ export async function processQueue(options = {}) {
       let url, method, body;
       
       switch (item.type) {
-        case 'quarters-only':
-          url = `${API_URL}/games/${item.gameId}/quarters-only`;
+        case 'scores':
+          url = `${API_URL}/games/${item.gameId}/scores`;
           method = 'POST';
-          body = JSON.stringify(item.payload);
+          body = JSON.stringify(toScoresPayload(item.payload));
           break;
         case 'complete-game':
           url = `${API_URL}/games/${item.gameId}/complete`;
@@ -429,7 +448,7 @@ export async function syncHoleData(gameId, holeQuarters, optionalDetails, curren
 
   // If offline, queue immediately
   if (!navigator.onLine) {
-    const queueId = queueSync(gameId, 'quarters-only', payload);
+    const queueId = queueSync(gameId, 'scores', payload);
     return {
       success: true,
       queued: true,
@@ -445,12 +464,12 @@ export async function syncHoleData(gameId, holeQuarters, optionalDetails, curren
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
-    const response = await fetch(`${API_URL}/games/${gameId}/quarters-only`, {
+    const response = await fetch(`${API_URL}/games/${gameId}/scores`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(toScoresPayload(payload)),
       signal: controller.signal,
     });
 
@@ -480,7 +499,7 @@ export async function syncHoleData(gameId, holeQuarters, optionalDetails, curren
     }
     
     // Queue for retry
-    const queueId = queueSync(gameId, 'quarters-only', payload);
+    const queueId = queueSync(gameId, 'scores', payload);
     return {
       success: true,
       queued: true,
@@ -490,7 +509,7 @@ export async function syncHoleData(gameId, holeQuarters, optionalDetails, curren
 
   } catch (error) {
     // Network error - queue for retry
-    const queueId = queueSync(gameId, 'quarters-only', payload);
+    const queueId = queueSync(gameId, 'scores', payload);
     return {
       success: true,
       queued: true,

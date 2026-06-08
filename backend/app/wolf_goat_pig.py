@@ -699,6 +699,39 @@ class WolfGoatPigGame(PersistenceMixin):
 
         return points_result
 
+    def apply_hole_events(self, events: list[dict[str, Any]]) -> None:
+        """Recompute player points from the full hole-event log.
+
+        Accepts a list of per-player-per-hole dicts with keys:
+          hole_number, player_id, score (optional), quarters.
+        Resets all player points to zero, then sums quarters from each event.
+        Also restores hole_state.scores / .points_awarded for initialized holes.
+        """
+        from collections import defaultdict
+
+        for player in self.players:
+            player.points = 0
+
+        by_hole: dict[int, list[dict[str, Any]]] = defaultdict(list)
+        for event in events:
+            by_hole[event["hole_number"]].append(event)
+
+        for hole_number in sorted(by_hole.keys()):
+            hole_events = by_hole[hole_number]
+            hole_state = self.hole_states.get(hole_number)
+            if hole_state:
+                hole_state.scores = {
+                    e["player_id"]: e["score"]
+                    for e in hole_events
+                    if e.get("score") is not None
+                }
+                hole_state.points_awarded = {e["player_id"]: e["quarters"] for e in hole_events}
+
+            for event in hole_events:
+                player = next((p for p in self.players if p.id == event["player_id"]), None)
+                if player:
+                    player.points += event["quarters"]
+
     def get_post_hole_analysis(self, hole_number: int) -> dict[str, Any]:
         """Generate comprehensive post-hole analysis"""
         return _get_post_hole_analysis(

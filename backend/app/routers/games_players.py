@@ -58,6 +58,11 @@ class UpdatePlayerNameRequest(BaseModel):
     name: str = Field(..., min_length=2, max_length=50)
 
 
+class UpdateHittingOrderRequest(BaseModel):
+    hitting_order: list[str] = Field(..., min_length=4, max_length=6)
+    hole_number: int | None = Field(None, ge=1, le=18, description="Hole to update; defaults to current hole")
+
+
 class SimulationSeedRequest(BaseModel):
     """Parameters accepted by the test seeding endpoint."""
 
@@ -290,98 +295,45 @@ async def create_test_game(
 
 
 @router.patch("/{game_id}/players/{player_id}/name")
-async def update_player_name(  # type: ignore
+async def update_player_name(
     game_id: str,
     player_id: str,
     name_update: UpdatePlayerNameRequest,
     db: Session = Depends(database.get_db),
-):
-    """Update a player's name in an active game."""
-    try:
-        new_name = name_update.name.strip()
-        if not new_name:
-            raise HTTPException(status_code=400, detail="Invalid name provided")
+) -> dict[str, Any]:
+    """Update a player's display name. Writes to DB; evicts cache so next load is fresh."""
+    new_name = name_update.name.strip()
+    if not new_name:
+        raise HTTPException(status_code=400, detail="Name cannot be blank")
 
-        new_name = new_name.strip()
+    game_player = (
+        db.query(models.GamePlayer)
+        .filter(models.GamePlayer.game_id == game_id, models.GamePlayer.player_slot_id == player_id)
+        .first()
+    )
+    if not game_player:
+        raise HTTPException(status_code=404, detail=f"Player {player_id} not found in game {game_id}")
 
-        # Try to get game from lifecycle service (active games in memory)
-        service = get_game_lifecycle_service()
-        simulation = service._active_games.get(game_id)
+    game_player.player_name = new_name
 
-        if simulation:
-            # Update player name in simulation
-            player_found = False
-            for player in simulation.players:
-                if player.id == player_id:
-                    player.name = new_name
-                    player_found = True
-                    break
+    # Keep the denormalized copy in the state blob in sync
+    game_record = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
+    if game_record:
+        from sqlalchemy.orm.attributes import flag_modified
 
-            if not player_found:
-                raise HTTPException(status_code=404, detail=f"Player {player_id} not found in game")
+        state = game_record.state or {}
+        for p in state.get("players", []):
+            if p.get("id") == player_id:
+                p["name"] = new_name
+                break
+        flag_modified(game_record, "state")
+        game_record.updated_at = utc_now().isoformat()
 
-            # Update player name in game state
-            game_state = simulation.get_game_state()
-            for player in game_state.get("players", []):
-                if player.get("id") == player_id:
-                    player["name"] = new_name
-                    break
+    db.commit()
+    get_game_lifecycle_service().cleanup_game(game_id)
 
-            logger.info(f"Updated player {player_id} name to '{new_name}' in game {game_id}")
-
-        # Try to update in database as well (if game exists in DB)
-        try:
-            # Update GameStateModel
-            game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
-
-            if game:
-                state = game.state or {}
-                players = state.get("players", [])
-                for player in players:
-                    if player.get("id") == player_id:
-                        player["name"] = new_name
-                        break
-
-                game.state = state  # type: ignore
-                game.updated_at = utc_now().isoformat()  # type: ignore
-
-                # Also update GamePlayer record
-                game_player = (
-                    db.query(models.GamePlayer)
-                    .filter(
-                        models.GamePlayer.game_id == game_id,
-                        models.GamePlayer.player_slot_id == player_id,
-                    )
-                    .first()
-                )
-
-                if game_player:
-                    game_player.player_name = new_name
-
-                db.commit()
-                logger.info(f"Updated player {player_id} name to '{new_name}' in database for game {game_id}")
-
-        except Exception as db_error:
-            # Log but don't fail - game can continue in memory
-            logger.warning(f"Failed to update player name in database: {db_error}")
-            try:
-                db.rollback()
-            except Exception as rollback_error:
-                logger.debug(f"Rollback failed (may be expected): {rollback_error}")
-
-        return {
-            "success": True,
-            "game_id": game_id,
-            "player_id": player_id,
-            "name": new_name,
-            "message": f"Player name updated to '{new_name}'",
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error updating player name: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to update player name: {e!s}")
+    logger.info(f"Updated player {player_id} name to '{new_name}' in game {game_id}")
+    return {"success": True, "game_id": game_id, "player_id": player_id, "name": new_name}
 
 
 @router.delete("/{game_id}/players/{player_slot_id}")
@@ -534,3 +486,67 @@ async def update_player_handicap(  # type: ignore
         logger.error(f"Error updating player handicap: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to update handicap: {e!s}")
+
+
+@router.patch("/{game_id}/hitting-order")
+async def update_hitting_order(
+    game_id: str,
+    body: UpdateHittingOrderRequest,
+    db: Session = Depends(database.get_db),
+) -> dict[str, Any]:
+    """Update the hitting order for any hole (defaults to current hole).
+
+    Writes to hole_orders table (source of truth), then evicts the game from
+    cache so the next load replays the stored order via get_game().
+    """
+    try:
+        game = get_game_lifecycle_service().get_game(db, game_id)
+
+        player_ids = {p.id for p in game.players}
+        if set(body.hitting_order) != player_ids or len(body.hitting_order) != len(player_ids):
+            raise HTTPException(
+                status_code=400,
+                detail="hitting_order must be an exact permutation of all player IDs",
+            )
+
+        target_hole = body.hole_number if body.hole_number is not None else game.current_hole
+        current_time = utc_now().isoformat()
+
+        # Persist to hole_orders (upsert — last write wins)
+        existing = (
+            db.query(models.HoleOrder)
+            .filter(models.HoleOrder.game_id == game_id, models.HoleOrder.hole_number == target_hole)
+            .first()
+        )
+        if existing:
+            existing.hitting_order = list(body.hitting_order)
+            existing.captain_id = body.hitting_order[0]
+            existing.recorded_at = current_time
+        else:
+            db.add(models.HoleOrder(
+                game_id=game_id,
+                hole_number=target_hole,
+                hitting_order=list(body.hitting_order),
+                captain_id=body.hitting_order[0],
+                recorded_at=current_time,
+            ))
+        db.commit()
+
+        # Evict from cache so the next get_game() reloads with the stored order applied
+        get_game_lifecycle_service().cleanup_game(game_id)
+
+        logger.info(f"Updated hitting order for game {game_id} hole {target_hole}: {body.hitting_order}")
+
+        return {
+            "status": "ok",
+            "game_id": game_id,
+            "hole": target_hole,
+            "hitting_order": body.hitting_order,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error updating hitting order: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update hitting order: {e!s}")

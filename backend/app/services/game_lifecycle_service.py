@@ -16,7 +16,7 @@ from typing import Any, Optional, cast
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from ..models import GameStateModel
+from ..models import GameStateModel, HoleEvent, HoleOrder
 from ..utils.time import utc_now
 from ..wolf_goat_pig import Player, WolfGoatPigGame
 
@@ -198,6 +198,34 @@ class GameLifecycleService:
             if not hasattr(game, "_loaded_from_db") or not game._loaded_from_db:
                 logger.error(f"Failed to load game {game_id} from database")
                 raise HTTPException(status_code=500, detail=f"Failed to load game {game_id}")
+
+            # Replay hole events to restore correct player points and hole scores
+            hole_events = (
+                db.query(HoleEvent)
+                .filter(HoleEvent.game_id == game_id)
+                .order_by(HoleEvent.hole_number)
+                .all()
+            )
+            if hole_events:
+                game.apply_hole_events([
+                    {"hole_number": e.hole_number, "player_id": e.player_id,
+                     "score": e.score, "quarters": e.quarters}
+                    for e in hole_events
+                ])
+                logger.info(f"Replayed {len(hole_events)} hole events for game {game_id}")
+
+            # Apply stored hitting orders — overrides whatever's in the game state blob
+            hole_orders = (
+                db.query(HoleOrder)
+                .filter(HoleOrder.game_id == game_id)
+                .all()
+            )
+            for order_record in hole_orders:
+                hole_state = game.hole_states.get(order_record.hole_number)
+                if hole_state:
+                    hole_state.hitting_order = list(order_record.hitting_order)
+            if hole_orders:
+                logger.info(f"Applied {len(hole_orders)} hole order records for game {game_id}")
 
             # Add to cache
             self._active_games[game_id] = game

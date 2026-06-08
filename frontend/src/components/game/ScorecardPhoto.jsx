@@ -13,14 +13,14 @@ const API_URL = apiConfig.baseUrl;
  * Props:
  *   gameId     — the current game ID
  *   players    — array of { id, name } player objects (in tee order)
- *   onSaved    — called with saved hole_quarters payload after successful save
+ *   onSaved    — called with saved scores payload after successful save
  *   onCancel   — called to dismiss without saving
  */
 /** Build a blank extraction so ScorecardReview opens with all cells empty */
 const buildBlankExtraction = (players) => ({
   players: players.map(p => ({ name: p.name, confidence: 1.0 })),
   running_totals: [],
-  per_hole_quarters: [],
+  per_hole_scores: [],
 });
 
 const ScorecardPhoto = ({ gameId, players, onSaved, onCancel }) => {
@@ -75,13 +75,14 @@ const ScorecardPhoto = ({ gameId, players, onSaved, onCancel }) => {
     setErrorMsg(null);
 
     try {
-      const res = await fetch(`${API_URL}/games/${gameId}/quarters-only`, {
+      const holes = Object.keys(holeQuarters).map(holeStr => ({
+        hole_number: parseInt(holeStr, 10),
+        quarters: holeQuarters[holeStr],
+      }));
+      const res = await fetch(`${API_URL}/games/${gameId}/scores`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          hole_quarters: holeQuarters,
-          current_hole: 18,
-        }),
+        body: JSON.stringify({ holes, current_hole: 18 }),
       });
 
       if (!res.ok) {

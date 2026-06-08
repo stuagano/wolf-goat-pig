@@ -102,16 +102,16 @@ const ScorecardReview = ({ extraction, players, onConfirm, onCancel }) => {
   const canConfirm = allFilled && unbalancedHoles.length === 0;
 
   const handleConfirm = () => {
-    // Build hole_quarters payload: { "1": { "playerName": delta, ... }, ... }
-    const hole_quarters = {};
+    // Build quarters by hole for the scores endpoint
+    const quartersByHole = {};
     for (let h = 1; h <= 18; h++) {
-      hole_quarters[String(h)] = {};
+      quartersByHole[String(h)] = {};
       for (let pi = 0; pi < extractedPlayers.length; pi++) {
         const playerName = players[pi]?.name || extractedPlayers[pi]?.name || `Player ${pi + 1}`;
-        hole_quarters[String(h)][playerName] = allDeltas[pi]?.[h] ?? 0;
+        quartersByHole[String(h)][playerName] = allDeltas[pi]?.[h] ?? 0;
       }
     }
-    onConfirm(hole_quarters);
+    onConfirm(quartersByHole);
   };
 
   const holes = Array.from({ length: 18 }, (_, i) => i + 1);

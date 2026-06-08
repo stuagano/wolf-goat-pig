@@ -1444,7 +1444,7 @@ const SimpleScorekeeper = ({
       });
       setPlayerStandings(newStandings);
 
-      // Build hole_quarters for the quarters-only endpoint
+      // Build scores payload for POST /scores
       const holeQuarters = {};
       updatedHistory.forEach((hole) => {
         if (hole.points_delta) {
@@ -1452,7 +1452,6 @@ const SimpleScorekeeper = ({
         }
       });
 
-      // Build optional details for metadata
       const optionalDetails = {};
       updatedHistory.forEach((hole) => {
         optionalDetails[String(hole.hole)] = {

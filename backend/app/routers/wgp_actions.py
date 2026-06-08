@@ -179,7 +179,7 @@ async def unified_action(game_id: str, action: ActionRequest, db: Session = Depe
         if action_type == "GET_POST_HOLE_ANALYSIS":
             return await handle_get_post_hole_analysis(game, payload)
         if action_type == "ENTER_HOLE_SCORES":
-            return await handle_enter_hole_scores(game, payload)
+            return await handle_enter_hole_scores(game, payload, db)
         if action_type == "GET_ADVANCED_ANALYTICS":
             return await handle_get_advanced_analytics(game, payload)
         if action_type == "COMPLETE_GAME":

@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Float, ForeignKey, Index, Integer, String
+from sqlalchemy import Boolean, Column, Float, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.types import JSON
 
@@ -94,6 +94,61 @@ class Hole(Base):
 
     # Relationship back to course
     course = relationship("Course", back_populates="holes")
+
+
+class HoleOrder(Base):
+    """Hitting order for a specific hole.
+
+    Written on game setup and correctable any time during the round.
+    Last-write-wins per (game_id, hole_number).
+    """
+
+    __tablename__ = "hole_orders"
+    __table_args__ = (UniqueConstraint("game_id", "hole_number", name="uq_hole_orders_game_hole"),)
+    id = Column(Integer, primary_key=True, index=True)
+    game_id = Column(get_uuid_column(), index=True, nullable=False)
+    hole_number = Column(Integer, nullable=False)
+    hitting_order = Column(JSON, nullable=False)  # ordered list of player_ids
+    captain_id = Column(String, nullable=True)    # hitting_order[0]
+    recorded_at = Column(String, nullable=False)
+
+
+class HoleLog(Base):
+    """Narrative log of a hole — betting arc, play context, and resolution.
+
+    Stores the full structured story as JSON plus a few extracted columns
+    for efficient querying (who won, how much, carry-over box).
+    """
+
+    __tablename__ = "hole_logs"
+    __table_args__ = (UniqueConstraint("game_id", "hole_number", name="uq_hole_logs_game_hole"),)
+    id = Column(Integer, primary_key=True, index=True)
+    game_id = Column(get_uuid_column(), index=True, nullable=False)
+    hole_number = Column(Integer, nullable=False)
+    log_data = Column(JSON, nullable=False)
+    recorded_at = Column(String, nullable=False)
+
+
+class HoleEvent(Base):
+    """Per-player-per-hole score and quarters log.
+
+    score and quarters are independently updatable — correcting one does not
+    force re-entry of the other. The zero-sum invariant (SUM(quarters) == 0
+    per hole) is checked at game finalization.
+    """
+
+    __tablename__ = "hole_events"
+    __table_args__ = (
+        UniqueConstraint("game_id", "hole_number", "player_id", name="uq_hole_events_game_hole_player"),
+        Index("ix_hole_events_game_id", "game_id"),
+    )
+    id = Column(Integer, primary_key=True, index=True)
+    game_id = Column(get_uuid_column(), nullable=False)
+    hole_number = Column(Integer, nullable=False)
+    player_id = Column(String, nullable=False)
+    score = Column(Integer, nullable=True)      # gross score — null until entered
+    quarters = Column(Float, nullable=False, default=0)  # quarters won (+) or lost (-)
+    recorded_at = Column(String, nullable=False)
 
 
 # For MVP: store the entire game state as a JSON blob
