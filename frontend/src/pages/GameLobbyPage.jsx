@@ -194,6 +194,9 @@ function GameLobbyPage() {
       if (data.handicap_source === 'ghin') {
         setInfoMessage(`Handicap ${data.handicap} pulled from GHIN`);
         setTimeout(() => setInfoMessage(''), 4000);
+      } else if (data.handicap_source === 'profile') {
+        setInfoMessage(`Handicap ${data.handicap} loaded from player profile`);
+        setTimeout(() => setInfoMessage(''), 4000);
       }
 
       // Refresh will happen via polling

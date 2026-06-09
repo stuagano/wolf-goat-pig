@@ -228,34 +228,60 @@ async def join_game_with_code(  # type: ignore
         player_slot_id = f"p{len(current_players) + 1}"
         current_time = utc_now().isoformat()
 
-        # Look up player profile by name; if they have a GHIN ID, fetch their
-        # current handicap index from GHIN and use it (falls back to request value).
+        # Look up player profile — prefer explicit ID, fall back to name match
+        # (strip punctuation/whitespace for fuzzy-ish matching).
         player_handicap = request.handicap if request.handicap is not None else 18.0
-        profile = (
-            db.query(models.PlayerProfile)
-            .filter(models.PlayerProfile.name.ilike(request.player_name))
-            .first()
-        )
-        if profile and profile.ghin_id:
-            try:
-                from ..services.ghin_service import GHINService
-                ghin = GHINService(db)
-                if await ghin.initialize():
-                    result = await ghin.sync_player_handicap(int(profile.id))
-                    if result and result.get("handicap_index") is not None:
-                        player_handicap = float(result["handicap_index"])
-                        logger.info(
-                            "GHIN handicap for %s: %.1f", request.player_name, player_handicap
-                        )
-            except Exception as ghin_err:
-                logger.warning("GHIN lookup failed for %s: %s", request.player_name, ghin_err)
+        resolved_profile_id = request.player_profile_id
+        profile = None
+
+        if request.player_profile_id:
+            profile = db.query(models.PlayerProfile).filter(
+                models.PlayerProfile.id == request.player_profile_id
+            ).first()
+
+        if not profile:
+            # Case-insensitive exact match, then startswith fallback
+            name = request.player_name.strip()
+            profile = (
+                db.query(models.PlayerProfile)
+                .filter(models.PlayerProfile.name.ilike(name))
+                .first()
+            )
+            if not profile:
+                # Try matching on first word (nickname vs full name)
+                first_word = name.split()[0]
+                profile = (
+                    db.query(models.PlayerProfile)
+                    .filter(models.PlayerProfile.name.ilike(f"{first_word}%"))
+                    .first()
+                )
+
+        if profile:
+            resolved_profile_id = int(profile.id)
+            # Use stored handicap as baseline even if GHIN sync is skipped
+            if profile.handicap is not None and request.handicap == 18.0:
+                player_handicap = float(profile.handicap)
+
+            if profile.ghin_id:
+                try:
+                    from ..services.ghin_service import GHINService
+                    ghin = GHINService(db)
+                    if await ghin.initialize():
+                        result = await ghin.sync_player_handicap(int(profile.id))
+                        if result and result.get("handicap_index") is not None:
+                            player_handicap = float(result["handicap_index"])
+                            logger.info(
+                                "GHIN handicap for %s: %.1f", request.player_name, player_handicap
+                            )
+                except Exception as ghin_err:
+                    logger.warning("GHIN lookup failed for %s: %s", request.player_name, ghin_err)
 
         # Create GamePlayer record
         game_player = models.GamePlayer(
             game_id=game.game_id,
             player_slot_id=player_slot_id,
             user_id=request.user_id,
-            player_profile_id=request.player_profile_id,
+            player_profile_id=resolved_profile_id,
             player_name=request.player_name,
             handicap=player_handicap,
             join_status="joined",
@@ -286,7 +312,8 @@ async def join_game_with_code(  # type: ignore
             "game_id": game.game_id,
             "player_slot_id": player_slot_id,
             "handicap": player_handicap,
-            "handicap_source": "ghin" if (profile and profile.ghin_id) else "manual",
+            "handicap_source": "ghin" if (profile and profile.ghin_id) else ("profile" if profile else "manual"),
+            "player_profile_id": resolved_profile_id,
             "players_joined": len(current_players) + 1,
             "max_players": max_players,
             "message": f"Welcome {request.player_name}! Waiting for {max_players - len(current_players) - 1} more player(s)",
