@@ -3,11 +3,6 @@ import { useAuth0 } from '@auth0/auth0-react';
 import { useSearchParams } from 'react-router-dom';
 import ForeTeesTeeSheet from '../components/foretees/ForeTeesTeeSheet';
 import WgpSignupSheet from '../components/signup/WgpSignupSheet';
-import PlayerAvailability from '../components/signup/PlayerAvailability';
-import AllPlayersAvailability from '../components/signup/AllPlayersAvailability';
-import MatchmakingSuggestions from '../components/signup/MatchmakingSuggestions';
-import MyMatches from '../components/signup/MyMatches';
-import EmailPreferences from '../components/signup/EmailPreferences';
 import '../styles/mobile-touch.css';
 
 const SignupPage = () => {
@@ -41,13 +36,8 @@ const SignupPage = () => {
 
   // Tab configuration - Day view is first and default
   const tabs = [
-    { id: 'wgp-signup', label: '⛳ Sign Up', icon: '⛳' },
+    { id: 'wgp-signup', label: '⛳ WGP Sign Up', icon: '⛳' },
     { id: 'calendar', label: '📅 Book Tee Time', icon: '📅' },
-    { id: 'availability', label: '🕒 My Availability', icon: '🕒' },
-    { id: 'all-availability', label: '👥 All Players', icon: '👥' },
-    { id: 'my-matches', label: '🤝 My Matches', icon: '🤝' },
-    { id: 'matchmaking', label: '🔀 Matchmaking', icon: '🔀' },
-    { id: 'preferences', label: '📧 Email Settings', icon: '📧' }
   ];
 
   if (!isAuthenticated) {
@@ -69,10 +59,10 @@ const SignupPage = () => {
           maxWidth: '400px'
         }}>
           <h2 style={{ color: '#495057', marginBottom: '20px' }}>
-            🏌️ Golf Sign-up System
+            ⛳ Sign Up to Play
           </h2>
           <p style={{ color: '#6c757d', marginBottom: '30px', lineHeight: 1.5 }}>
-            Sign up for daily golf games, set your availability preferences, and manage email notifications.
+            Sign up for a day's game or book a tee time.
           </p>
           <button
             onClick={() => loginWithRedirect()}
@@ -155,60 +145,6 @@ const SignupPage = () => {
 
         {activeTab === 'calendar' && (
           <ForeTeesTeeSheet />
-        )}
-
-        {activeTab === 'availability' && (
-          <div>
-            <div style={{ marginBottom: '20px' }}>
-              <h2 style={{ color: '#333', marginBottom: '10px' }}>
-                🕒 Your Weekly Availability
-              </h2>
-              <p style={{ color: '#6c757d', fontSize: '14px' }}>
-                Set your preferred times for each day of the week to help with matchmaking.
-              </p>
-            </div>
-            <PlayerAvailability />
-          </div>
-        )}
-
-        {activeTab === 'all-availability' && (
-          <div>
-            <AllPlayersAvailability />
-          </div>
-        )}
-
-        {activeTab === 'my-matches' && (
-          <div>
-            <div style={{ marginBottom: '20px' }}>
-              <h2 style={{ color: '#333', marginBottom: '10px' }}>
-                🤝 My Matches
-              </h2>
-              <p style={{ color: '#6c757d', fontSize: '14px' }}>
-                Accept or decline match suggestions. Once everyone confirms, book a tee time together.
-              </p>
-            </div>
-            <MyMatches />
-          </div>
-        )}
-
-        {activeTab === 'matchmaking' && (
-          <div>
-            <MatchmakingSuggestions />
-          </div>
-        )}
-
-        {activeTab === 'preferences' && (
-          <div>
-            <div style={{ marginBottom: '20px' }}>
-              <h2 style={{ color: '#333', marginBottom: '10px' }}>
-                📧 Email Preferences
-              </h2>
-              <p style={{ color: '#6c757d', fontSize: '14px' }}>
-                Control what email notifications you receive and when.
-              </p>
-            </div>
-            <EmailPreferences />
-          </div>
         )}
       </div>
 
