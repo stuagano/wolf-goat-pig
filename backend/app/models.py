@@ -514,6 +514,7 @@ class Badge(Base):
     category = Column(String, index=True)  # achievement, progression, seasonal, rare_event, collectible_series
     rarity = Column(String, index=True)  # common, rare, epic, legendary, mythic
     image_url = Column(String, nullable=True)  # Badge image path or URL
+    emoji = Column(String, nullable=True)  # Emoji icon displayed when no image
     trigger_condition = Column(JSON)  # Logic for earning badge
     trigger_type = Column(String)  # one_time, career_milestone, series_completion, seasonal
     max_supply = Column(Integer, nullable=True)  # NULL = unlimited (for limited edition badges)

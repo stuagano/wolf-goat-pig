@@ -457,6 +457,7 @@ def get_public_player_profile(
             "description": b.description,
             "rarity": b.rarity,
             "category": b.category,
+            "emoji": b.emoji,
             "earned_at": pbe.earned_at,
         }
         for pbe, b in badge_rows

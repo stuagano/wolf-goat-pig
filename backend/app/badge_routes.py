@@ -38,6 +38,7 @@ class BadgeResponse(BaseModel):
     description: str
     category: str
     rarity: str
+    emoji: str | None
     image_url: str | None
     max_supply: int | None
     current_supply: int

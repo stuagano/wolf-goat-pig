@@ -213,7 +213,7 @@ const PlayerProfilePage = () => {
                 color: RARITY_COLORS[b.rarity] || '#374151',
                 cursor: 'default',
               }}>
-                {b.name}
+                {b.emoji && <span style={{ marginRight: 5 }}>{b.emoji}</span>}{b.name}
               </div>
             ))}
           </div>
