@@ -50,12 +50,14 @@ const StuartModePanel = ({
 
   const badge = SOLO_BADGE[insights.soloRecommendation];
 
-  // ── Whisperer state ───────────────────────────────────────────────────
+  // ── Commissioner state ───────────────────────────────────────────────
+  const [latestIntel, setLatestIntel] = useState('');        // always-visible latest message
   const [whispererMessages, setWhispererMessages] = useState([]);
-  const [whispererOpen, setWhispererOpen] = useState(false);
+  const [whispererOpen, setWhispererOpen] = useState(false); // history/ask drawer
   const [whispererLoading, setWhispererLoading] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef(null);
+  const teeShotDebounceRef = useRef(null);
 
   // ── API helper ────────────────────────────────────────────────────────
   // messagesSnapshot must be passed explicitly by the caller so the API
@@ -101,31 +103,65 @@ const StuartModePanel = ({
       const json = await resp.json();
       if (!resp.ok) throw new Error(json?.detail || `HTTP ${resp.status}`);
       const text = json?.data?.response || 'Sorry, I could not get a response.';
+      setLatestIntel(text);
       setWhispererMessages(prev => [...prev, { type: 'whisperer', text, timestamp: new Date() }]);
     } catch {
-      setWhispererMessages(prev => [...prev, {
-        type: 'whisperer',
-        text: 'Connection error — try again.',
-        timestamp: new Date(),
-      }]);
+      const errText = 'Connection error — try again.';
+      setLatestIntel(errText);
+      setWhispererMessages(prev => [...prev, { type: 'whisperer', text: errText, timestamp: new Date() }]);
     } finally {
       setWhispererLoading(false);
     }
-    // insights is intentionally excluded — it is a new object on every render
-    // and callCommissioner only fires on hole change via the proactive useEffect.
+    // insights intentionally excluded — new object every render
   }, [players, currentHole, playerStandings, strokeAllocation, currentWager, courseData, teeShots]);
 
   // ── Proactive briefing on hole change ─────────────────────────────────
   useEffect(() => {
+    setLatestIntel('');
     callCommissioner(
-      `Give me a quick strategic briefing for hole ${currentHole}. Be direct and specific — focus on who I need to watch, whether to go solo, and any quarter context that matters.`,
+      `Give me a quick strategic briefing for hole ${currentHole}. Be direct and specific — focus on who I need to watch, whether to go solo, and any quarter context that matters. Keep it under 2 sentences.`,
       whispererMessages,
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentHole]);
-  // whispererMessages is intentionally excluded: adding it would re-fire the briefing
-  // on every message. The snapshot passed here is the history at the moment of hole
-  // change, which is the correct context window for the new briefing.
+
+  // ── Auto-update intel when tee shots change (debounced 1.5s) ──────────
+  const prevTeeShots = useRef({});
+  useEffect(() => {
+    const hasShots = Object.keys(teeShots).length > 0;
+    if (!hasShots) return; // ignore reset on hole change
+
+    clearTimeout(teeShotDebounceRef.current);
+    teeShotDebounceRef.current = setTimeout(() => {
+      const changed = Object.entries(teeShots)
+        .filter(([id, result]) => prevTeeShots.current[id] !== result)
+        .map(([id, result]) => {
+          const player = players.find(p => p.id === id);
+          return player ? `${player.name}: ${result}` : null;
+        })
+        .filter(Boolean);
+
+      prevTeeShots.current = { ...teeShots };
+
+      if (changed.length === 0) return;
+
+      const allShots = Object.entries(teeShots)
+        .map(([id, result]) => {
+          const player = players.find(p => p.id === id);
+          return player ? `${player.name}: ${result}` : null;
+        })
+        .filter(Boolean)
+        .join(', ');
+
+      callCommissioner(
+        `Tee shot update — ${allShots}. Given these results, what's the play? Go solo or partner? 1-2 sentences max.`,
+        whispererMessages,
+      );
+    }, 1500);
+
+    return () => clearTimeout(teeShotDebounceRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teeShots]);
 
   // ── Auto-scroll on new message ────────────────────────────────────────
   useEffect(() => {
@@ -215,6 +251,28 @@ const StuartModePanel = ({
             </div>
           </div>
         </div>
+
+        {/* Commissioner intel — always visible, updates automatically */}
+        {(latestIntel || whispererLoading) && (
+          <div style={{
+            marginTop: '10px',
+            padding: '8px 12px',
+            background: 'rgba(0,0,0,0.2)',
+            borderRadius: '8px',
+            fontSize: '13px',
+            lineHeight: 1.5,
+          }}>
+            {whispererLoading && !latestIntel ? (
+              <span style={{ opacity: 0.7 }}>🤫 ...</span>
+            ) : (
+              <>
+                <span style={{ opacity: 0.6, fontSize: '11px', fontWeight: 'bold' }}>🤫 </span>
+                {latestIntel}
+                {whispererLoading && <span style={{ opacity: 0.5 }}> ...</span>}
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* AI moves log (only when there's something to show) */}
@@ -400,10 +458,9 @@ const StuartModePanel = ({
         </div>
       </div>
 
-      {/* ── Whisperer: Ask Commissioner ────────────────────────────────── */}
-      <div style={{ borderTop: '1px solid rgba(245,158,11,0.3)' }}>
+      {/* ── Ask Commissioner drawer (secondary / edge-case use) ─────────── */}
+      <div style={{ borderTop: '1px solid rgba(245,158,11,0.2)' }}>
 
-        {/* Toggle header */}
         <button
           data-testid="whisperer-toggle"
           onClick={() => setWhispererOpen(o => !o)}
@@ -412,137 +469,97 @@ const StuartModePanel = ({
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            padding: '8px 16px',
+            padding: '6px 16px',
             background: 'transparent',
             border: 'none',
             cursor: 'pointer',
-            color: theme.colors.textPrimary,
+            color: theme.colors.textSecondary,
           }}
         >
-          <span style={{ fontSize: '12px', fontWeight: 'bold' }}>Ask Commissioner 🤫</span>
-          <span style={{ fontSize: '11px', color: theme.colors.textSecondary }}>
-            {whispererOpen ? '▲' : '▼'}
-          </span>
+          <span style={{ fontSize: '11px' }}>Ask Commissioner</span>
+          <span style={{ fontSize: '10px' }}>{whispererOpen ? '▲' : '▼'}</span>
         </button>
 
-        {/* Message history (shown when open) */}
         {whispererOpen && (
-          <div
-            data-testid="whisperer-messages"
-            style={{
-              maxHeight: '220px',
-              overflowY: 'auto',
-              padding: '0 8px 4px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '6px',
-            }}
-          >
-            {/* key={idx} is safe — messages are append-only and never reordered or deleted */}
-            {whispererMessages.map((msg, idx) => (
-              <div
-                key={idx}
-                style={{
-                  display: 'flex',
-                  justifyContent: msg.type === 'user' ? 'flex-end' : 'flex-start',
-                  alignItems: 'flex-start',
-                  gap: '4px',
-                }}
-              >
-                {msg.type === 'whisperer' && (
-                  <span style={{ fontSize: '14px', flexShrink: 0 }}>🤫</span>
-                )}
+          <>
+            <div
+              data-testid="whisperer-messages"
+              style={{
+                maxHeight: '180px',
+                overflowY: 'auto',
+                padding: '0 8px 4px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px',
+              }}
+            >
+              {whispererMessages.map((msg, idx) => (
                 <div
+                  key={idx}
                   style={{
-                    background: msg.type === 'whisperer'
-                      ? 'rgba(245,158,11,0.1)'
-                      : 'rgba(0,0,0,0.06)',
-                    borderRadius: '8px',
-                    padding: '6px 10px',
-                    maxWidth: '85%',
-                    fontSize: '13px',
-                    lineHeight: 1.4,
-                    color: theme.colors.textPrimary,
+                    display: 'flex',
+                    justifyContent: msg.type === 'user' ? 'flex-end' : 'flex-start',
                   }}
                 >
-                  {msg.type === 'user' && (
-                    <div style={{
-                      fontSize: '10px',
-                      fontWeight: 'bold',
-                      marginBottom: '2px',
-                      textAlign: 'right',
-                      color: theme.colors.textSecondary,
-                    }}>
-                      You
-                    </div>
-                  )}
-                  {msg.text}
+                  <div
+                    style={{
+                      background: msg.type === 'whisperer'
+                        ? 'rgba(245,158,11,0.08)'
+                        : 'rgba(0,0,0,0.05)',
+                      borderRadius: '8px',
+                      padding: '5px 9px',
+                      maxWidth: '88%',
+                      fontSize: '12px',
+                      lineHeight: 1.4,
+                      color: theme.colors.textPrimary,
+                    }}
+                  >
+                    {msg.text}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
 
-            {whispererLoading && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '4px 0',
-              }}>
-                <span style={{ fontSize: '14px' }}>🤫</span>
-                <span style={{ fontSize: '13px', color: theme.colors.textSecondary }}>...</span>
-              </div>
-            )}
-
-            <div ref={messagesEndRef} />
-          </div>
+            <div style={{ display: 'flex', gap: '6px', padding: '6px 10px 10px' }}>
+              <input
+                type="text"
+                placeholder="Ask something..."
+                value={inputValue}
+                onChange={e => setInputValue(e.target.value)}
+                onKeyDown={handleKeyDown}
+                disabled={whispererLoading}
+                style={{
+                  flex: 1,
+                  border: `1px solid rgba(245,158,11,0.4)`,
+                  borderRadius: '8px',
+                  padding: '5px 9px',
+                  fontSize: '12px',
+                  outline: 'none',
+                  background: 'transparent',
+                  color: theme.colors.textPrimary,
+                }}
+              />
+              <button
+                data-testid="whisperer-send"
+                onClick={handleSend}
+                disabled={whispererLoading || !inputValue.trim()}
+                style={{
+                  background: '#F59E0B',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '5px 10px',
+                  fontSize: '13px',
+                  cursor: whispererLoading || !inputValue.trim() ? 'not-allowed' : 'pointer',
+                  opacity: whispererLoading || !inputValue.trim() ? 0.5 : 1,
+                }}
+              >
+                →
+              </button>
+            </div>
+          </>
         )}
-
-        {/* Input row */}
-        <div style={{
-          display: 'flex',
-          gap: '8px',
-          padding: '8px 12px 10px',
-          alignItems: 'center',
-        }}>
-          <input
-            type="text"
-            placeholder="Ask something..."
-            value={inputValue}
-            onChange={e => setInputValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={whispererLoading}
-            style={{
-              flex: 1,
-              border: `1px solid rgba(245,158,11,${whispererLoading ? '0.2' : '0.5'})`,
-              borderRadius: '8px',
-              padding: '6px 10px',
-              fontSize: '13px',
-              outline: 'none',
-              background: 'transparent',
-              color: theme.colors.textPrimary,
-              opacity: whispererLoading ? 0.5 : 1,
-            }}
-          />
-          <button
-            data-testid="whisperer-send"
-            onClick={handleSend}
-            disabled={whispererLoading || !inputValue.trim()}
-            style={{
-              background: '#F59E0B',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              padding: '6px 12px',
-              fontSize: '14px',
-              cursor: whispererLoading || !inputValue.trim() ? 'not-allowed' : 'pointer',
-              opacity: whispererLoading || !inputValue.trim() ? 0.5 : 1,
-              flexShrink: 0,
-            }}
-          >
-            →
-          </button>
-        </div>
-
       </div>
     </div>
   );
