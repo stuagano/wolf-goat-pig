@@ -5,6 +5,10 @@ import { apiConfig } from '../config/api.config';
 
 const API_URL = apiConfig.baseUrl;
 
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function getNextSunday() {
   const d = new Date();
   const day = d.getDay();
@@ -28,7 +32,36 @@ export default function TeeSheetPage() {
   const [sheetError, setSheetError] = useState('');
   const [playerProfile, setPlayerProfile] = useState(null);
   const [signingUp, setSigningUp] = useState(false);
-  const [signupMessage, setSignupMessage] = useState(null); // {type: 'success'|'error', text}
+  const [signupMessage, setSignupMessage] = useState(null);
+  const [upcomingDays, setUpcomingDays] = useState([]); // [{date, short, label, weekday, signed_up_count}]
+  const [loadingUpcoming, setLoadingUpcoming] = useState(true);
+
+  // Fetch upcoming 14 days of counts once on mount
+  useEffect(() => {
+    (async () => {
+      setLoadingUpcoming(true);
+      try {
+        const resp = await fetch(`${API_URL}/tee-sheet/upcoming?start=${todayIso()}&days=14`);
+        if (resp.ok) setUpcomingDays(await resp.json());
+      } catch {
+        // non-fatal
+      } finally {
+        setLoadingUpcoming(false);
+      }
+    })();
+  }, []);
+
+  // Refresh the count for the selected date in the pills after a signup
+  const refreshUpcomingCount = useCallback(async (targetDate) => {
+    try {
+      const resp = await fetch(`${API_URL}/tee-sheet?date=${targetDate}`);
+      if (!resp.ok) return;
+      const data = await resp.json();
+      setUpcomingDays(prev =>
+        prev.map(d => d.date === targetDate ? { ...d, signed_up_count: data.signed_up_count } : d)
+      );
+    } catch { /* non-fatal */ }
+  }, []);
 
   const fetchSignups = useCallback(async () => {
     setLoadingSheet(true);
@@ -38,7 +71,11 @@ export default function TeeSheetPage() {
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const data = await resp.json();
       setSlots(data.slots || []);
-    } catch (err) {
+      // Keep pill count in sync with what we just fetched
+      setUpcomingDays(prev =>
+        prev.map(d => d.date === date ? { ...d, signed_up_count: data.signed_up_count } : d)
+      );
+    } catch {
       setSheetError('Could not load sign-ups. The tee sheet may be unavailable.');
     } finally {
       setLoadingSheet(false);
@@ -59,9 +96,7 @@ export default function TeeSheetPage() {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (resp.ok) setPlayerProfile(await resp.json());
-      } catch {
-        // non-fatal — user just won't see their name pre-filled
-      }
+      } catch { /* non-fatal */ }
     })();
   }, [isAuthenticated, getAccessTokenSilently]);
 
@@ -85,18 +120,12 @@ export default function TeeSheetPage() {
       if (!resp.ok) throw new Error(data.detail || 'Signup failed');
       setSignupMessage({ type: 'success', text: `You're signed up as ${myName}!` });
       await fetchSignups();
+      await refreshUpcomingCount(date);
     } catch (err) {
       setSignupMessage({ type: 'error', text: err.message });
     } finally {
       setSigningUp(false);
     }
-  };
-
-  const cardStyle = {
-    ...theme.cardStyle,
-    maxWidth: 600,
-    margin: '0 auto',
-    padding: 24,
   };
 
   const sectionLabel = {
@@ -108,9 +137,15 @@ export default function TeeSheetPage() {
     marginBottom: 8,
   };
 
+  const cardStyle = {
+    ...theme.cardStyle,
+    maxWidth: 600,
+    margin: '0 auto',
+    padding: 24,
+  };
+
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', padding: '20px 16px', fontFamily: theme.typography.fontFamily }}>
-      {/* Header */}
       <div style={cardStyle}>
         <h1 style={{ color: theme.colors.primary, margin: '0 0 4px 0', fontSize: 26 }}>
           Tee Sheet
@@ -119,40 +154,72 @@ export default function TeeSheetPage() {
           See who's playing and sign yourself up
         </p>
 
-        {/* Date picker */}
+        {/* Day pills — upcoming 14 days with sign-up counts */}
         <div style={{ marginBottom: 24 }}>
-          <div style={sectionLabel}>Date</div>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            <input
-              type="date"
-              value={date}
-              onChange={e => setDate(e.target.value)}
-              style={{
-                padding: '10px 14px',
-                borderRadius: 8,
-                border: `1px solid ${theme.colors.border || '#ddd'}`,
-                fontSize: 15,
-                fontFamily: theme.typography.fontFamily,
-                background: 'white',
-              }}
-            />
-            <button
-              onClick={() => setDate(getNextSunday())}
-              style={{
-                padding: '10px 14px',
-                borderRadius: 8,
-                border: `1px solid ${theme.colors.primary}`,
-                background: 'transparent',
-                color: theme.colors.primary,
-                cursor: 'pointer',
-                fontSize: 14,
-                fontWeight: 600,
-              }}
-            >
-              Next Sunday
-            </button>
+          <div style={sectionLabel}>Upcoming</div>
+          <div style={{
+            display: 'flex',
+            gap: 8,
+            overflowX: 'auto',
+            paddingBottom: 6,
+            WebkitOverflowScrolling: 'touch',
+          }}>
+            {loadingUpcoming
+              ? Array.from({ length: 7 }).map((_, i) => (
+                  <div key={i} style={{
+                    minWidth: 58,
+                    height: 64,
+                    borderRadius: 10,
+                    background: '#f0f0f0',
+                    flexShrink: 0,
+                  }} />
+                ))
+              : upcomingDays.map(day => {
+                  const isSelected = day.date === date;
+                  const count = day.signed_up_count;
+                  const hasPlayers = count > 0;
+                  const isSunday = day.weekday === 'Sunday';
+                  return (
+                    <button
+                      key={day.date}
+                      onClick={() => setDate(day.date)}
+                      style={{
+                        minWidth: 58,
+                        padding: '8px 6px',
+                        borderRadius: 10,
+                        border: isSelected
+                          ? `2px solid ${theme.colors.primary}`
+                          : `2px solid ${isSunday ? theme.colors.primary + '44' : '#e0e0e0'}`,
+                        background: isSelected ? theme.colors.primary : (isSunday ? theme.colors.primary + '0d' : 'white'),
+                        color: isSelected ? 'white' : theme.colors.textPrimary,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 3,
+                        flexShrink: 0,
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <div style={{ fontSize: 11, fontWeight: 600, opacity: isSelected ? 0.85 : 0.6 }}>
+                        {day.short}
+                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 700 }}>
+                        {day.label}
+                      </div>
+                      <div style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: isSelected ? 'rgba(255,255,255,0.9)' : (hasPlayers ? theme.colors.success || '#2e7d32' : theme.colors.textSecondary),
+                      }}>
+                        {count < 0 ? '—' : count === 0 ? '0' : `${count} ✓`}
+                      </div>
+                    </button>
+                  );
+                })
+            }
           </div>
-          <div style={{ marginTop: 6, fontSize: 13, color: theme.colors.textSecondary }}>
+          <div style={{ marginTop: 8, fontSize: 13, color: theme.colors.textSecondary }}>
             {formatDate(date)}
           </div>
         </div>
@@ -258,7 +325,7 @@ export default function TeeSheetPage() {
           )}
         </div>
 
-        {/* Sign me up section */}
+        {/* Sign me up */}
         <div style={{
           padding: 16,
           background: '#f0f7ff',
@@ -285,12 +352,11 @@ export default function TeeSheetPage() {
             </div>
           ) : (
             <>
-              {myName && (
+              {myName ? (
                 <p style={{ margin: '0 0 12px 0', color: theme.colors.textSecondary, fontSize: 14 }}>
                   Signing up as <strong style={{ color: theme.colors.textPrimary }}>{myName}</strong>
                 </p>
-              )}
-              {!myName && (
+              ) : (
                 <p style={{ margin: '0 0 12px 0', color: theme.colors.textSecondary, fontSize: 14 }}>
                   Loading your profile...
                 </p>
