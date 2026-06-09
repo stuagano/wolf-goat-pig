@@ -36,6 +36,7 @@ from .routers import (
     matchmaking,
     players,
     sheet_integration,
+    tee_sheet,
     wgp_actions,
 )
 from .routers.email_routes import initialize_email_scheduler
@@ -230,6 +231,7 @@ app.include_router(unified_data.router)
 # Include modular routers
 app.include_router(health.router)
 app.include_router(sheet_integration.router)
+app.include_router(tee_sheet.router)
 app.include_router(players.router)
 app.include_router(courses.router)
 
