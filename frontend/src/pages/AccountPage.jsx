@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useTheme } from '../theme/Provider';
 import useTeeTimes from '../hooks/useTeeTimes';
+import PlayerAvailability from '../components/signup/PlayerAvailability';
 
 const STORAGE_KEY = 'wgp_account_settings';
 
@@ -583,6 +584,17 @@ function AccountPage() {
           </div>
         )}
       </div>
+
+      {/* My Availability */}
+      {isAuthenticated && (
+        <div style={cardStyle}>
+          <h3 style={{ ...sectionTitle, marginBottom: '4px' }}>My Availability</h3>
+          <p style={{ fontSize: '14px', color: theme.colors.textSecondary, margin: '0 0 16px 0' }}>
+            Set your preferred times each week — used by Find a Game to suggest matches.
+          </p>
+          <PlayerAvailability />
+        </div>
+      )}
 
       {/* ForeTees Integration */}
       {isAuthenticated && (

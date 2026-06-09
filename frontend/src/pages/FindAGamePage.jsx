@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useSearchParams } from 'react-router-dom';
-import PlayerAvailability from '../components/signup/PlayerAvailability';
 import AllPlayersAvailability from '../components/signup/AllPlayersAvailability';
 import MatchmakingSuggestions from '../components/signup/MatchmakingSuggestions';
 import MyMatches from '../components/signup/MyMatches';
@@ -11,7 +10,7 @@ import '../styles/mobile-touch.css';
 const FindAGamePage = () => {
   const { user, isAuthenticated, loginWithRedirect } = useAuth0();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'availability');
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'all-availability');
   const isUserNavigation = useRef(false);
 
   const handleTabClick = useCallback((tabId) => {
@@ -34,7 +33,6 @@ const FindAGamePage = () => {
   }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const tabs = [
-    { id: 'availability', label: '🕒 My Availability', icon: '🕒' },
     { id: 'all-availability', label: '👥 All Players', icon: '👥' },
     { id: 'my-matches', label: '🤝 My Matches', icon: '🤝' },
     { id: 'matchmaking', label: '🔀 Matchmaking', icon: '🔀' },
@@ -88,17 +86,6 @@ const FindAGamePage = () => {
       </div>
 
       <div style={{ minHeight: '500px' }}>
-        {activeTab === 'availability' && (
-          <div>
-            <div style={{ marginBottom: '20px' }}>
-              <h2 style={{ color: '#333', marginBottom: '10px' }}>🕒 Your Weekly Availability</h2>
-              <p style={{ color: '#6c757d', fontSize: '14px' }}>
-                Set your preferred times for each day of the week to help with matchmaking.
-              </p>
-            </div>
-            <PlayerAvailability />
-          </div>
-        )}
         {activeTab === 'all-availability' && <AllPlayersAvailability />}
         {activeTab === 'my-matches' && (
           <div>
