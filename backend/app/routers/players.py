@@ -381,6 +381,106 @@ async def update_my_email_preferences(
 # ============================================================================
 
 
+@router.get("/{player_id}/public-profile")
+@handle_api_errors(operation_name="get public player profile")
+def get_public_player_profile(
+    player_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.PlayerProfile = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Public profile visible to all authenticated WGP members."""
+    player = db.query(models.PlayerProfile).filter(models.PlayerProfile.id == player_id).first()
+    if not player:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    # Availability days (which days, no times)
+    availability_rows = (
+        db.query(models.PlayerAvailability)
+        .filter(models.PlayerAvailability.player_profile_id == player_id)
+        .all()
+    )
+    available_days = [
+        a.day_of_week for a in availability_rows if a.is_available
+    ]
+
+    # Match history — confirmed matches (all players accepted)
+    match_players = (
+        db.query(models.MatchPlayer)
+        .filter(models.MatchPlayer.player_profile_id == player_id)
+        .all()
+    )
+    match_history = []
+    for mp in match_players:
+        suggestion = db.query(models.MatchSuggestion).filter(
+            models.MatchSuggestion.id == mp.match_suggestion_id
+        ).first()
+        if not suggestion or suggestion.status not in ("accepted",):
+            continue
+        teammates = (
+            db.query(models.MatchPlayer)
+            .filter(
+                models.MatchPlayer.match_suggestion_id == mp.match_suggestion_id,
+                models.MatchPlayer.player_profile_id != player_id,
+            )
+            .all()
+        )
+        day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        match_history.append({
+            "match_id": suggestion.id,
+            "day_of_week": suggestion.day_of_week,
+            "day_name": day_names[suggestion.day_of_week],
+            "suggested_tee_time": suggestion.suggested_tee_time,
+            "status": suggestion.status,
+            "created_at": suggestion.created_at,
+            "players": [{"id": t.player_profile_id, "name": t.player_name} for t in teammates],
+        })
+    match_history.sort(key=lambda m: m["created_at"] or "", reverse=True)
+
+    # Stats
+    stats = db.query(models.PlayerStatistics).filter(
+        models.PlayerStatistics.player_id == player_id
+    ).first()
+
+    # Badges
+    badge_rows = (
+        db.query(models.PlayerBadgeEarned, models.Badge)
+        .join(models.Badge, models.PlayerBadgeEarned.badge_id == models.Badge.id)
+        .filter(models.PlayerBadgeEarned.player_profile_id == player_id)
+        .order_by(models.PlayerBadgeEarned.earned_at.desc())
+        .limit(12)
+        .all()
+    )
+    badges = [
+        {
+            "name": b.name,
+            "description": b.description,
+            "rarity": b.rarity,
+            "category": b.category,
+            "earned_at": pbe.earned_at,
+        }
+        for pbe, b in badge_rows
+    ]
+
+    return {
+        "id": player.id,
+        "name": player.name,
+        "handicap": player.handicap,
+        "avatar_url": player.avatar_url,
+        "last_played": player.last_played,
+        "created_at": player.created_at,
+        "available_days": available_days,
+        "match_history": match_history[:20],
+        "badges": badges,
+        "stats": {
+            "games_played": stats.games_played if stats else 0,
+            "games_won": stats.games_won if stats else 0,
+            "total_earnings": stats.total_earnings if stats else 0.0,
+            "solo_wins": stats.solo_wins if stats else 0,
+        },
+    }
+
+
 @router.get("/{player_id}", response_model=schemas.PlayerProfileResponse)
 @handle_api_errors(operation_name="get player profile")
 def get_player_profile(player_id: int, db: Session = Depends(get_db)) -> schemas.PlayerProfileResponse:
