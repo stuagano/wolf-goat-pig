@@ -10,6 +10,13 @@ const SOLO_BADGE = {
   avoid:   { label: 'Solo ✗',  bg: '#f44336', color: 'white' },
 };
 
+const TEE_SHOT_OPTIONS = [
+  { value: 'fairway', label: '🟢', title: 'Fairway' },
+  { value: 'rough',   label: '🟡', title: 'Rough' },
+  { value: 'bunker',  label: '🟠', title: 'Bunker' },
+  { value: 'ob',      label: '🔴', title: 'OB' },
+];
+
 const StuartModePanel = ({
   players,
   currentHole,
@@ -20,6 +27,17 @@ const StuartModePanel = ({
   theme,
   aiMoves = [],
 }) => {
+  const [teeShots, setTeeShots] = useState({});
+
+  // Reset tee shot results whenever the hole changes
+  useEffect(() => {
+    setTeeShots({});
+  }, [currentHole]);
+
+  const setTeeShotResult = useCallback((playerId, result) => {
+    setTeeShots(prev => ({ ...prev, [playerId]: result }));
+  }, []);
+
   const insights = generateInsights({
     players,
     currentHole,
@@ -27,6 +45,7 @@ const StuartModePanel = ({
     playerStandings,
     courseData,
     currentWager,
+    teeShots,
   });
 
   const badge = SOLO_BADGE[insights.soloRecommendation];
@@ -58,6 +77,7 @@ const StuartModePanel = ({
             current_wager: currentWager,
             course_data: courseData,
             whisperer_mode: true,
+            tee_shots: teeShots,
             insights: {
               headline: insights.headline,
               solo_recommendation: insights.soloRecommendation,
@@ -66,6 +86,7 @@ const StuartModePanel = ({
                 handicap: t.player.handicap,
                 threat_score: t.threatScore,
                 stroke_situation: t.strokeSituation,
+                tee_shot: t.teeShotResult,
                 hungry: t.hungry,
                 quarters: t.quarters,
               })),
@@ -92,7 +113,7 @@ const StuartModePanel = ({
     }
     // insights is intentionally excluded — it is a new object on every render
     // and callCommissioner only fires on hole change via the proactive useEffect.
-  }, [players, currentHole, playerStandings, strokeAllocation, currentWager, courseData]);
+  }, [players, currentHole, playerStandings, strokeAllocation, currentWager, courseData, teeShots]);
 
   // ── Proactive briefing on hole change ─────────────────────────────────
   useEffect(() => {
@@ -307,6 +328,75 @@ const StuartModePanel = ({
               </div>
             );
           })}
+        </div>
+      </div>
+
+      {/* ── Tee Shot Tapper ─────────────────────────────────────────────── */}
+      <div style={{
+        padding: '8px 16px 10px',
+        borderTop: '1px solid rgba(245,158,11,0.2)',
+        background: 'rgba(245,158,11,0.03)',
+      }}>
+        <div style={{
+          fontSize: '10px',
+          textTransform: 'uppercase',
+          letterSpacing: '1px',
+          color: theme.colors.textSecondary,
+          marginBottom: '6px',
+        }}>
+          Tee Shots
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+          {players.map(player => {
+            const current = teeShots[player.id] || null;
+            return (
+              <div
+                key={player.id}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <span style={{
+                  fontSize: '12px',
+                  color: theme.colors.textPrimary,
+                  fontWeight: player.is_authenticated ? 'bold' : '500',
+                  minWidth: '70px',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {player.name}
+                </span>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  {TEE_SHOT_OPTIONS.map(opt => (
+                    <button
+                      key={opt.value}
+                      title={opt.title}
+                      onClick={() => setTeeShotResult(player.id, current === opt.value ? null : opt.value)}
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: '6px',
+                        border: `2px solid ${current === opt.value ? '#F59E0B' : 'transparent'}`,
+                        background: current === opt.value ? 'rgba(245,158,11,0.15)' : theme.colors.backgroundSecondary || 'rgba(0,0,0,0.05)',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        lineHeight: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 0,
+                        transition: 'border-color 0.1s',
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ fontSize: '10px', color: theme.colors.textSecondary, marginTop: '4px' }}>
+          🟢 Fairway · 🟡 Rough · 🟠 Bunker · 🔴 OB · tap to update threat
         </div>
       </div>
 
