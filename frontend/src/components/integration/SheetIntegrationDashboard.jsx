@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '../ui';
 import { apiConfig } from '../../config/api.config';
 
@@ -15,7 +15,6 @@ import { apiConfig } from '../../config/api.config';
  */
 const SheetIntegrationDashboard = () => {
     const API_URL = apiConfig.baseUrl;
-    const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1PWhi5rJ4ZGhTwySZh-D_9lo_GKJcHb1Q5MEkNasHLgM/export?format=csv&gid=0";
 
     const [sheetData, setSheetData] = useState(null);
     const [columnMappings, setColumnMappings] = useState([]);
@@ -26,6 +25,33 @@ const SheetIntegrationDashboard = () => {
     const [activeTab, setActiveTab] = useState('upload');
     const [syncResult, setSyncResult] = useState(null);
     const [lastSync, setLastSync] = useState(null);
+    const [sheetConfig, setSheetConfig] = useState(null);
+    const [syncNowLoading, setSyncNowLoading] = useState(false);
+    const [syncNowResult, setSyncNowResult] = useState(null);
+
+    useEffect(() => {
+        fetch(`${API_URL}/data/leaderboard-config`)
+            .then(r => r.ok ? r.json() : null)
+            .then(d => { if (d) setSheetConfig(d); })
+            .catch(() => {});
+    }, [API_URL]);
+
+    const handleSyncNow = async () => {
+        setSyncNowLoading(true);
+        setSyncNowResult(null);
+        try {
+            const resp = await fetch(`${API_URL}/admin/spreadsheet/sync-legacy-rounds`, {
+                method: 'POST',
+                headers: { 'X-Admin-Email': localStorage.getItem('userEmail') || 'stuagano@gmail.com' },
+            });
+            const data = await resp.json();
+            setSyncNowResult(data);
+        } catch (err) {
+            setSyncNowResult({ success: false, message: err.message });
+        } finally {
+            setSyncNowLoading(false);
+        }
+    };
 
     const handleFileUpload = (event) => {
         const file = event.target.files[0];
@@ -177,7 +203,7 @@ const SheetIntegrationDashboard = () => {
                     'Content-Type': 'application/json',
                     'X-Scheduled-Job': 'true', // Bypass rate limiting
                 },
-                body: JSON.stringify({ csv_url: SHEET_CSV_URL }),
+                body: JSON.stringify({ csv_url: sheetConfig?.sheet_url || '' }),
             });
 
             if (response.ok) {
@@ -388,6 +414,51 @@ const SheetIntegrationDashboard = () => {
                     Import and sync your Google Sheets leaderboard data with the application database.
                 </p>
             </div>
+
+            {/* Leaderboard Sheet Config */}
+            <Card className="p-6 border-2 border-green-200 bg-green-50">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">📊 Leaderboard Spreadsheet</h3>
+                <div className="space-y-3">
+                    {sheetConfig ? (
+                        <>
+                            <div className="text-sm text-gray-600">
+                                <span className="font-medium">Sheet ID:</span>{' '}
+                                <code className="bg-white px-2 py-0.5 rounded border text-xs">{sheetConfig.sheet_id}</code>
+                            </div>
+                            <div className="flex gap-3 items-center flex-wrap">
+                                <a
+                                    href={sheetConfig.sheet_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-green-300 text-green-700 rounded-lg text-sm font-medium hover:bg-green-100 transition-colors"
+                                >
+                                    📄 Open Spreadsheet
+                                </a>
+                                <button
+                                    onClick={handleSyncNow}
+                                    disabled={syncNowLoading}
+                                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                                >
+                                    {syncNowLoading ? '⏳ Syncing...' : '🔄 Sync Now'}
+                                </button>
+                            </div>
+                            {syncNowResult && (
+                                <div className={`text-sm px-3 py-2 rounded ${syncNowResult.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                    {syncNowResult.success
+                                        ? `✅ Synced ${syncNowResult.rows_synced} rows`
+                                        : `❌ ${syncNowResult.message || syncNowResult.detail || 'Sync failed'}`}
+                                </div>
+                            )}
+                            <p className="text-xs text-gray-500">
+                                To change the spreadsheet, update <code>LEADERBOARD_SHEET_ID</code> in Render environment variables.
+                                The leaderboard cache syncs automatically every 2 hours.
+                            </p>
+                        </>
+                    ) : (
+                        <p className="text-sm text-gray-500">Loading configuration...</p>
+                    )}
+                </div>
+            </Card>
 
             {/* Error Display */}
             {error && (

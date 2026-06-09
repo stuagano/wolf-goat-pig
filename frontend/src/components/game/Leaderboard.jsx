@@ -1,11 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from '../ui';
 import { useSheetSync } from '../../context';
+import { apiConfig } from '../../config/api.config';
 
 const Leaderboard = () => {
   const { syncData: liveLeaderboardData, syncStatus, error: syncError, performLiveSync } = useSheetSync();
   const [leaderboard, setLeaderboard] = useState([]);
   const [selectedMetric, setSelectedMetric] = useState('overall');
+  const [sheetUrl, setSheetUrl] = useState(null);
+
+  useEffect(() => {
+    fetch(`${apiConfig.baseUrl}/data/leaderboard-config`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.sheet_url) setSheetUrl(d.sheet_url); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     let sortedData = [...liveLeaderboardData];
@@ -49,8 +58,20 @@ const Leaderboard = () => {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">🏆 Leaderboard</h1>
-          <p className="text-gray-600">Track player performance and rankings</p>
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <h1 className="text-3xl font-bold text-gray-900">🏆 Leaderboard</h1>
+            {sheetUrl && (
+              <a
+                href={sheetUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm font-medium hover:bg-green-100 transition-colors"
+              >
+                📊 View Spreadsheet
+              </a>
+            )}
+          </div>
+          <p className="text-gray-600 mt-2">Track player performance and rankings</p>
         </div>
 
         {/* Metric Selector */}

@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from .. import models
 from ..database import get_db
+from ..services.spreadsheet_sync_service import PRIMARY_SHEET_ID, PRIMARY_SHEET_TAB_GID
 from ..services.unified_data_service import get_unified_data_service
 from ..utils.admin_auth import require_admin
 from ..utils.time import utc_now
@@ -104,6 +105,24 @@ def get_unified_leaderboard(
         )
         for i, entry in enumerate(leaderboard[:limit])
     ]
+
+
+@router.get("/leaderboard-config")
+def get_leaderboard_config() -> Any:
+    """Return the configured leaderboard spreadsheet URL.
+
+    This is a public endpoint used by the frontend to build the 'View Spreadsheet' link.
+    The sheet ID can be changed via the LEADERBOARD_SHEET_ID env var on Render.
+    """
+    sheet_url = (
+        f"https://docs.google.com/spreadsheets/d/{PRIMARY_SHEET_ID}"
+        f"/edit?gid={PRIMARY_SHEET_TAB_GID}#gid={PRIMARY_SHEET_TAB_GID}"
+    )
+    return {
+        "sheet_id": PRIMARY_SHEET_ID,
+        "tab_gid": PRIMARY_SHEET_TAB_GID,
+        "sheet_url": sheet_url,
+    }
 
 
 @router.get("/rounds", response_model=list[UnifiedRoundResponse])
