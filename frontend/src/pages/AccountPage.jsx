@@ -3,6 +3,7 @@ import { useAuth0 } from '@auth0/auth0-react';
 import { useTheme } from '../theme/Provider';
 import useTeeTimes from '../hooks/useTeeTimes';
 import PlayerAvailability from '../components/signup/PlayerAvailability';
+import EmailPreferences from '../components/signup/EmailPreferences';
 
 const STORAGE_KEY = 'wgp_account_settings';
 
@@ -593,6 +594,17 @@ function AccountPage() {
             Set your preferred times each week — used by Find a Game to suggest matches.
           </p>
           <PlayerAvailability />
+        </div>
+      )}
+
+      {/* Email Preferences */}
+      {isAuthenticated && (
+        <div style={cardStyle}>
+          <h3 style={{ ...sectionTitle, marginBottom: '4px' }}>Email Notifications</h3>
+          <p style={{ fontSize: '14px', color: theme.colors.textSecondary, margin: '0 0 16px 0' }}>
+            Control what emails you receive from WGP.
+          </p>
+          <EmailPreferences />
         </div>
       )}
 

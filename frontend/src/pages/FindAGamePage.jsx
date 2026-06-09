@@ -4,7 +4,6 @@ import { useSearchParams } from 'react-router-dom';
 import AllPlayersAvailability from '../components/signup/AllPlayersAvailability';
 import MatchmakingSuggestions from '../components/signup/MatchmakingSuggestions';
 import MyMatches from '../components/signup/MyMatches';
-import EmailPreferences from '../components/signup/EmailPreferences';
 import '../styles/mobile-touch.css';
 
 const FindAGamePage = () => {
@@ -36,7 +35,6 @@ const FindAGamePage = () => {
     { id: 'all-availability', label: '👥 All Players', icon: '👥' },
     { id: 'my-matches', label: '🤝 My Matches', icon: '🤝' },
     { id: 'matchmaking', label: '🔀 Matchmaking', icon: '🔀' },
-    { id: 'preferences', label: '📧 Email Settings', icon: '📧' },
   ];
 
   if (!isAuthenticated) {
@@ -99,17 +97,6 @@ const FindAGamePage = () => {
           </div>
         )}
         {activeTab === 'matchmaking' && <MatchmakingSuggestions />}
-        {activeTab === 'preferences' && (
-          <div>
-            <div style={{ marginBottom: '20px' }}>
-              <h2 style={{ color: '#333', marginBottom: '10px' }}>📧 Email Preferences</h2>
-              <p style={{ color: '#6c757d', fontSize: '14px' }}>
-                Control what email notifications you receive and when.
-              </p>
-            </div>
-            <EmailPreferences />
-          </div>
-        )}
       </div>
     </div>
   );
