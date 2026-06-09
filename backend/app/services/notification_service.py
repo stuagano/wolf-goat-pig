@@ -110,6 +110,10 @@ class NotificationService:
                 "achievement_earned",
                 "partnership_formed",
                 "hole_complete",
+                "match_found",
+                "match_accepted",
+                "match_declined",
+                "match_confirmed",
             ]
 
             if notification_type not in valid_types:

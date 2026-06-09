@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useTheme } from '../../theme/Provider';
+import NotificationBell from './NotificationBell';
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -393,6 +394,7 @@ const Navigation = () => {
 
               {/* Theme Toggle & Auth */}
               <div style={{ marginLeft: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <NotificationBell />
                 <button
                   style={{
                     ...navButtonStyle,
@@ -442,23 +444,26 @@ const Navigation = () => {
             </div>
           )}
 
-          {/* Mobile: Theme toggle in header */}
+          {/* Mobile: Bell + Theme toggle in header */}
           {isMobile && (
-            <button
-              style={{
-                background: 'transparent',
-                border: '2px solid rgba(255,255,255,0.5)',
-                borderRadius: '8px',
-                padding: '8px 12px',
-                fontSize: '18px',
-                cursor: 'pointer',
-                color: '#fff'
-              }}
-              onClick={theme.toggleTheme}
-              aria-label={theme.isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {theme.isDark ? '☀️' : '🌙'}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <NotificationBell />
+              <button
+                style={{
+                  background: 'transparent',
+                  border: '2px solid rgba(255,255,255,0.5)',
+                  borderRadius: '8px',
+                  padding: '8px 12px',
+                  fontSize: '18px',
+                  cursor: 'pointer',
+                  color: '#fff'
+                }}
+                onClick={theme.toggleTheme}
+                aria-label={theme.isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                {theme.isDark ? '☀️' : '🌙'}
+              </button>
+            </div>
           )}
         </div>
       </nav>

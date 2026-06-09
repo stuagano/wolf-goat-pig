@@ -34,6 +34,7 @@ from .routers import (
     health,
     leaderboard,
     matchmaking,
+    notifications,
     players,
     sheet_integration,
     tee_sheet,
@@ -241,6 +242,7 @@ from .routers import course_data_update
 app.include_router(course_data_update.router)
 app.include_router(foretees.router)
 app.include_router(matchmaking.router)
+app.include_router(notifications.router)
 from .routers import commissioner, ghin, scorecard
 
 app.include_router(commissioner.router)
