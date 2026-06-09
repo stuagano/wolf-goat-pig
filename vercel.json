@@ -4,7 +4,7 @@
   "name": "wolf-goat-pig",
   "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/build",
-  "installCommand": "cd frontend && npm ci --legacy-peer-deps --no-audit",
+  "installCommand": "cd frontend && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm ci --legacy-peer-deps --no-audit",
   "framework": null,
   "ignoreCommand": "git diff --quiet HEAD^ HEAD ./frontend ./api ./vercel.json",
   "build": {
