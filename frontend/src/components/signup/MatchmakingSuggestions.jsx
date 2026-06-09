@@ -176,7 +176,7 @@ const MatchmakingSuggestions = () => {
   };
 
   const handleBookConfirm = async ({ transportMode }) => {
-    const result = await bookTeeTime(bookingSlot.ttdata, transportMode, bookingSlot.date, bookingSlot.time);
+    const result = await bookTeeTime(bookingSlot.ttdata, transportMode, bookingSlot.date, bookingSlot.time, bookingSlot.coPlayers);
     if (result?.data?.success) {
       setBookingResult({ type: 'success', message: result.message || 'Tee time booked!' });
       setBookingSlot(null);
@@ -573,7 +573,7 @@ const MatchmakingSuggestions = () => {
                               <button
                                 onClick={() => {
                                   clearBookingError();
-                                  setBookingSlot({ ...slot, date: ttData.date, displayDate: formatDateDisplay(ttData.date) });
+                                  setBookingSlot({ ...slot, date: ttData.date, displayDate: formatDateDisplay(ttData.date), coPlayers: match.players.map(p => p.player_name || p.name) });
                                 }}
                                 style={{
                                   padding: '8px 16px',

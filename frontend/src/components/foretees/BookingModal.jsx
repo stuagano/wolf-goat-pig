@@ -65,26 +65,14 @@ const BookingModal = ({ isOpen, onClose, onConfirm, slot, loading }) => {
           </div>
         </div>
 
-        {slot.players && slot.players.length > 0 && (
+        {slot.coPlayers && slot.coPlayers.length > 0 && (
           <div style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: theme.colors.textSecondary, marginBottom: 4 }}>
-              Playing with:
+              Adding to booking:
             </div>
-            {slot.players.map((p, i) => (
+            {slot.coPlayers.map((name, i) => (
               <div key={i} style={{ fontSize: 14, color: theme.colors.textPrimary, padding: '2px 0' }}>
-                {p.name}
-                {p.transport && (
-                  <span style={{
-                    marginLeft: 8,
-                    fontSize: 12,
-                    color: theme.colors.textSecondary,
-                    background: theme.isDark ? '#374151' : '#f3f4f6',
-                    padding: '1px 6px',
-                    borderRadius: 4,
-                  }}>
-                    {p.transport}
-                  </span>
-                )}
+                {name}
               </div>
             ))}
           </div>

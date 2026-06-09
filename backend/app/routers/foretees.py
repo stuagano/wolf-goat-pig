@@ -39,6 +39,7 @@ class BookTeeTimeRequest(BaseModel):
     transport_mode: str = "WLK"
     date: str | None = None  # YYYY-MM-DD, used for v5 browser booking
     time: str | None = None  # "12:00 PM", used for v5 browser booking
+    players: list[str] | None = None  # co-player names to add to the booking
 
     @field_validator("transport_mode")
     @classmethod
@@ -251,6 +252,7 @@ async def book_tee_time(
             transport_mode=request.transport_mode,
             date=request.date,
             slot_time=request.time,
+            players=request.players,
         )
     finally:
         if service is not get_foretees_service():

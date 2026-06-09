@@ -120,9 +120,48 @@ async function navigateToSlot(page, date, time) {
   }
 }
 
+// ── Fill co-player names into empty slots ────────────────────
+async function fillCoPlayers(page, playerNames) {
+  if (!playerNames || playerNames.length === 0) return;
+
+  // Find visible empty slot rows (exclude ftS-noDisplay)
+  const emptyRows = page.locator('div.slot_player_row.emptySlot:not(.ftS-noDisplay), div[id^="slot_player_row_"].emptySlot:not(.ftS-noDisplay)');
+  const count = await emptyRows.count();
+
+  for (let i = 0; i < Math.min(playerNames.length, count); i++) {
+    const name = playerNames[i];
+    if (!name) continue;
+    const row = emptyRows.nth(i);
+    const input = row.locator('input.ftS-playerNameInput');
+
+    try {
+      // Click the input — ForeTees JS removes readonly and may open autocomplete
+      await input.click({ timeout: 3000 });
+      // Remove readonly in case the JS didn't fire
+      await input.evaluate((el) => el.removeAttribute('readonly'));
+      await input.fill(name);
+      // Dispatch input event so ForeTees JS sees the value
+      await input.evaluate((el) => {
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+
+      // Wait briefly for autocomplete dropdown to appear
+      const autocomplete = page.locator('ul.ui-autocomplete li, div.ui-autocomplete-results li, div.ftS-autocomplete li').first();
+      const appeared = await autocomplete.isVisible({ timeout: 2000 }).catch(() => false);
+      if (appeared) {
+        await autocomplete.click({ timeout: 2000 }).catch(() => {});
+      }
+      console.log(`[co-player] filled slot ${i}: "${name}" (autocomplete=${appeared})`);
+    } catch (err) {
+      console.warn(`[co-player] could not fill slot ${i} with "${name}": ${err.message}`);
+    }
+  }
+}
+
 // ── Book ─────────────────────────────────────────────────────
 async function book(args) {
-  const { username, password, date, time, transport_mode } = args;
+  const { username, password, date, time, transport_mode, players } = args;
   if (!username || !password || !date || !time)
     return { success: false, error: 'Missing required fields' };
 
@@ -131,6 +170,9 @@ async function book(args) {
   try {
     await loginAndSSO(page, username, password);
     await navigateToSlot(page, date, time);
+
+    // Add co-players to empty slots before submitting
+    await fillCoPlayers(page, players);
 
     // Set transport mode using Playwright's native selectOption so that
     // ForeTees v5's JS framework event handlers actually fire (plain

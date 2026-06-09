@@ -244,6 +244,7 @@ class ForeteesService:
         transport_mode: str = "WLK",
         date: str | None = None,
         slot_time: str | None = None,
+        players: list[str] | None = None,
     ) -> dict[str, Any]:
         """Book the logged-in member into a tee time slot.
 
@@ -339,7 +340,7 @@ class ForeteesService:
                         "success": False,
                         "message": "Date and time are required for booking (ForeTees v5)",
                     }
-                return await self._book_via_browser(date, slot_time, transport_mode)
+                return await self._book_via_browser(date, slot_time, transport_mode, players=players)
 
             # Legacy path: submit the booking via HTTP POST
             submit_resp = await client.post(
@@ -466,7 +467,7 @@ class ForeteesService:
             logger.error("Cancel service error: %s", exc)
             return {"success": False, "message": f"Cancel error: {exc}"}
 
-    async def _book_via_browser(self, date: str, slot_time: str, transport_mode: str) -> dict[str, Any]:
+    async def _book_via_browser(self, date: str, slot_time: str, transport_mode: str, players: list[str] | None = None) -> dict[str, Any]:
         """Book a tee time via the headless browser microservice.
 
         Calls the separate Node.js booking service which uses Playwright
@@ -492,6 +493,7 @@ class ForeteesService:
             "date": date,
             "time": slot_time,
             "transport_mode": transport_mode,
+            "players": [p for p in (players or []) if p],
         }
 
         logger.info(
