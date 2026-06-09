@@ -169,12 +169,16 @@ async function fillCoPlayers(page, playerNames) {
       // Click anywhere on the empty row — ForeTees opens the member-select modal
       await row.click({ timeout: 3000 });
 
+      // Wait for the modal to appear, then click the "Members" tab
+      const membersTab = page.locator('button:has-text("Members"), a:has-text("Members")').first();
+      await membersTab.waitFor({ state: 'visible', timeout: 4000 });
+      await membersTab.click();
+
       // Wait for the modal search input to appear
-      // The modal has a text input for searching members
       const searchInput = page.locator(
-        'div.ftMs-modal input[type="text"], div[class*="ftMs"] input[type="text"], input.ftMs-searchInput'
+        'div[class*="ftMs"] input[type="text"], input.ftMs-searchInput'
       ).first();
-      await searchInput.waitFor({ state: 'visible', timeout: 4000 });
+      await searchInput.waitFor({ state: 'visible', timeout: 3000 });
 
       // Type last name — ForeTees shows "LastName, FirstName" in results
       const term = searchTermFor(name);
