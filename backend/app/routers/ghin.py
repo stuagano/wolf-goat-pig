@@ -174,6 +174,63 @@ async def post_score(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/find-players")
+async def find_players_on_ghin(
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Search GHIN for all local player profiles that don't yet have a GHIN ID.
+    Uses a single authenticated session for all searches."""
+    from .. import models
+    from ..services.ghin_service import GHINService
+
+    single_names = {"bob", "dave", "mike", "sarah", "scott", "vince", "test user"}
+
+    ghin_service = GHINService(db)
+    if not await ghin_service.initialize():
+        raise HTTPException(status_code=503, detail="GHIN service not available. Check credentials.")
+
+    players = db.query(models.PlayerProfile).filter(
+        models.PlayerProfile.ghin_id.is_(None)
+    ).all()
+
+    found = []
+    not_found = []
+    errors = []
+
+    import asyncio
+    for player in players:
+        name = (player.name or "").strip()
+        if not name or name.lower() in single_names or len(name.split()) < 2:
+            continue
+        parts = name.split()
+        first, last = parts[0], parts[-1]
+        try:
+            result = await ghin_service.search_golfers(last, first, per_page=5)
+            golfers = result.get("golfers", [])
+            if golfers:
+                found.append({
+                    "player_id": player.id,
+                    "player_name": name,
+                    "matches": [
+                        {
+                            "ghin_number": g.get("ghin_number") or g.get("id"),
+                            "name": f"{g.get('first_name','')} {g.get('last_name','')}".strip(),
+                            "club": g.get("club_name", ""),
+                            "state": g.get("state", ""),
+                            "handicap_index": g.get("handicap_index") or g.get("hi"),
+                        }
+                        for g in golfers[:3]
+                    ],
+                })
+            else:
+                not_found.append({"player_id": player.id, "player_name": name})
+            await asyncio.sleep(0.2)
+        except Exception as e:
+            errors.append({"player_id": player.id, "player_name": name, "error": str(e)})
+
+    return {"found": found, "not_found": not_found, "errors": errors}
+
+
 @router.post("/sync-handicaps")
 async def sync_ghin_handicaps():
     """Sync handicaps for all players with GHIN IDs."""
