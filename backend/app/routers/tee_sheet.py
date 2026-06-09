@@ -1,92 +1,93 @@
 """
 Tee Sheet Integration Router
 
-Pushes game players to the thousand-cranes.com WGP tee sheet.
-Endpoint: POST https://thousand-cranes.com/WolfGoatPig/wgp_add_tee_sheet_ajax.cgi
-Params:   date=YYYY-MM-DD, name=<player name>, type=member
+Read sign-ups from and post sign-ups to the thousand-cranes.com WGP tee sheet.
+CGI endpoints: wgp_tee_sheet.cgi (read), wgp_add_tee_sheet_ajax.cgi (write)
 """
 
 import logging
+import re
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
-
-from .. import models
-from ..database import get_db
 
 logger = logging.getLogger("app.routers.tee_sheet")
 
 router = APIRouter(prefix="/tee-sheet", tags=["tee-sheet"])
 
-TEE_SHEET_URL = "https://thousand-cranes.com/WolfGoatPig/wgp_add_tee_sheet_ajax.cgi"
-TEE_SHEET_REFERER = "https://thousand-cranes.com/WolfGoatPig/wgp_tee_sheet.cgi"
+TEE_SHEET_BASE = "https://thousand-cranes.com/WolfGoatPig"
+TEE_SHEET_READ_URL = f"{TEE_SHEET_BASE}/wgp_tee_sheet.cgi"
+TEE_SHEET_SIGNUP_URL = f"{TEE_SHEET_BASE}/wgp_add_tee_sheet_ajax.cgi"
 
 
-class TeeSheetPushRequest(BaseModel):
-    game_id: str
-    date: str  # YYYY-MM-DD
+def _parse_slots(html: str) -> list[dict]:
+    rows = re.findall(r'<tr><td align="center">(\d+)</td>(.*?)</tr>', html, re.DOTALL)
+    slots = []
+    for slot_num, content in rows:
+        name_match = re.search(r"color:#001bbf[^>]*>([^<]+)", content)
+        notes_match = re.search(r"color:#800000[^>]*>([^<]+)", content)
+        slots.append({
+            "slot": int(slot_num),
+            "name": name_match.group(1).strip() if name_match else None,
+            "notes": notes_match.group(1).strip() if notes_match else None,
+        })
+    return slots
 
 
-def _tee_sheet_name(profile: models.PlayerProfile | None, fallback: str) -> str:
-    if profile and profile.legacy_name:
-        return str(profile.legacy_name)
-    return fallback
-
-
-@router.post("/push")
-async def push_game_to_tee_sheet(
-    request: TeeSheetPushRequest,
-    db: Session = Depends(get_db),
+@router.get("")
+async def get_tee_sheet(
+    date: str = Query(..., description="Date in YYYY-MM-DD format"),
 ) -> dict[str, Any]:
-    """Push all players in a game to the thousand-cranes.com tee sheet."""
-    game = db.query(models.GameStateModel).filter(
-        models.GameStateModel.game_id == request.game_id
-    ).first()
-    if not game:
-        raise HTTPException(status_code=404, detail="Game not found")
+    """Fetch current sign-ups from the thousand-cranes.com tee sheet."""
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            resp = await client.get(
+                TEE_SHEET_READ_URL,
+                params={"date": date},
+                headers={"Referer": TEE_SHEET_READ_URL},
+            )
+            resp.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(status_code=502, detail=f"Tee sheet unavailable: HTTP {e.response.status_code}")
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"Could not reach tee sheet: {e}")
 
-    players = (
-        db.query(models.GamePlayer)
-        .filter(models.GamePlayer.game_id == request.game_id)
-        .order_by(models.GamePlayer.player_slot_id)
-        .all()
-    )
-    if not players:
-        raise HTTPException(status_code=400, detail="No players in game")
+    slots = _parse_slots(resp.text)
+    signed_up = [s for s in slots if s["name"]]
+    return {
+        "date": date,
+        "slots": slots,
+        "signed_up_count": len(signed_up),
+        "signed_up": signed_up,
+    }
 
-    pushed = []
-    skipped = []
-    errors = []
+
+class SignupRequest(BaseModel):
+    date: str
+    name: str
+
+
+@router.post("/signup")
+async def signup_for_tee_sheet(request: SignupRequest) -> dict[str, Any]:
+    """Sign up a player for a given date on the thousand-cranes.com tee sheet."""
+    name = request.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Name is required")
 
     async with httpx.AsyncClient(timeout=10.0) as client:
-        for gp in players:
-            profile = None
-            if gp.player_profile_id:
-                profile = db.query(models.PlayerProfile).filter(
-                    models.PlayerProfile.id == gp.player_profile_id
-                ).first()
+        try:
+            resp = await client.post(
+                TEE_SHEET_SIGNUP_URL,
+                data={"date": request.date, "name": name, "type": "member"},
+                headers={"Referer": TEE_SHEET_READ_URL},
+            )
+            resp.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(status_code=502, detail=f"Tee sheet signup failed: HTTP {e.response.status_code}")
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"Could not reach tee sheet: {e}")
 
-            name = _tee_sheet_name(profile, gp.player_name or "")
-            if not name:
-                skipped.append({"player": gp.player_name, "reason": "no name"})
-                continue
-
-            try:
-                resp = await client.post(
-                    TEE_SHEET_URL,
-                    data={"date": request.date, "name": name, "type": "member"},
-                    headers={"Referer": TEE_SHEET_REFERER},
-                )
-                if resp.status_code == 200:
-                    pushed.append({"player": gp.player_name, "tee_sheet_name": name})
-                    logger.info("Pushed %s to tee sheet for %s", name, request.date)
-                else:
-                    errors.append({"player": gp.player_name, "reason": f"HTTP {resp.status_code}"})
-            except Exception as e:
-                logger.error("Failed to push %s: %s", name, e)
-                errors.append({"player": gp.player_name, "reason": str(e)})
-
-    return {"date": request.date, "pushed": pushed, "skipped": skipped, "errors": errors}
+    logger.info("Signed up %s on tee sheet for %s", name, request.date)
+    return {"success": True, "name": name, "date": request.date}

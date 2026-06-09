@@ -48,6 +48,7 @@ const AccountPage = React.lazy(() => import("./pages/AccountPage"));
 const BadgesPage = React.lazy(() => import("./pages/BadgesPage"));
 const ScorecardScanPage = React.lazy(() => import("./pages/ScorecardScanPage"));
 const AskPage = React.lazy(() => import("./pages/AskPage"));
+const TeeSheetPage = React.lazy(() => import("./pages/TeeSheetPage"));
 
 const API_URL = apiConfig.baseUrl;
 
@@ -405,6 +406,7 @@ function App() {
               <Route path="/badges" element={<BadgesPage />} />
               <Route path="/scorecard-scan" element={<ScorecardScanPage />} />
               <Route path="/ask" element={<AskPage />} />
+              <Route path="/tee-sheet" element={<TeeSheetPage />} />
               <Route path="/tee-times" element={<Navigate to="/signup" />} />
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>

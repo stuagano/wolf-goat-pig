@@ -33,10 +33,6 @@ function GameLobbyPage() {
   const [playerSuggestions, setPlayerSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [infoMessage, setInfoMessage] = useState('');
-  const [teeSheetDate, setTeeSheetDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [pushingTeeSheet, setPushingTeeSheet] = useState(false);
-  const [teeSheetResult, setTeeSheetResult] = useState(null);
-
   // Poll lobby status every 2 seconds
   useEffect(() => {
     const fetchLobby = async () => {
@@ -346,25 +342,6 @@ function GameLobbyPage() {
       </div>
     );
   }
-
-  const handlePushTeeSheet = async () => {
-    setPushingTeeSheet(true);
-    setTeeSheetResult(null);
-    try {
-      const response = await fetch(`${API_URL}/tee-sheet/push`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ game_id: gameId, date: teeSheetDate }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || 'Push failed');
-      setTeeSheetResult(data);
-    } catch (err) {
-      setTeeSheetResult({ error: err.message });
-    } finally {
-      setPushingTeeSheet(false);
-    }
-  };
 
   const canStart = lobby?.players_joined === lobby?.max_players && teeOrderSet;
   const canSetTeeOrder = lobby?.players_joined === lobby?.max_players && !teeOrderSet;
@@ -899,56 +876,6 @@ function GameLobbyPage() {
             </div>
           </div>
         )}
-
-        {/* Push to Tee Sheet */}
-        <div style={{ marginBottom: 16, padding: 16, background: '#f5f5f5', borderRadius: 8, border: '1px solid #ddd' }}>
-          <div style={{ fontWeight: 600, marginBottom: 10, fontSize: 15 }}>📋 Push to Tee Sheet</div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <input
-              type="date"
-              value={teeSheetDate}
-              onChange={e => { setTeeSheetDate(e.target.value); setTeeSheetResult(null); }}
-              style={{ padding: '8px 10px', borderRadius: 4, border: '1px solid #ccc', fontSize: 14 }}
-            />
-            <button
-              onClick={handlePushTeeSheet}
-              disabled={pushingTeeSheet || !lobby?.players?.length}
-              style={{
-                ...theme.buttonStyle,
-                padding: '8px 18px',
-                fontSize: 14,
-                background: pushingTeeSheet ? theme.colors.textSecondary : '#1565c0',
-                cursor: pushingTeeSheet ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {pushingTeeSheet ? 'Pushing...' : 'Push Players'}
-            </button>
-          </div>
-          {teeSheetResult && !teeSheetResult.error && (
-            <div style={{ marginTop: 10, fontSize: 13 }}>
-              {teeSheetResult.pushed.length > 0 && (
-                <div style={{ color: '#2e7d32' }}>
-                  ✓ Pushed: {teeSheetResult.pushed.map(p => p.tee_sheet_name).join(', ')}
-                </div>
-              )}
-              {teeSheetResult.skipped.length > 0 && (
-                <div style={{ color: '#e65100', marginTop: 4 }}>
-                  ⚠ Not on tee sheet: {teeSheetResult.skipped.map(p => p.player).join(', ')}
-                </div>
-              )}
-              {teeSheetResult.errors.length > 0 && (
-                <div style={{ color: theme.colors.error, marginTop: 4 }}>
-                  ✗ Errors: {teeSheetResult.errors.map(p => p.player).join(', ')}
-                </div>
-              )}
-            </div>
-          )}
-          {teeSheetResult?.error && (
-            <div style={{ marginTop: 8, color: theme.colors.error, fontSize: 13 }}>
-              ✗ {teeSheetResult.error}
-            </div>
-          )}
-        </div>
 
         {/* Start Game Button (for creator or anyone in dev mode) */}
         <button
