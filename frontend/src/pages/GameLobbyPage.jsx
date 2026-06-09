@@ -32,6 +32,7 @@ function GameLobbyPage() {
   const [settingTeeOrder, setSettingTeeOrder] = useState(false);
   const [playerSuggestions, setPlayerSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [infoMessage, setInfoMessage] = useState('');
 
   // Poll lobby status every 2 seconds
   useEffect(() => {
@@ -189,6 +190,11 @@ function GameLobbyPage() {
       setNewPlayerName('');
       setNewPlayerHandicap('18.0');
       setShowAddPlayer(false);
+
+      if (data.handicap_source === 'ghin') {
+        setInfoMessage(`Handicap ${data.handicap} pulled from GHIN`);
+        setTimeout(() => setInfoMessage(''), 4000);
+      }
 
       // Refresh will happen via polling
 
@@ -818,6 +824,18 @@ function GameLobbyPage() {
             marginBottom: 16
           }}>
             {error}
+          </div>
+        )}
+
+        {infoMessage && (
+          <div style={{
+            background: '#e8f5e9',
+            color: '#2e7d32',
+            padding: 12,
+            borderRadius: 8,
+            marginBottom: 16
+          }}>
+            {infoMessage}
           </div>
         )}
 
