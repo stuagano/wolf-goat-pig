@@ -61,7 +61,7 @@ const BookingModal = ({ isOpen, onClose, onConfirm, slot, loading }) => {
         <div style={{ marginBottom: 16, color: theme.colors.textPrimary }}>
           <div style={{ fontSize: 20, fontWeight: 700 }}>{slot.time}</div>
           <div style={{ fontSize: 14, color: theme.colors.textSecondary }}>
-            {slot.date}
+            {slot.displayDate || slot.date}
           </div>
         </div>
 

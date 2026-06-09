@@ -573,7 +573,7 @@ const MatchmakingSuggestions = () => {
                               <button
                                 onClick={() => {
                                   clearBookingError();
-                                  setBookingSlot({ ...slot, date: formatDateDisplay(ttData.date) });
+                                  setBookingSlot({ ...slot, date: ttData.date, displayDate: formatDateDisplay(ttData.date) });
                                 }}
                                 style={{
                                   padding: '8px 16px',
