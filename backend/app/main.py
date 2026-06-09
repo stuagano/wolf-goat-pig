@@ -84,6 +84,24 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.error(f"Failed to initialize database: {e}")
         raise
 
+    # Seed badges if table is empty
+    try:
+        from .badge_seeds import seed_badges
+        from .database import SessionLocal
+        from .models import Badge as _Badge
+        _seed_db = SessionLocal()
+        try:
+            if _seed_db.query(_Badge).count() == 0:
+                logger.info("🏅 Seeding badges...")
+                seed_badges(_seed_db)
+                logger.info("✅ Badges seeded")
+            else:
+                logger.info("🏅 Badges already seeded")
+        finally:
+            _seed_db.close()
+    except Exception as e:
+        logger.error(f"Badge seeding failed: {e}")
+
     # Initialize email scheduler if enabled
     if os.getenv("ENABLE_EMAIL_NOTIFICATIONS", "true").lower() == "true":
         try:

@@ -19,10 +19,39 @@ from ..utils.time import utc_now
 from sqlalchemy.orm.attributes import flag_modified
 
 from ..wolf_goat_pig import Player, WolfGoatPigGame
+from ..badge_engine import BadgeEngine
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/games", tags=["games"])
+
+
+def _check_game_achievements(db: Session, game_id: str, record_id: int) -> None:
+    """Run post-game badge checks for all linked players. Never raises — failures are logged only."""
+    try:
+        game_players = (
+            db.query(models.GamePlayer)
+            .filter(
+                models.GamePlayer.game_id == game_id,
+                models.GamePlayer.player_profile_id.isnot(None),
+            )
+            .all()
+        )
+        if not game_players:
+            return
+        engine = BadgeEngine(db)
+        for gp in game_players:
+            try:
+                earned = engine.check_post_game_achievements(record_id, int(gp.player_profile_id))
+                if earned:
+                    logger.info(
+                        "🏅 Awarded %d badge(s) to player %d after game %s",
+                        len(earned), gp.player_profile_id, game_id,
+                    )
+            except Exception as e:
+                logger.error("Badge check failed for player %d: %s", gp.player_profile_id, e)
+    except Exception as e:
+        logger.error("_check_game_achievements failed for game %s: %s", game_id, e)
 
 
 # ---------------------------------------------------------------------------
@@ -860,6 +889,9 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
             results_created,
         )
 
+        # Check achievements for all players with a linked profile
+        _check_game_achievements(db, game_id, record_id)
+
         return {
             "success": True,
             "message": "Game marked as completed",
@@ -1110,12 +1142,21 @@ async def perform_game_action_by_id(  # type: ignore
             game.updated_at = utc_now().isoformat()
 
             # Check if game is completed
+            game_just_completed = simulation.current_hole > 18 and game.game_status != "completed"
             if simulation.current_hole > 18:
                 game.game_status = "completed"
                 game.state["game_status"] = "completed"
 
             db.commit()
             logger.info(f"Saved state for game {game_id} after action {action_request.action_type}")
+
+            # Check achievements when game auto-completes at hole 18
+            if game_just_completed:
+                game_record = db.query(models.GameRecord).filter(
+                    models.GameRecord.game_id == game_id
+                ).first()
+                if game_record:
+                    _check_game_achievements(db, game_id, game_record.id)
 
             # Broadcast the updated game state
             await websocket_manager.broadcast(json.dumps({"game_state": game.state}), game_id)
