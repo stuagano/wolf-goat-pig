@@ -48,7 +48,8 @@
       "WebFetch(domain:npm-proxy.dev.databricks.com)",
       "WebFetch(domain:sentry.io)",
       "WebFetch(domain:pypi.org)",
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "WebFetch(domain:thousand-cranes.com)"
     ],
     "deny": []
   },

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useSearchParams } from 'react-router-dom';
 import ForeTeesTeeSheet from '../components/foretees/ForeTeesTeeSheet';
+import WgpSignupSheet from '../components/signup/WgpSignupSheet';
 import PlayerAvailability from '../components/signup/PlayerAvailability';
 import AllPlayersAvailability from '../components/signup/AllPlayersAvailability';
 import MatchmakingSuggestions from '../components/signup/MatchmakingSuggestions';
@@ -14,7 +15,7 @@ const SignupPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Default to 'calendar' (day view) - this is the primary view
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'calendar');
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'wgp-signup');
   const isUserNavigation = useRef(false);
 
   // Handle tab click: update state and URL together to avoid effect loops
@@ -40,11 +41,12 @@ const SignupPage = () => {
 
   // Tab configuration - Day view is first and default
   const tabs = [
-    { id: 'calendar', label: '📅 Tee Sheet', icon: '📅' },
+    { id: 'wgp-signup', label: '⛳ Sign Up', icon: '⛳' },
+    { id: 'calendar', label: '📅 Book Tee Time', icon: '📅' },
     { id: 'availability', label: '🕒 My Availability', icon: '🕒' },
     { id: 'all-availability', label: '👥 All Players', icon: '👥' },
     { id: 'my-matches', label: '🤝 My Matches', icon: '🤝' },
-    { id: 'matchmaking', label: '⛳ Matchmaking', icon: '⛳' },
+    { id: 'matchmaking', label: '🔀 Matchmaking', icon: '🔀' },
     { id: 'preferences', label: '📧 Email Settings', icon: '📧' }
   ];
 
@@ -147,6 +149,10 @@ const SignupPage = () => {
 
       {/* Tab Content */}
       <div style={{ minHeight: '500px' }}>
+        {activeTab === 'wgp-signup' && (
+          <WgpSignupSheet />
+        )}
+
         {activeTab === 'calendar' && (
           <ForeTeesTeeSheet />
         )}

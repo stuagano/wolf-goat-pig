@@ -1,0 +1,130 @@
+
+ RUN  v3.2.4 /Users/stuart.gano/Documents/wolf-goat-pig/frontend
+
+ ❯ src/components/game/__tests__/Scorecard.test.jsx (38 tests | 38 failed) 54ms
+   × Scorecard > Basic Rendering > renders scorecard title 13ms
+     → Unexpected token '<'
+   × Scorecard > Basic Rendering > renders front 9 holes by default when currentHole <= 9 2ms
+     → Unexpected token '<'
+   × Scorecard > Basic Rendering > renders back 9 holes when currentHole > 9 1ms
+     → Unexpected token '<'
+   × Scorecard > Basic Rendering > can toggle between front and back 9 1ms
+     → Unexpected token '<'
+   × Scorecard > Basic Rendering > renders all player names 1ms
+     → Unexpected token '<'
+   × Scorecard > Basic Rendering > renders OUT, IN, and TOTAL columns 1ms
+     → Unexpected token '<'
+   × Scorecard > Basic Rendering > renders PAR row when courseHoles provided 1ms
+     → Unexpected token '<'
+   × Scorecard > Basic Rendering > renders HDCP row when courseHoles provided 1ms
+     → Unexpected token '<'
+   × Scorecard > Player Display > shows human player indicator 1ms
+     → Unexpected token '<'
+   × Scorecard > Player Display > shows AI player indicators 1ms
+     → Unexpected token '<'
+   × Scorecard > Player Display > shows player handicaps 1ms
+     → Unexpected token '<'
+   × Scorecard > Score Display > displays completed hole scores 1ms
+     → Unexpected token '<'
+   × Scorecard > Score Display > displays quarters with correct signs 1ms
+     → Unexpected token '<'
+   × Scorecard > Collapse/Expand > starts expanded by default with down arrow 1ms
+     → Unexpected token '<'
+   × Scorecard > Collapse/Expand > collapses when SCORECARD header clicked 1ms
+     → Unexpected token '<'
+   × Scorecard > Collapse/Expand > shows collapsed view with player summaries 1ms
+     → Unexpected token '<'
+   × Scorecard > Standings View Toggle > shows standings toggle when captainId provided 1ms
+     → Unexpected token '<'
+   × Scorecard > Standings View Toggle > does not show standings toggle without captainId 1ms
+     → Unexpected token '<'
+   × Scorecard > Standings View Toggle > switches to standings view when clicked 1ms
+     → Unexpected token '<'
+   × Scorecard > Standings View Toggle > highlights captain in standings view 1ms
+     → Unexpected token '<'
+   × Scorecard > Edit Hole Modal > opens edit modal when clicking completed hole cell 1ms
+     → Unexpected token '<'
+   × Scorecard > Edit Hole Modal > shows strokes input in edit modal 1ms
+     → Unexpected token '<'
+   × Scorecard > Edit Hole Modal > shows quarters input in edit modal 1ms
+     → Unexpected token '<'
+   × Scorecard > Edit Hole Modal > closes modal on cancel 1ms
+     → Unexpected token '<'
+   × Scorecard > Edit Hole Modal > calls onEditHole with correct data on save 1ms
+     → Unexpected token '<'
+   × Scorecard > Player Name Editing > shows edit icon when onPlayerNameChange provided 1ms
+     → Unexpected token '<'
+   × Scorecard > Player Name Editing > does not show edit icon without onPlayerNameChange 1ms
+     → Unexpected token '<'
+   × Scorecard > Player Name Editing > opens name edit modal when clicking player name 2ms
+     → Unexpected token '<'
+   × Scorecard > Totals Calculation > calculates front 9 totals correctly 2ms
+     → Unexpected token '<'
+   × Scorecard > Score Indicators > shows par indicator for par score 1ms
+     → Unexpected token '<'
+   × Scorecard > Stroke Allocation Display > shows stroke dots for players receiving strokes 1ms
+     → Unexpected token '<'
+   × Scorecard > Empty States > renders without players gracefully 1ms
+     → Unexpected token '<'
+   × Scorecard > Empty States > renders without hole history gracefully 1ms
+     → Unexpected token '<'
+   × Scorecard > Empty States > renders without course holes gracefully 1ms
+     → Unexpected token '<'
+   × Scorecard > Input Validation > validates strokes are within valid range 1ms
+     → Unexpected token '<'
+   × Scorecard > Input Validation > validates quarters are within valid range 1ms
+     → Unexpected token '<'
+   × Scorecard > Current Hole Highlighting > highlights current hole column 1ms
+     → Unexpected token '<'
+   × Scorecard > Responsive Design > has horizontal scroll wrapper 1ms
+     → Unexpected token '<'
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 38 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Basic Rendering > renders scorecard title
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Basic Rendering > renders front 9 holes by default when currentHole <= 9
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Basic Rendering > renders back 9 holes when currentHole > 9
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Basic Rendering > can toggle between front and back 9
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Basic Rendering > renders all player names
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Basic Rendering > renders OUT, IN, and TOTAL columns
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Basic Rendering > renders PAR row when courseHoles provided
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Basic Rendering > renders HDCP row when courseHoles provided
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Player Display > shows human player indicator
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Player Display > shows AI player indicators
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Player Display > shows player handicaps
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Score Display > displays completed hole scores
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Score Display > displays quarters with correct signs
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Collapse/Expand > starts expanded by default with down arrow
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Collapse/Expand > collapses when SCORECARD header clicked
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Collapse/Expand > shows collapsed view with player summaries
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Standings View Toggle > shows standings toggle when captainId provided
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Standings View Toggle > does not show standings toggle without captainId
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Standings View Toggle > switches to standings view when clicked
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Standings View Toggle > highlights captain in standings view
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Edit Hole Modal > opens edit modal when clicking completed hole cell
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Edit Hole Modal > shows strokes input in edit modal
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Edit Hole Modal > shows quarters input in edit modal
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Edit Hole Modal > closes modal on cancel
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Edit Hole Modal > calls onEditHole with correct data on save
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Player Name Editing > shows edit icon when onPlayerNameChange provided
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Player Name Editing > does not show edit icon without onPlayerNameChange
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Player Name Editing > opens name edit modal when clicking player name
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Totals Calculation > calculates front 9 totals correctly
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Score Indicators > shows par indicator for par score
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Stroke Allocation Display > shows stroke dots for players receiving strokes
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Empty States > renders without players gracefully
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Empty States > renders without hole history gracefully
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Empty States > renders without course holes gracefully
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Input Validation > validates strokes are within valid range
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Input Validation > validates quarters are within valid range
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Current Hole Highlighting > highlights current hole column
+ FAIL  src/components/game/__tests__/Scorecard.test.jsx > Scorecard > Responsive Design > has horizontal scroll wrapper
+SyntaxError: Unexpected token '<'
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/38]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  38 failed (38)
+   Start at  10:26:25
+   Duration  1.10s (transform 92ms, setup 67ms, collect 134ms, tests 54ms, environment 395ms, prepare 98ms)
+
