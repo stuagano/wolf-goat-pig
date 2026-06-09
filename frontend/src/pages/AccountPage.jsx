@@ -4,6 +4,7 @@ import { useTheme } from '../theme/Provider';
 import useTeeTimes from '../hooks/useTeeTimes';
 import PlayerAvailability from '../components/signup/PlayerAvailability';
 import EmailPreferences from '../components/signup/EmailPreferences';
+import MyMatches from '../components/signup/MyMatches';
 
 const STORAGE_KEY = 'wgp_account_settings';
 
@@ -594,6 +595,17 @@ function AccountPage() {
             Set your preferred times each week — used by Find a Game to suggest matches.
           </p>
           <PlayerAvailability />
+        </div>
+      )}
+
+      {/* My Matches */}
+      {isAuthenticated && (
+        <div style={cardStyle}>
+          <h3 style={{ ...sectionTitle, marginBottom: '4px' }}>My Matches</h3>
+          <p style={{ fontSize: '14px', color: theme.colors.textSecondary, margin: '0 0 16px 0' }}>
+            Accept or decline match suggestions. Once everyone confirms, book a tee time together.
+          </p>
+          <MyMatches />
         </div>
       )}
 

@@ -3,7 +3,6 @@ import { useAuth0 } from '@auth0/auth0-react';
 import { useSearchParams } from 'react-router-dom';
 import AllPlayersAvailability from '../components/signup/AllPlayersAvailability';
 import MatchmakingSuggestions from '../components/signup/MatchmakingSuggestions';
-import MyMatches from '../components/signup/MyMatches';
 import '../styles/mobile-touch.css';
 
 const FindAGamePage = () => {
@@ -33,7 +32,6 @@ const FindAGamePage = () => {
 
   const tabs = [
     { id: 'all-availability', label: '👥 All Players', icon: '👥' },
-    { id: 'my-matches', label: '🤝 My Matches', icon: '🤝' },
     { id: 'matchmaking', label: '🔀 Matchmaking', icon: '🔀' },
   ];
 
@@ -85,17 +83,6 @@ const FindAGamePage = () => {
 
       <div style={{ minHeight: '500px' }}>
         {activeTab === 'all-availability' && <AllPlayersAvailability />}
-        {activeTab === 'my-matches' && (
-          <div>
-            <div style={{ marginBottom: '20px' }}>
-              <h2 style={{ color: '#333', marginBottom: '10px' }}>🤝 My Matches</h2>
-              <p style={{ color: '#6c757d', fontSize: '14px' }}>
-                Accept or decline match suggestions. Once everyone confirms, book a tee time together.
-              </p>
-            </div>
-            <MyMatches />
-          </div>
-        )}
         {activeTab === 'matchmaking' && <MatchmakingSuggestions />}
       </div>
     </div>
