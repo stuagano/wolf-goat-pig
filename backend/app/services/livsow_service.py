@@ -108,6 +108,10 @@ def _parse_roster(
             player_name = row[offset].strip() if offset < len(row) else ""
             if not player_name:
                 continue
+            s1 = _safe_int(row[offset + 1].strip() if offset + 1 < len(row) else "")
+            s2 = _safe_int(row[offset + 2].strip() if offset + 2 < len(row) else "")
+            best_scores = [v for v in [s1, s2] if v is not None]
+            team_contribution = sum(best_scores)
             stats = player_stats.get(player_name, {"total": 0, "count": 0, "weeks": {w: None for w in weeks}})
             teams_players[team_name].append({
                 "name": player_name,
@@ -115,6 +119,8 @@ def _parse_roster(
                 "total": stats["total"],
                 "count": stats["count"],
                 "weeks": stats["weeks"],
+                "best_scores": best_scores,
+                "team_contribution": team_contribution,
             })
 
     # Team totals row (follows "Point Totals" label row)

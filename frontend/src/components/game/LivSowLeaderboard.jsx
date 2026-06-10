@@ -103,6 +103,7 @@ function TeamCard({ team, weeks, isExpanded, onToggle }) {
                   <th key={w} style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 600, color: '#374151', whiteSpace: 'nowrap' }}>{w}</th>
                 ))}
                 <th style={{ padding: '8px 16px', textAlign: 'right', fontWeight: 700, color: '#111827', whiteSpace: 'nowrap' }}>Total</th>
+                <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, color: '#2563eb', whiteSpace: 'nowrap' }} title="Sum of player's best 2 scores — their contribution to team total">Team Pts</th>
               </tr>
             </thead>
             <tbody>
@@ -121,6 +122,22 @@ function TeamCard({ team, weeks, isExpanded, onToggle }) {
                   ))}
                   <td style={{ padding: '8px 16px', textAlign: 'right', fontWeight: 700 }}>
                     <WeekCell value={p.total} />
+                  </td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right' }}>
+                    {p.best_scores?.length > 0 ? (
+                      <span style={{
+                        fontWeight: 700,
+                        color: p.team_contribution > 0 ? '#2563eb' : p.team_contribution < 0 ? '#dc2626' : '#9ca3af',
+                        fontSize: '13px',
+                      }}>
+                        {p.team_contribution > 0 ? `+${p.team_contribution}` : p.team_contribution}
+                        <span style={{ fontWeight: 400, fontSize: '11px', color: '#9ca3af', marginLeft: '4px' }}>
+                          ({p.best_scores.map(s => s > 0 ? `+${s}` : s).join(', ')})
+                        </span>
+                      </span>
+                    ) : (
+                      <span style={{ color: '#d1d5db' }}>—</span>
+                    )}
                   </td>
                 </tr>
               ))}
