@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
+import { apiConfig } from '../config/api.config';
 import { useTheme } from '../theme/Provider';
 import useTeeTimes from '../hooks/useTeeTimes';
 import PlayerAvailability from '../components/signup/PlayerAvailability';
@@ -109,7 +110,7 @@ const gatherStats = () => {
 };
 
 function AccountPage() {
-  const { user, isAuthenticated, logout } = useAuth0();
+  const { user, isAuthenticated, logout, getAccessTokenSilently } = useAuth0();
   const theme = useTheme();
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -121,9 +122,10 @@ function AccountPage() {
     preferredTees: 'white',
     bettingStyle: 'moderate',
     venmoHandle: '',
+    description: '',
   });
 
-  // Load settings and stats
+  // Load settings from localStorage, then merge description from backend
   useEffect(() => {
     const stored = loadSettings();
     if (stored) {
@@ -132,14 +134,39 @@ function AccountPage() {
       setSettings(prev => ({ ...prev, displayName: user.name }));
     }
     setStats(gatherStats());
-  }, [user]);
 
-  const handleSave = useCallback(() => {
+    if (isAuthenticated) {
+      getAccessTokenSilently()
+        .then(token => fetch(`${apiConfig.baseUrl}/players/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }))
+        .then(r => r.ok ? r.json() : null)
+        .then(profile => {
+          if (profile?.description != null) {
+            setSettings(prev => ({ ...prev, description: profile.description || '' }));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [user, isAuthenticated, getAccessTokenSilently]);
+
+  const handleSave = useCallback(async () => {
     saveSettings(settings);
+    // Persist description to backend
+    try {
+      const token = await getAccessTokenSilently();
+      await fetch(`${apiConfig.baseUrl}/players/me/description`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: settings.description || '' }),
+      });
+    } catch {
+      // non-fatal — localStorage still saved
+    }
     setEditing(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
-  }, [settings]);
+  }, [settings, getAccessTokenSilently]);
 
   const handleChange = (field, value) => {
     setSettings(prev => ({ ...prev, [field]: value }));
@@ -545,6 +572,19 @@ function AccountPage() {
               placeholder="@your-venmo"
               style={inputStyle}
             />
+
+            <label style={labelStyle}>About Me</label>
+            <textarea
+              value={settings.description}
+              onChange={(e) => handleChange('description', e.target.value)}
+              placeholder="A sentence or two about your game, style, or anything else..."
+              rows={3}
+              maxLength={300}
+              style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }}
+            />
+            <div style={{ fontSize: 11, color: '#9ca3af', marginTop: -8, marginBottom: 8, textAlign: 'right' }}>
+              {(settings.description || '').length}/300
+            </div>
           </div>
         ) : (
           <div>
@@ -580,6 +620,11 @@ function AccountPage() {
             <SettingRow
               label="Venmo"
               value={settings.venmoHandle || 'Not set'}
+              theme={theme}
+            />
+            <SettingRow
+              label="About Me"
+              value={settings.description || 'Not set'}
               theme={theme}
               noBorder
             />

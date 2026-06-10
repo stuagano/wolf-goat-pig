@@ -82,7 +82,7 @@ const PlayerProfilePage = () => {
     );
   }
 
-  const { name, handicap, last_played, created_at, available_days, match_history, badges, stats } = profile;
+  const { name, handicap, description, last_played, created_at, available_days, match_history, badges, stats } = profile;
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', padding: '20px 16px' }}>
@@ -145,6 +145,13 @@ const PlayerProfilePage = () => {
           ))}
         </div>
       </div>
+
+      {/* Bio */}
+      {description && (
+        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 16, padding: 20, marginBottom: 16 }}>
+          <p style={{ margin: 0, fontSize: 14, color: '#374151', lineHeight: 1.6 }}>{description}</p>
+        </div>
+      )}
 
       {/* Availability days */}
       {available_days.length > 0 && (

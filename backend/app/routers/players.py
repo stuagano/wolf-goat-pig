@@ -199,6 +199,22 @@ async def update_my_venmo(
     return schemas.PlayerProfileResponse.model_validate(current_user)
 
 
+@router.put("/me/description")
+@handle_api_errors(operation_name="update description")
+async def update_my_description(
+    body: dict[str, str | None],
+    current_user: models.PlayerProfile = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update current user's profile description/bio."""
+    description = (body.get("description") or "").strip() or None
+    current_user.description = description
+    current_user.updated_at = utc_now().isoformat()
+    db.commit()
+    db.refresh(current_user)
+    return {"description": current_user.description}
+
+
 @router.get("/me/availability", response_model=list[schemas.PlayerAvailabilityResponse])
 @handle_api_errors(operation_name="get my availability")
 async def get_my_availability(
@@ -467,6 +483,7 @@ def get_public_player_profile(
         "id": player.id,
         "name": player.name,
         "handicap": player.handicap,
+        "description": player.description,
         "avatar_url": player.avatar_url,
         "last_played": player.last_played,
         "created_at": player.created_at,
