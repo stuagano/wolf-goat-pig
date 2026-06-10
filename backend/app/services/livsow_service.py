@@ -164,6 +164,16 @@ def _parse_roster(
     return teams, free_agents
 
 
+def get_livsow_team_map() -> dict[str, dict]:
+    """Return {player_name: {team, role}} for quick lookup. Uses cached leaderboard."""
+    data = get_livsow_leaderboard()
+    result: dict[str, dict] = {}
+    for team in data.get("teams", []):
+        for p in team.get("players", []):
+            result[p["name"]] = {"team": team["name"], "role": p["role"]}
+    return result
+
+
 def get_livsow_leaderboard(force_refresh: bool = False) -> dict[str, Any]:
     """Return the LivSow leaderboard. Cached for 15 minutes."""
     global _cache, _cache_ts

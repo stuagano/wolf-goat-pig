@@ -8,11 +8,16 @@ const Leaderboard = () => {
   const [leaderboard, setLeaderboard] = useState([]);
   const [selectedMetric, setSelectedMetric] = useState('overall');
   const [sheetUrl, setSheetUrl] = useState(null);
+  const [teamMap, setTeamMap] = useState({});
 
   useEffect(() => {
     fetch(`${apiConfig.baseUrl}/data/leaderboard-config`)
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d?.sheet_url) setSheetUrl(d.sheet_url); })
+      .catch(() => {});
+    fetch(`${apiConfig.baseUrl}/data/livsow/team-map`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setTeamMap(d); })
       .catch(() => {});
   }, []);
 
@@ -191,6 +196,11 @@ const Leaderboard = () => {
                               <div className="text-sm font-medium text-gray-900">
                                 {entry.member || 'Unknown Player'}
                               </div>
+                              {teamMap[entry.member] && (
+                                <div className="text-xs text-blue-600 mt-0.5">
+                                  ⛳ {teamMap[entry.member].team}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </td>

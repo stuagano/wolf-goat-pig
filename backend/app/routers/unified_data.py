@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from .. import models
 from ..database import get_db
-from ..services.livsow_service import get_livsow_leaderboard
+from ..services.livsow_service import get_livsow_leaderboard, get_livsow_team_map
 from ..services.spreadsheet_sync_service import PRIMARY_SHEET_ID, PRIMARY_SHEET_TAB_GID
 from ..services.unified_data_service import get_unified_data_service
 from ..utils.admin_auth import require_admin
@@ -124,6 +124,12 @@ def get_leaderboard_config() -> Any:
         "tab_gid": PRIMARY_SHEET_TAB_GID,
         "sheet_url": sheet_url,
     }
+
+
+@router.get("/livsow/team-map")
+def get_livsow_team_map_endpoint() -> Any:
+    """Return {player_name: {team, role}} for use in other pages."""
+    return get_livsow_team_map()
 
 
 @router.get("/livsow/leaderboard")

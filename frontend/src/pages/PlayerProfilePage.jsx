@@ -29,6 +29,7 @@ const PlayerProfilePage = () => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [livsowTeam, setLivsowTeam] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -42,8 +43,16 @@ const PlayerProfilePage = () => {
           const data = await res.json().catch(() => ({}));
           throw new Error(data.detail || `Player not found`);
         }
-        setProfile(await res.json());
+        const p = await res.json();
+        setProfile(p);
         setError(null);
+        // Look up LivSow team by name (no auth needed)
+        if (p?.name) {
+          fetch(`${API_URL}/data/livsow/team-map`)
+            .then(r => r.ok ? r.json() : null)
+            .then(map => { if (map?.[p.name]) setLivsowTeam(map[p.name]); })
+            .catch(() => {});
+        }
       } catch (e) {
         setError(e.message);
       } finally {
@@ -91,10 +100,19 @@ const PlayerProfilePage = () => {
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#1f2937' }}>{name}</h1>
-            <div style={{ display: 'flex', gap: 12, marginTop: 6, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 12, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
               <span style={{ fontSize: 13, color: '#6b7280' }}>
                 Handicap <strong style={{ color: '#047857' }}>{handicap != null ? handicap : '—'}</strong>
               </span>
+              {livsowTeam && (
+                <span style={{
+                  fontSize: 12, fontWeight: 600, padding: '2px 8px',
+                  background: '#eff6ff', color: '#2563eb', borderRadius: 9999,
+                  border: '1px solid #bfdbfe',
+                }}>
+                  ⛳ {livsowTeam.team} · {livsowTeam.role}
+                </span>
+              )}
               {last_played && (
                 <span style={{ fontSize: 13, color: '#6b7280' }}>
                   Last played <strong>{formatDate(last_played)}</strong>
