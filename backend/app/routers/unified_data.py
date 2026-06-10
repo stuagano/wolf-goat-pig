@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from .. import models
 from ..database import get_db
+from ..services.livsow_service import get_livsow_leaderboard
 from ..services.spreadsheet_sync_service import PRIMARY_SHEET_ID, PRIMARY_SHEET_TAB_GID
 from ..services.unified_data_service import get_unified_data_service
 from ..utils.admin_auth import require_admin
@@ -123,6 +124,15 @@ def get_leaderboard_config() -> Any:
         "tab_gid": PRIMARY_SHEET_TAB_GID,
         "sheet_url": sheet_url,
     }
+
+
+@router.get("/livsow/leaderboard")
+def get_livsow_leaderboard_endpoint(refresh: bool = Query(False)) -> Any:
+    """Return LivSow stableford league standings from the Google Sheet.
+
+    Cached for 15 minutes. Pass ?refresh=true to force a re-fetch.
+    """
+    return get_livsow_leaderboard(force_refresh=refresh)
 
 
 @router.get("/rounds", response_model=list[UnifiedRoundResponse])

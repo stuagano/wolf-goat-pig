@@ -50,6 +50,7 @@ const ScorecardScanPage = React.lazy(() => import("./pages/ScorecardScanPage"));
 const AskPage = React.lazy(() => import("./pages/AskPage"));
 const FindAGamePage = React.lazy(() => import("./pages/FindAGamePage"));
 const PlayerProfilePage = React.lazy(() => import("./pages/PlayerProfilePage"));
+const LivSowLeaderboard = React.lazy(() => import("./components/game/LivSowLeaderboard"));
 
 const API_URL = apiConfig.baseUrl;
 
@@ -355,6 +356,7 @@ function App() {
                 }
               />
               <Route path="/leaderboard" element={<Leaderboard />} />
+              <Route path="/livsow" element={<LivSowLeaderboard />} />
               <Route
                 path="/sheets"
                 element={
