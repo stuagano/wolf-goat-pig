@@ -12,6 +12,12 @@ backend/.pytest_cache/
 # History files
 .history/
 
+# Quarantined/archived code and local test artifacts
+_unused/
+*.bak.*
+test_results.txt
+scorecard_test_fail.txt
+
 # FastAPI/SQLite (if used)
 backend/*.db
 *.db
