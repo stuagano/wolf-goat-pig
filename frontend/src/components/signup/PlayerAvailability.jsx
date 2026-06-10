@@ -8,6 +8,7 @@ const dayNamesFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'S
 
 const PlayerAvailability = () => {
   const { getAccessTokenSilently, isAuthenticated } = useAuth0();
+  const AUTH0_AUDIENCE = import.meta.env.VITE_AUTH0_AUDIENCE;
   const [availability, setAvailability] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -44,7 +45,7 @@ const PlayerAvailability = () => {
       setLoading(true);
       let token;
       try {
-        token = await getAccessTokenSilently();
+        token = await getAccessTokenSilently(AUTH0_AUDIENCE ? { authorizationParams: { audience: AUTH0_AUDIENCE } } : undefined);
       } catch (e) {
         token = localStorage.getItem('auth_token');
       }
@@ -107,7 +108,7 @@ const PlayerAvailability = () => {
       setMatchResult(null);
       let token;
       try {
-        token = await getAccessTokenSilently();
+        token = await getAccessTokenSilently(AUTH0_AUDIENCE ? { authorizationParams: { audience: AUTH0_AUDIENCE } } : undefined);
       } catch (e) {
         token = localStorage.getItem('auth_token');
       }

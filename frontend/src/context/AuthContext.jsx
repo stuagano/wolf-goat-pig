@@ -15,8 +15,7 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const domain = import.meta.env.VITE_AUTH0_DOMAIN;
   const clientId = import.meta.env.VITE_AUTH0_CLIENT_ID;
-  // Temporarily disable audience to fix login issues
-  // const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
+  const audience = import.meta.env.VITE_AUTH0_AUDIENCE;
 
   if (!domain || !clientId) {
     throw new Error('Please define VITE_AUTH0_DOMAIN and VITE_AUTH0_CLIENT_ID environment variables');
@@ -41,8 +40,7 @@ export const AuthProvider = ({ children }) => {
         clientId={clientId}
         authorizationParams={{
           redirect_uri: window.location.origin,
-          // Audience disabled to prevent login errors
-          // ...(audience && { audience: audience }),
+          ...(audience && { audience }),
           scope: "openid profile email"
         }}
         cacheLocation="localstorage"
