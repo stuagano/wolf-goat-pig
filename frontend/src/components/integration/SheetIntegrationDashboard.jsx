@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from '../ui';
 import { apiConfig } from '../../config/api.config';
+import { getStoredUserEmail } from '../../utils/adminAuth';
 
 /**
  * SheetIntegrationDashboard - Manages Google Sheets integration for metrics and leaderboards
@@ -42,7 +43,7 @@ const SheetIntegrationDashboard = () => {
         try {
             const resp = await fetch(`${API_URL}/admin/spreadsheet/sync-legacy-rounds`, {
                 method: 'POST',
-                headers: { 'X-Admin-Email': localStorage.getItem('userEmail') || 'stuagano@gmail.com' },
+                headers: { 'X-Admin-Email': getStoredUserEmail() },
             });
             const data = await resp.json();
             setSyncNowResult(data);

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card } from '../../components/ui';
 import { apiConfig } from '../../config/api.config';
+import { getStoredUserEmail } from '../../utils/adminAuth';
 
 const API_URL = apiConfig.baseUrl;
 
@@ -18,7 +19,7 @@ const DatabaseManager = () => {
     setError('');
     try {
       const response = await fetch(`${API_URL}/admin/db/schemas`, {
-        headers: { 'X-Admin-Email': localStorage.getItem('userEmail') || 'stuagano@gmail.com' }
+        headers: { 'X-Admin-Email': getStoredUserEmail() }
       });
       if (!response.ok) throw new Error('Failed to fetch schemas');
       const data = await response.json();
@@ -35,7 +36,7 @@ const DatabaseManager = () => {
     setError('');
     try {
       const response = await fetch(`${API_URL}/admin/db/schemas/${schema}/tables`, {
-        headers: { 'X-Admin-Email': localStorage.getItem('userEmail') || 'stuagano@gmail.com' },
+        headers: { 'X-Admin-Email': getStoredUserEmail() },
         signal,
       });
       if (!response.ok) throw new Error('Failed to fetch tables');
@@ -55,7 +56,7 @@ const DatabaseManager = () => {
     setError('');
     try {
       const response = await fetch(`${API_URL}/admin/db/schemas/${selectedSchema}/tables/${table}`, {
-        headers: { 'X-Admin-Email': localStorage.getItem('userEmail') || 'stuagano@gmail.com' },
+        headers: { 'X-Admin-Email': getStoredUserEmail() },
         signal,
       });
       if (!response.ok) throw new Error('Failed to fetch table content');

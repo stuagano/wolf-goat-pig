@@ -20,9 +20,9 @@ from .legacy_player_service import find_similar_players, get_canonical_name
 
 logger = logging.getLogger(__name__)
 
-# Auth0 configuration
-AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN", "your-domain.auth0.com")
-AUTH0_API_AUDIENCE = os.getenv("AUTH0_API_AUDIENCE", "your-api-audience")
+# Auth0 configuration — no placeholder defaults; verify_token fails closed if unset
+AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN", "")
+AUTH0_API_AUDIENCE = os.getenv("AUTH0_API_AUDIENCE", "")
 AUTH0_ALGORITHMS = ["RS256"]
 
 # Security scheme for FastAPI
@@ -52,7 +52,7 @@ class AuthService:
             # Use environment variable to determine auth mode
             if os.getenv("ENVIRONMENT") == "production":
                 # Production Auth0 integration
-                if AUTH0_DOMAIN == "your-domain.auth0.com" or AUTH0_API_AUDIENCE == "your-api-audience":
+                if not AUTH0_DOMAIN or not AUTH0_API_AUDIENCE:
                     logger.error("Auth0 configuration not set for production")
                     raise HTTPException(status_code=500, detail="Authentication service not configured")
 

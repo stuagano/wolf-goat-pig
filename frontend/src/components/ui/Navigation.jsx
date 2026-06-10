@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useTheme } from '../../theme/Provider';
 import NotificationBell from './NotificationBell';
+import { isAdminEmail } from '../../utils/adminAuth';
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -15,15 +16,15 @@ const Navigation = () => {
 
   const { isAuthenticated, user, loginWithRedirect, logout } = useAuth0();
 
-  // Check if user is admin
-  const adminEmails = ['stuagano@gmail.com', 'admin@wgp.com'];
-  const userEmail = localStorage.getItem('userEmail') || user?.email || 'stuagano@gmail.com';
+  // Keep localStorage in sync with the authenticated user (read by admin API helpers)
+  useEffect(() => {
+    if (user?.email) {
+      localStorage.setItem('userEmail', user.email);
+    }
+  }, [user?.email]);
 
-  if (user?.email && !localStorage.getItem('userEmail')) {
-    localStorage.setItem('userEmail', user.email);
-  }
-
-  const showAdminLink = adminEmails.includes(userEmail);
+  // Admin link only for authenticated admins — never default to an admin identity
+  const showAdminLink = isAuthenticated && isAdminEmail(user?.email);
 
   // Bottom tab bar items (always visible on mobile)
   const bottomTabItems = [
