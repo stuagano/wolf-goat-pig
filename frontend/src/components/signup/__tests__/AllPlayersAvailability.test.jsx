@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import '@testing-library/jest-dom';
 import AllPlayersAvailability from '../AllPlayersAvailability';
 import { createMockFetchResponse } from '../../../test-utils/mockFactories';
@@ -53,7 +54,7 @@ describe('AllPlayersAvailability', () => {
   test('renders loading state initially', () => {
     fetch.mockImplementation(() => new Promise(() => {})); // Never resolves
 
-    render(<AllPlayersAvailability />);
+    render(<MemoryRouter><AllPlayersAvailability /></MemoryRouter>);
 
     expect(screen.getByText(/Loading.../i)).toBeInTheDocument();
   });
@@ -61,7 +62,7 @@ describe('AllPlayersAvailability', () => {
   test('renders day grid after loading', async () => {
     fetch.mockResolvedValueOnce(createMockFetchResponse(mockPlayersData));
 
-    render(<AllPlayersAvailability />);
+    render(<MemoryRouter><AllPlayersAvailability /></MemoryRouter>);
 
     // Wait for loading to complete - look for stats section
     await screen.findByText('Total Players');
@@ -78,7 +79,7 @@ describe('AllPlayersAvailability', () => {
   test('shows player count for each day', async () => {
     fetch.mockResolvedValueOnce(createMockFetchResponse(mockPlayersData));
 
-    render(<AllPlayersAvailability />);
+    render(<MemoryRouter><AllPlayersAvailability /></MemoryRouter>);
 
     await screen.findByText('Total Players');
 
@@ -91,7 +92,7 @@ describe('AllPlayersAvailability', () => {
   test('expands day detail panel when clicking day', async () => {
     fetch.mockResolvedValueOnce(createMockFetchResponse(mockPlayersData));
 
-    render(<AllPlayersAvailability />);
+    render(<MemoryRouter><AllPlayersAvailability /></MemoryRouter>);
 
     await screen.findByText('Total Players');
 
@@ -110,7 +111,7 @@ describe('AllPlayersAvailability', () => {
   test('displays player time ranges correctly', async () => {
     fetch.mockResolvedValueOnce(createMockFetchResponse(mockPlayersData));
 
-    render(<AllPlayersAvailability />);
+    render(<MemoryRouter><AllPlayersAvailability /></MemoryRouter>);
 
     await screen.findByText('Total Players');
 
@@ -127,7 +128,7 @@ describe('AllPlayersAvailability', () => {
   test('displays player notes when available', async () => {
     fetch.mockResolvedValueOnce(createMockFetchResponse(mockPlayersData));
 
-    render(<AllPlayersAvailability />);
+    render(<MemoryRouter><AllPlayersAvailability /></MemoryRouter>);
 
     await screen.findByText('Total Players');
 
@@ -142,7 +143,7 @@ describe('AllPlayersAvailability', () => {
   test('handles empty availability data', async () => {
     fetch.mockResolvedValueOnce(createMockFetchResponse([]));
 
-    render(<AllPlayersAvailability />);
+    render(<MemoryRouter><AllPlayersAvailability /></MemoryRouter>);
 
     await screen.findByText('Total Players');
 
@@ -154,7 +155,7 @@ describe('AllPlayersAvailability', () => {
   test('handles API error', async () => {
     fetch.mockRejectedValueOnce(new Error('Failed to load availability data'));
 
-    render(<AllPlayersAvailability />);
+    render(<MemoryRouter><AllPlayersAvailability /></MemoryRouter>);
 
     await waitFor(() => {
       expect(screen.getByText(/Failed to load availability data/i)).toBeInTheDocument();
@@ -164,7 +165,7 @@ describe('AllPlayersAvailability', () => {
   test('shows correct statistics', async () => {
     fetch.mockResolvedValueOnce(createMockFetchResponse(mockPlayersData));
 
-    render(<AllPlayersAvailability />);
+    render(<MemoryRouter><AllPlayersAvailability /></MemoryRouter>);
 
     await screen.findByText('Total Players');
 
@@ -175,7 +176,7 @@ describe('AllPlayersAvailability', () => {
   test('closes detail panel when clicking close button', async () => {
     fetch.mockResolvedValueOnce(createMockFetchResponse(mockPlayersData));
 
-    render(<AllPlayersAvailability />);
+    render(<MemoryRouter><AllPlayersAvailability /></MemoryRouter>);
 
     await screen.findByText('Total Players');
 

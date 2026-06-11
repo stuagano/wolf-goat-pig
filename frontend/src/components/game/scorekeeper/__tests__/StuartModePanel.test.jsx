@@ -1,6 +1,6 @@
 // frontend/src/components/game/scorekeeper/__tests__/StuartModePanel.test.jsx
 import React from 'react';
-import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, act, fireEvent, within } from '@testing-library/react';
 import StuartModePanel from '../StuartModePanel';
 
 const theme = {
@@ -134,20 +134,24 @@ describe('whisperer UI', () => {
     await waitFor(() =>
       expect(screen.getByTestId('whisperer-messages')).toBeInTheDocument()
     );
-    // After briefing resolves: message appears
+    // After briefing resolves: message appears in the drawer
+    // (also shown in the latest-intel strip, so scope to the drawer)
     await waitFor(() =>
-      expect(screen.getByText('Hole 5: Watch Steve.')).toBeInTheDocument()
+      expect(
+        within(screen.getByTestId('whisperer-messages')).getByText('Hole 5: Watch Steve.')
+      ).toBeInTheDocument()
     );
   });
 
   test('renders whisperer response with 🤫 prefix', async () => {
     render(<StuartModePanel {...baseProps} />);
     await waitFor(() =>
-      expect(screen.getByText('Hole 5: Watch Steve.')).toBeInTheDocument()
+      expect(
+        within(screen.getByTestId('whisperer-messages')).getByText('Hole 5: Watch Steve.')
+      ).toBeInTheDocument()
     );
-    // The 🤫 emoji should be adjacent in the same message row
-    const messages = screen.getByTestId('whisperer-messages');
-    expect(messages.textContent).toContain('🤫');
+    // The 🤫 prefix now lives in the always-visible latest-intel strip
+    expect(screen.getByText(/🤫/)).toBeInTheDocument();
   });
 
   test('shows error message when API returns HTTP error', async () => {
@@ -158,7 +162,9 @@ describe('whisperer UI', () => {
     });
     render(<StuartModePanel {...baseProps} />);
     await waitFor(() =>
-      expect(screen.getByText('Connection error — try again.')).toBeInTheDocument()
+      expect(
+        within(screen.getByTestId('whisperer-messages')).getByText('Connection error — try again.')
+      ).toBeInTheDocument()
     );
   });
 
@@ -175,7 +181,7 @@ describe('whisperer UI', () => {
     expect(screen.queryByTestId('whisperer-messages')).not.toBeInTheDocument();
   });
 
-  test('user message appears with "You" label after send', async () => {
+  test('user message appears in the drawer after send', async () => {
     render(<StuartModePanel {...baseProps} />);
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
 
@@ -185,8 +191,9 @@ describe('whisperer UI', () => {
       fireEvent.click(screen.getByTestId('whisperer-send'));
     });
 
-    expect(screen.getByText('Should I go solo?')).toBeInTheDocument();
-    expect(screen.getByText('You')).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('whisperer-messages')).getByText('Should I go solo?')
+    ).toBeInTheDocument();
   });
 
   test('input is disabled while loading', async () => {
@@ -215,7 +222,9 @@ describe('whisperer UI', () => {
     global.fetch = jest.fn().mockRejectedValue(new Error('Network error'));
     render(<StuartModePanel {...baseProps} />);
     await waitFor(() =>
-      expect(screen.getByText('Connection error — try again.')).toBeInTheDocument()
+      expect(
+        within(screen.getByTestId('whisperer-messages')).getByText('Connection error — try again.')
+      ).toBeInTheDocument()
     );
   });
 });

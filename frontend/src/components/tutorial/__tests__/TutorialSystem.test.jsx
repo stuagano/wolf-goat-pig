@@ -252,11 +252,11 @@ describe('TutorialSystem', () => {
       value: 1024
     });
 
-    // Mock addEventListener and removeEventListener
-    const mockAddEventListener = vi.fn();
-    const mockRemoveEventListener = vi.fn();
-    window.addEventListener = mockAddEventListener;
-    window.removeEventListener = mockRemoveEventListener;
+    // Spy on addEventListener/removeEventListener — calls through so real
+    // listeners still register (keyboard tests depend on real dispatch),
+    // while remaining assertable via expect(window.addEventListener)...
+    vi.spyOn(window, 'addEventListener');
+    vi.spyOn(window, 'removeEventListener');
   });
 
   describe('Welcome Screen', () => {
