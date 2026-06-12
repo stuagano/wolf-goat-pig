@@ -7,6 +7,7 @@ outside the game class: methods freely call across mixin boundaries via
 pattern as app/mixins/persistence_mixin.py).
 """
 
+from .aardvark import AardvarkMixin
 from .analytics import AnalyticsMixin
 from .betting_actions import BettingActionsMixin
 from .partnership import PartnershipMixin
@@ -17,6 +18,7 @@ from .simulation_api import SimulationMixin
 from .state_views import StateViewsMixin
 
 __all__ = [
+    "AardvarkMixin",
     "AnalyticsMixin",
     "BettingActionsMixin",
     "PartnershipMixin",
