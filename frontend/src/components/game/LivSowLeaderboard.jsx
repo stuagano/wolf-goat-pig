@@ -1,36 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { apiConfig } from '../../config/api.config';
+import { RoleTag, WeekCell, slugify, teamColor } from './livsow/shared';
+import LivSowTransactions from './livsow/LivSowTransactions';
 
 const MEDAL_COLORS = {
   1: { bg: '#fbbf24', text: '#78350f', label: '🥇' },
   2: { bg: '#9ca3af', text: '#1f2937', label: '🥈' },
   3: { bg: '#d97706', text: '#fff7ed', label: '🥉' },
 };
-
-function RoleTag({ role }) {
-  const styles = {
-    Captain: { bg: '#dbeafe', text: '#1d4ed8' },
-    Starter: { bg: '#dcfce7', text: '#15803d' },
-    Alternate: { bg: '#f3f4f6', text: '#4b5563' },
-  };
-  const s = styles[role] || styles.Alternate;
-  return (
-    <span style={{
-      fontSize: '10px', fontWeight: 600, padding: '1px 6px',
-      borderRadius: '9999px', background: s.bg, color: s.text,
-    }}>
-      {role}
-    </span>
-  );
-}
-
-function WeekCell({ value }) {
-  if (value === null || value === undefined || value === '') {
-    return <span style={{ color: '#d1d5db' }}>—</span>;
-  }
-  const color = value > 0 ? '#16a34a' : value < 0 ? '#dc2626' : '#6b7280';
-  return <span style={{ color, fontWeight: value !== 0 ? 600 : 400 }}>{value > 0 ? `+${value}` : value}</span>;
-}
 
 function TeamCard({ team, weeks, isExpanded, onToggle }) {
   const medal = MEDAL_COLORS[team.rank];
@@ -70,9 +48,18 @@ function TeamCard({ team, weeks, isExpanded, onToggle }) {
           {medal ? medal.label : team.rank}
         </div>
 
-        {/* Team name */}
+        {/* Team name — links to the franchise page */}
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: '16px', fontWeight: 700, color: '#111827' }}>{team.name}</div>
+          <Link
+            to={`/livsow/teams/${slugify(team.name)}`}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              fontSize: '16px', fontWeight: 700, textDecoration: 'none',
+              color: teamColor(team.name).primary,
+            }}
+          >
+            {team.name} →
+          </Link>
           <div style={{ fontSize: '12px', color: '#6b7280' }}>
             {team.players.length} players · {team.players.filter(p => p.count > 0).length} active
           </div>
@@ -155,6 +142,15 @@ const LivSowLeaderboard = () => {
   const [error, setError] = useState(null);
   const [expandedTeam, setExpandedTeam] = useState(null);
   const [showFreeAgents, setShowFreeAgents] = useState(false);
+  const [recentMoves, setRecentMoves] = useState([]);
+
+  useEffect(() => {
+    // Best-effort: recent transactions feed — page works without it
+    fetch(`${apiConfig.baseUrl}/data/livsow/transactions?limit=10`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (d?.transactions) setRecentMoves(d.transactions); })
+      .catch(() => {});
+  }, []);
 
   const load = async (refresh = false) => {
     try {
@@ -311,6 +307,16 @@ const LivSowLeaderboard = () => {
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Recent moves — auto-detected from roster changes */}
+      {recentMoves.length > 0 && (
+        <div style={{ marginTop: '24px', background: '#fff', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '16px 20px' }}>
+          <h2 style={{ margin: '0 0 14px', fontSize: '15px', fontWeight: 700, color: '#374151' }}>
+            Recent Moves
+          </h2>
+          <LivSowTransactions transactions={recentMoves} />
         </div>
       )}
     </div>
