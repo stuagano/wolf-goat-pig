@@ -11,13 +11,14 @@ Data is automatically deduplicated based on date/group/member/score.
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from .. import models
 from ..database import get_db
 from ..services.livsow_service import get_livsow_leaderboard, get_livsow_team_map
+from ..services.livsow_transactions import check_and_record_snapshot, describe_transaction
 from ..services.spreadsheet_sync_service import PRIMARY_SHEET_ID, PRIMARY_SHEET_TAB_GID
 from ..services.unified_data_service import get_unified_data_service
 from ..utils.admin_auth import require_admin
@@ -133,12 +134,129 @@ def get_livsow_team_map_endpoint() -> Any:
 
 
 @router.get("/livsow/leaderboard")
-def get_livsow_leaderboard_endpoint(refresh: bool = Query(False)) -> Any:
+def get_livsow_leaderboard_endpoint(refresh: bool = Query(False), db: Session = Depends(get_db)) -> Any:
     """Return LivSow stableford league standings from the Google Sheet.
 
     Cached for 15 minutes. Pass ?refresh=true to force a re-fetch.
+    Opportunistically checks for roster changes (cheap hash compare) so
+    transactions get detected from normal page traffic.
     """
-    return get_livsow_leaderboard(force_refresh=refresh)
+    data = get_livsow_leaderboard(force_refresh=refresh)
+    try:
+        check_and_record_snapshot(db, data)
+    except Exception:
+        logger.exception("LivSow snapshot check failed (non-fatal)")
+    return data
+
+
+def _txn_row(t: models.LivSowTransaction) -> dict[str, Any]:
+    d = {
+        "id": t.id,
+        "detected_at": t.detected_at,
+        "season": t.season,
+        "week": t.week_label,
+        "snapshot_id": t.snapshot_id,
+        "type": t.type,
+        "player": t.player_name,
+        "from_team": t.from_team,
+        "to_team": t.to_team,
+        "from_role": t.from_role,
+        "to_role": t.to_role,
+        "details": t.details,
+    }
+    d["description"] = describe_transaction(
+        {
+            "type": t.type,
+            "player_name": t.player_name,
+            "from_team": t.from_team,
+            "to_team": t.to_team,
+            "from_role": t.from_role,
+            "to_role": t.to_role,
+            "details": t.details,
+        }
+    )
+    return d
+
+
+def _livsow_slugify(name: str) -> str:
+    import re as _re
+
+    return _re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
+@router.get("/livsow/transactions")
+def get_livsow_transactions(
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    player: str | None = Query(None),
+    team: str | None = Query(None),
+    type: str | None = Query(None),
+    db: Session = Depends(get_db),
+) -> Any:
+    """LivSow transaction log — newest first, baseball-reference style."""
+    q = db.query(models.LivSowTransaction).filter(models.LivSowTransaction.deleted.is_(False))
+    if player:
+        q = q.filter(models.LivSowTransaction.player_name.ilike(f"%{player}%"))
+    if team:
+        q = q.filter((models.LivSowTransaction.from_team == team) | (models.LivSowTransaction.to_team == team))
+    if type:
+        q = q.filter(models.LivSowTransaction.type == type)
+    total = q.count()
+    rows = (
+        q.order_by(models.LivSowTransaction.detected_at.desc(), models.LivSowTransaction.id.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    return {"total": total, "transactions": [_txn_row(t) for t in rows]}
+
+
+@router.get("/livsow/teams/{slug}")
+def get_livsow_team_detail(slug: str, db: Session = Depends(get_db)) -> Any:
+    """Team profile: roster with full stats, rank/total, and team transactions."""
+    data = get_livsow_leaderboard()
+    team = next((t for t in data.get("teams", []) if _livsow_slugify(t["name"]) == slug), None)
+    if team is None:
+        raise HTTPException(status_code=404, detail=f"LivSow team not found: {slug}")
+
+    rows = (
+        db.query(models.LivSowTransaction)
+        .filter(models.LivSowTransaction.deleted.is_(False))
+        .order_by(models.LivSowTransaction.detected_at.desc(), models.LivSowTransaction.id.desc())
+        .limit(200)
+        .all()
+    )
+    team_txns = [_txn_row(t) for t in rows if t.from_team == team["name"] or t.to_team == team["name"]]
+    return {
+        "slug": slug,
+        "name": team["name"],
+        "rank": team.get("rank"),
+        "total": team.get("total"),
+        "players": team.get("players", []),
+        "weeks": data.get("weeks", []),
+        "transactions": team_txns,
+        "sheet_url": data.get("sheet_url"),
+    }
+
+
+@router.post("/livsow/snapshot")
+def post_livsow_snapshot(force: bool = Query(False), db: Session = Depends(get_db)) -> Any:
+    """Run the roster snapshot/diff check now. Called by the daily cron and
+    available for manual triggering. Idempotent and guarded — safe to call
+    repeatedly. ?force=true bypasses the debounce and circuit breaker."""
+    data = get_livsow_leaderboard(force_refresh=True)
+    return check_and_record_snapshot(db, data, force=force)
+
+
+@router.delete("/livsow/transactions/{transaction_id}", dependencies=[Depends(require_admin)])
+def delete_livsow_transaction(transaction_id: int, db: Session = Depends(get_db)) -> Any:
+    """Soft-delete a transaction (admin escape hatch for sheet-edit noise)."""
+    t = db.query(models.LivSowTransaction).filter(models.LivSowTransaction.id == transaction_id).first()
+    if t is None:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    t.deleted = True
+    db.commit()
+    return {"success": True, "id": transaction_id}
 
 
 @router.get("/rounds", response_model=list[UnifiedRoundResponse])

@@ -197,6 +197,9 @@ def get_livsow_leaderboard(force_refresh: bool = False) -> dict[str, Any]:
             f"/edit?gid={LIVSOW_ROSTER_GID}#gid={LIVSOW_ROSTER_GID}"
         ),
     }
-    _cache = result
-    _cache_ts = time.time()
+    # Don't poison the cache with an empty result from a failed sheet fetch —
+    # the next request should retry instead of serving emptiness for 15 min.
+    if teams:
+        _cache = result
+        _cache_ts = time.time()
     return result

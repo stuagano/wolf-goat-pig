@@ -645,3 +645,39 @@ class GeneratedPairing(Base):
     notification_sent_at = Column(String, nullable=True)  # When notification was sent
     created_at = Column(String)
     updated_at = Column(String, nullable=True)
+
+
+# LivSow roster snapshots — change-log of team rosters parsed from the
+# LivSow Google Sheet. A snapshot is stored only when the compacted roster
+# (names + roles, no stats) differs from the latest confirmed snapshot.
+class LivSowRosterSnapshot(Base):
+    """One observed roster state. status: 'pending' (debounce candidate,
+    awaiting re-observation >=30 min later) or 'confirmed'."""
+
+    __tablename__ = "livsow_roster_snapshots"
+    id = Column(Integer, primary_key=True, index=True)
+    taken_at = Column(String, index=True)  # ISO timestamp
+    season = Column(String, index=True)
+    status = Column(String, default="pending", index=True)  # pending | confirmed
+    roster_hash = Column(String, index=True)  # sha256 of canonical compact roster
+    player_count = Column(Integer)  # rostered + free agents (sanity guards)
+    roster = Column(JSON)  # {"teams": {name: [{"name","role"}]}, "free_agents": [names]}
+
+
+# LivSow transactions — auto-derived from snapshot diffs (baseball-reference
+# style: signings, releases, trades, role changes, free-agency moves).
+class LivSowTransaction(Base):
+    __tablename__ = "livsow_transactions"
+    id = Column(Integer, primary_key=True, index=True)
+    detected_at = Column(String, index=True)  # ISO timestamp
+    season = Column(String, index=True)
+    week_label = Column(String, nullable=True)  # e.g. "6/8" — latest week at detection
+    snapshot_id = Column(Integer, index=True)  # FK-ish to livsow_roster_snapshots.id
+    type = Column(String, index=True)  # signed|released|traded|role_change|joined|departed|renamed
+    player_name = Column(String, index=True)  # display name (post-state for 'renamed')
+    from_team = Column(String, nullable=True)
+    to_team = Column(String, nullable=True)
+    from_role = Column(String, nullable=True)
+    to_role = Column(String, nullable=True)
+    details = Column(JSON, nullable=True)
+    deleted = Column(Boolean, default=False)
