@@ -14,21 +14,49 @@ Golf wagering app with FastAPI backend and React frontend.
 ```bash
 # Frontend
 cd frontend && npm run build
-cd frontend && npm test -- --watchAll=false
+cd frontend && npx vitest run
 
 # Backend
 cd backend && pytest
 
 # Type checking
-cd backend && mypy app
+cd backend && mypy app          # advisory only (pre-existing errors)
 cd frontend && npm run typecheck
 ```
 
+## Definition of done — REQUIRED before every push
+
+Pushing to main auto-deploys (Vercel + Render). The local gate must mirror CI
+**exactly** — a subset is not a gate. Run ALL of these and check real exit
+codes (don't pipe away failures):
+
+```bash
+# Frontend changes (mirrors .github/workflows/frontend-ci.yml):
+cd frontend && npm run typecheck && npx vitest run && npm run build
+# ⚠️ typecheck is NOT optional — esbuild/vite tolerate syntax tsc rejects,
+#    so "build passed" alone has shipped broken code before.
+
+# Backend changes (mirrors .github/workflows/backend-ci.yml):
+cd backend && ruff check app/ tests/ && ruff format --check app/ tests/ \
+  && pytest tests/ --ignore=tests/manual --ignore=tests/_diagnostic
+```
+
+Editing rules that prevent past deploy failures:
+- NEVER edit source files via shell heredocs/perl when the code contains `!`
+  — zsh mangles it to `\!` silently. Use the Edit/Write tools, or a Python
+  script written to a file first.
+- After any sed/perl/python bulk edit, grep the file for the literal `\!`
+  and re-run typecheck.
+
 ## Deployment
 
-- Backend deploys to Render via `render.yaml`
+- Backend deploys to Render via `render.yaml` — but the live service does NOT
+  sync env vars from render.yaml; set those in the Render dashboard
 - Frontend deploys to Vercel via `vercel.json`
 - Local Docker setup via `docker-compose.yml`
+- After backend deploys, verify: `curl https://wolf-goat-pig.onrender.com/health`
+  (`environment` must be `production`; junk Bearer token to `/players/me`
+  should return 401, not 500)
 
 ## File Organization
 
