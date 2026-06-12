@@ -31,6 +31,8 @@ const SheetIntegrationDashboard = () => {
     const [syncNowResult, setSyncNowResult] = useState(null);
 
     useEffect(() => {
+        // Best-effort: sheetConfig only feeds the informational sheet-link
+        // display — the dashboard works without it.
         fetch(`${API_URL}/data/leaderboard-config`)
             .then(r => r.ok ? r.json() : null)
             .then(d => { if (d) setSheetConfig(d); })

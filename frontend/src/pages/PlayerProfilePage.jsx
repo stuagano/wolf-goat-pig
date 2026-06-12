@@ -46,7 +46,8 @@ const PlayerProfilePage = () => {
         const p = await res.json();
         setProfile(p);
         setError(null);
-        // Look up LivSow team by name (no auth needed)
+        // Look up LivSow team by name (no auth needed). Best-effort — the
+        // badge simply doesn't render if this fails.
         if (p?.name) {
           fetch(`${API_URL}/data/livsow/team-map`)
             .then(r => r.ok ? r.json() : null)

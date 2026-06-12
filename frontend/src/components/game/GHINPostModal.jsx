@@ -49,7 +49,10 @@ const GHINPostModal = ({ players, playedAt, onPosted, onSkip }) => {
           setSelectedPlayer(withGhin[0].name);
           setGhinId(map[withGhin[0].name]);
         }
-      } catch (_) {}
+      } catch (_) {
+        // Best-effort convenience (pre-filling GHIN IDs) — the user can
+        // still type their GHIN ID manually, so failure here is non-fatal.
+      }
     };
     load();
   }, [players]);
@@ -66,11 +69,15 @@ const GHINPostModal = ({ players, playedAt, onPosted, onSkip }) => {
       setCourseLoading(true);
       try {
         const resp = await fetch(`${API_URL}/ghin/courses?q=${encodeURIComponent(courseQuery)}`);
-        if (resp.ok) {
-          const data = await resp.json();
-          setCourseResults(data.courses || []);
-        }
-      } catch (_) {}
+        if (!resp.ok) throw new Error(`Course search failed (HTTP ${resp.status})`);
+        const data = await resp.json();
+        setCourseResults(data.courses || []);
+        setError(null);
+      } catch (err) {
+        // Without this, a failed search looks identical to "no matches"
+        setCourseResults([]);
+        setError(err.message || 'Course search failed — try again.');
+      }
       setCourseLoading(false);
     }, 400);
     return () => clearTimeout(t);

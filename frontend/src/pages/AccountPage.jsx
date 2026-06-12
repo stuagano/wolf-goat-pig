@@ -124,6 +124,7 @@ function AccountPage() {
     venmoHandle: '',
     description: '',
   });
+  const [descriptionSyncError, setDescriptionSyncError] = useState(null); // 'load' | 'save' | null
 
   // Load settings from localStorage, then merge description from backend
   useEffect(() => {
@@ -140,13 +141,21 @@ function AccountPage() {
         .then(token => fetch(`${apiConfig.baseUrl}/players/me`, {
           headers: { Authorization: `Bearer ${token}` },
         }))
-        .then(r => r.ok ? r.json() : null)
+        .then(r => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        })
         .then(profile => {
+          setDescriptionSyncError(null);
           if (profile?.description != null) {
             setSettings(prev => ({ ...prev, description: profile.description || '' }));
           }
         })
-        .catch(() => {});
+        .catch(() => {
+          // If we can't load the saved bio, saving could silently wipe it —
+          // surface a warning in the edit form instead of failing silently.
+          setDescriptionSyncError('load');
+        });
     }
   }, [user, isAuthenticated, getAccessTokenSilently]);
 
@@ -155,13 +164,16 @@ function AccountPage() {
     // Persist description to backend
     try {
       const token = await getAccessTokenSilently();
-      await fetch(`${apiConfig.baseUrl}/players/me/description`, {
+      const resp = await fetch(`${apiConfig.baseUrl}/players/me/description`, {
         method: 'PUT',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ description: settings.description || '' }),
       });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      setDescriptionSyncError(null);
     } catch {
-      // non-fatal — localStorage still saved
+      // Other settings saved to localStorage; bio didn't reach the backend
+      setDescriptionSyncError('save');
     }
     setEditing(false);
     setSaved(true);
@@ -504,7 +516,9 @@ function AccountPage() {
             fontWeight: 500,
             marginBottom: '16px',
           }}>
-            Settings saved successfully
+            {descriptionSyncError === 'save'
+              ? 'Settings saved — but your bio couldn\'t sync to the server. Try saving again.'
+              : 'Settings saved successfully'}
           </div>
         )}
 
@@ -585,6 +599,11 @@ function AccountPage() {
             <div style={{ fontSize: 11, color: '#9ca3af', marginTop: -8, marginBottom: 8, textAlign: 'right' }}>
               {(settings.description || '').length}/300
             </div>
+            {descriptionSyncError === 'load' && (
+              <div style={{ fontSize: 12, color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '6px 10px', marginBottom: 8 }}>
+                ⚠️ Couldn't load your saved bio — saving now may overwrite it.
+              </div>
+            )}
           </div>
         ) : (
           <div>

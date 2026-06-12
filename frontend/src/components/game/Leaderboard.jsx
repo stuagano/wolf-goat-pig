@@ -11,6 +11,8 @@ const Leaderboard = () => {
   const [teamMap, setTeamMap] = useState({});
 
   useEffect(() => {
+    // Both fetches are best-effort decorations (spreadsheet link, LivSow team
+    // chips) — on failure the leaderboard renders fine without them.
     fetch(`${apiConfig.baseUrl}/data/leaderboard-config`)
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d?.sheet_url) setSheetUrl(d.sheet_url); })
