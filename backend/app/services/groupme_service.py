@@ -47,9 +47,12 @@ def _bot_id() -> str | None:
 
 
 def is_configured() -> dict[str, bool]:
+    read = bool(_token() and _group_id())
     return {
-        "read": bool(_token() and _group_id()),
-        "post": bool(_bot_id()),
+        "read": read,
+        # Posting works via bot (preferred) OR as the token owner's account
+        # (fallback when the league group's admin hasn't created a bot).
+        "post": bool(_bot_id()) or read,
     }
 
 
@@ -128,39 +131,66 @@ def get_messages(limit: int = 50, force_refresh: bool = False) -> dict[str, Any]
     return result
 
 
-def post_message(text: str, author: str | None = None) -> dict[str, Any]:
-    """Post into the group via the bot. Returns {posted: bool}.
-
-    GroupMe bots post under the bot's own name, so the web author is
-    prefixed into the text (e.g. "Stuart: nice round sunday").
-    """
-    bot_id = _bot_id()
-    if not bot_id:
-        return {"posted": False, "error": "GROUPME_BOT_ID not configured"}
-
+def _prepare_body(text: str, author: str | None) -> str | None:
     body = text.strip()
     if not body:
-        return {"posted": False, "error": "Empty message"}
+        return None
     if author:
         body = f"{author}: {body}"
     if len(body) > 990:  # GroupMe hard limit is 1000 chars
         body = body[:987] + "..."
+    return body
 
-    payload = json.dumps({"bot_id": bot_id, "text": body}).encode("utf-8")
+
+def _post_json(url: str, payload: dict[str, Any]) -> int:
     req = urllib.request.Request(
-        f"{GROUPME_API}/bots/post",
-        data=payload,
+        url,
+        data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json", "User-Agent": "wolf-goat-pig/1.0"},
         method="POST",
     )
-    try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            posted = resp.status in (200, 201, 202)
-    except Exception as e:
-        logger.error("GroupMe bot post failed: %s", e)
-        return {"posted": False, "error": str(e)}
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        return resp.status
 
-    # Bust the read cache so the new message shows on the next poll
+
+def post_message(text: str, author: str | None = None) -> dict[str, Any]:
+    """Post into the group. Returns {posted: bool, via: "bot"|"user"}.
+
+    Preferred path is the bot (GROUPME_BOT_ID) — posts under the bot's
+    name. Fallback: post as the token owner's own account via the group
+    messages API (works without group-admin rights). Either way the web
+    author's name is prefixed into the text ("Stuart: nice round sunday").
+    """
     global _cache_ts
+
+    body = _prepare_body(text, author)
+    if body is None:
+        return {"posted": False, "error": "Empty message"}
+
+    bot_id = _bot_id()
+    if bot_id:
+        try:
+            status = _post_json(f"{GROUPME_API}/bots/post", {"bot_id": bot_id, "text": body})
+            if status in (200, 201, 202):
+                _cache_ts = 0.0  # bust read cache so the message shows promptly
+                return {"posted": True, "via": "bot"}
+            logger.error("GroupMe bot post returned HTTP %s — trying user post", status)
+        except Exception as e:
+            logger.error("GroupMe bot post failed (%s) — trying user post", e)
+
+    # Fallback: post as the access-token owner's account
+    token, group_id = _token(), _group_id()
+    if not (token and group_id):
+        return {"posted": False, "error": "No bot configured and no token/group for user posting"}
+    try:
+        import uuid as _uuid
+
+        url = f"{GROUPME_API}/groups/{group_id}/messages?{urllib.parse.urlencode({'token': token})}"
+        status = _post_json(url, {"message": {"source_guid": str(_uuid.uuid4()), "text": body}})
+    except Exception as e:
+        logger.error("GroupMe user post failed: %s", e)
+        return {"posted": False, "error": str(e)}
+    if status not in (200, 201, 202):
+        return {"posted": False, "error": f"HTTP {status}"}
     _cache_ts = 0.0
-    return {"posted": posted}
+    return {"posted": True, "via": "user"}

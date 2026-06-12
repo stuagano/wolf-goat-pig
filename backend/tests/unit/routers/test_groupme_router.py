@@ -158,7 +158,49 @@ class TestPostMessageService:
             patch.object(groupme_service.urllib.request, "urlopen", fake_urlopen),
         ):
             result = groupme_service.post_message("x" * 2000, author="Stu")
-        assert result == {"posted": True}
+        assert result == {"posted": True, "via": "bot"}
         assert captured["bot_id"] == "bot1"
         assert captured["text"].startswith("Stu: ")
         assert len(captured["text"]) <= 990
+
+    def test_user_post_fallback_when_no_bot(self):
+        """Without a bot, posting falls back to the token owner's account
+        via the group messages API (works without group-admin rights)."""
+        captured = {}
+
+        def fake_urlopen(req, timeout=None):
+            import json as _json
+
+            captured["url"] = req.full_url
+            captured.update(_json.loads(req.data.decode()))
+
+            class R:
+                status = 201
+
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *a):
+                    return False
+
+            return R()
+
+        with (
+            patch.object(groupme_service, "_bot_id", return_value=None),
+            patch.object(groupme_service, "_token", return_value="tok"),
+            patch.object(groupme_service, "_group_id", return_value="g1"),
+            patch.object(groupme_service.urllib.request, "urlopen", fake_urlopen),
+        ):
+            result = groupme_service.post_message("see you sunday", author="Hart")
+        assert result == {"posted": True, "via": "user"}
+        assert "/groups/g1/messages" in captured["url"]
+        assert captured["message"]["text"] == "Hart: see you sunday"
+        assert captured["message"]["source_guid"]
+
+    def test_post_unconfigured_entirely(self):
+        with (
+            patch.object(groupme_service, "_bot_id", return_value=None),
+            patch.object(groupme_service, "_token", return_value=None),
+        ):
+            result = groupme_service.post_message("hi", author="Stu")
+        assert result["posted"] is False
