@@ -829,7 +829,7 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
           </div>
         )}
 
-        {pairingsError && \!pairingsLoading && (
+        {pairingsError && !pairingsLoading && (
           <div style={{ marginTop: '16px', padding: '10px 14px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', color: '#b45309', fontSize: '13px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
             <span>⚠️ {pairingsError}</span>
             <button
