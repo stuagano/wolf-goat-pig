@@ -25,6 +25,10 @@ import { useHoleSync, useUIState, useBettingState } from "../../hooks";
 import { gameReducer, createInitialState, gameActions } from "./gameReducer";
 import syncManager from "../../services/syncManager";
 import { fetchJson } from "../../services/fetchJson";
+// NOTE: only getStrokesForHole is shared with utils/strokeAllocation — its
+// calculateStrokeAllocation applies USGA course-handicap conversion, which
+// this component's raw-handicap fallback intentionally does not.
+import { getStrokesForHole } from "../../utils/strokeAllocation";
 import {
   HoleHeader,
   TeamSelector,
@@ -524,56 +528,7 @@ const SimpleScorekeeper = ({
       netHandicaps[playerId] = Math.max(0, handicap - lowestHandicap);
     });
 
-    const getStrokesForHole = (netHandicap, strokeIndex) => {
-      if (!netHandicap || netHandicap <= 0) return 0;
-
-      const fullHandicap = Math.floor(netHandicap);
-      const hasFractional = netHandicap % 1 >= 0.5;
-
-      // Creecher Feature implementation
-      if (netHandicap <= 6) {
-        // All allocated holes get 0.5
-        return strokeIndex <= fullHandicap ? 0.5 : 0;
-      } else if (netHandicap <= 18) {
-        // Easiest 6 of allocated holes get 0.5, rest get 1.0
-        if (strokeIndex <= fullHandicap) {
-          const easiestSix = Array.from(
-            { length: fullHandicap },
-            (_, idx) => fullHandicap - idx,
-          );
-          return easiestSix.slice(0, 6).includes(strokeIndex) ? 0.5 : 1.0;
-        }
-        // Fractional: add 0.5 to next hole
-        if (hasFractional && strokeIndex === fullHandicap + 1) {
-          return 0.5;
-        }
-        return 0;
-      } else {
-        // Handicap > 18
-        // Base 18: holes 13-18 get 0.5, holes 1-12 get 1.0
-        const extraStrokes = fullHandicap - 18;
-        const extraHalfStrokes = extraStrokes * 2;
-
-        if (strokeIndex >= 13 && strokeIndex <= 18) {
-          // Easiest 6 holes get base 0.5
-          const halfsNeeded = extraHalfStrokes;
-          const holesGettingExtra = Math.min(halfsNeeded, 12);
-          if (strokeIndex <= holesGettingExtra) {
-            return 1.0; // 0.5 base + 0.5 extra
-          }
-          return 0.5;
-        } else {
-          // Hardest 12 holes get base 1.0
-          const halfsNeeded = extraHalfStrokes;
-          const holesGettingExtra = Math.min(halfsNeeded, 12);
-          if (strokeIndex <= holesGettingExtra) {
-            return 1.5; // 1.0 base + 0.5 extra
-          }
-          return 1.0;
-        }
-      }
-    };
-
+    // getStrokesForHole imported from utils/strokeAllocation (Creecher Feature).
     localPlayers.forEach((player) => {
       allocation[player.id] = {};
       const netHandicap = netHandicaps[player.id];
