@@ -70,22 +70,6 @@ PlayerName.propTypes = {
 const createPlayerMap = (players, getValue) =>
   Object.fromEntries(players.map((p) => [p.id, getValue(p)]));
 
-/**
- * Reusable styles for hitting order arrow buttons
- */
-const ARROW_BUTTON_STYLE = {
-  background: "rgba(255,255,255,0.3)",
-  border: "none",
-  borderRadius: "50%",
-  width: "22px",
-  height: "22px",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  cursor: "pointer",
-  fontSize: "12px",
-  padding: "0",
-};
 
 /**
  * Simplified scorekeeper component - no game engine, just direct data entry
@@ -1033,42 +1017,6 @@ const SimpleScorekeeper = ({
     setCurrentHoleBettingEvents([]);
   };
 
-  // Load hole data for editing
-  const loadHoleForEdit = (hole) => {
-    setEditingHole(hole.hole);
-    setCurrentHole(hole.hole); // Setting currentHole automatically updates derived holePar
-    setScores(hole.gross_scores || {});
-    setQuarters(hole.points_delta || {}); // Load quarters from points_delta
-    setHoleNotes(hole.notes || "");
-    setCurrentWager(hole.wager || baseWager);
-    setWinner(hole.winner);
-    setFloatInvokedBy(hole.float_invoked_by || null);
-    setOptionInvokedBy(hole.option_invoked_by || null);
-
-    // Restore betting state from hole data
-    setCurrentHoleBettingEvents(hole.betting_events || []);
-    setPendingOffer(null); // Clear any pending offers when loading for edit
-    setDuncanInvoked(hole.duncan_invoked || false);
-    setOptionTurnedOff(hole.option_turned_off || false);
-
-    // Set team mode and teams based on hole data
-    if (hole.teams.type === "partners") {
-      setTeamMode("partners");
-      setTeam1(hole.teams.team1 || []);
-      setTeam2(hole.teams.team2 || []);
-      setCaptain(null);
-      setOpponents([]);
-    } else {
-      setTeamMode("solo");
-      setCaptain(hole.teams.captain);
-      setOpponents(hole.teams.opponents || []);
-      setTeam1([]);
-      setTeam2([]);
-    }
-
-    // Scroll to top so user can see the form
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
 
   // Handle team selection for partners mode
   // Toggle players in/out of Team 1. Team 2 is automatically all other players.
@@ -1132,48 +1080,6 @@ const SimpleScorekeeper = ({
     });
   };
 
-  // Build betting narrative from events
-  const buildBettingNarrative = (events) => {
-    if (!events || !events.length) return null;
-
-    return events
-      .map((e) => {
-        const actor = getPlayerName(
-          e.offered_by || e.response_by || e.announced_by || e.actor,
-        );
-        switch (e.eventType) {
-          case "DOUBLE_OFFERED":
-            return `${actor} doubles`;
-          case "DOUBLE_ACCEPTED":
-            return "accepted";
-          case "DOUBLE_DECLINED":
-            return "declined";
-          case "FLOAT_OFFERED":
-            return `${actor} floats`;
-          case "FLOAT_ACCEPTED":
-            return "accepted";
-          case "FLOAT_DECLINED":
-            return "declined";
-          case "DUNCAN_ANNOUNCED":
-            return `${actor} calls Duncan`;
-          case "OPTION_OFF_ANNOUNCED":
-            return `${actor} turns off Option`;
-          case "OPTION_ACTIVE":
-            return "Option active";
-          default:
-            return null;
-        }
-      })
-      .filter(Boolean)
-      .join(" → ");
-  };
-
-  // Get current betting narrative
-  // eslint-disable-next-line no-unused-vars -- betting narrative for future betting history UI
-  const currentBettingNarrative = useMemo(() => {
-    return buildBettingNarrative(currentHoleBettingEvents);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentHoleBettingEvents]);
 
   // Handle score input
   const handleScoreChange = (playerId, value) => {
@@ -1271,37 +1177,6 @@ const SimpleScorekeeper = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- setWinner is stable (useCallback)
   }, [calculateNetScoresAndWinner, winner]);
 
-  // Validate hole data before submission
-  const validateHole = () => {
-    // Simplified validation: only quarters matter now
-    const allPlayers = players.map((p) => p.id);
-
-    // Validate quarters: must be entered for all players and sum to zero
-    const quartersEntered = Object.keys(quarters).length > 0;
-    if (!quartersEntered) {
-      return "Please enter quarters for all players";
-    }
-
-    // Check all players have quarters
-    for (const playerId of allPlayers) {
-      if (quarters[playerId] === undefined || quarters[playerId] === "") {
-        return "Please enter quarters for all players";
-      }
-    }
-
-    // Validate zero-sum (allow decimals for split scoring)
-    const quartersSum = allPlayers.reduce((sum, playerId) => {
-      const q = parseFloat(quarters[playerId]) || 0;
-      return sum + q;
-    }, 0);
-
-    // Use small epsilon for floating point comparison
-    if (Math.abs(quartersSum) > 0.001) {
-      return `Quarters must sum to zero. Current sum: ${quartersSum > 0 ? "+" : ""}${quartersSum.toFixed(2)}`;
-    }
-
-    return null;
-  };
 
   // Compute effective quarters with auto-balance applied
   const getEffectiveQuarters = () => {
@@ -1383,7 +1258,7 @@ const SimpleScorekeeper = ({
         (p) => parseFloat(effectiveQuarters[p.id]) || 0,
       );
 
-      // Zero-sum already validated in validateHole()
+      // Zero-sum validated earlier in this handler
 
       // Build hole result object (local, no server needed for calculation)
       const holeResult = {
