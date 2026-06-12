@@ -8,11 +8,15 @@ pattern as app/mixins/persistence_mixin.py).
 """
 
 from .analytics import AnalyticsMixin
+from .partnership import PartnershipMixin
 from .serialization import SerializationMixin
+from .shot_progression import ShotProgressionMixin
 from .simulation_api import SimulationMixin
 
 __all__ = [
     "AnalyticsMixin",
+    "PartnershipMixin",
     "SerializationMixin",
+    "ShotProgressionMixin",
     "SimulationMixin",
 ]
