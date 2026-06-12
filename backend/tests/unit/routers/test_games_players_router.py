@@ -142,9 +142,11 @@ class TestUpdatePlayerName:
         data = resp.json()
         assert data["game_id"] == game_id
         assert data["player_id"] == player_id
-        assert "message" in data
+        assert data["success"] is True
+        assert data["name"] == "Updated"
 
-    def test_update_name_empty_name_returns_400(self):
+    def test_update_name_empty_name_returns_422(self):
+        # Empty string fails Pydantic min-length validation before the handler
         game = _create_test_game().json()
         game_id = game["game_id"]
         player_id = game["players"][0]["id"]
@@ -152,7 +154,7 @@ class TestUpdatePlayerName:
             f"/games/{game_id}/players/{player_id}/name",
             json={"name": ""},
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 422
 
     def test_update_name_whitespace_only_returns_400(self):
         game = _create_test_game().json()
@@ -164,7 +166,8 @@ class TestUpdatePlayerName:
         )
         assert resp.status_code == 400
 
-    def test_update_name_missing_name_field_returns_400(self):
+    def test_update_name_missing_name_field_returns_422(self):
+        # Missing required field is a Pydantic validation error
         game = _create_test_game().json()
         game_id = game["game_id"]
         player_id = game["players"][0]["id"]
@@ -172,7 +175,7 @@ class TestUpdatePlayerName:
             f"/games/{game_id}/players/{player_id}/name",
             json={},
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 422
 
     def test_update_name_nonexistent_player_returns_404(self):
         game = _create_test_game().json()

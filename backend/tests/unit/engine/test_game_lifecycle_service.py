@@ -310,6 +310,9 @@ class TestGetGame:
         # Arrange
         game_id = "db-game-id"
         mock_db.query.return_value.filter.return_value.first.return_value = mock_game_record
+        # get_game also replays hole_events (.order_by().all()) and hole_orders (.all())
+        mock_db.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
+        mock_db.query.return_value.filter.return_value.all.return_value = []
         mock_sim_class.return_value = mock_simulation
 
         # Act
@@ -369,6 +372,9 @@ class TestGetGame:
         # Arrange
         game_id = "db-game-id"
         mock_db.query.return_value.filter.return_value.first.return_value = mock_game_record
+        # get_game also replays hole_events (.order_by().all()) and hole_orders (.all())
+        mock_db.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
+        mock_db.query.return_value.filter.return_value.all.return_value = []
         mock_sim_class.return_value = mock_simulation
 
         # Act - First call loads from DB
