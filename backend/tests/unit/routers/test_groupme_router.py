@@ -222,3 +222,32 @@ class TestHistoryPaging:
         assert resp.json()["messages"][0]["text"] == "older"
         # head cache untouched
         assert groupme_service._cache["messages"][0]["id"] == "cached"
+
+
+class TestVideoNormalization:
+    def test_video_attachment_extracted(self):
+        m = groupme_service._normalize_message(
+            {
+                **RAW_MESSAGE,
+                "attachments": [
+                    {
+                        "type": "video",
+                        "url": "https://v.groupme.com/clip.mp4",
+                        "preview_url": "https://v.groupme.com/p.jpg",
+                    }
+                ],
+            }
+        )
+        assert m["videos"] == [{"url": "https://v.groupme.com/clip.mp4", "preview_url": "https://v.groupme.com/p.jpg"}]
+
+    def test_bare_mp4_link_in_text_becomes_video(self):
+        url = "https://m.groupme.com/uploads/8bf56120350442b4bdfd499a32506f7c/1080x1920.original.mp4"
+        m = groupme_service._normalize_message({**RAW_MESSAGE, "text": url, "attachments": []})
+        assert m["videos"] == [{"url": url, "preview_url": None}]
+        assert m["text"] is None  # link-only text suppressed; player renders instead
+
+    def test_text_with_video_link_keeps_caption(self):
+        url = "https://m.groupme.com/uploads/abc/1080x1920.original.mp4"
+        m = groupme_service._normalize_message({**RAW_MESSAGE, "text": rf"chip-in on 9\! {url}", "attachments": []})
+        assert m["videos"][0]["url"] == url
+        assert r"chip-in on 9\!" in m["text"]

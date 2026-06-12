@@ -227,12 +227,30 @@ def get_livsow_team_detail(slug: str, db: Session = Depends(get_db)) -> Any:
         .all()
     )
     team_txns = [_txn_row(t) for t in rows if t.from_team == team["name"] or t.to_team == team["name"]]
+
+    # Attach app profile ids so the UI can link players to their profile pages.
+    # Sheet names don't always match profile names exactly — case-insensitive
+    # exact match only; unmatched players simply render unlinked.
+    players = [dict(p) for p in team.get("players", [])]
+    names = [p["name"] for p in players]
+    if names:
+        from sqlalchemy import func as _func
+
+        profile_rows = (
+            db.query(models.PlayerProfile.id, models.PlayerProfile.name)
+            .filter(_func.lower(models.PlayerProfile.name).in_([n.lower() for n in names]))
+            .all()
+        )
+        by_lower = {name.lower(): pid for pid, name in profile_rows}
+        for p in players:
+            p["profile_id"] = by_lower.get(p["name"].lower())
+
     return {
         "slug": slug,
         "name": team["name"],
         "rank": team.get("rank"),
         "total": team.get("total"),
-        "players": team.get("players", []),
+        "players": players,
         "weeks": data.get("weeks", []),
         "transactions": team_txns,
         "sheet_url": data.get("sheet_url"),

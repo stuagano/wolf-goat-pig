@@ -62,6 +62,19 @@ export function Message({ m }) {
             style={{ maxWidth: 260, maxHeight: 260, borderRadius: 10, marginTop: 6, display: 'block' }}
           />
         ))}
+        {m.videos?.map((v) => (
+          <video
+            key={v.url}
+            controls
+            preload="metadata"
+            playsInline
+            poster={v.preview_url || undefined}
+            style={{ maxWidth: 280, maxHeight: 320, borderRadius: 10, marginTop: 6, display: 'block', background: '#000' }}
+          >
+            <source src={v.url} type="video/mp4" />
+            <a href={v.url}>Watch video</a>
+          </video>
+        ))}
       </div>
     </div>
   );

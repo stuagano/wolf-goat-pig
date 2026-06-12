@@ -137,7 +137,16 @@ const LivSowTeamPage = () => {
                 <tr key={p.name} style={{ background: i % 2 === 0 ? '#fff' : '#f9fafb' }}>
                   <td style={{ padding: '8px 16px', whiteSpace: 'nowrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontWeight: 500, color: '#111827' }}>{p.name}</span>
+                      {p.profile_id ? (
+                        <Link
+                          to={`/players/${p.profile_id}`}
+                          style={{ fontWeight: 600, color: colors.primary, textDecoration: 'none' }}
+                        >
+                          {p.name}
+                        </Link>
+                      ) : (
+                        <span style={{ fontWeight: 500, color: '#111827' }}>{p.name}</span>
+                      )}
                       <RoleTag role={p.role} />
                     </div>
                   </td>

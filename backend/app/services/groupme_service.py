@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import time
 import urllib.error
 import urllib.parse
@@ -74,19 +75,41 @@ def list_groups() -> list[dict[str, Any]]:
     return [{"id": g.get("id"), "name": g.get("name"), "members": len(g.get("members", []))} for g in groups]
 
 
+_VIDEO_URL_RE = re.compile(r"https://\S*groupme\.com/\S+\.mp4\S*", re.IGNORECASE)
+
+
 def _normalize_message(m: dict[str, Any]) -> dict[str, Any]:
-    """GroupMe message -> compact app shape (oldest fields the UI needs)."""
-    images = [a.get("url") for a in m.get("attachments", []) if a.get("type") == "image" and a.get("url")]
+    """GroupMe message -> compact app shape (only the fields the UI needs)."""
+    attachments = m.get("attachments", [])
+    images = [a.get("url") for a in attachments if a.get("type") == "image" and a.get("url")]
+    videos = [
+        {"url": a.get("url"), "preview_url": a.get("preview_url")}
+        for a in attachments
+        if a.get("type") == "video" and a.get("url")
+    ]
+
+    # GroupMe often puts video uploads as a bare .mp4 link in the text
+    text = m.get("text")
+    if text:
+        for url in _VIDEO_URL_RE.findall(text):
+            if not any(v["url"] == url for v in videos):
+                videos.append({"url": url, "preview_url": None})
+        # If the text is ONLY the video link(s), don't show it as text too
+        stripped = _VIDEO_URL_RE.sub("", text).strip()
+        if videos and not stripped:
+            text = None
+
     created = m.get("created_at")
     created_iso = datetime.fromtimestamp(created, tz=UTC).isoformat() if created else None
     return {
         "id": m.get("id"),
         "name": m.get("name"),
-        "text": m.get("text"),
+        "text": text,
         "avatar_url": m.get("avatar_url"),
         "created_at": created_iso,
         "likes": len(m.get("favorited_by", [])),
         "images": images,
+        "videos": videos,
         "is_system": m.get("system", False) or m.get("sender_type") == "system",
         "is_bot": m.get("sender_type") == "bot",
     }
