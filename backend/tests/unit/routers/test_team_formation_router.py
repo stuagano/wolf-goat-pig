@@ -47,9 +47,23 @@ def _unique_date():
     return f"{year}-{month:02d}-{day:02d}"
 
 
+def _clear_date(date):
+    """Remove any signups already on `date` — the persistent test DB
+    accumulates rows across runs, and _unique_date()'s ~269k-date space
+    produces birthday-paradox collisions that made these tests flaky."""
+    from app import models as _models
+    from app.database import SessionLocal
+
+    db = SessionLocal()
+    db.query(_models.DailySignup).filter(_models.DailySignup.date == date).delete(synchronize_session=False)
+    db.commit()
+    db.close()
+
+
 def _seed_signups(count, date=None):
     """Create `count` player profiles + signups for the given date.  Returns (date, profiles)."""
     date = date or _unique_date()
+    _clear_date(date)
     profiles = []
     for i in range(count):
         name = _unique_name()
@@ -115,6 +129,7 @@ class TestGenerateRandomTeams:
     def test_random_teams_too_few_players_returns_400(self):
         # Use a date with no signups
         empty_date = _unique_date()
+        _clear_date(empty_date)
         resp = client.post(f"/signups/{empty_date}/team-formation/random")
         assert resp.status_code == 400
 
@@ -144,6 +159,7 @@ class TestGenerateBalancedTeams:
 
     def test_balanced_teams_too_few_players_returns_400(self):
         empty_date = _unique_date()
+        _clear_date(empty_date)
         resp = client.post(f"/signups/{empty_date}/team-formation/balanced")
         assert resp.status_code == 400
 
@@ -190,6 +206,7 @@ class TestGenerateTeamRotations:
 
     def test_rotations_too_few_players_returns_400(self):
         empty_date = _unique_date()
+        _clear_date(empty_date)
         resp = client.post(f"/signups/{empty_date}/team-formation/rotations")
         assert resp.status_code == 400
 
@@ -215,6 +232,7 @@ class TestSundayGamePairings:
 
     def test_sunday_pairings_too_few_players_returns_400(self):
         empty_date = _unique_date()
+        _clear_date(empty_date)
         resp = client.post(f"/signups/{empty_date}/sunday-game/pairings")
         assert resp.status_code == 400
 
@@ -268,6 +286,7 @@ class TestGetPlayersForDate:
 
     def test_get_players_empty_date(self):
         empty_date = _unique_date()
+        _clear_date(empty_date)
         resp = client.get(f"/signups/{empty_date}/players")
         data = resp.json()
         assert data["total_players"] == 0
@@ -288,6 +307,7 @@ class TestGetPlayersForDate:
 class TestGetGeneratedPairings:
     def test_get_pairings_nonexistent_returns_exists_false(self):
         empty_date = _unique_date()
+        _clear_date(empty_date)
         resp = client.get(f"/pairings/{empty_date}")
         assert resp.status_code == 200
         data = resp.json()
@@ -304,6 +324,7 @@ class TestGetGeneratedPairings:
 class TestDeleteGeneratedPairings:
     def test_delete_nonexistent_pairings_returns_404(self):
         empty_date = _unique_date()
+        _clear_date(empty_date)
         resp = client.delete(f"/pairings/{empty_date}")
         assert resp.status_code == 404
 
@@ -314,5 +335,6 @@ class TestDeleteGeneratedPairings:
 class TestResendPairingNotifications:
     def test_notify_nonexistent_pairings_returns_404(self):
         empty_date = _unique_date()
+        _clear_date(empty_date)
         resp = client.post(f"/pairings/{empty_date}/notify")
         assert resp.status_code == 404

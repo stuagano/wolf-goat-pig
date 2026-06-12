@@ -1,0 +1,166 @@
+"""GroupMe bridge — the league chats in GroupMe; the app is a window into it.
+
+Read side uses the GroupMe v3 REST API with a personal access token
+(GROUPME_ACCESS_TOKEN). Write side posts through a GroupMe bot
+(GROUPME_BOT_ID) so web messages appear in everyone's GroupMe app.
+
+Setup (one-time):
+1. dev.groupme.com → log in → copy Access Token → Render env GROUPME_ACCESS_TOKEN
+2. GET /groupme/groups (admin) to find the group → Render env GROUPME_GROUP_ID
+3. dev.groupme.com/bots → create bot in that group → Render env GROUPME_BOT_ID
+
+All functions degrade gracefully when unconfigured.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import os
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+from datetime import UTC, datetime
+from typing import Any
+
+logger = logging.getLogger(__name__)
+
+GROUPME_API = "https://api.groupme.com/v3"
+
+# Cache: messages refresh at most every 20 seconds
+_cache: dict[str, Any] = {}
+_cache_ts: float = 0.0
+_CACHE_TTL = 20
+
+
+def _token() -> str | None:
+    return os.environ.get("GROUPME_ACCESS_TOKEN") or None
+
+
+def _group_id() -> str | None:
+    return os.environ.get("GROUPME_GROUP_ID") or None
+
+
+def _bot_id() -> str | None:
+    return os.environ.get("GROUPME_BOT_ID") or None
+
+
+def is_configured() -> dict[str, bool]:
+    return {
+        "read": bool(_token() and _group_id()),
+        "post": bool(_bot_id()),
+    }
+
+
+def _api_get(path: str, params: dict[str, Any] | None = None) -> Any:
+    token = _token()
+    if not token:
+        raise RuntimeError("GROUPME_ACCESS_TOKEN not configured")
+    qs = dict(params or {})
+    qs["token"] = token
+    url = f"{GROUPME_API}{path}?{urllib.parse.urlencode(qs)}"
+    req = urllib.request.Request(url, headers={"User-Agent": "wolf-goat-pig/1.0"})
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        return json.loads(resp.read().decode("utf-8")).get("response")
+
+
+def list_groups() -> list[dict[str, Any]]:
+    """List the token owner's groups (admin/setup helper)."""
+    groups = _api_get("/groups", {"per_page": 50}) or []
+    return [{"id": g.get("id"), "name": g.get("name"), "members": len(g.get("members", []))} for g in groups]
+
+
+def _normalize_message(m: dict[str, Any]) -> dict[str, Any]:
+    """GroupMe message -> compact app shape (oldest fields the UI needs)."""
+    images = [a.get("url") for a in m.get("attachments", []) if a.get("type") == "image" and a.get("url")]
+    created = m.get("created_at")
+    created_iso = datetime.fromtimestamp(created, tz=UTC).isoformat() if created else None
+    return {
+        "id": m.get("id"),
+        "name": m.get("name"),
+        "text": m.get("text"),
+        "avatar_url": m.get("avatar_url"),
+        "created_at": created_iso,
+        "likes": len(m.get("favorited_by", [])),
+        "images": images,
+        "is_system": m.get("system", False) or m.get("sender_type") == "system",
+        "is_bot": m.get("sender_type") == "bot",
+    }
+
+
+def get_messages(limit: int = 50, force_refresh: bool = False) -> dict[str, Any]:
+    """Recent group messages, oldest-first (ready for chat rendering).
+
+    Cached for 20 seconds — GroupMe rate limits are generous but the page
+    polls, and many viewers shouldn't multiply upstream calls.
+    """
+    global _cache, _cache_ts
+    if not force_refresh and _cache and (time.time() - _cache_ts) < _CACHE_TTL:
+        return _cache
+
+    group_id = _group_id()
+    if not (_token() and group_id):
+        return {"configured": False, "messages": []}
+
+    try:
+        resp = _api_get(f"/groups/{group_id}/messages", {"limit": min(limit, 100)})
+    except urllib.error.HTTPError as e:
+        # 304 = no messages; anything else is a real error
+        if e.code == 304:
+            resp = {"messages": []}
+        else:
+            logger.error("GroupMe fetch failed: HTTP %s", e.code)
+            # Serve stale cache rather than nothing
+            return _cache or {"configured": True, "messages": [], "error": f"HTTP {e.code}"}
+    except Exception as e:
+        logger.error("GroupMe fetch failed: %s", e)
+        return _cache or {"configured": True, "messages": [], "error": str(e)}
+
+    raw = (resp or {}).get("messages", [])
+    messages = [_normalize_message(m) for m in raw]
+    messages.reverse()  # API returns newest-first; chat renders oldest-first
+
+    result = {"configured": True, "messages": messages}
+    if messages:  # don't poison cache with empty/failed payloads
+        _cache = result
+        _cache_ts = time.time()
+    return result
+
+
+def post_message(text: str, author: str | None = None) -> dict[str, Any]:
+    """Post into the group via the bot. Returns {posted: bool}.
+
+    GroupMe bots post under the bot's own name, so the web author is
+    prefixed into the text (e.g. "Stuart: nice round sunday").
+    """
+    bot_id = _bot_id()
+    if not bot_id:
+        return {"posted": False, "error": "GROUPME_BOT_ID not configured"}
+
+    body = text.strip()
+    if not body:
+        return {"posted": False, "error": "Empty message"}
+    if author:
+        body = f"{author}: {body}"
+    if len(body) > 990:  # GroupMe hard limit is 1000 chars
+        body = body[:987] + "..."
+
+    payload = json.dumps({"bot_id": bot_id, "text": body}).encode("utf-8")
+    req = urllib.request.Request(
+        f"{GROUPME_API}/bots/post",
+        data=payload,
+        headers={"Content-Type": "application/json", "User-Agent": "wolf-goat-pig/1.0"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            posted = resp.status in (200, 201, 202)
+    except Exception as e:
+        logger.error("GroupMe bot post failed: %s", e)
+        return {"posted": False, "error": str(e)}
+
+    # Bust the read cache so the new message shows on the next poll
+    global _cache_ts
+    _cache_ts = 0.0
+    return {"posted": posted}
