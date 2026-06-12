@@ -19,7 +19,6 @@ import BettingOddsPanel from "../betting/BettingOddsPanel";
 import CommissionerChat from "./CommissionerChat";
 import EditPlayerNameModal from "./EditPlayerNameModal";
 import EditHoleModal from "./EditHoleModal";
-import { triggerBadgeNotification } from "./BadgeNotification";
 import { SyncStatusBanner } from "../ui/SyncStatusIndicator";
 import { useHoleSync, useUIState, useBettingState } from "../../hooks";
 import { gameReducer, createInitialState } from "./gameReducer";
@@ -51,6 +50,8 @@ import { apiConfig } from "../../config/api.config";
 import { aiPartnerResponse } from "../../utils/stuartModeAiDecisions";
 import useStuartMode from "../../hooks/useStuartMode";
 import useGameActions from "./useGameActions";
+import useAchievements from "../../hooks/useAchievements";
+import useScorekeeperSync from "../../hooks/useScorekeeperSync";
 
 const API_URL = apiConfig.baseUrl;
 
@@ -225,7 +226,6 @@ const SimpleScorekeeper = ({
     setPlayerStandings,
   } = useGameActions(dispatch);
 
-
   // ============================================================
   // BETTING STATE HOOK - Interactive betting (offers, events)
   // ============================================================
@@ -312,8 +312,6 @@ const SimpleScorekeeper = ({
   )?.par;
 
   // Track course data loading state
-  const [courseDataError, setCourseDataError] = useState(null);
-  const [courseDataLoading, setCourseDataLoading] = useState(false);
 
   // Auto-collapse team selection when teams are set
   // Team selection stays visible so players can see teams during the hole
@@ -403,188 +401,31 @@ const SimpleScorekeeper = ({
       createOffer,
     });
 
-  // Fetch course data
-  useEffect(() => {
-    const fetchCourseData = async () => {
-      setCourseDataLoading(true);
-      setCourseDataError(null);
-      try {
-        // Fetch course details
-        const courseResponse = await fetch(`${API_URL}/courses`);
-        if (!courseResponse.ok) {
-          throw new Error(
-            `Failed to fetch courses: ${courseResponse.status} ${courseResponse.statusText}`,
-          );
-        }
-
-        const coursesData = await courseResponse.json();
-        if (!coursesData || typeof coursesData !== "object") {
-          throw new Error("Invalid courses response: expected object");
-        }
-
-        // /courses returns an object with course names as keys, not an array
-        const course = coursesData[courseName];
-        if (!course) {
-          throw new Error(`Course "${courseName}" not found in courses data`);
-        }
-
-        // Validate course data structure
-        if (!course.holes || !Array.isArray(course.holes)) {
-          throw new Error(`Course "${courseName}" has invalid holes data`);
-        }
-
-        setCourseData(course);
-      } catch (err) {
-        console.error("Error fetching course data:", err);
-        setCourseDataError(err.message);
-        // Don't set courseData to null - keep any existing data
-      } finally {
-        setCourseDataLoading(false);
-      }
-    };
-
-    if (courseName) {
-      fetchCourseData();
-    }
-  }, [courseName]);
-
-  // Save game state locally whenever holeHistory changes (survives page refresh)
-  useEffect(() => {
-    if (gameId && holeHistory.length > 0) {
-      syncManager.saveLocalGameState(gameId, {
-        holeHistory,
-        currentHole,
-        playerStandings,
-      });
-    }
-  }, [gameId, holeHistory, currentHole, playerStandings]);
-
-  // Initialize player standings from hole history
-  useEffect(() => {
-    const standings = createPlayerMap(players, (p) => ({
-      quarters: 0,
-      name: p.name,
-      soloCount: 0,
-      floatCount: 0,
-      optionCount: 0,
-    }));
-
-    // Recalculate quarters and usage stats from hole history
-    holeHistory.forEach((hole) => {
-      // Track quarters
-      if (hole.points_delta) {
-        Object.entries(hole.points_delta).forEach(([playerId, points]) => {
-          if (standings[playerId]) {
-            standings[playerId].quarters += points;
-          }
-        });
-      }
-
-      // Track solo usage
-      if (hole.teams?.type === "solo" && hole.teams?.captain) {
-        if (standings[hole.teams.captain]) {
-          standings[hole.teams.captain].soloCount += 1;
-        }
-      }
-
-      // Track float usage
-      if (hole.float_invoked_by && standings[hole.float_invoked_by]) {
-        standings[hole.float_invoked_by].floatCount += 1;
-      }
-
-      // Track option usage
-      if (hole.option_invoked_by && standings[hole.option_invoked_by]) {
-        standings[hole.option_invoked_by].optionCount += 1;
-      }
+  // Data-sync effects: course fetch, local persistence, standings init,
+  // rotation/wager fetch. NOTE: must stay after useStuartMode (effect order).
+  const { courseDataLoading, courseDataError, rotationError } =
+    useScorekeeperSync({
+      gameId,
+      courseName,
+      baseWager,
+      players,
+      holeHistory,
+      currentHole,
+      playerStandings,
+      setCourseData,
+      setPlayerStandings,
+      setIsHoepfinger,
+      setGoatId,
+      setPhase,
+      setRotationOrder,
+      setCaptainIndex,
+      setJoesSpecialWager,
+      setNextHoleWager,
+      setCurrentWager,
+      setCarryOver,
+      setVinniesVariation,
+      setOptionActive,
     });
-
-    setPlayerStandings(standings);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- setPlayerStandings is stable (useCallback)
-  }, [players, holeHistory]);
-
-  // Track rotation/wager loading errors
-  const [rotationError, setRotationError] = useState(null);
-
-  // Fetch rotation and wager info when hole changes
-  useEffect(() => {
-    const fetchRotationAndWager = async () => {
-      setRotationError(null);
-      try {
-        // Fetch next rotation
-        const rotationRes = await fetch(
-          `${API_URL}/games/${gameId}/next-rotation`,
-        );
-        if (!rotationRes.ok) {
-          throw new Error(`Failed to fetch rotation: ${rotationRes.status}`);
-        }
-
-        const rotationData = await rotationRes.json();
-        if (!rotationData || typeof rotationData !== "object") {
-          throw new Error("Invalid rotation response");
-        }
-
-        if (rotationData.is_hoepfinger) {
-          setIsHoepfinger(true);
-          setGoatId(rotationData.goat_id);
-          setPhase("hoepfinger");
-          // Don't set rotation yet - Goat will select position
-        } else {
-          setIsHoepfinger(false);
-          // Validate rotation_order is an array
-          if (!Array.isArray(rotationData.rotation_order)) {
-            throw new Error("Invalid rotation_order: expected array");
-          }
-          setRotationOrder(rotationData.rotation_order);
-          setCaptainIndex(
-            typeof rotationData.captain_index === "number"
-              ? rotationData.captain_index
-              : 0,
-          );
-          setPhase("normal");
-          setGoatId(null);
-          setJoesSpecialWager(null);
-        }
-
-        // Fetch next hole wager
-        const wagerRes = await fetch(
-          `${API_URL}/games/${gameId}/next-hole-wager`,
-        );
-        if (!wagerRes.ok) {
-          throw new Error(`Failed to fetch wager: ${wagerRes.status}`);
-        }
-
-        const wagerData = await wagerRes.json();
-        if (!wagerData || typeof wagerData !== "object") {
-          throw new Error("Invalid wager response");
-        }
-
-        // Validate and set wager data with safe defaults
-        const baseWagerValue =
-          typeof wagerData.base_wager === "number"
-            ? wagerData.base_wager
-            : baseWager;
-        setNextHoleWager(baseWagerValue);
-        setCurrentWager(baseWagerValue);
-        setCarryOver(wagerData.carry_over || false);
-        setVinniesVariation(wagerData.vinnies_variation || false);
-        setOptionActive(wagerData.option_active || false);
-        if (wagerData.option_active) {
-          setGoatId(wagerData.goat_id);
-        }
-      } catch (err) {
-        console.error("Error fetching rotation/wager:", err);
-        setRotationError(err.message);
-        // Set safe defaults on error
-        setCurrentWager(baseWager);
-        setNextHoleWager(baseWager);
-      }
-    };
-
-    if (gameId) {
-      fetchRotationAndWager();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- setters are stable (useCallback), only trigger on data changes
-  }, [gameId, currentHole, holeHistory, baseWager]);
 
   // Reset hole state for new hole
   const resetHole = () => {
@@ -1023,64 +864,9 @@ const SimpleScorekeeper = ({
     await syncHole(holeQuarters, optionalDetails, currentHole);
   };
 
-  // Track achievement check status
-  const [achievementCheckFailed, setAchievementCheckFailed] = useState(false);
-
-  // Check achievements for all players and trigger notifications
-  const checkAchievements = async () => {
-    let failedPlayers = [];
-    setAchievementCheckFailed(false);
-
-    for (const player of players) {
-      try {
-        const response = await fetch(
-          `${API_URL}/api/badges/admin/check-achievements/${player.id}`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          },
-        );
-
-        if (!response.ok) {
-          console.warn(
-            `Achievement check failed for ${player.name}: ${response.status}`,
-          );
-          failedPlayers.push(player.name);
-          continue;
-        }
-
-        const data = await response.json();
-        if (!data || typeof data !== "object") {
-          console.warn(`Invalid achievement response for ${player.name}`);
-          failedPlayers.push(player.name);
-          continue;
-        }
-
-        // Trigger badge notification for each newly earned badge
-        if (
-          Array.isArray(data.badges_earned) &&
-          data.badges_earned.length > 0
-        ) {
-          data.badges_earned.forEach((badge) => {
-            if (badge && typeof badge === "object") {
-              triggerBadgeNotification(badge);
-            }
-          });
-        }
-      } catch (err) {
-        console.warn(`Achievement check error for ${player.name}:`, err);
-        failedPlayers.push(player.name);
-      }
-    }
-
-    // If any achievements failed to check, set the warning flag
-    if (failedPlayers.length > 0) {
-      setAchievementCheckFailed(true);
-      console.warn(`Achievement check failed for: ${failedPlayers.join(", ")}`);
-    }
-  };
+  // Post-hole achievement checking (badge notifications + failure banner)
+  const { checkAchievements, achievementCheckFailed, setAchievementCheckFailed } =
+    useAchievements(players);
 
   // Handle player name editing - uses useUIState hook
   // eslint-disable-next-line no-unused-vars
