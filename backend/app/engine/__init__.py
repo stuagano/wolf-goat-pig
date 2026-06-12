@@ -12,11 +12,13 @@ from .partnership import PartnershipMixin
 from .serialization import SerializationMixin
 from .shot_progression import ShotProgressionMixin
 from .simulation_api import SimulationMixin
+from .state_views import StateViewsMixin
 
 __all__ = [
     "AnalyticsMixin",
     "PartnershipMixin",
     "SerializationMixin",
     "ShotProgressionMixin",
+    "StateViewsMixin",
     "SimulationMixin",
 ]
