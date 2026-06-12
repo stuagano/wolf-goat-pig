@@ -8,3 +8,4 @@ export { default as StuartModePanel } from "./StuartModePanel";
 export { default as OptionalEntryPanels } from "./OptionalEntryPanels";
 export { default as AnalysisPanels } from "./AnalysisPanels";
 export { default as UsageStatsPanel } from "./UsageStatsPanel";
+export { default as SpecialActionsPanel } from "./SpecialActionsPanel";
