@@ -5,3 +5,4 @@ export { default as TeamSelector } from "./TeamSelector";
 export { default as QuartersPanel } from "./QuartersPanel";
 export { default as HoleNavigation } from "./HoleNavigation";
 export { default as StuartModePanel } from "./StuartModePanel";
+export { default as OptionalEntryPanels } from "./OptionalEntryPanels";
