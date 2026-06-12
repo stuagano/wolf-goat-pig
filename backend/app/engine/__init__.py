@@ -1,0 +1,14 @@
+"""Wolf Goat Pig game-engine mixins.
+
+WolfGoatPigGame (app/wolf_goat_pig.py) is composed from these mixins —
+each file owns one functional area of the engine. They are not reusable
+outside the game class: methods freely call across mixin boundaries via
+``self``, resolved by the composed class's MRO (same informal-contract
+pattern as app/mixins/persistence_mixin.py).
+"""
+
+from .serialization import SerializationMixin
+
+__all__ = [
+    "SerializationMixin",
+]
