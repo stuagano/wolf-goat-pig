@@ -10,6 +10,7 @@ pattern as app/mixins/persistence_mixin.py).
 from .aardvark import AardvarkMixin
 from .analytics import AnalyticsMixin
 from .betting_actions import BettingActionsMixin
+from .hole_setup import HoleSetupMixin
 from .partnership import PartnershipMixin
 from .scoring import ScoringMixin
 from .serialization import SerializationMixin
@@ -21,6 +22,7 @@ __all__ = [
     "AardvarkMixin",
     "AnalyticsMixin",
     "BettingActionsMixin",
+    "HoleSetupMixin",
     "PartnershipMixin",
     "ScoringMixin",
     "SerializationMixin",
