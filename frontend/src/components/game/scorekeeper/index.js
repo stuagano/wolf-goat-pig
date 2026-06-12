@@ -7,3 +7,4 @@ export { default as HoleNavigation } from "./HoleNavigation";
 export { default as StuartModePanel } from "./StuartModePanel";
 export { default as OptionalEntryPanels } from "./OptionalEntryPanels";
 export { default as AnalysisPanels } from "./AnalysisPanels";
+export { default as UsageStatsPanel } from "./UsageStatsPanel";
