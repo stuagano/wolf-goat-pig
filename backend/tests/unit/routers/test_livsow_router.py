@@ -161,3 +161,25 @@ class TestTeamDetailEndpoint:
 def test_debounce_window_constant_reasonable():
     # Guard against accidental edits making the debounce trivially short/long
     assert 10 * 60 <= livsow_transactions.MIN_CONFIRM_SECONDS <= 24 * 3600
+
+
+class TestProfileMatching:
+    def test_exact_and_fuzzy_profile_linking(self):
+        from app.routers.unified_data import _match_profile_id
+
+        profiles = {"tyson theilman": 7, "gregg colburn": 3, "ty cobb": 9}
+        # exact (case-insensitive)
+        assert _match_profile_id("Gregg Colburn", profiles) == 3
+        # fuzzy: sheet typo variant of the profile spelling (Thielman vs Theilman)
+        assert _match_profile_id("Tyson Thielman", profiles) == 7
+        # different person, same-ish name shape: no match
+        assert _match_profile_id("Tyson Brand", profiles) is None
+        # no profile at all
+        assert _match_profile_id("Zeke Nobody", profiles) is None
+
+    def test_fuzzy_requires_unique_match(self):
+        from app.routers.unified_data import _match_profile_id
+
+        # Two close candidates with the same first name -> refuse to guess
+        profiles = {"dan anders": 1, "dan andersen": 2}
+        assert _match_profile_id("Dan Anderson", profiles) is None

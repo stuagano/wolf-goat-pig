@@ -178,6 +178,31 @@ def _txn_row(t: models.LivSowTransaction) -> dict[str, Any]:
     return d
 
 
+def _match_profile_id(sheet_name: str, profiles_by_lower: dict[str, int]) -> int | None:
+    """Match a LivSow sheet name to a PlayerProfile id.
+
+    Exact (case-insensitive) first. Fuzzy fallback requires the same first
+    name AND a unique close full-name match (ratio >= 0.85) so typo fixes
+    link without ever mislinking two different players.
+    """
+    key = sheet_name.lower().strip()
+    if key in profiles_by_lower:
+        return profiles_by_lower[key]
+
+    from difflib import SequenceMatcher
+
+    first = key.split()[0] if key.split() else ""
+    candidates = [
+        (SequenceMatcher(None, key, prof).ratio(), prof)
+        for prof in profiles_by_lower
+        if prof.split() and prof.split()[0] == first
+    ]
+    close = [(r, prof) for r, prof in candidates if r >= 0.85]
+    if len(close) == 1:
+        return profiles_by_lower[close[0][1]]
+    return None
+
+
 def _livsow_slugify(name: str) -> str:
     import re as _re
 
@@ -228,22 +253,17 @@ def get_livsow_team_detail(slug: str, db: Session = Depends(get_db)) -> Any:
     )
     team_txns = [_txn_row(t) for t in rows if t.from_team == team["name"] or t.to_team == team["name"]]
 
-    # Attach app profile ids so the UI can link players to their profile pages.
-    # Sheet names don't always match profile names exactly — case-insensitive
-    # exact match only; unmatched players simply render unlinked.
+    # Attach app profile ids so the UI can link players to their profile
+    # pages. Exact case-insensitive match first; then a conservative fuzzy
+    # fallback (handles sheet typos like Thielman/Theilman) — a unique
+    # close match with the same first name. Unmatched players render
+    # unlinked rather than mislinked.
     players = [dict(p) for p in team.get("players", [])]
-    names = [p["name"] for p in players]
-    if names:
-        from sqlalchemy import func as _func
-
-        profile_rows = (
-            db.query(models.PlayerProfile.id, models.PlayerProfile.name)
-            .filter(_func.lower(models.PlayerProfile.name).in_([n.lower() for n in names]))
-            .all()
-        )
-        by_lower = {name.lower(): pid for pid, name in profile_rows}
+    if players:
+        profile_rows = db.query(models.PlayerProfile.id, models.PlayerProfile.name).all()
+        by_lower = {(name or "").lower(): pid for pid, name in profile_rows}
         for p in players:
-            p["profile_id"] = by_lower.get(p["name"].lower())
+            p["profile_id"] = _match_profile_id(p["name"], by_lower)
 
     return {
         "slug": slug,
