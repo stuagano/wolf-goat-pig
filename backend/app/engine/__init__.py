@@ -7,8 +7,10 @@ outside the game class: methods freely call across mixin boundaries via
 pattern as app/mixins/persistence_mixin.py).
 """
 
+from .analytics import AnalyticsMixin
 from .serialization import SerializationMixin
 
 __all__ = [
+    "AnalyticsMixin",
     "SerializationMixin",
 ]
