@@ -251,3 +251,84 @@ class TestVideoNormalization:
         m = groupme_service._normalize_message({**RAW_MESSAGE, "text": rf"chip-in on 9\! {url}", "attachments": []})
         assert m["videos"][0]["url"] == url
         assert r"chip-in on 9\!" in m["text"]
+
+
+class TestMediaArchive:
+    def _clear(self):
+        from app import models
+        from app.database import SessionLocal
+
+        db = SessionLocal()
+        db.query(models.LivSowMedia).delete()
+        db.commit()
+        db.close()
+
+    def _msg(self, mid, **kw):
+        return {
+            "id": mid,
+            "name": kw.get("name", "Hart Williams"),
+            "text": kw.get("text"),
+            "created_at": kw.get("created_at", "2026-06-11T21:00:00+00:00"),
+            "likes": kw.get("likes", 3),
+            "images": kw.get("images", []),
+            "videos": kw.get("videos", []),
+            "avatar_url": None,
+            "is_system": False,
+            "is_bot": False,
+        }
+
+    def test_harvest_and_list(self):
+        self._clear()
+        page1 = {
+            "configured": True,
+            "messages": [
+                self._msg(
+                    "m1", videos=[{"url": "https://m.groupme.com/a.mp4", "preview_url": None}], text=None, likes=5
+                ),
+                self._msg("m2", images=["https://i.groupme.com/pic1"], text=r"net eagle\!"),
+                self._msg("m3"),  # no media
+            ],
+        }
+        empty = {"configured": True, "messages": []}
+        with patch(
+            "app.services.league_media_service.get_messages",
+            side_effect=[page1, empty],
+        ):
+            resp = client.post("/groupme/media/harvest")
+        body = resp.json()
+        assert body["status"] == "ok"
+        assert body["inserted"] == 2
+
+        vids = client.get("/groupme/media?kind=video").json()
+        assert vids["total"] == 1
+        assert vids["media"][0]["url"] == "https://m.groupme.com/a.mp4"
+        assert vids["media"][0]["author"] == "Hart Williams"
+        assert vids["media"][0]["likes"] == 5
+
+        imgs = client.get("/groupme/media?kind=image").json()
+        assert imgs["total"] == 1
+        assert imgs["media"][0]["caption"] == r"net eagle\!"
+
+    def test_harvest_idempotent_and_refreshes_likes(self):
+        self._clear()
+        v = [{"url": "https://m.groupme.com/a.mp4", "preview_url": None}]
+        first = {"configured": True, "messages": [self._msg("m1", videos=v, likes=2)]}
+        empty = {"configured": True, "messages": []}
+        with patch("app.services.league_media_service.get_messages", side_effect=[first, empty]):
+            client.post("/groupme/media/harvest")
+        again = {"configured": True, "messages": [self._msg("m1", videos=v, likes=9)]}
+        with patch("app.services.league_media_service.get_messages", side_effect=[again, empty]):
+            resp = client.post("/groupme/media/harvest")
+        assert resp.json()["inserted"] == 0
+        media = client.get("/groupme/media?kind=video").json()["media"]
+        assert len(media) == 1
+        assert media[0]["likes"] == 9
+
+    def test_harvest_unconfigured_skips(self):
+        self._clear()
+        with patch(
+            "app.services.league_media_service.get_messages",
+            return_value={"configured": False, "messages": []},
+        ):
+            resp = client.post("/groupme/media/harvest")
+        assert resp.json() == {"status": "skipped", "reason": "not_configured"}

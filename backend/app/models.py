@@ -681,3 +681,23 @@ class LivSowTransaction(Base):
     to_role = Column(String, nullable=True)
     details = Column(JSON, nullable=True)
     deleted = Column(Boolean, default=False)
+
+
+# LivSow media archive — videos (and images) harvested from the GroupMe
+# group so clips survive chat scroll-off. Bytes stay on GroupMe's CDN;
+# archived_url is reserved for future object-storage copies.
+class LivSowMedia(Base):
+    __tablename__ = "livsow_media"
+    id = Column(Integer, primary_key=True, index=True)
+    groupme_message_id = Column(String, unique=True, index=True)
+    kind = Column(String, index=True)  # 'video' | 'image'
+    url = Column(String)
+    preview_url = Column(String, nullable=True)
+    archived_url = Column(String, nullable=True)  # future: blob-storage copy
+    author = Column(String, index=True)
+    caption = Column(String, nullable=True)
+    posted_at = Column(String, index=True)  # ISO timestamp from GroupMe
+    harvested_at = Column(String)
+    likes = Column(Integer, default=0)
+    featured = Column(Boolean, default=False)  # admin curation hook
+    deleted = Column(Boolean, default=False)

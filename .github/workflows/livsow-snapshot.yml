@@ -29,3 +29,17 @@ jobs:
           exit 1
         fi
         echo "✅ LivSow snapshot complete"
+
+    - name: Harvest league media archive
+      run: |
+        RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+          "https://wolf-goat-pig.onrender.com/groupme/media/harvest" \
+          --max-time 120)
+        HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+        echo "Status: $HTTP_CODE"
+        echo "Response: $(echo "$RESPONSE" | head -n -1)"
+        if [ "$HTTP_CODE" \!= "200" ]; then
+          echo "❌ Media harvest failed with status $HTTP_CODE"
+          exit 1
+        fi
+        echo "✅ Media harvest complete"

@@ -227,6 +227,16 @@ const LivSowLeaderboard = () => {
               📊 Full Sheet
             </a>
           )}
+          <Link
+            to="/livsow/commissioner"
+            style={{
+              padding: '8px 14px', background: '#fdf4ff', border: '1px solid #f0abfc',
+              color: '#a21caf', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
+              textDecoration: 'none',
+            }}
+          >
+            🎥 Commissioner
+          </Link>
           <button
             onClick={() => load(true)}
             style={{

@@ -5,10 +5,13 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
 from .. import models
+from ..database import get_db
 from ..services.auth_service import get_current_user
 from ..services.groupme_service import get_messages, is_configured, list_groups, post_message
+from ..services.league_media_service import harvest_media, list_media
 from ..utils.admin_auth import require_admin
 
 logger = logging.getLogger(__name__)
@@ -63,3 +66,20 @@ def groupme_groups() -> Any:
     except Exception as e:
         logger.error("GroupMe group list failed: %s", e)
         raise HTTPException(status_code=502, detail="GroupMe API error")
+
+
+@router.get("/media")
+def groupme_media(
+    kind: str | None = Query("video"),
+    limit: int = Query(100, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+) -> Any:
+    """Archived league media (videos/images harvested from the group)."""
+    return list_media(db, kind=kind, limit=limit, offset=offset)
+
+
+@router.post("/media/harvest")
+def groupme_media_harvest(max_pages: int = Query(50, ge=1, le=100), db: Session = Depends(get_db)) -> Any:
+    """Walk chat history and archive all media. Idempotent; cron + manual."""
+    return harvest_media(db, max_pages=max_pages)

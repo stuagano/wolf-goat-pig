@@ -53,6 +53,7 @@ const PlayerProfilePage = React.lazy(() => import("./pages/PlayerProfilePage"));
 const LivSowLeaderboard = React.lazy(() => import("./components/game/LivSowLeaderboard"));
 const LivSowTeamPage = React.lazy(() => import("./components/game/livsow/LivSowTeamPage"));
 const GroupMeChat = React.lazy(() => import("./components/chat/GroupMeChat"));
+const CommissionerMediaPage = React.lazy(() => import("./components/game/livsow/CommissionerMediaPage"));
 
 const API_URL = apiConfig.baseUrl;
 
@@ -361,6 +362,7 @@ function App() {
               <Route path="/livsow" element={<LivSowLeaderboard />} />
               <Route path="/livsow/teams/:teamSlug" element={<LivSowTeamPage />} />
               <Route path="/chat" element={<GroupMeChat />} />
+              <Route path="/livsow/commissioner" element={<CommissionerMediaPage />} />
               <Route
                 path="/sheets"
                 element={
