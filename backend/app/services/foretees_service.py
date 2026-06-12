@@ -467,7 +467,9 @@ class ForeteesService:
             logger.error("Cancel service error: %s", exc)
             return {"success": False, "message": f"Cancel error: {exc}"}
 
-    async def _book_via_browser(self, date: str, slot_time: str, transport_mode: str, players: list[str] | None = None) -> dict[str, Any]:
+    async def _book_via_browser(
+        self, date: str, slot_time: str, transport_mode: str, players: list[str] | None = None
+    ) -> dict[str, Any]:
         """Book a tee time via the headless browser microservice.
 
         Calls the separate Node.js booking service which uses Playwright

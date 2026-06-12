@@ -12,8 +12,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
 from .. import database, models
-from ..managers.websocket_manager import manager as websocket_manager
-from ..services.notification_service import get_notification_service
 from ..utils.time import utc_now
 
 logger = logging.getLogger(__name__)
@@ -28,7 +26,7 @@ router = APIRouter(prefix="/games", tags=["games"])
 
 class HoleScore(BaseModel):
     hole_number: int
-    quarters: dict[str, float]       # { player_id: quarters_won_or_lost }
+    quarters: dict[str, float]  # { player_id: quarters_won_or_lost }
     gross_scores: dict[str, int] | None = None
     notes: str | None = None
     teams: Any | None = None
@@ -132,14 +130,16 @@ async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depend
                         existing.score = gross
                     existing.recorded_at = now_ts
                 else:
-                    db.add(models.HoleEvent(
-                        game_id=game_id,
-                        hole_number=h.hole_number,
-                        player_id=player_id,
-                        score=gross,
-                        quarters=quarters,
-                        recorded_at=now_ts,
-                    ))
+                    db.add(
+                        models.HoleEvent(
+                            game_id=game_id,
+                            hole_number=h.hole_number,
+                            player_id=player_id,
+                            score=gross,
+                            quarters=quarters,
+                            recorded_at=now_ts,
+                        )
+                    )
 
         # Keep game state blob in sync for client reads
         game_state = game.state or {}
@@ -307,7 +307,7 @@ async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depend
 
 
 class HoleEventPatch(BaseModel):
-    score: int | None = None      # gross score — omit to leave unchanged
+    score: int | None = None  # gross score — omit to leave unchanged
     quarters: float | None = None  # quarters won/lost — omit to leave unchanged
 
 
@@ -341,14 +341,16 @@ async def patch_hole_event(
             existing.quarters = patch.quarters
         existing.recorded_at = now_ts
     else:
-        db.add(models.HoleEvent(
-            game_id=game_id,
-            hole_number=hole_number,
-            player_id=player_id,
-            score=patch.score,
-            quarters=patch.quarters if patch.quarters is not None else 0.0,
-            recorded_at=now_ts,
-        ))
+        db.add(
+            models.HoleEvent(
+                game_id=game_id,
+                hole_number=hole_number,
+                player_id=player_id,
+                score=patch.score,
+                quarters=patch.quarters if patch.quarters is not None else 0.0,
+                recorded_at=now_ts,
+            )
+        )
 
     db.commit()
 
@@ -388,11 +390,13 @@ async def validate_hole_quarters(
     for hole_number in sorted(by_hole.keys()):
         total = sum(e.quarters for e in by_hole[hole_number])
         if abs(total) > 0.001:
-            errors.append({
-                "hole": hole_number,
-                "sum": round(total, 4),
-                "players": {e.player_id: e.quarters for e in by_hole[hole_number]},
-            })
+            errors.append(
+                {
+                    "hole": hole_number,
+                    "sum": round(total, 4),
+                    "players": {e.player_id: e.quarters for e in by_hole[hole_number]},
+                }
+            )
 
     return {
         "valid": len(errors) == 0,
@@ -430,12 +434,14 @@ async def put_hole_log(
         existing.log_data = log
         existing.recorded_at = now_ts
     else:
-        db.add(models.HoleLog(
-            game_id=game_id,
-            hole_number=hole_number,
-            log_data=log,
-            recorded_at=now_ts,
-        ))
+        db.add(
+            models.HoleLog(
+                game_id=game_id,
+                hole_number=hole_number,
+                log_data=log,
+                recorded_at=now_ts,
+            )
+        )
     db.commit()
 
     return {"game_id": game_id, "hole_number": hole_number, "recorded_at": now_ts}
@@ -465,10 +471,7 @@ async def get_game_log(
 ) -> dict[str, Any]:
     """Retrieve all hole logs for a game, ordered by hole number."""
     entries = (
-        db.query(models.HoleLog)
-        .filter(models.HoleLog.game_id == game_id)
-        .order_by(models.HoleLog.hole_number)
-        .all()
+        db.query(models.HoleLog).filter(models.HoleLog.game_id == game_id).order_by(models.HoleLog.hole_number).all()
     )
     return {
         "game_id": game_id,

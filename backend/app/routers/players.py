@@ -408,29 +408,22 @@ def get_public_player_profile(
     player = db.query(models.PlayerProfile).filter(models.PlayerProfile.id == player_id).first()
     if not player:
         from fastapi import HTTPException
+
         raise HTTPException(status_code=404, detail="Player not found")
 
     # Availability days (which days, no times)
     availability_rows = (
-        db.query(models.PlayerAvailability)
-        .filter(models.PlayerAvailability.player_profile_id == player_id)
-        .all()
+        db.query(models.PlayerAvailability).filter(models.PlayerAvailability.player_profile_id == player_id).all()
     )
-    available_days = [
-        a.day_of_week for a in availability_rows if a.is_available
-    ]
+    available_days = [a.day_of_week for a in availability_rows if a.is_available]
 
     # Match history — confirmed matches (all players accepted)
-    match_players = (
-        db.query(models.MatchPlayer)
-        .filter(models.MatchPlayer.player_profile_id == player_id)
-        .all()
-    )
+    match_players = db.query(models.MatchPlayer).filter(models.MatchPlayer.player_profile_id == player_id).all()
     match_history = []
     for mp in match_players:
-        suggestion = db.query(models.MatchSuggestion).filter(
-            models.MatchSuggestion.id == mp.match_suggestion_id
-        ).first()
+        suggestion = (
+            db.query(models.MatchSuggestion).filter(models.MatchSuggestion.id == mp.match_suggestion_id).first()
+        )
         if not suggestion or suggestion.status not in ("accepted",):
             continue
         teammates = (
@@ -442,21 +435,21 @@ def get_public_player_profile(
             .all()
         )
         day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-        match_history.append({
-            "match_id": suggestion.id,
-            "day_of_week": suggestion.day_of_week,
-            "day_name": day_names[suggestion.day_of_week],
-            "suggested_tee_time": suggestion.suggested_tee_time,
-            "status": suggestion.status,
-            "created_at": suggestion.created_at,
-            "players": [{"id": t.player_profile_id, "name": t.player_name} for t in teammates],
-        })
+        match_history.append(
+            {
+                "match_id": suggestion.id,
+                "day_of_week": suggestion.day_of_week,
+                "day_name": day_names[suggestion.day_of_week],
+                "suggested_tee_time": suggestion.suggested_tee_time,
+                "status": suggestion.status,
+                "created_at": suggestion.created_at,
+                "players": [{"id": t.player_profile_id, "name": t.player_name} for t in teammates],
+            }
+        )
     match_history.sort(key=lambda m: m["created_at"] or "", reverse=True)
 
     # Stats
-    stats = db.query(models.PlayerStatistics).filter(
-        models.PlayerStatistics.player_id == player_id
-    ).first()
+    stats = db.query(models.PlayerStatistics).filter(models.PlayerStatistics.player_id == player_id).first()
 
     # Badges
     badge_rows = (

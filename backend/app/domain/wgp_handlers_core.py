@@ -523,9 +523,7 @@ async def handle_advance_hole(game: WolfGoatPigGame) -> ActionResponse:
         raise HTTPException(status_code=500, detail=f"Failed to advance hole: {e!s}")
 
 
-async def handle_enter_hole_scores(
-    game: WolfGoatPigGame, payload: dict[str, Any], db: Any = None
-) -> ActionResponse:
+async def handle_enter_hole_scores(game: WolfGoatPigGame, payload: dict[str, Any], db: Any = None) -> ActionResponse:
     """Handle entering hole scores"""
     try:
         scores = payload.get("scores", {})
@@ -541,38 +539,42 @@ async def handle_enter_hole_scores(
             recorded_at = _utc_now().isoformat()
 
             for player_id, gross_score in scores.items():
-                existing = db.query(HoleEvent).filter(
-                    HoleEvent.game_id == game.game_id,
-                    HoleEvent.hole_number == hole_number,
-                    HoleEvent.player_id == player_id,
-                ).first()
+                existing = (
+                    db.query(HoleEvent)
+                    .filter(
+                        HoleEvent.game_id == game.game_id,
+                        HoleEvent.hole_number == hole_number,
+                        HoleEvent.player_id == player_id,
+                    )
+                    .first()
+                )
                 player_quarters = points_changes.get(player_id, 0)
                 if existing:
                     existing.score = gross_score
                     existing.quarters = player_quarters
                     existing.recorded_at = recorded_at
                 else:
-                    db.add(HoleEvent(
-                        game_id=game.game_id,
-                        hole_number=hole_number,
-                        player_id=player_id,
-                        score=gross_score,
-                        quarters=player_quarters,
-                        recorded_at=recorded_at,
-                    ))
+                    db.add(
+                        HoleEvent(
+                            game_id=game.game_id,
+                            hole_number=hole_number,
+                            player_id=player_id,
+                            score=gross_score,
+                            quarters=player_quarters,
+                            recorded_at=recorded_at,
+                        )
+                    )
             db.commit()
 
             all_events = (
-                db.query(HoleEvent)
-                .filter(HoleEvent.game_id == game.game_id)
-                .order_by(HoleEvent.hole_number)
-                .all()
+                db.query(HoleEvent).filter(HoleEvent.game_id == game.game_id).order_by(HoleEvent.hole_number).all()
             )
-            game.apply_hole_events([
-                {"hole_number": e.hole_number, "player_id": e.player_id,
-                 "score": e.score, "quarters": e.quarters}
-                for e in all_events
-            ])
+            game.apply_hole_events(
+                [
+                    {"hole_number": e.hole_number, "player_id": e.player_id, "score": e.score, "quarters": e.quarters}
+                    for e in all_events
+                ]
+            )
 
         updated_state = game.get_game_state()
 

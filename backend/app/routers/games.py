@@ -8,18 +8,17 @@ from typing import Any, cast
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 from .. import database, models, schemas
+from ..badge_engine import BadgeEngine
 from ..managers.websocket_manager import manager as websocket_manager
 from ..schemas import ActionRequest
 from ..services.game_lifecycle_service import get_game_lifecycle_service
 from ..services.notification_service import get_notification_service
 from ..state.course_manager import CourseManager
 from ..utils.time import utc_now
-from sqlalchemy.orm.attributes import flag_modified
-
 from ..wolf_goat_pig import Player, WolfGoatPigGame
-from ..badge_engine import BadgeEngine
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +45,9 @@ def _check_game_achievements(db: Session, game_id: str, record_id: int) -> None:
                 if earned:
                     logger.info(
                         "🏅 Awarded %d badge(s) to player %d after game %s",
-                        len(earned), gp.player_profile_id, game_id,
+                        len(earned),
+                        gp.player_profile_id,
+                        game_id,
                     )
             except Exception as e:
                 logger.error("Badge check failed for player %d: %s", gp.player_profile_id, e)
@@ -264,25 +265,19 @@ async def join_game_with_code(  # type: ignore
         profile = None
 
         if request.player_profile_id:
-            profile = db.query(models.PlayerProfile).filter(
-                models.PlayerProfile.id == request.player_profile_id
-            ).first()
+            profile = (
+                db.query(models.PlayerProfile).filter(models.PlayerProfile.id == request.player_profile_id).first()
+            )
 
         if not profile:
             # Case-insensitive exact match, then startswith fallback
             name = request.player_name.strip()
-            profile = (
-                db.query(models.PlayerProfile)
-                .filter(models.PlayerProfile.name.ilike(name))
-                .first()
-            )
+            profile = db.query(models.PlayerProfile).filter(models.PlayerProfile.name.ilike(name)).first()
             if not profile:
                 # Try matching on first word (nickname vs full name)
                 first_word = name.split()[0]
                 profile = (
-                    db.query(models.PlayerProfile)
-                    .filter(models.PlayerProfile.name.ilike(f"{first_word}%"))
-                    .first()
+                    db.query(models.PlayerProfile).filter(models.PlayerProfile.name.ilike(f"{first_word}%")).first()
                 )
 
         if profile:
@@ -294,14 +289,13 @@ async def join_game_with_code(  # type: ignore
             if profile.ghin_id:
                 try:
                     from ..services.ghin_service import GHINService
+
                     ghin = GHINService(db)
                     if await ghin.initialize():
                         result = await ghin.sync_player_handicap(int(profile.id))
                         if result and result.get("handicap_index") is not None:
                             player_handicap = float(result["handicap_index"])
-                            logger.info(
-                                "GHIN handicap for %s: %.1f", request.player_name, player_handicap
-                            )
+                            logger.info("GHIN handicap for %s: %.1f", request.player_name, player_handicap)
                 except Exception as ghin_err:
                     logger.warning("GHIN lookup failed for %s: %s", request.player_name, ghin_err)
 
@@ -1152,9 +1146,7 @@ async def perform_game_action_by_id(  # type: ignore
 
             # Check achievements when game auto-completes at hole 18
             if game_just_completed:
-                game_record = db.query(models.GameRecord).filter(
-                    models.GameRecord.game_id == game_id
-                ).first()
+                game_record = db.query(models.GameRecord).filter(models.GameRecord.game_id == game_id).first()
                 if game_record:
                     _check_game_achievements(db, game_id, game_record.id)
 

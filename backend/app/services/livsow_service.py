@@ -26,10 +26,7 @@ _CACHE_TTL = 900
 
 
 def _fetch_csv(gid: str) -> list[list[str]]:
-    url = (
-        f"https://docs.google.com/spreadsheets/d/{LIVSOW_SHEET_ID}"
-        f"/export?format=csv&gid={gid}"
-    )
+    url = f"https://docs.google.com/spreadsheets/d/{LIVSOW_SHEET_ID}/export?format=csv&gid={gid}"
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
@@ -87,16 +84,11 @@ def _parse_roster(
     # Row 1: team names
     name_row = rows[1] if len(rows) > 1 else []
     team_names = [
-        name_row[offset].strip()
-        for offset in _TEAM_COL_OFFSETS
-        if offset < len(name_row) and name_row[offset].strip()
+        name_row[offset].strip() for offset in _TEAM_COL_OFFSETS if offset < len(name_row) and name_row[offset].strip()
     ]
 
     # Rows with roles
-    role_rows = [
-        r for r in rows[2:]
-        if r and r[0].strip() in ("Captain", "Starter", "Alternate")
-    ]
+    role_rows = [r for r in rows[2:] if r and r[0].strip() in ("Captain", "Starter", "Alternate")]
 
     teams_players: dict[str, list] = {n: [] for n in team_names}
     for row in role_rows:
@@ -112,16 +104,18 @@ def _parse_roster(
             s2 = _safe_int(row[offset + 2].strip() if offset + 2 < len(row) else "")
             best_scores = [v for v in [s1, s2] if v is not None]
             team_contribution = sum(best_scores)
-            stats = player_stats.get(player_name, {"total": 0, "count": 0, "weeks": {w: None for w in weeks}})
-            teams_players[team_name].append({
-                "name": player_name,
-                "role": role,
-                "total": stats["total"],
-                "count": stats["count"],
-                "weeks": stats["weeks"],
-                "best_scores": best_scores,
-                "team_contribution": team_contribution,
-            })
+            stats = player_stats.get(player_name, {"total": 0, "count": 0, "weeks": dict.fromkeys(weeks)})
+            teams_players[team_name].append(
+                {
+                    "name": player_name,
+                    "role": role,
+                    "total": stats["total"],
+                    "count": stats["count"],
+                    "weeks": stats["weeks"],
+                    "best_scores": best_scores,
+                    "team_contribution": team_contribution,
+                }
+            )
 
     # Team totals row (follows "Point Totals" label row)
     team_totals: dict[str, int] = {}
@@ -147,13 +141,15 @@ def _parse_roster(
         fa_name = row[2].strip() if len(row) > 2 else ""
         if not fa_name:
             continue
-        stats = player_stats.get(fa_name, {"total": 0, "count": 0, "weeks": {w: None for w in weeks}})
-        free_agents.append({
-            "name": fa_name,
-            "total": stats["total"],
-            "count": stats["count"],
-            "weeks": stats["weeks"],
-        })
+        stats = player_stats.get(fa_name, {"total": 0, "count": 0, "weeks": dict.fromkeys(weeks)})
+        free_agents.append(
+            {
+                "name": fa_name,
+                "total": stats["total"],
+                "count": stats["count"],
+                "weeks": stats["weeks"],
+            }
+        )
 
     # Build sorted teams
     teams = []

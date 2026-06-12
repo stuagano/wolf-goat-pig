@@ -89,6 +89,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         from .badge_seeds import seed_badges
         from .database import SessionLocal
         from .models import Badge as _Badge
+
         _seed_db = SessionLocal()
         try:
             if _seed_db.query(_Badge).count() == 0:

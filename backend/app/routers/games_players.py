@@ -523,13 +523,15 @@ async def update_hitting_order(
             existing.captain_id = body.hitting_order[0]
             existing.recorded_at = current_time
         else:
-            db.add(models.HoleOrder(
-                game_id=game_id,
-                hole_number=target_hole,
-                hitting_order=list(body.hitting_order),
-                captain_id=body.hitting_order[0],
-                recorded_at=current_time,
-            ))
+            db.add(
+                models.HoleOrder(
+                    game_id=game_id,
+                    hole_number=target_hole,
+                    hitting_order=list(body.hitting_order),
+                    captain_id=body.hitting_order[0],
+                    recorded_at=current_time,
+                )
+            )
         db.commit()
 
         # Evict from cache so the next get_game() reloads with the stored order applied

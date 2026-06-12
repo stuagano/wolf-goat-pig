@@ -28,14 +28,10 @@ def get_notifications(
     current_user: PlayerProfile = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    query = db.query(Notification).filter(
-        Notification.player_profile_id == current_user.id
-    )
+    query = db.query(Notification).filter(Notification.player_profile_id == current_user.id)
     if unread_only:
-        query = query.filter(Notification.is_read == False)  # noqa: E712
-    notifications = (
-        query.order_by(Notification.created_at.desc()).limit(limit).all()
-    )
+        query = query.filter(Notification.is_read == False)
+    notifications = query.order_by(Notification.created_at.desc()).limit(limit).all()
     return [
         {
             "id": n.id,
@@ -58,7 +54,7 @@ def get_unread_count(
         db.query(Notification)
         .filter(
             Notification.player_profile_id == current_user.id,
-            Notification.is_read == False,  # noqa: E712
+            Notification.is_read == False,
         )
         .count()
     )
@@ -74,7 +70,7 @@ def mark_all_read(
         db.query(Notification)
         .filter(
             Notification.player_profile_id == current_user.id,
-            Notification.is_read == False,  # noqa: E712
+            Notification.is_read == False,
         )
         .update({"is_read": True})
     )
@@ -88,10 +84,14 @@ def mark_read(
     current_user: PlayerProfile = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    n = db.query(Notification).filter(
-        Notification.id == notification_id,
-        Notification.player_profile_id == current_user.id,
-    ).first()
+    n = (
+        db.query(Notification)
+        .filter(
+            Notification.id == notification_id,
+            Notification.player_profile_id == current_user.id,
+        )
+        .first()
+    )
     if not n:
         raise HTTPException(status_code=404, detail="Notification not found")
     n.is_read = True

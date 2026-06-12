@@ -109,7 +109,7 @@ class HoleOrder(Base):
     game_id = Column(get_uuid_column(), index=True, nullable=False)
     hole_number = Column(Integer, nullable=False)
     hitting_order = Column(JSON, nullable=False)  # ordered list of player_ids
-    captain_id = Column(String, nullable=True)    # hitting_order[0]
+    captain_id = Column(String, nullable=True)  # hitting_order[0]
     recorded_at = Column(String, nullable=False)
 
 
@@ -146,7 +146,7 @@ class HoleEvent(Base):
     game_id = Column(get_uuid_column(), nullable=False)
     hole_number = Column(Integer, nullable=False)
     player_id = Column(String, nullable=False)
-    score = Column(Integer, nullable=True)      # gross score — null until entered
+    score = Column(Integer, nullable=True)  # gross score — null until entered
     quarters = Column(Float, nullable=False, default=0)  # quarters won (+) or lost (-)
     recorded_at = Column(String, nullable=False)
 

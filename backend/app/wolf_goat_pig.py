@@ -720,11 +720,7 @@ class WolfGoatPigGame(PersistenceMixin):
             hole_events = by_hole[hole_number]
             hole_state = self.hole_states.get(hole_number)
             if hole_state:
-                hole_state.scores = {
-                    e["player_id"]: e["score"]
-                    for e in hole_events
-                    if e.get("score") is not None
-                }
+                hole_state.scores = {e["player_id"]: e["score"] for e in hole_events if e.get("score") is not None}
                 hole_state.points_awarded = {e["player_id"]: e["quarters"] for e in hole_events}
 
             for event in hole_events:
