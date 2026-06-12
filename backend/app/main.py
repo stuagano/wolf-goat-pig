@@ -85,6 +85,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.error(f"Failed to initialize database: {e}")
         raise
 
+    # Apply pending SQL migrations (create_all never ALTERs existing tables —
+    # without this, migrations/*.sql files silently drift from production)
+    try:
+        from .migrations_runner import run_sql_migrations
+
+        result = run_sql_migrations(database.engine)
+        if result.get("applied"):
+            logger.info(f"SQL migrations applied: {result['applied']}")
+    except Exception as e:
+        logger.error(f"SQL migration runner failed (continuing startup): {e}")
+
     # Seed badges if table is empty
     try:
         from .badge_seeds import seed_badges

@@ -263,3 +263,34 @@ class TestDescriptions:
         for s in samples:
             desc = describe_transaction(s)
             assert isinstance(desc, str) and len(desc) > 5
+
+
+class TestMigrationsRunner:
+    """Statement splitting + dialect guard for the SQL migration runner."""
+
+    def test_statement_splitting_strips_comments(self):
+        from app.migrations_runner import _statements
+
+        sql = """-- Migration: add emoji column
+ALTER TABLE badges ADD COLUMN IF NOT EXISTS emoji VARCHAR;
+-- another comment
+CREATE INDEX IF NOT EXISTS ix_x ON badges (emoji);
+"""
+        stmts = _statements(sql)
+        assert len(stmts) == 2
+        assert stmts[0].startswith("ALTER TABLE badges")
+        assert stmts[1].startswith("CREATE INDEX")
+
+    def test_sqlite_engine_is_skipped(self):
+        from app.database import engine
+        from app.migrations_runner import run_sql_migrations
+
+        if engine.dialect.name != "postgresql":
+            assert run_sql_migrations(engine) == {"skipped": "not_postgres"}
+
+    def test_benign_error_detection(self):
+        from app.migrations_runner import _BENIGN_ERROR_RE
+
+        assert _BENIGN_ERROR_RE.search('column "emoji" of relation "badges" already exists')
+        assert _BENIGN_ERROR_RE.search("duplicate column name: emoji")
+        assert not _BENIGN_ERROR_RE.search("syntax error at or near ALTER")
