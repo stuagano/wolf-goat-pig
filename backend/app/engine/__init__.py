@@ -9,8 +9,10 @@ pattern as app/mixins/persistence_mixin.py).
 
 from .analytics import AnalyticsMixin
 from .serialization import SerializationMixin
+from .simulation_api import SimulationMixin
 
 __all__ = [
     "AnalyticsMixin",
     "SerializationMixin",
+    "SimulationMixin",
 ]
