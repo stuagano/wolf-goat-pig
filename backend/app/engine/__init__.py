@@ -8,6 +8,7 @@ pattern as app/mixins/persistence_mixin.py).
 """
 
 from .analytics import AnalyticsMixin
+from .betting_actions import BettingActionsMixin
 from .partnership import PartnershipMixin
 from .scoring import ScoringMixin
 from .serialization import SerializationMixin
@@ -17,6 +18,7 @@ from .state_views import StateViewsMixin
 
 __all__ = [
     "AnalyticsMixin",
+    "BettingActionsMixin",
     "PartnershipMixin",
     "ScoringMixin",
     "SerializationMixin",
