@@ -27,9 +27,13 @@ def groupme_status() -> Any:
 
 
 @router.get("/messages")
-def groupme_messages(limit: int = Query(50, ge=1, le=100), refresh: bool = Query(False)) -> Any:
-    """Recent group messages, oldest-first. Cached ~20s server-side."""
-    return get_messages(limit=limit, force_refresh=refresh)
+def groupme_messages(
+    limit: int = Query(50, ge=1, le=100),
+    refresh: bool = Query(False),
+    before_id: str | None = Query(None, description="Page backwards: messages older than this id"),
+) -> Any:
+    """Group messages, oldest-first. Head page cached ~20s; before_id pages history."""
+    return get_messages(limit=limit, force_refresh=refresh, before_id=before_id)
 
 
 @router.post("/messages")

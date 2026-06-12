@@ -204,3 +204,21 @@ class TestPostMessageService:
         ):
             result = groupme_service.post_message("hi", author="Stu")
         assert result["posted"] is False
+
+
+class TestHistoryPaging:
+    def test_before_id_passed_through_and_uncached(self):
+        groupme_service._cache = {"configured": True, "messages": [{"id": "cached"}]}
+        groupme_service._cache_ts = __import__("time").time()  # fresh cache
+        page = {"messages": [{**RAW_MESSAGE, "id": "old1", "text": "older"}]}
+        with (
+            patch.object(groupme_service, "_token", return_value="tok"),
+            patch.object(groupme_service, "_group_id", return_value="g1"),
+            patch.object(groupme_service, "_api_get", return_value=page) as api,
+        ):
+            resp = client.get("/groupme/messages?before_id=178000")
+        # bypassed the fresh head cache and hit upstream with before_id
+        assert api.call_args[0][1]["before_id"] == "178000"
+        assert resp.json()["messages"][0]["text"] == "older"
+        # head cache untouched
+        assert groupme_service._cache["messages"][0]["id"] == "cached"

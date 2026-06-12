@@ -92,22 +92,27 @@ def _normalize_message(m: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def get_messages(limit: int = 50, force_refresh: bool = False) -> dict[str, Any]:
-    """Recent group messages, oldest-first (ready for chat rendering).
+def get_messages(limit: int = 50, force_refresh: bool = False, before_id: str | None = None) -> dict[str, Any]:
+    """Group messages, oldest-first (ready for chat rendering).
 
-    Cached for 20 seconds — GroupMe rate limits are generous but the page
-    polls, and many viewers shouldn't multiply upstream calls.
+    Head page (no before_id) is cached for 20 seconds — the page polls, and
+    many viewers shouldn't multiply upstream calls. History pages
+    (before_id set) walk backwards through the full archive and bypass the
+    cache: each page is requested at most once per scroll-back.
     """
     global _cache, _cache_ts
-    if not force_refresh and _cache and (time.time() - _cache_ts) < _CACHE_TTL:
+    if not force_refresh and not before_id and _cache and (time.time() - _cache_ts) < _CACHE_TTL:
         return _cache
 
     group_id = _group_id()
     if not (_token() and group_id):
         return {"configured": False, "messages": []}
 
+    params: dict[str, Any] = {"limit": min(limit, 100)}
+    if before_id:
+        params["before_id"] = before_id
     try:
-        resp = _api_get(f"/groups/{group_id}/messages", {"limit": min(limit, 100)})
+        resp = _api_get(f"/groups/{group_id}/messages", params)
     except urllib.error.HTTPError as e:
         # 304 = no messages; anything else is a real error
         if e.code == 304:
@@ -125,7 +130,7 @@ def get_messages(limit: int = 50, force_refresh: bool = False) -> dict[str, Any]
     messages.reverse()  # API returns newest-first; chat renders oldest-first
 
     result = {"configured": True, "messages": messages}
-    if messages:  # don't poison cache with empty/failed payloads
+    if messages and not before_id:  # cache the head page only; never empties
         _cache = result
         _cache_ts = time.time()
     return result

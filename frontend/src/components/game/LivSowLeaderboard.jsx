@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { apiConfig } from '../../config/api.config';
 import { RoleTag, WeekCell, slugify, teamColor } from './livsow/shared';
 import LivSowTransactions from './livsow/LivSowTransactions';
+import GroupMeFeed from '../chat/GroupMeFeed';
 
 const MEDAL_COLORS = {
   1: { bg: '#fbbf24', text: '#78350f', label: '🥇' },
@@ -309,6 +310,11 @@ const LivSowLeaderboard = () => {
           )}
         </div>
       )}
+
+      {/* League chat — live window into the GroupMe group */}
+      <div style={{ marginTop: '24px' }}>
+        <GroupMeFeed height={440} />
+      </div>
 
       {/* Recent moves — auto-detected from roster changes */}
       {recentMoves.length > 0 && (
