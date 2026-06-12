@@ -10,3 +10,4 @@ export { default as AnalysisPanels } from "./AnalysisPanels";
 export { default as UsageStatsPanel } from "./UsageStatsPanel";
 export { default as SpecialActionsPanel } from "./SpecialActionsPanel";
 export { default as ScorekeeperBanners, ErrorBanner } from "./ScorekeeperBanners";
+export { default as ScorecardSection } from "./ScorecardSection";
