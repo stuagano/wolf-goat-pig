@@ -7,7 +7,6 @@ import StaleGameBanner from '../components/game/StaleGameBanner';
 function HomePage() {
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth0();
-  const [menuOpen, setMenuOpen] = useState(false);
   const [activeGameSession, setActiveGameSession] = useState(null);
 
   // Check for active game session on mount
@@ -81,21 +80,6 @@ function HomePage() {
     return () => document.head.removeChild(styleSheet);
   }, []);
   
-  const menuItems = [
-    { icon: '📷', label: 'Scan Scorecard', path: '/scorecard-scan' },
-    { icon: '📅', label: 'Mark Availability', path: '/signup' },
-    { icon: '⚔️', label: 'Start Multiplayer Game', path: '/game' },
-    { icon: '🔗', label: 'Join Game with Code', path: '/join' },
-    { icon: '🎮', label: 'Active Games', path: '/games/active' },
-    { icon: '🏆', label: 'Game History', path: '/games/completed' },
-    { icon: '⛳', label: 'LivSow', path: '/livsow' },
-    { icon: '💬', label: 'League Chat', path: '/chat' },
-    { icon: '📖', label: 'Game Rules', path: '/rules' },
-    { icon: '🎓', label: 'Tutorial', path: '/tutorial' },
-    { icon: '📊', label: 'Analytics', path: '/analytics' },
-    { icon: 'ℹ️', label: 'About Wolf Goat Pig', path: '/about' },
-  ];
-  
   return (
     <div style={{ 
       minHeight: '100vh',
@@ -107,77 +91,6 @@ function HomePage() {
       padding: '20px',
       position: 'relative'
     }}>
-      {/* Hamburger Menu */}
-      <div style={{
-        position: 'fixed',
-        top: 20,
-        right: 20,
-        zIndex: 1000
-      }}>
-        <button
-          data-testid="hamburger-menu-button"
-          onClick={() => setMenuOpen(!menuOpen)}
-          style={{
-            background: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            padding: '12px',
-            cursor: 'pointer',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '4px'
-          }}
-        >
-          <div style={{ width: '24px', height: '3px', background: '#374151', borderRadius: '2px' }}></div>
-          <div style={{ width: '24px', height: '3px', background: '#374151', borderRadius: '2px' }}></div>
-          <div style={{ width: '24px', height: '3px', background: '#374151', borderRadius: '2px' }}></div>
-        </button>
-        
-        {menuOpen && (
-          <div style={{
-            position: 'absolute',
-            top: '60px',
-            right: 0,
-            background: 'white',
-            borderRadius: '12px',
-            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
-            padding: '12px',
-            minWidth: '220px'
-          }}>
-            {menuItems.map((item, index) => (
-              <button
-                key={index}
-                data-testid={item.path === '/test-multiplayer' ? 'test-multiplayer-menu-item' : undefined}
-                onClick={() => {
-                  navigate(item.path);
-                  setMenuOpen(false);
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  width: '100%',
-                  padding: '12px',
-                  border: 'none',
-                  background: 'transparent',
-                  cursor: 'pointer',
-                  borderRadius: '8px',
-                  transition: 'background 0.2s',
-                  fontSize: '14px',
-                  color: '#374151'
-                }}
-                onMouseEnter={(e) => e.target.style.background = '#F3F4F6'}
-                onMouseLeave={(e) => e.target.style.background = 'transparent'}
-              >
-                <span>{item.icon}</span>
-                <span>{item.label}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-      
       {/* Main Content */}
       <div style={{ maxWidth: '1200px', margin: '0 auto', paddingTop: '40px' }}>
         {/* Header */}
