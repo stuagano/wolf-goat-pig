@@ -125,19 +125,33 @@ def roster_suggestions(db: Session = Depends(database.get_db)) -> Any:
             "source": "profile",
         }
 
+    # The whole LivSow league — every rostered player AND every free agent
+    # (it's the one league, so the picker should cover everyone in it).
     try:
-        from ..services.livsow_service import get_livsow_team_map
+        from ..services.livsow_service import get_livsow_leaderboard
 
-        for name, info in get_livsow_team_map().items():
+        data = get_livsow_leaderboard()
+        livsow_members: list[tuple[str, str | None]] = []
+        for team in data.get("teams", []):
+            for p in team.get("players", []):
+                livsow_members.append((p["name"], team["name"]))
+        for fa in data.get("free_agents", []):
+            livsow_members.append((fa["name"], None))
+
+        for name, team in livsow_members:
             key = name.lower()
-            if key not in out:
-                out[key] = {
-                    "name": name,
-                    "handicap": 18,
-                    "player_profile_id": None,
-                    "source": "livsow",
-                    "team": info.get("team"),
-                }
+            if key in out:
+                # already have a profile (with real handicap) — just tag the team
+                if team and not out[key].get("team"):
+                    out[key]["team"] = team
+                continue
+            out[key] = {
+                "name": name,
+                "handicap": 18,
+                "player_profile_id": None,
+                "source": "livsow",
+                "team": team,
+            }
     except Exception:
         logger.exception("LivSow roster lookup failed for suggestions (non-fatal)")
 
