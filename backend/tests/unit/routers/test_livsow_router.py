@@ -183,3 +183,127 @@ class TestProfileMatching:
         # Two close candidates with the same first name -> refuse to guess
         profiles = {"dan anders": 1, "dan andersen": 2}
         assert _match_profile_id("Dan Anderson", profiles) is None
+
+
+class TestTeamContentEditing:
+    def _clear(self):
+        from app import models
+        from app.database import SessionLocal
+
+        db = SessionLocal()
+        db.query(models.LivSowTeamContent).delete()
+        db.query(models.PlayerProfile).filter(models.PlayerProfile.name.in_(["Gregg Colburn", "Some Rando"])).delete()
+        db.commit()
+        db.close()
+
+    def _make_profile(self, name, email):
+        from app import models
+        from app.database import SessionLocal
+        from app.utils.time import utc_now
+
+        db = SessionLocal()
+        p = models.PlayerProfile(name=name, email=email, created_at=utc_now().isoformat())
+        db.add(p)
+        db.commit()
+        pid = p.id
+        db.close()
+        return pid
+
+    def _override_user(self, pid):
+        from app import models
+        from app.database import SessionLocal
+        from app.services.auth_service import get_current_user
+
+        def _dep():
+            db = SessionLocal()
+            u = db.query(models.PlayerProfile).get(pid)
+            db.close()
+            return u
+
+        app.dependency_overrides[get_current_user] = _dep
+
+    def setup_method(self):
+        _clear_livsow_tables()
+        self._clear()
+
+    def teardown_method(self):
+        from app.services.auth_service import get_current_user
+
+        app.dependency_overrides.pop(get_current_user, None)
+
+    def test_captain_can_edit_their_team(self):
+        # High Beta captain is "Gregg Colburn" per the live sheet; create a
+        # matching profile and act as them.
+        pid = self._make_profile("Gregg Colburn", "gregg@example.com")
+        with patch(PATCH_TARGET, return_value=_leaderboard()):
+            # _leaderboard()'s High Beta captain is "Gregg Colburn"? No — it's
+            # the test fixture. Patch leaderboard to put Gregg as captain.
+            lb = _leaderboard()
+            lb["teams"][0]["players"][0] = {
+                "name": "Gregg Colburn",
+                "role": "Captain",
+                "total": 5,
+                "count": 2,
+                "weeks": {"6/1": 2},
+                "best_scores": [3, 2],
+                "team_contribution": 5,
+            }
+            with patch(PATCH_TARGET, return_value=lb):
+                self._override_user(pid)
+                can = client.get("/data/livsow/teams/high-beta/can-edit")
+                assert can.json() == {"can_edit": True}
+                resp = client.put(
+                    "/data/livsow/teams/high-beta/content",
+                    json={"motto": "Fear the Beta", "about": "Best team."},
+                )
+                assert resp.status_code == 200
+                assert resp.json()["motto"] == "Fear the Beta"
+                assert resp.json()["updated_by"] == "Gregg Colburn"
+
+    def test_non_captain_cannot_edit(self):
+        pid = self._make_profile("Some Rando", "rando@example.com")
+        lb = _leaderboard()
+        lb["teams"][0]["players"][0] = {
+            "name": "Gregg Colburn",
+            "role": "Captain",
+            "total": 5,
+            "count": 2,
+            "weeks": {},
+            "best_scores": [],
+            "team_contribution": 0,
+        }
+        with patch(PATCH_TARGET, return_value=lb):
+            self._override_user(pid)
+            assert client.get("/data/livsow/teams/high-beta/can-edit").json() == {"can_edit": False}
+            resp = client.put(
+                "/data/livsow/teams/high-beta/content",
+                json={"motto": "hacked"},
+            )
+            assert resp.status_code == 403
+
+    def test_admin_can_edit_any_team(self):
+        pid = self._make_profile("Some Rando", "stuagano@gmail.com")  # admin email
+        lb = _leaderboard()
+        with patch(PATCH_TARGET, return_value=lb):
+            self._override_user(pid)
+            assert client.get("/data/livsow/teams/high-beta/can-edit").json() == {"can_edit": True}
+
+    def test_content_surfaces_on_team_detail(self):
+        pid = self._make_profile("Gregg Colburn", "gregg@example.com")
+        lb = _leaderboard()
+        lb["teams"][0]["players"][0] = {
+            "name": "Gregg Colburn",
+            "role": "Captain",
+            "total": 5,
+            "count": 2,
+            "weeks": {},
+            "best_scores": [],
+            "team_contribution": 0,
+        }
+        with patch(PATCH_TARGET, return_value=lb):
+            self._override_user(pid)
+            client.put("/data/livsow/teams/high-beta/content", json={"announcement": "Tee at 8"})
+            # team detail is unauthenticated-readable; content comes through
+            detail = client.get("/data/livsow/teams/high-beta").json()
+            assert detail["content"]["announcement"] == "Tee at 8"
+            assert detail["captain_name"] == "Gregg Colburn"

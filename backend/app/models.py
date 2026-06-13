@@ -701,3 +701,19 @@ class LivSowMedia(Base):
     likes = Column(Integer, default=0)
     featured = Column(Boolean, default=False)  # admin curation hook
     deleted = Column(Boolean, default=False)
+
+
+# LivSow team page content — captain-editable, no-code customization of a
+# team's franchise page (motto, about blurb, announcement, logo URL).
+# One row per team per season.
+class LivSowTeamContent(Base):
+    __tablename__ = "livsow_team_content"
+    id = Column(Integer, primary_key=True, index=True)
+    team_slug = Column(String, index=True)
+    season = Column(String, index=True)
+    motto = Column(String, nullable=True)
+    about = Column(String, nullable=True)
+    announcement = Column(String, nullable=True)
+    logo_url = Column(String, nullable=True)
+    updated_by = Column(String, nullable=True)  # display name of editor
+    updated_at = Column(String, nullable=True)

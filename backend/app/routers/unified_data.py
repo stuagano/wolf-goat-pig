@@ -12,13 +12,14 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from .. import models
 from ..database import get_db
+from ..services.auth_service import get_current_user
 from ..services.livsow_service import get_livsow_leaderboard, get_livsow_team_map
-from ..services.livsow_transactions import check_and_record_snapshot, describe_transaction
+from ..services.livsow_transactions import LIVSOW_SEASON, check_and_record_snapshot, describe_transaction
 from ..services.spreadsheet_sync_service import PRIMARY_SHEET_ID, PRIMARY_SHEET_TAB_GID
 from ..services.unified_data_service import get_unified_data_service
 from ..utils.admin_auth import require_admin
@@ -265,6 +266,16 @@ def get_livsow_team_detail(slug: str, db: Session = Depends(get_db)) -> Any:
         for p in players:
             p["profile_id"] = _match_profile_id(p["name"], by_lower)
 
+    captain_name = next((p["name"] for p in team.get("players", []) if p.get("role") == "Captain"), None)
+    content = (
+        db.query(models.LivSowTeamContent)
+        .filter(
+            models.LivSowTeamContent.team_slug == slug,
+            models.LivSowTeamContent.season == LIVSOW_SEASON,
+        )
+        .first()
+    )
+
     return {
         "slug": slug,
         "name": team["name"],
@@ -274,6 +285,93 @@ def get_livsow_team_detail(slug: str, db: Session = Depends(get_db)) -> Any:
         "weeks": data.get("weeks", []),
         "transactions": team_txns,
         "sheet_url": data.get("sheet_url"),
+        "captain_name": captain_name,
+        "content": {
+            "motto": content.motto if content else None,
+            "about": content.about if content else None,
+            "announcement": content.announcement if content else None,
+            "logo_url": content.logo_url if content else None,
+            "updated_by": content.updated_by if content else None,
+            "updated_at": content.updated_at if content else None,
+        },
+    }
+
+
+def _is_team_captain_or_admin(db: Session, slug: str, user: models.PlayerProfile) -> bool:
+    """True if `user` is the captain of team `slug` (by profile-id match) or an admin."""
+    from ..utils.admin_auth import _get_admin_emails
+
+    if user.email and user.email in _get_admin_emails():
+        return True
+    data = get_livsow_leaderboard()
+    team = next((t for t in data.get("teams", []) if _livsow_slugify(t["name"]) == slug), None)
+    if team is None:
+        return False
+    captain_name = next((p["name"] for p in team.get("players", []) if p.get("role") == "Captain"), None)
+    if not captain_name:
+        return False
+    profile_rows = db.query(models.PlayerProfile.id, models.PlayerProfile.name).all()
+    by_lower = {(name or "").lower(): pid for pid, name in profile_rows}
+    return _match_profile_id(captain_name, by_lower) == user.id
+
+
+class TeamContentUpdate(BaseModel):
+    motto: str | None = Field(None, max_length=120)
+    about: str | None = Field(None, max_length=2000)
+    announcement: str | None = Field(None, max_length=500)
+    logo_url: str | None = Field(None, max_length=600)
+
+
+@router.get("/livsow/teams/{slug}/can-edit")
+def can_edit_livsow_team(
+    slug: str,
+    current_user: models.PlayerProfile = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Any:
+    """Whether the logged-in user may edit this team's page (captain or admin)."""
+    return {"can_edit": _is_team_captain_or_admin(db, slug, current_user)}
+
+
+@router.put("/livsow/teams/{slug}/content")
+def update_livsow_team_content(
+    slug: str,
+    body: TeamContentUpdate,
+    current_user: models.PlayerProfile = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Any:
+    """Captain-only (or admin) update of a team's franchise-page content."""
+    if not _is_team_captain_or_admin(db, slug, current_user):
+        raise HTTPException(status_code=403, detail="Only this team's captain can edit its page")
+
+    def _clean(v: str | None) -> str | None:
+        v = (v or "").strip()
+        return v or None
+
+    content = (
+        db.query(models.LivSowTeamContent)
+        .filter(
+            models.LivSowTeamContent.team_slug == slug,
+            models.LivSowTeamContent.season == LIVSOW_SEASON,
+        )
+        .first()
+    )
+    if content is None:
+        content = models.LivSowTeamContent(team_slug=slug, season=LIVSOW_SEASON)
+        db.add(content)
+    content.motto = _clean(body.motto)
+    content.about = _clean(body.about)
+    content.announcement = _clean(body.announcement)
+    content.logo_url = _clean(body.logo_url)
+    content.updated_by = current_user.name
+    content.updated_at = utc_now().isoformat()
+    db.commit()
+    return {
+        "motto": content.motto,
+        "about": content.about,
+        "announcement": content.announcement,
+        "logo_url": content.logo_url,
+        "updated_by": content.updated_by,
+        "updated_at": content.updated_at,
     }
 
 

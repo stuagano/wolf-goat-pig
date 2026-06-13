@@ -4,17 +4,24 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useAuth0 } from '@auth0/auth0-react';
 import { apiConfig } from '../../../config/api.config';
 import { teamColor, RoleTag, WeekCell } from './shared';
 import LivSowTransactions from './LivSowTransactions';
+import TeamEditModal from './TeamEditModal';
+
+const AUTH0_AUDIENCE = import.meta.env.VITE_AUTH0_AUDIENCE;
 
 const ROLE_ORDER = { Captain: 0, Starter: 1, Alternate: 2 };
 
 const LivSowTeamPage = () => {
   const { teamSlug } = useParams();
+  const { isAuthenticated, getAccessTokenSilently } = useAuth0();
   const [team, setTeam] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [canEdit, setCanEdit] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -32,6 +39,25 @@ const LivSowTeamPage = () => {
   }, [teamSlug]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Ask the server whether the logged-in user may edit this team (captain
+  // or admin). Authoritative check is on the PUT; this just gates the UI.
+  useEffect(() => {
+    if (!isAuthenticated) { setCanEdit(false); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getAccessTokenSilently(
+          AUTH0_AUDIENCE ? { authorizationParams: { audience: AUTH0_AUDIENCE } } : undefined,
+        );
+        const res = await fetch(`${apiConfig.baseUrl}/data/livsow/teams/${teamSlug}/can-edit`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok && !cancelled) setCanEdit((await res.json()).can_edit === true);
+      } catch { /* not editable */ }
+    })();
+    return () => { cancelled = true; };
+  }, [teamSlug, isAuthenticated, getAccessTokenSilently]);
 
   if (loading) {
     return (
@@ -62,6 +88,7 @@ const LivSowTeamPage = () => {
   );
   const weeks = team.weeks || [];
   const active = players.filter((p) => p.count > 0).length;
+  const content = team.content || {};
 
   return (
     <div style={{ maxWidth: 760, margin: '0 auto', padding: '24px 16px' }}>
@@ -79,13 +106,28 @@ const LivSowTeamPage = () => {
           padding: '28px 24px', color: '#fff',
           display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 12,
         }}>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '2px', opacity: 0.85, textTransform: 'uppercase' }}>
-              LivSow Franchise
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            {content.logo_url && (
+              <img
+                src={content.logo_url}
+                alt=""
+                style={{ width: 56, height: 56, borderRadius: 12, objectFit: 'cover', background: 'rgba(255,255,255,0.2)' }}
+                onError={(e) => { e.target.style.display = 'none'; }}
+              />
+            )}
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '2px', opacity: 0.85, textTransform: 'uppercase' }}>
+                LivSow Franchise
+              </div>
+              <h1 style={{ margin: '4px 0 0', fontSize: 30, fontWeight: 800, lineHeight: 1.1 }}>
+                {team.name}
+              </h1>
+              {content.motto && (
+                <div style={{ marginTop: 4, fontSize: 14, fontStyle: 'italic', opacity: 0.92 }}>
+                  "{content.motto}"
+                </div>
+              )}
             </div>
-            <h1 style={{ margin: '4px 0 0', fontSize: 30, fontWeight: 800, lineHeight: 1.1 }}>
-              {team.name}
-            </h1>
           </div>
           <div style={{ display: 'flex', gap: 22, textAlign: 'center' }}>
             <div>
@@ -105,6 +147,48 @@ const LivSowTeamPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Captain edit affordance */}
+      {canEdit && (
+        <div style={{ marginBottom: 16, textAlign: 'right' }}>
+          <button
+            onClick={() => setEditing(true)}
+            style={{
+              padding: '8px 16px', borderRadius: 8, border: `1px solid ${colors.primary}`,
+              background: '#fff', color: colors.primary, fontWeight: 700, fontSize: 13, cursor: 'pointer',
+            }}
+          >
+            ✏️ Edit team page
+          </button>
+        </div>
+      )}
+
+      {/* Captain's announcement (pinned) */}
+      {content.announcement && (
+        <div style={{
+          marginBottom: 16, padding: '12px 16px', borderRadius: 12,
+          background: colors.accent, border: `1px solid ${colors.primary}33`,
+          display: 'flex', gap: 10, alignItems: 'flex-start',
+        }}>
+          <span style={{ fontSize: 16 }}>📣</span>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: colors.primary, marginBottom: 2 }}>
+              Captain's Note
+            </div>
+            <div style={{ fontSize: 14, color: '#374151', lineHeight: 1.45 }}>{content.announcement}</div>
+          </div>
+        </div>
+      )}
+
+      {/* About the team */}
+      {content.about && (
+        <div style={{ marginBottom: 20, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 16, padding: 20 }}>
+          <h2 style={{ margin: '0 0 10px', fontSize: 15, fontWeight: 700, color: '#374151' }}>About</h2>
+          <p style={{ margin: 0, fontSize: 14, color: '#374151', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+            {content.about}
+          </p>
+        </div>
+      )}
 
       {/* Roster */}
       <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 16, overflow: 'hidden', marginBottom: 20 }}>
@@ -187,6 +271,20 @@ const LivSowTeamPage = () => {
           emptyText="No moves yet — signings, releases, and trades will appear here automatically."
         />
       </div>
+
+      {editing && (
+        <TeamEditModal
+          slug={teamSlug}
+          teamName={team.name}
+          accent={colors.primary}
+          initial={content}
+          onClose={() => setEditing(false)}
+          onSaved={(updated) => {
+            setTeam((t) => ({ ...t, content: updated }));
+            setEditing(false);
+          }}
+        />
+      )}
     </div>
   );
 };
