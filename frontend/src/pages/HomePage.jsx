@@ -88,6 +88,8 @@ function HomePage() {
     { icon: '🔗', label: 'Join Game with Code', path: '/join' },
     { icon: '🎮', label: 'Active Games', path: '/games/active' },
     { icon: '🏆', label: 'Game History', path: '/games/completed' },
+    { icon: '⛳', label: 'LivSow', path: '/livsow' },
+    { icon: '💬', label: 'League Chat', path: '/chat' },
     { icon: '📖', label: 'Game Rules', path: '/rules' },
     { icon: '🎓', label: 'Tutorial', path: '/tutorial' },
     { icon: '📊', label: 'Analytics', path: '/analytics' },
