@@ -8,35 +8,66 @@ import React from "react";
 import PropTypes from "prop-types";
 
 export const StuartModeToggle = ({ stuartMode, toggleStuartMode, theme }) => {
+  // Inline, clearly-labeled toggle row at the top of the scorekeeper.
+  // (Was a faint floating 🧠 icon that hid behind the nav bar — undiscoverable.)
   return (
-    <>
-      {/* Stuart Mode toggle — small fixed-position icon, dims when off */}
-      <button
-        data-testid="stuart-mode-toggle"
-        onClick={toggleStuartMode}
-        aria-label={stuartMode ? "Stuart Mode on" : "Stuart Mode off"}
-        title={stuartMode ? "Stuart Mode on (tap to turn off)" : "Stuart Mode off (tap to turn on)"}
+    <button
+      data-testid="stuart-mode-toggle"
+      onClick={toggleStuartMode}
+      aria-pressed={stuartMode}
+      aria-label={stuartMode ? "Stuart Mode on — tap to turn off" : "Stuart Mode off — tap to turn on"}
+      style={{
+        width: "100%",
+        display: "flex",
+        alignItems: "center",
+        gap: "12px",
+        padding: "10px 14px",
+        marginBottom: "12px",
+        borderRadius: "12px",
+        border: stuartMode ? "2px solid #F59E0B" : `1px solid ${theme.colors.border}`,
+        background: stuartMode ? "rgba(245,158,11,0.10)" : (theme.colors.paper || "#fff"),
+        cursor: "pointer",
+        textAlign: "left",
+      }}
+    >
+      <span style={{ fontSize: "22px", flexShrink: 0 }}>🧠</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 700, fontSize: "14px", color: theme.colors.textPrimary }}>
+          Stuart Mode is {stuartMode ? "ON" : "OFF"}
+        </div>
+        <div style={{ fontSize: "12px", color: theme.colors.textSecondary, lineHeight: 1.35 }}>
+          {stuartMode
+            ? "AI is playing the computer opponents and giving live strategy tips."
+            : "Tap to let AI play the computer opponents and coach your strategy."}
+        </div>
+      </div>
+      {/* Switch */}
+      <span
         style={{
-          position: "fixed",
-          top: "12px",
-          right: "12px",
-          width: "40px",
-          height: "40px",
-          borderRadius: "50%",
-          border: stuartMode ? "2px solid #F59E0B" : `1px solid ${theme.colors.border}`,
-          background: stuartMode ? "#F59E0B" : "rgba(255,255,255,0.85)",
-          color: stuartMode ? "white" : theme.colors.textSecondary,
-          fontSize: "18px",
-          cursor: "pointer",
-          boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
-          opacity: stuartMode ? 1 : 0.6,
-          zIndex: 50,
-          padding: 0,
+          flexShrink: 0,
+          width: "46px",
+          height: "26px",
+          borderRadius: "13px",
+          background: stuartMode ? "#F59E0B" : "#d1d5db",
+          position: "relative",
+          transition: "background 0.2s",
         }}
       >
-        🧠
-      </button>
-    </>
+        <span
+          style={{
+            position: "absolute",
+            top: "3px",
+            left: stuartMode ? "23px" : "3px",
+            width: "20px",
+            height: "20px",
+            borderRadius: "50%",
+            background: "#fff",
+            transition: "left 0.2s",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+          }}
+        />
+      </span>
+    </button>
   );
 };
 
