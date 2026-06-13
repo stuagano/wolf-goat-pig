@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth0 } from '@auth0/auth0-react';
 import { Link } from 'react-router-dom';
 import { apiConfig } from '../../config/api.config';
 import { RoleTag, WeekCell, slugify, teamColor } from './livsow/shared';
@@ -138,12 +139,22 @@ function TeamCard({ team, weeks, isExpanded, onToggle }) {
 }
 
 const LivSowLeaderboard = () => {
+  const { isAuthenticated } = useAuth0();
+  const [isWide, setIsWide] = useState(
+    typeof window !== 'undefined' && window.innerWidth >= 1100,
+  );
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedTeam, setExpandedTeam] = useState(null);
   const [showFreeAgents, setShowFreeAgents] = useState(false);
   const [recentMoves, setRecentMoves] = useState([]);
+
+  useEffect(() => {
+    const onResize = () => setIsWide(window.innerWidth >= 1100);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   useEffect(() => {
     // Best-effort: recent transactions feed — page works without it
@@ -205,7 +216,7 @@ const LivSowLeaderboard = () => {
   const activeFA = free_agents.filter(p => p.count > 0);
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '24px 16px' }}>
+    <div style={{ maxWidth: isWide ? 1160 : 720, margin: '0 auto', padding: '24px 16px' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '24px' }}>
         <div>
@@ -227,16 +238,18 @@ const LivSowLeaderboard = () => {
               📊 Full Sheet
             </a>
           )}
-          <Link
-            to="/livsow/commissioner"
-            style={{
-              padding: '8px 14px', background: '#fdf4ff', border: '1px solid #f0abfc',
-              color: '#a21caf', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
-              textDecoration: 'none',
-            }}
-          >
-            🎥 Commissioner
-          </Link>
+          {isAuthenticated && (
+            <Link
+              to="/livsow/commissioner"
+              style={{
+                padding: '8px 14px', background: '#fdf4ff', border: '1px solid #f0abfc',
+                color: '#a21caf', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
+                textDecoration: 'none',
+              }}
+            >
+              🎥 Commissioner
+            </Link>
+          )}
           <button
             onClick={() => load(true)}
             style={{
@@ -262,6 +275,10 @@ const LivSowLeaderboard = () => {
         <span>😬 Bogey −1</span>
         <span>💀 Double −3</span>
       </div>
+
+      {/* Wide screens: standings left, chat right. Narrow: single column. */}
+      <div style={isWide ? { display: 'flex', gap: '20px', alignItems: 'flex-start' } : undefined}>
+      <div style={isWide ? { flex: '1 1 0', minWidth: 0 } : undefined}>
 
       {/* Team standings */}
       {teams.map(team => (
@@ -321,11 +338,6 @@ const LivSowLeaderboard = () => {
         </div>
       )}
 
-      {/* League chat — live window into the GroupMe group */}
-      <div style={{ marginTop: '24px' }}>
-        <GroupMeFeed height={440} />
-      </div>
-
       {/* Recent moves — auto-detected from roster changes */}
       {recentMoves.length > 0 && (
         <div style={{ marginTop: '24px', background: '#fff', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '16px 20px' }}>
@@ -335,6 +347,20 @@ const LivSowLeaderboard = () => {
           <LivSowTransactions transactions={recentMoves} />
         </div>
       )}
+
+      </div>
+
+      {/* League chat — live window into the GroupMe group. Login-only:
+          the page is public, the group's banter is not. */}
+      {isAuthenticated && (
+        <div style={isWide
+          ? { flex: '0 0 380px', position: 'sticky', top: '16px' }
+          : { marginTop: '24px' }}>
+          <GroupMeFeed height={isWide ? 560 : 440} />
+        </div>
+      )}
+
+      </div>
     </div>
   );
 };

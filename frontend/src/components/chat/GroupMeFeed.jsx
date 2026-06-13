@@ -126,6 +126,13 @@ const GroupMeFeed = ({ height = 420 }) => {
         </Link>
       </div>
 
+      <div style={{ position: 'relative' }}>
+      {/* Fade at the top edge so a mid-scroll message reads as "more above" */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, height: 28,
+        background: 'linear-gradient(to bottom, #fff, rgba(255,255,255,0))',
+        pointerEvents: 'none', zIndex: 1,
+      }} />
       <div
         ref={scrollRef}
         onScroll={onScroll}
@@ -160,6 +167,7 @@ const GroupMeFeed = ({ height = 420 }) => {
             ))}
           </>
         )}
+      </div>
       </div>
     </div>
   );

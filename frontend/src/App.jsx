@@ -137,8 +137,14 @@ function App() {
     );
   }
 
+  // Public routes: LivSow standings + team pages are viewable without an
+  // account (data derives from the public Google Sheet). Chat, commissioner
+  // media, and everything else stay behind login.
+  const isPublicPath =
+    /^\/livsow$/.test(location.pathname) || /^\/livsow\/teams\/[^/]+$/.test(location.pathname);
+
   // Show login screen if not authenticated
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !isPublicPath) {
     return (
       <ThemeProvider>
         <div
