@@ -10,7 +10,7 @@
  */
 
 // IMPORTANT: Update this version with each release to trigger cache refresh
-const SW_VERSION = '0.2.0.16502';
+const SW_VERSION = '0.2.0.90752';
 const CACHE_NAME = `wgp-cache-v${SW_VERSION}`;
 
 const urlsToCache = [
@@ -87,6 +87,16 @@ self.addEventListener('fetch', (event) => {
 
   // Skip requests that shouldn't be cached
   if (matchesPattern(url, NO_CACHE_PATTERNS)) {
+    return;
+  }
+
+  // Network-first for the HTML document (navigations). Serving index.html
+  // cache-first pins returning users to an OLD app shell that references
+  // stale/410'd JS chunks after a deploy — which breaks lazy-loaded routes
+  // and nav. Always fetch fresh HTML; networkFirst falls back to cache
+  // offline, so the PWA still works without a connection.
+  if (event.request.mode === 'navigate' || event.request.destination === 'document') {
+    event.respondWith(networkFirst(event.request));
     return;
   }
 
