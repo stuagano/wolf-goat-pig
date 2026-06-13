@@ -307,3 +307,39 @@ class TestTeamContentEditing:
             detail = client.get("/data/livsow/teams/high-beta").json()
             assert detail["content"]["announcement"] == "Tee at 8"
             assert detail["captain_name"] == "Gregg Colburn"
+
+
+class TestStarterSeeding:
+    def setup_method(self):
+        from app import models
+        from app.database import SessionLocal
+
+        db = SessionLocal()
+        db.query(models.LivSowTeamContent).delete()
+        db.commit()
+        db.close()
+
+    def test_seed_requires_admin(self):
+        resp = client.post("/data/livsow/teams/seed-starters")
+        assert resp.status_code == 403
+
+    def test_seed_inserts_and_is_idempotent(self):
+        lb = _leaderboard()  # High Beta + Vice Grips fixtures
+        with patch(PATCH_TARGET, return_value=lb):
+            r1 = client.post(
+                "/data/livsow/teams/seed-starters",
+                headers={"X-Admin-Email": "stuagano@gmail.com"},
+            )
+            assert r1.status_code == 200
+            assert "high-beta" in r1.json()["seeded"]
+            # second run seeds nothing
+            r2 = client.post(
+                "/data/livsow/teams/seed-starters",
+                headers={"X-Admin-Email": "stuagano@gmail.com"},
+            )
+            assert r2.json()["count"] == 0
+        # starter content shows on the team detail
+        with patch(PATCH_TARGET, return_value=lb):
+            detail = client.get("/data/livsow/teams/high-beta").json()
+            assert detail["content"]["motto"]
+            assert detail["content"]["updated_by"] == "(starter — edit me)"
