@@ -915,18 +915,23 @@ async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_
             state = simulation.get_game_state()
             state["game_id"] = game_id
 
-            # Enrich players with tee_order from database
+            # Enrich players with tee_order + is_authenticated from database.
+            # is_authenticated follows the lobby convention (user_id is not
+            # None); ghost players have user_id=None, so Stuart Mode in the
+            # scorekeeper auto-plays them.
             db_players = db.query(models.GamePlayer).filter(models.GamePlayer.game_id == game_id).all()
 
-            # Create a mapping of player_slot_id to tee_order
             tee_order_map = {p.player_slot_id: p.tee_order for p in db_players}
+            auth_map = {p.player_slot_id: (p.user_id is not None) for p in db_players}
 
-            # Add tee_order to each player in the state
             if "players" in state:
                 for player in state["players"]:
                     player_id = player.get("id")
                     if player_id in tee_order_map:
                         player["tee_order"] = tee_order_map[player_id]
+                    if player_id in auth_map:
+                        player["is_authenticated"] = auth_map[player_id]
+                        player["is_ghost"] = not auth_map[player_id]
 
             return state
 

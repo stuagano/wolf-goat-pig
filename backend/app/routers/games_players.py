@@ -85,6 +85,174 @@ class SimulationSeedRequest(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+class CustomPlayer(BaseModel):
+    """A player in a custom game — a real person or a ghost (AI-played)."""
+
+    name: str = Field(min_length=1, max_length=60)
+    handicap: float = 18
+    is_ghost: bool = False
+    player_profile_id: int | None = None
+    user_id: str | None = None
+
+
+class CreateCustomGameRequest(BaseModel):
+    course_name: str | None = None
+    players: list[CustomPlayer] = Field(min_length=4, max_length=6)
+
+
+def _slug_id(name: str, i: int) -> str:
+    import re
+
+    base = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "player"
+    return f"{base}-{i + 1}"
+
+
+@router.get("/roster-suggestions")
+def roster_suggestions(db: Session = Depends(database.get_db)) -> Any:
+    """Names for the new-game player picker: app profiles (with handicaps)
+    plus LivSow league members (so people without accounts are pickable)."""
+    out: dict[str, dict[str, Any]] = {}
+
+    for pid, name, handicap in db.query(
+        models.PlayerProfile.id, models.PlayerProfile.name, models.PlayerProfile.handicap
+    ).all():
+        if not name:
+            continue
+        out[name.lower()] = {
+            "name": name,
+            "handicap": handicap if handicap is not None else 18,
+            "player_profile_id": pid,
+            "source": "profile",
+        }
+
+    try:
+        from ..services.livsow_service import get_livsow_team_map
+
+        for name, info in get_livsow_team_map().items():
+            key = name.lower()
+            if key not in out:
+                out[key] = {
+                    "name": name,
+                    "handicap": 18,
+                    "player_profile_id": None,
+                    "source": "livsow",
+                    "team": info.get("team"),
+                }
+    except Exception:
+        logger.exception("LivSow roster lookup failed for suggestions (non-fatal)")
+
+    return {"players": sorted(out.values(), key=lambda p: p["name"])}
+
+
+@router.post("/create-custom")
+async def create_custom_game(body: CreateCustomGameRequest, db: Session = Depends(database.get_db)) -> Any:
+    """Create a started game from a custom roster of real and/or ghost
+    players. Ghosts are flagged is_authenticated=False so Stuart Mode
+    auto-plays them. Lands the host straight in the scorekeeper."""
+    import string
+    import uuid
+
+    if len(body.players) not in (4, 5, 6):
+        raise HTTPException(status_code=400, detail="Wolf Goat Pig requires 4, 5, or 6 players")
+
+    join_code = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    game_id = str(uuid.uuid4())
+    now = utc_now().isoformat()
+
+    seeds = [
+        {
+            "id": _slug_id(p.name, i),
+            "name": p.name,
+            "handicap": p.handicap,
+            "is_ghost": p.is_ghost,
+            "player_profile_id": p.player_profile_id,
+            "user_id": p.user_id,
+        }
+        for i, p in enumerate(body.players)
+    ]
+
+    wgp_players = [Player(id=s["id"], name=s["name"], handicap=s["handicap"]) for s in seeds]
+
+    course_manager = None
+    if body.course_name:
+        try:
+            cm = CourseManager()
+            if body.course_name in cm.get_courses():
+                cm.load_course(body.course_name)
+                course_manager = cm
+        except Exception:
+            logger.exception("Course load failed for custom game (continuing without)")
+
+    simulation = WolfGoatPigGame(player_count=len(seeds), players=wgp_players, course_manager=course_manager)
+    # Mark ghosts as computer-controlled in the engine
+    ghost_ids = [s["id"] for s in seeds if s["is_ghost"]]
+    if ghost_ids:
+        simulation.set_computer_players(ghost_ids)
+
+    game_state = simulation.get_game_state()
+    game_state["game_status"] = "in_progress"
+    # Carry is_authenticated through to the scorekeeper (Stuart Mode auto-plays
+    # players where is_authenticated is false — i.e. the ghosts).
+    by_id = {s["id"]: s for s in seeds}
+    for sp in game_state.get("players", []):
+        seed = by_id.get(sp.get("id"))
+        if seed is not None:
+            sp["is_authenticated"] = not seed["is_ghost"]
+            sp["is_ghost"] = seed["is_ghost"]
+
+    if body.course_name and "wing point" in body.course_name.lower():
+        from ..data.wing_point_course_data import WING_POINT_COURSE_DATA
+
+        game_state["holes_config"] = [
+            {"hole_number": h["hole_number"], "par": h["par"], "handicap": h["handicap_men"]}
+            for h in WING_POINT_COURSE_DATA["holes"]
+        ]
+
+    service = get_game_lifecycle_service()
+    service._active_games[game_id] = simulation
+
+    db.add(
+        models.GameStateModel(
+            game_id=game_id,
+            join_code=join_code,
+            creator_user_id=next((s["user_id"] for s in seeds if s["user_id"]), "custom"),
+            game_status="in_progress",
+            state=game_state,
+            created_at=now,
+            updated_at=now,
+        )
+    )
+    for s in seeds:
+        db.add(
+            models.GamePlayer(
+                game_id=game_id,
+                player_slot_id=s["id"],
+                # Ghosts get no user_id so the lobby endpoint also reads them as
+                # unauthenticated; real players keep their id (or a stable stub).
+                user_id=None if s["is_ghost"] else (s["user_id"] or f"custom-{s['id']}"),
+                player_profile_id=s["player_profile_id"],
+                player_name=s["name"],
+                handicap=s["handicap"],
+                join_status="joined",
+                joined_at=now,
+                created_at=now,
+            )
+        )
+    db.commit()
+
+    return {
+        "game_id": game_id,
+        "join_code": join_code,
+        "status": "in_progress",
+        "player_count": len(seeds),
+        "has_ghosts": bool(ghost_ids),
+        "players": [
+            {"id": s["id"], "name": s["name"], "handicap": s["handicap"], "is_ghost": s["is_ghost"]} for s in seeds
+        ],
+        "created_at": now,
+    }
+
+
 @router.post("/create-test")
 async def create_test_game(
     course_name: str | None = None,
