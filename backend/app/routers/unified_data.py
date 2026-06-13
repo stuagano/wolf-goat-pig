@@ -444,6 +444,43 @@ def seed_livsow_team_starters(db: Session = Depends(get_db)) -> Any:
     return {"seeded": seeded, "count": len(seeded)}
 
 
+# Official franchise crests (from the WSOW power-rankings reveal), served
+# as static files by the frontend. Keyed by slug.
+_OFFICIAL_LOGOS = {
+    "high-beta": "/livsow-logos/high-beta.png",
+    "saks-smash": "/livsow-logos/saks-smash.png",
+    "knudsen-s-ironheads": "/livsow-logos/knudsen-s-ironheads.png",
+    "ripper-golf-club": "/livsow-logos/ripper-golf-club.png",
+    "vice-grips": "/livsow-logos/vice-grips.png",
+    "sutorius-aces": "/livsow-logos/sutorius-aces.png",
+}
+
+
+@router.post("/livsow/teams/set-official-logos", dependencies=[Depends(require_admin)])
+def set_official_team_logos(db: Session = Depends(get_db)) -> Any:
+    """Set each franchise's official crest as its logo. Admin-only. Upserts
+    the content row and touches only logo_url — captain motto/about/
+    announcement are preserved."""
+    updated = []
+    for slug, url in _OFFICIAL_LOGOS.items():
+        content = (
+            db.query(models.LivSowTeamContent)
+            .filter(
+                models.LivSowTeamContent.team_slug == slug,
+                models.LivSowTeamContent.season == LIVSOW_SEASON,
+            )
+            .first()
+        )
+        if content is None:
+            content = models.LivSowTeamContent(team_slug=slug, season=LIVSOW_SEASON)
+            db.add(content)
+        content.logo_url = url
+        content.updated_at = utc_now().isoformat()
+        updated.append(slug)
+    db.commit()
+    return {"updated": updated, "count": len(updated)}
+
+
 @router.post("/livsow/snapshot")
 def post_livsow_snapshot(force: bool = Query(False), db: Session = Depends(get_db)) -> Any:
     """Run the roster snapshot/diff check now. Called by the daily cron and

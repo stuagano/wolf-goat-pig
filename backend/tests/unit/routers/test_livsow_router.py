@@ -343,3 +343,50 @@ class TestStarterSeeding:
             detail = client.get("/data/livsow/teams/high-beta").json()
             assert detail["content"]["motto"]
             assert detail["content"]["updated_by"] == "(starter — edit me)"
+
+
+class TestOfficialLogos:
+    def setup_method(self):
+        from app import models
+        from app.database import SessionLocal
+
+        db = SessionLocal()
+        db.query(models.LivSowTeamContent).delete()
+        db.commit()
+        db.close()
+
+    def test_set_logos_requires_admin(self):
+        assert client.post("/data/livsow/teams/set-official-logos").status_code == 403
+
+    def test_set_logos_upserts_and_preserves_captain_content(self):
+        from app import models
+        from app.database import SessionLocal
+        from app.utils.time import utc_now
+
+        # Pre-existing captain content for high-beta
+        db = SessionLocal()
+        db.add(
+            models.LivSowTeamContent(
+                team_slug="high-beta",
+                season="2026",
+                motto="Fear the Beta",
+                about="ours",
+                updated_by="Gregg",
+                updated_at=utc_now().isoformat(),
+            )
+        )
+        db.commit()
+        db.close()
+
+        resp = client.post(
+            "/data/livsow/teams/set-official-logos",
+            headers={"X-Admin-Email": "stuagano@gmail.com"},
+        )
+        assert resp.status_code == 200
+        assert "high-beta" in resp.json()["updated"]
+
+        db = SessionLocal()
+        row = db.query(models.LivSowTeamContent).filter_by(team_slug="high-beta", season="2026").first()
+        assert row.logo_url == "/livsow-logos/high-beta.png"
+        assert row.motto == "Fear the Beta"  # captain content untouched
+        db.close()
