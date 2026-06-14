@@ -206,6 +206,39 @@ class TestSaveScores:
         assert data["game_status"] == "completed"
         assert data["holes_saved"] == 18
 
+    def test_saved_scores_are_visible_via_state(self):
+        """Regression: /scores writes to the DB but /state served the in-memory
+        simulation for active games, so saved holes were invisible (saved 200
+        yet /state showed empty) — breaking reload and cross-device. /scores now
+        evicts the stale sim so /state reflects the write."""
+        game_id, slots = _setup_started_game()
+        # Game is in _active_games after /start — this is the bug's precondition.
+        _post_scores(
+            game_id,
+            {
+                "hole_quarters": {
+                    "1": {slots[0]: 3, slots[1]: -1, slots[2]: -1, slots[3]: -1},
+                    "2": {slots[0]: -1, slots[1]: 1, slots[2]: 1, slots[3]: -1},
+                },
+                "current_hole": 3,
+            },
+        )
+        state = client.get(f"/games/{game_id}/state").json()
+        holes = sorted(h["hole"] for h in state.get("hole_history", []))
+        assert holes == [1, 2], f"saved holes not visible via /state: {state.get('hole_history')}"
+        assert state.get("current_hole") == 3
+
+    def test_final_hole_scores_then_complete(self):
+        """End-of-round sequence: POST /scores for the 18th hole evicts the sim,
+        then POST /complete must still succeed (it reads the DB, not the sim)."""
+        game_id, slots = _setup_started_game()
+        hole_quarters = {str(h): {slots[0]: 1, slots[1]: -1, slots[2]: 1, slots[3]: -1} for h in range(1, 19)}
+        scores_resp = _post_scores(game_id, {"hole_quarters": hole_quarters, "current_hole": 18})
+        assert scores_resp.status_code == 200
+        complete_resp = client.post(f"/games/{game_id}/complete")
+        assert complete_resp.status_code == 200, complete_resp.text
+        assert client.get(f"/games/{game_id}/state").json().get("game_status") == "completed"
+
 
 # ── DELETE /games/{game_id}/holes/{hole_number} ──────────────────────────────
 

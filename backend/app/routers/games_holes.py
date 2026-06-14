@@ -172,6 +172,12 @@ async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depend
             game.game_status = "in_progress"
 
         game.state = game_state
+        # game_state is the SAME dict object as game.state (line above:
+        # `game.state or {}`), so reassigning it does NOT mark the JSON column
+        # dirty — SQLAlchemy can't see in-place mutations of a JSON blob. Without
+        # this, hole_history/current_hole/standings never persist (only the
+        # separate hole_events rows do), and /state reads back stale-empty state.
+        flag_modified(game, "state")
         db.commit()
 
         logger.info(f"Saved quarters-only data for game {game_id}: {holes_with_data} holes")
@@ -282,6 +288,20 @@ async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depend
             except Exception as e:
                 logger.error("Failed to persist game results for %s: %s", game_id, e)
                 # Don't fail the whole request — quarters are already saved
+
+        # Evict any stale in-memory simulation for this game. GET /state serves
+        # the in-memory sim from _active_games when present and ignores the DB —
+        # but this endpoint writes ONLY to the DB. Without eviction the scores we
+        # just saved stay invisible (saved 200 yet /state shows empty), breaking
+        # reload and cross-device. Dropping the sim makes the next /state fall
+        # through to the DB (now current); the sim lazily rebuilds from the DB on
+        # the next /action. Safe for scorekeeper games — they don't use /action.
+        try:
+            from ..services.game_lifecycle_service import get_game_lifecycle_service
+
+            get_game_lifecycle_service()._active_games.pop(game_id, None)
+        except Exception as e:
+            logger.warning("Could not evict in-memory sim for %s: %s", game_id, e)
 
         return {
             "success": True,
