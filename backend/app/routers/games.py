@@ -774,6 +774,10 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
         game.game_status = "completed"
         state["game_status"] = "completed"
         game.state = state
+        # state is the same dict object as game.state — reassigning doesn't mark
+        # the JSON column dirty. Without this the blob's game_status/standings
+        # wouldn't persist (only the scalar game.game_status column would).
+        flag_modified(game, "state")
 
         now = utc_now().isoformat()
 

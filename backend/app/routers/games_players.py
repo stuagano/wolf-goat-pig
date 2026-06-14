@@ -559,10 +559,14 @@ async def remove_player(game_id: str, player_slot_id: str, db: Session = Depends
         db.delete(game_player)
 
         # Remove from game state players array
+        from sqlalchemy.orm.attributes import flag_modified
+
         state = game.state or {}
         players = state.get("players", [])
         state["players"] = [p for p in players if p.get("id") != player_slot_id]
         game.state = state
+        # Same-object reassignment doesn't mark the JSON column dirty.
+        flag_modified(game, "state")
         game.updated_at = utc_now().isoformat()
 
         db.commit()
@@ -640,6 +644,8 @@ async def update_player_handicap(  # type: ignore
         game_player.handicap = new_handicap
 
         # Update in game state players array
+        from sqlalchemy.orm.attributes import flag_modified
+
         state = game.state or {}
         players = state.get("players", [])
         for player in players:
@@ -648,6 +654,8 @@ async def update_player_handicap(  # type: ignore
                 break
 
         game.state = state
+        # Same-object reassignment doesn't mark the JSON column dirty.
+        flag_modified(game, "state")
         game.updated_at = utc_now().isoformat()
 
         db.commit()
