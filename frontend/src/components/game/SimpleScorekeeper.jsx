@@ -418,17 +418,8 @@ const SimpleScorekeeper = ({
       playerStandings,
       setCourseData,
       setPlayerStandings,
-      setIsHoepfinger,
-      setGoatId,
-      setPhase,
-      setRotationOrder,
-      setCaptainIndex,
-      setJoesSpecialWager,
       setNextHoleWager,
       setCurrentWager,
-      setCarryOver,
-      setVinniesVariation,
-      setOptionActive,
     });
 
   // Post-hole achievement checking (badge notifications + failure banner)

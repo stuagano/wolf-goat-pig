@@ -28,17 +28,8 @@ const useScorekeeperSync = ({
   playerStandings,
   setCourseData,
   setPlayerStandings,
-  setIsHoepfinger,
-  setGoatId,
-  setPhase,
-  setRotationOrder,
-  setCaptainIndex,
-  setJoesSpecialWager,
   setNextHoleWager,
   setCurrentWager,
-  setCarryOver,
-  setVinniesVariation,
-  setOptionActive,
 }) => {
   const [courseDataError, setCourseDataError] = useState(null);
   const [courseDataLoading, setCourseDataLoading] = useState(false);
@@ -143,87 +134,19 @@ const useScorekeeperSync = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- setPlayerStandings is stable (useCallback)
   }, [players, holeHistory]);
 
-  // Track rotation/wager loading errors
-  const [rotationError, setRotationError] = useState(null);
+  // Rotation and per-hole wager are computed client-side (in the game reducer).
+  // The old backend endpoints (/next-rotation, /next-hole-wager) were never
+  // implemented and 404'd on every hole, surfacing a spurious "Rotation/Wager
+  // Error" banner for every game. The fetch's only real effect in production was
+  // its error-fallback: resetting the wager to base on each hole change. Keep
+  // exactly that, drop the dead network calls, and the banner is gone.
+  // rotationError is retained (always null) so callers' destructuring is stable.
+  const [rotationError] = useState(null);
 
-  // Fetch rotation and wager info when hole changes
   useEffect(() => {
-    const fetchRotationAndWager = async () => {
-      setRotationError(null);
-      try {
-        // Fetch next rotation
-        const rotationRes = await fetch(
-          `${API_URL}/games/${gameId}/next-rotation`,
-        );
-        if (!rotationRes.ok) {
-          throw new Error(`Failed to fetch rotation: ${rotationRes.status}`);
-        }
-
-        const rotationData = await rotationRes.json();
-        if (!rotationData || typeof rotationData !== "object") {
-          throw new Error("Invalid rotation response");
-        }
-
-        if (rotationData.is_hoepfinger) {
-          setIsHoepfinger(true);
-          setGoatId(rotationData.goat_id);
-          setPhase("hoepfinger");
-          // Don't set rotation yet - Goat will select position
-        } else {
-          setIsHoepfinger(false);
-          // Validate rotation_order is an array
-          if (!Array.isArray(rotationData.rotation_order)) {
-            throw new Error("Invalid rotation_order: expected array");
-          }
-          setRotationOrder(rotationData.rotation_order);
-          setCaptainIndex(
-            typeof rotationData.captain_index === "number"
-              ? rotationData.captain_index
-              : 0,
-          );
-          setPhase("normal");
-          setGoatId(null);
-          setJoesSpecialWager(null);
-        }
-
-        // Fetch next hole wager
-        const wagerRes = await fetch(
-          `${API_URL}/games/${gameId}/next-hole-wager`,
-        );
-        if (!wagerRes.ok) {
-          throw new Error(`Failed to fetch wager: ${wagerRes.status}`);
-        }
-
-        const wagerData = await wagerRes.json();
-        if (!wagerData || typeof wagerData !== "object") {
-          throw new Error("Invalid wager response");
-        }
-
-        // Validate and set wager data with safe defaults
-        const baseWagerValue =
-          typeof wagerData.base_wager === "number"
-            ? wagerData.base_wager
-            : baseWager;
-        setNextHoleWager(baseWagerValue);
-        setCurrentWager(baseWagerValue);
-        setCarryOver(wagerData.carry_over || false);
-        setVinniesVariation(wagerData.vinnies_variation || false);
-        setOptionActive(wagerData.option_active || false);
-        if (wagerData.option_active) {
-          setGoatId(wagerData.goat_id);
-        }
-      } catch (err) {
-        console.error("Error fetching rotation/wager:", err);
-        setRotationError(err.message);
-        // Set safe defaults on error
-        setCurrentWager(baseWager);
-        setNextHoleWager(baseWager);
-      }
-    };
-
-    if (gameId) {
-      fetchRotationAndWager();
-    }
+    if (!gameId) return;
+    setNextHoleWager(baseWager);
+    setCurrentWager(baseWager);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- setters are stable (useCallback), only trigger on data changes
   }, [gameId, currentHole, holeHistory, baseWager]);
 
