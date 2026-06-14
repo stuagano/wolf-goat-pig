@@ -122,6 +122,14 @@ const useHoleSubmission = (ctx) => {
 
   // Submit hole to backend
   const handleSubmitHole = async () => {
+    // A round is 18 holes — there is no hole 19+. Without this guard,
+    // edit-complete mode (which parks currentHole at 19) lets the "Complete
+    // Hole" button keep advancing and record phantom holes 19, 20, 21…
+    // Editing an existing hole (editingHole set) is always allowed.
+    if (!editingHole && currentHole > 18) {
+      return;
+    }
+
     // Apply auto-balance before validation
     const effectiveQuarters = getEffectiveQuarters();
     setQuarters(effectiveQuarters);
