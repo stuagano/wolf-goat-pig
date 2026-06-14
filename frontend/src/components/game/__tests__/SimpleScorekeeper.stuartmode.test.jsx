@@ -83,6 +83,26 @@ describe('Stuart Mode characterization', () => {
     expect(screen.getByTestId('hole-phase-strip')).toBeInTheDocument();
   });
 
+  test('a new ghost game resolves to Auto even after a prior Coach session', () => {
+    // Regression: CreateGamePage writes wgp_assist_mode='auto' for ghost games.
+    // Without that, a stale 'coach' from a real round would shadow the legacy
+    // boolean and the ghosts would silently stop auto-playing.
+    localStorage.setItem('wgp_assist_mode', 'auto');
+    localStorage.setItem('wgp_stuart_mode', 'true');
+    renderScorekeeper();
+    expect(screen.getByTestId('hole-phase-strip')).toBeInTheDocument();
+  });
+
+  test('Coach mode shows the strategy panel but does NOT auto-play (no phase strip)', () => {
+    // Real round: everyone scores themselves, but tips still show.
+    localStorage.setItem('wgp_assist_mode', 'coach');
+    renderScorekeeper();
+    // Strategy panel is present (whisperer lives inside it)...
+    expect(screen.getByTestId('whisperer-toggle')).toBeInTheDocument();
+    // ...but the AI hole-phase strip (auto-play UI) is not.
+    expect(screen.queryByTestId('hole-phase-strip')).not.toBeInTheDocument();
+  });
+
   test('tee phase: AI captain decision produces an aiMoves log entry', async () => {
     localStorage.setItem('wgp_stuart_mode', 'true');
     vi.useFakeTimers();

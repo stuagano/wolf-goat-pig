@@ -102,9 +102,12 @@ function CreateGamePage() {
         throw new Error(e.detail || `HTTP ${res.status}`);
       }
       const data = await res.json();
-      // Auto-enable Stuart Mode when ghosts are in the game so the AI plays them.
-      if (data.has_ghosts) localStorage.setItem('wgp_stuart_mode', 'true');
-      else localStorage.setItem('wgp_stuart_mode', 'false');
+      // Auto-enable Stuart Mode (full AI) when ghosts are in the game so the AI
+      // plays them. Write the canonical assist-mode key — the scorekeeper reads
+      // it first; also keep the legacy boolean in sync for older readers.
+      const mode = data.has_ghosts ? 'auto' : 'off';
+      localStorage.setItem('wgp_assist_mode', mode);
+      localStorage.setItem('wgp_stuart_mode', String(data.has_ghosts));
       navigate(`/game/${data.game_id}`);
     } catch (err) {
       setError(err.message || 'Failed to start game.');

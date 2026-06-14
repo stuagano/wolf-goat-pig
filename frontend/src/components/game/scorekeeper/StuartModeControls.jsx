@@ -7,73 +7,103 @@
 import React from "react";
 import PropTypes from "prop-types";
 
-export const StuartModeToggle = ({ stuartMode, toggleStuartMode, theme }) => {
-  // Inline, clearly-labeled toggle row at the top of the scorekeeper.
-  // (Was a faint floating 🧠 icon that hid behind the nav bar — undiscoverable.)
+// Three assist modes. Coach was added so a *real* round (everyone physically
+// present, entering their own scores) can still get the strategy panel without
+// the AI auto-playing the table — Auto is the full takeover, Coach is tips only.
+const ASSIST_MODES = [
+  {
+    key: "off",
+    label: "Off",
+    blurb: "Manual scoring. No AI, no tips.",
+  },
+  {
+    key: "coach",
+    label: "Coach",
+    blurb: "Real round — everyone scores themselves; you get live strategy tips.",
+  },
+  {
+    key: "auto",
+    label: "Auto",
+    blurb: "AI plays the computer opponents and coaches your strategy.",
+  },
+];
+
+export const StuartModeToggle = ({ assistMode, setAssistMode, theme }) => {
+  // Inline, clearly-labeled segmented control at the top of the scorekeeper.
+  const active = ASSIST_MODES.find((m) => m.key === assistMode) || ASSIST_MODES[0];
   return (
-    <button
+    <div
       data-testid="stuart-mode-toggle"
-      onClick={toggleStuartMode}
-      aria-pressed={stuartMode}
-      aria-label={stuartMode ? "Stuart Mode on — tap to turn off" : "Stuart Mode off — tap to turn on"}
       style={{
         width: "100%",
-        display: "flex",
-        alignItems: "center",
-        gap: "12px",
-        padding: "10px 14px",
         marginBottom: "12px",
+        padding: "10px 14px",
         borderRadius: "12px",
-        border: stuartMode ? "2px solid #F59E0B" : `1px solid ${theme.colors.border}`,
-        background: stuartMode ? "rgba(245,158,11,0.10)" : (theme.colors.paper || "#fff"),
-        cursor: "pointer",
-        textAlign: "left",
+        border: assistMode === "off"
+          ? `1px solid ${theme.colors.border}`
+          : "2px solid #F59E0B",
+        background: assistMode === "off"
+          ? (theme.colors.paper || "#fff")
+          : "rgba(245,158,11,0.10)",
       }}
     >
-      <span style={{ fontSize: "22px", flexShrink: 0 }}>🧠</span>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 700, fontSize: "14px", color: theme.colors.textPrimary }}>
-          Stuart Mode is {stuartMode ? "ON" : "OFF"}
-        </div>
-        <div style={{ fontSize: "12px", color: theme.colors.textSecondary, lineHeight: 1.35 }}>
-          {stuartMode
-            ? "AI is playing the computer opponents and giving live strategy tips."
-            : "Tap to let AI play the computer opponents and coach your strategy."}
+      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
+        <span style={{ fontSize: "22px", flexShrink: 0 }}>🧠</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: "14px", color: theme.colors.textPrimary }}>
+            Stuart Mode: {active.label}
+          </div>
+          <div style={{ fontSize: "12px", color: theme.colors.textSecondary, lineHeight: 1.35 }}>
+            {active.blurb}
+          </div>
         </div>
       </div>
-      {/* Switch */}
-      <span
+      <div
+        role="radiogroup"
+        aria-label="Stuart Mode"
         style={{
-          flexShrink: 0,
-          width: "46px",
-          height: "26px",
-          borderRadius: "13px",
-          background: stuartMode ? "#F59E0B" : "#d1d5db",
-          position: "relative",
-          transition: "background 0.2s",
+          display: "flex",
+          gap: "4px",
+          padding: "3px",
+          borderRadius: "9px",
+          background: theme.colors.background || "#e5e7eb",
         }}
       >
-        <span
-          style={{
-            position: "absolute",
-            top: "3px",
-            left: stuartMode ? "23px" : "3px",
-            width: "20px",
-            height: "20px",
-            borderRadius: "50%",
-            background: "#fff",
-            transition: "left 0.2s",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
-          }}
-        />
-      </span>
-    </button>
+        {ASSIST_MODES.map((m) => {
+          const selected = m.key === assistMode;
+          return (
+            <button
+              key={m.key}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              data-testid={`stuart-mode-${m.key}`}
+              onClick={() => setAssistMode(m.key)}
+              style={{
+                flex: 1,
+                padding: "7px 8px",
+                fontSize: "13px",
+                fontWeight: 700,
+                borderRadius: "7px",
+                border: "none",
+                cursor: "pointer",
+                color: selected ? "#fff" : theme.colors.textSecondary,
+                background: selected ? "#F59E0B" : "transparent",
+                transition: "background 0.15s, color 0.15s",
+              }}
+            >
+              {m.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 };
 
 StuartModeToggle.propTypes = {
-  stuartMode: PropTypes.bool.isRequired,
-  toggleStuartMode: PropTypes.func.isRequired,
+  assistMode: PropTypes.oneOf(["off", "coach", "auto"]).isRequired,
+  setAssistMode: PropTypes.func.isRequired,
   theme: PropTypes.object.isRequired,
 };
 

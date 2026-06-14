@@ -291,6 +291,9 @@ const SimpleScorekeeper = ({
     startEditingPlayerName,
     cancelEditingPlayerName: handleCancelPlayerNameEdit,
     stuartMode,
+    coachMode,
+    assistMode,
+    setAssistMode,
     toggleStuartMode,
   } = ui;
 
@@ -806,8 +809,8 @@ const SimpleScorekeeper = ({
       style={{ padding: "20px", maxWidth: "800px", margin: "0 auto" }}
     >
       <StuartModeToggle
-        stuartMode={stuartMode}
-        toggleStuartMode={toggleStuartMode}
+        assistMode={assistMode}
+        setAssistMode={setAssistMode}
         theme={theme}
       />
 
@@ -988,8 +991,9 @@ const SimpleScorekeeper = ({
         handleSubmitHole={handleSubmitHole}
       />
 
-      {/* Stuart Mode strategy panel — toggled via Cmd/Ctrl+Shift+S, persisted in localStorage */}
-      {stuartMode && (
+      {/* Strategy panel shows in both Coach (real round, manual scoring) and Auto
+          (full AI). aiMoves is empty in Coach since nothing auto-plays. */}
+      {(stuartMode || coachMode) && (
         <StuartModePanel
           players={players}
           currentHole={currentHole}

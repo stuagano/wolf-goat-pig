@@ -18,9 +18,18 @@ export function useUIState() {
   const [showSpecialActions, setShowSpecialActions] = useState(false);
   const [showUsageStats, setShowUsageStats] = useState(false);
   const [showAdvancedBetting, setShowAdvancedBetting] = useState(false);
-  const [stuartMode, setStuartMode] = useState(
-    () => localStorage.getItem('wgp_stuart_mode') === 'true'
-  );
+  // Assist mode is tri-state: 'off' | 'coach' | 'auto'.
+  //  - auto  → full AI takeover (plays opponents) + strategy tips  (== legacy Stuart Mode ON)
+  //  - coach → real round, everyone scores manually, but strategy tips still show
+  //  - off   → nothing
+  const [assistMode, setAssistModeState] = useState(() => {
+    const m = localStorage.getItem('wgp_assist_mode');
+    if (m === 'off' || m === 'coach' || m === 'auto') return m;
+    // Backward compat: CreateGamePage and older sessions only set the boolean flag.
+    return localStorage.getItem('wgp_stuart_mode') === 'true' ? 'auto' : 'off';
+  });
+  const stuartMode = assistMode === 'auto';
+  const coachMode = assistMode === 'coach';
   
   // Loading and error states
   const [submitting, setSubmitting] = useState(false);
@@ -87,10 +96,19 @@ export function useUIState() {
     setError(null);
   }, []);
 
+  const setAssistMode = useCallback((mode) => {
+    setAssistModeState(mode);
+    localStorage.setItem('wgp_assist_mode', mode);
+    // Keep the legacy boolean in sync — CreateGamePage and tests read it.
+    localStorage.setItem('wgp_stuart_mode', String(mode === 'auto'));
+  }, []);
+
+  // Keyboard shortcut (Cmd/Ctrl+Shift+S in useStuartMode) flips full AI on/off.
   const toggleStuartMode = useCallback(() => {
-    setStuartMode(prev => {
-      const next = !prev;
-      localStorage.setItem('wgp_stuart_mode', String(next));
+    setAssistModeState(prev => {
+      const next = prev === 'auto' ? 'off' : 'auto';
+      localStorage.setItem('wgp_assist_mode', next);
+      localStorage.setItem('wgp_stuart_mode', String(next === 'auto'));
       return next;
     });
   }, []);
@@ -153,6 +171,9 @@ export function useUIState() {
     
     // Stuart Mode
     stuartMode,
+    coachMode,
+    assistMode,
+    setAssistMode,
     toggleStuartMode,
 
     // Actions
