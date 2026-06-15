@@ -288,13 +288,13 @@ class TestTeeOrder:
         )
         assert resp.status_code == 404
 
-    def test_set_tee_order_empty_order_returns_400(self):
+    def test_set_tee_order_empty_order_returns_422(self):
         game_id, _ = self._setup_game_with_players(4)
         resp = client.patch(
             f"/games/{game_id}/tee-order",
             json={"player_order": []},
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 422
 
     def test_set_tee_order_wrong_count_returns_400(self):
         game_id, slots = self._setup_game_with_players(4)
@@ -363,3 +363,20 @@ class TestStartGame:
         client.post(f"/games/{game['game_id']}/start")
         resp = client.post(f"/games/{game['game_id']}/start")
         assert resp.status_code == 400
+
+
+class TestSetTeeOrderValidation:
+    def _client(self):
+        from fastapi.testclient import TestClient
+
+        from app.main import app
+
+        return TestClient(app)
+
+    def test_missing_player_order_returns_422(self):
+        resp = self._client().patch("/games/nonexistent/tee-order", json={})
+        assert resp.status_code == 422
+
+    def test_empty_player_order_returns_422(self):
+        resp = self._client().patch("/games/nonexistent/tee-order", json={"player_order": []})
+        assert resp.status_code == 422

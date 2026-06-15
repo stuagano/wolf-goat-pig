@@ -6,6 +6,7 @@ import traceback
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
@@ -21,6 +22,10 @@ from ..wolf_goat_pig import Player, WolfGoatPigGame
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/games", tags=["games"])
+
+
+class SetTeeOrderRequest(BaseModel):
+    player_order: list[str] = Field(..., min_length=1)
 
 
 def _check_game_achievements(db: Session, game_id: str, record_id: int) -> None:
@@ -397,7 +402,7 @@ async def get_game_lobby(game_id: str, db: Session = Depends(database.get_db)) -
 
 @router.patch("/{game_id}/tee-order")
 async def set_tee_order(
-    game_id: str, request: dict[str, Any], db: Session = Depends(database.get_db)
+    game_id: str, request: SetTeeOrderRequest, db: Session = Depends(database.get_db)
 ) -> dict[str, Any]:
     """Set or update the tee order for the game at any time during gameplay"""
     try:
@@ -406,9 +411,7 @@ async def set_tee_order(
         if not game:
             raise HTTPException(status_code=404, detail="Game not found")
 
-        player_order = request.get("player_order", [])
-        if not player_order:
-            raise HTTPException(status_code=400, detail="player_order is required")
+        player_order = request.player_order
 
         # Validate all players exist and get them
         players = db.query(models.GamePlayer).filter(models.GamePlayer.game_id == game_id).all()
