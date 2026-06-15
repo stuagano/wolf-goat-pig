@@ -170,7 +170,7 @@ Even with Auth0 “stood up,” production misconfigurations frequently stem fro
 2. **CORS + Origins** – add the same URLs to Auth0’s “Allowed Web Origins” and ensure the FastAPI `ALLOWED_ORIGINS` list matches Render’s public hostname and Vercel’s domain.
 3. **API Audience** – in Auth0’s API settings, set the Identifier to your production API audience (`https://your-api.com`) and verify both the backend `.env` and frontend `.env.production` use the identical value. Tokens issued against another audience will fail Render-side validation.
 4. **Client Secrets** – store `AUTH0_CLIENT_SECRET` (for backend-only flows) in your `.env.production` vault and load it into Render as an environment variable; never commit it or paste it into source files.
-5. **End-to-end test** – run the functional suite with `./scripts/testing/run_tests.sh` or manually authenticate through the Vercel frontend while tailing Render logs (`render logs <service>`). You should see successful JWT verification and non-401 responses from protected endpoints.
+5. **End-to-end test** – manually authenticate through the Vercel frontend while tailing Render logs (`render logs <service>`). You should see successful JWT verification and non-401 responses from protected endpoints.
 
 If authentication still fails, capture the exact error message in Render’s logs or the browser console—the most common issues are incorrect `audience` or an unregistered callback URL.
 

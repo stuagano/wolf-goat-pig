@@ -590,8 +590,8 @@ Feature: Monte Carlo Simulation
 # Backend test execution
 cd backend && python -m pytest tests/ -v
 
-# BDD test execution
-cd scripts && ./run_bdd_tests.sh
+# BDD e2e test execution
+./scripts/testing/run_behave.sh
 
 # Performance testing
 python run_simulation_tests.py
