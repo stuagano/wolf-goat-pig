@@ -4,6 +4,7 @@ pytest-asyncio>=0.21.0
 pytest-mock>=3.11.1
 pytest-html>=4.1.1
 behave>=1.2.6
+pyhamcrest>=2.0.0
 playwright
 pytest-playwright
 mypy>=1.8.0
