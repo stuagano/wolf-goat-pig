@@ -1,6 +1,5 @@
 """Unit tests for courses router — list, get, create, delete."""
 
-import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -78,14 +77,6 @@ class TestUpdateCoursePreservesHoles:
         assert course is not None, "course was not created"
         return {h.hole_number: h for h in db.query(models.Hole).filter(models.Hole.course_id == course.id).all()}
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="CourseUpdate.validate_holes_update (app/schemas/courses.py:96) "
-        "rejects a partial <18-hole PUT with 422, blocking the router's partial-merge "
-        "preservation logic (app/routers/courses.py:364-402). The schema validator "
-        "regressed the intended behavior the router still implements. Remove this "
-        "marker once the validator permits a partial (1-17) hole subset.",
-    )
     def test_partial_update_preserves_other_holes(self):
         # Clean slate in case a previous run left this course behind.
         client.delete(f"/courses/{self._NAME}")

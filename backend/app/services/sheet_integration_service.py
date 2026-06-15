@@ -295,7 +295,7 @@ class SheetIntegrationService:
                         player = PlayerProfile(
                             name=player_name,
                             handicap=data.get("handicap", 18.0),
-                            created_date=utc_now().isoformat(),
+                            created_at=utc_now().isoformat(),
                             is_active=1,
                         )
                         self.db.add(player)
