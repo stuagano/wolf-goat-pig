@@ -108,9 +108,20 @@ async def test_resend_ok(monkeypatch):
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_resend_down_on_401(monkeypatch):
+async def test_resend_401_is_ok_send_scoped(monkeypatch):
+    # A send-scoped key 401s on /domains but can still send — treat as ok, not down.
     monkeypatch.setenv("RESEND_API_KEY", "k")
-    respx.get("https://api.resend.com/domains").mock(return_value=httpx.Response(401, json={"error": "bad key"}))
+    respx.get("https://api.resend.com/domains").mock(return_value=httpx.Response(401, json={"error": "restricted"}))
+    s = await ec.check_resend()
+    assert s.status == "ok"
+    assert "send-scoped" in s.detail
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_resend_down_on_500(monkeypatch):
+    monkeypatch.setenv("RESEND_API_KEY", "k")
+    respx.get("https://api.resend.com/domains").mock(return_value=httpx.Response(500, json={"error": "boom"}))
     s = await ec.check_resend()
     assert s.status == "down"
 
@@ -286,7 +297,8 @@ async def test_google_down_when_no_data(monkeypatch):
 # --------------------------------------------------------------------------
 # tee_sheet (no not_configured case — always configured)
 # --------------------------------------------------------------------------
-TEE_SHEET_URL = "https://thousand-cranes.com/WolfGoatPig"
+# The probe reads the real .cgi endpoint (the bare base path 301-redirects).
+TEE_SHEET_URL = "https://thousand-cranes.com/WolfGoatPig/wgp_tee_sheet.cgi"
 
 
 @pytest.mark.asyncio
