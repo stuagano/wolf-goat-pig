@@ -82,7 +82,7 @@ services:
       # If the public DSN ever gets abused to spam the free-tier quota, rotate
       # it in Sentry → Settings → Client Keys (DSN) and update this value.
       - key: SENTRY_DSN
-        value: "https://71a92590788aa98bc7e15b021ad1a0c1@o4511570300502016.ingest.us.sentry.io/4511570301616128"
+        value: "https://a2c007dfb1792d9f41e2d6c8c838dfcd@o4511570300502016.ingest.us.sentry.io/4511570311839744"
       # Guard for GET /health/external. Set a URL-safe value in the Render
       # dashboard (e.g. `openssl rand -hex 32` — no /, +, = so it works as a
       # ?monitor_key= query param) and put the same value in the uptime monitor.
