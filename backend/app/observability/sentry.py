@@ -7,12 +7,19 @@ sent and auth/secret fields are scrubbed before send.
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import Any
 
 import sentry_sdk
 
+logger = logging.getLogger(__name__)
+
 _SECRET_KEY_HINTS = ("authorization", "api_key", "apikey", "token", "password", "secret")
+
+# Set by init_sentry() so diagnostics can explain a failed init (e.g. a malformed
+# DSN) without crashing the app. None means "no init error this run".
+last_init_error: str | None = None
 
 
 def _redact(obj: Any) -> Any:
@@ -45,15 +52,22 @@ def init_sentry() -> bool:
     sentry-sdk[fastapi] auto-enables the FastAPI/Starlette integration, so every
     route's unhandled exceptions and 500s are captured once this runs.
     """
+    global last_init_error
+    last_init_error = None
     dsn = os.getenv("SENTRY_DSN")
     if not dsn:
         return False
-    sentry_sdk.init(
-        dsn=dsn,
-        environment=os.getenv("ENVIRONMENT", "development"),
-        release=os.getenv("RENDER_GIT_COMMIT") or os.getenv("GIT_SHA") or None,
-        send_default_pii=False,
-        traces_sample_rate=0.0,
-        before_send=_scrub,
-    )
-    return True
+    try:
+        sentry_sdk.init(
+            dsn=dsn,
+            environment=os.getenv("ENVIRONMENT", "development"),
+            release=os.getenv("RENDER_GIT_COMMIT") or os.getenv("GIT_SHA") or None,
+            send_default_pii=False,
+            traces_sample_rate=0.0,
+            before_send=_scrub,
+        )
+        return True
+    except Exception as e:  # a bad DSN must not crash app startup
+        last_init_error = f"{type(e).__name__}: {e}"
+        logger.error("Sentry init failed: %s", last_init_error)
+        return False

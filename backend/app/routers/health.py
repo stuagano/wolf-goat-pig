@@ -402,9 +402,16 @@ async def sentry_test(
     is true only when SENTRY_DSN is configured and the SDK started.) Pass
     `?send=1` with the MONITOR_KEY (header or query param) to fire a real test
     event you can confirm in the Sentry dashboard."""
+    from ..observability import sentry as _sentry_mod
+
     initialized = get_client().is_active()
+    dsn = os.getenv("SENTRY_DSN")
     result: dict[str, Any] = {
         "sentry_initialized": initialized,
+        # Diagnostics (no secret revealed — only presence/length/init error):
+        "sentry_dsn_present": bool(dsn),
+        "sentry_dsn_len": len(dsn) if dsn else 0,
+        "sentry_init_error": _sentry_mod.last_init_error,
         "environment": os.getenv("ENVIRONMENT", "development"),
     }
     if send:
