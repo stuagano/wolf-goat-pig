@@ -117,5 +117,6 @@ norecursedirs = ["_diagnostic", "manual", "integration"]
 pythonpath = ["../.ctk"]
 markers = [
     "integration: tests that require external services or long-running setup",
+    "live: hits real external APIs; requires credentials; run on-demand only",
 ]
-addopts = "-ra -m \"not integration\""
+addopts = "-ra -m \"not integration and not live\""

@@ -1,0 +1,43 @@
+name: Live External Integration Tests
+
+# Manual only (Phase 1). Scheduled runs + alerting are Phase 2.
+on:
+  workflow_dispatch:
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-testing.txt
+      - name: Run live external suite (skips any service without secrets)
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GROQ_MODEL: ${{ secrets.GROQ_MODEL }}
+          AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
+          AUTH0_API_AUDIENCE: ${{ secrets.AUTH0_API_AUDIENCE }}
+          GROUPME_ACCESS_TOKEN: ${{ secrets.GROUPME_ACCESS_TOKEN }}
+          GROUPME_GROUP_ID: ${{ secrets.GROUPME_GROUP_ID }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          GHIN_API_USER: ${{ secrets.GHIN_API_USER }}
+          GHIN_API_PASS: ${{ secrets.GHIN_API_PASS }}
+          GHIN_API_STATIC_TOKEN: ${{ secrets.GHIN_API_STATIC_TOKEN }}
+          ENABLE_GHIN_INTEGRATION: ${{ secrets.ENABLE_GHIN_INTEGRATION }}
+          LIVE_TEST_GHIN_ID: ${{ secrets.LIVE_TEST_GHIN_ID }}
+          FORETEES_ENABLED: ${{ secrets.FORETEES_ENABLED }}
+          FORETEES_USERNAME: ${{ secrets.FORETEES_USERNAME }}
+          FORETEES_PASSWORD: ${{ secrets.FORETEES_PASSWORD }}
+          GOOGLE_OAUTH_CREDENTIALS: ${{ secrets.GOOGLE_OAUTH_CREDENTIALS }}
+          LIVE_TEST_SHEET_ID: ${{ secrets.LIVE_TEST_SHEET_ID }}
+          LIVE_TEST_TEE_SHEET: ${{ secrets.LIVE_TEST_TEE_SHEET }}
+        run: |
+          python -m pytest tests/live -v -m live
