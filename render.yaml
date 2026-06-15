@@ -61,12 +61,15 @@ services:
         sync: false
       - key: FORETEES_ENABLED
         value: "true"
+      # Dashboard-managed secrets — NOT committed. Previously `value: ""`, which
+      # a Blueprint sync would write over the live values; FORETEES_ENCRYPTION_KEY
+      # is the Fernet key for per-user ForeTees creds, so blanking it breaks them.
       - key: FORETEES_USERNAME
-        value: ""
+        sync: false
       - key: FORETEES_PASSWORD
-        value: ""
+        sync: false
       - key: FORETEES_ENCRYPTION_KEY
-        value: ""
+        sync: false
       - key: WEB_CONCURRENCY
         value: "1"
       - key: FORWARDED_ALLOW_IPS
