@@ -111,6 +111,10 @@ line-ending = "auto"
 # Keep `pytest` hermetic by default. Diagnostic/manual tests are still kept in-repo,
 # but should be run explicitly (e.g. `pytest tests/_diagnostic/...`).
 norecursedirs = ["_diagnostic", "manual", "integration"]
+# Make the vendored claude-test-kit importable as `from ctk import ...`.
+# `.ctk/` lives at the repo root with a leading dot, so it is not on the path
+# by default; this adds it (relative to this rootdir = backend/).
+pythonpath = ["../.ctk"]
 markers = [
     "integration: tests that require external services or long-running setup",
 ]
