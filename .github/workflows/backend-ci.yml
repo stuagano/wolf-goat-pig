@@ -61,7 +61,9 @@ jobs:
     - name: Run Ruff linting and format check
       run: |
         cd backend
-        pip install ruff
+        # Pin ruff so the format gate is deterministic — a floating `pip install
+        # ruff` lets any new release reformat code and break unrelated PRs.
+        pip install -r requirements-testing.txt
         ruff check app/ tests/
         ruff format --check app/ tests/
     
