@@ -15,6 +15,7 @@
       "VITE_AUTH0_AUDIENCE": "https://wolf-goat-pig.onrender.com",
       "VITE_ENABLE_ANALYTICS": "true",
       "VITE_DEPLOY_PLATFORM": "vercel",
+      "VITE_SENTRY_DSN": "https://aabb92ca227138a3deafbab2b4375bb3@o4511570300502016.ingest.us.sentry.io/4511570438586368",
       "CI": "false"
     }
   },
