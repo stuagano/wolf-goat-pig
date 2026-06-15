@@ -1,9 +1,9 @@
 """Step definitions for core game rules testing."""
 
-from behave import given, when, then
-from hamcrest import assert_that, equal_to, close_to, is_, not_none
 import os
 
+from behave import given, then, when
+from hamcrest import assert_that, close_to, equal_to, is_, not_none
 
 # ==============================================================================
 # HELPER FUNCTIONS
@@ -15,9 +15,7 @@ def get_backend_url():
     return os.getenv("BACKEND_URL", "http://localhost:8000")
 
 
-def calculate_handicap_strokes(
-    player_handicap: int, hole_stroke_index: int, lowest_handicap: int = 0
-) -> int:
+def calculate_handicap_strokes(player_handicap: int, hole_stroke_index: int, lowest_handicap: int = 0) -> int:
     """
     Calculate handicap strokes for a player on a specific hole.
 
@@ -66,7 +64,7 @@ def step_setup_standard_game(context):
         "Player 3": {"id": 3, "name": "Player 3", "handicap": 8},
         "Player 4": {"id": 4, "name": "Player 4", "handicap": 12},
     }
-    context.player_earnings = {player: 0 for player in context.players.keys()}
+    context.player_earnings = dict.fromkeys(context.players.keys(), 0)
     context.base_wager = 1
     context.current_wager = 1
     context.carry_over = False
@@ -88,7 +86,7 @@ def step_setup_5_player_game(context):
         "Player4": {"id": 4, "name": "Player4", "handicap": 12},
         "Aardvark": {"id": 5, "name": "Aardvark", "handicap": 14},
     }
-    context.player_earnings = {player: 0 for player in context.players.keys()}
+    context.player_earnings = dict.fromkeys(context.players.keys(), 0)
     context.base_wager = 1
     context.current_wager = 1
     context.carry_over = False
@@ -216,9 +214,7 @@ def step_player_goes_solo(context, player):
 def step_solo_vs_opponents(context, player, opponents):
     """Set up solo player against opponents."""
     context.solo_player = player
-    opponent_list = [
-        normalize_player_name(p) for p in opponents.replace("+", ",").split(",")
-    ]
+    opponent_list = [normalize_player_name(p) for p in opponents.replace("+", ",").split(",")]
     context.teams = {"Solo": [player], "Opponents": opponent_list}
 
 
@@ -351,9 +347,7 @@ def step_hole_completed_gross(context):
         # Calculate net score with handicap (relative to lowest handicap)
         player_handicap = context.players[player]["handicap"]
         hole_stroke_index = context.current_hole["stroke_index"]
-        strokes = calculate_handicap_strokes(
-            player_handicap, hole_stroke_index, lowest_handicap
-        )
+        strokes = calculate_handicap_strokes(player_handicap, hole_stroke_index, lowest_handicap)
         net = calculate_net_score(gross, strokes)
         context.net_scores[player] = net
 
@@ -369,9 +363,7 @@ def step_hole_completed_net(context):
         context.net_scores[player] = net
 
 
-@when(
-    "the hole is completed with {team1} scoring net {score1:d} and {team2} scoring net {score2:d}"
-)
+@when("the hole is completed with {team1} scoring net {score1:d} and {team2} scoring net {score2:d}")
 def step_hole_completed_team_scores(context, team1, score1, team2, score2):
     """Complete hole with team scores."""
     context.team_scores = {team1: score1, team2: score2}
@@ -442,10 +434,7 @@ def step_attempt_double(context, player=None, team=None):
             context.error_message = "Wagering is closed after tee shots"
 
     # Check line of scrimmage
-    elif (
-        hasattr(context, "line_of_scrimmage_active")
-        and context.line_of_scrimmage_active
-    ):
+    elif hasattr(context, "line_of_scrimmage_active") and context.line_of_scrimmage_active:
         if hasattr(context, "trailing_player") and actor == context.trailing_player:
             context.double_rejected = True
             context.error_message = "Must be at or beyond line of scrimmage to double"
@@ -538,9 +527,7 @@ def step_verify_net_equals_gross(context):
 def step_verify_best_ball(context, team, expected):
     """Verify team's best ball score."""
     team_players = context.teams.get(team, [])
-    team_scores = [
-        context.net_scores[p] for p in team_players if p in context.net_scores
-    ]
+    team_scores = [context.net_scores[p] for p in team_players if p in context.net_scores]
     best_ball = calculate_best_ball(team_scores)
     assert_that(
         best_ball,
@@ -671,9 +658,7 @@ def step_verify_balance(context):
         total = sum(context.verified_earnings.values())
         # Use tolerance of 0.02 to account for floating point arithmetic
         # Example: 3 × 0.67 - 2 × 1.00 = 2.01 - 2.00 = 0.01
-        assert_that(
-            total, close_to(0, 0.02), f"Total earnings should balance to 0, got {total}"
-        )
+        assert_that(total, close_to(0, 0.02), f"Total earnings should balance to 0, got {total}")
 
 
 @then("no points are awarded")
@@ -792,9 +777,7 @@ def step_verify_float_invoked(context):
 def step_verify_cannot_float_again(context, player):
     """Verify player cannot invoke Float again."""
     # Player is now in the set of those who used it
-    assert_that(
-        player in context.special_rules_used.get("float_invoked_by", set()), is_(True)
-    )
+    assert_that(player in context.special_rules_used.get("float_invoked_by", set()), is_(True))
 
 
 @then("The Option is automatically triggered")
@@ -855,12 +838,8 @@ def step_must_reach_better_position(context, player):
 @then("teams are formed as {team1_str} vs {team2_str}")
 def step_verify_teams_formed(context, team1_str, team2_str):
     """Verify teams were formed correctly."""
-    expected_team1 = [
-        normalize_player_name(p) for p in team1_str.replace("+", ",").split(",")
-    ]
-    expected_team2 = [
-        normalize_player_name(p) for p in team2_str.replace("+", ",").split(",")
-    ]
+    expected_team1 = [normalize_player_name(p) for p in team1_str.replace("+", ",").split(",")]
+    expected_team2 = [normalize_player_name(p) for p in team2_str.replace("+", ",").split(",")]
 
     actual_team1 = context.teams.get("Team1", [])
     actual_team2 = context.teams.get("Team2", [])
@@ -873,9 +852,7 @@ def step_verify_teams_formed(context, team1_str, team2_str):
 def step_verify_solo_setup(context, player, opponents):
     """Verify solo player setup."""
     assert_that(context.solo_player, equal_to(player))
-    opponent_list = [
-        normalize_player_name(p) for p in opponents.replace("+", ",").split(",")
-    ]
+    opponent_list = [normalize_player_name(p) for p in opponents.replace("+", ",").split(",")]
     actual_opponents = context.teams.get("Opponents", [])
     assert_that(set(actual_opponents), equal_to(set(opponent_list)))
 
@@ -919,23 +896,15 @@ def step_set_5_players_specific(context):
     step_setup_5_player_game(context)
 
 
-@then(
-    "each {team} player earns {quarters:f} quarters ({total:d} quarters / {count:d} players)"
-)
-@then(
-    "each {team} player earns {quarters:f} quarter ({total:d} quarters / {count:d} players)"
-)
+@then("each {team} player earns {quarters:f} quarters ({total:d} quarters / {count:d} players)")
+@then("each {team} player earns {quarters:f} quarter ({total:d} quarters / {count:d} players)")
 def step_verify_team_earnings_with_calc(context, team, quarters, total, count):
     """Verify each team member's earnings with calculation shown."""
     step_verify_team_earnings(context, team, quarters)
 
 
-@then(
-    "each {team} player loses {quarters:f} quarters ({total:d} quarters / {count:d} players)"
-)
-@then(
-    "each {team} player loses {quarters:f} quarter ({total:d} quarters / {count:d} players)"
-)
+@then("each {team} player loses {quarters:f} quarters ({total:d} quarters / {count:d} players)")
+@then("each {team} player loses {quarters:f} quarter ({total:d} quarters / {count:d} players)")
 def step_verify_team_losses_with_calc(context, team, quarters, total, count):
     """Verify each team member's losses with calculation shown."""
     step_verify_team_losses(context, team, quarters)
