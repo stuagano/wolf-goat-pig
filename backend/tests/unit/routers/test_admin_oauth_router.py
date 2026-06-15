@@ -228,7 +228,7 @@ class TestOAuth2TestEmail:
         assert resp.status_code == 403
 
     @patch("app.routers.admin_oauth.get_email_service")
-    def test_returns_400_without_test_email(self, mock_get_svc):
+    def test_returns_422_without_test_email(self, mock_get_svc):
         mock_svc = MagicMock()
         mock_get_svc.return_value = mock_svc
         resp = client.post(

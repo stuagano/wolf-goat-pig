@@ -104,7 +104,7 @@ class TestTestEmail:
         )
         assert resp.status_code == 403
 
-    def test_returns_400_without_test_email(self):
+    def test_returns_422_without_test_email(self):
         resp = client.post(
             "/admin/test-email",
             json={},

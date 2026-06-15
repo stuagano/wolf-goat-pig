@@ -380,3 +380,22 @@ class TestSetTeeOrderValidation:
     def test_empty_player_order_returns_422(self):
         resp = self._client().patch("/games/nonexistent/tee-order", json={"player_order": []})
         assert resp.status_code == 422
+
+
+class TestBusinessStateStays400Not422:
+    """Guard: state checks that need the loaded game must NOT become 422.
+
+    A well-formed request body must reach the handler and fail on the
+    business-state lookup (404/400) — not be rejected as 422 by Pydantic.
+    This protects against accidental over-migration of validation.
+    """
+
+    def test_join_nonexistent_game_is_404_not_422(self):
+        from fastapi.testclient import TestClient
+
+        from app.main import app
+
+        # Well-formed JoinGameRequest body (player_name required) to a
+        # nonexistent join code → fails on game lookup (404), not shape.
+        resp = TestClient(app).post("/games/join/ZZZZZZ", json={"player_name": "Tester"})
+        assert resp.status_code == 404
