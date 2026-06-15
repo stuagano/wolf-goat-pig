@@ -12,8 +12,6 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from .. import database, models, schemas
 from ..badge_engine import BadgeEngine
-from ..managers.websocket_manager import manager as websocket_manager
-from ..schemas import ActionRequest
 from ..services.game_lifecycle_service import get_game_lifecycle_service
 from ..services.notification_service import get_notification_service
 from ..state.course_manager import CourseManager
@@ -546,8 +544,8 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
             logger.error(f"Failed to initialize simulation: {init_error}")
             raise HTTPException(status_code=500, detail=f"Failed to initialize game: {init_error!s}")
 
-        # MIGRATED: Store simulation using GameLifecycleService
-        # Add to service cache (note: game was already created in DB, just adding to cache)
+        # Cache the simulation for the /action engine. The DB is the source of
+        # truth for /state; retiring this cache belongs with retiring /action.
         get_game_lifecycle_service()._active_games[game_id] = simulation
 
         # Get initial game state from simulation
@@ -910,38 +908,16 @@ async def mark_game_complete(game_id: str, db: Session = Depends(database.get_db
 
 @router.get("/{game_id}/state")
 async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_db)) -> dict[str, Any]:
-    """Get current game state for a specific multiplayer game"""
-    # MIGRATED: Using GameLifecycleService instead of global active_games
+    """Get current game state for a specific multiplayer game.
 
+    The database is the single source of truth. (The old in-memory simulation
+    cache was removed — it was the source of the split-brain where scorekeeper
+    writes landed in the DB but /state served a stale sim. The SimpleScorekeeper
+    computes rules client-side and persists via /scores, so the server engine is
+    no longer in the read path.)
+    """
     try:
-        # Check if game is in active games (in-progress) using service
-        service = get_game_lifecycle_service()
-        if game_id in service._active_games:
-            simulation = service._active_games[game_id]
-            state = simulation.get_game_state()
-            state["game_id"] = game_id
-
-            # Enrich players with tee_order + is_authenticated from database.
-            # is_authenticated follows the lobby convention (user_id is not
-            # None); ghost players have user_id=None, so Stuart Mode in the
-            # scorekeeper auto-plays them.
-            db_players = db.query(models.GamePlayer).filter(models.GamePlayer.game_id == game_id).all()
-
-            tee_order_map = {p.player_slot_id: p.tee_order for p in db_players}
-            auth_map = {p.player_slot_id: (p.user_id is not None) for p in db_players}
-
-            if "players" in state:
-                for player in state["players"]:
-                    player_id = player.get("id")
-                    if player_id in tee_order_map:
-                        player["tee_order"] = tee_order_map[player_id]
-                    if player_id in auth_map:
-                        player["is_authenticated"] = auth_map[player_id]
-                        player["is_ghost"] = not auth_map[player_id]
-
-            return state
-
-        # Otherwise, fetch from database
+        # Fetch from database
         game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
 
         if not game:
@@ -993,20 +969,28 @@ async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_
             .all()
         )
 
-        # Update players with database info including tee_order
+        # Update players with database info including tee_order. Preserve the
+        # blob's player fields and overlay fresh DB values. is_authenticated /
+        # is_ghost follow the lobby convention (user_id is not None) — Stuart
+        # Mode in the scorekeeper relies on these, so the DB path MUST set them
+        # (it previously dropped them, which broke ghost games on reload).
         if db_players:
             player_map = {p.get("id"): p for p in saved_state.get("players", [])}
             enriched_players = []
             for db_player in db_players:
                 existing = player_map.get(db_player.player_slot_id, {})
+                authenticated = db_player.user_id is not None
                 enriched_players.append(
                     {
+                        **existing,
                         "id": db_player.player_slot_id,
                         "name": db_player.player_name,
                         "handicap": db_player.handicap,
                         "tee_order": db_player.tee_order,
                         "points": existing.get("points", 0),
                         "float_used": existing.get("float_used", 0),
+                        "is_authenticated": authenticated,
+                        "is_ghost": not authenticated,
                     }
                 )
             saved_state["players"] = enriched_players
@@ -1018,160 +1002,6 @@ async def get_game_state_by_id(game_id: str, db: Session = Depends(database.get_
     except Exception as e:
         logger.error(f"Error getting game state for {game_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Error retrieving game state: {e!s}")
-
-
-@router.post("/{game_id}/action")
-async def perform_game_action_by_id(  # type: ignore
-    game_id: str, action_request: ActionRequest, db: Session = Depends(database.get_db)
-):
-    """Perform an action on a specific multiplayer game"""
-    # MIGRATED: Using GameLifecycleService instead of global active_games
-    service = get_game_lifecycle_service()
-
-    try:
-        # Check if game is in active_games using service
-        if game_id not in service._active_games:
-            # Try to restore/reload game from database
-            logger.warning(f"Game {game_id} not in active_games, attempting to restore from database...")
-
-            game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
-
-            if not game:
-                raise HTTPException(status_code=404, detail="Game not found")
-
-            if game.game_status == "completed":
-                raise HTTPException(status_code=400, detail="Game is already completed")
-
-            if game.game_status == "setup":
-                raise HTTPException(status_code=400, detail="Game has not been started yet")
-
-            # Restore game simulation from database
-            # Get players from database in tee order
-            players = (
-                db.query(models.GamePlayer)
-                .filter(models.GamePlayer.game_id == game_id)
-                .order_by(models.GamePlayer.tee_order)
-                .all()
-            )
-
-            # Create Player objects
-            wgp_players = []
-            for p in players:
-                # Ensure handicap is not None - default to 18.0 if missing
-                player_handicap = p.handicap if p.handicap is not None else 18.0
-
-                wgp_player = Player(
-                    id=cast("str", p.player_slot_id),
-                    name=cast("str", p.player_name),
-                    handicap=cast("float", player_handicap),
-                )
-                wgp_players.append(wgp_player)
-
-            # Get configured player count from saved state
-            configured_player_count = game.state.get("player_count", 4)
-
-            # Initialize course manager with selected course
-            course_manager = None
-            course_name = game.state.get("course_name")
-            if course_name:
-                try:
-                    course_manager = CourseManager()
-                    available_courses = course_manager.get_courses()
-                    if course_name in available_courses:
-                        course_manager.load_course(course_name)
-                        logger.info(f"Loaded course '{course_name}' for restored game {game_id}")
-                    else:
-                        logger.warning(f"Course '{course_name}' not found during game restoration")
-                        course_manager = None
-                except Exception as course_error:
-                    logger.error(f"Failed to load course during restoration: {course_error}")
-                    course_manager = None
-
-            # Create new simulation with course manager
-            simulation = WolfGoatPigGame(
-                player_count=configured_player_count,
-                players=wgp_players,
-                course_manager=course_manager,
-            )
-
-            # Restore full game state from database
-            saved_state = game.state or {}
-
-            # Restore current hole
-            simulation.current_hole = saved_state.get("current_hole", 1)
-
-            # Restore player points and float usage
-            saved_players = saved_state.get("players", [])
-            for saved_player in saved_players:
-                player_id = saved_player.get("id")
-                sim_player = next((p for p in simulation.players if p.id == player_id), None)
-                if sim_player:
-                    sim_player.points = saved_player.get("points", 0)
-                    sim_player.float_used = saved_player.get("float_used", 0)
-
-            # Restore carry-over state (for push scenarios)
-            simulation.carry_over_wager = saved_state.get("carry_over_wager")  # type: ignore
-            simulation.carry_over_from_hole = saved_state.get("carry_over_from_hole")  # type: ignore
-            simulation.consecutive_push_block = saved_state.get("consecutive_push_block", False)  # type: ignore
-            simulation.last_push_hole = saved_state.get("last_push_hole")  # type: ignore
-            simulation.base_wager = saved_state.get("base_wager")  # type: ignore
-
-            # Restore hole history for SimpleScorekeeper compatibility
-            simulation.scorekeeper_hole_history = saved_state.get("hole_history", [])  # type: ignore
-
-            logger.info(
-                f"Restored game {game_id} from database: "
-                f"hole={simulation.current_hole}, "
-                f"players={len(simulation.players)}, "
-                f"hole_history={len(simulation.scorekeeper_hole_history)}"  # type: ignore
-            )
-
-            # MIGRATED: Add to active_games using service
-            service._active_games[game_id] = simulation
-
-        # MIGRATED: Get simulation from service
-        simulation = service._active_games[game_id]
-
-        # Use the existing unified action handler from wgp_actions router
-        from .wgp_actions import unified_action
-
-        # Call the unified action endpoint logic
-        response = await unified_action(game_id, action_request, db)
-
-        # Save state back to database after action
-        game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()
-
-        if game:
-            game.state = simulation.get_game_state()
-            game.state["game_id"] = game_id
-            game.updated_at = utc_now().isoformat()
-
-            # Check if game is completed
-            game_just_completed = simulation.current_hole > 18 and game.game_status != "completed"
-            if simulation.current_hole > 18:
-                game.game_status = "completed"
-                game.state["game_status"] = "completed"
-
-            db.commit()
-            logger.info(f"Saved state for game {game_id} after action {action_request.action_type}")
-
-            # Check achievements when game auto-completes at hole 18
-            if game_just_completed:
-                game_record = db.query(models.GameRecord).filter(models.GameRecord.game_id == game_id).first()
-                if game_record:
-                    _check_game_achievements(db, game_id, game_record.id)
-
-            # Broadcast the updated game state
-            await websocket_manager.broadcast(json.dumps({"game_state": game.state}), game_id)
-
-        return response
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Error performing action on game {game_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Error performing action: {e!s}")
 
 
 @router.get("/history")
