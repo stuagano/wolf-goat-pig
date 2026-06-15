@@ -35,6 +35,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+import sentry_sdk
+
 logger = logging.getLogger(__name__)
 
 # Spreadsheet IDs — PRIMARY_SHEET_ID can be overridden via LEADERBOARD_SHEET_ID env var
@@ -155,6 +157,7 @@ def _sheets_api_get(sheet_id: str, range_spec: str) -> dict[str, Any] | None:
         with urllib.request.urlopen(req, timeout=30) as response:
             return json.loads(response.read())  # type: ignore[no-any-return]
     except Exception as e:
+        sentry_sdk.capture_exception(e)
         logger.error(f"Sheets API GET failed: {e}")
         return None
 
