@@ -184,7 +184,7 @@ def _check_data_seeding(health_status: dict[str, Any]) -> bool:
     return True  # Seeding check doesn't fail health
 
 
-@router.get("/health")
+@router.api_route("/health", methods=["GET", "HEAD"])
 @handle_api_errors(operation_name="health check")
 def health_check() -> dict[str, Any]:
     """Comprehensive health check endpoint verifying all critical systems"""
@@ -226,7 +226,7 @@ def health_check() -> dict[str, Any]:
     return health_status
 
 
-@router.get("/healthz")
+@router.api_route("/healthz", methods=["GET", "HEAD"])
 def health_check_render_alias():
     """Simplified health endpoint for Render monitoring."""
     try:
@@ -238,7 +238,7 @@ def health_check_render_alias():
         raise exc
 
 
-@router.get("/ready")
+@router.api_route("/ready", methods=["GET", "HEAD"])
 def readiness_check():
     """
     Lightweight readiness probe for Render/K8s.
@@ -351,7 +351,7 @@ def seed_course_holes() -> dict[str, Any]:
 _EXTERNAL_CACHE: dict[str, Any] = {"at": 0.0, "payload": None, "http_status": 200}
 
 
-@router.get("/health/external")
+@router.api_route("/health/external", methods=["GET", "HEAD"])
 async def external_health(
     x_monitor_key: str | None = Header(default=None),
     monitor_key: str | None = Query(default=None),
