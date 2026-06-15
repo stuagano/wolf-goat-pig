@@ -219,7 +219,7 @@ cd frontend
 npm test -- --coverage --watchAll=false
 
 # BDD - all scenarios
-cd tests/bdd/behave
+cd backend/tests/bdd/behave
 behave --format pretty
 
 # E2E - all tests
@@ -317,7 +317,7 @@ Reusable skills for common tasks:
 
 ### BDD
 **Problem**: Step definitions not found
-**Solution**: Check `tests/bdd/behave/steps/__init__.py` imports
+**Solution**: Check `backend/tests/bdd/behave/steps/__init__.py` imports
 
 ### E2E
 **Problem**: Playwright tests fail

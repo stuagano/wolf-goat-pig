@@ -261,7 +261,7 @@ npm test -- --watch
 npm test -- --coverage --watchAll=false
 
 # BDD: Run all scenarios
-cd tests/bdd/behave && behave
+cd backend/tests/bdd/behave && behave
 
 # BDD: Run specific feature
 behave features/game_rules_core.feature
@@ -396,7 +396,7 @@ cat package.json | grep -A 5 "coveragePathIgnorePatterns"
 ### "BDD steps not found"
 
 ```bash
-cd tests/bdd/behave
+cd backend/tests/bdd/behave
 
 # Check step files exist
 ls steps/

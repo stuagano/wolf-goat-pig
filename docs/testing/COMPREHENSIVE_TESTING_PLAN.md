@@ -1014,7 +1014,7 @@ class TestAnalyticsEndpoints:
 #### Task 4.2: BDD Game Rules Core ⏱️ 16 hours
 **Owner**: QA Lead / Backend Lead
 
-**File to Create**: `tests/bdd/behave/features/game_rules_core.feature`
+**File to Create**: `backend/tests/bdd/behave/features/game_rules_core.feature`
 
 **Content** (12 critical scenarios):
 
@@ -1156,7 +1156,7 @@ def step_verify_payout(context, player, quarters):
 #### Task 4.3: BDD Betting Decisions ⏱️ 12 hours
 **Owner**: QA Lead
 
-**File to Create**: `tests/bdd/behave/features/betting_decisions.feature`
+**File to Create**: `backend/tests/bdd/behave/features/betting_decisions.feature`
 
 **Content** (8 scenarios for double workflows):
 
@@ -1306,7 +1306,7 @@ describe('Frontend-Backend Integration', () => {
 #### Task 5.1: BDD Aardvark Mechanics ⏱️ 12 hours
 **Owner**: QA Lead
 
-**File to Create**: `tests/bdd/behave/features/game_rules_aardvark.feature`
+**File to Create**: `backend/tests/bdd/behave/features/game_rules_aardvark.feature`
 
 **Content** (8 scenarios for 5/6-player games):
 
@@ -1331,7 +1331,7 @@ Feature: Aardvark Mechanics for 5 and 6-Player Games
 #### Task 5.2: BDD Game Phases ⏱️ 10 hours
 **Owner**: QA Lead
 
-**File to Create**: `tests/bdd/behave/features/game_phases.feature`
+**File to Create**: `backend/tests/bdd/behave/features/game_phases.feature`
 
 **Content** (6 scenarios for phase transitions):
 
@@ -1358,7 +1358,7 @@ Feature: Game Phase Transitions
 ```
 backend/tests/test_edge_cases_comprehensive.py (30+ tests)
 frontend/src/__tests__/edgeCases.test.js (25+ tests)
-tests/bdd/behave/features/ties_and_edge_cases.feature (8 scenarios)
+backend/tests/bdd/behave/features/ties_and_edge_cases.feature (8 scenarios)
 ```
 
 **Backend Edge Cases**:
@@ -1748,7 +1748,7 @@ cd frontend
 npm test -- --coverage --watchAll=false
 
 # BDD
-cd tests/bdd/behave
+cd backend/tests/bdd/behave
 behave --format pretty
 
 # E2E
