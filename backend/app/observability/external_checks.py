@@ -86,6 +86,13 @@ async def check_resend() -> ServiceStatus:
                 "https://api.resend.com/domains",
                 headers={"Authorization": f"Bearer {os.environ['RESEND_API_KEY']}"},
             )
+            # A send-scoped key (least-privilege, the common case) returns 401/403
+            # on /domains even though it can send email — that is NOT an outage.
+            # We can't read-only validate a send key without sending, so treat
+            # auth-rejection as "reachable + key set" and only flag real outages
+            # (5xx / timeout / connection error) as down.
+            if resp.status_code in (401, 403):
+                return "reachable; key set (send-scoped — not read-only verifiable)"
             resp.raise_for_status()
             return f"HTTP {resp.status_code}"
 
@@ -95,8 +102,12 @@ async def check_resend() -> ServiceStatus:
 async def check_tee_sheet() -> ServiceStatus:
     # Public page, no creds required — always "configured".
     async def probe() -> str:
-        async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-            resp = await client.get("https://thousand-cranes.com/WolfGoatPig")
+        # Probe the exact endpoint the app reads (the bare base path 301-redirects),
+        # following redirects, with the same Referer the real request sends.
+        from app.routers.tee_sheet import TEE_SHEET_READ_URL
+
+        async with httpx.AsyncClient(timeout=_TIMEOUT, follow_redirects=True) as client:
+            resp = await client.get(TEE_SHEET_READ_URL, headers={"Referer": TEE_SHEET_READ_URL})
             resp.raise_for_status()
             return f"HTTP {resp.status_code}"
 
