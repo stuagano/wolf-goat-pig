@@ -5,12 +5,15 @@
 service pings it + `/health` and emails on failure.
 
 ## 1. Set the monitor key (Render)
-- In the Render backend service env, set `MONITOR_KEY` to a long random value.
+- In the Render backend service env (`wolf-goat-pig-api` → Environment), set `MONITOR_KEY` to a **URL-safe** random value — generate one with `openssl rand -hex 32` (hex has no `/ + =`, so it works in a URL).
 - (Optional) set `EXTERNAL_HEALTH_TTL` (seconds, default 300).
 
 ## 2. Create the monitors (UptimeRobot or BetterStack — free tier)
-- **Monitor A — app up:** `GET https://wolf-goat-pig.onrender.com/health`, every 5 min. Alert if non-200.
-- **Monitor B — externals:** `GET https://wolf-goat-pig.onrender.com/health/external`, every 5–15 min, with a custom request header `X-Monitor-Key: <the MONITOR_KEY value>`. Alert if non-200 **or** response body contains `"unhealthy"`.
+- **Monitor A — app up:** `GET https://wolf-goat-pig.onrender.com/health`, every 5 min. Alert if non-200. (No key needed.)
+- **Monitor B — externals:** every 5–15 min, alert if non-200. The guard key can be sent two ways — use whichever your tool supports:
+  - **Query param (works everywhere, incl. UptimeRobot free):**
+    `GET https://wolf-goat-pig.onrender.com/health/external?monitor_key=<MONITOR_KEY>`
+  - **Custom header (if your tool allows it):** `GET …/health/external` with header `X-Monitor-Key: <MONITOR_KEY>`.
 - To reduce flapping, set the monitor to alert only after 2 consecutive failures.
 
 ## 3. Alerts → email
