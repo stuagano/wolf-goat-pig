@@ -156,7 +156,8 @@ class TestUpdatePlayerName:
         )
         assert resp.status_code == 422
 
-    def test_update_name_whitespace_only_returns_400(self):
+    def test_update_name_whitespace_only_returns_422(self):
+        # Whitespace passes min_length but strips to blank → AfterValidator raises → 422
         game = _create_test_game().json()
         game_id = game["game_id"]
         player_id = game["players"][0]["id"]
@@ -164,7 +165,7 @@ class TestUpdatePlayerName:
             f"/games/{game_id}/players/{player_id}/name",
             json={"name": "   "},
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 422
 
     def test_update_name_missing_name_field_returns_422(self):
         # Missing required field is a Pydantic validation error
@@ -345,4 +346,28 @@ class TestUpdatePlayerHandicap:
             f"/games/{game['game_id']}/players/nonexistent-slot/handicap",
             json={"handicap": 10.0},
         )
+        assert resp.status_code == 404
+
+
+class TestUpdatePlayerNameValidation:
+    """Request-shape validation for PATCH /games/{id}/players/{pid}/name."""
+
+    def test_whitespace_only_name_returns_422(self):
+        from fastapi.testclient import TestClient
+
+        from app.main import app
+
+        client = TestClient(app)
+        resp = client.patch("/games/nonexistent/players/p1/name", json={"name": "  "})
+        assert resp.status_code == 422
+        assert "detail" in resp.json()
+
+    def test_valid_name_passes_validation_then_404s(self):
+        from fastapi.testclient import TestClient
+
+        from app.main import app
+
+        client = TestClient(app)
+        resp = client.patch("/games/nonexistent/players/p1/name", json={"name": "Valid Name"})
+        # Passes body validation, then fails the DB player lookup.
         assert resp.status_code == 404

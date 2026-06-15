@@ -13,6 +13,7 @@ from ..services.game_lifecycle_service import get_game_lifecycle_service
 from ..state.course_manager import CourseManager
 from ..utils.time import utc_now
 from ..wolf_goat_pig import Player, WolfGoatPigGame
+from ._validators import NonBlankStr
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,7 @@ class BettingSeed(BaseModel):
 
 
 class UpdatePlayerNameRequest(BaseModel):
-    name: str = Field(..., min_length=2, max_length=50)
+    name: NonBlankStr = Field(..., min_length=2, max_length=50)
 
 
 class UpdateHittingOrderRequest(BaseModel):
@@ -477,9 +478,7 @@ async def update_player_name(
     db: Session = Depends(database.get_db),
 ) -> dict[str, Any]:
     """Update a player's display name. Writes to DB; evicts cache so next load is fresh."""
-    new_name = name_update.name.strip()
-    if not new_name:
-        raise HTTPException(status_code=400, detail="Name cannot be blank")
+    new_name = name_update.name
 
     game_player = (
         db.query(models.GamePlayer)
