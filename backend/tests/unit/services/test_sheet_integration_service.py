@@ -28,16 +28,6 @@ def db():
         Base.metadata.drop_all(bind=engine)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "Blocked by a production bug: SheetIntegrationService line ~298 passes "
-        "created_date= to PlayerProfile, which only has created_at -> TypeError on "
-        "every player creation (swallowed by the per-row savepoint). No valid player "
-        "can persist until created_date->created_at is fixed. This xfail flips to "
-        "XPASS (forcing its own removal) the moment that one-line fix lands."
-    ),
-)
 def test_one_bad_row_does_not_abort_the_sync(db):
     sheet_data = [
         {
