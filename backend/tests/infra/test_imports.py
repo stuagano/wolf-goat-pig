@@ -129,8 +129,12 @@ class TestApplicationStartup:
         try:
             from app.main import app
 
-            # Get all route paths
-            route_paths = [route.path for route in app.routes]
+            # Use the OpenAPI schema rather than introspecting app.routes
+            # directly: FastAPI builds it from the full route tree, so it stays
+            # stable across Starlette versions (newer Starlette nests routes
+            # inside router-include wrappers that have no top-level `.path`,
+            # which broke a flat `[route.path for route in app.routes]` scan).
+            route_paths = list(app.openapi().get("paths", {}).keys())
 
             # Check for critical routes
             assert any("/games" in path for path in route_paths), "Games routes should be registered"
