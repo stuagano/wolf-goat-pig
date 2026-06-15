@@ -12,6 +12,7 @@ from fastapi import (
     HTTPException,
     Request,
 )
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -324,6 +325,28 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     return JSONResponse(
         status_code=exc.status_code,
         content={"error": "HTTP error", "detail": exc.detail},
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    """Normalize malformed-request (Pydantic) errors into the app's standard
+    error envelope, instead of FastAPI's default `{"detail": [ {loc,msg,type} ]}`
+    array — so every error response has the same shape for the frontend."""
+    fields = [
+        {
+            # Drop the leading "body"/"query"/"path" location marker for readability.
+            "field": ".".join(str(p) for p in err.get("loc", ()) if p not in ("body", "query", "path")) or "request",
+            "message": err.get("msg", "invalid"),
+            "type": err.get("type", ""),
+        }
+        for err in exc.errors()
+    ]
+    summary = "; ".join(f"{f['field']}: {f['message']}" for f in fields) or "Invalid request"
+    logger.warning("Request validation failed: %s", summary)
+    return JSONResponse(
+        status_code=422,
+        content={"error": "Validation error", "detail": summary, "fields": fields},
     )
 
 
