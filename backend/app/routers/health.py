@@ -13,7 +13,7 @@ import os
 import time as _time
 from typing import Any, cast
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Query
 from fastapi.responses import JSONResponse
 from sentry_sdk import capture_message
 from sqlalchemy import text
@@ -352,15 +352,20 @@ _EXTERNAL_CACHE: dict[str, Any] = {"at": 0.0, "payload": None, "http_status": 20
 
 
 @router.get("/health/external")
-async def external_health(x_monitor_key: str | None = Header(default=None)) -> JSONResponse:
+async def external_health(
+    x_monitor_key: str | None = Header(default=None),
+    monitor_key: str | None = Query(default=None),
+) -> JSONResponse:
     """Read-only health of the external services WGP depends on.
 
-    Guarded by X-Monitor-Key when MONITOR_KEY is set (allow when unset). Cached
-    for EXTERNAL_HEALTH_TTL seconds so frequent monitor pings don't re-probe.
-    200 when no configured service is down; 503 when any is.
+    Guarded when MONITOR_KEY is set (allow when unset): the key may be supplied
+    either as the `X-Monitor-Key` header OR a `?monitor_key=` query param — the
+    latter for uptime tools (e.g. UptimeRobot free) that can't send custom
+    headers. Cached for EXTERNAL_HEALTH_TTL seconds so frequent pings don't
+    re-probe. 200 when no configured service is down; 503 when any is.
     """
-    monitor_key = os.getenv("MONITOR_KEY")
-    if monitor_key and x_monitor_key != monitor_key:
+    expected = os.getenv("MONITOR_KEY")
+    if expected and x_monitor_key != expected and monitor_key != expected:
         return JSONResponse(status_code=403, content={"detail": "forbidden"})
 
     ttl = int(os.getenv("EXTERNAL_HEALTH_TTL", "300"))

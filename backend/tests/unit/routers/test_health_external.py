@@ -59,6 +59,14 @@ def test_guard_rejects_without_key(monkeypatch):
     assert client.get("/health/external", headers={"X-Monitor-Key": "secret"}).status_code == 200
 
 
+def test_guard_accepts_query_param_key(monkeypatch):
+    # Uptime tools that can't send custom headers can pass ?monitor_key=.
+    monkeypatch.setenv("MONITOR_KEY", "secret")
+    _stub(monkeypatch, [ServiceStatus("groq", "ok", 10, "ok")])
+    assert client.get("/health/external?monitor_key=wrong").status_code == 403
+    assert client.get("/health/external?monitor_key=secret").status_code == 200
+
+
 def test_cache_avoids_reprobe(monkeypatch):
     monkeypatch.delenv("MONITOR_KEY", raising=False)
     monkeypatch.setenv("EXTERNAL_HEALTH_TTL", "300")
