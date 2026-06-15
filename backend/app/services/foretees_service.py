@@ -27,6 +27,7 @@ from typing import Any
 from urllib.parse import quote
 
 import httpx
+import sentry_sdk
 
 logger = logging.getLogger(__name__)
 
@@ -164,14 +165,17 @@ class ForeteesService:
             return True
 
         except httpx.HTTPStatusError as exc:
+            sentry_sdk.capture_exception(exc)
             logger.warning(
                 "ForeTees auth failed with HTTP %s: %s",
                 exc.response.status_code,
                 exc.response.text[:200],
             )
         except httpx.RequestError as exc:
+            sentry_sdk.capture_exception(exc)
             logger.warning("ForeTees auth request failed: %s", exc)
         except Exception as exc:
+            sentry_sdk.capture_exception(exc)
             logger.error("Unexpected error during ForeTees auth: %s", exc)
 
         return False

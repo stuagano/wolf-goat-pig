@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import { BrowserRouter } from "react-router-dom";
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
+import { initSentry, captureException } from "./sentry";
 
 // Error boundary for catching React render errors
 class ErrorBoundary extends React.Component {
@@ -16,6 +17,7 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
+    captureException(error);
     console.error('[ErrorBoundary] React error:', error, errorInfo);
   }
 
@@ -57,6 +59,7 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+initSentry();
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>

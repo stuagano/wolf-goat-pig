@@ -13,6 +13,7 @@ import os
 from typing import Any, cast
 
 import httpx  # Added httpx for API calls
+import sentry_sdk
 from sqlalchemy import and_, desc
 from sqlalchemy.orm import Session
 
@@ -84,6 +85,7 @@ class GHINService:
                 return False
 
         except Exception as e:
+            sentry_sdk.capture_exception(e)
             logger.error(f"Failed to initialize GHIN service: {e}")
             self.initialized = False
             return False
