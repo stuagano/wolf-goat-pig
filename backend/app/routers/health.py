@@ -10,12 +10,16 @@ Uses new utility patterns:
 
 import logging
 import os
+import time as _time
 from typing import Any, cast
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException
+from fastapi.responses import JSONResponse
+from sentry_sdk import capture_message
 from sqlalchemy import text
 
 from .. import models
+from ..observability.external_checks import check_all
 from ..state.course_manager import CourseManager
 from ..utils.api_helpers import handle_api_errors, managed_session
 from ..utils.time import utc_now
@@ -342,3 +346,42 @@ def seed_course_holes() -> dict[str, Any]:
         results["status"] = "error"
         results["message"] = str(e)
         return results
+
+
+_EXTERNAL_CACHE: dict[str, Any] = {"at": 0.0, "payload": None, "http_status": 200}
+
+
+@router.get("/health/external")
+async def external_health(x_monitor_key: str | None = Header(default=None)) -> JSONResponse:
+    """Read-only health of the external services WGP depends on.
+
+    Guarded by X-Monitor-Key when MONITOR_KEY is set (allow when unset). Cached
+    for EXTERNAL_HEALTH_TTL seconds so frequent monitor pings don't re-probe.
+    200 when no configured service is down; 503 when any is.
+    """
+    monitor_key = os.getenv("MONITOR_KEY")
+    if monitor_key and x_monitor_key != monitor_key:
+        return JSONResponse(status_code=403, content={"detail": "forbidden"})
+
+    ttl = int(os.getenv("EXTERNAL_HEALTH_TTL", "300"))
+    now = _time.monotonic()
+    if _EXTERNAL_CACHE["payload"] is not None and (now - _EXTERNAL_CACHE["at"]) < ttl:
+        payload = {**_EXTERNAL_CACHE["payload"], "cached": True}
+        return JSONResponse(status_code=_EXTERNAL_CACHE["http_status"], content=payload)
+
+    statuses = await check_all()
+    any_down = any(s.status == "down" for s in statuses)
+    payload = {
+        "status": "unhealthy" if any_down else "healthy",
+        "checked_at": utc_now().isoformat(),
+        "cached": False,
+        "services": {s.name: {"status": s.status, "latency_ms": s.latency_ms, "detail": s.detail} for s in statuses},
+    }
+    http_status = 503 if any_down else 200
+
+    if any_down:
+        down = [s.name for s in statuses if s.status == "down"]
+        capture_message(f"External services down: {', '.join(down)}", level="error")
+
+    _EXTERNAL_CACHE.update(at=now, payload=payload, http_status=http_status)
+    return JSONResponse(status_code=http_status, content={**payload, "cached": False})
