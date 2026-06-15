@@ -16,6 +16,10 @@ Golf wagering app with FastAPI backend and React frontend.
 cd frontend && npm run build
 cd frontend && npx vitest run
 
+# Backend env (one venv — `backend/venv`; do NOT use backend/.venv):
+cd backend && python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt -r requirements-testing.txt
+
 # Backend
 cd backend && pytest
 
