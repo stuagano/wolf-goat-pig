@@ -1,16 +1,19 @@
 # Sentry setup (Phase 2a)
 
-The code ships **no-op until these env vars are set**. One-time owner setup:
+The code ships **no-op until the DSN env vars are set**. Sentry's **free tier**
+(5k errors/mo, 1 dev) covers this project at **$0** — no paid plan needed.
 
-## 1. Create Sentry projects
-- Create a Sentry org (free tier is fine).
-- New project **wolf-goat-pig-backend** — Platform: **Python / FastAPI**.
-- New project **wolf-goat-pig-frontend** — Platform: **React**.
-- Copy each project's **DSN**.
+Org: `o4511570300502016` (created 2026-06-15). Backend project DSN is committed
+in `render.yaml` (a Sentry DSN is a public-safe ingestion key).
 
-## 2. Set the DSNs as env vars
-- **Render** (backend service → Environment): `SENTRY_DSN = <backend DSN>`.
-- **Vercel** (frontend project → Settings → Environment Variables): `VITE_SENTRY_DSN = <frontend DSN>` (Production; add Preview if desired). Redeploy so Vite inlines it at build time.
+## 1. Create Sentry projects (under the existing org)
+- **wolf-goat-pig-backend** — Platform: **Python / FastAPI** (its DSN is the one in `render.yaml`).
+- **wolf-goat-pig-frontend** — Platform: **React** (separate DSN; not yet wired).
+- A DSN is at **Settings → Projects → [project] → Client Keys (DSN)**. The org id alone is NOT a DSN.
+
+## 2. Where the DSNs live
+- **Backend** — `SENTRY_DSN` is in **`render.yaml`** (version-controlled). It applies once the service is Blueprint-connected (see `render-blueprint.md`); until then, set `SENTRY_DSN` once in the Render dashboard to activate it now.
+- **Frontend** — `VITE_SENTRY_DSN` goes in **Vercel** (frontend build var) once a frontend Sentry project exists; redeploy so Vite inlines it. It's public-safe (ships in the browser), so it can also be committed to `vercel.json` `build.env`.
 
 ## 3. Email alerts to stuagano@gmail.com
 - In each project: Settings → Alerts. Sentry's default rule emails on a new issue's first occurrence — confirm it's enabled and the email is verified.
