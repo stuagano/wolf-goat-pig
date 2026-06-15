@@ -76,7 +76,7 @@ services:
         value: "*"
       - key: TIMEOUT_KEEP_ALIVE
         value: "75"
-      # --- Observability (Phase 2) ---
+      # --- Observability (Phase 2) ---  (blueprint re-sync nudge 2026-06-15)
       # SENTRY_DSN is a Sentry ingestion key (public by design — the frontend
       # DSN even ships in the browser bundle); committed for version control.
       # If the public DSN ever gets abused to spam the free-tier quota, rotate
