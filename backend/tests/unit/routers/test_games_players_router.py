@@ -197,12 +197,19 @@ class TestUpdatePlayerName:
         data = resp.json()
         assert data["name"] == "Trimmed Name"
 
+    def test_update_name_persists(self):
+        """Read-back: the new name is visible via GET /state, not just echoed
+        in the PATCH response."""
+        game = _create_test_game().json()
+        game_id = game["game_id"]
+        player_id = game["players"][0]["id"]
+        client.patch(f"/games/{game_id}/players/{player_id}/name", json={"name": "Persisted Name"})
+        state = client.get(f"/games/{game_id}/state").json()
+        names = {p["id"]: p["name"] for p in state.get("players", [])}
+        assert names.get(player_id) == "Persisted Name"
+
 
 # ── DELETE /games/{game_id}/players/{player_slot_id} ────────────────────────
-#
-# NOTE: The remove_player endpoint references `game.status` but the model
-# column is `game_status`. This causes an AttributeError (500) for all
-# requests where the game exists. Tests document this existing bug.
 
 
 class TestRemovePlayer:
@@ -218,6 +225,16 @@ class TestRemovePlayer:
         )
         assert resp.status_code == 200
 
+    def test_remove_player_persists(self):
+        """Read-back: the removed player is actually gone from GET /state."""
+        game, p1, _p2 = _create_setup_game()
+        game_id = game["game_id"]
+        slot = p1["player_slot_id"]
+        client.delete(f"/games/{game_id}/players/{slot}")
+        state = client.get(f"/games/{game_id}/state").json()
+        ids = [p["id"] for p in state.get("players", [])]
+        assert slot not in ids
+
     def test_remove_nonexistent_player_returns_404(self):
         """Removing a nonexistent player slot returns 404."""
         game, _p1, _p2 = _create_setup_game()
@@ -228,10 +245,6 @@ class TestRemovePlayer:
 
 
 # ── PATCH /games/{game_id}/players/{player_slot_id}/handicap ────────────────
-#
-# NOTE: Same `game.status` attribute bug as remove_player. Tests that reach
-# the DB lookup will get 500. Input-validation tests (missing/invalid handicap)
-# that fail before the DB lookup still return the expected 400.
 
 
 class TestUpdatePlayerHandicap:
@@ -282,6 +295,16 @@ class TestUpdatePlayerHandicap:
             json={"handicap": 15.5},
         )
         assert resp.status_code == 200
+
+    def test_update_handicap_persists(self):
+        """Read-back: the new handicap is visible via GET /state."""
+        game, p1, _p2 = _create_setup_game()
+        game_id = game["game_id"]
+        slot = p1["player_slot_id"]
+        client.patch(f"/games/{game_id}/players/{slot}/handicap", json={"handicap": 15.5})
+        state = client.get(f"/games/{game_id}/state").json()
+        hcaps = {p["id"]: p.get("handicap") for p in state.get("players", [])}
+        assert hcaps.get(slot) == 15.5
 
     def test_update_handicap_nonexistent_player_returns_404(self):
         """Updating handicap for nonexistent player returns 404."""
