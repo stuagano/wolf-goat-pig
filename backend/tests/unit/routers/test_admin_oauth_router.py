@@ -236,7 +236,7 @@ class TestOAuth2TestEmail:
             json={},
             headers=ADMIN_HEADER,
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 422
 
     @patch("app.routers.admin_oauth.get_email_service")
     def test_returns_400_when_not_configured(self, mock_get_svc):
@@ -275,3 +275,13 @@ class TestOAuth2TestEmail:
             headers=ADMIN_HEADER,
         )
         assert resp.status_code == 500
+
+
+class TestOAuth2TestEmailValidation:
+    def test_missing_test_email_returns_422(self):
+        from fastapi.testclient import TestClient
+
+        from app.main import app
+
+        resp = TestClient(app).post("/admin/oauth2-test-email", json={})
+        assert resp.status_code == 422

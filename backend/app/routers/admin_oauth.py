@@ -10,6 +10,7 @@ from typing import Any
 
 from fastapi import APIRouter, Header, HTTPException, Query
 from fastapi.responses import HTMLResponse
+from pydantic import BaseModel, Field
 
 from ..services.email_service import get_email_service
 from ..utils.admin_auth import require_admin
@@ -17,6 +18,10 @@ from ..utils.admin_auth import require_admin
 logger = logging.getLogger("app.routers.admin_oauth")
 
 router = APIRouter(prefix="/admin", tags=["admin-oauth"])
+
+
+class OAuth2TestEmailRequest(BaseModel):
+    test_email: str = Field(..., min_length=1)
 
 
 @router.get("/oauth2-status")
@@ -247,14 +252,12 @@ def handle_oauth2_callback(code: str = Query(...), state: str = Query(None)):  #
 
 
 @router.post("/oauth2-test-email")
-async def test_oauth2_email(request: dict[str, Any], x_admin_email: str = Header(None)):  # type: ignore
+async def test_oauth2_email(request: OAuth2TestEmailRequest, x_admin_email: str = Header(None)):  # type: ignore
     """Send test email using OAuth2 (admin only)"""
     require_admin(x_admin_email)
 
     try:
-        test_email = request.get("test_email")
-        if not test_email:
-            raise HTTPException(status_code=400, detail="Test email address required")
+        test_email = request.test_email
 
         oauth2_service = get_email_service()
 
