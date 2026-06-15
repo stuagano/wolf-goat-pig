@@ -77,3 +77,18 @@ def test_cache_avoids_reprobe(monkeypatch):
     assert len(calls) == 1
     assert first.json()["cached"] is False
     assert second.json()["cached"] is True
+
+
+def test_sentry_test_reports_status(monkeypatch):
+    monkeypatch.delenv("MONITOR_KEY", raising=False)
+    resp = client.get("/health/sentry-test")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "sentry_initialized" in body
+    assert isinstance(body["sentry_initialized"], bool)
+
+
+def test_sentry_test_send_is_guarded(monkeypatch):
+    monkeypatch.setenv("MONITOR_KEY", "secret")
+    assert client.get("/health/sentry-test?send=1").status_code == 403
+    assert client.get("/health/sentry-test?send=1&monitor_key=secret").status_code == 200
