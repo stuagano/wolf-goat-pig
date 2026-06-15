@@ -59,6 +59,10 @@ class UpdatePlayerNameRequest(BaseModel):
     name: NonBlankStr = Field(..., min_length=2, max_length=50)
 
 
+class UpdateHandicapRequest(BaseModel):
+    handicap: float = Field(..., ge=0, le=54)
+
+
 class UpdateHittingOrderRequest(BaseModel):
     hitting_order: list[str] = Field(..., min_length=4, max_length=6)
     hole_number: int | None = Field(None, ge=1, le=18, description="Hole to update; defaults to current hole")
@@ -582,7 +586,7 @@ async def remove_player(game_id: str, player_slot_id: str, db: Session = Depends
 async def update_player_handicap(  # type: ignore
     game_id: str,
     player_slot_id: str,
-    handicap_update: dict,
+    handicap_update: UpdateHandicapRequest,
     db: Session = Depends(database.get_db),
 ):
     """
@@ -595,17 +599,7 @@ async def update_player_handicap(  # type: ignore
         handicap_update: Dict with "handicap" key containing the new handicap
     """
     try:
-        new_handicap = handicap_update.get("handicap")
-        if new_handicap is None:
-            raise HTTPException(status_code=400, detail="Handicap not provided")
-
-        try:
-            new_handicap = float(new_handicap)
-        except (ValueError, TypeError):
-            raise HTTPException(status_code=400, detail="Invalid handicap value")
-
-        if new_handicap < 0 or new_handicap > 54:
-            raise HTTPException(status_code=400, detail="Handicap must be between 0 and 54")
+        new_handicap = handicap_update.handicap
 
         # Get game from database
         game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()

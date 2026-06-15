@@ -281,37 +281,37 @@ class TestRemovePlayer:
 
 
 class TestUpdatePlayerHandicap:
-    def test_update_handicap_missing_value_returns_400(self):
+    def test_update_handicap_missing_value_returns_422(self):
         game, p1, _p2 = _create_setup_game()
         resp = client.patch(
             f"/games/{game['game_id']}/players/{p1['player_slot_id']}/handicap",
             json={},
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 422
 
-    def test_update_handicap_invalid_value_returns_400(self):
+    def test_update_handicap_invalid_value_returns_422(self):
         game, p1, _p2 = _create_setup_game()
         resp = client.patch(
             f"/games/{game['game_id']}/players/{p1['player_slot_id']}/handicap",
             json={"handicap": "not-a-number"},
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 422
 
-    def test_update_handicap_negative_returns_400(self):
+    def test_update_handicap_negative_returns_422(self):
         game, p1, _p2 = _create_setup_game()
         resp = client.patch(
             f"/games/{game['game_id']}/players/{p1['player_slot_id']}/handicap",
             json={"handicap": -1.0},
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 422
 
-    def test_update_handicap_over_54_returns_400(self):
+    def test_update_handicap_over_54_returns_422(self):
         game, p1, _p2 = _create_setup_game()
         resp = client.patch(
             f"/games/{game['game_id']}/players/{p1['player_slot_id']}/handicap",
             json={"handicap": 55.0},
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 422
 
     def test_update_handicap_nonexistent_game_returns_404(self):
         resp = client.patch(
@@ -370,4 +370,36 @@ class TestUpdatePlayerNameValidation:
         client = TestClient(app)
         resp = client.patch("/games/nonexistent/players/p1/name", json={"name": "Valid Name"})
         # Passes body validation, then fails the DB player lookup.
+        assert resp.status_code == 404
+
+
+class TestUpdateHandicapValidation:
+    """Request-shape validation for PATCH /games/{id}/players/{pid}/handicap."""
+
+    def _client(self):
+        from fastapi.testclient import TestClient
+
+        from app.main import app
+
+        return TestClient(app)
+
+    def test_missing_handicap_returns_422(self):
+        resp = self._client().patch("/games/nonexistent/players/p1/handicap", json={})
+        assert resp.status_code == 422
+
+    def test_non_numeric_handicap_returns_422(self):
+        resp = self._client().patch("/games/nonexistent/players/p1/handicap", json={"handicap": "abc"})
+        assert resp.status_code == 422
+
+    def test_out_of_range_handicap_returns_422(self):
+        resp = self._client().patch("/games/nonexistent/players/p1/handicap", json={"handicap": 99})
+        assert resp.status_code == 422
+
+    def test_negative_handicap_returns_422(self):
+        resp = self._client().patch("/games/nonexistent/players/p1/handicap", json={"handicap": -1})
+        assert resp.status_code == 422
+
+    def test_valid_handicap_passes_validation_then_404s(self):
+        resp = self._client().patch("/games/nonexistent/players/p1/handicap", json={"handicap": 18})
+        # Passes body validation, then fails the DB game lookup.
         assert resp.status_code == 404
