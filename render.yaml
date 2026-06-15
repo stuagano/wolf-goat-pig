@@ -73,6 +73,20 @@ services:
         value: "*"
       - key: TIMEOUT_KEEP_ALIVE
         value: "75"
+      # --- Observability (Phase 2) ---
+      # SENTRY_DSN is a Sentry ingestion key (public by design — the frontend
+      # DSN even ships in the browser bundle); committed for version control.
+      # If the public DSN ever gets abused to spam the free-tier quota, rotate
+      # it in Sentry → Settings → Client Keys (DSN) and update this value.
+      - key: SENTRY_DSN
+        value: "https://71a92590788aa98bc7e15b021ad1a0c1@o4511570300502016.ingest.us.sentry.io/4511570301616128"
+      # Guard for GET /health/external. Render generates a strong value (never
+      # committed to git); copy it from the dashboard into the uptime monitor's
+      # X-Monitor-Key request header.
+      - key: MONITOR_KEY
+        generateValue: true
+      - key: EXTERNAL_HEALTH_TTL
+        value: "300"
     healthCheckPath: /ready
     autoDeploy: true
 
