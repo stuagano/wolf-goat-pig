@@ -1,4 +1,5 @@
 from sqlalchemy import Boolean, Column, Float, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import relationship
 from sqlalchemy.types import JSON
 
@@ -160,7 +161,12 @@ class GameStateModel(Base):
     join_code = Column(String, unique=True, index=True, nullable=True)  # 6-char code for joining
     creator_user_id = Column(String, nullable=True)  # Auth0 user ID of game creator
     game_status = Column(String, default="setup")  # setup, in_progress, completed
-    state = Column(JSON)
+    # MutableDict so in-place TOP-LEVEL mutations (game.state["x"] = ...) auto-mark
+    # the column dirty — removes the silent-persistence footgun that previously
+    # required a manual flag_modified on every write. NOTE: only top-level key
+    # changes are tracked; NESTED mutation (state["players"][i]["x"] = ...) is NOT,
+    # so nested writes must reassign the top-level key (state["players"] = new_list).
+    state = Column(MutableDict.as_mutable(JSON))
     created_at = Column(String)
     updated_at = Column(String)
 

@@ -643,18 +643,16 @@ async def update_player_handicap(  # type: ignore
 
         game_player.handicap = new_handicap
 
-        # Update in game state players array
+        # Update in game state players array. Rebuild the list and reassign the
+        # top-level key (not a nested player[i]["handicap"]=) so MutableDict
+        # tracks it; keep flag_modified as a belt-and-suspenders net.
         from sqlalchemy.orm.attributes import flag_modified
 
         state = game.state or {}
-        players = state.get("players", [])
-        for player in players:
-            if player.get("id") == player_slot_id:
-                player["handicap"] = new_handicap
-                break
-
+        state["players"] = [
+            {**p, "handicap": new_handicap} if p.get("id") == player_slot_id else p for p in state.get("players", [])
+        ]
         game.state = state
-        # Same-object reassignment doesn't mark the JSON column dirty.
         flag_modified(game, "state")
         game.updated_at = utc_now().isoformat()
 

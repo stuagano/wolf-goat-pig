@@ -313,9 +313,10 @@ async def join_game_with_code(  # type: ignore
         )
         db.add(game_player)
 
-        # Update game state with new player
-        game.state["players"] = game.state.get("players", [])
-        game.state["players"].append(
+        # Update game state with new player. Build the list and reassign the
+        # top-level key (not .append on the nested list) so MutableDict tracks it.
+        players = list(game.state.get("players", []))
+        players.append(
             {
                 "id": player_slot_id,
                 "name": request.player_name,
@@ -324,6 +325,7 @@ async def join_game_with_code(  # type: ignore
                 "player_profile_id": request.player_profile_id,
             }
         )
+        game.state["players"] = players
         game.updated_at = current_time
 
         flag_modified(game, "state")
