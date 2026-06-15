@@ -7,10 +7,10 @@ Gherkin feature files, and executing them automatically with Behave (Cucumber fo
 
 1. Describe the behaviour you want in natural language. The AI agent can help translate this narrative
    into a structured Gherkin feature and matching step definitions.
-2. Save scenarios under `tests/bdd/features/*.feature`. Each file can contain one or more related
+2. Save scenarios under `backend/tests/bdd/features/*.feature`. Each file can contain one or more related
    scenarios.
-3. Implement or extend Python step definitions in `tests/bdd/steps/`. Shared hooks live in
-   `tests/bdd/environment.py`.
+3. Implement or extend Python step definitions in `backend/tests/bdd/steps/`. Shared hooks live in
+   `backend/tests/bdd/environment.py`.
 4. Run the suite locally:
 
    ```bash
@@ -34,7 +34,7 @@ Gherkin feature files, and executing them automatically with Behave (Cucumber fo
 ## Folder Layout
 
 ```
-tests/bdd/
+backend/tests/bdd/
 ├── environment.py          # Behave hooks (adds repo root to PYTHONPATH)
 ├── features/
 │   └── simulation_health.feature
@@ -48,7 +48,7 @@ tests/bdd/
 |----------------------------------------|----------------------------------------------|
 | Run all BDD scenarios                  | `npm run test:bdd`                           |
 | Filter scenarios by tag                | `./scripts/testing/run_behave.sh --tags @ui` |
-| Re-run last failed scenario only       | `behave tests/bdd --format progress2`        |
+| Re-run last failed scenario only       | `behave backend/tests/bdd --format progress2`        |
 | Generate step definition stubs         | `behave --dry-run --no-summary -q`           |
 
 ## Continuous Integration

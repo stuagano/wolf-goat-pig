@@ -208,6 +208,38 @@ class TestUpdatePlayerName:
         names = {p["id"]: p["name"] for p in state.get("players", [])}
         assert names.get(player_id) == "Persisted Name"
 
+    def test_update_name_persists_ctk(self):
+        """Same read-back as above, expressed with claude-test-kit's
+        `claim_vs_reality` — the explicit guard against the silent-persistence
+        bug: a PATCH that returns 200 but never actually writes (the class of
+        bug the flag_modified / MutableDict fixes addressed).
+
+        Demonstrates the vendored `.ctk/` kit wired in via pyproject's
+        `pythonpath`. The verifier re-reads GET /state and raises if the
+        claimed-successful write didn't reach durable state.
+        """
+        from ctk import claim_vs_reality
+
+        game = _create_test_game().json()
+        game_id = game["game_id"]
+        player_id = game["players"][0]["id"]
+
+        resp = client.patch(f"/games/{game_id}/players/{player_id}/name", json={"name": "CTK Persisted"})
+
+        def reality_is_persisted():
+            state = client.get(f"/games/{game_id}/state").json()
+            names = {p["id"]: p["name"] for p in state.get("players", [])}
+            assert names.get(player_id) == "CTK Persisted", (
+                f"GET /state shows {names.get(player_id)!r}, not the patched name — "
+                "the PATCH reported success but did not persist"
+            )
+
+        claim_vs_reality(
+            claimed_success=(resp.status_code == 200),
+            verifier=reality_is_persisted,
+            claim_label="update player name",
+        )
+
 
 # ── DELETE /games/{game_id}/players/{player_slot_id} ────────────────────────
 
