@@ -11,6 +11,7 @@ from typing import Any
 
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
@@ -96,6 +97,14 @@ router = APIRouter(
     tags=["sheet_integration"],
     responses={404: {"description": "Not found"}},
 )
+
+
+class CsvUrlRequest(BaseModel):
+    csv_url: str = Field(..., min_length=1)
+
+
+class CompareSheetRequest(BaseModel):
+    sheet_data: list[dict[str, Any]] = Field(..., min_length=1)
 
 
 @router.post("/analyze-structure")
@@ -222,7 +231,7 @@ def export_current_data_for_sheet(
 
 @router.post("/sync-wgp-sheet")
 async def sync_wgp_sheet_data(
-    request: dict[str, str],
+    request: CsvUrlRequest,
     db: Session = Depends(get_db),
     x_scheduled_job: str | None = Header(None),
 ) -> dict[str, Any]:
@@ -245,9 +254,7 @@ async def sync_wgp_sheet_data(
         else:
             logger.info("Scheduled job detected - bypassing rate limit")
 
-        csv_url = request.get("csv_url")
-        if not csv_url:
-            raise HTTPException(status_code=400, detail="CSV URL is required")
+        csv_url = request.csv_url
 
         # Check cache first
         cache_key = f"sheet_sync:{csv_url}"
@@ -564,16 +571,14 @@ async def sync_wgp_sheet_data(
 
 
 @router.post("/fetch-google-sheet")
-async def fetch_google_sheet(request: dict[str, str]) -> dict[str, Any]:
+async def fetch_google_sheet(request: CsvUrlRequest) -> dict[str, Any]:
     """
     Fetch raw data from Google Sheets.
 
     Downloads CSV data from a Google Sheets export URL.
     """
     try:
-        csv_url = request.get("csv_url")
-        if not csv_url:
-            raise HTTPException(status_code=400, detail="CSV URL is required")
+        csv_url = request.csv_url
 
         # Fetch the CSV data (follow redirects for Google Sheets export URLs)
         async with httpx.AsyncClient(follow_redirects=True) as client:
@@ -617,7 +622,7 @@ async def fetch_google_sheet(request: dict[str, str]) -> dict[str, Any]:
 
 
 @router.post("/compare-data")
-async def compare_sheet_to_db_data(request: dict, db: Session = Depends(get_db)) -> dict[str, Any]:
+async def compare_sheet_to_db_data(request: CompareSheetRequest, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Compare Google Sheets data with current database data.
 
@@ -626,9 +631,7 @@ async def compare_sheet_to_db_data(request: dict, db: Session = Depends(get_db))
     try:
         from ..services.leaderboard_service import LeaderboardService
 
-        sheet_data = request.get("sheet_data", [])
-        if not sheet_data:
-            raise HTTPException(status_code=400, detail="Sheet data is required")
+        sheet_data = request.sheet_data
 
         leaderboard_service = LeaderboardService(db)
         comparison = leaderboard_service.compare_with_sheet(sheet_data)  # type: ignore[attr-defined]

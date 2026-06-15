@@ -15,6 +15,7 @@ from datetime import timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, UploadFile
+from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -27,6 +28,11 @@ from ..utils.time import utc_now
 logger = logging.getLogger("app.routers.admin")
 
 router = APIRouter(tags=["admin"])
+
+
+class AdminTestEmailRequest(BaseModel):
+    test_email: str = Field(..., min_length=1)
+    config: dict[str, Any] = Field(default_factory=dict)
 
 
 # =============================================================================
@@ -83,16 +89,13 @@ def update_email_config(config: dict[str, Any], x_admin_email: str = Header(None
 
 
 @router.post("/admin/test-email")
-async def test_admin_email(request: dict[str, Any], x_admin_email: str = Header(None)):  # type: ignore
+async def test_admin_email(request: AdminTestEmailRequest, x_admin_email: str = Header(None)):  # type: ignore
     """Send a test email with provided configuration (admin only)"""
     require_admin(x_admin_email)
 
     try:
-        test_email = request.get("test_email")
-        config = request.get("config", {})
-
-        if not test_email:
-            raise HTTPException(status_code=400, detail="Test email address required")
+        test_email = request.test_email
+        config = request.config
 
         # Temporarily apply config if provided
         if config:

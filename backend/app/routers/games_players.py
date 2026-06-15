@@ -13,6 +13,7 @@ from ..services.game_lifecycle_service import get_game_lifecycle_service
 from ..state.course_manager import CourseManager
 from ..utils.time import utc_now
 from ..wolf_goat_pig import Player, WolfGoatPigGame
+from ._validators import NonBlankStr
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,11 @@ class BettingSeed(BaseModel):
 
 
 class UpdatePlayerNameRequest(BaseModel):
-    name: str = Field(..., min_length=2, max_length=50)
+    name: NonBlankStr = Field(..., min_length=2, max_length=50)
+
+
+class UpdateHandicapRequest(BaseModel):
+    handicap: float = Field(..., ge=0, le=54)
 
 
 class UpdateHittingOrderRequest(BaseModel):
@@ -165,9 +170,6 @@ async def create_custom_game(body: CreateCustomGameRequest, db: Session = Depend
     auto-plays them. Lands the host straight in the scorekeeper."""
     import string
     import uuid
-
-    if len(body.players) not in (4, 5, 6):
-        raise HTTPException(status_code=400, detail="Wolf Goat Pig requires 4, 5, or 6 players")
 
     join_code = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
     game_id = str(uuid.uuid4())
@@ -477,9 +479,7 @@ async def update_player_name(
     db: Session = Depends(database.get_db),
 ) -> dict[str, Any]:
     """Update a player's display name. Writes to DB; evicts cache so next load is fresh."""
-    new_name = name_update.name.strip()
-    if not new_name:
-        raise HTTPException(status_code=400, detail="Name cannot be blank")
+    new_name = name_update.name
 
     game_player = (
         db.query(models.GamePlayer)
@@ -586,7 +586,7 @@ async def remove_player(game_id: str, player_slot_id: str, db: Session = Depends
 async def update_player_handicap(  # type: ignore
     game_id: str,
     player_slot_id: str,
-    handicap_update: dict,
+    handicap_update: UpdateHandicapRequest,
     db: Session = Depends(database.get_db),
 ):
     """
@@ -599,17 +599,7 @@ async def update_player_handicap(  # type: ignore
         handicap_update: Dict with "handicap" key containing the new handicap
     """
     try:
-        new_handicap = handicap_update.get("handicap")
-        if new_handicap is None:
-            raise HTTPException(status_code=400, detail="Handicap not provided")
-
-        try:
-            new_handicap = float(new_handicap)
-        except (ValueError, TypeError):
-            raise HTTPException(status_code=400, detail="Invalid handicap value")
-
-        if new_handicap < 0 or new_handicap > 54:
-            raise HTTPException(status_code=400, detail="Handicap must be between 0 and 54")
+        new_handicap = handicap_update.handicap
 
         # Get game from database
         game = db.query(models.GameStateModel).filter(models.GameStateModel.game_id == game_id).first()

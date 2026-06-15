@@ -104,13 +104,13 @@ class TestTestEmail:
         )
         assert resp.status_code == 403
 
-    def test_returns_400_without_test_email(self):
+    def test_returns_422_without_test_email(self):
         resp = client.post(
             "/admin/test-email",
             json={},
             headers=ADMIN_HEADER,
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 422
 
 
 # =============================================================================
@@ -505,4 +505,14 @@ class TestRunMigration:
 
     def test_missing_migration_param_returns_422(self):
         resp = client.post("/admin/run-migration", headers=ADMIN_HEADER)
+        assert resp.status_code == 422
+
+
+class TestAdminTestEmailValidation:
+    def test_missing_test_email_returns_422(self):
+        from fastapi.testclient import TestClient
+
+        from app.main import app
+
+        resp = TestClient(app).post("/admin/test-email", json={})
         assert resp.status_code == 422

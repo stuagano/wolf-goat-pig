@@ -16,6 +16,8 @@ import httpx
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
+from ._validators import NonBlankStr
+
 logger = logging.getLogger("app.routers.tee_sheet")
 
 router = APIRouter(prefix="/tee-sheet", tags=["tee-sheet"])
@@ -123,15 +125,13 @@ async def get_upcoming_counts(
 
 class SignupRequest(BaseModel):
     date: str
-    name: str
+    name: NonBlankStr
 
 
 @router.post("/signup")
 async def signup_for_tee_sheet(request: SignupRequest) -> dict[str, Any]:
     """Sign up a player for a given date on the thousand-cranes.com tee sheet."""
-    name = request.name.strip()
-    if not name:
-        raise HTTPException(status_code=400, detail="Name is required")
+    name = request.name
 
     async with httpx.AsyncClient(timeout=10.0) as client:
         try:

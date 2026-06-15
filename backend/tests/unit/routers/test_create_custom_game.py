@@ -79,3 +79,26 @@ class TestRosterSuggestions:
         assert resp.status_code == 200
         assert "players" in resp.json()
         assert isinstance(resp.json()["players"], list)
+
+
+class TestCreateCustomGamePlayerCount:
+    """The 4-6 player bound is enforced by the Pydantic model (422)."""
+
+    def _client(self):
+        from fastapi.testclient import TestClient
+
+        from app.main import app
+
+        return TestClient(app)
+
+    def test_three_players_rejected_with_422(self):
+        client = self._client()
+        players = [{"name": f"P{i}", "handicap": 10, "is_ghost": False} for i in range(3)]
+        resp = client.post("/games/create-custom", json={"players": players})
+        assert resp.status_code == 422
+
+    def test_seven_players_rejected_with_422(self):
+        client = self._client()
+        players = [{"name": f"P{i}", "handicap": 10, "is_ghost": False} for i in range(7)]
+        resp = client.post("/games/create-custom", json={"players": players})
+        assert resp.status_code == 422

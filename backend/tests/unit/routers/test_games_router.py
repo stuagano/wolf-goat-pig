@@ -288,13 +288,13 @@ class TestTeeOrder:
         )
         assert resp.status_code == 404
 
-    def test_set_tee_order_empty_order_returns_400(self):
+    def test_set_tee_order_empty_order_returns_422(self):
         game_id, _ = self._setup_game_with_players(4)
         resp = client.patch(
             f"/games/{game_id}/tee-order",
             json={"player_order": []},
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 422
 
     def test_set_tee_order_wrong_count_returns_400(self):
         game_id, slots = self._setup_game_with_players(4)
@@ -363,3 +363,39 @@ class TestStartGame:
         client.post(f"/games/{game['game_id']}/start")
         resp = client.post(f"/games/{game['game_id']}/start")
         assert resp.status_code == 400
+
+
+class TestSetTeeOrderValidation:
+    def _client(self):
+        from fastapi.testclient import TestClient
+
+        from app.main import app
+
+        return TestClient(app)
+
+    def test_missing_player_order_returns_422(self):
+        resp = self._client().patch("/games/nonexistent/tee-order", json={})
+        assert resp.status_code == 422
+
+    def test_empty_player_order_returns_422(self):
+        resp = self._client().patch("/games/nonexistent/tee-order", json={"player_order": []})
+        assert resp.status_code == 422
+
+
+class TestBusinessStateStays400Not422:
+    """Guard: state checks that need the loaded game must NOT become 422.
+
+    A well-formed request body must reach the handler and fail on the
+    business-state lookup (404/400) — not be rejected as 422 by Pydantic.
+    This protects against accidental over-migration of validation.
+    """
+
+    def test_join_nonexistent_game_is_404_not_422(self):
+        from fastapi.testclient import TestClient
+
+        from app.main import app
+
+        # Well-formed JoinGameRequest body (player_name required) to a
+        # nonexistent join code → fails on game lookup (404), not shape.
+        resp = TestClient(app).post("/games/join/ZZZZZZ", json={"player_name": "Tester"})
+        assert resp.status_code == 404
