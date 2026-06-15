@@ -92,3 +92,12 @@ def test_sentry_test_send_is_guarded(monkeypatch):
     monkeypatch.setenv("MONITOR_KEY", "secret")
     assert client.get("/health/sentry-test?send=1").status_code == 403
     assert client.get("/health/sentry-test?send=1&monitor_key=secret").status_code == 200
+
+
+def test_health_endpoints_accept_head():
+    # Uptime monitors (e.g. BetterStack) default to HEAD — must not 405.
+    for path in ("/health", "/healthz", "/ready"):
+        get_status = client.get(path).status_code
+        head_status = client.head(path).status_code
+        assert head_status != 405, f"HEAD {path} returned 405"
+        assert head_status == get_status, f"HEAD {path}={head_status} != GET {get_status}"
