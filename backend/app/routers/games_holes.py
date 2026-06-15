@@ -289,17 +289,6 @@ async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depend
                 logger.error("Failed to persist game results for %s: %s", game_id, e)
                 # Don't fail the whole request — quarters are already saved
 
-        # Evict the cached simulation so the /action engine re-restores fresh
-        # state from the DB after a score write. /state reads the DB directly, so
-        # this is no longer needed for /state correctness, but it keeps the
-        # in-memory engine cache from going stale relative to the just-saved DB.
-        try:
-            from ..services.game_lifecycle_service import get_game_lifecycle_service
-
-            get_game_lifecycle_service()._active_games.pop(game_id, None)
-        except Exception as e:
-            logger.warning("Could not evict in-memory sim for %s: %s", game_id, e)
-
         return {
             "success": True,
             "game_id": game_id,

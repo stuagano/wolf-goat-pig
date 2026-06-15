@@ -39,7 +39,6 @@ from .routers import (
     players,
     sheet_integration,
     tee_sheet,
-    wgp_actions,
 )
 from .routers.email_routes import initialize_email_scheduler
 
@@ -299,7 +298,6 @@ app.include_router(admin_oauth.router)
 app.include_router(admin.router)
 app.include_router(betting_odds.router)
 app.include_router(team_formation.router)
-app.include_router(wgp_actions.router)
 app.include_router(games.router)
 app.include_router(games_holes.router)
 app.include_router(games_players.router)
@@ -380,7 +378,9 @@ def get_rules():
 
 # Games routes moved to routers/games.py, routers/games_holes.py, routers/games_players.py
 
-# WGP action engine moved to routers/wgp_actions.py + domain/wgp_handlers_*.py
+# WGP gameplay /action engine retired (orphaned — frontend never called it).
+# The WolfGoatPigGame engine code remains as a state-generation library used by
+# game creation, and domain/shot_range_analysis powers /wgp/shot-range-analysis.
 
 # Betting odds routes moved to routers/betting_odds.py
 

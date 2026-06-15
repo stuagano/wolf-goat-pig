@@ -544,11 +544,9 @@ async def start_game_from_lobby(game_id: str, db: Session = Depends(database.get
             logger.error(f"Failed to initialize simulation: {init_error}")
             raise HTTPException(status_code=500, detail=f"Failed to initialize game: {init_error!s}")
 
-        # Cache the simulation for the /action engine. The DB is the source of
-        # truth for /state; retiring this cache belongs with retiring /action.
-        get_game_lifecycle_service()._active_games[game_id] = simulation
-
-        # Get initial game state from simulation
+        # Build the initial game state from the simulation, then persist it. The
+        # sim is a one-shot state generator — not cached (the /action engine that
+        # used the cache was retired; the DB is the source of truth for /state).
         initial_state = simulation.get_game_state()
 
         # Update database game state

@@ -222,12 +222,6 @@ async def create_custom_game(body: CreateCustomGameRequest, db: Session = Depend
             for h in WING_POINT_COURSE_DATA["holes"]
         ]
 
-    # Cache the simulation for the /wgp/{id}/action engine (the DB remains the
-    # source of truth for /state). Retiring this cache belongs with retiring
-    # /action — see Tier 2.
-    service = get_game_lifecycle_service()
-    service._active_games[game_id] = simulation
-
     db.add(
         models.GameStateModel(
             game_id=game_id,
@@ -382,11 +376,6 @@ async def create_test_game(
                 }
             )
         game_state["holes_config"] = holes_config
-
-    # Cache the simulation for the /action engine (DB is the source of truth
-    # for /state). Retiring this belongs with retiring /action — see Tier 2.
-    service = get_game_lifecycle_service()
-    service._active_games[game_id] = simulation
 
     # Try to save to database first
     fallback_mode = False
