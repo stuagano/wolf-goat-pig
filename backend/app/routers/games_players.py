@@ -167,9 +167,6 @@ async def create_custom_game(body: CreateCustomGameRequest, db: Session = Depend
     import string
     import uuid
 
-    if len(body.players) not in (4, 5, 6):
-        raise HTTPException(status_code=400, detail="Wolf Goat Pig requires 4, 5, or 6 players")
-
     join_code = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
     game_id = str(uuid.uuid4())
     now = utc_now().isoformat()
