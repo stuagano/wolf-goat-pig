@@ -176,8 +176,11 @@ app = FastAPI(
     title="Wolf Goat Pig Golf Simulation API",
     description="A comprehensive golf betting simulation API with unified Action API",
     version="1.0.0",
-    docs_url="/docs" if os.getenv("ENVIRONMENT") != "production" else None,
-    redoc_url="/redoc" if os.getenv("ENVIRONMENT") != "production" else None,
+    # Swagger UI + ReDoc are served in all environments. The OpenAPI schema
+    # (/openapi.json) is already public, so exposing the interactive docs adds
+    # no new information surface; endpoints remain auth-protected as usual.
+    docs_url="/docs",
+    redoc_url="/redoc",
     lifespan=lifespan,
 )
 
