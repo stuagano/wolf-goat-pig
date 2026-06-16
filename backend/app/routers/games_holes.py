@@ -24,6 +24,10 @@ router = APIRouter(prefix="/games", tags=["games"])
 # ---------------------------------------------------------------------------
 
 
+# A standard round is complete only when every hole 1-18 has score data.
+REQUIRED_HOLES = frozenset(range(1, 19))
+
+
 class HoleScore(BaseModel):
     hole_number: int
     quarters: dict[str, float]  # { player_id: quarters_won_or_lost }
@@ -95,10 +99,17 @@ async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depend
         if not game:
             raise HTTPException(status_code=404, detail="Game not found")
 
+        # Collapse duplicate hole entries within this payload (last write wins).
+        # Offline sync can replay a hole, sending the same hole_number twice in
+        # one request. Left unmerged that double-counts standings (inflated money)
+        # and crashes the hole_events upsert on the (game,hole,player) unique
+        # constraint. Dedup by hole_number, preserving first-seen order.
+        holes = list({h.hole_number: h for h in request.holes}.values())
+
         # Validate zero-sum per hole
         errors = [
             f"Hole {h.hole_number}: sum is {sum(h.quarters.values())}, must be 0"
-            for h in request.holes
+            for h in holes
             if abs(sum(h.quarters.values())) > 0.001
         ]
         if errors:
@@ -106,13 +117,13 @@ async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depend
 
         # Calculate standings
         standings: dict[str, float] = {}
-        for h in request.holes:
+        for h in holes:
             for player_id, quarters in h.quarters.items():
                 standings[player_id] = standings.get(player_id, 0) + quarters
 
         # Persist to hole_events (upsert per player per hole)
         now_ts = utc_now().isoformat()
-        for h in request.holes:
+        for h in holes:
             for player_id, quarters in h.quarters.items():
                 existing = (
                     db.query(models.HoleEvent)
@@ -159,12 +170,17 @@ async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depend
                 "wager": h.wager,
                 "phase": h.phase,
             }
-            for h in sorted(request.holes, key=lambda x: x.hole_number)
+            for h in sorted(holes, key=lambda x: x.hole_number)
         ]
         game_state["hole_history"] = hole_history
 
-        holes_with_data = len(request.holes)
-        if holes_with_data >= 18:
+        holes_with_data = len(holes)
+        # Gate completion on the DISTINCT set of holes 1-18 actually played, not
+        # the raw entry count. Counting raw entries let 18 rows that skip a real
+        # hole (or duplicate one) trip completion before hole 18 was played.
+        distinct_holes = {h.hole_number for h in holes}
+        game_complete = REQUIRED_HOLES.issubset(distinct_holes)
+        if game_complete:
             game_state["game_status"] = "completed"
             game.game_status = "completed"
         elif holes_with_data > 0:
@@ -184,7 +200,7 @@ async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depend
 
         # Persist GameRecord + GamePlayerResult when game is complete
         results_created = 0
-        if holes_with_data >= 18:
+        if game_complete:
             try:
                 existing_record = db.execute(
                     text("SELECT id FROM game_records WHERE game_id = :gid LIMIT 1"),
@@ -209,7 +225,7 @@ async def save_scores(game_id: str, request: ScoresRequest, db: Session = Depend
                             "gid": game_id,
                             "course": game_state.get("course_name", "Wing Point"),
                             "pc": len(players),
-                            "holes": holes_with_data,
+                            "holes": len(distinct_holes),
                             "cat": game.created_at or now,
                             "comp": now,
                             "scores": json.dumps(standings),
