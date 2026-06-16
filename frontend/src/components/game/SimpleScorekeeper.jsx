@@ -28,6 +28,7 @@ import { fetchJson } from "../../services/fetchJson";
 // calculateStrokeAllocation applies USGA course-handicap conversion, which
 // this component's raw-handicap fallback intentionally does not.
 import { getStrokesForHole } from "../../utils/strokeAllocation";
+import { allHolesPlayed } from "../../utils/holeHistory";
 import {
   HoleHeader,
   TeamSelector,
@@ -748,8 +749,11 @@ const SimpleScorekeeper = ({
     }
   };
 
-  // Check if game is complete (all 18 holes played)
-  const isGameComplete = currentHole > 18 && holeHistory.length === 18;
+  // Check if game is complete (all 18 holes played). Gate on the DISTINCT set
+  // of holes 1-18 actually played, not holeHistory.length — a duplicate entry
+  // makes length reach 18 with a real hole still missing, completing early
+  // (and a missing hole could also be masked). Mirrors the backend gate.
+  const isGameComplete = currentHole > 18 && allHolesPlayed(holeHistory);
 
   // Handler to mark game as complete in the database
   const handleMarkComplete = async () => {

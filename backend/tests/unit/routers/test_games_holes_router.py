@@ -206,6 +206,47 @@ class TestSaveScores:
         assert data["game_status"] == "completed"
         assert data["holes_saved"] == 18
 
+    def test_duplicate_hole_entry_does_not_complete_or_inflate(self):
+        """Regression: a duplicate hole entry (offline-sync replay) used to (a)
+        trip completion early because the gate counted raw rows >= 18, (b)
+        double-count standings (inflated money), and (c) 500 on the hole_events
+        unique constraint. The payload is deduped by hole_number (last wins),
+        so 17 distinct holes + a dup of hole 1 = 17 holes: not complete, not
+        inflated, no crash."""
+        game_id, slots = _setup_started_game()
+        q = {slots[0]: 1, slots[1]: -1, slots[2]: 1, slots[3]: -1}
+        # Holes 1..17, then a duplicate of hole 1 → 18 entries, 17 distinct.
+        holes = [{"hole_number": h, "quarters": q} for h in range(1, 18)]
+        holes.append({"hole_number": 1, "quarters": q})
+        resp = client.post(
+            f"/games/{game_id}/scores",
+            json={"holes": holes, "current_hole": 17},
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["game_status"] == "in_progress"
+
+        state = client.get(f"/games/{game_id}/state").json()
+        assert state.get("game_status") != "completed"
+        # 17 distinct holes saved, not 18 — the dup collapsed.
+        saved_holes = sorted(h["hole"] for h in state.get("hole_history", []))
+        assert saved_holes == list(range(1, 18))
+        # slots[0] won +1 on each of 17 holes = 17, NOT 18 (dup not counted).
+        assert state.get("standings", {}).get(slots[0]) == 17
+
+    def test_missing_middle_hole_does_not_complete_game(self):
+        """18 entries that skip a hole (1..17 + hole 19) must not complete —
+        the round isn't done until holes 1-18 all have data."""
+        game_id, slots = _setup_started_game()
+        q = {slots[0]: 1, slots[1]: -1, slots[2]: 1, slots[3]: -1}
+        holes = [{"hole_number": h, "quarters": q} for h in range(1, 18)]
+        holes.append({"hole_number": 19, "quarters": q})  # stray, hole 18 absent
+        resp = client.post(
+            f"/games/{game_id}/scores",
+            json={"holes": holes, "current_hole": 17},
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["game_status"] != "completed"
+
     def test_saved_scores_are_visible_via_state(self):
         """Regression: /scores writes to the DB but /state served the in-memory
         simulation for active games, so saved holes were invisible (saved 200
