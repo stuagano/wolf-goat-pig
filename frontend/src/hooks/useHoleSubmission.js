@@ -8,6 +8,7 @@
 
 import { apiConfig } from "../config/api.config";
 import { fetchJson } from "../services/fetchJson";
+import { upsertHole } from "../utils/holeHistory";
 
 const API_URL = apiConfig.baseUrl;
 
@@ -213,16 +214,19 @@ const useHoleSubmission = (ctx) => {
         scores: scores,
       });
 
-      // Update local state first (optimistic update)
+      // Update local state first (optimistic update). upsertHole replaces any
+      // existing entry for this hole (offline replay / re-submit) instead of
+      // appending — duplicates inflate standings (money) and break the
+      // 18-distinct-holes completion check. Mirrors the backend dedupe.
       let updatedHistory;
       if (editingHole) {
-        // Editing existing hole - update it in the history
+        // Editing an existing hole whose number may be changing — key off the
+        // hole being edited, not the result's hole number.
         updatedHistory = holeHistory.map((h) =>
           h.hole === editingHole ? holeResult : h,
         );
       } else {
-        // New hole - add to history
-        updatedHistory = [...holeHistory, holeResult];
+        updatedHistory = upsertHole(holeHistory, holeResult);
       }
       setHoleHistory(updatedHistory);
 
