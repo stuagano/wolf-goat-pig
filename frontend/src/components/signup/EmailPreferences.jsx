@@ -12,6 +12,7 @@ const EmailPreferences = () => {
     signup_reminders_enabled: true,
     game_invitations_enabled: true,
     weekly_summary_enabled: true,
+    callout_list_enabled: false,
     email_frequency: 'daily',
     preferred_notification_time: '8:00 AM'
   });
@@ -146,7 +147,8 @@ const EmailPreferences = () => {
     { key: 'signup_confirmations_enabled', label: 'Sign-up Confirmations', desc: 'When someone joins your day' },
     { key: 'signup_reminders_enabled', label: 'Sign-up Reminders', desc: 'Reminders for upcoming days' },
     { key: 'game_invitations_enabled', label: 'Game Invitations', desc: 'Direct invites to play' },
-    { key: 'weekly_summary_enabled', label: 'Weekly Summary', desc: 'Recap of golf activity' }
+    { key: 'weekly_summary_enabled', label: 'Weekly Summary', desc: 'Recap of golf activity' },
+    { key: 'callout_list_enabled', label: 'Callout List', desc: "Get first dibs when a game is short a player" }
   ];
 
   return (

@@ -28,8 +28,8 @@
     "waiver": null
   },
   "api-surface-no-drift": {
-    "at": "2026-06-17T20:11:34.290087+00:00",
-    "fingerprint": "sha256:f8b4e5a05bdf57ea0929081415ddbf4822afca29608d94289157f88eb56ffaee",
+    "at": "2026-06-17T23:41:07.434680+00:00",
+    "fingerprint": "sha256:efbb6316c7c53965d7da2f19cf1e55408c1dced84e367885e84cf474cc534c74",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -72,6 +72,13 @@
   "betting-odds-router": {
     "at": "2026-06-17T02:37:27.715015+00:00",
     "fingerprint": "sha256:7a6fd007d5a20912321b07314cbbbff525d85daa1a8ceeb3c3e9630389802903",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "callout-fires-and-dedups": {
+    "at": "2026-06-17T23:32:00.086770+00:00",
+    "fingerprint": "sha256:a2c2feda0ad8fb9275e3cf3403e6789d15610793d241fe5107563bc9f34db431",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -252,15 +259,15 @@
     "waiver": null
   },
   "request-validation-422-envelope": {
-    "at": "2026-06-17T20:11:34.290087+00:00",
-    "fingerprint": "sha256:bf8934b2575a216a70b8056b7dc70c6afcd74610278a1bfa8e5aa67479e9e9fd",
+    "at": "2026-06-17T23:41:16.350883+00:00",
+    "fingerprint": "sha256:8fe096db545eae646173416d9938c315585ba3dcc764ff2d54a3adf7ff4474c1",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
   },
   "resend-email-contract": {
-    "at": "2026-06-17T20:11:34.290087+00:00",
-    "fingerprint": "sha256:671d8d7b4bba982fe2bf9940c86c724a096446dc8334daf500437c1fe3be9b44",
+    "at": "2026-06-17T23:21:09.920373+00:00",
+    "fingerprint": "sha256:1741ea7196d64fd980635c533df01cc08de0b96841d784804672862de61eb6cc",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -350,8 +357,8 @@
     "waiver": null
   },
   "welcome-email-sent": {
-    "at": "2026-06-17T20:11:34.290087+00:00",
-    "fingerprint": "sha256:ecc7ecd09ae71ea2c86ee4d46791e457a9b0615cc4164917edede8a5c6e6ea43",
+    "at": "2026-06-17T23:21:11.807091+00:00",
+    "fingerprint": "sha256:61cbfe684a26ddbefae3a43fdcb0bcfd01314ef5c3ebf841f2efeb268a5ca41d",
     "result": "pass",
     "tier": "cheap",
     "waiver": null

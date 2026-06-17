@@ -348,6 +348,76 @@ class EmailService:
             html_body=html_body,
         )
 
+    def send_callout_notification(
+        self,
+        to_email: str,
+        player_name: str,
+        game_date: str,
+        signup_count: int,
+        needed: int,
+    ) -> bool:
+        """Calls an opt-in player to fill out a short game.
+
+        Sent when signups for a date fall short of a full foursome and the
+        player has opted into the callout list. Includes a direct sign-up link.
+
+        Args:
+            to_email: Player's email address
+            player_name: Player's display name
+            game_date: The game date (YYYY-MM-DD)
+            signup_count: How many players are currently signed up
+            needed: How many more players are needed to complete the foursome(s)
+        """
+        from datetime import datetime
+
+        try:
+            date_obj = datetime.strptime(game_date, "%Y-%m-%d")
+            formatted_date = date_obj.strftime("%A, %B %d, %Y")
+        except ValueError:
+            formatted_date = game_date
+
+        app_base_url = os.getenv("APP_BASE_URL", "https://wolf-goat-pig.vercel.app").rstrip("/")
+        signup_url = f"{app_base_url}/signup"
+
+        player_word = "player" if needed == 1 else "players"
+        content = f"""
+        <h2>⛳ We need {needed} more {player_word} for {formatted_date}!</h2>
+        <p>Hi {player_name},</p>
+        <p>There {"is" if signup_count == 1 else "are"} <strong>{signup_count}</strong>
+        signed up so far &mdash; we're <strong>{needed} short</strong> of a full group.
+        You're on the callout list, so you're getting first dibs.</p>
+        <p style="margin: 24px 0;">
+            <a href="{signup_url}"
+               style="background: #047857; color: #fff; padding: 12px 24px; border-radius: 8px;
+                      text-decoration: none; font-weight: 600; display: inline-block;">
+                Sign up to play
+            </a>
+        </p>
+        <p style="color: #6b7280; font-size: 13px;">
+            Already in? Ignore this &mdash; you may be getting it before your signup synced.
+            Don't want these? Turn off the callout list in your email settings.
+        </p>
+        """
+
+        template = Template(self._get_base_template())
+        html_body = template.render(subject="We're short for a game", content=content)
+
+        text_body = (
+            f"We need {needed} more {player_word} for {formatted_date}!\n\n"
+            f"Hi {player_name},\n\n"
+            f"There are {signup_count} signed up so far - we're {needed} short of a full group. "
+            "You're on the callout list, so you're getting first dibs.\n\n"
+            f"Sign up to play: {signup_url}\n\n"
+            "Don't want these? Turn off the callout list in your email settings."
+        )
+
+        return self._send_email(
+            to_email=to_email,
+            subject=f"⛳ {needed} more needed for {formatted_date}",
+            html_body=html_body,
+            text_body=text_body,
+        )
+
     def send_tee_time_request(
         self,
         to_email: str,

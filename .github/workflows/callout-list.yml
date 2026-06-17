@@ -1,0 +1,59 @@
+name: Headcount Callout List
+
+# Emails the opt-in callout list when the upcoming Sunday game is short of a
+# full foursome. Driven here (not the in-process scheduler, which is a no-op
+# shim in prod) — same pattern as the GHIN sync cron.
+on:
+  schedule:
+    - cron: '0 22 * * 5'  # Friday 22:00 UTC (~2-3pm PT) — pre-pairing recruiting call
+    - cron: '0 15 * * 0'  # Sunday 15:00 UTC (~8am PT) — morning-of last call
+  workflow_dispatch:
+    inputs:
+      window:
+        description: 'Callout window'
+        required: true
+        default: 'pre_pairing'
+        type: choice
+        options:
+          - pre_pairing
+          - morning_of
+
+jobs:
+  callout:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Determine window
+      id: window
+      run: |
+        if [ -n "${{ github.event.inputs.window }}" ]; then
+          WINDOW="${{ github.event.inputs.window }}"
+        elif [ "$(date -u +%u)" = "5" ]; then
+          WINDOW="pre_pairing"   # Friday
+        else
+          WINDOW="morning_of"    # Sunday
+        fi
+        echo "window=$WINDOW" >> "$GITHUB_OUTPUT"
+        echo "Using window: $WINDOW"
+
+    - name: Run headcount callout
+      run: |
+        WINDOW="${{ steps.window.outputs.window }}"
+        echo "📣 Running callout (window=$WINDOW)..."
+        RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+          "https://wolf-goat-pig.onrender.com/callouts/run?window=$WINDOW" \
+          -H "Content-Type: application/json" \
+          --max-time 60)
+
+        HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+        BODY=$(echo "$RESPONSE" | head -n -1)
+
+        echo "Status: $HTTP_CODE"
+        echo "Response: $BODY"
+
+        if [ "$HTTP_CODE" != "200" ]; then
+          echo "❌ Callout failed with status $HTTP_CODE"
+          exit 1
+        fi
+
+        echo "✅ Callout check complete"
