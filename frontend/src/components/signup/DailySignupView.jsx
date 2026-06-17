@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import '../../styles/mobile-touch.css';
 import { apiConfig } from '../../config/api.config';
+import { calculateCourseHandicap } from '../../utils';
 
 const API_URL = apiConfig.baseUrl;
 
@@ -787,7 +788,7 @@ const DailySignupView = ({ selectedDate: initialDate, onBack }) => {
                         {p.player_name}
                         {p.handicap && (
                           <span style={{ color: '#6b7280', fontSize: '12px', marginLeft: '6px' }}>
-                            ({p.handicap} HCP)
+                            ({calculateCourseHandicap(p.handicap)} HCP)
                           </span>
                         )}
                       </div>
