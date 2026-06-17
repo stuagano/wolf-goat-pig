@@ -69,9 +69,10 @@ BMad is a comprehensive digital implementation of the classic Wolf Goat Pig golf
 - **HTTP Client**: httpx 0.27.0+ for external integrations
 
 #### Frontend Stack
-- **Framework**: React 18.0.0+ with React Router DOM 6.23.0+
-- **Build Tool**: Create React App (react-scripts 5.0.1+)
-- **Language**: Modern JavaScript (ES2018+)
+- **Framework**: React 18+ with React Router DOM 6+
+- **Build Tool**: Vite 6 (`vite build`); Vitest for unit tests
+- **Language**: JavaScript/JSX with TypeScript for type-checking (`tsc --noEmit`)
+- **Auth**: Auth0 (SPA flow via `AuthContext`)
 - **Styling**: CSS3 with responsive design
 - **State Management**: React Context + Hooks
 
@@ -309,6 +310,31 @@ CREATE TABLE simulation_results (
 3. **Performance Optimization**: Indexed columns for common queries
 4. **Version Compatibility**: Schema supports both SQLite (dev) and PostgreSQL (prod)
 
+### Schema Migrations
+
+PostgreSQL schema changes are applied automatically at startup by
+`backend/app/migrations_runner.py`, which runs every `backend/migrations/*_postgres.sql`
+file once and records it in a `schema_migrations` table ("already exists" errors are
+tolerated). To add a migration, drop a new `*_postgres.sql` file into `backend/migrations/`.
+On SQLite (local dev), SQLAlchemy `create_all` handles the schema and the Postgres-only
+runner is a no-op.
+
+## Resilience & Offline Support
+
+The frontend ships as a Progressive Web App so a round can continue when phone
+connectivity on the course is poor.
+
+- **Service worker + manifest** (`frontend/public/service-worker.js`, `manifest.json`)
+  cache the app shell so it loads and runs without a network connection.
+- **localStorage persistence** holds the active game state on the device; scoring and
+  betting math run client-side, so play continues offline.
+
+**Known limitation (not yet resolved):** game state is currently per-device localStorage.
+Backend sync is intended but incomplete — the server does not reliably persist in-progress
+games, there is no cross-device sync, and duplicate local entries can inflate scores. An
+18-hole cap is in place as a guardrail; durable sync/dedup remains a TODO. Treat the
+backend as the eventual source of truth, not the current one.
+
 ## Frontend Architecture
 
 ### Component Architecture
@@ -485,8 +511,8 @@ origins = [
 ## Security Architecture
 
 ### Authentication & Authorization
-- **Current State**: No authentication required (public access)
-- **Data Protection**: No PII collection or storage
+- **Auth Provider**: Auth0 (SPA login flow on the frontend via `AuthContext`; backend validates bearer tokens)
+- **Data Protection**: Minimal PII; player profiles and per-user integration credentials (e.g. ForeTees) stored encrypted
 - **Game Integrity**: Server-side rule enforcement prevents client manipulation
 
 ### Network Security
