@@ -2,6 +2,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import ScoreInputField from '../ScoreInputField';
+import { calculateCourseHandicap } from '../../../utils';
 
 // Mock the useTheme hook
 vi.mock('../../../theme/Provider', () => ({
@@ -103,9 +104,26 @@ describe('ScoreInputField', () => {
       expect(screen.getByText('Test Player')).toBeInTheDocument();
     });
 
-    test('shows player handicap', () => {
-      render(<ScoreInputField {...fullModeProps} />);
-      expect(screen.getByText(/Hdcp 15/)).toBeInTheDocument();
+    test('shows Wing Point course handicap as a whole number', () => {
+      const player = { ...mockPlayer, handicap: 12.4 };
+      const courseHandicap = calculateCourseHandicap(player.handicap);
+
+      render(<ScoreInputField {...fullModeProps} player={player} />);
+
+      expect(courseHandicap).toBe(13);
+      expect(screen.getByText(`(Hdcp ${courseHandicap})`)).toBeInTheDocument();
+      expect(screen.queryByText('(Hdcp 12.4)')).not.toBeInTheDocument();
+    });
+
+    test('preserves zero and missing handicap display handling', () => {
+      const { rerender } = render(
+        <ScoreInputField {...fullModeProps} player={{ ...mockPlayer, handicap: 0 }} />
+      );
+
+      expect(screen.getByText('(Hdcp 0)')).toBeInTheDocument();
+
+      rerender(<ScoreInputField {...fullModeProps} player={{ ...mockPlayer, handicap: undefined }} />);
+      expect(screen.queryByText(/Hdcp/)).not.toBeInTheDocument();
     });
 
     test('renders input field', () => {

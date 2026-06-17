@@ -15,6 +15,7 @@ import PropTypes from 'prop-types';
 import { useTheme } from '../../theme/Provider';
 import { Input } from '../ui';
 import { SCORE_CONSTRAINTS } from '../../hooks/useScoreValidation';
+import { calculateCourseHandicap } from '../../utils';
 import '../../styles/mobile-touch.css';
 
 /**
@@ -152,7 +153,7 @@ const ScoreInputField = ({
             fontWeight: 'normal',
             marginLeft: '10px'
           }}>
-            (Hdcp {player.handicap})
+            (Hdcp {calculateCourseHandicap(player.handicap)})
           </span>
         )}
       </h3>

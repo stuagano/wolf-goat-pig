@@ -9,6 +9,7 @@
 
 // Stroke allocation utilities (Creecher Feature)
 export {
+  calculateCourseHandicap,
   getStrokesForHole,
   calculateNetHandicaps,
   calculateStrokeAllocation,
@@ -41,4 +42,3 @@ export {
   getProbabilityColor,
   formatActionText
 } from './bettingHelpers';
-
