@@ -44,4 +44,17 @@ describe('reconcileOnLoad', () => {
     const kept = syncManager.loadLocalGameState('g1');
     expect(kept.holeHistory).toEqual([{ hole: 1 }, { hole: 2 }]);
   });
+
+  test('no queue item but local has a hole the server lacks -> not overwritten (in-flight sync)', () => {
+    // local has hole 3 the server doesn't, and NO queued item (the online POST
+    // was in flight when the page reloaded) — must not drop hole 3.
+    syncManager.saveLocalGameState('g1', {
+      holeHistory: [{ hole: 1 }, { hole: 2 }, { hole: 3 }],
+    });
+
+    reconcileOnLoad('g1', { holeHistory: [{ hole: 1 }, { hole: 2 }] });
+
+    const kept = syncManager.loadLocalGameState('g1');
+    expect(kept.holeHistory).toEqual([{ hole: 1 }, { hole: 2 }, { hole: 3 }]);
+  });
 });

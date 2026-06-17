@@ -107,18 +107,22 @@ const SimpleScorekeeper = ({
   // ============================================================
 
   // Local is an offline write-buffer: prefer it over the server-provided
-  // initialHoleHistory ONLY when this game has unsynced edits. Otherwise the
+  // initialHoleHistory only when this game has a queued edit OR local holds a
+  // hole the server lacks (an in-flight sync that hasn't landed). Otherwise the
   // server is authoritative — returning null falls back to initialHoleHistory.
-  // This stops a longer-but-stale/duplicated local cache from winning.
+  // This stops a longer-but-stale/duplicated local cache from winning while
+  // still preserving genuinely unsynced holes.
   const restoredState = useMemo(() => {
     const localState = syncManager.loadLocalGameState(gameId);
     const chosen = reconcileGameState({
-      serverState: null, // "use server" is expressed as null (initialHoleHistory)
+      serverState: { holeHistory: initialHoleHistory },
       localState,
       hasPendingEdits: syncManager.hasPendingSyncForGame(gameId),
     });
-    return chosen?.holeHistory ? chosen : null;
-  }, [gameId]);
+    // reconcile returns localState only when local should win; otherwise it
+    // returns the server object => null => fall back to initialHoleHistory.
+    return chosen === localState && localState?.holeHistory ? localState : null;
+  }, [gameId, initialHoleHistory]);
 
   // Initialize game state reducer
   const [gameState, dispatch] = useReducer(

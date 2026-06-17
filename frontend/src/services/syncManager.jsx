@@ -10,6 +10,7 @@
 
 import { createNamespacedStorage } from '../utils/storage';
 import { apiConfig } from '../config/api.config';
+import { localHasUnsyncedHoles } from './gameReconcile';
 
 // Convert internal queue payload {hole_quarters, optional_details, current_hole}
 // to the /scores API shape {holes: [...], current_hole}
@@ -605,16 +606,18 @@ export function hasPendingSyncForGame(gameId) {
 
 /**
  * Reconcile local cache vs server truth on load.
- * - Pending edits for this game: flush them up; leave the local cache (it's
- *   ahead) so no unsynced work is lost.
- * - No pending edits: the server is authoritative — overwrite the local cache
- *   with the server state so stale/duplicated local can't resurface.
+ * - Pending edits, OR local holds holes the server lacks (an in-flight sync that
+ *   hasn't landed): flush the queue and LEAVE the local cache so no unsynced
+ *   work is lost.
+ * - Otherwise the server is authoritative — overwrite the local cache with the
+ *   server state so stale/duplicated local can't resurface.
  *
  * `serverState` MUST already be in the local cache shape
  * ({ holeHistory, currentHole, playerStandings }), mapped from GET /state.
  */
 export function reconcileOnLoad(gameId, serverState) {
-  if (hasPendingSyncForGame(gameId)) {
+  const localState = loadLocalGameState(gameId);
+  if (hasPendingSyncForGame(gameId) || localHasUnsyncedHoles(localState, serverState)) {
     processQueue();
     return;
   }
