@@ -350,6 +350,17 @@ class EmailScheduler:
                 )
             db.commit()
             logger.info("Legacy rounds sync complete: %d rows written", len(rounds))
+
+            # Keep the canonical player roster in lockstep with the dropdown by
+            # reconciling it against the players seen in round history. Isolated
+            # so a roster-sync bug can never take down the load-bearing rounds
+            # sync (rounds are already committed above).
+            try:
+                from ..services.legacy_player_service import sync_roster_from_members
+
+                sync_roster_from_members({r.member for r in rounds}, db=db)
+            except Exception as roster_exc:
+                logger.warning("Roster reconcile skipped (rounds sync unaffected): %s", roster_exc)
         except Exception as exc:
             logger.error("Legacy rounds sync failed: %s", exc)
             db.rollback()

@@ -119,6 +119,23 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception as e:
         logger.error(f"Badge seeding failed: {e}")
 
+    # Seed the canonical legacy roster if empty (mirrors Jeff's tee-sheet dropdown)
+    try:
+        from .database import SessionLocal
+        from .services.legacy_player_service import seed_roster_if_empty
+
+        _roster_db = SessionLocal()
+        try:
+            inserted = seed_roster_if_empty(_roster_db)
+            if inserted:
+                logger.info(f"⛳ Seeded {inserted} canonical legacy players")
+            else:
+                logger.info("⛳ Legacy roster already seeded")
+        finally:
+            _roster_db.close()
+    except Exception as e:
+        logger.error(f"Legacy roster seeding failed: {e}")
+
     # Initialize email scheduler if enabled
     if os.getenv("ENABLE_EMAIL_NOTIFICATIONS", "true").lower() == "true":
         try:

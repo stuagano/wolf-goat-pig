@@ -198,6 +198,41 @@ class EmailService:
             html_body=html_body,
         )
 
+    def send_new_player_notification(
+        self,
+        to_email: str,
+        new_player_name: str,
+        new_player_email: str | None = None,
+    ) -> bool:
+        """Alert an admin that a new golfer signed up with no canonical match.
+
+        The player can use the app, but their signups will not sync to the
+        legacy tee sheet until they are added to the dropdown on Jeff's system
+        and then promoted in the admin roster view.
+        """
+        email_line = f"<p>Email: <strong>{new_player_email}</strong></p>" if new_player_email else ""
+        content = f"""
+        <h2>New player needs onboarding</h2>
+        <p><strong>{new_player_name}</strong> just signed up for Wolf Goat Pig but isn't
+        on the legacy tee-sheet roster yet.</p>
+        {email_line}
+        <p>To enable their sign-ups to sync to the tee sheet:</p>
+        <ol>
+            <li>Add <strong>{new_player_name}</strong> to the dropdown on the
+            thousand-cranes.com tee sheet.</li>
+            <li>Promote them in the app's pending-players admin view.</li>
+        </ol>
+        <p>Until then they can play, but their date sign-ups won't reach the legacy board.</p>
+        """
+        template = Template(self._get_base_template())
+        html_body = template.render(subject="New WGP player needs onboarding", content=content)
+
+        return self._send_email(
+            to_email=to_email,
+            subject=f"New WGP player needs onboarding: {new_player_name}",
+            html_body=html_body,
+        )
+
     def send_pairing_notification(
         self,
         to_email: str,
