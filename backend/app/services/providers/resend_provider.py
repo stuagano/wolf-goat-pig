@@ -11,6 +11,7 @@ import re
 from typing import Any
 
 import resend
+import sentry_sdk
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,10 @@ class ResendEmailProvider:
             return True
         except Exception as e:
             logger.error(f"Error sending email via Resend to {to_email}: {e}")
+            # Swallowed (returns False) so a send failure never crashes a caller,
+            # but report it so the outage is observable — matches the GHIN/Sheets/
+            # ForeTees swallow sites. See tests/unit/services/test_silent_failure_capture.py
+            sentry_sdk.capture_exception(e)
             return False
 
     def get_configuration_status(self) -> dict[str, Any]:
