@@ -594,6 +594,35 @@ export function getNewerLocalState(gameId, serverUpdatedAt) {
   return null;
 }
 
+/**
+ * True iff this specific game has an edit queued for sync. Per-game, unlike the
+ * global hasPendingSync(). Drives the "local is authoritative only while it
+ * holds unsynced work" rule.
+ */
+export function hasPendingSyncForGame(gameId) {
+  return getSyncQueue().some((item) => item.gameId === gameId);
+}
+
+/**
+ * Reconcile local cache vs server truth on load.
+ * - Pending edits for this game: flush them up; leave the local cache (it's
+ *   ahead) so no unsynced work is lost.
+ * - No pending edits: the server is authoritative — overwrite the local cache
+ *   with the server state so stale/duplicated local can't resurface.
+ *
+ * `serverState` MUST already be in the local cache shape
+ * ({ holeHistory, currentHole, playerStandings }), mapped from GET /state.
+ */
+export function reconcileOnLoad(gameId, serverState) {
+  if (hasPendingSyncForGame(gameId)) {
+    processQueue();
+    return;
+  }
+  if (serverState) {
+    saveLocalGameState(gameId, serverState);
+  }
+}
+
 const syncManager = {
   getSyncQueue,
   getPendingSyncCount,
@@ -613,6 +642,8 @@ const syncManager = {
   loadLocalGameState,
   clearLocalGameState,
   getNewerLocalState,
+  hasPendingSyncForGame,
+  reconcileOnLoad,
 };
 
 export default syncManager;
