@@ -198,6 +198,46 @@ class EmailService:
             html_body=html_body,
         )
 
+    def send_welcome_email(self, to_email: str, player_name: str) -> bool:
+        """Sends a welcome email when a new account is auto-created on first login.
+
+        A one-time "welcome to WGP, here's how it works" transactional email,
+        styled like send_signup_confirmation (HTML + plaintext via the base
+        template). Matches the existing convention: the method just builds and
+        sends — no per-method opt-out gate (preferences are seeded with sane
+        defaults at account creation and managed via /me/email-preferences).
+        """
+        content = f"""
+        <h2>Welcome to Wolf Goat Pig!</h2>
+        <p>Hi {player_name},</p>
+        <p>Your account is all set &mdash; welcome to the league. Here's how it works:</p>
+        <ul>
+            <li><strong>Sign up for play dates</strong> and we'll sync you to the tee sheet.</li>
+            <li><strong>Get matched &amp; paired</strong> &mdash; we'll email you when a group comes together.</li>
+            <li><strong>Track your games and standings</strong> right in the app.</li>
+        </ul>
+        <p>See you on the course! &#127948;</p>
+        """
+        template = Template(self._get_base_template())
+        html_body = template.render(subject="Welcome to Wolf Goat Pig", content=content)
+
+        text_body = (
+            f"Welcome to Wolf Goat Pig!\n\n"
+            f"Hi {player_name},\n\n"
+            "Your account is all set - welcome to the league. Here's how it works:\n"
+            "- Sign up for play dates and we'll sync you to the tee sheet.\n"
+            "- Get matched & paired - we'll email you when a group comes together.\n"
+            "- Track your games and standings right in the app.\n\n"
+            "See you on the course!"
+        )
+
+        return self._send_email(
+            to_email=to_email,
+            subject="Welcome to Wolf Goat Pig",
+            html_body=html_body,
+            text_body=text_body,
+        )
+
     def send_new_player_notification(
         self,
         to_email: str,
