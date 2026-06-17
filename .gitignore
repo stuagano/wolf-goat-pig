@@ -179,6 +179,9 @@ pnpm-lock.yaml
 *.orig
 *.rej
 
+# Playwright MCP debug logs
+.playwright-mcp/
+
 # Python compiled files
 *.pyo
 *.pyd
