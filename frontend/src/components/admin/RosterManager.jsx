@@ -53,7 +53,7 @@ const RosterManager = () => {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch(`${API_URL}/legacy-players/pending`, {
+      const response = await fetch(`${API_URL}/legacy-players/pending?status=pending`, {
         headers: adminHeaders(),
       });
       if (!response.ok) {
@@ -117,7 +117,7 @@ const RosterManager = () => {
         `${API_URL}/legacy-players/pending/${player.id}/promote`,
         {
           method: "POST",
-          headers: adminHeaders(),
+          headers: { "Content-Type": "application/json", ...adminHeaders() },
         },
       );
       const data = await response.json().catch(() => ({}));
@@ -142,7 +142,7 @@ const RosterManager = () => {
         `${API_URL}/legacy-players/pending/${player.id}/dismiss`,
         {
           method: "POST",
-          headers: adminHeaders(),
+          headers: { "Content-Type": "application/json", ...adminHeaders() },
         },
       );
       const data = await response.json().catch(() => ({}));

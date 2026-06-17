@@ -51,6 +51,7 @@ to a returning player's history; it is not a prerequisite for using the app.
 | **Canonical roster (DB-backed, auto-updating)** | The set of valid player names — your tee-sheet dropdown — lives in the database (seeded from your roster) and **auto-reconciles every 2 hours** against players seen in round history, so it stays current instead of being a frozen file. Additive only (never deletes). |
 | **New-player capture + admin alert** | When a brand-new golfer signs up with no match on your roster, they're **captured into a pending queue** and admins get an **email alert** to add them to your tee sheet. Login is never blocked by this. |
 | **Admin roster management (API)** | Endpoints to add a name to the canonical roster, list pending new players, and **promote** one onto the roster (or dismiss a misspelling) once they're on your sheet. |
+| **Admin roster management (UI)** | Organizer-facing screen at `/admin/roster` (linked from the Admin dashboard): lists pending sign-ups with Promote/Dismiss actions, plus a form to add a name directly to the canonical roster. |
 | **Direct profile-create API** | A `POST /players` endpoint exists for programmatic/admin profile creation. |
 | **Legacy-name fuzzy matching** | On first login, the app guesses the player's legacy tee-sheet name and suggests it. |
 | **Onboarding modal (legacy-name link)** | One searchable step to confirm/select the legacy identity; "skip for now" supported. |
@@ -85,11 +86,7 @@ decide together what matters:
    sync is finished.
 3. **No welcome / onboarding email.** Players get sign-up and match emails, but nothing
    on account creation — no "welcome to WGP, here's how it works" message.
-4. ~~**No organizer-facing *UI* for roster management.**~~ ✅ **Done** — the
-   add/pending/promote capabilities (§2) are now wrapped by an admin screen at
-   `/admin/roster` (linked from the Admin dashboard): list pending sign-ups with
-   Promote/Dismiss actions, plus a form to add a name directly to the roster.
-5. **No magic-link / passwordless email sign-up.** Auth0 redirect is the only entry
+4. **No magic-link / passwordless email sign-up.** Auth0 redirect is the only entry
    (note: Auth0 itself can be configured for passwordless if we want it).
 
 ---

@@ -32,7 +32,7 @@ const okJson = (body) =>
 
 function installAdminFetch(pending = PENDING) {
   global.fetch.mockImplementation((url, opts = {}) => {
-    if (url.endsWith("/legacy-players/pending")) {
+    if (url.includes("/legacy-players/pending") && !url.includes("/promote") && !url.includes("/dismiss")) {
       return okJson({ count: pending.length, status: "pending", players: pending });
     }
     if (url.includes("/promote")) {
@@ -70,8 +70,8 @@ describe("RosterManager", () => {
     expect(screen.getByText("Bob Brown")).toBeInTheDocument();
     expect(screen.getByText("alice@example.com")).toBeInTheDocument();
 
-    // Pending list was fetched with the admin auth header.
-    const listCall = findCall((url) => url.endsWith("/legacy-players/pending"));
+    // Pending list was fetched with ?status=pending filter and the admin auth header.
+    const listCall = findCall((url) => url.includes("/legacy-players/pending?status=pending"));
     expect(listCall).toBeTruthy();
     expect(listCall[1].headers["X-Admin-Email"]).toBe(ADMIN_EMAIL);
   });
@@ -88,9 +88,17 @@ describe("RosterManager", () => {
       expect(call).toBeTruthy();
       expect(call[1].method).toBe("POST");
       expect(call[1].headers["X-Admin-Email"]).toBe(ADMIN_EMAIL);
+      expect(call[1].headers["Content-Type"]).toBe("application/json");
     });
-    // Success feedback shown + list refreshed.
+    // Success feedback shown.
     expect(await screen.findByTestId("roster-feedback")).toHaveTextContent(/Promoted/i);
+    // List must be re-fetched after promote (refresh-after-mutation).
+    await waitFor(() => {
+      const refreshCalls = global.fetch.mock.calls.filter(
+        ([url]) => url.includes("/legacy-players/pending?status=pending"),
+      );
+      expect(refreshCalls.length).toBeGreaterThanOrEqual(2);
+    });
   });
 
   test("DISMISS posts to the dismiss endpoint with the admin header", async () => {
@@ -105,8 +113,16 @@ describe("RosterManager", () => {
       expect(call).toBeTruthy();
       expect(call[1].method).toBe("POST");
       expect(call[1].headers["X-Admin-Email"]).toBe(ADMIN_EMAIL);
+      expect(call[1].headers["Content-Type"]).toBe("application/json");
     });
     expect(await screen.findByTestId("roster-feedback")).toHaveTextContent(/Dismissed/i);
+    // List must be re-fetched after dismiss (refresh-after-mutation).
+    await waitFor(() => {
+      const refreshCalls = global.fetch.mock.calls.filter(
+        ([url]) => url.includes("/legacy-players/pending?status=pending"),
+      );
+      expect(refreshCalls.length).toBeGreaterThanOrEqual(2);
+    });
   });
 
   test("ADD form POSTs the new name to the canonical roster", async () => {
@@ -144,7 +160,7 @@ describe("RosterManager", () => {
     expect(await screen.findByText("Access Denied")).toBeInTheDocument();
 
     expect(
-      findCall((url) => url.endsWith("/legacy-players/pending")),
+      findCall((url) => url.includes("/legacy-players/pending")),
     ).toBeFalsy();
   });
 });
