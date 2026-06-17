@@ -6,6 +6,7 @@ import { Card } from '../components/ui';
 import { useTheme } from '../theme/Provider';
 import ErrorBoundary, { GameErrorFallback } from '../components/common/ErrorBoundary';
 import { apiConfig } from '../config/api.config';
+import syncManager from '../services/syncManager';
 
 const API_URL = apiConfig.baseUrl;
 
@@ -29,6 +30,14 @@ const SimpleScorekeeperPage = () => {
         }
 
         const data = await response.json();
+        // Reconcile the local cache against server truth: flush unsynced edits,
+        // or heal a stale/duplicated cache by overwriting it with server state.
+        // Map GET /state (snake_case) into the local cache shape (camelCase).
+        syncManager.reconcileOnLoad(gameId, {
+          holeHistory: data.hole_history || [],
+          currentHole: data.current_hole,
+          playerStandings: data.standings || {},
+        });
         setGameData(data);
         setLoading(false);
       } catch (err) {
