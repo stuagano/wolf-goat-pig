@@ -23,6 +23,7 @@ import { SyncStatusBanner } from "../ui/SyncStatusIndicator";
 import { useHoleSync, useUIState, useBettingState } from "../../hooks";
 import { gameReducer, createInitialState } from "./gameReducer";
 import syncManager from "../../services/syncManager";
+import { reconcileGameState } from "../../services/gameReconcile";
 import { fetchJson } from "../../services/fetchJson";
 // NOTE: only getStrokesForHole is shared with utils/strokeAllocation — its
 // calculateStrokeAllocation applies USGA course-handicap conversion, which
@@ -105,17 +106,19 @@ const SimpleScorekeeper = ({
   // GAME STATE - Using useReducer for consolidated state management
   // ============================================================
 
-  // Try to restore from local storage first (survives page refresh)
+  // Local is an offline write-buffer: prefer it over the server-provided
+  // initialHoleHistory ONLY when this game has unsynced edits. Otherwise the
+  // server is authoritative — returning null falls back to initialHoleHistory.
+  // This stops a longer-but-stale/duplicated local cache from winning.
   const restoredState = useMemo(() => {
     const localState = syncManager.loadLocalGameState(gameId);
-    if (
-      localState?.holeHistory &&
-      localState.holeHistory.length > initialHoleHistory.length
-    ) {
-      return localState;
-    }
-    return null;
-  }, [gameId, initialHoleHistory.length]);
+    const chosen = reconcileGameState({
+      serverState: null, // "use server" is expressed as null (initialHoleHistory)
+      localState,
+      hasPendingEdits: syncManager.hasPendingSyncForGame(gameId),
+    });
+    return chosen?.holeHistory ? chosen : null;
+  }, [gameId]);
 
   // Initialize game state reducer
   const [gameState, dispatch] = useReducer(
