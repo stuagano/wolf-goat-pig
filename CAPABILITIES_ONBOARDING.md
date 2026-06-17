@@ -18,7 +18,8 @@ works for **both** returning players and brand-new golfers:
 2. **The backend auto-creates a player profile** on that first login — there is no
    separate form for us to maintain. Name, email, and avatar come straight from Auth0;
    handicap defaults to 18.0; email notification preferences are created with sane
-   defaults. This happens for everyone, whether or not they exist on the legacy sheet.
+   defaults; and a one-time **welcome email** goes out. This happens for everyone,
+   whether or not they exist on the legacy sheet.
 3. **The app attempts to fuzzy-match the player to a name on the legacy tee sheet**
    (your system). If it finds a likely match, it pre-fills it.
 4. **One optional onboarding step:** a modal asks the player to confirm/select their
@@ -55,6 +56,7 @@ to a returning player's history; it is not a prerequisite for using the app.
 | **Legacy-name fuzzy matching** | On first login, the app guesses the player's legacy tee-sheet name and suggests it. |
 | **Onboarding modal (legacy-name link)** | One searchable step to confirm/select the legacy identity; "skip for now" supported. |
 | **Daily sign-up → legacy sheet sync** | When a player signs up / changes / cancels for a date, it replicates to the legacy tee sheet. |
+| **Welcome email on account creation** | When a profile is auto-created on first login, the player gets a one-time "welcome to WGP, here's how it works" email (via Resend/SMTP). Best-effort: it runs off the login path, so a mail outage never blocks or slows sign-in. |
 | **Sign-up confirmation email** | Player gets an email when they sign up for a date (via Resend/SMTP). |
 | **Match & pairing notifications** | Availability-match and pairing emails are wired up. |
 | **Profile self-service fields** | Players can set Venmo handle and a short bio/description after onboarding. |
@@ -83,11 +85,9 @@ decide together what matters:
 2. **No handicap capture during sign-up.** There's no onboarding step that asks for or
    verifies a GHIN ID / handicap. New players sit at the 18.0 default until handicap
    sync is finished.
-3. **No welcome / onboarding email.** Players get sign-up and match emails, but nothing
-   on account creation — no "welcome to WGP, here's how it works" message.
-4. **No organizer-facing *UI* for roster management.** The add/pending/promote
+3. **No organizer-facing *UI* for roster management.** The add/pending/promote
    capabilities exist as APIs (§2); there's no admin screen wrapping them yet.
-5. **No magic-link / passwordless email sign-up.** Auth0 redirect is the only entry
+4. **No magic-link / passwordless email sign-up.** Auth0 redirect is the only entry
    (note: Auth0 itself can be configured for passwordless if we want it).
 
 ---

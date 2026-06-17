@@ -462,6 +462,22 @@ capabilities:
     check:
       shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_livsow_transactions.py
         -q -p no:cacheprovider
+  - id: welcome-email-sent
+    description: a one-time welcome email is sent exactly when a new player profile is
+      auto-created on first login, never on a returning login, and best-effort so a send
+      failure is captured to Sentry but never breaks or blocks login
+    given: an Auth0 login that either creates a new profile or returns an existing one
+    when: get_or_create_player_profile runs
+    then: send_welcome_email fires once on the new-profile branch and not at all for a
+      returning player; if the send raises, the exception is captured to Sentry and the
+      profile is still returned (login unbroken)
+    tier: cheap
+    deps:
+    - backend/app/services/auth_service.py
+    - backend/app/services/email_service.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_auth_welcome_email.py
+        -q -p no:cacheprovider
   - id: new-player-capture-persists
     description: a self-signed-up golfer with no canonical match is captured into the
       pending queue, never reads as canonical while pending, and round-trips to the

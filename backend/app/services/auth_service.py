@@ -9,6 +9,7 @@ from collections.abc import Generator
 from typing import Any
 
 import httpx as _httpx
+import sentry_sdk
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
@@ -51,6 +52,42 @@ def _notify_admins_of_new_player(name: str, email: str | None) -> None:
             logger.warning(f"Failed to notify admins of new player '{name}': {exc}")
 
     threading.Thread(target=_send, daemon=True, name="new-player-notify").start()
+
+
+def _deliver_welcome_email(name: str, email: str | None) -> None:
+    """Synchronously deliver the first-login welcome email. Best-effort.
+
+    Any failure (provider outage, misconfig) is swallowed so it can never break
+    the login path, but it is reported to Sentry — matching the
+    swallowed-outages-are-captured convention used at the Resend/GHIN/Sheets/
+    ForeTees swallow sites — so an outage is observable, not silent.
+    """
+    if not email:
+        return
+    try:
+        from .email_service import get_email_service
+
+        svc = get_email_service()
+        if not svc.is_configured():
+            return
+        svc.send_welcome_email(email, name)
+    except Exception as exc:  # never surface to the login path
+        logger.warning(f"Failed to send welcome email to '{email}': {exc}")
+        sentry_sdk.capture_exception(exc)
+
+
+def _send_welcome_email(name: str, email: str | None) -> None:
+    """Best-effort, non-blocking welcome email on first-login profile creation.
+
+    Runs the (external, potentially slow) send on a daemon thread so it can
+    never add latency to or break the first-login path.
+    """
+    threading.Thread(
+        target=_deliver_welcome_email,
+        args=(name, email),
+        daemon=True,
+        name="welcome-email",
+    ).start()
 
 
 class AuthService:
@@ -167,6 +204,15 @@ class AuthService:
             db.commit()
 
             logger.info(f"Created new player profile for {name} ({email})")
+
+            # Welcome email — fires ONLY on this new-profile branch, never on a
+            # returning login. Best-effort and wrapped so even dispatching it can
+            # never add latency to or break first login; failures go to Sentry.
+            try:
+                _send_welcome_email(name, email)
+            except Exception as exc:
+                logger.warning(f"Failed to dispatch welcome email for '{name}': {exc}")
+                sentry_sdk.capture_exception(exc)
 
             # No canonical legacy match → capture into the pending queue and
             # alert admins so the golfer can be added to Jeff's tee-sheet
