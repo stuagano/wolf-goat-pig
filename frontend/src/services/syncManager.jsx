@@ -10,6 +10,7 @@
 
 import { createNamespacedStorage } from '../utils/storage';
 import { apiConfig } from '../config/api.config';
+import { localHasUnsyncedHoles } from './gameReconcile';
 
 // Convert internal queue payload {hole_quarters, optional_details, current_hole}
 // to the /scores API shape {holes: [...], current_hole}
@@ -594,6 +595,37 @@ export function getNewerLocalState(gameId, serverUpdatedAt) {
   return null;
 }
 
+/**
+ * True iff this specific game has an edit queued for sync. Per-game, unlike the
+ * global hasPendingSync(). Drives the "local is authoritative only while it
+ * holds unsynced work" rule.
+ */
+export function hasPendingSyncForGame(gameId) {
+  return getSyncQueue().some((item) => item.gameId === gameId);
+}
+
+/**
+ * Reconcile local cache vs server truth on load.
+ * - Pending edits, OR local holds holes the server lacks (an in-flight sync that
+ *   hasn't landed): flush the queue and LEAVE the local cache so no unsynced
+ *   work is lost.
+ * - Otherwise the server is authoritative — overwrite the local cache with the
+ *   server state so stale/duplicated local can't resurface.
+ *
+ * `serverState` MUST already be in the local cache shape
+ * ({ holeHistory, currentHole, playerStandings }), mapped from GET /state.
+ */
+export function reconcileOnLoad(gameId, serverState) {
+  const localState = loadLocalGameState(gameId);
+  if (hasPendingSyncForGame(gameId) || localHasUnsyncedHoles(localState, serverState)) {
+    processQueue();
+    return;
+  }
+  if (serverState) {
+    saveLocalGameState(gameId, serverState);
+  }
+}
+
 const syncManager = {
   getSyncQueue,
   getPendingSyncCount,
@@ -613,6 +645,8 @@ const syncManager = {
   loadLocalGameState,
   clearLocalGameState,
   getNewerLocalState,
+  hasPendingSyncForGame,
+  reconcileOnLoad,
 };
 
 export default syncManager;
