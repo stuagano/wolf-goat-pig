@@ -271,7 +271,9 @@ RuleManager.MIN_PLAYERS = 2
 RuleManager.MAX_PLAYERS = 6
 RuleManager.HOLES_PER_ROUND = 18
 RuleManager.BASE_WAGER_QUARTERS = 1
+RuleManager.MIN_WAGER = 1
 RuleManager.MAX_DOUBLE_MULTIPLIER = 8
+RuleManager.TEE_SHOTS_PARTNERSHIP_DEADLINE = True
 ```
 
 ## Tips
@@ -311,5 +313,6 @@ Minimum required fields in game_state:
 ## Need Help?
 
 - See full documentation: `backend/app/managers/README.md`
-- Run tests: `python3 backend/test_rule_manager.py`
+- Run tests: `pytest backend/tests/unit/engine/test_rule_manager.py`
+- See integration examples: `backend/scripts/example_rule_manager_integration.py`
 - Check validators: `backend/app/validators/`
