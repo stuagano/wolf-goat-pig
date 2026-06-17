@@ -1,0 +1,464 @@
+# Capabilities this project promises — managed with `caps`.
+# Prove with: python -m caps verify
+capabilities:
+  - id: hole-completion-distinct-18
+    description: a quarters-only game completes only when all 18 distinct holes are
+      scored; duplicate/partial submissions don't complete early or inflate standings
+    given: hole-score submissions that may contain a duplicate hole or fewer than 18
+      distinct holes
+    when: scores are saved via POST /games/{id}/scores
+    then: completion fires only on the full 1-18 distinct set and duplicate holes dedupe
+      (last write wins)
+    tier: cheap
+    deps:
+    - backend/app/routers/games_holes.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/routers/test_games_holes_router.py
+        -q -p no:cacheprovider
+  - id: request-validation-422-envelope
+    description: malformed requests are rejected with the normalized 422 envelope {error,
+      detail, fields[]}, not a raw array or a 500
+    given: a request that fails Pydantic validation
+    when: it reaches the FastAPI app
+    then: the response is HTTP 422 with a string `detail` and a `fields` list
+    tier: cheap
+    deps:
+    - backend/app/main.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/test_validation_error_envelope.py
+        -q -p no:cacheprovider
+  - id: request-shape-validation-on-models
+    description: request-shape validation (non-blank strings, numeric ranges, required
+      fields) lives on Pydantic models via the shared validators, not hand-rolled in
+      handlers
+    given: request bodies with blank/oversized/out-of-range fields
+    when: they are validated against the request models
+    then: the shared non_blank/NonBlankStr validators reject them at the model layer
+    tier: cheap
+    deps:
+    - backend/app/routers/_validators.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/routers/test_validators.py
+        -q -p no:cacheprovider
+  - id: health-live-production
+    description: the deployed backend is up and reports the production environment with
+      a healthy database
+    given: the Render deployment of the backend
+    when: GET /health is requested
+    then: it returns 200 and reports environment=production
+    tier: live
+    deps: []
+    check:
+      shell: resp=$(curl -s -w '|%{http_code}' --max-time 15 https://wolf-goat-pig.onrender.com/health)
+        || exit 3; code=${resp##*|}; body=${resp%|*}; [ "$code" = 200 ] || exit 1; printf
+        '%s' "$body" | grep -qF 'production' || exit 1; exit 0
+  - id: auth-rejects-junk-token
+    description: a protected endpoint rejects a bogus bearer token with 401 (not a 500),
+      proving the auth chain is wired
+    given: the deployed backend and an invalid bearer token
+    when: GET /players/me is requested with that token
+    then: the response is HTTP 401
+    tier: live
+    deps: []
+    check:
+      shell: 'code=$(curl -s -o /dev/null -w ''%{http_code}'' --max-time 15 -H ''Authorization:
+        Bearer junk.token.here'' https://wolf-goat-pig.onrender.com/players/me) || exit
+        3; [ "$code" = 401 ] && exit 0 || exit 1'
+  - id: ghin-client-contract
+    description: GHINService upholds the api2.ghin.com contract (auth + handicap lookup)
+      and surfaces outages instead of returning empty
+    given: the relevant client/handler code and its check
+    when: the contract/persistence check runs
+    then: GHINService upholds the api2.ghin.com contract (auth + handicap lookup) and
+      surfaces outages instead of returning empty
+    tier: cheap
+    deps:
+    - backend/app/services/ghin_service.py
+    - backend/app/routers/ghin.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/contract/test_ghin_contract.py
+        -q -p no:cacheprovider
+  - id: resend-email-contract
+    description: the Resend email provider upholds its send contract and reports failures
+      rather than silently dropping mail
+    given: the relevant client/handler code and its check
+    when: the contract/persistence check runs
+    then: the Resend email provider upholds its send contract and reports failures rather
+      than silently dropping mail
+    tier: cheap
+    deps:
+    - backend/app/services/providers/resend_provider.py
+    - backend/app/services/email_service.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/contract/test_resend_contract.py
+        -q -p no:cacheprovider
+  - id: google-sheets-contract
+    description: the Google Sheets sync client upholds its fetch/parse contract and
+      doesn't treat an outage as an empty sheet
+    given: the relevant client/handler code and its check
+    when: the contract/persistence check runs
+    then: the Google Sheets sync client upholds its fetch/parse contract and doesn't
+      treat an outage as an empty sheet
+    tier: cheap
+    deps:
+    - backend/app/services/spreadsheet_sync_service.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/contract/test_google_contract.py
+        -q -p no:cacheprovider
+  - id: foretees-contract
+    description: the ForeTees booking client upholds its contract (per-user creds, booking
+      calls) and surfaces failures
+    given: the relevant client/handler code and its check
+    when: the contract/persistence check runs
+    then: the ForeTees booking client upholds its contract (per-user creds, booking
+      calls) and surfaces failures
+    tier: cheap
+    deps:
+    - backend/app/services/foretees_service.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/contract/test_foretees_contract.py
+        -q -p no:cacheprovider
+  - id: groupme-contract
+    description: the GroupMe bridge upholds its post contract and reports delivery failures
+    given: the relevant client/handler code and its check
+    when: the contract/persistence check runs
+    then: the GroupMe bridge upholds its post contract and reports delivery failures
+    tier: cheap
+    deps:
+    - backend/app/services/groupme_service.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/contract/test_groupme_contract.py
+        -q -p no:cacheprovider
+  - id: groq-commissioner-contract
+    description: the Groq-backed commissioner upholds its chat/data-chat contract
+    given: the relevant client/handler code and its check
+    when: the contract/persistence check runs
+    then: the Groq-backed commissioner upholds its chat/data-chat contract
+    tier: cheap
+    deps:
+    - backend/app/routers/commissioner.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/contract/test_groq_contract.py
+        -q -p no:cacheprovider
+  - id: tee-sheet-contract
+    description: the thousand-cranes tee-sheet client upholds its read/signup contract
+    given: the relevant client/handler code and its check
+    when: the contract/persistence check runs
+    then: the thousand-cranes tee-sheet client upholds its read/signup contract
+    tier: cheap
+    deps:
+    - backend/app/routers/tee_sheet.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/contract/test_tee_sheet_contract.py
+        -q -p no:cacheprovider
+  - id: auth0-contract
+    description: the Auth0 token-validation chain upholds its contract (rejects bad
+      tokens, accepts valid ones)
+    given: the relevant client/handler code and its check
+    when: the contract/persistence check runs
+    then: the Auth0 token-validation chain upholds its contract (rejects bad tokens,
+      accepts valid ones)
+    tier: cheap
+    deps:
+    - backend/app/services/auth_service.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/contract/test_auth0_contract.py
+        -q -p no:cacheprovider
+  - id: game-state-db-authoritative
+    description: a created/scored game persists to the DB and reads back via /state
+      (no in-memory split-brain)
+    given: the relevant client/handler code and its check
+    when: the contract/persistence check runs
+    then: a created/scored game persists to the DB and reads back via /state (no in-memory
+      split-brain)
+    tier: cheap
+    deps:
+    - backend/app/routers/games.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/routers/test_games_router.py
+        -q -p no:cacheprovider
+  - id: course-update-preserves-holes
+    description: 'a partial course update persists without dropping existing holes (guards
+      the #255 422 regression)'
+    given: the relevant client/handler code and its check
+    when: the contract/persistence check runs
+    then: 'a partial course update persists without dropping existing holes (guards
+      the #255 422 regression)'
+    tier: cheap
+    deps:
+    - backend/app/routers/courses.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/routers/test_courses_router.py
+        -q -p no:cacheprovider
+  - id: player-updates-persist
+    description: player name/handicap updates write to the DB and read back
+    given: the relevant client/handler code and its check
+    when: the contract/persistence check runs
+    then: player name/handicap updates write to the DB and read back
+    tier: cheap
+    deps:
+    - backend/app/routers/games_players.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/routers/test_games_players_router.py
+        -q -p no:cacheprovider
+  - id: leaderboard-from-db
+    description: the leaderboard reads standings from the database, not a stale cache
+    given: the relevant client/handler code and its check
+    when: the contract/persistence check runs
+    then: the leaderboard reads standings from the database, not a stale cache
+    tier: cheap
+    deps:
+    - backend/app/routers/leaderboard.py
+    - backend/app/services/leaderboard_service.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/routers/test_leaderboard_router.py
+        -q -p no:cacheprovider
+  - id: external-health-monitoring
+    description: GET /health/external probes the external services read-only and returns
+      200 healthy / 503 unhealthy (never alerts on not-configured)
+    given: the relevant client/handler code and its check
+    when: the contract/persistence check runs
+    then: GET /health/external probes the external services read-only and returns 200
+      healthy / 503 unhealthy (never alerts on not-configured)
+    tier: cheap
+    deps:
+    - backend/app/observability/external_checks.py
+    - backend/app/routers/health.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/routers/test_health_external.py
+        -q -p no:cacheprovider
+  - id: api-surface-no-drift
+    description: "the deployed API operation set never silently shrinks \u2014 every\
+      \ baseline (METHOD, path) is still served"
+    given: a committed baseline of the OpenAPI operation set
+    when: the app's routes are enumerated
+    then: no baseline endpoint is missing (removed/renamed); additions are allowed
+    tier: cheap
+    deps:
+    - backend/app/main.py
+    - backend/app/routers/**/*.py
+    - backend/app/badge_routes.py
+    check:
+      shell: cd backend && PYTHONPATH=. venv/bin/python ../.ctk/checks/api_surface_check.py
+  - id: notifications-mark-read-persists
+    description: marking a notification read writes to the DB and the change reads back
+      (not just a 200)
+    given: a notification and a read-after-write test
+    when: the check runs
+    then: marking read persists and is observable on re-read
+    tier: cheap
+    deps:
+    - backend/app/routers/notifications.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/routers/test_notifications_router.py::TestMarkRead::test_mark_read_persists
+        -q -p no:cacheprovider
+  - id: messages-create-readback
+    description: a created daily message is readable back via GET (write -> readback)
+    given: a daily message and a create->read test
+    when: the check runs
+    then: the created message is returned by GET
+    tier: cheap
+    deps:
+    - backend/app/routers/messages.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/routers/test_messages_router.py::TestGetDailyMessages::test_get_messages_returns_created_message
+        -q -p no:cacheprovider
+  - id: admin-banner-readback
+    description: a created banner is returned by GET active-banner (write -> readback)
+    given: a banner and a create->read test
+    when: the check runs
+    then: the active banner reflects the created banner
+    tier: cheap
+    deps:
+    - backend/app/routers/admin.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/routers/test_admin_router.py::TestGetActiveBanner::test_returns_active_banner_after_creation
+        -q -p no:cacheprovider
+  - id: signups-create-persists
+    description: creating a signup returns a persisted id and the create round-trips
+    given: a signup create flow
+    when: the check runs
+    then: POST /signups persists and returns an id
+    tier: cheap
+    deps:
+    - backend/app/routers/signups.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/routers/test_signups_router.py::TestCreateSignup
+        -q -p no:cacheprovider
+  - id: team-formation-partitions-roster
+    description: random team formation partitions the roster correctly (4->1 team, 8->2
+      teams, leftover counted)
+    given: a roster and the random-teams invariant tests
+    when: the check runs
+    then: teams partition the available players with the right counts
+    tier: cheap
+    deps:
+    - backend/app/routers/team_formation.py
+    - backend/app/services/team_formation_service.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/routers/test_team_formation_router.py::TestGenerateRandomTeams
+        -q -p no:cacheprovider
+  - id: betting-odds-probabilities
+    description: calculate-odds returns the player/team probability structure and rejects
+      malformed payloads (422)
+    given: the odds calculator and its contract tests
+    when: the check runs
+    then: probabilities are returned and malformed payloads are 422
+    tier: cheap
+    deps:
+    - backend/app/routers/betting_odds.py
+    - backend/app/services/odds_calculator.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/routers/test_betting_odds_router.py::TestCalculateOdds
+        -q -p no:cacheprovider
+  - id: swallowed-outages-are-captured
+    description: "the silent-failure swallow sites (GHIN/Sheets/ForeTees/Resend) report\
+      \ to Sentry even though they return false/empty \u2014 an outage is never invisible"
+    given: a GHIN/Google-Sheets/ForeTees call whose upstream errors
+    when: the service swallows the error and returns false/empty/none
+    then: sentry_sdk.capture_exception is still called so the swallowed outage is observable,
+      not silent
+    tier: cheap
+    deps:
+    - backend/app/services/ghin_service.py
+    - backend/app/services/spreadsheet_sync_service.py
+    - backend/app/services/foretees_service.py
+    - backend/app/services/providers/resend_provider.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_silent_failure_capture.py
+        -q -p no:cacheprovider
+  - id: migrations-apply-on-startup
+    description: the startup SQL-migration runner applies *_postgres.sql files exactly
+      once, is idempotent, tolerates already-applied (benign) errors, and never blocks
+      boot on a bad migration
+    given: pending *_postgres.sql migration files and a fresh schema_migrations table
+    when: run_sql_migrations executes at startup
+    then: each file applies once and is tracked; re-runs are no-ops; benign errors are
+      tolerated; a broken migration is recorded as failed without raising
+    tier: cheap
+    deps:
+    - backend/app/migrations_runner.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/test_migrations_runner.py
+        -q -p no:cacheprovider
+  - id: stale-local-heals-from-server
+    description: the scorekeeper adopts server state on load unless local holds unsynced
+      work (a queued edit or a hole the server lacks); stale/duplicated local heals
+      instead of winning by length
+    given: a longer/duplicated local cache with no unsynced holes
+    when: the game loads and reconciliation runs
+    then: server state is used and the local cache is overwritten; genuinely-unsynced
+      holes are preserved
+    tier: cheap
+    deps:
+    - frontend/src/services/gameReconcile.js
+    - frontend/src/services/syncManager.jsx
+    check:
+      shell: cd frontend && npx vitest run src/services/__tests__/gameReconcile.test.js
+        src/services/__tests__/syncManager.reconcile.test.js
+  - id: wgp-scoring-rules
+    description: the WGP rules engine computes betting/scoring rules correctly (wagers,
+      doubles, carries, special bets)
+    given: the relevant logic and its unit tests
+    when: the check runs
+    then: the WGP rules engine computes betting/scoring rules correctly (wagers, doubles,
+      carries, special bets)
+    tier: cheap
+    deps:
+    - backend/app/managers/rule_manager.py
+    - backend/app/managers/scoring_manager.py
+    - backend/app/wolf_goat_pig.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/engine/test_rule_manager.py
+        -q -p no:cacheprovider
+  - id: post-hole-analytics
+    description: post-hole analytics compute the expected per-hole summaries/insights
+    given: the relevant logic and its unit tests
+    when: the check runs
+    then: post-hole analytics compute the expected per-hole summaries/insights
+    tier: cheap
+    deps:
+    - backend/app/post_hole_analytics.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/engine/test_post_hole_analytics.py
+        -q -p no:cacheprovider
+  - id: player-profiles-persist
+    description: player profile create/lookup/update round-trips through the DB
+    given: the relevant logic and its unit tests
+    when: the check runs
+    then: player profile create/lookup/update round-trips through the DB
+    tier: cheap
+    deps:
+    - backend/app/services/player_service.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_player_service.py
+        -q -p no:cacheprovider
+  - id: badges-awarded
+    description: the badge engine awards and queries badges per its achievement rules
+    given: the relevant logic and its unit tests
+    when: the check runs
+    then: the badge engine awards and queries badges per its achievement rules
+    tier: cheap
+    deps:
+    - backend/app/badge_routes.py
+    - backend/app/badge_engine.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/routers/test_badge_routes.py
+        -q -p no:cacheprovider
+  - id: matchmaking-pairs
+    description: matchmaking pairs players per its algorithm and respects constraints
+    given: the relevant logic and its unit tests
+    when: the check runs
+    then: matchmaking pairs players per its algorithm and respects constraints
+    tier: cheap
+    deps:
+    - backend/app/services/matchmaking_service.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_matchmaking_service.py
+        -q -p no:cacheprovider
+  - id: statistics-computed
+    description: player/game statistics are computed correctly from game data
+    given: the relevant logic and its unit tests
+    when: the check runs
+    then: player/game statistics are computed correctly from game data
+    tier: cheap
+    deps:
+    - backend/app/services/statistics_service.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_statistics_service.py
+        -q -p no:cacheprovider
+  - id: scorecard-scan
+    description: the scorecard photo scanner returns structured scores and handles bad/empty
+      input
+    given: the relevant logic and its unit tests
+    when: the check runs
+    then: the scorecard photo scanner returns structured scores and handles bad/empty
+      input
+    tier: cheap
+    deps:
+    - backend/app/services/scorecard_scan_service.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_scorecard_scan_service.py
+        -q -p no:cacheprovider
+  - id: unified-data-aggregation
+    description: the unified data service aggregates app state into its documented contract
+    given: the relevant logic and its unit tests
+    when: the check runs
+    then: the unified data service aggregates app state into its documented contract
+    tier: cheap
+    deps:
+    - backend/app/services/unified_data_service.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_unified_data_service.py
+        -q -p no:cacheprovider
+  - id: livsow-transactions
+    description: LivSOW money transactions compute and persist correctly
+    given: the relevant logic and its unit tests
+    when: the check runs
+    then: LivSOW money transactions compute and persist correctly
+    tier: cheap
+    deps:
+    - backend/app/services/livsow_transactions.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_livsow_transactions.py
+        -q -p no:cacheprovider

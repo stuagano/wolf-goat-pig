@@ -27,5 +27,19 @@
   },
   "enabledPlugins": {
     "pr-review-toolkit@claude-plugins-official": true
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "_caps": "caps-stop-gate",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CAPS_GATE_PYTHON=\"$CLAUDE_PROJECT_DIR/backend/venv/bin/python\" \"$CLAUDE_PROJECT_DIR/.ctk/bin/caps-stop-gate.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
   }
 }

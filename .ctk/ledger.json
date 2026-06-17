@@ -1,0 +1,352 @@
+{
+  "admin-banner-readback": {
+    "at": "2026-06-17T02:54:58.714644+00:00",
+    "fingerprint": "sha256:0d729383ddd7b13084bb972240c26d4c2baf4a2b808014fbfbebd1821a04a1f8",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "admin-oauth-router": {
+    "at": "2026-06-17T02:37:27.715015+00:00",
+    "fingerprint": "sha256:18a2b65d81fd37c178180c76d21d7347ad06f87a79d62c9ca657fca4df29dc7b",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "admin-router": {
+    "at": "2026-06-17T02:37:27.715015+00:00",
+    "fingerprint": "sha256:0d729383ddd7b13084bb972240c26d4c2baf4a2b808014fbfbebd1821a04a1f8",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "analytics-router": {
+    "at": "2026-06-17T02:37:27.715015+00:00",
+    "fingerprint": "sha256:cceb403c972d2081fa9bd67051ce5632435735ec42020dbb2faeb029e6b4da85",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "api-surface-no-drift": {
+    "at": "2026-06-17T02:54:58.714644+00:00",
+    "fingerprint": "sha256:3c0be64b5fe91bcf4b3eb533ecb37eee64e609f6b097831f7c58c39e876e7704",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "auth-rejects-junk-token": {
+    "at": "2026-06-17T02:54:58.714644+00:00",
+    "fingerprint": null,
+    "result": "pass",
+    "tier": "live",
+    "waiver": null
+  },
+  "auth0-contract": {
+    "at": "2026-06-17T02:54:58.714644+00:00",
+    "fingerprint": "sha256:f7e803af895f7c0c522629273d87f5238c82c0d1e006145a6f623fcd255d974b",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "badges-awarded": {
+    "at": "2026-06-17T15:48:47.655647+00:00",
+    "fingerprint": "sha256:3df0be0ed6d3282a4b052efd31c1e21c446b20ea82e40d63b8bb018a7d7fb480",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "badges-router": {
+    "at": "2026-06-17T02:37:27.715015+00:00",
+    "fingerprint": "sha256:89979875e65cf3171344ff5152a23bf383060bf48b45ec7a20069372bd6c334a",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "betting-odds-probabilities": {
+    "at": "2026-06-17T02:54:58.714644+00:00",
+    "fingerprint": "sha256:091f2109fadc3961b1c4178df4e5f289e811fda8753cccaa78adf5052fb9c5a7",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "betting-odds-router": {
+    "at": "2026-06-17T02:37:27.715015+00:00",
+    "fingerprint": "sha256:7a6fd007d5a20912321b07314cbbbff525d85daa1a8ceeb3c3e9630389802903",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "course-update-preserves-holes": {
+    "at": "2026-06-17T02:54:58.714644+00:00",
+    "fingerprint": "sha256:0d1e1013615abe81f7b0a11bad29826fe19eaa9d8087f2865dc7fa2115d6a844",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "external-health-monitoring": {
+    "at": "2026-06-17T02:54:58.714644+00:00",
+    "fingerprint": "sha256:179e60db1e765cf8951db61198c3f110cc2abe78d3664ee819d89b9abe923fc8",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "foretees-contract": {
+    "at": "2026-06-17T02:54:58.714644+00:00",
+    "fingerprint": "sha256:c0596bf6f32df7a01fdf601592c8e1e98577adcd063c69763a6a87db6cbe58cf",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "game-state-db-authoritative": {
+    "at": "2026-06-17T02:54:58.714644+00:00",
+    "fingerprint": "sha256:5dfc5022da3a0af1defedc508ac1af94c980772699c66ffa0bc7e35e21b2dd3d",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "ghin-client-contract": {
+    "at": "2026-06-17T02:54:58.714644+00:00",
+    "fingerprint": "sha256:19bba70760e7dcfc318c08b383c312dca7f30d957d81a9ad8fb1381686c09ec1",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "google-sheets-contract": {
+    "at": "2026-06-17T02:54:58.714644+00:00",
+    "fingerprint": "sha256:279ef89448c0fb0c44e274103975e302f5a484bbe9c470f3257cf166caf062d5",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "groq-commissioner-contract": {
+    "at": "2026-06-17T02:54:58.714644+00:00",
+    "fingerprint": "sha256:d8eb31ab1dc25d48937c816f7679089e141f7cec038311f771c18b3eb1b6f5c0",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "groupme-contract": {
+    "at": "2026-06-17T02:54:58.714644+00:00",
+    "fingerprint": "sha256:18bf88d9a6e4d8bf8798b2b13ff89537a0ff29fa737c1e76dfed843eddf5913d",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "health-live-production": {
+    "at": "2026-06-17T02:54:58.714644+00:00",
+    "fingerprint": null,
+    "result": "pass",
+    "tier": "live",
+    "waiver": null
+  },
+  "hole-completion-distinct-18": {
+    "at": "2026-06-17T02:54:58.714644+00:00",
+    "fingerprint": "sha256:0448fe9b0150f76e0314815add8e57f53485a19e9117c0cef67e19988da49f5b",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "leaderboard-from-db": {
+    "at": "2026-06-17T02:54:58.714644+00:00",
+    "fingerprint": "sha256:79b30232e40a716a3a0cef8290043c1df519754b239d104d0357f267da8a05fe",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "legacy-scoring-router": {
+    "at": "2026-06-17T02:37:27.715015+00:00",
+    "fingerprint": "sha256:92ab6bf475ab47bc4f905136b7a037bd9340d88e11c6073987c210b1b85ac63f",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "livsow-transactions": {
+    "at": "2026-06-17T15:48:57.330829+00:00",
+    "fingerprint": "sha256:20e3c16bd375a0dd87aaf75d98c8c9376f54e3cd0520dec3ded3b209e2812ae5",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "matchmaking-pairs": {
+    "at": "2026-06-17T15:48:49.356413+00:00",
+    "fingerprint": "sha256:cd65b449219d75ccce365cb0734c0c95a47513221382e4a137141dcb66afab3e",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "matchmaking-router": {
+    "at": "2026-06-17T02:37:27.715015+00:00",
+    "fingerprint": "sha256:9e802eef19c5a480c7ff4b3f7e169c88bbc23d2df59c86e4faecbab292043c22",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "messages-create-readback": {
+    "at": "2026-06-17T02:54:58.714644+00:00",
+    "fingerprint": "sha256:29a809c920289e4d6ebefb04b2c1941c2075a95ed3fcffb5f1dd9b12f6d4011c",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "messages-router": {
+    "at": "2026-06-17T02:37:27.715015+00:00",
+    "fingerprint": "sha256:29a809c920289e4d6ebefb04b2c1941c2075a95ed3fcffb5f1dd9b12f6d4011c",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "migrations-apply-on-startup": {
+    "at": "2026-06-17T04:14:31.643472+00:00",
+    "fingerprint": "sha256:f6262668eb20197511742ece3852d2a671b3902d9e22d67dd1ad0a182fd689cc",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "notifications-mark-read-persists": {
+    "at": "2026-06-17T02:54:58.714644+00:00",
+    "fingerprint": "sha256:d37313c6c8341863a8df9266b6427d7d72d7f8b8b278271704b01747b9c0140b",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "notifications-router": {
+    "at": "2026-06-17T02:37:27.715015+00:00",
+    "fingerprint": "sha256:d37313c6c8341863a8df9266b6427d7d72d7f8b8b278271704b01747b9c0140b",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "player-profiles-persist": {
+    "at": "2026-06-17T15:48:42.599249+00:00",
+    "fingerprint": "sha256:fdcb06a23cb8f367c760217030366a02cccd7e501c3f19e60b26fc9df10e848e",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "player-updates-persist": {
+    "at": "2026-06-17T02:54:58.714644+00:00",
+    "fingerprint": "sha256:2af87265ff3585961ea778fa89fca403b6896ebf878235ed0802d36dd22cc5e9",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "post-hole-analytics": {
+    "at": "2026-06-17T15:48:41.670077+00:00",
+    "fingerprint": "sha256:fcb6e6ba10bab9e72d89d4b8cccc6d0b2ef331f1ec9f2d67578f24c2a14dd3bd",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "request-shape-validation-on-models": {
+    "at": "2026-06-17T02:54:58.714644+00:00",
+    "fingerprint": "sha256:641e3882cb938f12d28153548bdea69016f0fbc9513ab6ebebdc3fc252d606e9",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "request-validation-422-envelope": {
+    "at": "2026-06-17T02:54:58.714644+00:00",
+    "fingerprint": "sha256:037dfb1892fa0a741e55e47c3fba456e71fc520b1f8ad6738d122426128d1476",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "resend-email-contract": {
+    "at": "2026-06-17T15:40:15.911810+00:00",
+    "fingerprint": "sha256:ef778d02d746c6af8ca9f90d55f27e1f6476fbde2135d65cb52ea807ad2c921c",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "scorecard-router": {
+    "at": "2026-06-17T02:37:27.715015+00:00",
+    "fingerprint": "sha256:02c59a46db7802ece6e235a41b5d8927d72b2c4a9847d49469c58158725756ca",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "scorecard-scan": {
+    "at": "2026-06-17T15:48:55.163090+00:00",
+    "fingerprint": "sha256:6df755ee0b7c676b045575dbe2e041abf85749e18360e1b9e8ba113c57d6be5d",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "signups-create-persists": {
+    "at": "2026-06-17T02:54:58.714644+00:00",
+    "fingerprint": "sha256:0cf2a23bc565411fa02551daf200aa37b542a8ded057c6e735c9e76e59a1e252",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "signups-router": {
+    "at": "2026-06-17T02:37:27.715015+00:00",
+    "fingerprint": "sha256:0cf2a23bc565411fa02551daf200aa37b542a8ded057c6e735c9e76e59a1e252",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "stale-local-heals-from-server": {
+    "at": "2026-06-17T15:37:30.033719+00:00",
+    "fingerprint": "sha256:ce068cb3539df28ccda34ceaaff828f1dfcf32336f47db7a8b508ee2e40f138c",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "statistics-computed": {
+    "at": "2026-06-17T15:48:50.243089+00:00",
+    "fingerprint": "sha256:69a2fd5a28b104f2aaf89cf612f96546debe147bed57b32f401f8dafeb27876b",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "swallowed-outages-are-captured": {
+    "at": "2026-06-17T15:40:14.199706+00:00",
+    "fingerprint": "sha256:636921372dc5fbc6e6b744dbfbc75399014623f051246794f98c43a98490b363",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "team-formation-partitions-roster": {
+    "at": "2026-06-17T02:54:58.714644+00:00",
+    "fingerprint": "sha256:d0eb38f3103796876d4e3e48c3fa78bd20b34c089661a729748abacb29f92aa4",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "team-formation-router": {
+    "at": "2026-06-17T02:37:27.715015+00:00",
+    "fingerprint": "sha256:834e9c3955f121d54b60ad020838a954b00a4d76846a13e0e9ae5f75ce415956",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "tee-sheet-contract": {
+    "at": "2026-06-17T02:54:58.714644+00:00",
+    "fingerprint": "sha256:ad4615c52d605df1d3148914bd268cb797121fbd081dfa3b2d701cb9a1c553db",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "unified-data-aggregation": {
+    "at": "2026-06-17T15:48:56.344023+00:00",
+    "fingerprint": "sha256:8820ead3838c461c2e56c05f6e667fd882446cd758e622ec77b8d72b18bbe123",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "unified-data-router": {
+    "at": "2026-06-17T02:37:27.715015+00:00",
+    "fingerprint": "sha256:63da724f5f3dd06e1985f84fdcf458cb04cc024043b5eba52429dfffd4045fbc",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
+  "wgp-scoring-rules": {
+    "at": "2026-06-17T15:48:40.602231+00:00",
+    "fingerprint": "sha256:786c7bdbf8ce57aaef4e8ad9466020aeb9657b6eed31646c7d8f88e74f31bd3f",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  }
+}
