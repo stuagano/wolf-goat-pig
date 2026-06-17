@@ -85,8 +85,10 @@ decide together what matters:
    sync is finished.
 3. **No welcome / onboarding email.** Players get sign-up and match emails, but nothing
    on account creation — no "welcome to WGP, here's how it works" message.
-4. **No organizer-facing *UI* for roster management.** The add/pending/promote
-   capabilities exist as APIs (§2); there's no admin screen wrapping them yet.
+4. ~~**No organizer-facing *UI* for roster management.**~~ ✅ **Done** — the
+   add/pending/promote capabilities (§2) are now wrapped by an admin screen at
+   `/admin/roster` (linked from the Admin dashboard): list pending sign-ups with
+   Promote/Dismiss actions, plus a form to add a name directly to the roster.
 5. **No magic-link / passwordless email sign-up.** Auth0 redirect is the only entry
    (note: Auth0 itself can be configured for passwordless if we want it).
 
