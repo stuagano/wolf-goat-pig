@@ -4,6 +4,7 @@ error mocks; spies on sentry_sdk.capture_exception."""
 
 import httpx
 import pytest
+import resend
 import respx
 import sentry_sdk
 from sqlalchemy import create_engine
@@ -17,6 +18,7 @@ from app.services.foretees_service import (
     ForeteesService,
 )
 from app.services.ghin_service import GHINService
+from app.services.providers.resend_provider import ResendEmailProvider
 
 TEST_DB = "sqlite:///./test_silent_capture.db"
 _engine = create_engine(TEST_DB, connect_args={"check_same_thread": False})
@@ -101,4 +103,15 @@ async def test_foretees_reports_and_still_returns_false(capture_spy):
     finally:
         await service.close()
     assert ok is False
+    assert len(capture_spy) >= 1
+
+
+def test_resend_reports_and_still_returns_false(capture_spy, monkeypatch):
+    def boom(*a, **k):
+        raise RuntimeError("resend down")
+
+    monkeypatch.setattr(resend.Emails, "send", boom)
+    provider = ResendEmailProvider(api_key="test_key", from_email="from@example.com", from_name="WGP")
+    result = provider.send_email("to@example.com", "subject", "<p>hi</p>")
+    assert result is False
     assert len(capture_spy) >= 1
