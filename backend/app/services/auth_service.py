@@ -4,6 +4,7 @@ Authentication Service for linking Auth0 users to PlayerProfile records
 
 import logging
 import os
+import threading
 from collections.abc import Generator
 from typing import Any
 
@@ -16,7 +17,7 @@ from sqlalchemy.orm import Session
 from ..database import SessionLocal, get_db
 from ..models import EmailPreferences, PlayerProfile
 from ..utils.time import utc_now
-from .legacy_player_service import find_similar_players, get_canonical_name
+from .legacy_player_service import capture_pending_player, find_similar_players, get_canonical_name
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,29 @@ AUTH0_ALGORITHMS = ["RS256"]
 
 # Security scheme for FastAPI
 security = HTTPBearer()
+
+
+def _notify_admins_of_new_player(name: str, email: str | None) -> None:
+    """Best-effort, non-blocking admin alert for a newly captured player.
+
+    Runs the (external, potentially slow) email send on a daemon thread so it
+    can never add latency to or break the first-login path.
+    """
+
+    def _send() -> None:
+        try:
+            from ..utils.admin_auth import get_admin_emails
+            from .email_service import get_email_service
+
+            svc = get_email_service()
+            if not svc.is_configured():
+                return
+            for admin_email in get_admin_emails():
+                svc.send_new_player_notification(admin_email, name, email)
+        except Exception as exc:  # never surface to the login path
+            logger.warning(f"Failed to notify admins of new player '{name}': {exc}")
+
+    threading.Thread(target=_send, daemon=True, name="new-player-notify").start()
 
 
 class AuthService:
@@ -101,11 +125,12 @@ class AuthService:
         player = db.query(PlayerProfile).filter(PlayerProfile.email == email).first()
 
         if not player:
-            # Try to match name to legacy tee sheet system
-            legacy_name = get_canonical_name(name)
+            # Try to match name to legacy tee sheet system (same session as the
+            # profile write so the whole flow is transactionally consistent).
+            legacy_name = get_canonical_name(name, db)
             if not legacy_name:
                 # Try fuzzy matching
-                suggestions = find_similar_players(name, max_results=1)
+                suggestions = find_similar_players(name, max_results=1, db=db)
                 if suggestions:
                     legacy_name = suggestions[0]
                     logger.info(f"Fuzzy matched '{name}' to legacy name '{legacy_name}'")
@@ -142,6 +167,18 @@ class AuthService:
             db.commit()
 
             logger.info(f"Created new player profile for {name} ({email})")
+
+            # No canonical legacy match → capture into the pending queue and
+            # alert admins so the golfer can be added to Jeff's tee-sheet
+            # dropdown (a manual step on the legacy side). Best-effort: never
+            # block account creation if capture/notify fails.
+            if not legacy_name:
+                try:
+                    result = capture_pending_player(name, email=email, player_profile_id=player.id, db=db)
+                    if result.get("captured"):
+                        _notify_admins_of_new_player(name, email)
+                except Exception as exc:
+                    logger.warning(f"Failed to capture pending player '{name}': {exc}")
         else:
             # Update existing player with Auth0 info if needed
             update_needed = False

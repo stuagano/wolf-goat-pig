@@ -723,3 +723,46 @@ class LivSowTeamContent(Base):
     logo_url = Column(String, nullable=True)
     updated_by = Column(String, nullable=True)  # display name of editor
     updated_at = Column(String, nullable=True)
+
+
+class LegacyRosterPlayer(Base):
+    """Canonical roster of player names — the single source of truth for who
+    is a recognized WGP player.
+
+    This table mirrors the fixed dropdown on Jeff Green's legacy tee sheet
+    (thousand-cranes.com/WolfGoatPig), which only accepts signups for names it
+    already knows. Seeded from data/legacy_players.json; an admin adds names
+    here once they exist on the legacy dropdown. All canonical reads
+    (onboarding dropdown, fuzzy matching, validation) come from this table —
+    never from pending captures (see PendingLegacyPlayer).
+    """
+
+    __tablename__ = "legacy_roster"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True)
+    source = Column(String, default="seed")  # "seed" | "admin" | "promoted"
+    added_at = Column(String, nullable=True)
+    notes = Column(String, nullable=True)
+
+
+class PendingLegacyPlayer(Base):
+    """Queue of self-signed-up golfers who have no match on the canonical
+    roster yet.
+
+    Captured (not promoted) when a brand-new player signs up via Auth0 and
+    no canonical name matches. Kept structurally separate from
+    legacy_roster so a pending name can NEVER leak into canonical reads and
+    falsely validate — their signups would silently fail at the legacy CGI
+    until Jeff adds them to his dropdown. An admin promotes a pending row
+    into legacy_roster once that manual step is done.
+    """
+
+    __tablename__ = "pending_legacy_players"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True)
+    email = Column(String, nullable=True, index=True)
+    player_profile_id = Column(Integer, nullable=True, index=True)
+    status = Column(String, default="pending", index=True)  # "pending" | "promoted" | "dismissed"
+    created_at = Column(String)
+    resolved_at = Column(String, nullable=True)
+    notes = Column(String, nullable=True)

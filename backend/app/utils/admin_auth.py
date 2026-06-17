@@ -8,11 +8,16 @@ from fastapi import Header, HTTPException
 _DEFAULT_ADMIN_EMAILS = {"stuagano@gmail.com", "admin@wgp.com"}
 
 
-def _get_admin_emails() -> set[str]:
+def get_admin_emails() -> set[str]:
+    """Return the set of allowed admin emails (env-configured or default)."""
     env = os.getenv("ADMIN_EMAILS")
     if env:
         return {e.strip() for e in env.split(",") if e.strip()}
     return _DEFAULT_ADMIN_EMAILS
+
+
+# Backwards-compatible private alias for existing internal callers.
+_get_admin_emails = get_admin_emails
 
 
 def require_admin(x_admin_email: str | None = Header(None)) -> None:

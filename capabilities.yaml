@@ -462,3 +462,20 @@ capabilities:
     check:
       shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_livsow_transactions.py
         -q -p no:cacheprovider
+  - id: new-player-capture-persists
+    description: a self-signed-up golfer with no canonical match is captured into the
+      pending queue, never reads as canonical while pending, and round-trips to the
+      canonical roster on admin promote
+    given: a new Auth0 signup whose name is not on the canonical legacy roster
+    when: the profile is created and an admin later promotes the captured row
+    then: the player is queued (not canonical), and after promote validates as canonical
+      (write -> readback)
+    tier: cheap
+    deps:
+    - backend/app/services/legacy_player_service.py
+    - backend/app/services/auth_service.py
+    - backend/app/routers/signups.py
+    check:
+      shell: cd backend && venv/bin/python -m pytest tests/unit/services/test_legacy_player_service.py
+        tests/unit/services/test_auth_new_player_capture.py tests/unit/routers/test_legacy_roster_admin.py
+        -q -p no:cacheprovider

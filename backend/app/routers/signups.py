@@ -7,14 +7,20 @@ Legacy player lookup and daily sign-up management.
 import logging
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query
+from pydantic import BaseModel
 
 from .. import database, models, schemas
 from ..services.legacy_player_service import (
+    add_legacy_player,
+    dismiss_pending_player,
     get_legacy_players,
+    list_pending_players,
+    promote_pending_player,
     validate_player_for_legacy,
 )
 from ..services.legacy_signup_service import get_legacy_signup_service
+from ..utils.admin_auth import require_admin
 from ..utils.time import utc_now
 
 logger = logging.getLogger("app.routers.signups")
@@ -53,6 +59,66 @@ def search_legacy_players(q: str = Query(description="Search query for player na
     query_lower = q.lower()
     matches = [p for p in players if query_lower in p.lower()]
     return {"query": q, "count": len(matches), "players": matches}
+
+
+# ── Admin: canonical roster + pending-capture management ─────────────────────
+
+
+class AddLegacyPlayerRequest(BaseModel):
+    name: str
+
+
+@router.post("/legacy-players")
+def admin_add_legacy_player(
+    body: AddLegacyPlayerRequest,
+    x_admin_email: str | None = Header(None),
+):
+    """Add a name to the canonical roster (admin only).
+
+    Use once the player is known to exist on the legacy tee-sheet dropdown.
+    """
+    require_admin(x_admin_email)
+    return add_legacy_player(body.name, source="admin")
+
+
+@router.get("/legacy-players/pending")
+def admin_list_pending_players(
+    status: str = Query("pending", description="pending | promoted | dismissed"),
+    x_admin_email: str | None = Header(None),
+):
+    """List golfers captured at sign-up who have no canonical match yet (admin only)."""
+    require_admin(x_admin_email)
+    players = list_pending_players(status=status)
+    return {"count": len(players), "status": status, "players": players}
+
+
+@router.post("/legacy-players/pending/{pending_id}/promote")
+def admin_promote_pending_player(
+    pending_id: int,
+    x_admin_email: str | None = Header(None),
+):
+    """Promote a pending capture into the canonical roster (admin only).
+
+    Call this once the player has been added to Jeff's legacy dropdown.
+    """
+    require_admin(x_admin_email)
+    result = promote_pending_player(pending_id)
+    if not result.get("promoted"):
+        raise HTTPException(status_code=404, detail=result.get("message", "Cannot promote"))
+    return result
+
+
+@router.post("/legacy-players/pending/{pending_id}/dismiss")
+def admin_dismiss_pending_player(
+    pending_id: int,
+    x_admin_email: str | None = Header(None),
+):
+    """Dismiss a pending capture, e.g. a misspelling of an existing player (admin only)."""
+    require_admin(x_admin_email)
+    result = dismiss_pending_player(pending_id)
+    if not result.get("dismissed"):
+        raise HTTPException(status_code=404, detail=result.get("message", "Cannot dismiss"))
+    return result
 
 
 @router.get("/signups/weekly", response_model=schemas.WeeklySignupView)

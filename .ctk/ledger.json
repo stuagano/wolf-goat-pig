@@ -28,8 +28,8 @@
     "waiver": null
   },
   "api-surface-no-drift": {
-    "at": "2026-06-17T02:54:58.714644+00:00",
-    "fingerprint": "sha256:3c0be64b5fe91bcf4b3eb533ecb37eee64e609f6b097831f7c58c39e876e7704",
+    "at": "2026-06-17T17:53:41.822843+00:00",
+    "fingerprint": "sha256:f8b4e5a05bdf57ea0929081415ddbf4822afca29608d94289157f88eb56ffaee",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -42,8 +42,8 @@
     "waiver": null
   },
   "auth0-contract": {
-    "at": "2026-06-17T02:54:58.714644+00:00",
-    "fingerprint": "sha256:f7e803af895f7c0c522629273d87f5238c82c0d1e006145a6f623fcd255d974b",
+    "at": "2026-06-17T17:53:40.956407+00:00",
+    "fingerprint": "sha256:ddf4fe45cde6d47072a8984e5e40a7ad03dcbd4ed2c2bb99bcc74de76311f334",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -202,6 +202,13 @@
     "tier": "cheap",
     "waiver": null
   },
+  "new-player-capture-persists": {
+    "at": "2026-06-17T18:21:07.150409+00:00",
+    "fingerprint": "sha256:0f8c0780826a7265c9a09a832101d132a2171541f8cb4d1ec321ae61b249a9cc",
+    "result": "pass",
+    "tier": "cheap",
+    "waiver": null
+  },
   "notifications-mark-read-persists": {
     "at": "2026-06-17T02:54:58.714644+00:00",
     "fingerprint": "sha256:d37313c6c8341863a8df9266b6427d7d72d7f8b8b278271704b01747b9c0140b",
@@ -245,15 +252,15 @@
     "waiver": null
   },
   "request-validation-422-envelope": {
-    "at": "2026-06-17T02:54:58.714644+00:00",
-    "fingerprint": "sha256:037dfb1892fa0a741e55e47c3fba456e71fc520b1f8ad6738d122426128d1476",
+    "at": "2026-06-17T17:53:38.447079+00:00",
+    "fingerprint": "sha256:bf8934b2575a216a70b8056b7dc70c6afcd74610278a1bfa8e5aa67479e9e9fd",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
   },
   "resend-email-contract": {
-    "at": "2026-06-17T15:40:15.911810+00:00",
-    "fingerprint": "sha256:ef778d02d746c6af8ca9f90d55f27e1f6476fbde2135d65cb52ea807ad2c921c",
+    "at": "2026-06-17T17:53:40.067461+00:00",
+    "fingerprint": "sha256:a9ff6a80eb83a652238993b8a37329b78b0a5fb90b312c4fa7e647598d37ff3f",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
@@ -273,8 +280,8 @@
     "waiver": null
   },
   "signups-create-persists": {
-    "at": "2026-06-17T02:54:58.714644+00:00",
-    "fingerprint": "sha256:0cf2a23bc565411fa02551daf200aa37b542a8ded057c6e735c9e76e59a1e252",
+    "at": "2026-06-17T17:53:42.859474+00:00",
+    "fingerprint": "sha256:1f85f378f935234beee8b52c7cf239005a5557b26ae464ef883fad75715acdec",
     "result": "pass",
     "tier": "cheap",
     "waiver": null
