@@ -517,6 +517,12 @@ const AdminPage = () => {
           >
             🎲 Foursomes
           </button>
+          <button
+            onClick={() => navigate('/admin/roster')}
+            className="flex-1 px-4 py-2 rounded-md font-medium transition-colors text-gray-600 hover:text-gray-900"
+          >
+            👥 Roster
+          </button>
         </div>
 
         {/* Email Settings Tab */}
