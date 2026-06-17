@@ -39,6 +39,7 @@ const AboutPage = React.lazy(() => import("./pages/AboutPage"));
 const RulesPage = React.lazy(() => import("./pages/RulesPage"));
 const AdminPage = React.lazy(() => import("./pages/AdminPage"));
 const DatabaseMigrations = React.lazy(() => import("./components/admin/DatabaseMigrations"));
+const RosterManager = React.lazy(() => import("./components/admin/RosterManager"));
 const CreateGamePage = React.lazy(() => import("./pages/CreateGamePage"));
 const JoinGamePage = React.lazy(() => import("./pages/JoinGamePage"));
 const GameLobbyPage = React.lazy(() => import("./pages/GameLobbyPage"));
@@ -403,6 +404,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <DatabaseMigrations />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/roster"
+                element={
+                  <ProtectedRoute>
+                    <RosterManager />
                   </ProtectedRoute>
                 }
               />
