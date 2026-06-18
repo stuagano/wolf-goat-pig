@@ -367,7 +367,7 @@ class EmailScheduler:
         finally:
             db.close()
 
-    def _process_pending_sheet_syncs(self):
+    def _process_pending_sheet_syncs(self) -> dict[str, int]:
         """Drain the pending_sheet_syncs queue.
 
         For each pending row:
@@ -380,6 +380,10 @@ class EmailScheduler:
 
         The app records per-hole scores; the legacy sheet stores only round totals.
         player_scores in the queue are expected to be the summed totals.
+
+        Returns a summary dict (pending/written/duplicates/failed counts) so the
+        HTTP drain endpoint can report what it flushed. The in-process scheduler
+        and the startup thread ignore the return value.
         """
         from datetime import UTC
         from datetime import datetime as dt
@@ -387,6 +391,7 @@ class EmailScheduler:
         from ..models import PendingSheetSync
         from .spreadsheet_sync_service import get_spreadsheet_sync_service
 
+        summary = {"pending": 0, "written": 0, "duplicates": 0, "failed": 0}
         db = self._get_db()
         try:
             pending = (
@@ -396,8 +401,9 @@ class EmailScheduler:
                 .all()
             )
             if not pending:
-                return
+                return summary
 
+            summary["pending"] = len(pending)
             logger.info("Processing %d pending sheet sync(s)", len(pending))
             wrote_any = False
 
@@ -411,6 +417,7 @@ class EmailScheduler:
 
                     if action == "duplicate":
                         logger.info("Skipping duplicate round %s group=%s", job.date, job.group)
+                        summary["duplicates"] += 1
                     else:
                         logger.info(
                             "Writing %s round %s group=%s to sheet",
@@ -430,6 +437,7 @@ class EmailScheduler:
                         if not success:
                             raise RuntimeError("sync_completed_game returned False")
                         wrote_any = True
+                        summary["written"] += 1
 
                     job.status = "done"
                     job.processed_at = dt.now(UTC).isoformat()
@@ -441,6 +449,7 @@ class EmailScheduler:
                     job.error = str(exc)
                     job.processed_at = dt.now(UTC).isoformat()
                     db.commit()
+                    summary["failed"] += 1
 
             if wrote_any:
                 logger.info("Sheet writes completed — refreshing legacy_rounds cache")
@@ -450,6 +459,8 @@ class EmailScheduler:
             logger.error("_process_pending_sheet_syncs failed: %s", exc)
         finally:
             db.close()
+
+        return summary
 
     def _dedup_action(self, db, job) -> str:
         """Return 'duplicate', 'update', or 'new' for a PendingSheetSync job.
