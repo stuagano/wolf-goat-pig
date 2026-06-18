@@ -11,6 +11,25 @@ Your Wolf Goat Pig application has full GHIN (Golf Handicap and Information Netw
 
 ---
 
+## Quick Start (5 minutes)
+
+The fast path to working handicap sync. Each step is expanded in the sections below.
+
+1. **Get credentials** — a GHIN.com account (email + password). See [Step 1](#-step-1-get-ghin-api-credentials).
+2. **Set env vars** — add `GHIN_USERNAME` and `GHIN_PASSWORD` in the Render dashboard
+   (Environment tab); the service restarts automatically. Locally, put them in
+   `backend/.env` and restart `uvicorn`. See [Step 2](#-step-2-configure-environment-variables).
+3. **Verify** — open `https://wolf-goat-pig.onrender.com/ghin/diagnostic`; expect
+   `"all_configured": true`. See [Step 3](#-step-3-verify-configuration).
+4. **Add GHIN IDs** — `/admin` → **⛳ GHIN** tab → *Add GHIN ID to Player* (7–8 digit ID). See [Step 4](#-step-4-add-ghin-ids-to-players).
+5. **Sync** — same tab → **Sync All Player Handicaps**. See [Step 5](#-step-5-sync-handicaps).
+6. **Confirm** — the *GHIN-Enhanced Leaderboard* section shows current handicaps. See [Step 6](#-step-6-view-ghin-enhanced-leaderboard).
+
+If the diagnostic shows `false`, double-check the env vars and that the backend
+restarted. Typical weekly use is just step 5 before a Sunday game.
+
+---
+
 ## Quick Access
 
 **Admin Interface:** `/admin` → "⛳ GHIN" tab
@@ -455,13 +474,16 @@ curl https://wolf-goat-pig.onrender.com/leaderboard/ghin-enhanced | \
 
 ### Scheduled Handicap Sync
 
-**Coming Soon:** Automatic daily handicap sync
+Automatic handicap sync runs via GitHub Actions — see
+`.github/workflows/ghin-sync.yml`, which calls the sync endpoint on a schedule.
+(The in-process backend scheduler is not relied on for this; GitHub Actions cron
+is the canonical mechanism for recurring jobs in this repo.)
 
-**Current:** Manual sync via admin UI or cron job
+You can still trigger a sync manually any time from the admin UI, the API
+(`POST /ghin/sync-handicaps`), or an external cron:
 
-**DIY Cron Job:**
 ```bash
-# Add to crontab for weekly sync (Sunday 6 AM)
+# e.g. weekly on Sunday 6 AM
 0 6 * * 0 curl -X POST https://wolf-goat-pig.onrender.com/ghin/sync-handicaps
 ```
 

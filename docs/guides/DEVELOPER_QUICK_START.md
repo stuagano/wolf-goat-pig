@@ -7,11 +7,11 @@
 ## Quick Navigation
 
 - **New to the project?** → Read [Overview](#overview)
-- **Where is class X?** → Check [CLASS_DOCUMENTATION.md](./CLASS_DOCUMENTATION.md)
+- **Where is class X?** → See [architecture.md](../architecture/architecture.md) or grep the codebase
 - **How does the game engine work?** → See [Game Engine Architecture](#game-engine-architecture)
 - **How do I add a feature?** → Read [Common Tasks](#common-tasks)
 - **What's the API structure?** → See [API Patterns](#api-patterns)
-- **What changed recently?** → Check [CONSOLIDATION_PROGRESS.md](./CONSOLIDATION_PROGRESS.md)
+- **What changed recently?** → Check `git log` and the PR history
 
 ---
 
@@ -60,9 +60,6 @@ wolf-goat-pig/
 │   ├── integration/                   # Integration tests
 │   └── e2e/                           # Playwright E2E tests
 └── docs/
-    ├── CLASS_DOCUMENTATION.md         # All classes documented
-    ├── CONSOLIDATION_PROGRESS.md      # Recent changes
-    ├── ARCHITECTURE_STATUS.md         # Current architecture
     └── DEVELOPER_QUICK_START.md       # This file
 ```
 
@@ -598,9 +595,9 @@ SMTP_PORT=587
 
 ```bash
 # .env file
-REACT_APP_API_URL=http://localhost:8000
-REACT_APP_AUTH0_DOMAIN=your-domain.auth0.com
-REACT_APP_AUTH0_CLIENT_ID=your-client-id
+VITE_API_URL=http://localhost:8000
+VITE_AUTH0_DOMAIN=your-domain.auth0.com
+VITE_AUTH0_CLIENT_ID=your-client-id
 ```
 
 ---
@@ -758,9 +755,7 @@ git push origin main                   # Push to remote
 ## Resources
 
 ### Documentation
-- **CLASS_DOCUMENTATION.md** - All classes documented
-- **ARCHITECTURE_STATUS.md** - Current architecture state
-- **CONSOLIDATION_PROGRESS.md** - Recent changes
+- **../architecture/architecture.md** - System architecture (canonical)
 - **API Documentation** - http://localhost:8000/docs (when server running)
 
 ### External Docs
@@ -772,7 +767,7 @@ git push origin main                   # Push to remote
 
 ### Getting Help
 - Check existing tests for examples
-- Search CLASS_DOCUMENTATION.md for class locations
+- Grep the codebase (or see ../architecture/architecture.md) for class locations
 - Review similar existing code
 - Ask team members
 
@@ -785,7 +780,7 @@ git push origin main                   # Push to remote
 # Search for class definition
 grep -rn "^class ClassName" backend/app/
 
-# Or check CLASS_DOCUMENTATION.md
+# Or see ../architecture/architecture.md
 ```
 
 ### Find API Endpoint
@@ -809,9 +804,7 @@ pytest tests/unit/test_file.py::test_name -v -s
 ---
 
 **For more detailed information, see:**
-- [CLASS_DOCUMENTATION.md](./CLASS_DOCUMENTATION.md) - Complete class reference
-- [ARCHITECTURE_STATUS.md](./ARCHITECTURE_STATUS.md) - Architecture details
-- [CONSOLIDATION_PROGRESS.md](./CONSOLIDATION_PROGRESS.md) - Recent changes
+- [architecture.md](../architecture/architecture.md) - System architecture (canonical)
 
 ---
 

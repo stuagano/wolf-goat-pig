@@ -205,8 +205,8 @@ npm run docker:prod
 
 ## Related Documentation
 
-- [`local-deployment-testing.md`](./local-deployment-testing.md) - Comprehensive deployment testing guide
-- [`production-setup.md`](./production-setup.md) - Production deployment guide
+- [`DEPLOYMENT.md`](./DEPLOYMENT.md) - Deployment process, env vars, and local production-build testing
+- [`deployment-troubleshooting.md`](./deployment-troubleshooting.md) - Diagnosing failed/misbehaving deploys
 - [`../../docs/development/AGENTS.md`](../development/AGENTS.md) - Contributor guidelines with testing requirements
 - [`../../README.md`](../../README.md) - Main documentation with all commands
 
